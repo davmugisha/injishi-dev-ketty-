@@ -2184,11 +2184,14 @@ export declare const PsfReport: z.ZodObject<{
         expiringIn60Days: z.ZodNumber;
         expiringIn90Days: z.ZodNumber;
         lapsed: z.ZodNumber;
+        /** Membership numbers typed at registration, waiting for PSF to confirm (0121). */
+        claimsWaiting: z.ZodDefault<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         lapsed: number;
         members: number;
         waiting: number;
         overdue: number;
+        claimsWaiting: number;
         awaitingPayment: number;
         expiringIn30Days: number;
         expiringIn60Days: number;
@@ -2202,6 +2205,7 @@ export declare const PsfReport: z.ZodObject<{
         expiringIn30Days: number;
         expiringIn60Days: number;
         expiringIn90Days: number;
+        claimsWaiting?: number | undefined;
     }>;
     /**
      * Injishi registrations in the region (2026-10-30): where each business stands right now, and the
@@ -2725,6 +2729,7 @@ export declare const PsfReport: z.ZodObject<{
         members: number;
         waiting: number;
         overdue: number;
+        claimsWaiting: number;
         awaitingPayment: number;
         expiringIn30Days: number;
         expiringIn60Days: number;
@@ -2885,6 +2890,7 @@ export declare const PsfReport: z.ZodObject<{
         expiringIn30Days: number;
         expiringIn60Days: number;
         expiringIn90Days: number;
+        claimsWaiting?: number | undefined;
     };
     economy: {
         bookings: {
@@ -2994,8 +3000,8 @@ export declare const PsfDecisionItem: z.ZodObject<{
     businessName: string;
     docId: string | null;
     feeRwf: number | null;
-    paid: boolean;
     decidedByName: string | null;
+    paid: boolean;
     outcome: "approved" | "declined";
     declineReasonLabel: string | null;
     daysToDecide: number | null;
@@ -3009,8 +3015,8 @@ export declare const PsfDecisionItem: z.ZodObject<{
     businessName: string;
     docId: string | null;
     feeRwf: number | null;
-    paid: boolean;
     decidedByName: string | null;
+    paid: boolean;
     outcome: "approved" | "declined";
     declineReasonLabel: string | null;
     daysToDecide: number | null;
@@ -3049,8 +3055,8 @@ export declare const PsfDecisionsPage: z.ZodObject<{
         businessName: string;
         docId: string | null;
         feeRwf: number | null;
-        paid: boolean;
         decidedByName: string | null;
+        paid: boolean;
         outcome: "approved" | "declined";
         declineReasonLabel: string | null;
         daysToDecide: number | null;
@@ -3064,8 +3070,8 @@ export declare const PsfDecisionsPage: z.ZodObject<{
         businessName: string;
         docId: string | null;
         feeRwf: number | null;
-        paid: boolean;
         decidedByName: string | null;
+        paid: boolean;
         outcome: "approved" | "declined";
         declineReasonLabel: string | null;
         daysToDecide: number | null;
@@ -3086,8 +3092,8 @@ export declare const PsfDecisionsPage: z.ZodObject<{
         businessName: string;
         docId: string | null;
         feeRwf: number | null;
-        paid: boolean;
         decidedByName: string | null;
+        paid: boolean;
         outcome: "approved" | "declined";
         declineReasonLabel: string | null;
         daysToDecide: number | null;
@@ -3104,8 +3110,8 @@ export declare const PsfDecisionsPage: z.ZodObject<{
         businessName: string;
         docId: string | null;
         feeRwf: number | null;
-        paid: boolean;
         decidedByName: string | null;
+        paid: boolean;
         outcome: "approved" | "declined";
         declineReasonLabel: string | null;
         daysToDecide: number | null;
@@ -3315,7 +3321,7 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         registrationKind: z.ZodNullable<z.ZodEnum<["tin", "rca", "rgb", "other", "none"]>>;
         hasTin: z.ZodBoolean;
         registeredAt: z.ZodString;
-        standing: z.ZodEnum<["not_applied", "applied", "awaiting_payment", "member", "lapsed", "declined"]>;
+        standing: z.ZodEnum<["not_applied", "claimed", "applied", "awaiting_payment", "member", "lapsed", "declined"]>;
         tierName: z.ZodNullable<z.ZodString>;
         membershipNumber: z.ZodNullable<z.ZodString>;
         expiresOn: z.ZodNullable<z.ZodString>;
@@ -3343,7 +3349,7 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         associationName: string | null;
         paidRwf: number;
         headOfficeInScope: boolean;
-        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed";
+        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
@@ -3366,7 +3372,7 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         membershipNumber: string | null;
         clusterName: string | null;
         associationName: string | null;
-        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed";
+        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
@@ -3573,7 +3579,7 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         associationName: string | null;
         paidRwf: number;
         headOfficeInScope: boolean;
-        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed";
+        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
@@ -3643,7 +3649,7 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         membershipNumber: string | null;
         clusterName: string | null;
         associationName: string | null;
-        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed";
+        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;

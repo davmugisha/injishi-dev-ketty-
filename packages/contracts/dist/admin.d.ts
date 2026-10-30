@@ -1206,7 +1206,7 @@ export declare const AdminOrgDetail: z.ZodObject<{
     psf: z.ZodDefault<z.ZodNullable<z.ZodObject<{
         membership: z.ZodNullable<z.ZodObject<{
             id: z.ZodString;
-            source: z.ZodEnum<["psf_confirmed", "self_declared"]>;
+            source: z.ZodEnum<["psf_confirmed", "self_declared", "psf_record"]>;
             tierCode: z.ZodNullable<z.ZodString>;
             tierName: z.ZodNullable<z.ZodString>;
             membershipNumber: z.ZodString;
@@ -1218,7 +1218,7 @@ export declare const AdminOrgDetail: z.ZodObject<{
             id: string;
             expiresOn: string | null;
             annualFeeRwf: number | null;
-            source: "psf_confirmed" | "self_declared";
+            source: "psf_confirmed" | "self_declared" | "psf_record";
             tierCode: string | null;
             tierName: string | null;
             membershipNumber: string;
@@ -1228,7 +1228,7 @@ export declare const AdminOrgDetail: z.ZodObject<{
             id: string;
             expiresOn: string | null;
             annualFeeRwf: number | null;
-            source: "psf_confirmed" | "self_declared";
+            source: "psf_confirmed" | "self_declared" | "psf_record";
             tierCode: string | null;
             tierName: string | null;
             membershipNumber: string;
@@ -1396,7 +1396,7 @@ export declare const AdminOrgDetail: z.ZodObject<{
             id: string;
             expiresOn: string | null;
             annualFeeRwf: number | null;
-            source: "psf_confirmed" | "self_declared";
+            source: "psf_confirmed" | "self_declared" | "psf_record";
             tierCode: string | null;
             tierName: string | null;
             membershipNumber: string;
@@ -1435,7 +1435,7 @@ export declare const AdminOrgDetail: z.ZodObject<{
             id: string;
             expiresOn: string | null;
             annualFeeRwf: number | null;
-            source: "psf_confirmed" | "self_declared";
+            source: "psf_confirmed" | "self_declared" | "psf_record";
             tierCode: string | null;
             tierName: string | null;
             membershipNumber: string;
@@ -1502,7 +1502,7 @@ export declare const AdminOrgDetail: z.ZodObject<{
             id: string;
             expiresOn: string | null;
             annualFeeRwf: number | null;
-            source: "psf_confirmed" | "self_declared";
+            source: "psf_confirmed" | "self_declared" | "psf_record";
             tierCode: string | null;
             tierName: string | null;
             membershipNumber: string;
@@ -1569,7 +1569,7 @@ export declare const AdminOrgDetail: z.ZodObject<{
             id: string;
             expiresOn: string | null;
             annualFeeRwf: number | null;
-            source: "psf_confirmed" | "self_declared";
+            source: "psf_confirmed" | "self_declared" | "psf_record";
             tierCode: string | null;
             tierName: string | null;
             membershipNumber: string;

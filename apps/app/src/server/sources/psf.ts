@@ -1,4 +1,9 @@
-import type { OversightDocumentList, PsfBusinessDetail, PsfRegistrationProfile } from "@injishi/contracts";
+import type {
+  OversightDocumentList,
+  PsfBusinessDetail,
+  PsfClaimsPage,
+  PsfRegistrationProfile,
+} from "@injishi/contracts";
 import type { SourceContext } from "./types";
 
 /**
@@ -290,4 +295,18 @@ export async function readRegistrationDocuments(
   } catch {
     return null;
   }
+}
+
+/** Membership numbers businesses typed, in the officer's region (0121), with PSF's list size. */
+export function readPsfClaims(
+  ctx: SourceContext,
+  status?: "claimed" | "confirmed" | "rejected",
+): Promise<PsfClaimsPage> {
+  return ctx.api.get<PsfClaimsPage>(`/api/v1/oversight/psf/claims${status ? `?status=${status}` : ""}`);
+}
+
+/** PSF's tiers, for the confirm form: the active ones, in PSF's order. */
+export async function readPsfTiers(ctx: SourceContext): Promise<{ code: string; nameEn: string }[]> {
+  const tiers = await ctx.api.get<{ code: string; nameEn: string; active?: boolean }[]>("/api/v1/psf/tiers");
+  return tiers.filter((t) => t.active !== false).map((t) => ({ code: t.code, nameEn: t.nameEn }));
 }

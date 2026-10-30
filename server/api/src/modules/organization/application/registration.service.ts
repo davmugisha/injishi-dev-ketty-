@@ -24,7 +24,9 @@ import {
   entityGroupForKind,
   hospitalityKindOf,
   isVenueKind,
+  looksLikePsfNumber,
   missingRegistrationDocument,
+  normalizePsfNumber,
   OVERSIGHT_OWN_BUSINESS_MESSAGE,
   districtScopeOf,
   scopeCoversDistrict,
@@ -319,6 +321,23 @@ export class RegistrationService {
   }
 
   /**
+   * A membership number a business typed (0121): it must read like one ("PSF-" alone does not), and it
+   * must not be another business's current membership on Injishi. Whether it is real is PSF's to
+   * confirm; until then it is a claim.
+   */
+  private async assertPsfNumber(raw: string | null): Promise<void> {
+    if (raw === null) return;
+    const path = ['business', 'psfMembershipNumber'];
+    const fail = (message: string) => {
+      throw new UnprocessableEntityException({ message: 'Validation failed', issues: [{ code: 'custom', path, message }] });
+    };
+    if (!looksLikePsfNumber(raw)) fail('Type your full PSF membership number, as it is printed on your certificate.');
+    if (await this.psf.numberHeldByAnotherBusiness(normalizePsfNumber(raw))) {
+      fail('That PSF number belongs to another business on Injishi. Check it, or contact your PSF district office.');
+    }
+  }
+
+  /**
    * What the company register says, held against the request (ADR-060): the
    * legal name must be the register's, and when the register lists directors
    * an OWNER must be one of them, and an on behalf registration must name one
@@ -508,6 +527,7 @@ export class RegistrationService {
     // certificate one this registrant uploaded. Last of the checks, so a request refused for something else is
     // refused for that.
     await this.assertDocuments(businessKind, b.certificates, registrantUserId);
+    await this.assertPsfNumber(b.domain === 'hospitality' && b.psfMember ? (b.psfMembershipNumber ?? null) : null);
 
     try {
       const created = await this.orgs.createRegistration({
@@ -537,8 +557,8 @@ export class RegistrationService {
         // ADR-056: the application a No carries, and the number a Yes carries.
         psfApplication,
         psfMembershipNumber:
-          b.domain === 'hospitality' && b.psfMember
-            ? (b.psfMembershipNumber ?? null)
+          b.domain === 'hospitality' && b.psfMember && b.psfMembershipNumber
+            ? normalizePsfNumber(b.psfMembershipNumber)
             : null,
         eacStarGrade:
           b.domain === 'hospitality' ? (b.eacStarGrade ?? null) : null,

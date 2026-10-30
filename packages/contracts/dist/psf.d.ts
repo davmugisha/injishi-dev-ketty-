@@ -44,7 +44,8 @@ export declare const PsfSubmittedCapacity: z.ZodEnum<["owner", "on_behalf_of"]>;
 export type PsfSubmittedCapacity = z.infer<typeof PsfSubmittedCapacity>;
 export declare const PsfDeclineReason: z.ZodEnum<["details_incomplete", "not_eligible_for_tier", "business_not_recognised", "other"]>;
 export type PsfDeclineReason = z.infer<typeof PsfDeclineReason>;
-export declare const PsfMembershipSource: z.ZodEnum<["psf_confirmed", "self_declared"]>;
+/** `psf_record`: a claimed number PSF confirmed against its own records (0121), with no application. */
+export declare const PsfMembershipSource: z.ZodEnum<["psf_confirmed", "self_declared", "psf_record"]>;
 export type PsfMembershipSource = z.infer<typeof PsfMembershipSource>;
 /**
  * Where an open application stands, as the business reads it. Derived on the
@@ -791,7 +792,7 @@ export declare const CreatePsfAssociationRequest: z.ZodObject<{
 export type CreatePsfAssociationRequest = z.infer<typeof CreatePsfAssociationRequest>;
 export declare const PsfMembership: z.ZodObject<{
     id: z.ZodString;
-    source: z.ZodEnum<["psf_confirmed", "self_declared"]>;
+    source: z.ZodEnum<["psf_confirmed", "self_declared", "psf_record"]>;
     tierCode: z.ZodNullable<z.ZodString>;
     tierName: z.ZodNullable<z.ZodString>;
     membershipNumber: z.ZodString;
@@ -803,7 +804,7 @@ export declare const PsfMembership: z.ZodObject<{
     id: string;
     expiresOn: string | null;
     annualFeeRwf: number | null;
-    source: "psf_confirmed" | "self_declared";
+    source: "psf_confirmed" | "self_declared" | "psf_record";
     tierCode: string | null;
     tierName: string | null;
     membershipNumber: string;
@@ -813,7 +814,7 @@ export declare const PsfMembership: z.ZodObject<{
     id: string;
     expiresOn: string | null;
     annualFeeRwf: number | null;
-    source: "psf_confirmed" | "self_declared";
+    source: "psf_confirmed" | "self_declared" | "psf_record";
     tierCode: string | null;
     tierName: string | null;
     membershipNumber: string;
@@ -1261,7 +1262,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
     }>;
     current: z.ZodNullable<z.ZodObject<{
         id: z.ZodString;
-        source: z.ZodEnum<["psf_confirmed", "self_declared"]>;
+        source: z.ZodEnum<["psf_confirmed", "self_declared", "psf_record"]>;
         tierCode: z.ZodNullable<z.ZodString>;
         tierName: z.ZodNullable<z.ZodString>;
         membershipNumber: z.ZodString;
@@ -1273,7 +1274,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         id: string;
         expiresOn: string | null;
         annualFeeRwf: number | null;
-        source: "psf_confirmed" | "self_declared";
+        source: "psf_confirmed" | "self_declared" | "psf_record";
         tierCode: string | null;
         tierName: string | null;
         membershipNumber: string;
@@ -1283,7 +1284,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         id: string;
         expiresOn: string | null;
         annualFeeRwf: number | null;
-        source: "psf_confirmed" | "self_declared";
+        source: "psf_confirmed" | "self_declared" | "psf_record";
         tierCode: string | null;
         tierName: string | null;
         membershipNumber: string;
@@ -1792,7 +1793,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         id: string;
         expiresOn: string | null;
         annualFeeRwf: number | null;
-        source: "psf_confirmed" | "self_declared";
+        source: "psf_confirmed" | "self_declared" | "psf_record";
         tierCode: string | null;
         tierName: string | null;
         membershipNumber: string;
@@ -1939,7 +1940,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         id: string;
         expiresOn: string | null;
         annualFeeRwf: number | null;
-        source: "psf_confirmed" | "self_declared";
+        source: "psf_confirmed" | "self_declared" | "psf_record";
         tierCode: string | null;
         tierName: string | null;
         membershipNumber: string;
@@ -2244,7 +2245,7 @@ export type AdminPsfApplication = z.infer<typeof AdminPsfApplication>;
 export declare const AdminOrgPsf: z.ZodObject<{
     membership: z.ZodNullable<z.ZodObject<{
         id: z.ZodString;
-        source: z.ZodEnum<["psf_confirmed", "self_declared"]>;
+        source: z.ZodEnum<["psf_confirmed", "self_declared", "psf_record"]>;
         tierCode: z.ZodNullable<z.ZodString>;
         tierName: z.ZodNullable<z.ZodString>;
         membershipNumber: z.ZodString;
@@ -2256,7 +2257,7 @@ export declare const AdminOrgPsf: z.ZodObject<{
         id: string;
         expiresOn: string | null;
         annualFeeRwf: number | null;
-        source: "psf_confirmed" | "self_declared";
+        source: "psf_confirmed" | "self_declared" | "psf_record";
         tierCode: string | null;
         tierName: string | null;
         membershipNumber: string;
@@ -2266,7 +2267,7 @@ export declare const AdminOrgPsf: z.ZodObject<{
         id: string;
         expiresOn: string | null;
         annualFeeRwf: number | null;
-        source: "psf_confirmed" | "self_declared";
+        source: "psf_confirmed" | "self_declared" | "psf_record";
         tierCode: string | null;
         tierName: string | null;
         membershipNumber: string;
@@ -2441,7 +2442,7 @@ export declare const AdminOrgPsf: z.ZodObject<{
         id: string;
         expiresOn: string | null;
         annualFeeRwf: number | null;
-        source: "psf_confirmed" | "self_declared";
+        source: "psf_confirmed" | "self_declared" | "psf_record";
         tierCode: string | null;
         tierName: string | null;
         membershipNumber: string;
@@ -2480,7 +2481,7 @@ export declare const AdminOrgPsf: z.ZodObject<{
         id: string;
         expiresOn: string | null;
         annualFeeRwf: number | null;
-        source: "psf_confirmed" | "self_declared";
+        source: "psf_confirmed" | "self_declared" | "psf_record";
         tierCode: string | null;
         tierName: string | null;
         membershipNumber: string;
@@ -3394,13 +3395,14 @@ export type PsfDeclineRequest = z.infer<typeof PsfDeclineRequest>;
  * Derived from its applications and memberships, never stored:
  *
  *   not_applied        registered, never applied (or only withdrew)
+ *   claimed            typed a membership number PSF has not confirmed yet (0121)
  *   applied            an application waits on PSF
  *   awaiting_payment   approved, the fee not yet paid
  *   member             a current membership
  *   lapsed             a membership that ended, and none current
  *   declined           the last application was declined, none open
  */
-export declare const PsfStanding: z.ZodEnum<["not_applied", "applied", "awaiting_payment", "member", "lapsed", "declined"]>;
+export declare const PsfStanding: z.ZodEnum<["not_applied", "claimed", "applied", "awaiting_payment", "member", "lapsed", "declined"]>;
 export type PsfStanding = z.infer<typeof PsfStanding>;
 export declare const PSF_STANDING_LABEL: Readonly<Record<PsfStanding, string>>;
 /** The registers a business may be listed under: the PSF path, a hotel, or both. */
@@ -3419,7 +3421,7 @@ export declare const PsfBusinessesQuery: z.ZodObject<{
     cluster: z.ZodOptional<z.ZodString>;
     association: z.ZodOptional<z.ZodString>;
     tier: z.ZodOptional<z.ZodString>;
-    standing: z.ZodOptional<z.ZodEnum<["not_applied", "applied", "awaiting_payment", "member", "lapsed", "declined"]>>;
+    standing: z.ZodOptional<z.ZodEnum<["not_applied", "claimed", "applied", "awaiting_payment", "member", "lapsed", "declined"]>>;
     group: z.ZodOptional<z.ZodEnum<["women", "youth", "pwd"]>>;
     tin: z.ZodOptional<z.ZodEnum<["with", "without"]>>;
     kind: z.ZodOptional<z.ZodEnum<["enterprise", "hospitality"]>>;
@@ -3435,7 +3437,7 @@ export declare const PsfBusinessesQuery: z.ZodObject<{
     cluster?: string | undefined;
     association?: string | undefined;
     tier?: string | undefined;
-    standing?: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed" | undefined;
+    standing?: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed" | undefined;
     group?: "women" | "youth" | "pwd" | undefined;
 }, {
     province?: number | undefined;
@@ -3448,7 +3450,7 @@ export declare const PsfBusinessesQuery: z.ZodObject<{
     cluster?: string | undefined;
     association?: string | undefined;
     tier?: string | undefined;
-    standing?: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed" | undefined;
+    standing?: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed" | undefined;
     group?: "women" | "youth" | "pwd" | undefined;
 }>;
 export type PsfBusinessesQuery = z.infer<typeof PsfBusinessesQuery>;
@@ -3469,7 +3471,7 @@ export declare const PsfBusinessRow: z.ZodObject<{
     registrationKind: z.ZodNullable<z.ZodEnum<["tin", "rca", "rgb", "other", "none"]>>;
     hasTin: z.ZodBoolean;
     registeredAt: z.ZodString;
-    standing: z.ZodEnum<["not_applied", "applied", "awaiting_payment", "member", "lapsed", "declined"]>;
+    standing: z.ZodEnum<["not_applied", "claimed", "applied", "awaiting_payment", "member", "lapsed", "declined"]>;
     tierName: z.ZodNullable<z.ZodString>;
     membershipNumber: z.ZodNullable<z.ZodString>;
     expiresOn: z.ZodNullable<z.ZodString>;
@@ -3504,7 +3506,7 @@ export declare const PsfBusinessRow: z.ZodObject<{
     associationName: string | null;
     paidRwf: number;
     headOfficeInScope: boolean;
-    standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed";
+    standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed";
     associationAcronym: string | null;
     hasTin: boolean;
     registeredAt: string;
@@ -3527,7 +3529,7 @@ export declare const PsfBusinessRow: z.ZodObject<{
     membershipNumber: string | null;
     clusterName: string | null;
     associationName: string | null;
-    standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed";
+    standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed";
     associationAcronym: string | null;
     hasTin: boolean;
     registeredAt: string;
@@ -3591,7 +3593,7 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         registrationKind: z.ZodNullable<z.ZodEnum<["tin", "rca", "rgb", "other", "none"]>>;
         hasTin: z.ZodBoolean;
         registeredAt: z.ZodString;
-        standing: z.ZodEnum<["not_applied", "applied", "awaiting_payment", "member", "lapsed", "declined"]>;
+        standing: z.ZodEnum<["not_applied", "claimed", "applied", "awaiting_payment", "member", "lapsed", "declined"]>;
         tierName: z.ZodNullable<z.ZodString>;
         membershipNumber: z.ZodNullable<z.ZodString>;
         expiresOn: z.ZodNullable<z.ZodString>;
@@ -3626,7 +3628,7 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         associationName: string | null;
         paidRwf: number;
         headOfficeInScope: boolean;
-        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed";
+        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
@@ -3649,7 +3651,7 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         membershipNumber: string | null;
         clusterName: string | null;
         associationName: string | null;
-        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed";
+        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
@@ -3683,7 +3685,7 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         associationName: string | null;
         paidRwf: number;
         headOfficeInScope: boolean;
-        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed";
+        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
@@ -3710,7 +3712,7 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         membershipNumber: string | null;
         clusterName: string | null;
         associationName: string | null;
-        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed";
+        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
@@ -3731,13 +3733,13 @@ export declare const PsfCount: z.ZodObject<{
     label: z.ZodString;
     count: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
+    count: number;
     key: string;
     label: string;
-    count: number;
 }, {
+    count: number;
     key: string;
     label: string;
-    count: number;
 }>;
 export type PsfCount = z.infer<typeof PsfCount>;
 /**
@@ -3757,39 +3759,39 @@ export declare const PsfRegisterSummary: z.ZodObject<{
         label: z.ZodString;
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
+        count: number;
         key: string;
         label: string;
-        count: number;
     }, {
+        count: number;
         key: string;
         label: string;
-        count: number;
     }>, "many">;
     byStanding: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
+        count: number;
         key: string;
         label: string;
-        count: number;
     }, {
+        count: number;
         key: string;
         label: string;
-        count: number;
     }>, "many">;
     byGroup: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
+        count: number;
         key: string;
         label: string;
-        count: number;
     }, {
+        count: number;
         key: string;
         label: string;
-        count: number;
     }>, "many">;
     byDistrict: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
@@ -3798,14 +3800,14 @@ export declare const PsfRegisterSummary: z.ZodObject<{
     } & {
         letters: z.ZodString;
     }, "strip", z.ZodTypeAny, {
+        count: number;
         key: string;
         label: string;
-        count: number;
         letters: string;
     }, {
+        count: number;
         key: string;
         label: string;
-        count: number;
         letters: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -3815,24 +3817,24 @@ export declare const PsfRegisterSummary: z.ZodObject<{
     waiting: number;
     paidThisYearRwf: number;
     byCluster: {
+        count: number;
         key: string;
         label: string;
-        count: number;
     }[];
     byStanding: {
+        count: number;
         key: string;
         label: string;
-        count: number;
     }[];
     byGroup: {
+        count: number;
         key: string;
         label: string;
-        count: number;
     }[];
     byDistrict: {
+        count: number;
         key: string;
         label: string;
-        count: number;
         letters: string;
     }[];
 }, {
@@ -3842,24 +3844,24 @@ export declare const PsfRegisterSummary: z.ZodObject<{
     waiting: number;
     paidThisYearRwf: number;
     byCluster: {
+        count: number;
         key: string;
         label: string;
-        count: number;
     }[];
     byStanding: {
+        count: number;
         key: string;
         label: string;
-        count: number;
     }[];
     byGroup: {
+        count: number;
         key: string;
         label: string;
-        count: number;
     }[];
     byDistrict: {
+        count: number;
         key: string;
         label: string;
-        count: number;
         letters: string;
     }[];
 }>;
@@ -4309,4 +4311,396 @@ export type UpdatePsfFormFieldRequest = z.infer<typeof UpdatePsfFormFieldRequest
  */
 export declare const PsfFormAnswers: z.ZodRecord<z.ZodString, z.ZodUnion<[z.ZodString, z.ZodNumber, z.ZodBoolean, z.ZodNull]>>;
 export type PsfFormAnswers = z.infer<typeof PsfFormAnswers>;
+/** A typed membership number is a claim until PSF confirms it. */
+export declare const PsfClaimStatus: z.ZodEnum<["claimed", "confirmed", "rejected"]>;
+export type PsfClaimStatus = z.infer<typeof PsfClaimStatus>;
+/** A number as a business typed it: trimmed, upper case, inner spaces collapsed. */
+export declare function normalizePsfNumber(raw: string): string;
+/**
+ * Whether a typed number could be a membership number at all: letters, digits and the separators PSF
+ * prints (`/`, `-`, a space), at least four characters, and at least two digits. It refuses "PSF-" and
+ * other half-typed values; it cannot tell a real number from a made-up one, which is PSF's to confirm.
+ */
+export declare function looksLikePsfNumber(raw: string): boolean;
+/** One claim, for the PSF District Manager deciding it. */
+export declare const PsfMembershipClaim: z.ZodObject<{
+    id: z.ZodString;
+    orgId: z.ZodString;
+    legalName: z.ZodString;
+    businessCode: z.ZodNullable<z.ZodString>;
+    tin: z.ZodNullable<z.ZodString>;
+    districtName: z.ZodNullable<z.ZodString>;
+    membershipNumber: z.ZodString;
+    status: z.ZodEnum<["claimed", "confirmed", "rejected"]>;
+    claimedAt: z.ZodString;
+    claimedByName: z.ZodNullable<z.ZodString>;
+    decidedAt: z.ZodNullable<z.ZodString>;
+    decidedByName: z.ZodNullable<z.ZodString>;
+    decisionNote: z.ZodNullable<z.ZodString>;
+    matchedBy: z.ZodNullable<z.ZodEnum<["member_list", "officer"]>>;
+    /** What PSF's own list says about this number, when it holds it. */
+    listed: z.ZodNullable<z.ZodObject<{
+        legalName: z.ZodNullable<z.ZodString>;
+        tin: z.ZodNullable<z.ZodString>;
+        tierCode: z.ZodNullable<z.ZodString>;
+        expiresOn: z.ZodNullable<z.ZodString>;
+        tinMatches: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        expiresOn: string | null;
+        tin: string | null;
+        legalName: string | null;
+        tierCode: string | null;
+        tinMatches: boolean;
+    }, {
+        expiresOn: string | null;
+        tin: string | null;
+        legalName: string | null;
+        tierCode: string | null;
+        tinMatches: boolean;
+    }>>;
+}, "strip", z.ZodTypeAny, {
+    status: "rejected" | "confirmed" | "claimed";
+    id: string;
+    districtName: string | null;
+    tin: string | null;
+    legalName: string;
+    decidedAt: string | null;
+    orgId: string;
+    businessCode: string | null;
+    membershipNumber: string;
+    decisionNote: string | null;
+    claimedAt: string;
+    claimedByName: string | null;
+    decidedByName: string | null;
+    matchedBy: "member_list" | "officer" | null;
+    listed: {
+        expiresOn: string | null;
+        tin: string | null;
+        legalName: string | null;
+        tierCode: string | null;
+        tinMatches: boolean;
+    } | null;
+}, {
+    status: "rejected" | "confirmed" | "claimed";
+    id: string;
+    districtName: string | null;
+    tin: string | null;
+    legalName: string;
+    decidedAt: string | null;
+    orgId: string;
+    businessCode: string | null;
+    membershipNumber: string;
+    decisionNote: string | null;
+    claimedAt: string;
+    claimedByName: string | null;
+    decidedByName: string | null;
+    matchedBy: "member_list" | "officer" | null;
+    listed: {
+        expiresOn: string | null;
+        tin: string | null;
+        legalName: string | null;
+        tierCode: string | null;
+        tinMatches: boolean;
+    } | null;
+}>;
+export type PsfMembershipClaim = z.infer<typeof PsfMembershipClaim>;
+export declare const PsfClaimsQuery: z.ZodObject<{
+    status: z.ZodOptional<z.ZodEnum<["claimed", "confirmed", "rejected"]>>;
+}, "strip", z.ZodTypeAny, {
+    status?: "rejected" | "confirmed" | "claimed" | undefined;
+}, {
+    status?: "rejected" | "confirmed" | "claimed" | undefined;
+}>;
+export type PsfClaimsQuery = z.infer<typeof PsfClaimsQuery>;
+export declare const PsfClaimsPage: z.ZodObject<{
+    items: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        orgId: z.ZodString;
+        legalName: z.ZodString;
+        businessCode: z.ZodNullable<z.ZodString>;
+        tin: z.ZodNullable<z.ZodString>;
+        districtName: z.ZodNullable<z.ZodString>;
+        membershipNumber: z.ZodString;
+        status: z.ZodEnum<["claimed", "confirmed", "rejected"]>;
+        claimedAt: z.ZodString;
+        claimedByName: z.ZodNullable<z.ZodString>;
+        decidedAt: z.ZodNullable<z.ZodString>;
+        decidedByName: z.ZodNullable<z.ZodString>;
+        decisionNote: z.ZodNullable<z.ZodString>;
+        matchedBy: z.ZodNullable<z.ZodEnum<["member_list", "officer"]>>;
+        /** What PSF's own list says about this number, when it holds it. */
+        listed: z.ZodNullable<z.ZodObject<{
+            legalName: z.ZodNullable<z.ZodString>;
+            tin: z.ZodNullable<z.ZodString>;
+            tierCode: z.ZodNullable<z.ZodString>;
+            expiresOn: z.ZodNullable<z.ZodString>;
+            tinMatches: z.ZodBoolean;
+        }, "strip", z.ZodTypeAny, {
+            expiresOn: string | null;
+            tin: string | null;
+            legalName: string | null;
+            tierCode: string | null;
+            tinMatches: boolean;
+        }, {
+            expiresOn: string | null;
+            tin: string | null;
+            legalName: string | null;
+            tierCode: string | null;
+            tinMatches: boolean;
+        }>>;
+    }, "strip", z.ZodTypeAny, {
+        status: "rejected" | "confirmed" | "claimed";
+        id: string;
+        districtName: string | null;
+        tin: string | null;
+        legalName: string;
+        decidedAt: string | null;
+        orgId: string;
+        businessCode: string | null;
+        membershipNumber: string;
+        decisionNote: string | null;
+        claimedAt: string;
+        claimedByName: string | null;
+        decidedByName: string | null;
+        matchedBy: "member_list" | "officer" | null;
+        listed: {
+            expiresOn: string | null;
+            tin: string | null;
+            legalName: string | null;
+            tierCode: string | null;
+            tinMatches: boolean;
+        } | null;
+    }, {
+        status: "rejected" | "confirmed" | "claimed";
+        id: string;
+        districtName: string | null;
+        tin: string | null;
+        legalName: string;
+        decidedAt: string | null;
+        orgId: string;
+        businessCode: string | null;
+        membershipNumber: string;
+        decisionNote: string | null;
+        claimedAt: string;
+        claimedByName: string | null;
+        decidedByName: string | null;
+        matchedBy: "member_list" | "officer" | null;
+        listed: {
+            expiresOn: string | null;
+            tin: string | null;
+            legalName: string | null;
+            tierCode: string | null;
+            tinMatches: boolean;
+        } | null;
+    }>, "many">;
+    counts: z.ZodObject<{
+        claimed: z.ZodNumber;
+        confirmed: z.ZodNumber;
+        rejected: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        rejected: number;
+        confirmed: number;
+        claimed: number;
+    }, {
+        rejected: number;
+        confirmed: number;
+        claimed: number;
+    }>;
+    list: z.ZodObject<{
+        rows: z.ZodNumber;
+        uploadedAt: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        rows: number;
+        uploadedAt: string | null;
+    }, {
+        rows: number;
+        uploadedAt: string | null;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    items: {
+        status: "rejected" | "confirmed" | "claimed";
+        id: string;
+        districtName: string | null;
+        tin: string | null;
+        legalName: string;
+        decidedAt: string | null;
+        orgId: string;
+        businessCode: string | null;
+        membershipNumber: string;
+        decisionNote: string | null;
+        claimedAt: string;
+        claimedByName: string | null;
+        decidedByName: string | null;
+        matchedBy: "member_list" | "officer" | null;
+        listed: {
+            expiresOn: string | null;
+            tin: string | null;
+            legalName: string | null;
+            tierCode: string | null;
+            tinMatches: boolean;
+        } | null;
+    }[];
+    counts: {
+        rejected: number;
+        confirmed: number;
+        claimed: number;
+    };
+    list: {
+        rows: number;
+        uploadedAt: string | null;
+    };
+}, {
+    items: {
+        status: "rejected" | "confirmed" | "claimed";
+        id: string;
+        districtName: string | null;
+        tin: string | null;
+        legalName: string;
+        decidedAt: string | null;
+        orgId: string;
+        businessCode: string | null;
+        membershipNumber: string;
+        decisionNote: string | null;
+        claimedAt: string;
+        claimedByName: string | null;
+        decidedByName: string | null;
+        matchedBy: "member_list" | "officer" | null;
+        listed: {
+            expiresOn: string | null;
+            tin: string | null;
+            legalName: string | null;
+            tierCode: string | null;
+            tinMatches: boolean;
+        } | null;
+    }[];
+    counts: {
+        rejected: number;
+        confirmed: number;
+        claimed: number;
+    };
+    list: {
+        rows: number;
+        uploadedAt: string | null;
+    };
+}>;
+export type PsfClaimsPage = z.infer<typeof PsfClaimsPage>;
+/** Confirm a claim: the tier and the dates PSF's records give. */
+export declare const ConfirmPsfClaimRequest: z.ZodEffects<z.ZodObject<{
+    tierCode: z.ZodString;
+    startsOn: z.ZodString;
+    expiresOn: z.ZodString;
+    note: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    expiresOn: string;
+    tierCode: string;
+    startsOn: string;
+    note?: string | undefined;
+}, {
+    expiresOn: string;
+    tierCode: string;
+    startsOn: string;
+    note?: string | undefined;
+}>, {
+    expiresOn: string;
+    tierCode: string;
+    startsOn: string;
+    note?: string | undefined;
+}, {
+    expiresOn: string;
+    tierCode: string;
+    startsOn: string;
+    note?: string | undefined;
+}>;
+export type ConfirmPsfClaimRequest = z.infer<typeof ConfirmPsfClaimRequest>;
+/** Reject a claim, with the reason the business is told. */
+export declare const RejectPsfClaimRequest: z.ZodObject<{
+    reason: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    reason: string;
+}, {
+    reason: string;
+}>;
+export type RejectPsfClaimRequest = z.infer<typeof RejectPsfClaimRequest>;
+/** PSF's member list, as rows read from its spreadsheet. A number already listed is replaced. */
+export declare const PsfMemberListRow: z.ZodObject<{
+    membershipNumber: z.ZodString;
+    legalName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    tin: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    tierCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    startsOn: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    expiresOn: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+}, "strip", z.ZodTypeAny, {
+    membershipNumber: string;
+    expiresOn?: string | null | undefined;
+    tin?: string | null | undefined;
+    legalName?: string | null | undefined;
+    tierCode?: string | null | undefined;
+    startsOn?: string | null | undefined;
+}, {
+    membershipNumber: string;
+    expiresOn?: string | null | undefined;
+    tin?: string | null | undefined;
+    legalName?: string | null | undefined;
+    tierCode?: string | null | undefined;
+    startsOn?: string | null | undefined;
+}>;
+export type PsfMemberListRow = z.infer<typeof PsfMemberListRow>;
+export declare const UploadPsfMemberListRequest: z.ZodObject<{
+    rows: z.ZodArray<z.ZodObject<{
+        membershipNumber: z.ZodString;
+        legalName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        tin: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        tierCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        startsOn: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        expiresOn: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    }, "strip", z.ZodTypeAny, {
+        membershipNumber: string;
+        expiresOn?: string | null | undefined;
+        tin?: string | null | undefined;
+        legalName?: string | null | undefined;
+        tierCode?: string | null | undefined;
+        startsOn?: string | null | undefined;
+    }, {
+        membershipNumber: string;
+        expiresOn?: string | null | undefined;
+        tin?: string | null | undefined;
+        legalName?: string | null | undefined;
+        tierCode?: string | null | undefined;
+        startsOn?: string | null | undefined;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    rows: {
+        membershipNumber: string;
+        expiresOn?: string | null | undefined;
+        tin?: string | null | undefined;
+        legalName?: string | null | undefined;
+        tierCode?: string | null | undefined;
+        startsOn?: string | null | undefined;
+    }[];
+}, {
+    rows: {
+        membershipNumber: string;
+        expiresOn?: string | null | undefined;
+        tin?: string | null | undefined;
+        legalName?: string | null | undefined;
+        tierCode?: string | null | undefined;
+        startsOn?: string | null | undefined;
+    }[];
+}>;
+export type UploadPsfMemberListRequest = z.infer<typeof UploadPsfMemberListRequest>;
+/** What an upload did: rows kept, and the claims it confirmed on the way. */
+export declare const PsfMemberListResult: z.ZodObject<{
+    rows: z.ZodNumber;
+    confirmedClaims: z.ZodNumber;
+    skipped: z.ZodArray<z.ZodString, "many">;
+}, "strip", z.ZodTypeAny, {
+    rows: number;
+    confirmedClaims: number;
+    skipped: string[];
+}, {
+    rows: number;
+    confirmedClaims: number;
+    skipped: string[];
+}>;
+export type PsfMemberListResult = z.infer<typeof PsfMemberListResult>;
 //# sourceMappingURL=psf.d.ts.map

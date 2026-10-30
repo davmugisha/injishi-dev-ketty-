@@ -5,6 +5,7 @@ import {
   FranchiseDeclaration,
   IntendedOwner,
   PersonalDetails,
+  looksLikePsfNumber,
   PsfApplicationInput,
   type BrokerRegistrationSummary,
   type BusinessKind,
@@ -770,7 +771,9 @@ export default function RegisterWizard({
   const documentOnFile = onFile ? `${onFile.label}, ${onFile.source === "checked" ? "the one checked" : "on your account"}` : null;
   const psfReady =
     path === "landlord" ||
-    business.psfMember !== false ||
+    (business.psfMember === true
+      ? !business.psfMembershipNumber.trim() || looksLikePsfNumber(business.psfMembershipNumber)
+      : business.psfMember !== false) ||
     business.psfApply !== true ||
     PsfApplicationInput.safeParse(psfCandidate(psf, documentOnFile !== null)).success;
   // The rows Documents asks for, by the kind the org will carry (ADR-075 S5).

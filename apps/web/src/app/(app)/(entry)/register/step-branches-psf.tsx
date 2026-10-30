@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MAX_REGISTRATION_BRANCHES, type PsfTier } from "@injishi/contracts";
+import { looksLikePsfNumber, MAX_REGISTRATION_BRANCHES, type PsfTier } from "@injishi/contracts";
 import { Button } from "@injishi/web-ui";
 import { GitBranch, Plus, Trash2 } from "lucide-react";
 
@@ -189,8 +189,13 @@ export function StepBranchesPsf({
           <div className="max-w-form">
             <Field
               label="PSF membership number"
-              hint="PSF's officer sees this as your claim. Injishi does not check it."
-              error={errors["business.psfMembershipNumber"]}
+              hint="As it is on your PSF card. PSF confirms it against its member list; until then your business shows as claimed, not a member."
+              error={
+                errors["business.psfMembershipNumber"] ??
+                (business.psfMembershipNumber.trim().length > 3 && !looksLikePsfNumber(business.psfMembershipNumber)
+                  ? "That does not look like a PSF membership number. Type it in full, as on your card."
+                  : undefined)
+              }
             >
               <TextInput
                 className="w-full tabular-nums"

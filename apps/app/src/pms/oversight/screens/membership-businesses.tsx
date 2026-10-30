@@ -51,6 +51,7 @@ export const STANDING_INTENT: Record<PsfStanding, "ok" | "warn" | "info" | "bad"
   member: "ok",
   awaiting_payment: "warn",
   applied: "info",
+  claimed: "info",
   declined: "bad",
   lapsed: "neutral",
   not_applied: "neutral",

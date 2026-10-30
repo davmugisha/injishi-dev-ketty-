@@ -1524,4 +1524,6 @@ export const psfDeclineReasonEnum = pgEnum('psf_decline_reason', [
 export const psfMembershipSourceEnum = pgEnum('psf_membership_source', [
   'psf_confirmed',
   'self_declared',
+  // A claimed number PSF confirmed against its own records (0121): a tier and dates, no application.
+  'psf_record',
 ]);

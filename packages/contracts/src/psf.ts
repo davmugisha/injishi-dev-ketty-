@@ -53,7 +53,8 @@ export const PsfDeclineReason = z.enum([
     "other",
 ]);
 export type PsfDeclineReason = z.infer<typeof PsfDeclineReason>;
-export const PsfMembershipSource = z.enum(["psf_confirmed", "self_declared"]);
+/** `psf_record`: a claimed number PSF confirmed against its own records (0121), with no application. */
+export const PsfMembershipSource = z.enum(["psf_confirmed", "self_declared", "psf_record"]);
 export type PsfMembershipSource = z.infer<typeof PsfMembershipSource>;
 /**
  * Where an open application stands, as the business reads it. Derived on the
@@ -160,6 +161,7 @@ export const PSF_DECLINE_REASON_LABEL: Readonly<Record<PsfDeclineReason, string>
 export const PSF_MEMBERSHIP_SOURCE_LABEL: Readonly<Record<PsfMembershipSource, string>> = {
     psf_confirmed: "Confirmed by PSF",
     self_declared: "Declared at registration",
+    psf_record: "Confirmed from PSF's records",
 };
 export const PSF_COMPANY_TYPE_LABEL: Readonly<Record<PsfCompanyType, string>> = {
     cooperative: "Cooperative",
@@ -775,16 +777,18 @@ export type PsfDeclineRequest = z.infer<typeof PsfDeclineRequest>;
  * Derived from its applications and memberships, never stored:
  *
  *   not_applied        registered, never applied (or only withdrew)
+ *   claimed            typed a membership number PSF has not confirmed yet (0121)
  *   applied            an application waits on PSF
  *   awaiting_payment   approved, the fee not yet paid
  *   member             a current membership
  *   lapsed             a membership that ended, and none current
  *   declined           the last application was declined, none open
  */
-export const PsfStanding = z.enum(["not_applied", "applied", "awaiting_payment", "member", "lapsed", "declined"]);
+export const PsfStanding = z.enum(["not_applied", "claimed", "applied", "awaiting_payment", "member", "lapsed", "declined"]);
 export type PsfStanding = z.infer<typeof PsfStanding>;
 export const PSF_STANDING_LABEL: Readonly<Record<PsfStanding, string>> = {
     not_applied: "Not applied",
+    claimed: "Claimed, waiting for PSF",
     applied: "Applied",
     awaiting_payment: "Approved, to pay",
     member: "Member",
@@ -1035,3 +1039,83 @@ export type UpdatePsfFormFieldRequest = z.infer<typeof UpdatePsfFormFieldRequest
  */
 export const PsfFormAnswers = z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]));
 export type PsfFormAnswers = z.infer<typeof PsfFormAnswers>;
+
+// ---------------------------------------------------------------------------
+// Membership claims (0121, 2026-10-30)
+// ---------------------------------------------------------------------------
+/** A typed membership number is a claim until PSF confirms it. */
+export const PsfClaimStatus = z.enum(["claimed", "confirmed", "rejected"]);
+export type PsfClaimStatus = z.infer<typeof PsfClaimStatus>;
+/** A number as a business typed it: trimmed, upper case, inner spaces collapsed. */
+export function normalizePsfNumber(raw: string): string {
+    return raw.trim().toUpperCase().replace(/\s+/g, " ");
+}
+/**
+ * Whether a typed number could be a membership number at all: letters, digits and the separators PSF
+ * prints (`/`, `-`, a space), at least four characters, and at least two digits. It refuses "PSF-" and
+ * other half-typed values; it cannot tell a real number from a made-up one, which is PSF's to confirm.
+ */
+export function looksLikePsfNumber(raw: string): boolean {
+    const n = normalizePsfNumber(raw);
+    return n.length >= 4 && n.length <= 40 && /^[A-Z0-9][A-Z0-9/ -]*[A-Z0-9]$/.test(n) && (n.match(/\d/g)?.length ?? 0) >= 2;
+}
+/** One claim, for the PSF District Manager deciding it. */
+export const PsfMembershipClaim = z.object({
+    id: z.string(),
+    orgId: z.string(),
+    legalName: z.string(),
+    businessCode: z.string().nullable(),
+    tin: z.string().nullable(),
+    districtName: z.string().nullable(),
+    membershipNumber: z.string(),
+    status: PsfClaimStatus,
+    claimedAt: z.string(),
+    claimedByName: z.string().nullable(),
+    decidedAt: z.string().nullable(),
+    decidedByName: z.string().nullable(),
+    decisionNote: z.string().nullable(),
+    matchedBy: z.enum(["member_list", "officer"]).nullable(),
+    /** What PSF's own list says about this number, when it holds it. */
+    listed: z
+        .object({
+            legalName: z.string().nullable(),
+            tin: z.string().nullable(),
+            tierCode: z.string().nullable(),
+            expiresOn: z.string().nullable(),
+            tinMatches: z.boolean(),
+        })
+        .nullable(),
+});
+export type PsfMembershipClaim = z.infer<typeof PsfMembershipClaim>;
+export const PsfClaimsQuery = z.object({ status: PsfClaimStatus.optional() });
+export type PsfClaimsQuery = z.infer<typeof PsfClaimsQuery>;
+export const PsfClaimsPage = z.object({
+    items: z.array(PsfMembershipClaim),
+    counts: z.object({ claimed: z.number().int(), confirmed: z.number().int(), rejected: z.number().int() }),
+    list: z.object({ rows: z.number().int(), uploadedAt: z.string().nullable() }),
+});
+export type PsfClaimsPage = z.infer<typeof PsfClaimsPage>;
+const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use yyyy-mm-dd.");
+/** Confirm a claim: the tier and the dates PSF's records give. */
+export const ConfirmPsfClaimRequest = z
+    .object({ tierCode: z.string().min(1), startsOn: isoDay, expiresOn: isoDay, note: z.string().trim().max(500).optional() })
+    .refine((v) => v.expiresOn > v.startsOn, { path: ["expiresOn"], message: "The membership ends after it starts." });
+export type ConfirmPsfClaimRequest = z.infer<typeof ConfirmPsfClaimRequest>;
+/** Reject a claim, with the reason the business is told. */
+export const RejectPsfClaimRequest = z.object({ reason: z.string().trim().min(3, "Say why, for the business.").max(500) });
+export type RejectPsfClaimRequest = z.infer<typeof RejectPsfClaimRequest>;
+/** PSF's member list, as rows read from its spreadsheet. A number already listed is replaced. */
+export const PsfMemberListRow = z.object({
+    membershipNumber: z.string().trim().min(1).max(60),
+    legalName: z.string().trim().max(200).nullable().optional(),
+    tin: z.string().trim().max(20).nullable().optional(),
+    tierCode: z.string().trim().max(60).nullable().optional(),
+    startsOn: isoDay.nullable().optional(),
+    expiresOn: isoDay.nullable().optional(),
+});
+export type PsfMemberListRow = z.infer<typeof PsfMemberListRow>;
+export const UploadPsfMemberListRequest = z.object({ rows: z.array(PsfMemberListRow).min(1).max(20000) });
+export type UploadPsfMemberListRequest = z.infer<typeof UploadPsfMemberListRequest>;
+/** What an upload did: rows kept, and the claims it confirmed on the way. */
+export const PsfMemberListResult = z.object({ rows: z.number().int(), confirmedClaims: z.number().int(), skipped: z.array(z.string()) });
+export type PsfMemberListResult = z.infer<typeof PsfMemberListResult>;

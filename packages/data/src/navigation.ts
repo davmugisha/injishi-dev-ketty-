@@ -811,6 +811,7 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
       label: "To do",
       items: [
         { id: "apps", label: "Membership applications", icon: "FileText", board: "PsfConsole" },
+        { id: "claims", label: "Membership claims", icon: "CircleCheck", board: "PsfClaims" },
         { id: "registrations", label: "Business approvals", icon: "ShieldCheck", board: "OfficerHome" },
       ],
     },

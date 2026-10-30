@@ -26,6 +26,8 @@ import {
   psfClusters,
   psfMembershipApplications,
   psfMembershipFormFields,
+  psfMemberList,
+  psfMembershipClaims,
   psfMembershipTiers,
   psfMemberships,
   psfSubsectorAssociations,
@@ -145,11 +147,88 @@ export async function insertPsfApplication(
 }
 
 /** A self declared membership, written with a Yes and a number (AC-7). */
-export async function insertSelfDeclaredMembership(
+/**
+ * A membership number typed at registration (0121, 2026-10-30): a CLAIM, never a membership, until PSF
+ * confirms it. When PSF's own list holds the number with this business's TIN, and gives a tier and dates,
+ * it is confirmed here, in the registration's transaction, as a `psf_record` membership. Anything else
+ * waits for a PSF District Manager.
+ */
+export async function fileMembershipClaim(
   tx: Tx | Database,
-  row: { orgId: string; membershipNumber: string; recordedByUserId: string },
-): Promise<void> {
-  await tx.insert(psfMemberships).values({ ...row, source: 'self_declared' });
+  row: { orgId: string; membershipNumber: string; tin: string | null; claimedByUserId: string },
+): Promise<{ confirmed: boolean }> {
+  const [claim] = await tx
+    .insert(psfMembershipClaims)
+    .values({ orgId: row.orgId, membershipNumber: row.membershipNumber, claimedByUserId: row.claimedByUserId })
+    .returning({ id: psfMembershipClaims.id });
+  if (!claim || !row.tin) return { confirmed: false };
+  const [listed] = await tx
+    .select()
+    .from(psfMemberList)
+    .where(eq(psfMemberList.membershipNumber, row.membershipNumber))
+    .limit(1);
+  if (!listed || listed.tin !== row.tin || !listed.tierCode || !listed.startsOn || !listed.expiresOn) {
+    return { confirmed: false };
+  }
+  await confirmClaimRow(tx, {
+    claimId: claim.id,
+    orgId: row.orgId,
+    membershipNumber: row.membershipNumber,
+    tierCode: listed.tierCode,
+    startsOn: listed.startsOn,
+    expiresOn: listed.expiresOn,
+    decidedByUserId: listed.uploadedByUserId,
+    matchedBy: 'member_list',
+    note: null,
+  });
+  return { confirmed: true };
+}
+
+/** Confirm one open claim: write its `psf_record` membership and close the claim on it. */
+async function confirmClaimRow(
+  tx: Tx | Database,
+  c: {
+    claimId: string;
+    orgId: string;
+    membershipNumber: string;
+    tierCode: string;
+    startsOn: string;
+    expiresOn: string;
+    decidedByUserId: string;
+    matchedBy: 'member_list' | 'officer';
+    note: string | null;
+  },
+): Promise<string> {
+  // A business has one current membership: an older one ends as this one begins.
+  await tx
+    .update(psfMemberships)
+    .set({ endedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(psfMemberships.orgId, c.orgId), isNull(psfMemberships.endedAt)));
+  const [membership] = await tx
+    .insert(psfMemberships)
+    .values({
+      orgId: c.orgId,
+      source: 'psf_record',
+      tierCode: c.tierCode,
+      membershipNumber: c.membershipNumber,
+      startsOn: c.startsOn,
+      expiresOn: c.expiresOn,
+      recordedByUserId: c.decidedByUserId,
+    })
+    .returning({ id: psfMemberships.id });
+  await tx
+    .update(psfMembershipClaims)
+    .set({
+      status: 'confirmed',
+      decidedByUserId: c.decidedByUserId,
+      decidedAt: new Date(),
+      decisionNote: c.note,
+      matchedBy: c.matchedBy,
+      membershipId: membership?.id ?? null,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(psfMembershipClaims.id, c.claimId), eq(psfMembershipClaims.status, 'claimed')));
+  return membership?.id ?? '';
 }
 
 /** What the applicant rule, the prefill and PSF's view read about a business. */
@@ -386,6 +465,8 @@ const STANDING_SQL = sql<PsfStanding>`(CASE
                 WHERE a.org_id = ${ORG_ID} AND a.status = 'approved') THEN 'awaiting_payment'
   WHEN EXISTS (SELECT 1 FROM ${psfMembershipApplications} a
                 WHERE a.org_id = ${ORG_ID} AND a.status = 'submitted') THEN 'applied'
+  WHEN EXISTS (SELECT 1 FROM ${psfMembershipClaims} c
+                WHERE c.org_id = ${ORG_ID} AND c.status = 'claimed') THEN 'claimed'
   WHEN EXISTS (SELECT 1 FROM ${psfMemberships} m WHERE m.org_id = ${ORG_ID}) THEN 'lapsed'
   WHEN (SELECT a.status FROM ${psfMembershipApplications} a
          WHERE a.org_id = ${ORG_ID} AND a.status <> 'withdrawn'
@@ -440,6 +521,154 @@ const OPEN_APPLICATION = sql`(SELECT a.id FROM ${psfMembershipApplications} a
 @Injectable()
 export class PsfMembershipRepository {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+
+  // ── Membership claims (0121) ───────────────────────────────────────────────────────────────────────
+
+  /** The business holding this number as its current membership, if any. */
+  async currentHolderOf(membershipNumber: string): Promise<string | null> {
+    const [row] = await this.db
+      .select({ orgId: psfMemberships.orgId })
+      .from(psfMemberships)
+      .where(and(eq(psfMemberships.membershipNumber, membershipNumber), isNull(psfMemberships.endedAt)))
+      .limit(1);
+    return row?.orgId ?? null;
+  }
+
+  /** Claims in a region, newest first, with what PSF's own list says about each number. */
+  async claims(scope: PsfScope, status: 'claimed' | 'confirmed' | 'rejected' | undefined) {
+    const claimer = alias(users, 'claimer');
+    const decider = alias(users, 'decider');
+    const rows = await this.db
+      .select({
+        id: psfMembershipClaims.id,
+        orgId: psfMembershipClaims.orgId,
+        legalName: orgs.legalName,
+        businessCode: orgs.businessCode,
+        tin: orgs.tin,
+        districtName: districts.name,
+        membershipNumber: psfMembershipClaims.membershipNumber,
+        status: psfMembershipClaims.status,
+        claimedAt: psfMembershipClaims.claimedAt,
+        claimedByName: claimer.name,
+        decidedAt: psfMembershipClaims.decidedAt,
+        decidedByName: decider.name,
+        decisionNote: psfMembershipClaims.decisionNote,
+        matchedBy: psfMembershipClaims.matchedBy,
+        listedName: psfMemberList.legalName,
+        listedTin: psfMemberList.tin,
+        listedTier: psfMemberList.tierCode,
+        listedExpires: psfMemberList.expiresOn,
+        listedNumber: psfMemberList.membershipNumber,
+      })
+      .from(psfMembershipClaims)
+      .innerJoin(orgs, eq(orgs.id, psfMembershipClaims.orgId))
+      .leftJoin(districts, eq(districts.id, orgs.districtId))
+      .leftJoin(claimer, eq(claimer.id, psfMembershipClaims.claimedByUserId))
+      .leftJoin(decider, eq(decider.id, psfMembershipClaims.decidedByUserId))
+      .leftJoin(psfMemberList, eq(psfMemberList.membershipNumber, psfMembershipClaims.membershipNumber))
+      .where(and(inScope(scope), status ? eq(psfMembershipClaims.status, status) : undefined))
+      .orderBy(desc(psfMembershipClaims.claimedAt))
+      .limit(500);
+    const counts = await this.db
+      .select({ status: psfMembershipClaims.status, n: sql<number>`count(*)::int` })
+      .from(psfMembershipClaims)
+      .innerJoin(orgs, eq(orgs.id, psfMembershipClaims.orgId))
+      .where(inScope(scope))
+      .groupBy(psfMembershipClaims.status);
+    return { rows, counts };
+  }
+
+  /** One claim with its business's district, for the scope check before a decision. */
+  async claim(id: string) {
+    const [row] = await this.db
+      .select({
+        id: psfMembershipClaims.id,
+        orgId: psfMembershipClaims.orgId,
+        membershipNumber: psfMembershipClaims.membershipNumber,
+        status: psfMembershipClaims.status,
+        districtId: orgs.districtId,
+      })
+      .from(psfMembershipClaims)
+      .innerJoin(orgs, eq(orgs.id, psfMembershipClaims.orgId))
+      .where(eq(psfMembershipClaims.id, id))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async confirmClaim(c: Parameters<typeof confirmClaimRow>[1]): Promise<void> {
+    await this.db.transaction((tx) => confirmClaimRow(tx, c).then(() => undefined));
+  }
+
+  async rejectClaim(id: string, decidedByUserId: string, reason: string): Promise<boolean> {
+    const done = await this.db
+      .update(psfMembershipClaims)
+      .set({ status: 'rejected', decidedByUserId, decidedAt: new Date(), decisionNote: reason, matchedBy: 'officer', updatedAt: new Date() })
+      .where(and(eq(psfMembershipClaims.id, id), eq(psfMembershipClaims.status, 'claimed')))
+      .returning({ id: psfMembershipClaims.id });
+    return done.length > 0;
+  }
+
+  /** PSF's own list: rows replaced by number. */
+  async upsertMemberList(
+    rows: { membershipNumber: string; legalName: string | null; tin: string | null; tierCode: string | null; startsOn: string | null; expiresOn: string | null }[],
+    uploadedByUserId: string,
+  ): Promise<void> {
+    for (let i = 0; i < rows.length; i += 500) {
+      const chunk = rows.slice(i, i + 500).map((r) => ({ ...r, uploadedByUserId, uploadedAt: new Date() }));
+      await this.db
+        .insert(psfMemberList)
+        .values(chunk)
+        .onConflictDoUpdate({
+          target: psfMemberList.membershipNumber,
+          set: {
+            legalName: sql`excluded.legal_name`,
+            tin: sql`excluded.tin`,
+            tierCode: sql`excluded.tier_code`,
+            startsOn: sql`excluded.starts_on`,
+            expiresOn: sql`excluded.expires_on`,
+            uploadedByUserId: sql`excluded.uploaded_by_user_id`,
+            uploadedAt: sql`excluded.uploaded_at`,
+          },
+        });
+    }
+  }
+
+  /** Open claims PSF's list now confirms: number and TIN match, and the row has a tier and dates. */
+  async claimsTheListConfirms() {
+    return this.db
+      .select({
+        claimId: psfMembershipClaims.id,
+        orgId: psfMembershipClaims.orgId,
+        membershipNumber: psfMembershipClaims.membershipNumber,
+        tierCode: psfMemberList.tierCode,
+        startsOn: psfMemberList.startsOn,
+        expiresOn: psfMemberList.expiresOn,
+        uploadedByUserId: psfMemberList.uploadedByUserId,
+      })
+      .from(psfMembershipClaims)
+      .innerJoin(orgs, eq(orgs.id, psfMembershipClaims.orgId))
+      .innerJoin(psfMemberList, eq(psfMemberList.membershipNumber, psfMembershipClaims.membershipNumber))
+      .where(
+        and(
+          eq(psfMembershipClaims.status, 'claimed'),
+          sql`${psfMemberList.tin} = ${orgs.tin}`,
+          sql`${psfMemberList.tierCode} IS NOT NULL AND ${psfMemberList.startsOn} IS NOT NULL AND ${psfMemberList.expiresOn} IS NOT NULL`,
+        ),
+      );
+  }
+
+  async memberListSummary(): Promise<{ rows: number; uploadedAt: Date | null }> {
+    const [r] = await this.db
+      .select({ n: sql<number>`count(*)::int`, at: sql<Date | null>`max(${psfMemberList.uploadedAt})` })
+      .from(psfMemberList);
+    return { rows: r?.n ?? 0, uploadedAt: r?.at ? new Date(r.at) : null };
+  }
+
+  /** Tier codes PSF uses, for checking a list's rows. */
+  async tierCodes(): Promise<string[]> {
+    const rows = await this.db.select({ code: psfMembershipTiers.code }).from(psfMembershipTiers);
+    return rows.map((r) => r.code);
+  }
 
   // --- Reads about a business ------------------------------------------------
 

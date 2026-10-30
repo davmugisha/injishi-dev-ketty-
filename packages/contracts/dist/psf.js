@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PsfApplicationPrefill = exports.PsfApplication = exports.PsfPayment = exports.PsfFiledForm = exports.PsfMembership = exports.CreatePsfAssociationRequest = exports.UpsertPsfAssociationRequest = exports.CreatePsfClusterRequest = exports.UpsertPsfClusterRequest = exports.PsfCatalogue = exports.PsfCluster = exports.PsfSubsector = exports.PsfAssociation = exports.UpdatePsfTierRequest = exports.CreatePsfTierRequest = exports.PsfTier = exports.OVERSIGHT_ROLE_POSTING = exports.PSF_OUT_OF_SCOPE_MESSAGE = exports.PSF_NOT_FOR_RESIDENCE_MESSAGE = exports.PSF_DISTRICT_DECIDES_MESSAGE = exports.PSF_OWN_BUSINESS_MESSAGE = exports.PSF_NOT_PAYABLE_MESSAGE = exports.PSF_NOT_OPEN_MESSAGE = exports.PSF_OPEN_APPLICATION_MESSAGE = exports.PSF_FEE_NOTICE = exports.REGISTRATION_TYPE_SHORT = exports.ENTERPRISE_REGISTRATION_KIND_LABEL = exports.PSF_OWNER_GROUP_SHORT = exports.PSF_OWNER_GROUP_LABEL = exports.PSF_CONTACT_ROLE_LABEL = exports.PSF_TRADE_DIRECTION_LABEL = exports.PSF_OWNERSHIP_LABEL = exports.PSF_COMPANY_TYPE_LABEL = exports.PSF_MEMBERSHIP_SOURCE_LABEL = exports.PSF_DECLINE_REASON_LABEL = exports.PSF_APPLICATION_STAGE_LABEL = exports.PSF_APPLICATION_STATUS_LABEL = exports.PSF_OFFERED_FAMILIES = exports.PSF_FAMILY_BLURB = exports.PSF_FAMILY_LABEL = exports.PSF_DOMAINS = exports.PSF_QUEUE_REGISTRATION_STATES = exports.PsfApplicationStage = exports.PsfMembershipSource = exports.PsfDeclineReason = exports.PsfSubmittedCapacity = exports.PSF_OPEN_APPLICATION_STATUSES = exports.PsfApplicationStatus = exports.PsfPriceKind = exports.PsfMembershipFamily = void 0;
-exports.PsfFormAnswers = exports.UpdatePsfFormFieldRequest = exports.CreatePsfFormFieldRequest = exports.PsfFormFieldsOfficerView = exports.PsfFormFieldsPublic = exports.PsfFormField = exports.PsfFormFieldOption = exports.PsfFormFieldKey = exports.PsfFormFieldType = exports.UpdatePsfSubsectorRequest = exports.CreatePsfSubsectorRequest = exports.PsfSubsectorsView = exports.PsfRegisterSummary = exports.PsfCount = exports.PsfBusinessesPage = exports.PsfBusinessBranch = exports.PsfBusinessRow = exports.PsfBusinessesQuery = exports.PsfBusinessKind = exports.PSF_STANDING_LABEL = exports.PsfStanding = exports.PsfDeclineRequest = exports.PsfApproveRequest = exports.PsfOfficerApplication = exports.PsfQueueQuery = exports.PsfQueuePage = exports.PsfQueueItem = exports.PsfBranchDecisionRequest = exports.PsfApplicationBranch = exports.PSF_BRANCH_STATUS_LABEL = exports.PsfBranchStatus = exports.PayPsfMembershipRequest = exports.CreatePsfApplicationRequest = exports.AdminOrgPsf = exports.AdminPsfApplication = exports.PsfMembershipOverview = exports.PsfBusinessProfile = void 0;
+exports.PsfMemberListResult = exports.UploadPsfMemberListRequest = exports.PsfMemberListRow = exports.RejectPsfClaimRequest = exports.ConfirmPsfClaimRequest = exports.PsfClaimsPage = exports.PsfClaimsQuery = exports.PsfMembershipClaim = exports.PsfClaimStatus = exports.PsfFormAnswers = exports.UpdatePsfFormFieldRequest = exports.CreatePsfFormFieldRequest = exports.PsfFormFieldsOfficerView = exports.PsfFormFieldsPublic = exports.PsfFormField = exports.PsfFormFieldOption = exports.PsfFormFieldKey = exports.PsfFormFieldType = exports.UpdatePsfSubsectorRequest = exports.CreatePsfSubsectorRequest = exports.PsfSubsectorsView = exports.PsfRegisterSummary = exports.PsfCount = exports.PsfBusinessesPage = exports.PsfBusinessBranch = exports.PsfBusinessRow = exports.PsfBusinessesQuery = exports.PsfBusinessKind = exports.PSF_STANDING_LABEL = exports.PsfStanding = exports.PsfDeclineRequest = exports.PsfApproveRequest = exports.PsfOfficerApplication = exports.PsfQueueQuery = exports.PsfQueuePage = exports.PsfQueueItem = exports.PsfBranchDecisionRequest = exports.PsfApplicationBranch = exports.PSF_BRANCH_STATUS_LABEL = exports.PsfBranchStatus = exports.PayPsfMembershipRequest = exports.CreatePsfApplicationRequest = exports.AdminOrgPsf = exports.AdminPsfApplication = exports.PsfMembershipOverview = exports.PsfBusinessProfile = void 0;
 exports.isInPsfQueueState = isInPsfQueueState;
 exports.isPsfApplicant = isPsfApplicant;
 exports.psfTierAcceptsFee = psfTierAcceptsFee;
@@ -10,6 +10,8 @@ exports.psfStartingFee = psfStartingFee;
 exports.defaultPsfMembershipDates = defaultPsfMembershipDates;
 exports.psfBusinessActivityFor = psfBusinessActivityFor;
 exports.splitPsfName = splitPsfName;
+exports.normalizePsfNumber = normalizePsfNumber;
+exports.looksLikePsfNumber = looksLikePsfNumber;
 const zod_1 = require("zod");
 const primitives_1 = require("./primitives");
 const rdb_1 = require("./rdb");
@@ -60,7 +62,8 @@ exports.PsfDeclineReason = zod_1.z.enum([
     "business_not_recognised",
     "other",
 ]);
-exports.PsfMembershipSource = zod_1.z.enum(["psf_confirmed", "self_declared"]);
+/** `psf_record`: a claimed number PSF confirmed against its own records (0121), with no application. */
+exports.PsfMembershipSource = zod_1.z.enum(["psf_confirmed", "self_declared", "psf_record"]);
 /**
  * Where an open application stands, as the business reads it. Derived on the
  * server from the application and the business's registration status
@@ -153,6 +156,7 @@ exports.PSF_DECLINE_REASON_LABEL = {
 exports.PSF_MEMBERSHIP_SOURCE_LABEL = {
     psf_confirmed: "Confirmed by PSF",
     self_declared: "Declared at registration",
+    psf_record: "Confirmed from PSF's records",
 };
 exports.PSF_COMPANY_TYPE_LABEL = {
     cooperative: "Cooperative",
@@ -721,15 +725,17 @@ exports.PsfDeclineRequest = zod_1.z
  * Derived from its applications and memberships, never stored:
  *
  *   not_applied        registered, never applied (or only withdrew)
+ *   claimed            typed a membership number PSF has not confirmed yet (0121)
  *   applied            an application waits on PSF
  *   awaiting_payment   approved, the fee not yet paid
  *   member             a current membership
  *   lapsed             a membership that ended, and none current
  *   declined           the last application was declined, none open
  */
-exports.PsfStanding = zod_1.z.enum(["not_applied", "applied", "awaiting_payment", "member", "lapsed", "declined"]);
+exports.PsfStanding = zod_1.z.enum(["not_applied", "claimed", "applied", "awaiting_payment", "member", "lapsed", "declined"]);
 exports.PSF_STANDING_LABEL = {
     not_applied: "Not applied",
+    claimed: "Claimed, waiting for PSF",
     applied: "Applied",
     awaiting_payment: "Approved, to pay",
     member: "Member",
@@ -957,4 +963,74 @@ exports.UpdatePsfFormFieldRequest = zod_1.z
  * happens on the server at submit; this shape only bounds the wire.
  */
 exports.PsfFormAnswers = zod_1.z.record(zod_1.z.string(), zod_1.z.union([zod_1.z.string(), zod_1.z.number(), zod_1.z.boolean(), zod_1.z.null()]));
+// ---------------------------------------------------------------------------
+// Membership claims (0121, 2026-10-30)
+// ---------------------------------------------------------------------------
+/** A typed membership number is a claim until PSF confirms it. */
+exports.PsfClaimStatus = zod_1.z.enum(["claimed", "confirmed", "rejected"]);
+/** A number as a business typed it: trimmed, upper case, inner spaces collapsed. */
+function normalizePsfNumber(raw) {
+    return raw.trim().toUpperCase().replace(/\s+/g, " ");
+}
+/**
+ * Whether a typed number could be a membership number at all: letters, digits and the separators PSF
+ * prints (`/`, `-`, a space), at least four characters, and at least two digits. It refuses "PSF-" and
+ * other half-typed values; it cannot tell a real number from a made-up one, which is PSF's to confirm.
+ */
+function looksLikePsfNumber(raw) {
+    const n = normalizePsfNumber(raw);
+    return n.length >= 4 && n.length <= 40 && /^[A-Z0-9][A-Z0-9/ -]*[A-Z0-9]$/.test(n) && (n.match(/\d/g)?.length ?? 0) >= 2;
+}
+/** One claim, for the PSF District Manager deciding it. */
+exports.PsfMembershipClaim = zod_1.z.object({
+    id: zod_1.z.string(),
+    orgId: zod_1.z.string(),
+    legalName: zod_1.z.string(),
+    businessCode: zod_1.z.string().nullable(),
+    tin: zod_1.z.string().nullable(),
+    districtName: zod_1.z.string().nullable(),
+    membershipNumber: zod_1.z.string(),
+    status: exports.PsfClaimStatus,
+    claimedAt: zod_1.z.string(),
+    claimedByName: zod_1.z.string().nullable(),
+    decidedAt: zod_1.z.string().nullable(),
+    decidedByName: zod_1.z.string().nullable(),
+    decisionNote: zod_1.z.string().nullable(),
+    matchedBy: zod_1.z.enum(["member_list", "officer"]).nullable(),
+    /** What PSF's own list says about this number, when it holds it. */
+    listed: zod_1.z
+        .object({
+        legalName: zod_1.z.string().nullable(),
+        tin: zod_1.z.string().nullable(),
+        tierCode: zod_1.z.string().nullable(),
+        expiresOn: zod_1.z.string().nullable(),
+        tinMatches: zod_1.z.boolean(),
+    })
+        .nullable(),
+});
+exports.PsfClaimsQuery = zod_1.z.object({ status: exports.PsfClaimStatus.optional() });
+exports.PsfClaimsPage = zod_1.z.object({
+    items: zod_1.z.array(exports.PsfMembershipClaim),
+    counts: zod_1.z.object({ claimed: zod_1.z.number().int(), confirmed: zod_1.z.number().int(), rejected: zod_1.z.number().int() }),
+    list: zod_1.z.object({ rows: zod_1.z.number().int(), uploadedAt: zod_1.z.string().nullable() }),
+});
+const isoDay = zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use yyyy-mm-dd.");
+/** Confirm a claim: the tier and the dates PSF's records give. */
+exports.ConfirmPsfClaimRequest = zod_1.z
+    .object({ tierCode: zod_1.z.string().min(1), startsOn: isoDay, expiresOn: isoDay, note: zod_1.z.string().trim().max(500).optional() })
+    .refine((v) => v.expiresOn > v.startsOn, { path: ["expiresOn"], message: "The membership ends after it starts." });
+/** Reject a claim, with the reason the business is told. */
+exports.RejectPsfClaimRequest = zod_1.z.object({ reason: zod_1.z.string().trim().min(3, "Say why, for the business.").max(500) });
+/** PSF's member list, as rows read from its spreadsheet. A number already listed is replaced. */
+exports.PsfMemberListRow = zod_1.z.object({
+    membershipNumber: zod_1.z.string().trim().min(1).max(60),
+    legalName: zod_1.z.string().trim().max(200).nullable().optional(),
+    tin: zod_1.z.string().trim().max(20).nullable().optional(),
+    tierCode: zod_1.z.string().trim().max(60).nullable().optional(),
+    startsOn: isoDay.nullable().optional(),
+    expiresOn: isoDay.nullable().optional(),
+});
+exports.UploadPsfMemberListRequest = zod_1.z.object({ rows: zod_1.z.array(exports.PsfMemberListRow).min(1).max(20000) });
+/** What an upload did: rows kept, and the claims it confirmed on the way. */
+exports.PsfMemberListResult = zod_1.z.object({ rows: zod_1.z.number().int(), confirmedClaims: zod_1.z.number().int(), skipped: zod_1.z.array(zod_1.z.string()) });
 //# sourceMappingURL=psf.js.map

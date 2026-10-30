@@ -333,8 +333,63 @@ export const psfMemberships = pgTable(
       sql`(${t.source} = 'psf_confirmed' AND ${t.applicationId} IS NOT NULL AND ${t.tierCode} IS NOT NULL
             AND ${t.annualFeeRwf} IS NOT NULL AND ${t.startsOn} IS NOT NULL AND ${t.expiresOn} IS NOT NULL
             AND ${t.expiresOn} > ${t.startsOn})
-          OR (${t.source} = 'self_declared' AND ${t.applicationId} IS NULL)`,
+          OR (${t.source} = 'self_declared' AND ${t.applicationId} IS NULL)
+          OR (${t.source} = 'psf_record' AND ${t.applicationId} IS NULL AND ${t.tierCode} IS NOT NULL
+            AND ${t.startsOn} IS NOT NULL AND ${t.expiresOn} IS NOT NULL AND ${t.expiresOn} > ${t.startsOn})`,
     ),
+  ],
+);
+
+/**
+ * PSF's own list of its members (0121), uploaded by an officer: a claimed number whose number and TIN
+ * match a row here is confirmed on the spot, with the row's tier and dates.
+ */
+export const psfMemberList = pgTable('psf_member_list', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  membershipNumber: text('membership_number').notNull().unique('psf_member_list_number_uk'),
+  legalName: text('legal_name'),
+  tin: text('tin'),
+  tierCode: text('tier_code').references(() => psfMembershipTiers.code),
+  startsOn: date('starts_on'),
+  expiresOn: date('expires_on'),
+  uploadedByUserId: uuid('uploaded_by_user_id')
+    .notNull()
+    .references(() => users.id),
+  uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * A PSF membership number a business typed (0121, 2026-10-30): a claim, not a membership, until PSF
+ * confirms it, by its own list or by a District Manager. One open claim per business.
+ */
+export const psfMembershipClaims = pgTable(
+  'psf_membership_claims',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    membershipNumber: text('membership_number').notNull(),
+    status: text('status').$type<'claimed' | 'confirmed' | 'rejected'>().notNull().default('claimed'),
+    claimedByUserId: uuid('claimed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }).notNull().defaultNow(),
+    decidedByUserId: uuid('decided_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decisionNote: text('decision_note'),
+    matchedBy: text('matched_by').$type<'member_list' | 'officer'>(),
+    membershipId: uuid('membership_id').references(() => psfMemberships.id, { onDelete: 'set null' }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('psf_membership_claims_open_uk').on(t.orgId).where(sql`${t.status} = 'claimed'`),
+    index('psf_membership_claims_status_idx').on(t.status, t.claimedAt),
+    check('psf_membership_claims_status_ck', sql`${t.status} IN ('claimed', 'confirmed', 'rejected')`),
+    check(
+      'psf_membership_claims_matched_ck',
+      sql`${t.matchedBy} IS NULL OR ${t.matchedBy} IN ('member_list', 'officer')`,
+    ),
+    check('psf_membership_claims_decided_ck', sql`(${t.status} = 'claimed') = (${t.decidedAt} IS NULL)`),
+    check('psf_membership_claims_rejected_ck', sql`${t.status} <> 'rejected' OR ${t.decisionNote} IS NOT NULL`),
   ],
 );
 

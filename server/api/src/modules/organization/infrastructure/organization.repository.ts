@@ -62,7 +62,7 @@ import {
   insertPsfApplication,
   insertPsfBranches,
   type NewPsfBranch,
-  insertSelfDeclaredMembership,
+  fileMembershipClaim,
   type NewPsfApplication,
 } from './psf-membership.repository';
 import { pendingTinAttemptsSql } from './tin-recheck.sql';
@@ -348,11 +348,13 @@ export class OrganizationRepository {
       if (input.psfApplication) {
         await insertPsfApplication(tx, { ...input.psfApplication, orgId: org.id });
       }
+      // A typed number is a claim until PSF confirms it (0121); PSF's own list may confirm it here.
       if (input.psfMembershipNumber) {
-        await insertSelfDeclaredMembership(tx, {
+        await fileMembershipClaim(tx, {
           orgId: org.id,
           membershipNumber: input.psfMembershipNumber,
-          recordedByUserId: input.ownerUserId,
+          tin: input.tin ?? null,
+          claimedByUserId: input.ownerUserId,
         });
       }
 

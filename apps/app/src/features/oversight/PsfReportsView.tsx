@@ -254,6 +254,7 @@ function csvFor(id: PsfReportId, r: PsfReport): CsvSection[] {
           rows: [
             ["Membership applications", r.now.waiting],
             ["Businesses to approve", r.registrations.waitingReview],
+            ["Membership claims to confirm", r.now.claimsWaiting],
             ["Renewals due in 30 days", r.now.expiringIn30Days],
           ],
         },
@@ -489,6 +490,16 @@ function Overview({ r }: { r: PsfReport }) {
             status: g.waitingReview > 0 ? "warning" : undefined,
             footnote: g.oldestWaitingDays === null ? "None waiting" : `Oldest waiting ${days(g.oldestWaitingDays)}`,
             href: "/officer",
+          },
+          {
+            id: "claims",
+            label: "Membership claims",
+            value: n.claimsWaiting,
+            format: "count",
+            icon: "CircleCheck",
+            status: n.claimsWaiting > 0 ? "warning" : undefined,
+            footnote: n.claimsWaiting ? "Check the numbers" : "None waiting",
+            href: "/psf/claims",
           },
           {
             id: "renew",

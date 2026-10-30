@@ -9,6 +9,8 @@ import {
   psfApprovedMail,
   psfCertificateMail,
   psfDeclinedMail,
+  psfClaimConfirmedMail,
+  psfClaimRejectedMail,
   psfExpiredMail,
   psfExpiringMail,
   psfMemberMail,
@@ -106,6 +108,26 @@ export class PsfMembershipMailer {
       'membership expiring',
       (to, legalName, link) => psfExpiringMail({ to, legalName, membershipNumber, expiresOn, link }),
       (legalName) => `PSF: the membership of ${legalName} (${membershipNumber}) ends on ${expiresOn}.`,
+    );
+  }
+
+  /** A claimed number PSF confirmed (0121). */
+  claimConfirmed(orgId: string, membershipNumber: string, expiresOn: string): Promise<void> {
+    return this.toApplicants(
+      orgId,
+      'membership claim confirmed',
+      (to, legalName, link) => psfClaimConfirmedMail({ to, legalName, membershipNumber, expiresOn, link }),
+      (legalName) => `PSF confirmed membership ${membershipNumber} for ${legalName}, until ${expiresOn}.`,
+    );
+  }
+
+  /** A claimed number PSF could not confirm (0121), with the reason it gave. */
+  claimRejected(orgId: string, membershipNumber: string, reason: string): Promise<void> {
+    return this.toApplicants(
+      orgId,
+      'membership claim rejected',
+      (to, legalName, link) => psfClaimRejectedMail({ to, legalName, membershipNumber, reason, link }),
+      (legalName) => `PSF could not confirm membership ${membershipNumber} for ${legalName}: ${reason}`,
     );
   }
 

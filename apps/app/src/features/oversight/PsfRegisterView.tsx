@@ -28,6 +28,7 @@ const STANDINGS: { id: "" | PsfStanding; label: string }[] = [
   { id: "", label: "All" },
   { id: "member", label: "Members" },
   { id: "applied", label: "Applied" },
+  { id: "claimed", label: "Claimed" },
   { id: "awaiting_payment", label: "Approved, to pay" },
   { id: "lapsed", label: "Lapsed" },
   { id: "declined", label: "Declined" },
@@ -37,6 +38,7 @@ const STANDINGS: { id: "" | PsfStanding; label: string }[] = [
 const TONE: Record<PsfStanding, "success" | "warning" | "danger" | "default"> = {
   member: "success",
   applied: "warning",
+  claimed: "warning",
   awaiting_payment: "warning",
   lapsed: "danger",
   declined: "danger",

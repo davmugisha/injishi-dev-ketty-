@@ -196,6 +196,46 @@ export function psfExpiredMail(input: {
   });
 }
 
+/** PSF confirmed the membership number a business typed (0121): it now shows as a member. */
+export function psfClaimConfirmedMail(input: {
+  to: Addressee;
+  legalName: string;
+  membershipNumber: string;
+  expiresOn: string;
+  link: string;
+}): RegistrationMail {
+  return compose({
+    subject: `PSF confirmed the membership of ${input.legalName}`,
+    heading: 'Your PSF membership is confirmed',
+    greeting: greeting(input.to),
+    paragraphs: [
+      `PSF has checked membership number ${input.membershipNumber} against its records. ${input.legalName} now shows as a PSF member on Injishi, until ${input.expiresOn}.`,
+    ],
+    cta: { label: 'See your membership', href: input.link },
+  });
+}
+
+/** PSF could not confirm the number a business typed (0121): why, and how to become a member. */
+export function psfClaimRejectedMail(input: {
+  to: Addressee;
+  legalName: string;
+  membershipNumber: string;
+  reason: string;
+  link: string;
+}): RegistrationMail {
+  return compose({
+    subject: `PSF could not confirm the membership of ${input.legalName}`,
+    heading: 'PSF could not confirm your membership number',
+    greeting: greeting(input.to),
+    paragraphs: [
+      `PSF checked membership number ${input.membershipNumber} for ${input.legalName} and could not confirm it.`,
+      `PSF's reason: ${input.reason}`,
+      'If the number was mistyped, contact your PSF district office. You can also apply for membership from your portal.',
+    ],
+    cta: { label: 'Apply for membership', href: input.link },
+  });
+}
+
 /** The membership certificate, attached as a PDF, sent when the member or an officer asks. */
 export function psfCertificateMail(input: {
   to: Addressee;

@@ -43,6 +43,7 @@ const STANDING: Record<string, { label: string; tone: Tone }> = {
   member: { label: "Member", tone: "success" },
   applied: { label: "Applied, waiting on PSF", tone: "warning" },
   awaiting_payment: { label: "Approved, fee not paid", tone: "warning" },
+  claimed: { label: "Says it is a member, waiting for PSF", tone: "warning" },
   lapsed: { label: "Lapsed", tone: "danger" },
   declined: { label: "Declined", tone: "danger" },
   not_applied: { label: "Not applied", tone: "default" },

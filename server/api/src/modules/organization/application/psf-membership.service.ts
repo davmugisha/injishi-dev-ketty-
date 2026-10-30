@@ -64,8 +64,17 @@ import {
   PSF_OUT_OF_SCOPE_MESSAGE,
   psfFeeCeilings,
   provinceDisplayName,
+  looksLikePsfNumber,
+  normalizePsfNumber,
+  type ConfirmPsfClaimRequest,
+  type PsfClaimsPage,
+  type PsfClaimsQuery,
+  type PsfMemberListResult,
+  type RejectPsfClaimRequest,
+  type UploadPsfMemberListRequest,
 } from '@injishi/contracts';
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Inject,
@@ -139,6 +148,137 @@ export class PsfMembershipService {
     /** The next membership number in a district's run, for the approve dialog. */
     private readonly report: PsfReportRepository,
   ) {}
+
+  /** Whether a number is already another business's current membership (0121). */
+  async numberHeldByAnotherBusiness(membershipNumber: string): Promise<boolean> {
+    return (await this.repo.currentHolderOf(membershipNumber)) !== null;
+  }
+
+  // ── Membership claims (0121, 2026-10-30) ───────────────────────────────────────────────────────────
+
+  /** The claims in the officer's region, with PSF's own list beside each, and the list's size. */
+  async claims(grants: OversightGrant[], query: PsfClaimsQuery): Promise<PsfClaimsPage> {
+    const scope = await this.scopeOf(grants);
+    const [{ rows, counts }, list] = await Promise.all([
+      this.repo.claims(scope, query.status),
+      this.repo.memberListSummary(),
+    ]);
+    const count = (s: string) => counts.find((c) => c.status === s)?.n ?? 0;
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        orgId: r.orgId,
+        legalName: r.legalName,
+        businessCode: r.businessCode ?? null,
+        tin: r.tin ?? null,
+        districtName: r.districtName ?? null,
+        membershipNumber: r.membershipNumber,
+        status: r.status,
+        claimedAt: r.claimedAt.toISOString(),
+        claimedByName: r.claimedByName ?? null,
+        decidedAt: r.decidedAt ? r.decidedAt.toISOString() : null,
+        decidedByName: r.decidedByName ?? null,
+        decisionNote: r.decisionNote ?? null,
+        matchedBy: r.matchedBy ?? null,
+        listed: r.listedNumber
+          ? {
+              legalName: r.listedName ?? null,
+              tin: r.listedTin ?? null,
+              tierCode: r.listedTier ?? null,
+              expiresOn: r.listedExpires ?? null,
+              tinMatches: !!r.listedTin && r.listedTin === r.tin,
+            }
+          : null,
+      })),
+      counts: { claimed: count('claimed'), confirmed: count('confirmed'), rejected: count('rejected') },
+      list: { rows: list.rows, uploadedAt: list.uploadedAt ? list.uploadedAt.toISOString() : null },
+    };
+  }
+
+  /** The claim, if it is open and in the officer's region; refused otherwise. */
+  private async openClaimInScope(grants: OversightGrant[], id: string) {
+    const claim = await this.repo.claim(id);
+    if (!claim || !covers(await this.scopeOf(grants), claim.districtId)) {
+      throw new NotFoundException('That claim is not in your region.');
+    }
+    if (claim.status !== 'claimed') throw new ConflictException('That claim has already been decided.');
+    return claim;
+  }
+
+  /** Confirm a claim with the tier and dates PSF's records give; the business is told. */
+  async confirmClaim(userId: string, grants: OversightGrant[], id: string, body: ConfirmPsfClaimRequest): Promise<void> {
+    const claim = await this.openClaimInScope(grants, id);
+    if (!(await this.repo.tierCodes()).includes(body.tierCode)) {
+      throw new BadRequestException('That tier is not one of PSF\'s.');
+    }
+    await this.repo.confirmClaim({
+      claimId: claim.id,
+      orgId: claim.orgId,
+      membershipNumber: claim.membershipNumber,
+      tierCode: body.tierCode,
+      startsOn: body.startsOn,
+      expiresOn: body.expiresOn,
+      decidedByUserId: userId,
+      matchedBy: 'officer',
+      note: body.note?.trim() || null,
+    });
+    await this.mail.claimConfirmed(claim.orgId, claim.membershipNumber, body.expiresOn);
+  }
+
+  /** Reject a claim with the reason the business is told. */
+  async rejectClaim(userId: string, grants: OversightGrant[], id: string, body: RejectPsfClaimRequest): Promise<void> {
+    const claim = await this.openClaimInScope(grants, id);
+    if (!(await this.repo.rejectClaim(claim.id, userId, body.reason))) {
+      throw new ConflictException('That claim has already been decided.');
+    }
+    await this.mail.claimRejected(claim.orgId, claim.membershipNumber, body.reason);
+  }
+
+  /**
+   * PSF's own member list, from its spreadsheet: rows replaced by number, then every open claim the list
+   * now confirms (number and TIN match, a tier and dates given) is confirmed and its business told.
+   */
+  async uploadMemberList(userId: string, body: UploadPsfMemberListRequest): Promise<PsfMemberListResult> {
+    const tiers = new Set(await this.repo.tierCodes());
+    const skipped: string[] = [];
+    const rows = body.rows.flatMap((r) => {
+      const number = normalizePsfNumber(r.membershipNumber);
+      if (!looksLikePsfNumber(number)) {
+        skipped.push(`${r.membershipNumber}: not a membership number`);
+        return [];
+      }
+      const tierCode = r.tierCode && tiers.has(r.tierCode) ? r.tierCode : null;
+      if (r.tierCode && !tierCode) skipped.push(`${number}: tier "${r.tierCode}" is not one of PSF's, kept without a tier`);
+      return [
+        {
+          membershipNumber: number,
+          legalName: r.legalName?.trim() || null,
+          tin: r.tin?.replace(/\D/g, "") || null,
+          tierCode,
+          startsOn: r.startsOn ?? null,
+          expiresOn: r.expiresOn ?? null,
+        },
+      ];
+    });
+    await this.repo.upsertMemberList(rows, userId);
+    const matches = await this.repo.claimsTheListConfirms();
+    for (const m of matches) {
+      if (!m.tierCode || !m.startsOn || !m.expiresOn || m.expiresOn <= m.startsOn) continue;
+      await this.repo.confirmClaim({
+        claimId: m.claimId,
+        orgId: m.orgId,
+        membershipNumber: m.membershipNumber,
+        tierCode: m.tierCode,
+        startsOn: m.startsOn,
+        expiresOn: m.expiresOn,
+        decidedByUserId: userId,
+        matchedBy: 'member_list',
+        note: null,
+      });
+      await this.mail.claimConfirmed(m.orgId, m.membershipNumber, m.expiresOn);
+    }
+    return { rows: rows.length, confirmedClaims: matches.length, skipped: skipped.slice(0, 50) };
+  }
 
   /**
    * The form with its ID resolved: the one typed, or the applicant's own

@@ -526,3 +526,102 @@ describe('buildPsfApplicationRow', () => {
     expect(row.declaredFeeRwf).toBeNull();
   });
 });
+
+describe('membership claims (0121): a typed number is a claim until PSF confirms it', () => {
+  const GASABO = 102;
+  const grant = {
+    assignmentId: '7a1f5b9e-2c4d-4e8f-9a1b-3c5d7e9f1a09',
+    sectorId: null,
+    cellId: null,
+    villageId: null,
+    oversightRole: 'psf_membership_officer' as const,
+    governmentBodyCode: 'PSF',
+    governmentTitle: null,
+    scopeLevel: 'district' as const,
+    provinceId: null,
+    districtId: GASABO,
+  };
+  const OFFICER = 'b2c3d4e5-0000-4000-8000-000000000001';
+
+  function claimsService(over: Record<string, unknown> = {}) {
+    const repo = {
+      districtsByProvince: vi.fn().mockResolvedValue(new Map()),
+      claim: vi.fn().mockResolvedValue({ id: 'c1', orgId: 'o1', membershipNumber: 'PSF-123-456', status: 'claimed', districtId: GASABO }),
+      tierCodes: vi.fn().mockResolvedValue(['indatwa_10k', 'golden_circle']),
+      confirmClaim: vi.fn().mockResolvedValue(undefined),
+      rejectClaim: vi.fn().mockResolvedValue(true),
+      upsertMemberList: vi.fn().mockResolvedValue(undefined),
+      claimsTheListConfirms: vi.fn().mockResolvedValue([]),
+      ...over,
+    };
+    const mail = { claimConfirmed: vi.fn().mockResolvedValue(undefined), claimRejected: vi.fn().mockResolvedValue(undefined) };
+    const service = new PsfMembershipService(
+      repo as unknown as PsfMembershipRepository,
+      mail as unknown as PsfMembershipMailer,
+      {} as unknown as ProfileService,
+      {} as unknown as PaymentPort,
+      { get: () => undefined } as unknown as ConfigService,
+      {} as unknown as PsfReportRepository,
+    );
+    return { service, repo, mail };
+  }
+
+  it('confirms a claim with the tier and dates PSF gives, as the officer, and tells the business', async () => {
+    const { service, repo, mail } = claimsService();
+    await service.confirmClaim(OFFICER, [grant], 'c1', { tierCode: 'indatwa_10k', startsOn: '2026-01-01', expiresOn: '2027-01-01' });
+    expect(repo.confirmClaim).toHaveBeenCalledWith(
+      expect.objectContaining({ claimId: 'c1', tierCode: 'indatwa_10k', decidedByUserId: OFFICER, matchedBy: 'officer' }),
+    );
+    expect(mail.claimConfirmed).toHaveBeenCalledWith('o1', 'PSF-123-456', '2027-01-01');
+  });
+
+  it('refuses a claim outside the officer\'s district, and a tier PSF does not have', async () => {
+    const elsewhere = claimsService({
+      claim: vi.fn().mockResolvedValue({ id: 'c1', orgId: 'o1', membershipNumber: 'X-12', status: 'claimed', districtId: 303 }),
+    });
+    await expect(
+      elsewhere.service.confirmClaim(OFFICER, [grant], 'c1', { tierCode: 'indatwa_10k', startsOn: '2026-01-01', expiresOn: '2027-01-01' }),
+    ).rejects.toThrow('not in your region');
+    const { service, repo } = claimsService();
+    await expect(
+      service.confirmClaim(OFFICER, [grant], 'c1', { tierCode: 'made_up', startsOn: '2026-01-01', expiresOn: '2027-01-01' }),
+    ).rejects.toThrow("not one of PSF's");
+    expect(repo.confirmClaim).not.toHaveBeenCalled();
+  });
+
+  it('rejects with the reason the business is told; a decided claim is not decided twice', async () => {
+    const { service, mail } = claimsService();
+    await service.rejectClaim(OFFICER, [grant], 'c1', { reason: 'Not in our records' });
+    expect(mail.claimRejected).toHaveBeenCalledWith('o1', 'PSF-123-456', 'Not in our records');
+    const decided = claimsService({
+      claim: vi.fn().mockResolvedValue({ id: 'c1', orgId: 'o1', membershipNumber: 'PSF-123-456', status: 'confirmed', districtId: GASABO }),
+    });
+    await expect(decided.service.rejectClaim(OFFICER, [grant], 'c1', { reason: 'Again' })).rejects.toThrow('already been decided');
+  });
+
+  it("an uploaded list keeps PSF's rows, skips what is not a number, and confirms the claims it matches", async () => {
+    const { service, repo, mail } = claimsService({
+      claimsTheListConfirms: vi.fn().mockResolvedValue([
+        { claimId: 'c1', orgId: 'o1', membershipNumber: 'PSF-123-456', tierCode: 'indatwa_10k', startsOn: '2026-01-01', expiresOn: '2027-01-01', uploadedByUserId: OFFICER },
+      ]),
+    });
+    const result = await service.uploadMemberList(OFFICER, {
+      rows: [
+        { membershipNumber: ' psf-123-456 ', tin: '192 837 465', tierCode: 'indatwa_10k', startsOn: '2026-01-01', expiresOn: '2027-01-01' },
+        { membershipNumber: 'PSF-', tierCode: null },
+        { membershipNumber: 'PSF-999-000', tierCode: 'unheard_of' },
+      ],
+    });
+    expect(repo.upsertMemberList).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({ membershipNumber: 'PSF-123-456', tin: '192837465', tierCode: 'indatwa_10k' }),
+        expect.objectContaining({ membershipNumber: 'PSF-999-000', tierCode: null }),
+      ],
+      OFFICER,
+    );
+    expect(result.rows).toBe(2);
+    expect(result.confirmedClaims).toBe(1);
+    expect(result.skipped).toHaveLength(2);
+    expect(mail.claimConfirmed).toHaveBeenCalledWith('o1', 'PSF-123-456', '2027-01-01');
+  });
+});

@@ -474,6 +474,8 @@ export const PsfReport = z.object({
         expiringIn60Days: z.number().int(),
         expiringIn90Days: z.number().int(),
         lapsed: z.number().int(),
+        /** Membership numbers typed at registration, waiting for PSF to confirm (0121). */
+        claimsWaiting: z.number().int().default(0),
     }),
     /**
      * Injishi registrations in the region (2026-10-30): where each business stands right now, and the

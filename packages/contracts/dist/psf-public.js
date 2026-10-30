@@ -464,6 +464,8 @@ exports.PsfReport = zod_1.z.object({
         expiringIn60Days: zod_1.z.number().int(),
         expiringIn90Days: zod_1.z.number().int(),
         lapsed: zod_1.z.number().int(),
+        /** Membership numbers typed at registration, waiting for PSF to confirm (0121). */
+        claimsWaiting: zod_1.z.number().int().default(0),
     }),
     /**
      * Injishi registrations in the region (2026-10-30): where each business stands right now, and the

@@ -1,4 +1,10 @@
 import {
+  ConfirmPsfClaimRequest,
+  PsfClaimsQuery,
+  RejectPsfClaimRequest,
+  UploadPsfMemberListRequest,
+  type PsfClaimsPage,
+  type PsfMemberListResult,
   CreatePsfApplicationRequest,
   PayPsfMembershipRequest,
   PsfApproveRequest,
@@ -299,5 +305,47 @@ export class OversightPsfRegisterController {
     @Query(new ZodValidationPipe(PsfAreaQuery)) area: PsfAreaQuery,
   ): Promise<PsfRegisterSummary> {
     return this.psf.registerSummary(grants, area);
+  }
+
+  /** Membership numbers businesses typed, waiting for PSF or decided (0121), in the officer's region. */
+  @Get('claims')
+  claims(
+    @CurrentOversight() grants: OversightGrant[],
+    @Query(new ZodValidationPipe(PsfClaimsQuery)) query: PsfClaimsQuery,
+  ): Promise<PsfClaimsPage> {
+    return this.psf.claims(grants, query);
+  }
+
+  /** Confirm a claim against PSF's records: the tier and dates; the business becomes a member. */
+  @Post('claims/:id/confirm')
+  @HttpCode(204)
+  async confirmClaim(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: SessionUser,
+    @CurrentOversight() grants: OversightGrant[],
+    @Body(new ZodValidationPipe(ConfirmPsfClaimRequest)) body: ConfirmPsfClaimRequest,
+  ): Promise<void> {
+    await this.psf.confirmClaim(user.id, grants, id, body);
+  }
+
+  /** Reject a claim with the reason the business is told. */
+  @Post('claims/:id/reject')
+  @HttpCode(204)
+  async rejectClaim(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: SessionUser,
+    @CurrentOversight() grants: OversightGrant[],
+    @Body(new ZodValidationPipe(RejectPsfClaimRequest)) body: RejectPsfClaimRequest,
+  ): Promise<void> {
+    await this.psf.rejectClaim(user.id, grants, id, body);
+  }
+
+  /** PSF's own member list, from its spreadsheet; open claims it matches are confirmed. */
+  @Post('member-list')
+  uploadMemberList(
+    @CurrentUser() user: SessionUser,
+    @Body(new ZodValidationPipe(UploadPsfMemberListRequest)) body: UploadPsfMemberListRequest,
+  ): Promise<PsfMemberListResult> {
+    return this.psf.uploadMemberList(user.id, body);
   }
 }

@@ -121,6 +121,7 @@ export class PsfReportRepository {
     expiringIn60Days: number;
     expiringIn90Days: number;
     lapsed: number;
+    claimsWaiting: number;
   }> {
     const s = scopeSql(scope);
     const [a] = await this.many<Record<string, unknown>>(sql`
@@ -138,7 +139,11 @@ export class PsfReportRepository {
              count(*) FILTER (WHERE m.expires_on < ${today})::int AS lapsed
         FROM psf_memberships m JOIN orgs o ON o.id = m.org_id
        WHERE m.ended_at IS NULL AND ${s}`);
+    const [c] = await this.many<Record<string, unknown>>(sql`
+      SELECT count(*)::int AS claims FROM psf_membership_claims pc JOIN orgs o ON o.id = pc.org_id
+       WHERE pc.status = 'claimed' AND ${s}`);
     return {
+      claimsWaiting: n(c?.claims),
       members: n(m?.members),
       waiting: n(a?.waiting),
       overdue: n(a?.overdue),
