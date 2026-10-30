@@ -1,3 +1,4 @@
+export * from "./agenda-calendar.tsx";
 export * from "./area-tabs.tsx";
 export * from "./buttons.tsx";
 export * from "./cells.tsx";
@@ -36,7 +37,6 @@ export * from "./photos.tsx";
 export * from "./place.ts";
 export * from "./place-picker.tsx";
 export * from "./room-timeline.tsx";
-export * from "./schedule.tsx";
 export * from "./section-card.tsx";
 export * from "./signature-pad.tsx";
 export * from "./stars.tsx";

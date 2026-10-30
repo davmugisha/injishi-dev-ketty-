@@ -11,10 +11,10 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ScheduleKind } from "./agenda-calendar.tsx";
 import { daysBetween, formatDay } from "./date.tsx";
 import { formatRange } from "./date-pickers.tsx";
 import { useMediaQuery } from "./hooks.ts";
-import type { ScheduleKind } from "./schedule.tsx";
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
