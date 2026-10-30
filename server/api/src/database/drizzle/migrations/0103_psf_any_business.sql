@@ -39,11 +39,11 @@
 -- FORWARD ONLY, like every migration here. Postgres cannot drop an enum value.
 CREATE TYPE "public"."enterprise_registration_kind" AS ENUM('tin', 'rca', 'rgb', 'other', 'none');--> statement-breakpoint
 CREATE TYPE "public"."psf_owner_group" AS ENUM('women', 'youth', 'pwd');--> statement-breakpoint
-ALTER TYPE "public"."domain_kind" ADD VALUE 'enterprise';--> statement-breakpoint
-ALTER TYPE "public"."psf_application_status" ADD VALUE 'approved' BEFORE 'member';--> statement-breakpoint
-ALTER TYPE "public"."psf_membership_family" ADD VALUE 'indatwa' BEFORE 'ordinary';--> statement-breakpoint
-ALTER TYPE "public"."psf_price_kind" ADD VALUE 'minimum' BEFORE 'set_by_psf';--> statement-breakpoint
-ALTER TYPE "public"."registration_business_type" ADD VALUE 'enterprise';--> statement-breakpoint
+ALTER TYPE "public"."domain_kind" ADD VALUE IF NOT EXISTS 'enterprise';--> statement-breakpoint
+ALTER TYPE "public"."psf_application_status" ADD VALUE IF NOT EXISTS 'approved' BEFORE 'member';--> statement-breakpoint
+ALTER TYPE "public"."psf_membership_family" ADD VALUE IF NOT EXISTS 'indatwa' BEFORE 'ordinary';--> statement-breakpoint
+ALTER TYPE "public"."psf_price_kind" ADD VALUE IF NOT EXISTS 'minimum' BEFORE 'set_by_psf';--> statement-breakpoint
+ALTER TYPE "public"."registration_business_type" ADD VALUE IF NOT EXISTS 'enterprise';--> statement-breakpoint
 CREATE TABLE "business_code_counters" (
 	"district_id" integer PRIMARY KEY NOT NULL,
 	"last_number" integer DEFAULT 0 NOT NULL,
