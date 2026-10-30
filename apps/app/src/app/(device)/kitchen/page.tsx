@@ -1,7 +1,7 @@
 import { screens } from "@injishi/data";
 import type { KitchenStation, KitchenTicket } from "@injishi/data/fixtures/outlets";
+import { KitchenDisplayView } from "@injishi/product-outlets/web";
 import type { Metadata } from "next";
-import { KitchenDisplayView } from "@/features/outlets/KitchenDisplayView";
 import { OutletsMount } from "@/features/outlets/outlets-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";

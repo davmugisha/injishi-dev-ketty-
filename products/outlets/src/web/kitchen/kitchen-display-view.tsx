@@ -13,12 +13,12 @@ import {
 } from "@gravity-ui/icons";
 import { Alert, Button, Chip, Toast, toast } from "@heroui/react";
 import { EmptyState, Kanban, Segment } from "@heroui-pro/react";
-import type { KitchenStation, KitchenTicket, OrderSource } from "@injishi/product-outlets";
-import { useOutletsShell } from "@injishi/product-outlets/web";
 import { Icon, StatusDot, toneColor } from "@injishi/ui";
 import { FrameOverlays } from "@injishi/ui/phone";
 import { type CSSProperties, useState } from "react";
-import { SourceChip } from "./outlet-parts";
+import type { KitchenStation, KitchenTicket, OrderSource } from "../../model/outlets.ts";
+import { useOutletsShell } from "../mount.tsx";
+import { SourceChip } from "../parts.tsx";
 
 type StationId = KitchenStation["id"] | "all";
 

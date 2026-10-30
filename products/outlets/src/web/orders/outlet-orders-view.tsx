@@ -4,17 +4,6 @@ import { Check, Display, Flame, Lock, Printer, ShieldExclamation, TriangleExclam
 import { Alert, Button, Card, Chip, Switch } from "@heroui/react";
 import { ItemCard, Kanban, KPIGroup, ListView, Segment, Timeline } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
-import type {
-  FiscalReport,
-  LiveOrder,
-  OrderSource,
-  OrderStage,
-  Refund,
-  ServiceKpi,
-  StockOut,
-  VoidRequest,
-} from "@injishi/product-outlets";
-import { useBoardHref } from "@injishi/product-outlets/web";
 import {
   GateChip,
   Icon,
@@ -27,7 +16,18 @@ import {
   toneColor,
 } from "@injishi/ui";
 import { type CSSProperties, Fragment, useState } from "react";
-import { money, SourceChip } from "./outlet-parts";
+import type {
+  FiscalReport,
+  LiveOrder,
+  OrderSource,
+  OrderStage,
+  Refund,
+  ServiceKpi,
+  StockOut,
+  VoidRequest,
+} from "../../model/outlets.ts";
+import { useBoardHref } from "../mount.tsx";
+import { money, SourceChip } from "../parts.tsx";
 
 interface OutletOrdersData {
   kpis: ServiceKpi[];

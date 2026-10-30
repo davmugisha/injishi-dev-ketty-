@@ -1,8 +1,8 @@
 import { screens } from "@injishi/data";
 import type { BasketLine, MenuCategory, MenuItem, RoomServiceOrder, ServiceHour } from "@injishi/data/fixtures/outlets";
+import { QrOrderView, type QrStep } from "@injishi/product-outlets/web";
 import type { Metadata } from "next";
 import { OutletsMount } from "@/features/outlets/outlets-mount";
-import { QrOrderView, type QrStep } from "@/features/outlets/QrOrderView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 

@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { PosEvent, ProductionBatch, Recipe, RecipeIngredient } from "@injishi/data/fixtures/stock";
+import { RecipesView } from "@injishi/product-outlets/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { OutletsMount } from "@/features/outlets/outlets-mount";
-import { RecipesView } from "@/features/stock/RecipesView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";
 

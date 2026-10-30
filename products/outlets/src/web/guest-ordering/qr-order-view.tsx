@@ -4,18 +4,12 @@ import { ChevronLeft, CircleCheck, CircleInfo, Copy, Key, PaperPlane, Plus, Shop
 import { Alert, Avatar, Button, Card, Chip, Description, Label, Separator, Tabs, TextArea } from "@heroui/react";
 import { EmptyState, ItemCard, RadioButtonGroup, Segment, Stepper } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
-import type {
-  BasketLine,
-  MenuCategory,
-  OutletMenuItem as MenuItem,
-  Persona,
-  RoomServiceOrder,
-  ServiceHour,
-} from "@injishi/product-outlets";
-import { useOutletsMedia } from "@injishi/product-outlets/web";
 import { KeyValueList, PhoneBody, PhoneTop, Photo, StatusDot } from "@injishi/ui";
 import { useMemo, useState } from "react";
-import { money } from "./outlet-parts";
+import type { BasketLine, MenuCategory, MenuItem, RoomServiceOrder, ServiceHour } from "../../model/outlets.ts";
+import type { Persona } from "../../model/shared.ts";
+import { useOutletsMedia } from "../mount.tsx";
+import { money } from "../parts.tsx";
 
 export type QrStep = "menu" | "item" | "basket" | "tracking";
 

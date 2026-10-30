@@ -8,8 +8,8 @@ import type {
   StockOut,
   VoidRequest,
 } from "@injishi/data/fixtures/outlets";
+import { OutletOrdersView } from "@injishi/product-outlets/web";
 import type { Metadata } from "next";
-import { OutletOrdersView } from "@/features/outlets/OutletOrdersView";
 import { OutletsMount } from "@/features/outlets/outlets-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";

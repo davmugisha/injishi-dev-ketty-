@@ -13,11 +13,11 @@ import { Alert, Button, Card, Chip, Description, Label, ListBox, Table } from "@
 import { ItemCard, KPIGroup, Segment } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
-import type { PosEvent, ProductionBatch, Recipe, RecipeIngredient } from "@injishi/product-outlets";
-import { useOutletsShell } from "@injishi/product-outlets/web";
 import { formatNumber, Icon, KeyValueList, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { Fragment, type Key, useState } from "react";
-import { KvRows, Muted, money, SectionTitle, ToneChip } from "./recipe-parts";
+import type { PosEvent, ProductionBatch, Recipe, RecipeIngredient } from "../../model/stock.ts";
+import { useOutletsShell } from "../mount.tsx";
+import { KvRows, Muted, money, SectionTitle, ToneChip } from "./parts.tsx";
 
 interface RecipesData {
   recipes: Recipe[];

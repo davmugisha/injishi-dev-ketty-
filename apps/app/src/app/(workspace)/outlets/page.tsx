@@ -7,8 +7,8 @@ import type {
   OutletOrder,
   OutletOrderLoad,
 } from "@injishi/data/fixtures/operations";
+import { OutletsMenusView, type OutletTab } from "@injishi/product-outlets/web";
 import type { Metadata } from "next";
-import { OutletsMenusView, type OutletTab } from "@/features/operations/OutletsMenusView";
 import { OutletsMount } from "@/features/outlets/outlets-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";

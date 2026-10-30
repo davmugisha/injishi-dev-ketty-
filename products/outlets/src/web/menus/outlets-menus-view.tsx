@@ -4,16 +4,6 @@ import { Display, Flame, Gift, Lock, PencilToSquare, ShieldExclamation, Shopping
 import { Alert, Button, Card, Chip, Separator, Switch, Table, Tabs, Toast, toast } from "@heroui/react";
 import { EmptyState, KPIGroup, ListView } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
-import type {
-  DepartmentGroup,
-  Outlet,
-  OutletMenu,
-  OutletOffer,
-  OutletOrder,
-  OutletOrderLoad,
-  Persona,
-} from "@injishi/product-outlets";
-import { useBoardHref } from "@injishi/product-outlets/web";
 import {
   formatNumber,
   formatRwf,
@@ -27,7 +17,17 @@ import {
   toneColor,
 } from "@injishi/ui";
 import { Fragment, useState } from "react";
-import { FieldLabel, firstKey } from "./menu-form-parts";
+import type {
+  DepartmentGroup,
+  Outlet,
+  OutletMenu,
+  OutletOffer,
+  OutletOrder,
+  OutletOrderLoad,
+} from "../../model/operations.ts";
+import type { Persona } from "../../model/shared.ts";
+import { useBoardHref } from "../mount.tsx";
+import { FieldLabel, firstKey } from "./form-parts.tsx";
 
 export type OutletTab = "outlets" | "menus" | "orders" | "offers";
 

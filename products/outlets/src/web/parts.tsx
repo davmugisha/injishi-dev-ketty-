@@ -1,8 +1,8 @@
 "use client";
 
 import { Chip } from "@heroui/react";
-import type { OrderSource, OutletTone } from "@injishi/product-outlets";
 import { formatRwf, Icon, type IconKey, toneColor } from "@injishi/ui";
+import type { OrderSource, OutletTone } from "../model/outlets.ts";
 
 /*
  * What Outlets' screens (the kitchen display, the order board, the guest's QR order) draw beside each other.
