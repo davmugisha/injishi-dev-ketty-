@@ -264,15 +264,18 @@ export declare function moveOutTabOf(input: {
     noticeStatus: MoveOutNoticeStatus | null;
     depositOpen: boolean;
 }): MoveOutTab | null;
+/** The list's filter: one tab, or every move-out ("all", the default: nothing is chosen for the landlord). */
+export declare const MoveOutListTab: z.ZodEnum<["all", "to_acknowledge", "moving_soon", "moved_out", "settled"]>;
+export type MoveOutListTab = z.infer<typeof MoveOutListTab>;
 export declare const MoveOutListQuery: z.ZodObject<{
-    tab: z.ZodDefault<z.ZodEnum<["to_acknowledge", "moving_soon", "moved_out", "settled"]>>;
+    tab: z.ZodDefault<z.ZodEnum<["all", "to_acknowledge", "moving_soon", "moved_out", "settled"]>>;
     q: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
+    tab: "settled" | "all" | "moved_out" | "to_acknowledge" | "moving_soon";
     q?: string | undefined;
 }, {
     q?: string | undefined;
-    tab?: "settled" | "moved_out" | "to_acknowledge" | "moving_soon" | undefined;
+    tab?: "settled" | "all" | "moved_out" | "to_acknowledge" | "moving_soon" | undefined;
 }>;
 export type MoveOutListQuery = z.input<typeof MoveOutListQuery>;
 export declare const MoveOutNoticeView: z.ZodObject<{
@@ -626,7 +629,7 @@ export declare const MoveOutRow: z.ZodObject<{
 }>;
 export type MoveOutRow = z.infer<typeof MoveOutRow>;
 export declare const MoveOutList: z.ZodObject<{
-    tab: z.ZodEnum<["to_acknowledge", "moving_soon", "moved_out", "settled"]>;
+    tab: z.ZodEnum<["all", "to_acknowledge", "moving_soon", "moved_out", "settled"]>;
     items: z.ZodArray<z.ZodObject<{
         leaseId: z.ZodString;
         reference: z.ZodString;
@@ -909,7 +912,7 @@ export declare const MoveOutList: z.ZodObject<{
         daysLeft: number | null;
         endedOn: string | null;
     }[];
-    tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
+    tab: "settled" | "all" | "moved_out" | "to_acknowledge" | "moving_soon";
     counts: Partial<Record<"settled" | "moved_out" | "to_acknowledge" | "moving_soon", number>>;
 }, {
     items: {
@@ -963,7 +966,7 @@ export declare const MoveOutList: z.ZodObject<{
         daysLeft: number | null;
         endedOn: string | null;
     }[];
-    tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
+    tab: "settled" | "all" | "moved_out" | "to_acknowledge" | "moving_soon";
     counts: Partial<Record<"settled" | "moved_out" | "to_acknowledge" | "moving_soon", number>>;
 }>;
 export type MoveOutList = z.infer<typeof MoveOutList>;
