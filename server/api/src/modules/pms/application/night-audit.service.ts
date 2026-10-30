@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { DepartmentsService } from './departments.service';
+import { DepartmentsService } from '../../operations/application/departments.service';
 import {
   type ChargeDraft,
   FolioRepository,

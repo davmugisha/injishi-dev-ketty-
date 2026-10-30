@@ -56,9 +56,9 @@ import {
   insertHeldTx,
   mintReceiptNumberTx,
 } from '../../ebm/infrastructure/ebm-emission.repository';
-import type { DeclarationPlan } from '../application/declaration-plan.service';
+import type { DeclarationPlan } from '../../ebm/application/declaration-plan.service';
 import { MAX_ITEM_SERIAL, itemCode, serialOf } from '../domain/sellable-item';
-import { NO_CONNECTION, type ChargeDraft, postChargesTx } from './folio.repository';
+import { NO_CONNECTION, type ChargeDraft, postChargesTx } from '../../pms/application/folio-port';
 import { writeOrderThreadLineTx } from './order-thread-lines';
 
 export interface CategoryRow {

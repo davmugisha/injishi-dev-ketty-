@@ -17,7 +17,7 @@ import {
   assertInBranchScope,
   type ScopedWorkspace,
 } from '../../../shared/auth/branch-scope';
-import { RoomAssignmentService } from '../../operations/application/room-assignment.service';
+import { RoomAssignmentService } from './room-assignment.service';
 import { localToday, nightsBetween } from '../domain/pricing';
 import {
   DESK_WINDOW_DAYS,

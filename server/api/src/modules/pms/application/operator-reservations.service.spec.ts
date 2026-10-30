@@ -6,8 +6,8 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 
-import type { FolioService } from '../../operations/application/folio.service';
-import type { RoomAssignmentService } from '../../operations/application/room-assignment.service';
+import type { FolioService } from './folio.service';
+import type { RoomAssignmentService } from './room-assignment.service';
 import type { PaymentPort } from '../../payments/domain/payment-port';
 import type { BookingRepository } from '../infrastructure/booking.repository';
 import type { BookingCancellationService } from './booking-cancellation.service';
