@@ -14,11 +14,11 @@ import {
   properties,
   roomTypes,
   workspaces,
-} from '../../../database/drizzle/schema';
+} from '../../../../database/drizzle/schema';
 import {
   DRIZZLE,
   type Database,
-} from '../../../shared/database/database.module';
+} from '../../../../shared/database/database.module';
 import { signPointOf, type SignPoint } from '../domain/sign-point';
 
 /** Everything a receipt needs about one booking, in one read. */

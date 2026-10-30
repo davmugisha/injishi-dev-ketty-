@@ -51,12 +51,12 @@ import {
   type Database,
 } from '../../../shared/database/database.module';
 import { writeOutboxTx } from '../../../shared/outbox/outbox';
-import { orderEmissionKeyFor } from '../../ebm/domain/emission-keys';
+import { orderEmissionKeyFor } from '../../platform/fiscal/domain/emission-keys';
 import {
   insertHeldTx,
   mintReceiptNumberTx,
-} from '../../ebm/infrastructure/ebm-emission.repository';
-import type { DeclarationPlan } from '../../ebm/application/declaration-plan.service';
+} from '../../platform/fiscal/infrastructure/ebm-emission.repository';
+import type { DeclarationPlan } from '../../platform/fiscal/application/declaration-plan.service';
 import { MAX_ITEM_SERIAL, itemCode, serialOf } from '../domain/sellable-item';
 import { NO_CONNECTION, type ChargeDraft, postChargesTx } from '../../pms/application/folio-port';
 import { writeOrderThreadLineTx } from './order-thread-lines';

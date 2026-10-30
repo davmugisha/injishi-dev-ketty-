@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
-import { type CollectionOutcome, PaymentOutcomes } from '../../payments/application/payment-outcomes';
-import { RefundsOwedService } from '../../payments/application/refunds-owed.service';
+import { type CollectionOutcome, PaymentOutcomes } from '../../pay/application/payment-outcomes';
+import { RefundsOwedService } from '../../pay/application/refunds-owed.service';
 import { REGISTRATION_FEES, type RegistrationFees } from '../domain/registration-fees';
 import { BookingRepository } from '../infrastructure/booking.repository';
 import { PaymentAttemptRepository } from '../infrastructure/payment-attempt.repository';

@@ -5,9 +5,9 @@ import { Global, Injectable, Module, type Provider } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { randomBytes } from 'node:crypto';
 
-import { PLATFORM } from '../../shared/config/platform';
-import { DRIZZLE } from '../../shared/database/database.module';
-import { QUEUES } from '../../shared/queues/queues.module';
+import { PLATFORM } from '../../../shared/config/platform';
+import { DRIZZLE } from '../../../shared/database/database.module';
+import { QUEUES } from '../../../shared/queues/queues.module';
 import { EbmReceiptService } from './application/ebm-receipt.service';
 import { EbmSaleTrigger } from './application/ebm-sale-trigger.service';
 import { EBM_LIVE } from './domain/ebm-live';

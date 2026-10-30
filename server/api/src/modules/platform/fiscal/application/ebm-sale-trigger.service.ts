@@ -2,8 +2,8 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 
-import { PLATFORM, type Platform } from '../../../shared/config/platform';
-import { QUEUES } from '../../../shared/queues/queues.module';
+import { PLATFORM, type Platform } from '../../../../shared/config/platform';
+import { QUEUES } from '../../../../shared/queues/queues.module';
 import { EBM_LIVE, type EbmLive } from '../domain/ebm-live';
 import { emissionKeyFor } from '../domain/emission-keys';
 import { EBM_SIGN_POINT, type SignPoint } from '../domain/sign-point';

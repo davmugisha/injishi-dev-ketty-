@@ -19,8 +19,8 @@ import {
   assertInBranchScope,
   type ScopedWorkspace,
 } from '../../../shared/auth/branch-scope';
-import { releaseKeyFor } from '../../payments/domain/keys';
-import { PAYMENT_PORT, type PaymentPort } from '../../payments/domain/payment-port';
+import { releaseKeyFor } from '../../pay/domain/keys';
+import { PAYMENT_PORT, type PaymentPort } from '../../pay/domain/payment-port';
 import { noShowRefund } from '../domain/no-show';
 import { localToday } from '../domain/pricing';
 import {

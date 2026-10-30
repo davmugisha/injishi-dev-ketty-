@@ -6,15 +6,15 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 
-import { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
+import { EbmSaleTrigger } from '../../platform/fiscal/application/ebm-sale-trigger.service';
 import { BookingNotificationsService } from './booking-notifications.service';
 import { BookingRefunds } from './booking-refunds';
 import { FolioService } from './folio.service';
-import { releaseKeyFor } from '../../payments/domain/keys';
+import { releaseKeyFor } from '../../pay/domain/keys';
 import {
   PAYMENT_PORT,
   type PaymentPort,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import {
   type ApprovalOutcome,
   BookingRepository,

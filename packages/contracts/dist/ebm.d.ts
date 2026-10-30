@@ -23,7 +23,7 @@ import { z } from "zod";
  * WHAT THIS TYPE IS NOT: carrying this shape does not make a document fiscal.
  * A receipt is fiscal because a real VSDC signed it (clause 10: the CIS may not
  * print at all before the VSDC has answered). Today the API fills the SDC block
- * from a declared mock — see `server/api/src/modules/ebm/infrastructure/
+ * from a declared mock — see `server/api/src/modules/platform/fiscal/infrastructure/
  * mock-vsdc.signer.ts`, which states in full what it fabricates.
  */
 /**

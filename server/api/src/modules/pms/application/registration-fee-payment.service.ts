@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 
 import { awaitsRegistrationFee } from '../../organization/domain/registration-status';
-import { PaymentSeam } from '../../payments/domain/payment-seam';
+import { PaymentSeam } from '../../pay/domain/payment-seam';
 import { REGISTRATION_FEES, type RegistrationFees } from '../domain/registration-fees';
 import { PaymentAttemptService } from './payment-attempt.service';
 

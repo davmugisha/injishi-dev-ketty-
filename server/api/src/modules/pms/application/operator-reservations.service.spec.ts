@@ -8,7 +8,7 @@ import {
 
 import type { FolioService } from './folio.service';
 import type { RoomAssignmentService } from './room-assignment.service';
-import type { PaymentPort } from '../../payments/domain/payment-port';
+import type { PaymentPort } from '../../pay/domain/payment-port';
 import type { BookingRepository } from '../infrastructure/booking.repository';
 import type { BookingCancellationService } from './booking-cancellation.service';
 import { BookingDecisionService } from './booking-decision.service';
@@ -16,7 +16,7 @@ import { BookingNotificationsService } from './booking-notifications.service';
 import { OperatorReservationsService } from './operator-reservations.service';
 import { everyBranch } from '../../../shared/auth/branch-scope.fixture';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
-import type { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
+import type { EbmSaleTrigger } from '../../platform/fiscal/application/ebm-sale-trigger.service';
 import type { BookingRefunds } from './booking-refunds';
 
 /**

@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
-import { PaymentDeclinedError, type PaymentPort } from '../../payments/domain/payment-port';
-import { MockPaymentAdapter } from '../../payments/infrastructure/mock-payment.adapter';
+import { PaymentDeclinedError, type PaymentPort } from '../../pay/domain/payment-port';
+import { MockPaymentAdapter } from '../../pay/infrastructure/mock-payment.adapter';
 import type { LeaseRecord, LeasesRepository } from '../infrastructure/leases.repository';
 import type { DepositRow, MoveOutsRepository, RefundPayoutRow } from '../infrastructure/move-outs.repository';
 import type { RentalsContextRepository } from '../infrastructure/rentals-context.repository';

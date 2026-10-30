@@ -5,11 +5,11 @@ import {
   bookings,
   ebmInvoices,
   ebmReceiptCounters,
-} from '../../../database/drizzle/schema';
+} from '../../../../database/drizzle/schema';
 import {
   DRIZZLE,
   type Database,
-} from '../../../shared/database/database.module';
+} from '../../../../shared/database/database.module';
 
 export type EbmEmissionRow = typeof ebmInvoices.$inferSelect;
 

@@ -5,7 +5,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import type { SQL } from 'drizzle-orm';
 
-import { MockPaymentAdapter } from '../../payments/infrastructure/mock-payment.adapter';
+import { MockPaymentAdapter } from '../../pay/infrastructure/mock-payment.adapter';
 import { BrokerRegistrationFeeService } from './broker-registration-fee.service';
 
 /**

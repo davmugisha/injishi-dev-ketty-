@@ -16,7 +16,7 @@ import {
 } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 
-import { PLATFORM, type Platform } from '../../../shared/config/platform';
+import { PLATFORM, type Platform } from '../../../../shared/config/platform';
 import { EBM_LIVE, type EbmLive } from '../domain/ebm-live';
 import {
   EbmApiError,

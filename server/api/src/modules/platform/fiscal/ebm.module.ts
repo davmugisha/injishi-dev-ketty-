@@ -1,6 +1,6 @@
 import { Global, Logger, Module, type Provider } from '@nestjs/common';
 
-import { isWorkerProcess } from '../../shared/process/process-role';
+import { isWorkerProcess } from '../../../shared/process/process-role';
 import { DeclarationPlanService } from './application/declaration-plan.service';
 import { EbmConnectionService } from './application/ebm-connection.service';
 import { EbmEmissionService } from './application/ebm-emission.service';

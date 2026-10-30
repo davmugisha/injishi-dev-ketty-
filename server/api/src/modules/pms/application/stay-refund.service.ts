@@ -31,7 +31,7 @@ import {
   PAYMENT_PORT,
   PaymentDeclinedError,
   type PaymentPort,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import { FolioRepository } from '../infrastructure/folio.repository';
 import type { MyStayRow } from '../infrastructure/stay-claim.repository';
 import {

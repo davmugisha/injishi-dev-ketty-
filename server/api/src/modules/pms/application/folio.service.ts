@@ -22,8 +22,8 @@ import {
   assertInBranchScope,
   type ScopedWorkspace,
 } from '../../../shared/auth/branch-scope';
-import { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
-import { DeclarationPlanService } from '../../ebm/application/declaration-plan.service';
+import { EbmSaleTrigger } from '../../platform/fiscal/application/ebm-sale-trigger.service';
+import { DeclarationPlanService } from '../../platform/fiscal/application/declaration-plan.service';
 import {
   type ChargeDraft,
   type ChargeRow,

@@ -5,8 +5,8 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { RraTinHttpAdapter } from '../../modules/organization/infrastructure/rra-tin-http.adapter';
-import type { OneTimeFeeCommand } from '../../modules/payments/domain/payment-port';
-import { GtbankPaymentAdapter } from '../../modules/payments/infrastructure/gtbank-payment.adapter';
+import type { OneTimeFeeCommand } from '../../modules/pay/domain/payment-port';
+import { GtbankPaymentAdapter } from '../../modules/pay/infrastructure/gtbank-payment.adapter';
 import { GtbankNidaRegistry } from '../../modules/user/infrastructure/gtbank-nida.registry';
 import type { DocumentCheck } from '../../modules/user/domain/identity-ports';
 import { SmileIdDocumentVerifier } from '../../modules/user/infrastructure/smile-id-document.verifier';

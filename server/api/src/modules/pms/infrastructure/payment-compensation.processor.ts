@@ -6,16 +6,16 @@ import {
   COMPENSATION_JOBS,
   PaymentCompensationService,
   type CompensationJob,
-} from '../../payments/application/payment-compensation.service';
-import { DisbursementDispatcher } from '../../payments/application/disbursement-dispatcher.service';
-import { captureKeyOfVoid } from '../../payments/domain/keys';
+} from '../../pay/application/payment-compensation.service';
+import { DisbursementDispatcher } from '../../pay/application/disbursement-dispatcher.service';
+import { captureKeyOfVoid } from '../../pay/domain/keys';
 import {
   PAYMENT_PORT,
   PaymentRateLimitedError,
   PaymentUnavailableError,
   type PaymentPort,
-} from '../../payments/domain/payment-port';
-import { PaymentSeam } from '../../payments/domain/payment-seam';
+} from '../../pay/domain/payment-port';
+import { PaymentSeam } from '../../pay/domain/payment-seam';
 import { QUEUES } from '../../../shared/queues/queues.module';
 import { BookingRefunds } from '../application/booking-refunds';
 import { BookingRepository } from './booking.repository';

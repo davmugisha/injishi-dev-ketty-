@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { PLATFORM, type Platform } from '../../../shared/config/platform';
+import { PLATFORM, type Platform } from '../../../../shared/config/platform';
 import { EBM_LIVE, type EbmLive } from '../domain/ebm-live';
 import { EbmConnectionRepository } from '../infrastructure/ebm-connection.repository';
 

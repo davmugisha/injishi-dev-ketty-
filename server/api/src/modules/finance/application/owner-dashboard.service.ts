@@ -14,7 +14,7 @@ import {
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
-import { PaymentSeam } from '../../payments/domain/payment-seam';
+import { PaymentSeam } from '../../pay/domain/payment-seam';
 import {
   type NightRow,
   type OwnerBranchRow,

@@ -1,7 +1,7 @@
 import type { AdapterMode } from '@injishi/contracts';
 import { ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
 
-import { PLATFORM, type Platform } from '../../../shared/config/platform';
+import { PLATFORM, type Platform } from '../../../../shared/config/platform';
 import type {
   VsdcPort,
   VsdcSignRequest,

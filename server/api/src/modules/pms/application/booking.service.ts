@@ -24,7 +24,7 @@ import { createHash } from 'node:crypto';
 
 // Cross-module dependency goes through ListingModule's application service —
 // never its repository (architecture.md invariant).
-import { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
+import { EbmSaleTrigger } from '../../platform/fiscal/application/ebm-sale-trigger.service';
 import { reportAlarm } from '../../../shared/observability/error-reporter';
 import { BookingNotificationsService } from './booking-notifications.service';
 import { PaymentAttemptService } from './payment-attempt.service';
@@ -32,20 +32,20 @@ import {
   ListingService,
   type BookableRoomType,
 } from '../../listing/application/listing.service';
-import { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
-import { PaymentSeam } from '../../payments/domain/payment-seam';
+import { PaymentCompensationService } from '../../pay/application/payment-compensation.service';
+import { PaymentSeam } from '../../pay/domain/payment-seam';
 import {
   captureKeyFor,
   refundKeyFor,
   voidKeyFor,
-} from '../../payments/domain/keys';
+} from '../../pay/domain/keys';
 import {
   PAYMENT_PORT,
   PaymentDeclinedError,
   PaymentUnavailableError,
   type PaymentPort,
   type PaymentReceipt,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import {
   DEFAULT_CAPACITY,
   MAX_HORIZON_DAYS,

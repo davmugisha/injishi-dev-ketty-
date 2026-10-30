@@ -11,7 +11,7 @@ import { z } from "zod";
  * These are OUR shapes, on OUR wire — what `/api/v1/ops/ebm/*` answers the
  * operator app. The EBM provider's own request and response shapes are NOT here:
  * they belong to the adapter that speaks to it
- * (`server/api/src/modules/ebm/infrastructure/ebm-api.client.ts`), because a
+ * (`server/api/src/modules/platform/fiscal/infrastructure/ebm-api.client.ts`), because a
  * third party's field names are not a contract this platform gets to define, and
  * putting them here would invite a screen to depend on them.
  *

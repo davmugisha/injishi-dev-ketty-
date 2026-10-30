@@ -5,13 +5,13 @@ import { NotFoundException } from '@nestjs/common';
 import type { ListingService } from '../../listing/application/listing.service';
 import type { GuestOrderingService } from '../../outlets/application/guest-ordering.service';
 import type { OrderPaymentService } from '../../outlets/application/order-payment.service';
-import type { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
-import type { PaymentTransactionsRepository } from '../../payments/infrastructure/payment-transactions.repository';
+import type { PaymentCompensationService } from '../../pay/application/payment-compensation.service';
+import type { PaymentTransactionsRepository } from '../../pay/infrastructure/payment-transactions.repository';
 import {
   PaymentUnavailableError,
   type PaymentPort,
   type PaymentReceipt,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import type {
   PaymentAttemptRepository,
   PaymentAttemptRow,

@@ -24,11 +24,11 @@ import {
   threads,
   users,
 } from '../../../database/drizzle/schema';
-import type { PaymentReceipt } from '../../payments/domain/payment-port';
+import type { PaymentReceipt } from '../../pay/domain/payment-port';
 import type {
   RefundOwedWrite,
   Tx as PaymentsTx,
-} from '../../payments/infrastructure/payment-transactions.repository';
+} from '../../pay/infrastructure/payment-transactions.repository';
 import {
   DRIZZLE,
   type Database,

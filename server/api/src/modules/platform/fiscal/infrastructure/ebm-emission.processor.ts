@@ -2,14 +2,14 @@ import { InjectQueue, OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullm
 import { Inject, Logger, OnModuleInit } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';
 
-import { PLATFORM, type Platform } from '../../../shared/config/platform';
-import { QUEUES } from '../../../shared/queues/queues.module';
+import { PLATFORM, type Platform } from '../../../../shared/config/platform';
+import { QUEUES } from '../../../../shared/queues/queues.module';
 import { EbmEmissionService } from '../application/ebm-emission.service';
 import { EMIT_JOB, EbmSaleTrigger } from '../application/ebm-sale-trigger.service';
 import { EBM_LIVE, type EbmLive } from '../domain/ebm-live';
 import { EbmConnectionRepository } from './ebm-connection.repository';
 import { EbmEmissionRepository } from './ebm-emission.repository';
-import { reportJobFailure } from '../../../shared/observability/report-job-failure';
+import { reportJobFailure } from '../../../../shared/observability/report-job-failure';
 
 export const EBM_DRAIN = 'ebm-drain';
 const DRAIN_EVERY_MS = 60_000;

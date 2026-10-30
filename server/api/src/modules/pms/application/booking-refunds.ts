@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
-import { RefundsOwedService } from '../../payments/application/refunds-owed.service';
-import type { RefundOwedWrite } from '../../payments/infrastructure/payment-transactions.repository';
+import { RefundsOwedService } from '../../pay/application/refunds-owed.service';
+import type { RefundOwedWrite } from '../../pay/infrastructure/payment-transactions.repository';
 import type { OweTx } from '../infrastructure/booking.repository';
 
 export interface OwedRefundPlan {

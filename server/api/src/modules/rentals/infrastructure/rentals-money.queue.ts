@@ -4,7 +4,7 @@ import type { Queue } from 'bullmq';
 
 import { queueJobId } from '../../../shared/queues/job-id';
 import { QUEUES } from '../../../shared/queues/queues.module';
-import type { CallbackEvent } from '../../payments/domain/payment-port';
+import type { CallbackEvent } from '../../pay/domain/payment-port';
 
 /** PaymentSettlement: the minute sweep, one payment to settle, a provider's callback. */
 export const SETTLEMENT_SWEEP = 'settlement-sweep';
