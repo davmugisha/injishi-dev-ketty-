@@ -629,3 +629,31 @@ export const sources = defineSources({
     parity: "shape",
   },
 });
+
+/** Every decision this officer made or that was routed to them, for the Decisions tab (2026-10-30). */
+export async function decisionRows(ctx: SourceContext): Promise<
+  {
+    id: string;
+    orgId: string;
+    business: string;
+    gate: string;
+    passed: boolean;
+    reason: string | null;
+    notes: string | null;
+    decidedAt: string;
+  }[]
+> {
+  const desk = await readDesk(ctx);
+  if (!holds(desk.consoles, "business_field_verifier") && !holds(desk.consoles, "business_approver")) return [];
+  const { items } = await ctx.api.get<{ items: ApiDecision[] }>("/api/v1/oversight/decisions");
+  return items.map((d) => ({
+    id: d.reviewId,
+    orgId: d.orgId,
+    business: d.legalName,
+    gate: d.stage === "tin_verified" ? "Field verification" : "Approval",
+    passed: d.decision === "passed",
+    reason: d.reasonCode ? REJECTION_REASONS[d.reasonCode] : null,
+    notes: d.notes,
+    decidedAt: d.decidedAt,
+  }));
+}

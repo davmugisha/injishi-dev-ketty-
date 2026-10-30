@@ -24,7 +24,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { GuestFilters } from "./GuestFilters";
 
-
 /** The guest filters the address carries; the period and the area are kept apart. */
 const GUEST_FILTERS = ["origin", "nationality", "relationship", "flagged"] as const;
 
