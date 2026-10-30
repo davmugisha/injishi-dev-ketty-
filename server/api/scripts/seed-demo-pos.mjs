@@ -32,6 +32,7 @@ import { createRequire } from 'node:module';
 import pg from 'pg';
 
 import { seedMissingDepartments } from './property-departments.mjs';
+import { businessKindFor } from './business-kind.mjs';
 import { assertSampleDatabase } from './sample-database.mjs';
 
 const require = createRequire(import.meta.url);
@@ -223,10 +224,10 @@ async function seedBusiness(c) {
   );
 
   await c.query(
-    `INSERT INTO orgs (id, legal_name, domain, accommodation_class, accommodation_class_other, tin, registration_status, district_id)
-     VALUES ($1, 'Ikirezi Bistro Group Ltd (demo)', 'hospitality', 'other', 'Restaurant and bar group', '999050501', 'active', $2)
+    `INSERT INTO orgs (id, legal_name, domain, accommodation_class, accommodation_class_other, tin, registration_status, district_id, business_kind)
+     VALUES ($1, 'Ikirezi Bistro Group Ltd (demo)', 'hospitality', 'other', 'Restaurant and bar group', '999050501', 'active', $2, $3)
      ON CONFLICT (id) DO UPDATE SET registration_status = 'active'`,
-    [ORG, gasabo],
+    [ORG, gasabo, businessKindFor({ domain: 'hospitality', accommodationClass: 'other' })],
   );
   await c.query(`INSERT INTO workspaces (id, kind, org_id) VALUES ($1, 'business', $2) ON CONFLICT DO NOTHING`, [WORKSPACE, ORG]);
 

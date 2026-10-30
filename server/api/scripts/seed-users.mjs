@@ -27,6 +27,7 @@
 import pg from 'pg';
 
 import { upsertGovernmentBodies } from './reference-data.mjs';
+import { businessKindFor } from './business-kind.mjs';
 import { assertSampleDatabase } from './sample-database.mjs';
 
 /** Stable ids, so a re-run updates the same rows instead of making new ones. */
@@ -445,8 +446,8 @@ async function resolveOrgs(client) {
 
   await client.query(
     `INSERT INTO orgs (id, legal_name, domain, residence_class, upi, district_id,
-                       registration_status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+                       registration_status, business_kind)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (id) DO UPDATE
        SET registration_status = EXCLUDED.registration_status,
            upi = EXCLUDED.upi`,
@@ -458,6 +459,7 @@ async function resolveOrgs(client) {
       RESIDENCE_ORG.upi,
       RESIDENCE_ORG.districtId,
       RESIDENCE_ORG.registrationStatus,
+      businessKindFor({ domain: RESIDENCE_ORG.domain }),
     ],
   );
 
@@ -466,8 +468,8 @@ async function resolveOrgs(client) {
   // the registration pipeline advanced it — this row exists to be pending.
   await client.query(
     `INSERT INTO orgs (id, legal_name, domain, accommodation_class, tin,
-                       district_id, registration_status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+                       district_id, registration_status, business_kind)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (id) DO UPDATE
        SET registration_status = EXCLUDED.registration_status,
            tin = EXCLUDED.tin`,
@@ -479,6 +481,7 @@ async function resolveOrgs(client) {
       PENDING_ORG.tin,
       PENDING_ORG.districtId,
       PENDING_ORG.registrationStatus,
+      businessKindFor({ domain: PENDING_ORG.domain, accommodationClass: PENDING_ORG.accommodationClass }),
     ],
   );
 
