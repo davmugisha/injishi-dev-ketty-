@@ -10,7 +10,7 @@ import {
 import { Button } from "@injishi/web-ui";
 import { ArrowLeft, TriangleAlert } from "lucide-react";
 
-import { clearIdentity, putTypedIdentity } from "@/data/identity";
+import { clearIdentity, fetchIdentity, putTypedIdentity } from "@/data/identity";
 import { apiResultMessage } from "@/lib/api";
 
 import { AddressPicker } from "./address-picker";
@@ -97,7 +97,12 @@ export function SectionIdentity({
   const replaceId = async () => {
     setClearing(true);
     setClearProblem(null);
-    const res = await clearIdentity();
+    let res = await clearIdentity();
+    // A slow answer can time out after the server already dropped it: what is on file now decides.
+    if (res.status !== "ok" && res.status !== "refused") {
+      const now = await fetchIdentity();
+      if (now.status === "ok" && now.data.onFile === null) res = now;
+    }
     setClearing(false);
     if (res.status !== "ok") {
       setClearProblem(apiResultMessage(res));
@@ -117,7 +122,18 @@ export function SectionIdentity({
   ) : null;
 
   if (!identity) {
-    return <p className="text-sm text-muted-foreground">Reading what is on file…</p>;
+    // The steps open once the first read has answered, so no identity here means that read failed.
+    return (
+      <>
+        <p className="text-sm text-muted-foreground">We couldn&apos;t read your ID details just now.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          {back}
+          <Button variant="secondary" onClick={() => onIdentity()} disabled={!online}>
+            Try again
+          </Button>
+        </div>
+      </>
+    );
   }
 
   // --- On file: who, and what is still owed.
