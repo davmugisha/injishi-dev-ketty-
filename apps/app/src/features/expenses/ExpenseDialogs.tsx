@@ -55,7 +55,7 @@ export function AddExpensePanel({
   const [category, setCategory] = useState<ExpenseCategory | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
   const [paidOn, setPaidOn] = useState<string | null>(today);
-  const [method, setMethod] = useState<ExpenseMethod>("cash");
+  const [method, setMethod] = useState<ExpenseMethod | null>(null);
   const [payee, setPayee] = useState("");
   const [phone, setPhone] = useState<string | null>(null);
   const [propertyId, setPropertyId] = useState<string | null>(
@@ -78,6 +78,7 @@ export function AddExpensePanel({
       if (!category) next.category = "Pick what it was for.";
       if (!amount || amount <= 0) next.amountRwf = "Enter the amount.";
       if (!paidOn) next.paidOn = "Pick the day it was paid.";
+      if (!method) next.method = "Say how it was paid.";
       if (loan && !purpose) next.loanPurpose = "Say what the loan was for.";
       if (loan && payee.trim().length < 2) next.payeeName = "Name the bank or lender.";
       setErrors(next);
@@ -214,7 +215,12 @@ export function AddExpensePanel({
             name="method"
             options={METHODS}
             value={method}
-            onChange={(v) => setMethod(v as ExpenseMethod)}
+            onChange={(v) => {
+              setMethod(v as ExpenseMethod);
+              clear("method");
+            }}
+            errorMessage={errors.method || null}
+            isRequired
           />
         </div>
         {!loan ? (

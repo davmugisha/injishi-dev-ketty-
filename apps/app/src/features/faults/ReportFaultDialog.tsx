@@ -69,9 +69,9 @@ export function ReportFaultDialog({
   const router = useRouter();
   const [unitId, setUnitId] = useState<string | null>(units?.length === 1 ? (units[0]?.id ?? null) : null);
   const [what, setWhat] = useState("");
-  const [category, setCategory] = useState<MaintenanceCategory>("other");
+  const [category, setCategory] = useState<MaintenanceCategory | null>(null);
   const [details, setDetails] = useState("");
-  const [urgency, setUrgency] = useState<MaintenancePriority>("normal");
+  const [urgency, setUrgency] = useState<MaintenancePriority | null>(null);
   const [mayEnter, setMayEnter] = useState(false);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [state, setState] = useState<UploadState>({ queued: 0, uploading: 0, failed: 0 });
@@ -119,9 +119,11 @@ export function ReportFaultDialog({
       const next: Record<string, string> = {};
       if (units && !unitId) next.unitId = "Pick the unit.";
       if (what.trim().length < 3) next.title = "Say what is wrong in a few words.";
+      if (!category) next.category = "Pick the kind.";
+      if (!urgency) next.urgency = "Say how urgent it is.";
       setErrors(next);
       setFormError(null);
-      if (Object.keys(next).length > 0) return;
+      if (Object.keys(next).length > 0 || !category || !urgency) return;
       const r = await create({
         title: what.trim(),
         category,
@@ -202,7 +204,12 @@ export function ReportFaultDialog({
           name="category"
           options={CATEGORIES}
           value={category}
-          onChange={(v) => setCategory(v as MaintenanceCategory)}
+          onChange={(v) => {
+            setCategory(v as MaintenanceCategory);
+            setErrors(({ category: _, ...rest }) => rest);
+          }}
+          errorMessage={errors.category || null}
+          isRequired
           isDisabled={saved !== null}
         />
         <SelectField
@@ -210,7 +217,12 @@ export function ReportFaultDialog({
           name="urgency"
           options={URGENCIES}
           value={urgency}
-          onChange={(v) => setUrgency(v as MaintenancePriority)}
+          onChange={(v) => {
+            setUrgency(v as MaintenancePriority);
+            setErrors(({ urgency: _, ...rest }) => rest);
+          }}
+          errorMessage={errors.urgency || null}
+          isRequired
           isDisabled={saved !== null}
         />
       </div>
