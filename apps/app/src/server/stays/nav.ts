@@ -23,7 +23,7 @@ export function staysNavGroups(
   // Few sidebar items (2026-10-30): each area's pages are tabs at the top of its pages.
   const items: NavItem[] = [];
 
-  const overview: NavTab[] = [{ id: "overview", label: "Overview", board: home }];
+  const overview: NavTab[] = [{ id: "overview", label: "Home", board: home }];
   if (desk || bookings) overview.push({ id: "calendar", label: "Calendar", board: "StaysCalendar" });
   items.push({ id: "home", label: "Home", icon: "House", board: home, tabs: overview });
 

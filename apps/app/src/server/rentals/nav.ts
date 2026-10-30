@@ -33,7 +33,7 @@ export function landlordNavGroups(
   // Few sidebar items (2026-10-30): each area's pages are tabs at the top of its pages.
   const items: NavItem[] = [];
 
-  const home: NavTab[] = [{ id: "overview", label: "Overview", board: "ResidenceHome" }];
+  const home: NavTab[] = [{ id: "overview", label: "Home", board: "ResidenceHome" }];
   if (can(scope, "money.view", "lease.manage", "rent.record")) {
     home.push({ id: "calendar", label: "Calendar", board: "RentalsCalendar" });
   }

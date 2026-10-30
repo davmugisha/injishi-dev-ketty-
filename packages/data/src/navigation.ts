@@ -657,7 +657,7 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
           icon: "House",
           board: "TenantLeaseHome",
           tabs: [
-            { id: "overview", label: "Overview", board: "TenantLeaseHome" },
+            { id: "overview", label: "Home", board: "TenantLeaseHome" },
             { id: "calendar", label: "Calendar", board: "TenantCalendar" },
             { id: "todo", label: "To do", board: "TenantTodo" },
           ],
@@ -755,7 +755,7 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
           icon: "House",
           board: "BrokerWork",
           tabs: [
-            { id: "overview", label: "Overview", board: "BrokerWork" },
+            { id: "overview", label: "Home", board: "BrokerWork" },
             { id: "find", label: "Find homes", board: "BrokerDirectory" },
           ],
         },
