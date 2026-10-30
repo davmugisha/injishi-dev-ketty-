@@ -207,7 +207,6 @@ export function FoliosView({ folios }: { folios: Folio[] }) {
       <PageHeader
         eyebrow="Cashiering · Amahoro Hospitality Ltd · TIN 102 345 678"
         title="Folios"
-        description="Guest, house, master and city-ledger folios. Balances come from posted charges and verified payments only."
         actions={
           <>
             <SearchField aria-label="Search folios" value={query} onChange={setQuery} className="w-[260px] max-w-full">

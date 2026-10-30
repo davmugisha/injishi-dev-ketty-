@@ -111,7 +111,6 @@ export function AdminAuditView({ data, exportOpen = false }: { data: AdminAuditD
       <PageHeader
         eyebrow="Oversight › Audit · all tenants · Monday 12 October 2026"
         title="Audit"
-        description="Personal-data access, view-as sessions and privileged actions across the platform. Rows are written with the change they record and cannot be edited."
         actions={
           <Button
             variant="secondary"

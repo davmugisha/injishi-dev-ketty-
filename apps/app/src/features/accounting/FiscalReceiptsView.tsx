@@ -239,7 +239,6 @@ export function FiscalReceiptsView({
       <PageHeader
         eyebrow="Monday 12 October 2026 · Reconcile & comply"
         title="Fiscal Receipts"
-        description="EBM documents signed through the VSDC, kept per legal merchant. Issued documents are never edited; corrections are refund receipts."
         actions={
           <>
             <Segment

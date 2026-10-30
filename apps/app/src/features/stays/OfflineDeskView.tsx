@@ -101,7 +101,6 @@ export function OfflineDeskView({
       <PageHeader
         eyebrow="Desk 1 · sample day"
         title="Offline Desk"
-        description="A preview of keeping arrivals moving when the connection drops. Nothing on this page is saved or sent."
         actions={
           <>
             {offline ? (

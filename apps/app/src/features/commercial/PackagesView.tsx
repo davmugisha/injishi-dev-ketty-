@@ -87,7 +87,6 @@ export function PackagesView({
       <PageHeader
         eyebrow="Isangano Lakeside Hotel · Commercial"
         title="Packages"
-        description="Rooms sold together with meals, activities or events. Each part keeps its own seller, tax treatment and refund share."
         actions={
           <>
             <LinkButton href={screenHref("RatesInventory")} variant="secondary">

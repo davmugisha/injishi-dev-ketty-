@@ -109,7 +109,6 @@ export function AvailabilityCalendarView({ persona, data }: { persona: Persona; 
       <PageHeader
         eyebrow="Isangano Lakeside Hotel · Commercial"
         title="Availability"
-        description="Rooms left, price and restrictions per night. Click the first and last night in a row to edit them together."
         actions={
           <>
             <LinkButton href={screenHref("RatesInventory")} variant="secondary">

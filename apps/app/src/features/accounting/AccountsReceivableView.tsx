@@ -259,7 +259,6 @@ export function AccountsReceivableView({
       <PageHeader
         eyebrow={`City ledger · Monday 12 October 2026 · Receivable owner: ${entName}`}
         title="Accounts Receivable"
-        description="Companies and travel agents billed on credit. Balances move only on issued credit invoices and verified allocations."
         actions={
           <>
             <Segment

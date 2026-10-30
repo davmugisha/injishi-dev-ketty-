@@ -192,7 +192,6 @@ export function WalkInView({
           </>
         }
         title="Walk-in"
-        description="Find a room, quote it, then check the guest in: the stay and its bill open at once."
         actions={
           <>
             <LinkButton href={screenHref("RoomRack")} variant="ghost">

@@ -55,7 +55,6 @@ export function GroupsView({ blocks }: { blocks: GroupsBlock[] }) {
     <PageHeader
       eyebrow="Isangano Lakeside Hotel · Commercial"
       title="Group Blocks"
-      description="Rooms held for a group at a contracted rate. Unsold rooms return to general inventory at cutoff, exactly once."
       actions={
         <>
           <LinkButton href={screenHref("AvailabilityCalendar")} variant="secondary">

@@ -52,7 +52,6 @@ export function NotificationsView({ persona, data }: { persona: Persona; data: I
         size="hello"
         eyebrow="Monday 12 October 2026 · 10:45 · Isangano Lakeside Hotel"
         title={`Good morning, ${persona.firstName}`}
-        description="7 exceptions open. Housekeeping is 5 rooms short for arrivals before 14:00."
       />
 
       <section aria-label="Today">

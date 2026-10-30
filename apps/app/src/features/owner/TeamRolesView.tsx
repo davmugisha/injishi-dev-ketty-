@@ -405,7 +405,6 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
       <PageHeader
         eyebrow={`${data.businessName} · Business`}
         title="Team and Roles"
-        description="Who can sign in to your business, what each role can do, and where."
         actions={
           <>
             <Button variant="ghost" onPress={openTransfer}>

@@ -90,7 +90,6 @@ export function AdminHealthView({ data }: { data: AdminHealthData }) {
       <PageHeader
         eyebrow="Platform › Health · Production · updated 09:42:05 CAT"
         title="Platform Health"
-        description="Adapters, events, jobs, storage and delivery. Support can read and replay; Engineering owns changes and promotions."
         actions={
           <Segment aria-label="Time window" selectedKey={String(win)} onSelectionChange={(k) => setWin(Number(k))}>
             {WINDOWS.map((w) => (

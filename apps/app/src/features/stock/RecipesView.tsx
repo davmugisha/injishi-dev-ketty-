@@ -138,7 +138,6 @@ export function RecipesView({ data }: { data: RecipesData }) {
       <PageHeader
         eyebrow="Stock › Recipes and production · Isangano Terrace kitchen"
         title="Recipes and Production"
-        description="Recipes turn confirmed sales into stock consumption. Batches turn ingredients into prepared stock. Neither is a sale."
         actions={
           <>
             <Button variant="secondary">

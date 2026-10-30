@@ -98,7 +98,6 @@ export function OutletsMenusView({
       <PageHeader
         eyebrow={`${placeName} · Property`}
         title="Outlets & Services"
-        description="Who sells what, from which menu, and how it is settled. Each outlet keeps its own merchant identity."
         actions={
           <>
             <LinkButton href={screenHref("KitchenDisplay")} variant="secondary">

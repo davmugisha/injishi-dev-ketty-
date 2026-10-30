@@ -247,7 +247,6 @@ export function LoyaltyView({ persona: _persona, data }: { persona: Persona; dat
       <PageHeader
         eyebrow={`${p.name} · run by ${p.operator} · earns at ${p.earnsAt}`}
         title="Loyalty"
-        description="Points on eligible spend, redeemed for stays and services. Points have no cash value until Finance sets one."
         actions={
           <>
             <Button variant="secondary" onPress={exportLiability}>

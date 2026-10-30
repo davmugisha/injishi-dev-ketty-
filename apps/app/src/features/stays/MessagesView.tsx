@@ -226,7 +226,6 @@ export function MessagesView({
       <PageHeader
         eyebrow={`${todayLabel} · ${property}`}
         title="Guest Messages"
-        description="Booking threads before arrival, stay threads after check-in. Internal notes never reach the guest."
         actions={<ToneChip tone="default">Replies reach the guest app</ToneChip>}
       />
 

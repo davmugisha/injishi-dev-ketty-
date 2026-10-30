@@ -230,7 +230,6 @@ export function LostFoundView({
       <PageHeader
         eyebrow={`${placeName} · Property`}
         title="Lost & Found"
-        description="Found items, custody and returns. Every hand-over is recorded, and items go back only to a verified claimant."
         actions={
           <Button variant="secondary" onPress={exportLog}>
             <ArrowDownToLine className="size-4" />

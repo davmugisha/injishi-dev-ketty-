@@ -120,7 +120,6 @@ export function RatesCalendarView({ data, longStays }: { data: RatesCalendar; lo
       <Toast.Provider placement="bottom" />
       <PageHeader
         title="Prices and availability"
-        description="Choose a day, then another in the same row, to change a run of days. What you set is what guests pay."
         actions={
           <span className="flex items-center gap-1.5">
             <Button isIconOnly size="sm" variant="secondary" aria-label="Two weeks earlier" onPress={() => move(-14)}>

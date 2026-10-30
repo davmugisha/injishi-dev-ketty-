@@ -77,7 +77,6 @@ export function OutletOrdersView({ data }: { data: OutletOrdersData }) {
       <PageHeader
         eyebrow="Monday 12 October 2026 · Isangano Terrace · dinner service"
         title="Orders"
-        description="Live orders from the terrace, room service and QR. Voids and refunds wait for your approval."
         actions={
           <>
             <LinkButton href={screenHref("KitchenDisplay")} variant="secondary">

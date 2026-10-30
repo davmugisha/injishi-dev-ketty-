@@ -110,7 +110,6 @@ export function GuestsView({
       <PageHeader
         eyebrow="Guest directory · sample guests"
         title="Guests"
-        description="A preview with sample guests: guest profiles are not built yet. Identity documents stay masked unless you give a purpose."
         actions={
           <LinkButton href={screenHref("WalkIn")} variant="secondary">
             <PersonPlus className="size-4" />

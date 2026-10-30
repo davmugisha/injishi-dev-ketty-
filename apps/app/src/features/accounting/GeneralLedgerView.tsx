@@ -75,7 +75,6 @@ export function GeneralLedgerView({ initialTab, data }: { initialTab: LedgerTab;
       <PageHeader
         eyebrow="Amahoro Hospitality Ltd · TIN 102 345 678 · Fiscal year 2026 · RWF"
         title="General Ledger"
-        description="Balanced postings from folio close, verified payments and approved supplier invoices. Amahoro Residences Ltd keeps a separate ledger."
         actions={
           <>
             <LinkButton href={screenHref("Reports")} variant="secondary">

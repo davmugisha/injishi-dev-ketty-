@@ -153,7 +153,6 @@ export function RevenueView({ data }: { data: RevenueData }) {
       <PageHeader
         eyebrow="Isangano Lakeside Hotel · Commercial · Next 30 nights, 13 Oct – 11 Nov"
         title="Revenue"
-        description="Forecasts are estimates for planning, not facts. Rate changes you accept go to the owner before anything is published."
         actions={
           <>
             <Segment

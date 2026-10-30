@@ -293,11 +293,7 @@ export function NewLeaseView({
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
-      <PageHeader
-        eyebrow={<BackToLeases />}
-        title="New lease"
-        description="Draft it here. You sign it next, then the tenant gets an email to read and sign."
-      />
+      <PageHeader eyebrow={<BackToLeases />} title="New lease" />
       <FlowStepper label="New lease steps" steps={[...STEPS]} current={step} onStepChange={goTo} />
 
       <div className="grid min-w-0 items-start gap-5 lg:grid-cols-3">
