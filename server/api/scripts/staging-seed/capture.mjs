@@ -16,7 +16,8 @@
  *
  *   DATABASE_URL=postgres://injishi:injishi@127.0.0.1:5434/injishi node scripts/staging-seed/capture.mjs
  */
-import { writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -118,7 +119,20 @@ const TABLES = [
   ['folio_charges', 'workspace_id = any($W)'],
   ['guest_registrations', 'workspace_id = any($W)'],
   ['guest_registration_routes', 'registration_id in (select id from guest_registrations where workspace_id = any($W))'],
+  // Seeded only with --with-files: rows that cannot exist without their stored file.
+  ['unit_photos', 'workspace_id = any($W)'],
+  ['unit_videos', 'workspace_id = any($W)'],
+  ['maintenance_photos', 'ticket_id in (select id from maintenance_tickets where workspace_id = any($W))'],
+  ['message_attachments', 'message_id in (select m.id from messages m join threads t on t.id = m.thread_id where t.workspace_id = any($W))'],
 ];
+
+/** Tables whose rows need their file: written only by `seed-staging-all.mjs --with-files`. */
+const FILE_TABLES = new Set(['unit_photos', 'unit_videos', 'maintenance_photos', 'message_attachments']);
+
+/** Files over this stay behind, except one unit video (a tour is what testers look for). */
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
+const STORAGE_CONTAINER = 'docker-api-1';
+const STORAGE_ROOT = '/app/.storage';
 
 /** Columns never copied: secrets and things a fresh database must mint itself. */
 const DROP_COLUMNS = new Set(['users.image']);
@@ -181,8 +195,37 @@ async function main() {
       void used;
     }
 
+    // The stored files the captured rows point at, and which of them travel.
+    const soCols = fks.filter((f) => f.ref === 'stored_objects');
+    const soIds = new Set();
+    for (const f of soCols) {
+      for (const r of rows[f.table_name] ?? []) {
+        const v = r[f.column_name];
+        if (v && f.ref_column === 'id') soIds.add(v);
+      }
+    }
+    const objects = (
+      await client.query('select * from stored_objects where id = any($1::uuid[]) order by created_at', [[...soIds]])
+    ).rows;
+    let videoKept = false;
+    const travelling = objects.filter((o) => {
+      const big = Number(o.size_bytes ?? 0) > MAX_FILE_BYTES;
+      if (o.kind === 'unit_video' && !videoKept && Number(o.size_bytes ?? 0) < 40 * 1024 * 1024) {
+        videoKept = true;
+        return true;
+      }
+      return !big && o.kind !== 'unit_video';
+    });
+    const kept = new Set(travelling.map((o) => o.id));
+    // A file table's row without its file stays behind too.
+    for (const t of FILE_TABLES) {
+      const cols = soCols.filter((f) => f.table_name === t && f.ref_column === 'id');
+      rows[t] = (rows[t] ?? []).filter((r) => cols.every((f) => !r[f.column_name] || kept.has(r[f.column_name])));
+    }
+
     // New ids: the family, then the table's place in the order, then a counter.
     const idMap = new Map();
+    travelling.forEach((o, i) => idMap.set(o.id, `5eed0000-0000-4000-8000-${pad(999, 3)}${pad(i + 1, 9)}`));
     TABLES.forEach(([table], ti) => {
       const pk = columns.find((c) => c.table_name === table && c.column_name === 'id');
       if (!pk || pk.data_type !== 'uuid') return;
@@ -203,7 +246,8 @@ async function main() {
       return t;
     };
 
-    const out = { capturedAt: new Date().toISOString(), anchors: {}, tables: [] };
+    const fileRefs = [];
+    const out = { capturedAt: new Date().toISOString(), anchors: {}, tables: [], files: { objects: [], refs: fileRefs } };
     // Named rows the seed's additions hang off (a history lease, a rating, the broker's plan).
     const residence = (await client.query('select id from orgs where legal_name = $1', [RESIDENCE_ORG_NAME])).rows[0]?.id;
     out.anchors = {
@@ -223,7 +267,11 @@ async function main() {
           let v = r[c.column_name];
           const fk = fkOf.get(`${table}.${c.column_name}`);
           if (v !== null && v !== undefined && (c.data_type === 'uuid' || c.udt_name === 'uuid')) {
-            if (fk?.ref === 'stored_objects') v = null;
+            if (fk?.ref === 'stored_objects') {
+              const so = idMap.get(v);
+              if (so && !FILE_TABLES.has(table)) fileRefs.push({ table, id: idMap.get(r.id), column: c.column_name, objectId: so });
+              v = FILE_TABLES.has(table) ? (so ?? null) : null;
+            }
             else if (idMap.has(v)) v = idMap.get(v);
             else if (lookup.has(v)) v = { $lookup: lookup.get(v) };
             else if (fk) {
@@ -271,9 +319,30 @@ async function main() {
       for (const u of unmapped) console.error(`  ${u}`);
       process.exitCode = 1;
     }
+    // The files themselves, from the local storage, at the keys the rows name.
+    const filesDir = path.join(here, 'files');
+    rmSync(filesDir, { recursive: true, force: true });
+    for (const o of travelling) {
+      const target = path.join(filesDir, o.object_key);
+      mkdirSync(path.dirname(target), { recursive: true });
+      const bytes = execFileSync('docker', ['exec', STORAGE_CONTAINER, 'cat', `${STORAGE_ROOT}/${o.object_key}`], {
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      writeFileSync(target, bytes);
+      out.files.objects.push({
+        ...Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v instanceof Date ? v.toISOString() : v])),
+        id: idMap.get(o.id),
+        uploaded_by_user_id: idMap.get(o.uploaded_by_user_id) ?? null,
+        workspace_id: idMap.get(o.workspace_id) ?? null,
+        legal_hold: false,
+        retention_until: null,
+      });
+    }
+    out.fileTables = [...FILE_TABLES];
     const file = path.join(here, 'data.json');
     writeFileSync(file, `${JSON.stringify(out, null, 1)}\n`);
     console.log(`Captured ${out.tables.reduce((n, t) => n + t.rows.length, 0)} rows from ${out.tables.length} tables into ${file}`);
+    console.log(`  files: ${travelling.length} of ${objects.length} (${(travelling.reduce((n, o) => n + Number(o.size_bytes ?? 0), 0) / 1048576).toFixed(1)} MB), ${fileRefs.length} references`);
     for (const t of out.tables) if (t.rows.length) console.log(`  ${t.table} ${t.rows.length}${t.deferred.length ? ` (later: ${t.deferred.join(', ')})` : ''}`);
   } finally {
     await client.end();

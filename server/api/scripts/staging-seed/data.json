@@ -1,5 +1,5 @@
 {
- "capturedAt": "2026-10-30T03:19:08.899Z",
+ "capturedAt": "2026-10-30T03:35:19.756Z",
  "anchors": {
   "residenceOrg": "5eed0000-0000-4000-8000-005000000004",
   "residenceWorkspace": "5eed0000-0000-4000-8000-006000000007",
@@ -8688,7 +8688,7 @@
       ],
       "version": 1,
       "versionId": "5eed0000-0000-4000-8000-030000000016",
-      "storedObjectId": "eb72cc3e-57aa-4380-913d-ad3c1b685eba"
+      "storedObjectId": "5eed0000-0000-4000-8000-999000000003"
      },
      "occurred_at": "2026-10-24T21:49:10.173Z"
     },
@@ -8707,7 +8707,7 @@
       ],
       "version": 3,
       "versionId": "5eed0000-0000-4000-8000-030000000004",
-      "storedObjectId": "aef2cc9c-e1d5-412d-815a-290dfb4b974a"
+      "storedObjectId": "5eed0000-0000-4000-8000-999000000029"
      },
      "occurred_at": "2026-10-25T20:07:07.448Z"
     },
@@ -9358,7 +9358,7 @@
       ],
       "version": 1,
       "versionId": "5eed0000-0000-4000-8000-030000000018",
-      "storedObjectId": "84f8ad30-9c76-4fec-96c2-7c333b54421b"
+      "storedObjectId": "5eed0000-0000-4000-8000-999000000015"
      },
      "occurred_at": "2026-10-25T15:15:42.239Z"
     },
@@ -9796,7 +9796,7 @@
       ],
       "version": 2,
       "versionId": "5eed0000-0000-4000-8000-030000000008",
-      "storedObjectId": "79e035fd-459f-425e-ac6f-0dd3bc8b67e7"
+      "storedObjectId": "5eed0000-0000-4000-8000-999000000032"
      },
      "occurred_at": "2026-10-25T20:09:36.813Z"
     },
@@ -14829,6 +14829,1331 @@
      "province_id": null
     }
    ]
+  },
+  {
+   "table": "unit_photos",
+   "columns": [
+    {
+     "name": "id",
+     "type": "uuid"
+    },
+    {
+     "name": "unit_id",
+     "type": "uuid"
+    },
+    {
+     "name": "workspace_id",
+     "type": "uuid"
+    },
+    {
+     "name": "stored_object_id",
+     "type": "uuid"
+    },
+    {
+     "name": "position",
+     "type": "int4"
+    },
+    {
+     "name": "caption",
+     "type": "text"
+    },
+    {
+     "name": "created_at",
+     "type": "timestamptz"
+    }
+   ],
+   "deferred": [],
+   "rows": [
+    {
+     "id": "5eed0000-0000-4000-8000-055000000001",
+     "unit_id": "5eed0000-0000-4000-8000-015000000004",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000054",
+     "position": 3,
+     "caption": null,
+     "created_at": "2026-10-27T10:23:27.249Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000002",
+     "unit_id": "5eed0000-0000-4000-8000-015000000004",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000051",
+     "position": 0,
+     "caption": null,
+     "created_at": "2026-10-27T10:23:26.568Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000003",
+     "unit_id": "5eed0000-0000-4000-8000-015000000008",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000043",
+     "position": 1,
+     "caption": null,
+     "created_at": "2026-10-26T20:36:41.574Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000004",
+     "unit_id": "5eed0000-0000-4000-8000-015000000008",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000042",
+     "position": 0,
+     "caption": null,
+     "created_at": "2026-10-26T20:36:40.263Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000005",
+     "unit_id": "5eed0000-0000-4000-8000-015000000004",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000052",
+     "position": 1,
+     "caption": null,
+     "created_at": "2026-10-27T10:23:26.834Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000006",
+     "unit_id": "5eed0000-0000-4000-8000-015000000006",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000018",
+     "position": 2,
+     "caption": null,
+     "created_at": "2026-10-25T15:37:28.882Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000007",
+     "unit_id": "5eed0000-0000-4000-8000-015000000007",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000046",
+     "position": 0,
+     "caption": null,
+     "created_at": "2026-10-27T09:24:26.088Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000008",
+     "unit_id": "5eed0000-0000-4000-8000-015000000004",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000055",
+     "position": 4,
+     "caption": null,
+     "created_at": "2026-10-27T10:23:27.358Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000009",
+     "unit_id": "5eed0000-0000-4000-8000-015000000008",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000044",
+     "position": 2,
+     "caption": null,
+     "created_at": "2026-10-26T20:36:43.133Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000010",
+     "unit_id": "5eed0000-0000-4000-8000-015000000001",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000004",
+     "position": 1,
+     "caption": null,
+     "created_at": "2026-10-24T22:18:07.250Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000011",
+     "unit_id": "5eed0000-0000-4000-8000-015000000002",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000006",
+     "position": 1,
+     "caption": null,
+     "created_at": "2026-10-24T22:20:38.958Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000012",
+     "unit_id": "5eed0000-0000-4000-8000-015000000001",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000005",
+     "position": 0,
+     "caption": null,
+     "created_at": "2026-10-24T22:18:13.046Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000013",
+     "unit_id": "5eed0000-0000-4000-8000-015000000007",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000050",
+     "position": 4,
+     "caption": null,
+     "created_at": "2026-10-27T09:25:03.248Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000014",
+     "unit_id": "5eed0000-0000-4000-8000-015000000008",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000045",
+     "position": 3,
+     "caption": null,
+     "created_at": "2026-10-26T20:36:44.638Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000015",
+     "unit_id": "5eed0000-0000-4000-8000-015000000007",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000047",
+     "position": 1,
+     "caption": null,
+     "created_at": "2026-10-27T09:24:31.399Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000016",
+     "unit_id": "5eed0000-0000-4000-8000-015000000002",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000007",
+     "position": 2,
+     "caption": null,
+     "created_at": "2026-10-24T22:20:44.172Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000017",
+     "unit_id": "5eed0000-0000-4000-8000-015000000006",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000016",
+     "position": 0,
+     "caption": null,
+     "created_at": "2026-10-25T15:37:27.390Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000018",
+     "unit_id": "5eed0000-0000-4000-8000-015000000001",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000011",
+     "position": 2,
+     "caption": null,
+     "created_at": "2026-10-24T22:22:50.156Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000019",
+     "unit_id": "5eed0000-0000-4000-8000-015000000007",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000049",
+     "position": 3,
+     "caption": null,
+     "created_at": "2026-10-27T09:24:55.351Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000020",
+     "unit_id": "5eed0000-0000-4000-8000-015000000007",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000048",
+     "position": 2,
+     "caption": null,
+     "created_at": "2026-10-27T09:24:37.279Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000021",
+     "unit_id": "5eed0000-0000-4000-8000-015000000004",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000053",
+     "position": 2,
+     "caption": null,
+     "created_at": "2026-10-27T10:23:26.984Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000022",
+     "unit_id": "5eed0000-0000-4000-8000-015000000002",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000008",
+     "position": 0,
+     "caption": null,
+     "created_at": "2026-10-24T22:20:50.192Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-055000000023",
+     "unit_id": "5eed0000-0000-4000-8000-015000000006",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000017",
+     "position": 1,
+     "caption": null,
+     "created_at": "2026-10-25T15:37:28.092Z"
+    }
+   ]
+  },
+  {
+   "table": "unit_videos",
+   "columns": [
+    {
+     "name": "id",
+     "type": "uuid"
+    },
+    {
+     "name": "unit_id",
+     "type": "uuid"
+    },
+    {
+     "name": "workspace_id",
+     "type": "uuid"
+    },
+    {
+     "name": "stored_object_id",
+     "type": "uuid"
+    },
+    {
+     "name": "poster_object_id",
+     "type": "uuid"
+    },
+    {
+     "name": "duration_s",
+     "type": "int4"
+    },
+    {
+     "name": "width",
+     "type": "int4"
+    },
+    {
+     "name": "height",
+     "type": "int4"
+    },
+    {
+     "name": "uploaded_by_user_id",
+     "type": "uuid"
+    },
+    {
+     "name": "created_at",
+     "type": "timestamptz"
+    },
+    {
+     "name": "updated_at",
+     "type": "timestamptz"
+    }
+   ],
+   "deferred": [],
+   "rows": [
+    {
+     "id": "5eed0000-0000-4000-8000-056000000001",
+     "unit_id": "5eed0000-0000-4000-8000-015000000002",
+     "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000010",
+     "poster_object_id": "5eed0000-0000-4000-8000-999000000009",
+     "duration_s": 8,
+     "width": 1920,
+     "height": 1080,
+     "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+     "created_at": "2026-10-24T22:20:57.093Z",
+     "updated_at": "2026-10-24T22:20:57.093Z"
+    }
+   ]
+  },
+  {
+   "table": "maintenance_photos",
+   "columns": [
+    {
+     "name": "id",
+     "type": "uuid"
+    },
+    {
+     "name": "ticket_id",
+     "type": "uuid"
+    },
+    {
+     "name": "stored_object_id",
+     "type": "uuid"
+    },
+    {
+     "name": "position",
+     "type": "int4"
+    },
+    {
+     "name": "phase",
+     "type": "maintenance_photo_phase"
+    },
+    {
+     "name": "caption",
+     "type": "text"
+    },
+    {
+     "name": "uploaded_by_user_id",
+     "type": "uuid"
+    },
+    {
+     "name": "created_at",
+     "type": "timestamptz"
+    }
+   ],
+   "deferred": [],
+   "rows": [
+    {
+     "id": "5eed0000-0000-4000-8000-057000000001",
+     "ticket_id": "5eed0000-0000-4000-8000-042000000003",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000020",
+     "position": 0,
+     "phase": "report",
+     "caption": null,
+     "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000012",
+     "created_at": "2026-10-25T19:40:24.982Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-057000000002",
+     "ticket_id": "5eed0000-0000-4000-8000-042000000002",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000041",
+     "position": 0,
+     "phase": "report",
+     "caption": null,
+     "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000001",
+     "created_at": "2026-10-26T12:04:17.714Z"
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-057000000003",
+     "ticket_id": "5eed0000-0000-4000-8000-042000000001",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000030",
+     "position": 0,
+     "phase": "report",
+     "caption": null,
+     "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000012",
+     "created_at": "2026-10-25T20:08:18.780Z"
+    }
+   ]
+  },
+  {
+   "table": "message_attachments",
+   "columns": [
+    {
+     "name": "id",
+     "type": "uuid"
+    },
+    {
+     "name": "message_id",
+     "type": "uuid"
+    },
+    {
+     "name": "stored_object_id",
+     "type": "uuid"
+    },
+    {
+     "name": "filename",
+     "type": "text"
+    },
+    {
+     "name": "position",
+     "type": "int4"
+    }
+   ],
+   "deferred": [],
+   "rows": [
+    {
+     "id": "5eed0000-0000-4000-8000-058000000001",
+     "message_id": "5eed0000-0000-4000-8000-048000000001",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000039",
+     "filename": "voice-note.webm",
+     "position": 0
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-058000000002",
+     "message_id": "5eed0000-0000-4000-8000-048000000018",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000038",
+     "filename": "water-bill.pdf",
+     "position": 0
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-058000000003",
+     "message_id": "5eed0000-0000-4000-8000-048000000005",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000040",
+     "filename": "914caed8-6058-4b6a-974f-74d3a4530e3e.jpg",
+     "position": 0
+    },
+    {
+     "id": "5eed0000-0000-4000-8000-058000000004",
+     "message_id": "5eed0000-0000-4000-8000-048000000013",
+     "stored_object_id": "5eed0000-0000-4000-8000-999000000037",
+     "filename": "leaking-tap.jpg",
+     "position": 0
+    }
+   ]
   }
+ ],
+ "files": {
+  "objects": [
+   {
+    "id": "5eed0000-0000-4000-8000-999000000001",
+    "object_key": "lease_signature/6QiO_sdoMwraxnxg9ofXnCb28MCIl0_4UqSTXHtc90w.png",
+    "kind": "lease_signature",
+    "mime": "image/png",
+    "size_bytes": "653",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-24T21:48:05.759Z",
+    "updated_at": "2026-10-24T21:48:05.759Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000002",
+    "object_key": "lease_signature/Z9LdLtG-ldfHKdmoGBCf-WiEPiMag0LxyncLkphWNcU.png",
+    "kind": "lease_signature",
+    "mime": "image/png",
+    "size_bytes": "692",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000012",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-24T21:49:01.150Z",
+    "updated_at": "2026-10-24T21:49:01.150Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000003",
+    "object_key": "lease_contract/lease-df51c994-e020-4665-9f26-e76bfb4b7466-signed.pdf",
+    "kind": "lease_contract",
+    "mime": "application/pdf",
+    "size_bytes": "9663",
+    "uploaded_by_user_id": null,
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-24T21:49:10.169Z",
+    "updated_at": "2026-10-24T21:49:10.169Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000004",
+    "object_key": "unit_photo/2026/10/47f86dc8-c368-42b3-b402-4bcc59128a22.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "190988",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-24T22:18:07.248Z",
+    "updated_at": "2026-10-24T22:18:07.248Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000005",
+    "object_key": "unit_photo/2026/10/bcd6dd53-667f-4449-9953-1728bbf809b6.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "246131",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-24T22:18:13.044Z",
+    "updated_at": "2026-10-24T22:18:13.044Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000006",
+    "object_key": "unit_photo/2026/10/d8a55f3e-7780-4a00-9445-c667bf8739d6.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "57782",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-24T22:20:38.957Z",
+    "updated_at": "2026-10-24T22:20:38.957Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000007",
+    "object_key": "unit_photo/2026/10/85d610b6-02fa-450b-aab5-029729b8176d.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "58415",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-24T22:20:44.169Z",
+    "updated_at": "2026-10-24T22:20:44.169Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000008",
+    "object_key": "unit_photo/2026/10/8784b02f-10eb-4e79-813e-80ead38ff5fd.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "32809",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-24T22:20:50.179Z",
+    "updated_at": "2026-10-24T22:20:50.179Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000009",
+    "object_key": "unit_photo/2026/10/7c791955-e8c2-41a8-97fa-bb3d6b3a6bc7.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "153613",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-24T22:20:57.089Z",
+    "updated_at": "2026-10-24T22:20:57.089Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000010",
+    "object_key": "unit_video/2026/10/c5199c26-991c-48b2-aa9a-dd3e38eccd15.mp4",
+    "kind": "unit_video",
+    "mime": "video/mp4",
+    "size_bytes": "850245",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-24T22:20:57.092Z",
+    "updated_at": "2026-10-24T22:20:57.092Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000011",
+    "object_key": "unit_photo/2026/10/0542b922-9734-4144-9405-286f9fa6ad36.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "220210",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-24T22:22:50.154Z",
+    "updated_at": "2026-10-24T22:22:50.154Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000012",
+    "object_key": "unit_photo/2026/10/b71af900-4811-4576-9c0d-08e8f20b254d.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "79764",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T15:06:47.374Z",
+    "updated_at": "2026-10-25T15:06:47.374Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000013",
+    "object_key": "lease_signature/370groECyF0fe_cU2zFqS3MGinQsxwu_mA0o3vO7u2U.png",
+    "kind": "lease_signature",
+    "mime": "image/png",
+    "size_bytes": "16176",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T15:08:25.296Z",
+    "updated_at": "2026-10-25T15:08:25.296Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000014",
+    "object_key": "lease_signature/-qb99L3bTgvZ0FOP9Ss75hL8xtbag4hGE8EEo5hVvzY.png",
+    "kind": "lease_signature",
+    "mime": "image/png",
+    "size_bytes": "16176",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000001",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T15:15:41.889Z",
+    "updated_at": "2026-10-25T15:15:41.889Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000015",
+    "object_key": "lease_contract/lease-ff815c21-7f81-402b-94fa-37610128f1fe-signed.pdf",
+    "kind": "lease_contract",
+    "mime": "application/pdf",
+    "size_bytes": "14987",
+    "uploaded_by_user_id": null,
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T15:15:42.234Z",
+    "updated_at": "2026-10-25T15:15:42.234Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000016",
+    "object_key": "unit_photo/2026/10/fde29f21-4eb4-4fce-be10-9721bbbd06d7.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "32809",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T15:37:27.389Z",
+    "updated_at": "2026-10-25T15:37:27.389Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000017",
+    "object_key": "unit_photo/2026/10/47abc813-6e0a-4225-b975-336f699e658e.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "57782",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T15:37:28.091Z",
+    "updated_at": "2026-10-25T15:37:28.091Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000018",
+    "object_key": "unit_photo/2026/10/77a934d3-9391-47a7-88ab-33b382f6a58a.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "58415",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T15:37:28.880Z",
+    "updated_at": "2026-10-25T15:37:28.880Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000019",
+    "object_key": "unit_photo/2026/10/2ed1dccf-28d4-4bb3-866b-5227b2ab0ed8.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "153613",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T15:37:31.507Z",
+    "updated_at": "2026-10-25T15:37:31.507Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000020",
+    "object_key": "fault_photo/2026/10/58bf56f3-eb16-4e55-80f5-dff9c2912b31.jpg",
+    "kind": "fault_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "2388",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000012",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T19:40:24.962Z",
+    "updated_at": "2026-10-25T19:40:24.962Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000021",
+    "object_key": "expense_receipt/2026/10/a6b2d8a7-54e0-47ac-979d-c01f63591b32.pdf",
+    "kind": "expense_receipt",
+    "mime": "application/pdf",
+    "size_bytes": "69",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T19:41:29.308Z",
+    "updated_at": "2026-10-25T19:41:29.308Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000022",
+    "object_key": "expense_receipt/2026/10/cf74f40c-2986-40f9-89bb-6563c804b5b4.pdf",
+    "kind": "expense_receipt",
+    "mime": "application/pdf",
+    "size_bytes": "69",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T19:41:39.163Z",
+    "updated_at": "2026-10-25T19:41:39.163Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000023",
+    "object_key": "filing_proof/2026/10/428a92c7-f5d8-40e5-97d5-41ea7ded25ea.pdf",
+    "kind": "filing_proof",
+    "mime": "application/pdf",
+    "size_bytes": "69",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T19:41:49.038Z",
+    "updated_at": "2026-10-25T19:41:49.038Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000024",
+    "object_key": "lease_signature/a528jykezb7X5vFI4mvVEG7oaVoFaidmu_xAkCaxiNs.png",
+    "kind": "lease_signature",
+    "mime": "image/png",
+    "size_bytes": "16176",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T19:54:42.610Z",
+    "updated_at": "2026-10-25T19:54:42.610Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000025",
+    "object_key": "lease_signature/I8DDNyMeIi7iAJmvISsjRfaKgtUFJ9Gpa32ugHaqR9s.png",
+    "kind": "lease_signature",
+    "mime": "image/png",
+    "size_bytes": "16176",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T19:55:45.120Z",
+    "updated_at": "2026-10-25T19:55:45.120Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000026",
+    "object_key": "lease_signature/czlgliG5wbyUMxhNHZO_szrFXsMuyywo47rHRPpEUR8.png",
+    "kind": "lease_signature",
+    "mime": "image/png",
+    "size_bytes": "16176",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T19:58:30.034Z",
+    "updated_at": "2026-10-25T19:58:30.034Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000027",
+    "object_key": "lease_signature/Rlrphifi_K1sYxukLLCUAPcjVFIN2wBwlYo5LkKS9jA.png",
+    "kind": "lease_signature",
+    "mime": "image/png",
+    "size_bytes": "16176",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T20:01:04.607Z",
+    "updated_at": "2026-10-25T20:01:04.607Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000028",
+    "object_key": "lease_signature/dLrmaK_oUkodcVw9tUq9ddYf-JHd5uuPlTp65uPcS9I.png",
+    "kind": "lease_signature",
+    "mime": "image/png",
+    "size_bytes": "16176",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000015",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T20:07:06.840Z",
+    "updated_at": "2026-10-25T20:07:06.840Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000029",
+    "object_key": "lease_contract/lease-1aa5a0ba-61d6-4d37-94bd-46135edf521c-signed.pdf",
+    "kind": "lease_contract",
+    "mime": "application/pdf",
+    "size_bytes": "15023",
+    "uploaded_by_user_id": null,
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T20:07:07.444Z",
+    "updated_at": "2026-10-25T20:07:07.444Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000030",
+    "object_key": "fault_photo/2026/10/2f4e7425-610b-46cb-9c86-9f41b37c0612.jpg",
+    "kind": "fault_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "3735",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000012",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T20:08:18.778Z",
+    "updated_at": "2026-10-25T20:08:18.778Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000031",
+    "object_key": "lease_signature/Cc8MTbRsjKK187KG_TywdzMyiSm8ilv8E87BeC5cCgQ.png",
+    "kind": "lease_signature",
+    "mime": "image/png",
+    "size_bytes": "16176",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000013",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T20:09:36.636Z",
+    "updated_at": "2026-10-25T20:09:36.636Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000032",
+    "object_key": "lease_contract/lease-47cd9e00-5f1e-476b-ac92-6657e7fc8304-signed.pdf",
+    "kind": "lease_contract",
+    "mime": "application/pdf",
+    "size_bytes": "14954",
+    "uploaded_by_user_id": null,
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T20:09:36.803Z",
+    "updated_at": "2026-10-25T20:09:36.803Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000033",
+    "object_key": "lease_signature/aPS2IiFP3PGYOLh2TgE58pG5u4r5aKW8du-DXR-b0kM.png",
+    "kind": "lease_signature",
+    "mime": "image/png",
+    "size_bytes": "16176",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T20:11:23.110Z",
+    "updated_at": "2026-10-25T20:11:23.110Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000034",
+    "object_key": "expense_receipt/2026/10/b81d9e1b-4bdc-4c97-8c45-99de0c4568dc.pdf",
+    "kind": "expense_receipt",
+    "mime": "application/pdf",
+    "size_bytes": "69",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T20:14:54.666Z",
+    "updated_at": "2026-10-25T20:14:54.666Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000035",
+    "object_key": "filing_proof/2026/10/8a42dfa6-1f51-4f09-b7f8-4ed63afad4f4.pdf",
+    "kind": "filing_proof",
+    "mime": "application/pdf",
+    "size_bytes": "69",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T20:18:16.510Z",
+    "updated_at": "2026-10-25T20:18:16.510Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000036",
+    "object_key": "lease_signature/eKF7P9-kcG4UsC1j63BhjecArA3fMZes3QelEltvrac.png",
+    "kind": "lease_signature",
+    "mime": "image/png",
+    "size_bytes": "16176",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T20:25:37.419Z",
+    "updated_at": "2026-10-25T20:25:37.419Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000037",
+    "object_key": "message_attachment/2026/10/14070aa9-d946-4af2-bd84-763d7d2c7af6.jpg",
+    "kind": "message_attachment",
+    "mime": "image/jpeg",
+    "size_bytes": "9656",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000001",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T21:20:18.781Z",
+    "updated_at": "2026-10-25T21:20:18.781Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000038",
+    "object_key": "message_attachment/2026/10/fe2037c7-b082-4c45-939e-5e440772fda8.pdf",
+    "kind": "message_attachment",
+    "mime": "application/pdf",
+    "size_bytes": "685",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000001",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T21:20:23.282Z",
+    "updated_at": "2026-10-25T21:20:23.282Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000039",
+    "object_key": "message_attachment/2026/10/f47c5a0f-0b87-4225-9c57-be28053c2677.weba",
+    "kind": "message_attachment",
+    "mime": "audio/webm",
+    "size_bytes": "45835",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000001",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-25T21:20:31.170Z",
+    "updated_at": "2026-10-25T21:20:31.170Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000040",
+    "object_key": "message_attachment/2026/10/75b2aeaf-f2ce-4684-b352-cd9c116f649a.jpg",
+    "kind": "message_attachment",
+    "mime": "image/jpeg",
+    "size_bytes": "190988",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000019",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-26T09:44:58.016Z",
+    "updated_at": "2026-10-26T09:44:58.016Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000041",
+    "object_key": "fault_photo/2026/10/c68b27d7-a6ab-4a5e-97f2-28ad14e3163b.jpg",
+    "kind": "fault_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "9656",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000001",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-26T12:04:17.712Z",
+    "updated_at": "2026-10-26T12:04:17.712Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000042",
+    "object_key": "unit_photo/2026/10/067f141f-df2a-402e-8cf1-68cd5a1ecc55.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "18804",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-26T20:36:40.258Z",
+    "updated_at": "2026-10-26T20:36:40.258Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000043",
+    "object_key": "unit_photo/2026/10/b0fd52c2-ef42-40da-9cd5-903f7bbd4124.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "17372",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-26T20:36:41.572Z",
+    "updated_at": "2026-10-26T20:36:41.572Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000044",
+    "object_key": "unit_photo/2026/10/c93e0515-691e-4558-b552-094e56034f1d.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "26747",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-26T20:36:43.131Z",
+    "updated_at": "2026-10-26T20:36:43.131Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000045",
+    "object_key": "unit_photo/2026/10/04dc8191-8e62-40d5-b01c-62fcfff09d32.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "26751",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-26T20:36:44.636Z",
+    "updated_at": "2026-10-26T20:36:44.636Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000046",
+    "object_key": "unit_photo/2026/10/2f6dbe10-fa24-409a-9f70-4ea4c01c7487.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "190988",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-27T09:24:26.085Z",
+    "updated_at": "2026-10-27T09:24:26.085Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000047",
+    "object_key": "unit_photo/2026/10/17e421e6-6fcd-4fed-8a16-406d9dbefb32.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "246131",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-27T09:24:31.397Z",
+    "updated_at": "2026-10-27T09:24:31.397Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000048",
+    "object_key": "unit_photo/2026/10/b9093c87-7cb9-499c-8d2f-990523a5d9dc.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "339054",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-27T09:24:37.278Z",
+    "updated_at": "2026-10-27T09:24:37.278Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000049",
+    "object_key": "unit_photo/2026/10/672b9fa5-e42d-4b70-85ef-c77844180b19.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "21774",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-27T09:24:55.350Z",
+    "updated_at": "2026-10-27T09:24:55.350Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000050",
+    "object_key": "unit_photo/2026/10/4ca0aa12-7da4-488e-84a7-ff1d6852ba55.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "27150",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-27T09:25:03.246Z",
+    "updated_at": "2026-10-27T09:25:03.246Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000051",
+    "object_key": "unit_photo/2026/10/588dc35c-486f-42de-a541-3492e69db8a0.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "21022",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-27T10:23:26.566Z",
+    "updated_at": "2026-10-27T10:23:26.566Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000052",
+    "object_key": "unit_photo/2026/10/523e7e53-69af-48a8-b692-793c61d0f4fc.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "90322",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-27T10:23:26.833Z",
+    "updated_at": "2026-10-27T10:23:26.833Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000053",
+    "object_key": "unit_photo/2026/10/7dc8048b-af35-4295-8a6d-7e9db7798e31.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "190988",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-27T10:23:26.983Z",
+    "updated_at": "2026-10-27T10:23:26.983Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000054",
+    "object_key": "unit_photo/2026/10/90709220-71c9-4cbf-8980-c1cfa449a7be.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "101257",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-27T10:23:27.247Z",
+    "updated_at": "2026-10-27T10:23:27.247Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000055",
+    "object_key": "unit_photo/2026/10/bdd50c7d-f56c-4493-bce7-74bc3f2f8c91.jpg",
+    "kind": "unit_photo",
+    "mime": "image/jpeg",
+    "size_bytes": "121247",
+    "uploaded_by_user_id": "5eed0000-0000-4000-8000-000000000008",
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-27T10:23:27.358Z",
+    "updated_at": "2026-10-27T10:23:27.358Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000056",
+    "object_key": "lease_contract/lease-5ad2d835-5e42-497a-99d0-9523535a57ec.pdf",
+    "kind": "lease_contract",
+    "mime": "application/pdf",
+    "size_bytes": "5931",
+    "uploaded_by_user_id": null,
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-29T09:32:14.669Z",
+    "updated_at": "2026-10-29T09:32:14.669Z"
+   },
+   {
+    "id": "5eed0000-0000-4000-8000-999000000057",
+    "object_key": "lease_contract/lease-3a536807-72af-4469-a9b2-2ebb53a0ccda.pdf",
+    "kind": "lease_contract",
+    "mime": "application/pdf",
+    "size_bytes": "5925",
+    "uploaded_by_user_id": null,
+    "workspace_id": "5eed0000-0000-4000-8000-006000000007",
+    "legal_hold": false,
+    "retention_until": null,
+    "created_at": "2026-10-29T09:32:14.688Z",
+    "updated_at": "2026-10-29T09:32:14.688Z"
+   }
+  ],
+  "refs": [
+   {
+    "table": "lease_contract_versions",
+    "id": "5eed0000-0000-4000-8000-030000000004",
+    "column": "signed_pdf_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000029"
+   },
+   {
+    "table": "lease_contract_versions",
+    "id": "5eed0000-0000-4000-8000-030000000007",
+    "column": "pdf_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000057"
+   },
+   {
+    "table": "lease_contract_versions",
+    "id": "5eed0000-0000-4000-8000-030000000008",
+    "column": "signed_pdf_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000032"
+   },
+   {
+    "table": "lease_contract_versions",
+    "id": "5eed0000-0000-4000-8000-030000000009",
+    "column": "pdf_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000056"
+   },
+   {
+    "table": "lease_contract_versions",
+    "id": "5eed0000-0000-4000-8000-030000000016",
+    "column": "signed_pdf_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000003"
+   },
+   {
+    "table": "lease_contract_versions",
+    "id": "5eed0000-0000-4000-8000-030000000018",
+    "column": "signed_pdf_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000015"
+   },
+   {
+    "table": "lease_signatures",
+    "id": "5eed0000-0000-4000-8000-031000000001",
+    "column": "signature_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000026"
+   },
+   {
+    "table": "lease_signatures",
+    "id": "5eed0000-0000-4000-8000-031000000002",
+    "column": "signature_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000025"
+   },
+   {
+    "table": "lease_signatures",
+    "id": "5eed0000-0000-4000-8000-031000000004",
+    "column": "signature_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000028"
+   },
+   {
+    "table": "lease_signatures",
+    "id": "5eed0000-0000-4000-8000-031000000005",
+    "column": "signature_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000027"
+   },
+   {
+    "table": "lease_signatures",
+    "id": "5eed0000-0000-4000-8000-031000000006",
+    "column": "signature_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000024"
+   },
+   {
+    "table": "lease_signatures",
+    "id": "5eed0000-0000-4000-8000-031000000007",
+    "column": "signature_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000033"
+   },
+   {
+    "table": "lease_signatures",
+    "id": "5eed0000-0000-4000-8000-031000000008",
+    "column": "signature_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000013"
+   },
+   {
+    "table": "lease_signatures",
+    "id": "5eed0000-0000-4000-8000-031000000009",
+    "column": "signature_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000001"
+   },
+   {
+    "table": "lease_signatures",
+    "id": "5eed0000-0000-4000-8000-031000000010",
+    "column": "signature_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000031"
+   },
+   {
+    "table": "lease_signatures",
+    "id": "5eed0000-0000-4000-8000-031000000011",
+    "column": "signature_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000014"
+   },
+   {
+    "table": "lease_signatures",
+    "id": "5eed0000-0000-4000-8000-031000000012",
+    "column": "signature_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000036"
+   },
+   {
+    "table": "lease_signatures",
+    "id": "5eed0000-0000-4000-8000-031000000013",
+    "column": "signature_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000002"
+   },
+   {
+    "table": "lease_filings",
+    "id": "5eed0000-0000-4000-8000-039000000003",
+    "column": "proof_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000035"
+   },
+   {
+    "table": "lease_filings",
+    "id": "5eed0000-0000-4000-8000-039000000005",
+    "column": "proof_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000023"
+   },
+   {
+    "table": "expenses",
+    "id": "5eed0000-0000-4000-8000-045000000001",
+    "column": "receipt_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000021"
+   },
+   {
+    "table": "expenses",
+    "id": "5eed0000-0000-4000-8000-045000000004",
+    "column": "receipt_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000022"
+   },
+   {
+    "table": "expenses",
+    "id": "5eed0000-0000-4000-8000-045000000007",
+    "column": "receipt_object_id",
+    "objectId": "5eed0000-0000-4000-8000-999000000034"
+   }
+  ]
+ },
+ "fileTables": [
+  "unit_photos",
+  "unit_videos",
+  "maintenance_photos",
+  "message_attachments"
  ]
 }
