@@ -24,10 +24,10 @@ import {
   PlacePicker,
   placeLine,
   presetPeriod,
-  RentCalendar,
-  type RentDayItem,
   ResendCodeButton,
   readVideo,
+  Schedule,
+  type ScheduleEvent,
   SectionCard,
   SidePanel,
   SignaturePad,
@@ -707,39 +707,32 @@ function StaticPlace({ chain, loader }: { chain: PlaceChain; loader: ReturnType<
 
 export function CalendarSection({ today }: { today: string }) {
   const items = useMemo(() => rentDays(today), [today]);
-  const [open, setOpen] = useState<RentDayItem | null>(null);
+  const events = useMemo<ScheduleEvent[]>(
+    () =>
+      items.map((i) => ({
+        id: i.id,
+        kind: i.status,
+        title: i.title,
+        start: i.day,
+        details: [
+          { label: "Amount", value: <Money value={i.amount} /> },
+          { label: "Due", value: <DateText value={i.day} style="long" /> },
+        ],
+      })),
+    [items],
+  );
   return (
-    <Section
-      id="calendar"
-      title="Rent calendar"
-      description="Due days with a dot per state, and the chosen day's rent. Days are Kigali days."
-    >
-      <SectionCard title="Rent in the next 30 days">
-        <RentCalendar items={items} today={today} onItemPress={setOpen} />
-      </SectionCard>
-      <div className="max-w-md">
-        <Specimen label="Narrow: the day's list goes under the month">
-          <SectionCard>
-            <RentCalendar items={items} today={today} defaultSelectedDay={addDays(today, 7)} />
-          </SectionCard>
-        </Specimen>
-      </div>
-      <SidePanel
-        isOpen={open !== null}
-        onOpenChange={(o) => (o ? undefined : setOpen(null))}
-        title={open ? `${open.title}` : ""}
-        description={open ? String(open.detail ?? "") : undefined}
-        headerExtra={open ? <StatusChip kind="charge" status={open.status} /> : null}
-      >
-        {open ? (
-          <KeyValueList
-            items={[
-              { label: "Amount", value: <Money value={open.amount} /> },
-              { label: "Due", value: <DateText value={open.day} style="long" /> },
-            ]}
-          />
-        ) : null}
-      </SidePanel>
+    <Section id="calendar" title="Schedule" description="Pro Agenda month view: entries open a popover.">
+      <Schedule
+        label="Rent calendar"
+        today={today}
+        events={events}
+        kinds={[
+          { id: "open", label: "Due", color: "var(--accent)", tentative: true },
+          { id: "overdue", label: "Overdue", color: "var(--danger)" },
+          { id: "paid", label: "Paid", color: "var(--success)" },
+        ]}
+      />
     </Section>
   );
 }
