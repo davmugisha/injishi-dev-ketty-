@@ -134,14 +134,14 @@ describe("/downloads on a computer (AC-1)", () => {
     ]);
   });
 
-  test("says what the app does in three short cards: guests, hotel staff and residents", async () => {
+  test("says what the app does in three short cards: guests, hotel teams and residents", async () => {
     await openAs(UA.mac);
     const cards = screen.getByRole("heading", { level: 2, name: "For guests" }).closest("ul");
     if (!cards) throw new Error("the cards sit outside their list");
 
     expect(within(cards).getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent)).toEqual([
       "For guests",
-      "For hotel staff",
+      "For hotel teams",
       "For residents",
     ]);
   });
@@ -155,7 +155,7 @@ describe("/downloads on a computer (AC-1)", () => {
     expect(within(cards).getAllByRole("listitem")).toHaveLength(3);
     expect(
       within(cards).getByText(
-        "Clock in, see your next room, finish the checklist and report a problem from the floor.",
+        "Every shift in one app: rooms, repairs, the front desk, schedules, leave and pay.",
       ),
     ).toBeInTheDocument();
   });

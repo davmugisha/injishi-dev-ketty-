@@ -54,17 +54,17 @@ function desktopsFor(device: Device): Platform[] {
 const AUDIENCES = [
   {
     title: "For guests",
-    body: "Find and book a stay, then keep your room, WiFi, room service and the bill in one place.",
+    body: "Book stays and things to do, pay with MoMo, then check in, order and settle the bill from your phone.",
     Icon: KeyRound,
   },
   {
-    title: "For hotel staff",
-    body: "Clock in, see your next room, finish the checklist and report a problem from the floor.",
+    title: "For hotel teams",
+    body: "Every shift in one app: rooms, repairs, the front desk, schedules, leave and pay.",
     Icon: SprayCan,
   },
   {
     title: "For residents",
-    body: "Pay rent with MoMo, follow a repair and read notices from your building.",
+    body: "Pay rent, report repairs, read building notices and manage your lease, all in one place.",
     Icon: House,
   },
 ] as const;
