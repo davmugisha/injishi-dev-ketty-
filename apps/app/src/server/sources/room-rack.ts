@@ -1,3 +1,4 @@
+import type { RackBar, RackBarKind, RackDay, RackLane, RackRoomState, RoomRack } from "@injishi/product-pms";
 import { type ApiBooking, type ApiRoom, deskBoard } from "./frontdesk";
 import type { SourceContext } from "./types";
 
@@ -11,59 +12,7 @@ import type { SourceContext } from "./types";
  * "days since the rack's first day, plus a half".
  */
 
-export type RackBarKind = "inhouse" | "booked" | "tentative" | "departed";
-export type RackRoomState = "clean" | "dirty" | "inspected" | "occupied" | "ooo";
-
-export interface RackBar {
-  id: string;
-  /** Arrival, in days from the rack's first day (an afternoon: n + 0.5). */
-  from: number;
-  /** Departure, in days from the rack's first day (a morning: n + 0.5). */
-  to: number;
-  kind: RackBarKind;
-  guest: string;
-  reference: string | null;
-  /** Where pressing the bar goes: the booking in Reservations, or the desk for a walk-in. */
-  href: string;
-  /** "1 → 3 Nov". */
-  dates: string;
-}
-
-export interface RackLane {
-  id: string;
-  kind: "group" | "room" | "unassigned";
-  roomTypeId: string;
-  /** A room's label; a group's room type; an unassigned lane's guest. */
-  label: string;
-  /** A group's summary ("4 rooms · sleeps 2"); a room's status in words. */
-  meta: string;
-  state: RackRoomState | null;
-  bars: RackBar[];
-  /** Two bars on this room overlap on some night. */
-  overlap: boolean;
-}
-
-export interface RackDay {
-  date: string;
-  dow: string;
-  day: number;
-  month: string;
-  /** Rooms of every type with nothing in them that night. */
-  free: number;
-}
-
-export interface RoomRack {
-  property: string;
-  today: string;
-  days: RackDay[];
-  /** Now, in days from the first day (Kigali time). */
-  now: number;
-  types: { id: string; name: string; rooms: number }[];
-  lanes: RackLane[];
-  unassigned: number;
-  overlaps: number;
-  totalRooms: number;
-}
+export type { RackBar, RackBarKind, RackDay, RackLane, RackRoomState, RoomRack };
 
 const DAY_MS = 86_400_000;
 /** How many days the rack reads: yesterday, today and the next 19. */

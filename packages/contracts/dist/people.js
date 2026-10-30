@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AttendanceRecord = exports.AttendanceLocation = exports.AttendanceFigures = exports.CancelRosterEntryRequest = exports.CreateRosterEntryRequest = exports.RosterEntry = exports.CreateShiftTemplateRequest = exports.ShiftTemplateQuery = exports.ShiftTemplateList = exports.ShiftTemplate = exports.ShiftTemplateStatus = exports.OffboardEmployeeRequest = exports.CreateContractResponse = exports.CreateContractRequest = exports.UpdateEmployeeRequest = exports.CreateEmployeeRequest = exports.EmployeeFile = exports.EmployeeDepartment = exports.Employee = exports.EmployeeFull = exports.EmergencyContact = exports.EmployeeAddress = exports.EmployeeBasic = exports.EmploymentContract = exports.EmploymentContractFull = exports.EmploymentContractBasic = exports.RosterCard = exports.EMPLOYEE_MISSING_DETAIL_LABEL = exports.EmployeeMissingDetail = exports.TimeOfDay = exports.LeaveEndHalf = exports.LeaveStartHalf = exports.LeaveRequestStatus = exports.LeaveCarry = exports.LeaveReset = exports.LeavePayment = exports.LeaveEntryKind = exports.LeaveAccrual = exports.DayKind = exports.AttendanceStatus = exports.AttendanceSource = exports.RosterStatus = exports.ContractStatus = exports.WageBasis = exports.ContractType = exports.EmployeeStatus = exports.HrIdDocumentType = exports.TagTone = exports.MaritalStatus = exports.HrSex = void 0;
-exports.LeaveDecisionRequest = exports.CreateMyLeaveRequestRequest = exports.CreateLeaveRequestRequest = exports.LeaveAsk = exports.LeaveRequest = exports.LeaveBalances = exports.LeaveBalance = exports.LeaveLot = exports.LeaveLedgerEntry = exports.UpdateLeaveTypeRequest = exports.CreateLeaveTypeRequest = exports.LeaveTypeList = exports.LeaveType = exports.LeaveTypeStatus = exports.CorrectAttendanceRequest = exports.ClockOutRequest = exports.ClockInRequest = void 0;
+exports.AttendanceLocation = exports.AttendanceFigures = exports.CancelRosterEntryRequest = exports.CreateRosterEntryRequest = exports.RosterEntry = exports.CreateShiftTemplateRequest = exports.ShiftTemplateQuery = exports.ShiftTemplateList = exports.ShiftTemplate = exports.ShiftTemplateStatus = exports.OffboardEmployeeRequest = exports.CreateContractResponse = exports.CreateContractRequest = exports.UpdateEmployeeRequest = exports.CreateEmployeeRequest = exports.EmployeeFile = exports.EmployeeDepartment = exports.Employee = exports.EmployeeFull = exports.EmergencyContact = exports.EmployeeAddress = exports.EmployeeBasic = exports.EmploymentContract = exports.EmploymentContractFull = exports.EmploymentContractBasic = exports.RosterCard = exports.EMPLOYEE_MISSING_DETAIL_LABEL = exports.EmployeeMissingDetail = exports.TimeOfDay = exports.LeaveEndHalf = exports.LeaveStartHalf = exports.LeaveRequestStatus = exports.LeaveCarry = exports.LeaveReset = exports.LeavePayment = exports.LeaveEntryKind = exports.LeaveAccrual = exports.DayKind = exports.AttendancePendingReason = exports.AttendanceStatus = exports.AttendanceSource = exports.RosterStatus = exports.ContractStatus = exports.WageBasis = exports.ContractType = exports.EmployeeStatus = exports.HrIdDocumentType = exports.TagTone = exports.MaritalStatus = exports.HrSex = void 0;
+exports.LeaveDecisionRequest = exports.CreateMyLeaveRequestRequest = exports.CreateLeaveRequestRequest = exports.LeaveAsk = exports.LeaveRequest = exports.LeaveBalances = exports.LeaveBalance = exports.LeaveLot = exports.LeaveLedgerEntry = exports.UpdateLeaveTypeRequest = exports.CreateLeaveTypeRequest = exports.LeaveTypeList = exports.LeaveType = exports.LeaveTypeStatus = exports.CorrectAttendanceRequest = exports.ClockOutRequest = exports.ClockInRequest = exports.AttendanceRecord = void 0;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const phone_1 = require("./phone");
@@ -41,6 +41,18 @@ exports.RosterStatus = zod_1.z.enum(["scheduled", "cancelled"]);
 exports.AttendanceSource = zod_1.z.enum(["supervisor", "self", "phone", "kiosk"]);
 /** `closed` becomes `superseded` only when a correction replaces it. */
 exports.AttendanceStatus = zod_1.z.enum(["open", "closed", "superseded"]);
+/**
+ * Why a phone punch waits for a person to validate it (mobile spec 0003, D-ao),
+ * in this order: the location reasons first, then `late_sync`, a punch that
+ * reached the server more than 30 minutes after its tap.
+ */
+exports.AttendancePendingReason = zod_1.z.enum([
+    "no_location",
+    "no_branch_location",
+    "poor_accuracy",
+    "outside_fence",
+    "late_sync",
+]);
 /** What kind of day a record's work date was, for pricing overtime (058-time AC-TM7). */
 exports.DayKind = zod_1.z.enum(["weekday", "weekly_off", "public_holiday"]);
 exports.LeaveAccrual = zod_1.z.enum(["yearly_upfront", "monthly", "none"]);
@@ -407,6 +419,10 @@ exports.AttendanceRecord = zod_1.z.object({
     note: zod_1.z.string().nullable(),
     /** Closed by the sweep, not by a person: unvalidated until someone puts the times right (AC-TM4). */
     autoClosed: zod_1.z.boolean(),
+    /** Why the phone clock in waits for validation (mobile spec 0003, D-ao); null for any other punch. */
+    inPendingReason: exports.AttendancePendingReason.nullable(),
+    /** Why the phone clock out waits for validation; null for any other punch. */
+    outPendingReason: exports.AttendancePendingReason.nullable(),
     /**
      * A closed record's work figures (AC-TM7). Null while open, and for a reader
      * outside the figure audience (`attendance.approve` and `people.manage`,

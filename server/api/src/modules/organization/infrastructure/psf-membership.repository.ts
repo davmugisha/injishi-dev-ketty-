@@ -44,7 +44,7 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
-import type { Tx } from '../../listing-setup/infrastructure/insert-property';
+import type { Tx } from '../../platform/property/infrastructure/insert-property';
 
 /**
  * PSF membership (ADR-056, widened by the PSF path): the tier catalogue, the

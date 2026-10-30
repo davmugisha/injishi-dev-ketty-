@@ -5,7 +5,7 @@ import { assertOwnedByOrg } from '../../../shared/auth/assert-owned';
 import { assertInBranchScope, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { pageOf } from '../../../shared/lists/list-query';
-import { isCalendarDate } from '../../booking/domain/pricing';
+import { isCalendarDate } from '../../pms/domain/pricing';
 import { deferredSchedule, installmentSchedule } from '../domain/pay-items';
 import { EmployeesRepository } from '../infrastructure/employees.repository';
 import { writeHrAudit } from '../infrastructure/hr-audit';

@@ -2,10 +2,10 @@ import { Module } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 import { AuthModule } from '../../modules/auth/auth.module';
-import { BookingModule } from '../../modules/booking/booking.module';
+import { BookingModule } from '../../modules/pms/booking.module';
 import { PaymentsModule } from '../../modules/payments/payments.module';
 import { GeographyModule } from '../../modules/geography/geography.module';
-import { ListingSetupModule } from '../../modules/listing-setup/listing-setup.module';
+import { ListingSetupModule } from '../../modules/platform/property/listing-setup.module';
 import { ListingModule } from '../../modules/listing/listing.module';
 import { MarketplaceModule } from '../../modules/marketplace/marketplace.module';
 import { OperationsModule } from '../../modules/operations/operations.module';

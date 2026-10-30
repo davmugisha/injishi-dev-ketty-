@@ -1,4 +1,5 @@
 import type {
+  AttendancePendingReason,
   AttendanceRequest,
   ChangeMyKioskPinRequest,
   CreateMyAttendanceRequestRequest,
@@ -15,6 +16,7 @@ import type {
   MyTeamRequests,
   MyTeamRoster,
   MyWorkFileList,
+  MyWorkToday,
   PhoneClockRequest,
   PhoneClockResult,
   RangeQuery,
@@ -24,14 +26,20 @@ import type {
 } from '@injishi/contracts';
 import { ConflictException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 
-import { isCalendarDate } from '../../booking/domain/pricing';
-import { firstOfMonth, lastOfMonth, monthOf } from '../domain/hr-calendar';
-import { phonePunchVerdict } from '../domain/time-rules';
+import { resolveReportedTime, type ResolvedTime } from '../../../shared/time/reported-time';
+import { isCalendarDate } from '../../pms/domain/pricing';
+import { addDays, firstOfMonth, kigaliToday, lastOfMonth, monthOf } from '../domain/hr-calendar';
+import { phonePunchVerdict, punchPendingReasons, takesLateClockOut } from '../domain/time-rules';
 import { EmployeesRepository, type EmployeeRow } from '../infrastructure/employees.repository';
 import { writeHrEvent } from '../infrastructure/hr-events';
 import { MyWorkRepository } from '../infrastructure/my-work.repository';
 import { TimeRequestsRepository } from '../infrastructure/time-requests.repository';
-import { TimeRepository, type PunchLocation } from '../infrastructure/time.repository';
+import {
+  TimeRepository,
+  type PunchArrival,
+  type PunchLocation,
+  type RosterEntryRow,
+} from '../infrastructure/time.repository';
 import { DEFAULT_RADIUS_M, TimeSettingsRepository } from '../infrastructure/time-settings.repository';
 import { AttendanceInsightsService } from './attendance-insights.service';
 import { displayNameOf, rosterCard } from './employee-presenter';
@@ -42,6 +50,12 @@ import { presentEntry, presentRecord, presentTemplate, TimeService, type RecordR
 
 /** A person reads their own figures; a manager their reports' (index contract 7). Distances stay with validators. */
 const OWN_READER: RecordReader = { figures: true, location: false };
+
+/** The shift card's window either side of now, so a night shift that crossed midnight stays on it (mobile spec 0003). */
+const TODAY_WINDOW_MS = 2 * 3_600_000;
+
+/** A late punch's reason in words, for `PhoneClockResult.pendingReason`. */
+const LATE_SYNC_WORDS = 'It reached Injishi more than 30 minutes after the tap.';
 
 /**
  * Self service for time (ADR-058, 058-self-service, the routes marked 4):
@@ -94,19 +108,30 @@ export class MyWorkService {
     };
   }
 
-  // --- Phone clock in and out (058-time AC-TM9, AC-SS3) ---------------------------------------
+  // --- Phone clock in and out (058-time AC-TM9, AC-SS3; mobile spec 0003) ---------------------
 
-  async clockIn(userId: string, employeeId: string, body: PhoneClockRequest): Promise<PhoneClockResult> {
+  /**
+   * A phone clock in at the tap time (mobile spec 0003, cross child contract
+   * 1): the reported time corrected for the phone's clock, flagged `late_sync`
+   * when it arrived more than 30 minutes after the tap. A second clock in is
+   * `409 already_open` carrying the open record, which an offline phone reads
+   * as "already clocked in".
+   */
+  async clockIn(userId: string, employeeId: string, body: PhoneClockRequest, receivedAt: Date): Promise<PhoneClockResult> {
     const employee = await this.mineActive(userId, employeeId);
+    const time = resolveReportedTime(body, receivedAt);
     const fix = await this.fix(employee, body);
+    const reasons = punchPendingReasons({ location: fix.verdict.code, lateSync: time.lateSync });
+    const validated = reasons.length === 0;
     const id = await this.timeService.punchIn({
       employee,
-      at: new Date(),
+      at: time.at,
       source: 'phone',
       userId,
-      validated: fix.verdict.validated,
+      validated,
       location: fix.location,
-      within: fix.verdict.validated
+      arrival: arrivalOf(time, reasons),
+      within: validated
         ? undefined
         : async (tx, recordId) => {
             await writeHrEvent(tx, {
@@ -115,47 +140,162 @@ export class MyWorkService {
               aggregateId: recordId,
               change: 'in',
               workspaceId: await this.work.workspaceOf(employee.orgId),
-              payload: { attendanceRecordId: recordId, employeeId: employee.id },
+              payload: { attendanceRecordId: recordId, employeeId: employee.id, reasons },
             });
           },
     });
     const record = await this.timeService.presentRecordById(id, OWN_READER);
-    return { record, validated: record.validated, pendingReason: fix.verdict.reason, distanceM: fix.verdict.distanceM };
+    return {
+      record,
+      validated: record.validated,
+      pendingReason: reasonWords(fix.verdict.reason, reasons),
+      distanceM: fix.verdict.distanceM,
+    };
   }
 
-  async clockOut(userId: string, employeeId: string, body: PhoneClockRequest): Promise<PhoneClockResult> {
+  /**
+   * A phone clock out at the tap time. With nothing open it is `409
+   * not_clocked_in`, except a tap made before the sweep closed the record on
+   * its own, which replaces the sweep's end time (D-ap, AC-7).
+   */
+  async clockOut(userId: string, employeeId: string, body: PhoneClockRequest, receivedAt: Date): Promise<PhoneClockResult> {
     const employee = await this.mineActive(userId, employeeId);
+    const time = resolveReportedTime(body, receivedAt);
     const open = await this.time.findOpenRecord(employee.id);
-    if (!open) throw new ConflictException('You are not clocked in.');
+    if (!open) return this.lateClockOut(userId, employee, body, time);
     const fix = await this.fix(employee, body);
-    const workspaceId = fix.verdict.validated ? null : await this.work.workspaceOf(employee.orgId);
+    const reasons = punchPendingReasons({ location: fix.verdict.code, lateSync: time.lateSync });
+    const flagged = reasons.length > 0;
+    const workspaceId = flagged ? await this.work.workspaceOf(employee.orgId) : null;
     await this.timeService.punchOut({
       record: open,
-      at: new Date(),
+      at: time.at,
       userId,
       location: fix.location,
-      // A clock out far from the branch takes the record back to the queue; a
-      // good one never vouches for a clock in that was not.
-      validated: fix.verdict.validated ? undefined : false,
-      within: fix.verdict.validated
-        ? undefined
-        : async (tx) => {
+      arrival: arrivalOf(time, reasons),
+      // A clock out far from the branch, or late, takes the record back to the
+      // queue; a good one never vouches for a clock in that was not.
+      validated: flagged ? false : undefined,
+      within: flagged
+        ? async (tx) => {
             await writeHrEvent(tx, {
               trigger: 'attendance.flagged',
               aggregateType: 'attendance_record',
               aggregateId: open.id,
               change: 'out',
               workspaceId,
-              payload: { attendanceRecordId: open.id, employeeId: employee.id },
+              payload: { attendanceRecordId: open.id, employeeId: employee.id, reasons },
             });
-          },
+          }
+        : undefined,
     });
     const record = await this.timeService.presentRecordById(open.id, OWN_READER);
     return {
       record,
       validated: record.validated,
-      pendingReason: record.validated ? null : (fix.verdict.reason ?? 'Your clock in is waiting to be validated.'),
+      pendingReason: record.validated
+        ? null
+        : (reasonWords(fix.verdict.reason, reasons) ?? 'Your clock in is waiting to be validated.'),
       distanceM: fix.verdict.distanceM,
+    };
+  }
+
+  /** Nothing open: the sweep's record takes the tap when the tap came first, else `409 not_clocked_in`. */
+  private async lateClockOut(
+    userId: string,
+    employee: EmployeeRow,
+    body: PhoneClockRequest,
+    time: ResolvedTime,
+  ): Promise<PhoneClockResult> {
+    const last = await this.time.latestRecord(employee.id);
+    if (!last || !takesLateClockOut(last, time.at)) {
+      throw new ConflictException({ code: 'not_clocked_in', message: 'You are not clocked in.' });
+    }
+    const fix = await this.fix(employee, body);
+    // Late by definition: the sweep ran between the tap and its arrival.
+    const reasons = punchPendingReasons({ location: fix.verdict.code, lateSync: true });
+    const workspaceId = await this.work.workspaceOf(employee.orgId);
+    await this.timeService.recloseAutoClosed({
+      record: last,
+      at: time.at,
+      userId,
+      location: fix.location,
+      arrival: arrivalOf(time, reasons),
+      within: async (tx) => {
+        await writeHrEvent(tx, {
+          trigger: 'attendance.flagged',
+          aggregateType: 'attendance_record',
+          aggregateId: last.id,
+          change: 'reclosed',
+          workspaceId,
+          payload: { attendanceRecordId: last.id, employeeId: employee.id, reasons },
+        });
+      },
+    });
+    const record = await this.timeService.presentRecordById(last.id, OWN_READER);
+    return {
+      record,
+      validated: false,
+      pendingReason: reasonWords(fix.verdict.reason, reasons),
+      distanceM: fix.verdict.distanceM,
+    };
+  }
+
+  /**
+   * The phone's shift card in one read (mobile spec 0003, D-u, AC-2): the
+   * published shifts of today's Kigali date and any that overlap the two hours
+   * either side of now, the open record's own shift, the open record, and the
+   * day's last clock out.
+   */
+  async today(userId: string, employeeId: string): Promise<MyWorkToday> {
+    const employee = await this.mine(userId, employeeId);
+    const now = new Date();
+    const workDate = kigaliToday(now);
+    const [open, entries, records] = await Promise.all([
+      this.time.findOpenRecord(employee.id),
+      this.time.personEntries({
+        employeeIds: [employee.id],
+        from: addDays(workDate, -1),
+        to: addDays(workDate, 1),
+        publishedOnly: true,
+      }),
+      this.time.personRecords({ employeeIds: [employee.id], from: workDate, to: workDate }),
+    ]);
+    const from = now.getTime() - TODAY_WINDOW_MS;
+    const to = now.getTime() + TODAY_WINDOW_MS;
+    const shifts = entries.filter(
+      (e) =>
+        e.id === open?.rosterEntryId ||
+        (e.status === 'scheduled' &&
+          (e.workDate === workDate || (e.startsAt.getTime() < to && e.endsAt.getTime() > from))),
+    );
+    if (open?.rosterEntryId && !shifts.some((e) => e.id === open.rosterEntryId)) {
+      const own = await this.time.findEntry(open.rosterEntryId);
+      if (own) shifts.push(own);
+    }
+    shifts.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+    let lastClockOut: Date | null = null;
+    for (const r of records) {
+      if (r.status === 'closed' && r.clockOutAt && (!lastClockOut || r.clockOutAt > lastClockOut)) lastClockOut = r.clockOutAt;
+    }
+    return {
+      employeeId: employee.id,
+      workDate,
+      generatedAt: now.toISOString(),
+      shifts: shifts.map(presentTodayShift),
+      openRecord: open
+        ? {
+            id: open.id,
+            rosterEntryId: open.rosterEntryId,
+            workDate: open.workDate,
+            clockInAt: open.clockInAt.toISOString(),
+            validated: open.validated,
+            pendingReason: open.inPendingReason,
+          }
+        : null,
+      // Breaks are recorded from milestone 3.
+      openBreak: null,
+      lastClockOutAt: lastClockOut ? lastClockOut.toISOString() : null,
     };
   }
 
@@ -364,7 +504,7 @@ export class MyWorkService {
   private async mineActive(userId: string, employeeId: string): Promise<EmployeeRow> {
     const employee = await this.mine(userId, employeeId);
     if (employee.status !== 'active') {
-      throw new ConflictException('You no longer work here, so this file is read only.');
+      throw new ConflictException({ code: 'employee_left', message: 'You no longer work here, so this file is read only.' });
     }
     return employee;
   }
@@ -392,6 +532,28 @@ export class MyWorkService {
       },
     };
   }
+}
+
+/** When a phone punch arrived and the tap it reported, with the reason it keeps (the first). */
+function arrivalOf(time: ResolvedTime, reasons: readonly AttendancePendingReason[]): PunchArrival {
+  return { receivedAt: time.receivedAt, deviceAt: time.deviceAt, pendingReason: reasons[0] ?? null };
+}
+
+/** The punch's wait in words: the location's reason first, else the late arrival. */
+function reasonWords(locationWords: string | null, reasons: readonly AttendancePendingReason[]): string | null {
+  if (locationWords) return locationWords;
+  return reasons.includes('late_sync') ? LATE_SYNC_WORDS : null;
+}
+
+function presentTodayShift(entry: RosterEntryRow): MyWorkToday['shifts'][number] {
+  return {
+    rosterEntryId: entry.id,
+    shiftName: entry.shiftName,
+    startsAt: entry.startsAt.toISOString(),
+    endsAt: entry.endsAt.toISOString(),
+    breakMinutes: entry.breakMinutes,
+    propertyId: entry.propertyId,
+  };
 }
 
 function assertRange(query: RangeQuery): void {

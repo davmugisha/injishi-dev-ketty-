@@ -32,7 +32,7 @@ import { assertOwnedByOrg } from '../../../shared/auth/assert-owned';
 import { assertInBranchScope, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { pageOf } from '../../../shared/lists/list-query';
-import { isCalendarDate } from '../../booking/domain/pricing';
+import { isCalendarDate } from '../../pms/domain/pricing';
 import {
   addDays,
   crossesMidnight,
@@ -57,6 +57,7 @@ import {
   TimeRepository,
   type AttendanceRow,
   type PublicationRow,
+  type PunchArrival,
   type PunchLocation,
   type RosterEntryRow,
   type ShiftTemplateRow,
@@ -696,6 +697,8 @@ export class TimeService {
     rosterEntryId?: string | null;
     kioskId?: string | null;
     location?: PunchLocation | null;
+    /** A phone punch's arrival and its reported tap (mobile spec 0003, D-ac). */
+    arrival?: PunchArrival | null;
     note?: string | null;
     /** A step that must commit with the record, such as the outbox row a phone punch raises. */
     within?: (tx: Tx, recordId: string) => Promise<void>;
@@ -749,6 +752,7 @@ export class TimeService {
           note: input.note ?? null,
           kioskId: input.kioskId ?? null,
           inLocation: input.location ?? null,
+          inArrival: input.arrival ?? null,
         });
         await writeHrAudit(tx, {
           actorUserId: input.userId,
@@ -785,15 +789,15 @@ export class TimeService {
     at: Date;
     userId: string | null;
     location?: PunchLocation | null;
+    /** A phone punch's arrival and its reported tap (mobile spec 0003, D-ac). */
+    arrival?: PunchArrival | null;
     validated?: boolean;
     kioskId?: string | null;
     within?: (tx: Tx) => Promise<void>;
   }): Promise<void> {
     const { record } = input;
     if (record.status !== 'open') throw new ConflictException('That record is not open.');
-    if (input.at.getTime() <= record.clockInAt.getTime()) {
-      throw new UnprocessableEntityException('The clock out must come after the clock in.');
-    }
+    if (input.at.getTime() <= record.clockInAt.getTime()) throw clockOutBeforeIn();
     const figures = await this.closer.figures({
       orgId: record.orgId,
       propertyId: record.workPropertyId,
@@ -805,6 +809,7 @@ export class TimeService {
     await this.db.transaction(async (tx) => {
       const moved = await this.time.closeRecord(tx, record.id, input.at, figures, {
         outLocation: input.location ?? null,
+        outArrival: input.arrival ?? null,
         validated: input.validated,
       });
       if (!moved) throw new ConflictException('That record was closed a moment ago.');
@@ -818,6 +823,55 @@ export class TimeService {
           attendanceRecordId: record.id,
           at: input.at.toISOString(),
           ...(input.kioskId ? { kioskId: input.kioskId } : {}),
+        },
+      });
+      if (input.within) await input.within(tx);
+    });
+  }
+
+  /**
+   * A phone's clock out that arrived after the sweep closed the record on its
+   * own (mobile spec 0003, D-ap, AC-7). The phone holds the real time, so it
+   * replaces the sweep's end: the figures are worked out again, the record
+   * stays unvalidated with the arrival's reason, and the change is audited as
+   * `hr.attendance_reclosed`. The caller has checked that the tap came before
+   * the sweep ran and after the clock in.
+   */
+  async recloseAutoClosed(input: {
+    record: AttendanceRow;
+    at: Date;
+    userId: string;
+    location: PunchLocation | null;
+    arrival: PunchArrival;
+    within?: (tx: Tx) => Promise<void>;
+  }): Promise<void> {
+    const { record } = input;
+    if (input.at.getTime() <= record.clockInAt.getTime()) throw clockOutBeforeIn();
+    await this.assertMonthOpen(record.orgId, [record.workDate]);
+    const figures = await this.closer.figures({
+      orgId: record.orgId,
+      propertyId: record.workPropertyId,
+      rosterEntryId: record.rosterEntryId,
+      workDate: record.workDate,
+      clockInAt: record.clockInAt,
+      clockOutAt: input.at,
+    });
+    await this.db.transaction(async (tx) => {
+      const moved = await this.time.recloseAutoClosed(tx, record.id, input.at, figures, {
+        outLocation: input.location,
+        outArrival: input.arrival,
+      });
+      if (!moved) throw new ConflictException({ code: 'not_clocked_in', message: 'You are not clocked in.' });
+      await writeHrAudit(tx, {
+        actorUserId: input.userId,
+        subjectType: 'employee',
+        subjectId: record.employeeId,
+        eventType: 'hr.attendance_reclosed',
+        orgId: record.orgId,
+        diff: {
+          attendanceRecordId: record.id,
+          clockOutAt: { from: record.clockOutAt ? record.clockOutAt.toISOString() : null, to: input.at.toISOString() },
+          source: 'phone',
         },
       });
       if (input.within) await input.within(tx);
@@ -843,6 +897,11 @@ export class TimeService {
     if (!row) throw new NotFoundException();
     return presentRecord(row, reader);
   }
+}
+
+/** A clock out at or before its clock in, coded so a phone can tell it apart (mobile spec 0003). */
+function clockOutBeforeIn(): UnprocessableEntityException {
+  return new UnprocessableEntityException({ code: 'time_before_start', message: 'The clock out must come after the clock in.' });
 }
 
 /** A second clock in answers 409 carrying the record that is open (AC-T4). */
@@ -955,6 +1014,8 @@ export function presentRecord(row: AttendanceRow, reader: RecordReader): Attenda
     supersedesId: row.supersedesId,
     note: row.note,
     autoClosed: row.autoClosed,
+    inPendingReason: row.inPendingReason,
+    outPendingReason: row.outPendingReason,
     figures:
       reader.figures && closed
         ? {

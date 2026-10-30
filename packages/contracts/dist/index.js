@@ -92,4 +92,6 @@ __exportStar(require("./guests"), exports);
 __exportStar(require("./pos"), exports);
 // Rwanda's 3% tourism tax, included in room prices (2026-10-30).
 __exportStar(require("./tourism-tax"), exports);
+// Offline writes from the phone (mobile spec 0003): the reported time and its refusal codes.
+__exportStar(require("./offline"), exports);
 //# sourceMappingURL=index.js.map

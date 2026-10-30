@@ -1,6 +1,7 @@
 import { Global, Logger, Module, type Provider } from '@nestjs/common';
 
 import { isWorkerProcess } from '../../shared/process/process-role';
+import { DeclarationPlanService } from './application/declaration-plan.service';
 import { EbmConnectionService } from './application/ebm-connection.service';
 import { EbmEmissionService } from './application/ebm-emission.service';
 import { EbmReceiptService } from './application/ebm-receipt.service';
@@ -104,6 +105,11 @@ export function buildEbmProviders(
  * both have a claim on the same document, and neither should have to restate
  * this module's import to print one. `EbmSaleTrigger` is exported for the
  * booking module, which records a sale when a booking confirms.
+ *
+ * `DeclarationPlanService` (what a close or an order is told about the business's
+ * fiscal setup) is fiscal's too, and lives here since ADR-074 stage 4: the folio
+ * (PMS) and order payment (Outlets) both read it, so neither product's module
+ * owns it and neither has to import the other's.
  */
 @Global()
 @Module({
@@ -116,11 +122,13 @@ export function buildEbmProviders(
     EbmConnectionService,
     EbmEmissionService,
     EbmSaleTrigger,
+    DeclarationPlanService,
   ],
   exports: [
     EbmReceiptService,
     EbmConnectionService,
     EbmSaleTrigger,
+    DeclarationPlanService,
     EbmEmissionRepository,
     EbmConnectionRepository,
     VSDC_PORT,

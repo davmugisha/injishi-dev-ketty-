@@ -76,3 +76,5 @@ export * from "./guests";
 export * from "./pos";
 // Rwanda's 3% tourism tax, included in room prices (2026-10-30).
 export * from "./tourism-tax";
+// Offline writes from the phone (mobile spec 0003): the reported time and its refusal codes.
+export * from "./offline";

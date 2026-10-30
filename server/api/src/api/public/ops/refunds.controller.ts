@@ -15,7 +15,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { StayRefundService } from '../../../modules/operations/application/stay-refund.service';
+import { StayRefundService } from '../../../modules/pms/application/stay-refund.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import {
   CurrentUser,

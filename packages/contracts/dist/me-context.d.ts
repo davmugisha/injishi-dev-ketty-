@@ -246,6 +246,7 @@ export declare const MeContext: z.ZodObject<{
         roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
         isStaff: boolean;
     };
+    activeWorkspaceId: string | null;
     businesses: {
         domain: "hospitality" | "residence" | "enterprise";
         role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
@@ -268,7 +269,6 @@ export declare const MeContext: z.ZodObject<{
         endDate: string;
         landlordName: string;
     }[];
-    activeWorkspaceId: string | null;
     landing: {
         workspaceId: string | null;
         surface: "business" | "broker" | "admin" | "guest" | "landlord" | "tenant" | "leader";
@@ -300,6 +300,7 @@ export declare const MeContext: z.ZodObject<{
         roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
         isStaff: boolean;
     };
+    activeWorkspaceId: string | null;
     businesses: {
         domain: "hospitality" | "residence" | "enterprise";
         role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
@@ -322,7 +323,6 @@ export declare const MeContext: z.ZodObject<{
         endDate: string;
         landlordName: string;
     }[];
-    activeWorkspaceId: string | null;
     landing: {
         workspaceId: string | null;
         surface: "business" | "broker" | "admin" | "guest" | "landlord" | "tenant" | "leader";

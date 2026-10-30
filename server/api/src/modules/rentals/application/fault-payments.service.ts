@@ -18,7 +18,7 @@ import { sql } from 'drizzle-orm';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import { TicketLifecycle } from '../../operations/application/ticket-lifecycle';
+import { TicketLifecycle } from '../../pms/application/ticket-lifecycle';
 import { PAYMENT_PORT, PaymentDeclinedError, PaymentUnavailableError, type CallbackEvent, type PaymentPort } from '../../payments/domain/payment-port';
 import { RentalsFilesStorage } from '../../storage/application/rentals-files-storage';
 import { fixerPaidLandlordMail, fixerPaymentFailedLandlordMail } from '../domain/fault-mail';

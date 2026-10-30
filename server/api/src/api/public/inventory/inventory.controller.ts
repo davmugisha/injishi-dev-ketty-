@@ -37,12 +37,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { InventoryService } from '../../../modules/listing-setup/application/inventory.service';
-import { PropertyPhotosService } from '../../../modules/listing-setup/application/property-photos.service';
-import { RatePlansService } from '../../../modules/listing-setup/application/rate-plans.service';
-import { RoomTypesService } from '../../../modules/listing-setup/application/room-types.service';
-import { RoomsService } from '../../../modules/listing-setup/application/rooms.service';
-import { SetupProgressService } from '../../../modules/listing-setup/application/setup-progress.service';
+import { InventoryService } from '../../../modules/platform/property/application/inventory.service';
+import { PropertyPhotosService } from '../../../modules/platform/property/application/property-photos.service';
+import { RatePlansService } from '../../../modules/platform/property/application/rate-plans.service';
+import { RoomTypesService } from '../../../modules/platform/property/application/room-types.service';
+import { RoomsService } from '../../../modules/platform/property/application/rooms.service';
+import { SetupProgressService } from '../../../modules/platform/property/application/setup-progress.service';
 import {
   CurrentUser,
   SessionGuard,

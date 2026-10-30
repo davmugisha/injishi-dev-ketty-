@@ -30,7 +30,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { RegistrationFeePaymentService } from '../../../modules/booking/application/registration-fee-payment.service';
+import { RegistrationFeePaymentService } from '../../../modules/pms/application/registration-fee-payment.service';
 import { POLL_LIMIT_PER_MINUTE } from '../bookings/bookings.controller';
 import { BrokerRegistrationService } from '../../../modules/organization/application/broker-registration.service';
 import { RegistrationService } from '../../../modules/organization/application/registration.service';

@@ -40,7 +40,7 @@ import {
   inBranchScope,
   type BranchScope,
 } from '../../../shared/auth/branch-scope';
-import { ENDED_BOOKING_STATUSES } from '../domain/live-booking';
+import { ENDED_BOOKING_STATUSES } from '../../pms/domain/live-booking';
 
 /**
  * A thread's branch (ADR-054): its booking's, else its stay's room's (a walk in

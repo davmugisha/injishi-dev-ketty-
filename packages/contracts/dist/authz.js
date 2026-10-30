@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.SETUP_DURING_REVIEW_STATUSES = exports.WorkspaceAccess = exports.WorkspaceBranch = exports.BranchCoverage = exports.SetRolePermissionsRequest = exports.OperatorRoleList = exports.OperatorPermissionArea = exports.OperatorRolePermissions = exports.PERMISSION_AREA_OF = exports.PERMISSION_AREA_LABEL = exports.PERMISSION_AREA = exports.LOCKED_PERMISSION_REASON = exports.LOCKED_PERMISSIONS = exports.RolePermissionOverride = exports.CustomisableOrgRole = exports.PERMISSION_LABEL = exports.Permission = void 0;
+exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.SETUP_DURING_REVIEW_STATUSES = exports.TwoFactorSent = exports.TwoFactorChallenge = exports.MyWorkspaces = exports.TwoFactorStatus = exports.WorkspaceAccess = exports.WorkspaceBranch = exports.BranchCoverage = exports.SetRolePermissionsRequest = exports.OperatorRoleList = exports.OperatorPermissionArea = exports.OperatorRolePermissions = exports.PERMISSION_AREA_OF = exports.PERMISSION_AREA_LABEL = exports.PERMISSION_AREA = exports.LOCKED_PERMISSION_REASON = exports.LOCKED_PERMISSIONS = exports.RolePermissionOverride = exports.CustomisableOrgRole = exports.PERMISSION_LABEL = exports.Permission = void 0;
 exports.can = can;
 exports.permissionsForRole = permissionsForRole;
 exports.isCustomisableOrgRole = isCustomisableOrgRole;
@@ -824,6 +824,25 @@ exports.WorkspaceAccess = zod_1.z.object({
      */
     psfMembership: zod_1.z.object({ canManage: zod_1.z.boolean() }).nullable().default(null),
 });
+/**
+ * The emailed step up for this session (F-S02): whether the person's workspaces
+ * demand it, and whether THIS session has presented a code. `verified` means
+ * something only when `required` is true.
+ */
+exports.TwoFactorStatus = zod_1.z.object({
+    required: zod_1.z.boolean(),
+    verified: zod_1.z.boolean(),
+});
+/** `GET /me/workspaces`: every workspace the caller holds, the one this session last acted in, and the step up. */
+exports.MyWorkspaces = zod_1.z.object({
+    workspaces: zod_1.z.array(exports.WorkspaceAccess.extend({ label: zod_1.z.string() })),
+    activeWorkspaceId: primitives_1.Uuid.nullable(),
+    twoFactor: exports.TwoFactorStatus,
+});
+/** `GET /me/two-factor`: the step up's state and the masked address a code goes to. */
+exports.TwoFactorChallenge = exports.TwoFactorStatus.extend({ sentTo: zod_1.z.string() });
+/** `POST /me/two-factor/send`: where the code went and how long it works. */
+exports.TwoFactorSent = zod_1.z.object({ sentTo: zod_1.z.string(), expiresInSeconds: zod_1.z.number().int() });
 /**
  * May this org's workspace actually DO anything yet?
  *

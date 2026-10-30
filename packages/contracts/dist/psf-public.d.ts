@@ -57,15 +57,15 @@ export declare const PsfIdentityLookupResult: z.ZodDiscriminatedUnion<"status", 
     demoCode: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status: "code_sent";
+    sentTo: string;
     expiresInSeconds: number;
     checkId: string;
-    sentTo: string;
     demoCode: string | null;
 }, {
     status: "code_sent";
+    sentTo: string;
     expiresInSeconds: number;
     checkId: string;
-    sentTo: string;
     demoCode: string | null;
 }>, z.ZodObject<{
     status: z.ZodEnum<["not_found", "no_phone", "unavailable"]>;

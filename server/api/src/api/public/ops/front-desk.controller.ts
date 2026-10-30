@@ -1,7 +1,7 @@
 import { type FrontDeskBoard, FrontDeskBoardQuery } from '@injishi/contracts';
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 
-import { FrontDeskBoardService } from '../../../modules/operations/application/front-desk-board.service';
+import { FrontDeskBoardService } from '../../../modules/pms/application/front-desk-board.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {

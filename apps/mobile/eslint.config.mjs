@@ -15,13 +15,34 @@ import injishi from "../../tools/eslint-rules/index.mjs";
  * `no-duplicate-shared-component` is not here: this app renders no DOM and
  * shares the tokens with the web, never the components.
  *
- * The design vocabulary rules are left off for the reason `apps/app`'s config
- * records: they encode `@injishi/design-tokens`' named steps, and their mobile
- * halves were written against the app this one replaced
- * (`src/theme/tokens.ts`, which does not exist here). Measured at `warn` they
- * found 160 hand typed sizes, 2 widths and 191 surface hits. Whether this
- * app's theme takes that vocabulary is a decision still owed.
+ * The five design vocabulary rules run with their `native` halves (mobile spec
+ * 0002, D-z, AC-18), written for this app's kit on 2026-10-29: the type table
+ * in `src/components/ui/text.tsx`, the sizes in `metrics.ts` and `rnSpace`,
+ * the motion in `@injishi/design-tokens`' `motion.ts`, and the grounds
+ * HeroUI Native and `injishi-native.json` define, each with its pair. Each
+ * rule's own comment says what its native half reads. They are `error` on the
+ * kit and the design system screen, which are built on that vocabulary, and a
+ * counted `warn` on the screens built before it (D-y), which keep their hand
+ * typed sizes until their slice rebuilds them. Counted on 2026-10-29, all in
+ * the old screens and `components/phone.tsx`, none in the kit or the dev screen:
+ *
+ *   no-arbitrary-type-scale       403  (160 `text-[Npx]`, 243 Tailwind steps)
+ *   no-arbitrary-width             44  (bracket sizes and style numbers)
+ *   ground-foreground-agreement     8  (a solid status colour or `text-foreground`
+ *                                       on a soft ground, `text-danger` on the page)
+ *   surface-vocabulary              3  (`bg-foreground`, `bg-foreground/75`)
+ *   no-arbitrary-motion             0
  */
+
+/** The five design rules at one level, each on its native half. */
+const designRules = (level) => ({
+  "injishi/no-arbitrary-type-scale": [level, { native: true }],
+  "injishi/no-arbitrary-motion": [level, { native: true }],
+  "injishi/no-arbitrary-width": [level, { native: true }],
+  "injishi/surface-vocabulary": [level, { native: true }],
+  "injishi/ground-foreground-agreement": [level, { native: true }],
+});
+
 export default [
   { ignores: ["node_modules/**", "dist-*/**", ".expo/**", "src/uniwind-types.d.ts"] },
   {
@@ -50,6 +71,14 @@ export default [
 
       // AGENTS.md, Never a raw hex. Zero today.
       "injishi/no-raw-color-classes": "error",
+
+      // D-z. The screens built before the kit: a counted backlog (header).
+      ...designRules("warn"),
     },
+  },
+  {
+    // D-z. The kit and the design system screen are the vocabulary; they hold it.
+    files: ["src/components/ui/**/*.{ts,tsx}", "src/features/dev/**/*.{ts,tsx}", "src/app/dev/**/*.{ts,tsx}"],
+    rules: designRules("error"),
   },
 ];

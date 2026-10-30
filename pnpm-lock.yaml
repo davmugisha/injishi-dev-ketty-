@@ -155,6 +155,9 @@ importers:
       '@injishi/product-hr':
         specifier: workspace:*
         version: link:../../products/hr
+      '@injishi/product-pms':
+        specifier: workspace:*
+        version: link:../../products/pms
       '@injishi/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -300,6 +303,12 @@ importers:
       '@gorhom/bottom-sheet':
         specifier: 5.2.9
         version: 5.2.9(84af58efba3fbf715097f38539ef71f5)
+      '@injishi/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
+      '@injishi/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@injishi/data':
         specifier: workspace:*
         version: link:../../packages/data
@@ -309,6 +318,15 @@ importers:
       '@injishi/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
+      '@tanstack/query-async-storage-persister':
+        specifier: ^5.105.0
+        version: 5.105.0
+      '@tanstack/react-query':
+        specifier: ^5.105.0
+        version: 5.105.0(@types/react@19.3.0)(react@19.2.3)
+      '@tanstack/react-query-persist-client':
+        specifier: ^5.105.0
+        version: 5.105.0(@tanstack/react-query@5.105.0(@types/react@19.3.0)(react@19.2.3))(@types/react@19.3.0)(react@19.2.3)
       better-auth:
         specifier: 1.6.11
         version: 1.6.11(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(expo-sqlite@57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(kysely@0.28.17)(pg@8.23.0))(next@16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.23.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -327,6 +345,9 @@ importers:
       expo-font:
         specifier: ~57.0.4
         version: 57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
+      expo-haptics:
+        specifier: ~57.0.3
+        version: 57.0.3(expo@57.0.28)
       expo-image:
         specifier: ~57.0.5
         version: 57.0.5(expo@57.0.28)(react-native-web@0.21.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
@@ -409,6 +430,9 @@ importers:
       '@expo/fingerprint':
         specifier: ~0.20.14
         version: 0.20.14(supports-color@8.1.1)
+      '@gravity-ui/icons':
+        specifier: 2.22.1
+        version: 2.22.1(react@19.2.3)
       '@types/react':
         specifier: 19.3.0
         version: 19.3.0
@@ -963,6 +987,61 @@ importers:
       react:
         specifier: 19.3.0
         version: 19.3.0
+      react-dom:
+        specifier: 19.3.0
+        version: 19.3.0(react@19.3.0)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  products/pms:
+    dependencies:
+      '@injishi/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@injishi/product-contract':
+        specifier: workspace:*
+        version: link:../../packages/product-contract
+    devDependencies:
+      '@gravity-ui/icons':
+        specifier: 2.22.1
+        version: 2.22.1(react@19.3.0)
+      '@heroui-pro/react':
+        specifier: 1.0.0-beta.10
+        version: 1.0.0-beta.10
+      '@heroui/react':
+        specifier: 3.2.6
+        version: 3.2.6(@internationalized/date@3.12.4)(@react-aria/ssr@3.10.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@react-aria/utils@3.34.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@react-spectrum/provider@3.11.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-aria-components@1.22.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-aria@3.53.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(tailwind-merge@3.7.0)(tailwindcss@4.3.3)
+      '@injishi/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@injishi/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
+      '@internationalized/date':
+        specifier: 3.12.4
+        version: 3.12.4
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 19.3.0
+        version: 19.3.0(@types/react@19.3.0)
+      '@typescript-eslint/parser':
+        specifier: ^8.68.0
+        version: 8.68.0(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3)
+      eslint:
+        specifier: ^10.9.1
+        version: 10.9.1(jiti@2.7.0)(supports-color@8.1.1)
+      next:
+        specifier: 16.3.5
+        version: 16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      react-aria-components:
+        specifier: 1.22.1
+        version: 1.22.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react-dom:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
@@ -4919,6 +4998,34 @@ packages:
   '@tailwindcss/postcss@4.3.3':
     resolution: {integrity: sha512-JTSZZGQi1AyKirbLN3azmjVzef92tcX7h+iSqPdaeStyFpGpDlKvvpxeOE8njhbUanbRwr3z8DyzhICWnMtQeg==}
 
+  '@tanstack/query-async-storage-persister@5.105.0':
+    resolution: {integrity: sha512-I2QmE8pKHdYjvAIy+hf5ARZx9QmsUehk2RxdwNX1cYqHip8y2MmPUDhlLzvGCudKmOVKW0gPVPdiiN4AKcU3lg==}
+
+  '@tanstack/query-core@5.105.0':
+    resolution: {integrity: sha512-7p56vRmT/z4UJ6sctGIdl5WRUQyUv53IUpUwEKi2g97zMbO7zh8ZsCLffGAvCPBR4xD72e3VXsDyLwXHhoNTMQ==}
+
+  '@tanstack/query-persist-client-core@5.105.0':
+    resolution: {integrity: sha512-bOy2lMzzEyacL6s9hIa0tKmaIr/TM24HZaK9a20ctZjPYlCs6NhGdgbxi20RcdJWZwWunkLqPDnxfClD7QIyKg==}
+
+  '@tanstack/react-query-persist-client@5.105.0':
+    resolution: {integrity: sha512-88XnwRDyGnlEGgnX2ePbUnEwGoQpQufLKR5bqCfs8CQbNoS2km3Ib/MNKWwrRTQDOdmJYhl6wBPJEdUBBMH5XA==}
+    peerDependencies:
+      '@tanstack/react-query': ^5.105.0
+      '@types/react': 19.3.0
+      react: ^18 || ^19
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
+  '@tanstack/react-query@5.105.0':
+    resolution: {integrity: sha512-y+hMuDERvgg6ay1da0V1a6ZC0ZONt7dELxSFkqRZuwm7p1TTZs0MoXrPlBRflIpRoYjvzQVYxycnLImpFLhWrw==}
+    peerDependencies:
+      '@types/react': 19.3.0
+      react: ^18 || ^19
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
   '@tanstack/react-store@0.11.2':
     resolution: {integrity: sha512-oj5O5DmiMWE+ih+SioX2ayC1kbK7d3fpLx0B75fPJr9nY3zU+hoW010yr64qXsY/9fyiLVE2bn5mGNV3owm8RQ==}
     peerDependencies:
@@ -6905,6 +7012,11 @@ packages:
       expo: '*'
       react: '*'
       react-native: '*'
+
+  expo-haptics@57.0.3:
+    resolution: {integrity: sha512-qucUXtwtJdtECKSQK5D6TQBc/0SxKj7s5wQ4mrfSxhZsHrS9a4rcxINl/gbruMaY9spTXStco32ST4pV0vXmxw==}
+    peerDependencies:
+      expo: '*'
 
   expo-image@57.0.5:
     resolution: {integrity: sha512-jOm5lofaIKXhQ7i0Hz3I5JuNULw/aghmpIPZXddwQcEtw8+wUhlozq3M7LbsOrcsBEapcG4jFs85DsfuFoz1tQ==}
@@ -13215,6 +13327,12 @@ snapshots:
       react: 19.2.3
       react-native: 0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1)
 
+  '@gravity-ui/icons@2.22.1(react@19.2.3)':
+    dependencies:
+      tslib: 2.8.1
+    optionalDependencies:
+      react: 19.2.3
+
   '@gravity-ui/icons@2.22.1(react@19.3.0)':
     dependencies:
       tslib: 2.8.1
@@ -15801,6 +15919,32 @@ snapshots:
       postcss: 8.5.28
       tailwindcss: 4.3.3
 
+  '@tanstack/query-async-storage-persister@5.105.0':
+    dependencies:
+      '@tanstack/query-core': 5.105.0
+      '@tanstack/query-persist-client-core': 5.105.0
+
+  '@tanstack/query-core@5.105.0': {}
+
+  '@tanstack/query-persist-client-core@5.105.0':
+    dependencies:
+      '@tanstack/query-core': 5.105.0
+
+  '@tanstack/react-query-persist-client@5.105.0(@tanstack/react-query@5.105.0(@types/react@19.3.0)(react@19.2.3))(@types/react@19.3.0)(react@19.2.3)':
+    dependencies:
+      '@tanstack/query-persist-client-core': 5.105.0
+      '@tanstack/react-query': 5.105.0(@types/react@19.3.0)(react@19.2.3)
+      react: 19.2.3
+    optionalDependencies:
+      '@types/react': 19.3.0
+
+  '@tanstack/react-query@5.105.0(@types/react@19.3.0)(react@19.2.3)':
+    dependencies:
+      '@tanstack/query-core': 5.105.0
+      react: 19.2.3
+    optionalDependencies:
+      '@types/react': 19.3.0
+
   '@tanstack/react-store@0.11.2(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       '@tanstack/store': 0.11.2
@@ -18189,6 +18333,10 @@ snapshots:
       expo: 57.0.28(9b6d06ba41977ecf8be16d2a13cf53c4)
       react: 19.2.3
       react-native: 0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1)
+
+  expo-haptics@57.0.3(expo@57.0.28):
+    dependencies:
+      expo: 57.0.28(9b6d06ba41977ecf8be16d2a13cf53c4)
 
   expo-image@57.0.5(expo@57.0.28)(react-native-web@0.21.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3):
     dependencies:

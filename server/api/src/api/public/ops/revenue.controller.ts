@@ -7,7 +7,7 @@ import {
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 
 import { OwnerDashboardService } from '../../../modules/operations/application/owner-dashboard.service';
-import { RevenueService } from '../../../modules/operations/application/revenue.service';
+import { RevenueService } from '../../../modules/pms/application/revenue.service';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,

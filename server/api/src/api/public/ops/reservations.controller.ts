@@ -27,9 +27,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { BookingChangeService } from '../../../modules/booking/application/booking-change.service';
-import { OperatorReservationsService } from '../../../modules/booking/application/operator-reservations.service';
-import { RoomAssignmentService } from '../../../modules/operations/application/room-assignment.service';
+import { BookingChangeService } from '../../../modules/pms/application/booking-change.service';
+import { OperatorReservationsService } from '../../../modules/pms/application/operator-reservations.service';
+import { RoomAssignmentService } from '../../../modules/pms/application/room-assignment.service';
 import {
   CurrentUser,
   SessionGuard,

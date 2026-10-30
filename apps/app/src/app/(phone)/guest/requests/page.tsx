@@ -7,9 +7,10 @@ import type {
   ServiceRequest,
   UpdateDelivery,
 } from "@injishi/data/fixtures/guest";
+import { GuestRequestsView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { GuestRequestsView } from "@/features/guest/GuestRequestsView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -28,15 +29,17 @@ export default async function GuestRequestsPage() {
   const stay = stays[0];
   if (!stay || !types.length) notFound();
   return (
-    <GuestRequestsView
-      data={{
-        stay,
-        types,
-        requests,
-        messages: messages.filter((m) => m.thread === "stay"),
-        channels,
-        deliveries,
-      }}
-    />
+    <PmsMount>
+      <GuestRequestsView
+        data={{
+          stay,
+          types,
+          requests,
+          messages: messages.filter((m) => m.thread === "stay"),
+          channels,
+          deliveries,
+        }}
+      />
+    </PmsMount>
   );
 }

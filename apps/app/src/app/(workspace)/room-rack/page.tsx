@@ -1,6 +1,7 @@
 import { screens } from "@injishi/data";
+import { RoomRackView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { RoomRackView } from "@/features/frontdesk/RoomRackView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { requestContext } from "@/server/data";
 import { readRoomRack } from "@/server/sources/room-rack";
@@ -11,5 +12,9 @@ export const metadata: Metadata = { title: screens.RoomRack.pageTitle };
 export default async function RoomRackPage() {
   await requirePersona("RoomRack");
   const rack = await readRoomRack(await requestContext());
-  return <RoomRackView rack={rack} />;
+  return (
+    <PmsMount>
+      <RoomRackView rack={rack} />
+    </PmsMount>
+  );
 }

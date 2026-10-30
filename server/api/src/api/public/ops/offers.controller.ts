@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { OffersService } from '../../../modules/operations/application/offers.service';
+import { OffersService } from '../../../modules/pms/application/offers.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import {
   CurrentUser,

@@ -27,7 +27,7 @@ import {
   unclassifiedSentence,
 } from '../domain/sellable-item';
 import { PaymentSeam } from '../../payments/domain/payment-seam';
-import { FolioRepository } from '../infrastructure/folio.repository';
+import { FolioPort } from '../../pms/application/folio-port';
 import { MessagingService } from './messaging.service';
 import {
   GuestOrderingRepository,
@@ -71,7 +71,7 @@ export class GuestOrderingService {
   constructor(
     private readonly guests: GuestOrderingRepository,
     private readonly catalog: ServiceCatalogRepository,
-    private readonly folios: FolioRepository,
+    private readonly folios: FolioPort,
     private readonly messaging: MessagingService,
     private readonly seam: PaymentSeam,
   ) {}

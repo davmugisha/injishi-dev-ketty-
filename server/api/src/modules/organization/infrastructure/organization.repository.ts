@@ -53,7 +53,7 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
-import { insertPropertyWithListing } from '../../listing-setup/infrastructure/insert-property';
+import { insertPropertyWithListing } from '../../platform/property/infrastructure/insert-property';
 import {
   recordRegistrationEvent,
   type RegistrationMover,

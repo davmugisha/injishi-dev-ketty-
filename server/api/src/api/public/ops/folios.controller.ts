@@ -18,7 +18,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { FolioService } from '../../../modules/operations/application/folio.service';
+import { FolioService } from '../../../modules/pms/application/folio.service';
 import {
   CurrentUser,
   SessionGuard,
