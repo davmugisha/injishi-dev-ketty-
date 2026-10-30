@@ -656,18 +656,31 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
           label: "Home",
           icon: "House",
           board: "TenantLeaseHome",
+          tabs: [
+            { id: "overview", label: "Overview", board: "TenantLeaseHome" },
+            { id: "calendar", label: "Calendar", board: "TenantCalendar" },
+            { id: "todo", label: "To do", board: "TenantTodo" },
+          ],
         },
         {
           id: "rent",
           label: "Rent",
           icon: "Wallet",
           board: "TenantRent",
+          tabs: [
+            { id: "payments", label: "Payments", board: "TenantRent" },
+            { id: "charges", label: "Charges", board: "TenantCharges" },
+          ],
         },
         {
           id: "lease",
           label: "Lease",
           icon: "FileText",
           board: "TenantLease",
+          tabs: [
+            { id: "lease", label: "Lease", board: "TenantLease" },
+            { id: "move-out", label: "Moving out", board: "TenantMoveOut" },
+          ],
         },
         {
           id: "faults",
@@ -676,33 +689,16 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
           board: "TenantFaults",
         },
         {
-          id: "move-out",
-          label: "Moving out",
-          icon: "ArrowRightFromSquare",
-          board: "TenantMoveOut",
+          id: "guests",
+          label: "Guests",
+          icon: "PersonPlus",
+          board: "TenantGuests",
         },
         {
           id: "messages",
           label: "Messages",
           icon: "Comments",
           board: "TenantMessages",
-        },
-        {
-          id: "guests",
-          label: "Guests",
-          icon: "PersonPlus",
-          board: "TenantGuests",
-        },
-      ],
-    },
-    {
-      label: "You",
-      items: [
-        {
-          id: "account",
-          label: "Account",
-          icon: "Person",
-          board: "Account",
         },
       ],
     },
@@ -747,18 +743,34 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
   ],
   // The broker's sidebar (2026-10-25): the homes their plan shows, the tenants they placed, what
   // landlords recorded as owed and paid, their ratings, and the plan.
+  // The broker's sidebar (2026-10-30): three areas, their pages as tabs. The plan is a dialog on the
+  // account page (`/broker/plan` opens it).
   broker: [
     {
       label: null,
       items: [
-        // Hidden for now (2026-10-27): the account page stays reachable from the user menu.
-        // { id: "account", label: "Account", icon: "Person", board: "Account" },
-        { id: "homes", label: "Homes", icon: "House", board: "BrokerWork" },
-        { id: "placements", label: "Placements", icon: "Persons", board: "BrokerPlacements" },
+        {
+          id: "homes",
+          label: "Home",
+          icon: "House",
+          board: "BrokerWork",
+          tabs: [
+            { id: "overview", label: "Overview", board: "BrokerWork" },
+            { id: "find", label: "Find homes", board: "BrokerDirectory" },
+          ],
+        },
+        {
+          id: "work",
+          label: "Work",
+          icon: "Briefcase",
+          board: "BrokerPlacements",
+          tabs: [
+            { id: "placements", label: "Placements", board: "BrokerPlacements" },
+            { id: "earnings", label: "Earnings", board: "BrokerEarnings" },
+            { id: "reviews", label: "Reviews", board: "BrokerReviews" },
+          ],
+        },
         { id: "messages", label: "Messages", icon: "Comments", board: "BrokerMessages" },
-        // Earnings and reviews are one page now (2026-10-27); /broker/reviews opens it at the reviews.
-        { id: "earnings", label: "Earnings & reviews", icon: "Wallet", board: "BrokerEarnings" },
-        // { id: "reviews", label: "Reviews", icon: "Star", board: "BrokerReviews" },
       ],
     },
   ],

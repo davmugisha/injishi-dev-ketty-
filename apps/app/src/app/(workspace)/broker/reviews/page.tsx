@@ -1,7 +1,17 @@
-import { screenHref } from "@injishi/data";
-import { redirect } from "next/navigation";
+import { screens } from "@injishi/data";
+import type { Metadata } from "next";
+import { ReviewsView } from "@/features/broker/ReviewsView";
+import { NotABroker } from "@/features/broker/shared";
+import { requirePersona } from "@/lib/session";
+import { brokerReviews, brokerScope } from "@/server/broker/client";
 
-/** Reviews live on the earnings page now (2026-10-27): an old link opens it at the reviews. */
-export default function BrokerReviewsPage() {
-  redirect(`${screenHref("BrokerEarnings")}#reviews`);
+export const metadata: Metadata = { title: screens.BrokerReviews.pageTitle };
+
+/** What landlords and tenants said about the broker. */
+export default async function BrokerReviewsPage() {
+  await requirePersona("BrokerReviews");
+  if (!(await brokerScope())) return <NotABroker title="Reviews" />;
+  return <ReviewsView data={await brokerReviews()} />;
 }
+
+export const dynamic = "force-dynamic";

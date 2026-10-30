@@ -3,5 +3,5 @@
 import { AreaError } from "@/components/shell/WorkspaceNav";
 
 export default function PageError({ reset }: { error: Error; reset: () => void }) {
-  return <AreaError heading="Homes" title="Couldn't load the homes" onRetry={reset} />;
+  return <AreaError heading="Find homes" title="Couldn't load the homes" onRetry={reset} />;
 }

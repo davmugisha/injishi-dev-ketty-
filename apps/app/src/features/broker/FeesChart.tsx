@@ -40,8 +40,7 @@ export function FeesChart({
   return (
     <TrendArea
       className={className}
-      title="Fees"
-      description={`Earned and paid in ${range.words}`}
+      title="Fees (RWF)"
       range={range}
       actions={<PeriodMenu value={period} onChange={setPeriod} />}
       series={[
@@ -49,7 +48,7 @@ export function FeesChart({
         { key: "paid", label: "Paid", color: CHART_COLOR.cat(1) },
       ]}
       values={values}
-      height={200}
+      height={240}
       empty={{ icon: "Wallet", title: `No fees in ${range.words}` }}
     />
   );

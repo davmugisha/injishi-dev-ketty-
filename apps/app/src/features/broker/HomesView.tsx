@@ -3,19 +3,11 @@
 import { Button, Card } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
 import type { BrokerHome, BrokerHomes, BrokerHomesSort } from "@injishi/contracts";
-import {
-  ActionLink,
-  EmptyBlock,
-  FilterMenu,
-  formatNumber,
-  Icon,
-  PageContent,
-  PageHeader,
-  SearchBar,
-} from "@injishi/ui";
+import { ActionLink, EmptyBlock, FilterMenu, formatNumber, Icon, PageContent, SearchBar } from "@injishi/ui";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { districtCentre } from "./districts";
 import { HomeCard } from "./HomeCard";
 import { HomePanel } from "./HomePanel";
@@ -27,27 +19,21 @@ const HomesMap = dynamic(() => import("./HomesMap").then((m) => m.HomesMap), {
 
 const ANY = "any";
 const BEDROOMS = [
-  { id: ANY, label: "Any bedrooms" },
+  { id: ANY, label: "Any" },
   { id: "0", label: "Studio or more" },
   { id: "1", label: "1+ bedrooms" },
   { id: "2", label: "2+ bedrooms" },
   { id: "3", label: "3+ bedrooms" },
 ];
-const MAX_RENT = [
-  { id: ANY, label: "Any top rent" },
-  { id: "150000", label: "Up to RWF 150K" },
-  { id: "250000", label: "Up to RWF 250K" },
-  { id: "400000", label: "Up to RWF 400K" },
-  { id: "600000", label: "Up to RWF 600K" },
-  { id: "1000000", label: "Up to RWF 1M" },
-];
-const MIN_RENT = [
-  { id: ANY, label: "No minimum" },
-  { id: "100000", label: "From RWF 100K" },
-  { id: "200000", label: "From RWF 200K" },
-  { id: "350000", label: "From RWF 350K" },
-  { id: "500000", label: "From RWF 500K" },
-];
+/** One rent filter: each band sets the lowest and highest rent the API filters by. */
+const RENT_BANDS = [
+  { id: ANY, label: "Any", min: null, max: null },
+  { id: "0-150000", label: "Up to RWF 150K", min: null, max: "150000" },
+  { id: "150000-250000", label: "RWF 150K to 250K", min: "150000", max: "250000" },
+  { id: "250000-400000", label: "RWF 250K to 400K", min: "250000", max: "400000" },
+  { id: "400000-600000", label: "RWF 400K to 600K", min: "400000", max: "600000" },
+  { id: "600000-", label: "Above RWF 600K", min: "600000", max: null },
+] as const;
 const SORTS: { id: BrokerHomesSort; label: string }[] = [
   { id: "newest", label: "Newest" },
   { id: "fee_desc", label: "Highest fee" },
@@ -58,18 +44,10 @@ const SORTS: { id: BrokerHomesSort; label: string }[] = [
 type StatusTab = "all" | "now" | "soon";
 
 /**
- * Find homes — Explore-style joined filter bar, availability tabs, and a sticky
- * MapLibre map (same pattern as feat/rentals directory).
+ * Find homes: a search, sort and filter dropdowns (nothing chosen until the broker picks), the homes as
+ * cards, and a MapLibre map beside them.
  */
-export function HomesView({
-  data,
-  openUnitId,
-  desk = false,
-}: {
-  data: BrokerHomes;
-  openUnitId: string | null;
-  desk?: boolean;
-}) {
+export function HomesView({ data, openUnitId }: { data: BrokerHomes; openUnitId: string | null }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -130,46 +108,28 @@ export function HomesView({
     ) ||
     (params.get("sort") != null && params.get("sort") !== "newest");
 
-  const chrome = desk ? (
-    <div className="flex flex-wrap items-end justify-between gap-3">
-      <p className="flex flex-wrap items-center gap-2 text-sm text-muted">
-        <Icon name="MapPin" />
-        <span>
+  const header = (
+    <AreaHeader
+      eyebrow={
+        <>
+          <Icon name="MapPin" />
           {scope.area}
           {scope.needsDistrict ? null : ` · ${formatNumber(total)} ${total === 1 ? "home" : "homes"} on offer`}
-        </span>
-      </p>
-      {scope.upgrade ? (
-        <ActionLink href="/account?plan=1" icon="ArrowUpRight" size="sm">
-          See {scope.upgrade.area.replace(/^All of /, "")}
-        </ActionLink>
-      ) : null}
-    </div>
-  ) : (
-    <>
-      <PageHeader
-        title="Homes"
-        actions={
-          scope.upgrade ? (
-            <ActionLink href="/account?plan=1" icon="ArrowUpRight">
-              See {scope.upgrade.area.replace(/^All of /, "")}
-            </ActionLink>
-          ) : null
-        }
-      />
-      <p className="-mt-3 flex flex-wrap items-center gap-2 text-sm text-muted">
-        <Icon name="MapPin" />
-        <span>
-          {scope.area}
-          {scope.needsDistrict ? null : ` · ${formatNumber(total)} ${total === 1 ? "home" : "homes"} on offer`}
-        </span>
-      </p>
-    </>
+        </>
+      }
+      actions={
+        scope.upgrade ? (
+          <ActionLink href="/account?plan=1" icon="ArrowUpRight">
+            See {scope.upgrade.area.replace(/^All of /, "")}
+          </ActionLink>
+        ) : null
+      }
+    />
   );
 
   const body = (
     <>
-      {chrome}
+      {header}
 
       {scope.needsDistrict ? (
         <EmptyBlock
@@ -238,9 +198,8 @@ export function HomesView({
                   label="Availability"
                   name="Show"
                   icon="ListUl"
-                  compact
                   options={[
-                    { id: "all", label: "All homes", count: counts.all },
+                    { id: "all", label: "All", count: counts.all },
                     { id: "now", label: "Available now", count: counts.now },
                     { id: "soon", label: "On notice", count: counts.soon },
                   ]}
@@ -251,9 +210,8 @@ export function HomesView({
                   label="District"
                   name="District"
                   icon="MapPin"
-                  compact
                   options={[
-                    { id: ANY, label: scope.plan === "district" ? scope.area : "All districts" },
+                    { id: ANY, label: scope.plan === "district" ? scope.area : "All" },
                     ...data.districts.map((d) => ({ id: String(d.id), label: d.name, count: d.count })),
                   ]}
                   value={data.districtId ? String(data.districtId) : ANY}
@@ -263,28 +221,24 @@ export function HomesView({
                   label="Bedrooms"
                   name="Bedrooms"
                   icon="House"
-                  compact
                   options={BEDROOMS}
                   value={params.get("bedrooms") ?? ANY}
                   onChange={(v) => go({ bedrooms: v })}
                 />
                 <FilterMenu
-                  label="Lowest rent"
-                  name="Rent from"
+                  label="Rent"
+                  name="Rent"
                   icon="Wallet"
-                  compact
-                  options={MIN_RENT}
-                  value={params.get("minRent") ?? ANY}
-                  onChange={(v) => go({ minRent: v })}
-                />
-                <FilterMenu
-                  label="Highest rent"
-                  name="Rent up to"
-                  icon="Wallet"
-                  compact
-                  options={MAX_RENT}
-                  value={params.get("maxRent") ?? ANY}
-                  onChange={(v) => go({ maxRent: v })}
+                  options={RENT_BANDS}
+                  value={
+                    RENT_BANDS.find(
+                      (r) => (r.min ?? null) === params.get("minRent") && (r.max ?? null) === params.get("maxRent"),
+                    )?.id ?? ANY
+                  }
+                  onChange={(v) => {
+                    const band = RENT_BANDS.find((r) => r.id === v);
+                    go({ minRent: band?.min ?? null, maxRent: band?.max ?? null });
+                  }}
                 />
                 {filterActive || status !== "all" ? (
                   <Button
@@ -386,7 +340,7 @@ export function HomesView({
       {pending ? <p className="sr-only">Updating homes…</p> : null}
     </>
   );
-  return desk ? <div className="flex flex-col gap-4">{body}</div> : <PageContent>{body}</PageContent>;
+  return <PageContent>{body}</PageContent>;
 }
 
 /** Attach district-centre coordinates when a building has no pin of its own. */
