@@ -12,14 +12,22 @@ import type {
 } from "@injishi/data/fixtures/frontdesk";
 import type { Metadata } from "next";
 import { FrontDeskTodayView } from "@/features/frontdesk/FrontDeskTodayView";
+import { StayTodayView } from "@/features/stays/StayTodayView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { deskPropertyName } from "@/server/sources/frontdesk";
+import { staysSummary } from "@/server/stays/client";
+import { deskRows, readDesk } from "@/server/stays/desk";
 
 export const metadata: Metadata = { title: screens.FrontDeskToday.pageTitle };
 
 export default async function FrontDeskTodayPage({ searchParams }: { searchParams: Promise<{ offline?: string }> }) {
   await requirePersona("FrontDeskToday");
+  // A real stay business (guest house, lodge, apartments) gets one table of today's guests, all live.
+  if (await staysSummary()) {
+    const board = await readDesk();
+    return <StayTodayView rows={deskRows(board)} today={board.today} />;
+  }
   const [kpis, tabs, arrivals, inHouse, departures, requests, readiness, roomTypes, rooms] = await Promise.all([
     getCollection<DeskKpi>("frontdesk.deskKpis"),
     getCollection<QueueTab>("frontdesk.queueTabs"),

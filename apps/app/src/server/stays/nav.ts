@@ -6,7 +6,7 @@
  */
 import type { StaysSummary } from "@injishi/contracts";
 import { stayUnitWords } from "@injishi/contracts";
-import type { NavGroup, NavItem } from "@injishi/data";
+import type { NavGroup, NavItem, NavTab } from "@injishi/data";
 import { can, type StaysScope, staysScope, staysSummary } from "./client";
 
 const chip = (n: number | undefined) => (n && n > 0 ? { chip: String(n) } : {});
@@ -19,64 +19,68 @@ export function staysNavGroups(
 ): NavGroup[] {
   const words = stayUnitWords(summary.business.kind);
   const desk = can(scope, "stay.checkin", "stay.checkout");
-  const top: NavItem[] = [{ id: "home", label: "Home", icon: "House", board: home }];
+  const bookings = can(scope, "reservation.approve", "reservation.assign", "stay.checkin");
+  // Few sidebar items (2026-10-30): each area's pages are tabs at the top of its pages.
+  const items: NavItem[] = [];
+
+  const overview: NavTab[] = [{ id: "overview", label: "Overview", board: home }];
+  if (desk || bookings) overview.push({ id: "calendar", label: "Calendar", board: "StaysCalendar" });
+  items.push({ id: "home", label: "Home", icon: "House", board: home, tabs: overview });
+
+  const front: NavTab[] = [];
   if (desk) {
-    top.push({
-      id: "frontdesk",
+    front.push({
+      id: "today",
       label: "Today",
-      icon: "Persons",
       board: "FrontDeskToday",
+      also: ["CheckIn", "Checkout", "WalkIn", "StayFolio"],
       ...chip(summary.counts.arrivalsToday + summary.counts.departuresToday),
     });
   }
-  if (can(scope, "reservation.approve", "reservation.assign", "stay.checkin")) {
-    top.push({
-      id: "reservations",
+  if (bookings) {
+    front.push({
+      id: "bookings",
       label: "Bookings",
-      icon: "Calendar",
       board: "Reservations",
+      also: ["ReservationDetail"],
       ...chip(summary.counts.requestsWaiting),
-      ...(summary.counts.requestsWaiting > 0 ? { alert: true } : {}),
     });
   }
-  if (can(scope, "message.send")) top.push({ id: "messages", label: "Messages", icon: "Comments", board: "Messages" });
-  const groups: NavGroup[] = [{ label: null, items: top }];
+  if (front.length > 0) {
+    items.push({ id: "desk", label: "Front desk", icon: "Persons", board: front[0].board, tabs: front });
+  }
 
-  const property: NavItem[] = [];
+  const rooms: NavTab[] = [];
   if (can(scope, "listing.manage")) {
-    property.push({
-      id: "calendar",
-      label: "Prices and availability",
-      icon: "Calendar",
-      board: "AvailabilityCalendar",
-    });
+    rooms.push({ id: "prices", label: "Prices", board: "AvailabilityCalendar" });
   }
   if (can(scope, "housekeeping.set", "stay.checkin")) {
-    property.push({
-      id: "housekeeping",
-      label: summary.business.size === "compact" ? "Cleaning" : "Housekeeping",
-      icon: "BroomMotion",
-      board: "HousekeepingBoard",
-    });
+    rooms.push({ id: "cleaning", label: "Cleaning", board: "HousekeepingBoard" });
   }
   if (summary.business.size === "full" && can(scope, "ticket.advance", "stay.checkin")) {
-    property.push({ id: "maintenance", label: "Maintenance", icon: "Wrench", board: "Maintenance" });
+    rooms.push({ id: "maintenance", label: "Maintenance", board: "Maintenance" });
   }
-  if (property.length > 0) {
-    groups.push({ label: words.many.charAt(0).toUpperCase() + words.many.slice(1), items: property });
+  if (rooms.length > 0) {
+    const label = words.many.charAt(0).toUpperCase() + words.many.slice(1);
+    items.push({ id: "rooms", label, icon: "LayoutCells", board: rooms[0].board, tabs: rooms });
   }
 
-  const business: NavItem[] = [];
+  if (can(scope, "message.send"))
+    items.push({ id: "messages", label: "Messages", icon: "Comments", board: "Messages" });
   if (can(scope, "team.manage")) {
-    business.push({
+    items.push({
       id: "team",
-      label: summary.business.size === "compact" ? "Helpers" : "Team and roles",
+      label: summary.business.size === "compact" ? "Helpers" : "Team",
       icon: "PersonsLock",
       board: "TeamRoles",
     });
   }
-  if (business.length > 0) groups.push({ label: "Business", items: business });
-  return groups;
+  // The sidebar chip of an area: what waits on any of its pages.
+  for (const item of items) {
+    const waiting = (item.tabs ?? []).reduce((t, tab) => t + Number(tab.chip ?? 0), 0);
+    if (item.tabs && waiting > 0) item.chip = String(waiting);
+  }
+  return [{ label: null, items }];
 }
 
 /** The sidebar of a stay business's owner or manager; null when the workspace lets no rooms. */

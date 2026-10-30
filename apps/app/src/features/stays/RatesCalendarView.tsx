@@ -11,11 +11,11 @@ import {
   formatNumber,
   Icon,
   PageContent,
-  PageHeader,
   SectionCard,
 } from "@injishi/ui";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { saveRatesDays, saveRatesTerms } from "./rates-actions";
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
@@ -109,8 +109,8 @@ export function RatesCalendarView({ data, longStays }: { data: RatesCalendar; lo
   if (data.roomTypes.length === 0) {
     return (
       <PageContent>
-        <PageHeader title="Prices and availability" />
-        <EmptyBlock icon="Calendar" title="No rooms to price yet" description="Add a room type with its price first." />
+        <AreaHeader />
+        <EmptyBlock icon="Calendar" title="No rooms to price yet" />
       </PageContent>
     );
   }
@@ -118,8 +118,7 @@ export function RatesCalendarView({ data, longStays }: { data: RatesCalendar; lo
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
-      <PageHeader
-        title="Prices and availability"
+      <AreaHeader
         actions={
           <span className="flex items-center gap-1.5">
             <Button isIconOnly size="sm" variant="secondary" aria-label="Two weeks earlier" onPress={() => move(-14)}>
@@ -325,11 +324,6 @@ function TermsCard({ roomTypes, longStays }: { roomTypes: RatesRoomType[]; longS
   return (
     <SectionCard
       title="Room prices and stays"
-      description={
-        longStays
-          ? "Guests who stay a week or a month pay less a night: set the discounts here."
-          : "The price a night when a day has none of its own, and the stays each room type takes."
-      }
       actions={
         roomTypes.length > 1 ? (
           <FilterMenu
