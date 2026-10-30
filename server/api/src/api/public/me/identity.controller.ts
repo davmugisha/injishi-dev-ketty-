@@ -5,7 +5,7 @@ import {
   NationalIdCheckRequest,
   TypedIdentityRequest,
 } from '@injishi/contracts';
-import { Body, Controller, Get, HttpCode, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Post, Put, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 
 import { IdentityService } from '../../../modules/user/application/identity.service';
@@ -71,5 +71,15 @@ export class IdentityController {
     @CurrentUser() user: SessionUser,
   ): Promise<IdentityStatus> {
     return this.identity.putTyped(user.id, body);
+  }
+
+  /**
+   * "Use a different ID": drop the identity on file, so another one can be
+   * checked. Refused once a business or broker record stands on it.
+   */
+  @Delete()
+  @Throttle({ money: { limit: 10, ttl: 600_000 } })
+  clear(@CurrentUser() user: SessionUser): Promise<IdentityStatus> {
+    return this.identity.clear(user.id);
   }
 }
