@@ -1,7 +1,7 @@
 "use client";
 
 import { Chip } from "@heroui/react";
-import type { Tone } from "@injishi/data/fixtures/stock";
+import type { Tone } from "@injishi/product-outlets";
 import { formatRwf, toneColor } from "@injishi/ui";
 import type { ReactNode } from "react";
 

@@ -2,6 +2,7 @@ import { screens } from "@injishi/data";
 import type { PosEvent, ProductionBatch, Recipe, RecipeIngredient } from "@injishi/data/fixtures/stock";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { OutletsMount } from "@/features/outlets/outlets-mount";
 import { RecipesView } from "@/features/stock/RecipesView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";
@@ -20,5 +21,9 @@ export default async function RecipesPage() {
     getCollection<PosEvent>("stock.posEvents"),
   ]);
   if (!batch || !recipes.length) notFound();
-  return <RecipesView data={{ recipes, ingredients, batch, events }} />;
+  return (
+    <OutletsMount>
+      <RecipesView data={{ recipes, ingredients, batch, events }} />
+    </OutletsMount>
+  );
 }

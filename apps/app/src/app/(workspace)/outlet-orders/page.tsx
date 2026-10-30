@@ -10,6 +10,7 @@ import type {
 } from "@injishi/data/fixtures/outlets";
 import type { Metadata } from "next";
 import { OutletOrdersView } from "@/features/outlets/OutletOrdersView";
+import { OutletsMount } from "@/features/outlets/outlets-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -26,5 +27,9 @@ export default async function OutletOrdersPage() {
     getCollection<FiscalReport>("outlets.fiscalReports"),
     getCollection<StockOut>("outlets.stockOuts"),
   ]);
-  return <OutletOrdersView data={{ kpis, stages, orders, voids, refunds, reports, stockOuts }} />;
+  return (
+    <OutletsMount>
+      <OutletOrdersView data={{ kpis, stages, orders, voids, refunds, reports, stockOuts }} />
+    </OutletsMount>
+  );
 }

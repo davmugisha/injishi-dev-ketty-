@@ -1,6 +1,7 @@
 import { screens } from "@injishi/data";
 import type { BasketLine, MenuCategory, MenuItem, RoomServiceOrder, ServiceHour } from "@injishi/data/fixtures/outlets";
 import type { Metadata } from "next";
+import { OutletsMount } from "@/features/outlets/outlets-mount";
 import { QrOrderView, type QrStep } from "@/features/outlets/QrOrderView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
@@ -21,16 +22,18 @@ export default async function QrOrderPage({ searchParams }: { searchParams: Prom
     getCollection<ServiceHour>("outlets.serviceHours"),
   ]);
   return (
-    <QrOrderView
-      persona={persona}
-      step={step}
-      data={{
-        items,
-        categories: categories.filter((c) => c.menu === "room"),
-        basket,
-        orders,
-        hours,
-      }}
-    />
+    <OutletsMount>
+      <QrOrderView
+        persona={persona}
+        step={step}
+        data={{
+          items,
+          categories: categories.filter((c) => c.menu === "room"),
+          basket,
+          orders,
+          hours,
+        }}
+      />
+    </OutletsMount>
   );
 }

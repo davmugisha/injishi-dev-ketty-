@@ -1,7 +1,7 @@
 "use client";
 
 import { Chip } from "@heroui/react";
-import type { OrderSource, OutletTone } from "@injishi/data/fixtures/outlets";
+import type { OrderSource, OutletTone } from "@injishi/product-outlets";
 import { formatRwf, Icon, type IconKey, toneColor } from "@injishi/ui";
 
 /*

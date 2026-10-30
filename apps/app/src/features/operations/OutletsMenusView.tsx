@@ -4,7 +4,6 @@ import { Display, Flame, Gift, Lock, PencilToSquare, ShieldExclamation, Shopping
 import { Alert, Button, Card, Chip, Separator, Switch, Table, Tabs, Toast, toast } from "@heroui/react";
 import { EmptyState, KPIGroup, ListView } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
-import { type Persona, screenHref } from "@injishi/data";
 import type {
   DepartmentGroup,
   Outlet,
@@ -12,7 +11,9 @@ import type {
   OutletOffer,
   OutletOrder,
   OutletOrderLoad,
-} from "@injishi/data/fixtures/operations";
+  Persona,
+} from "@injishi/product-outlets";
+import { useBoardHref } from "@injishi/product-outlets/web";
 import {
   formatNumber,
   formatRwf,
@@ -67,6 +68,7 @@ export function OutletsMenusView({
   /** The branch, else the business, as the API names it. */
   placeName: string;
 }) {
+  const screenHref = useBoardHref();
   const [tab, setTabState] = useState<OutletTab>(initialTab);
   const [menuId, setMenuId] = useState(data.menus[0]?.id ?? "");
   const [offerId, setOfferId] = useState(data.offers[0]?.id ?? "");

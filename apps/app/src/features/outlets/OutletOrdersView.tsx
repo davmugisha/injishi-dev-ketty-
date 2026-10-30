@@ -4,7 +4,6 @@ import { Check, Display, Flame, Lock, Printer, ShieldExclamation, TriangleExclam
 import { Alert, Button, Card, Chip, Switch } from "@heroui/react";
 import { ItemCard, Kanban, KPIGroup, ListView, Segment, Timeline } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
-import { screenHref } from "@injishi/data";
 import type {
   FiscalReport,
   LiveOrder,
@@ -14,7 +13,8 @@ import type {
   ServiceKpi,
   StockOut,
   VoidRequest,
-} from "@injishi/data/fixtures/outlets";
+} from "@injishi/product-outlets";
+import { useBoardHref } from "@injishi/product-outlets/web";
 import {
   GateChip,
   Icon,
@@ -54,6 +54,7 @@ const VOID_STATE: Record<VoidRequest["status"], { label: string; tone: "warning"
 
 /** Outlet supervisor's live orders, voids, refund and fiscal reports (artifact: OutletOrders). */
 export function OutletOrdersView({ data }: { data: OutletOrdersData }) {
+  const screenHref = useBoardHref();
   const refund = data.refunds[0];
   const [source, setSource] = useState<(typeof SOURCES)[number]["id"]>("all");
   const [voids, setVoids] = useState<Record<string, VoidRequest["status"]>>(() =>
