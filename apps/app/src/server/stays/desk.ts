@@ -60,6 +60,25 @@ export interface BookingRow {
   cancellation: { refundRwf: number; keptRwf: number; rule: string } | null;
   noShow: { refundRwf: number; keptRwf: number; rule: string } | null;
   stayRef: string | null;
+  /** The room held for the whole stay, when exactly one is. */
+  roomId: string | null;
+}
+
+/** A room the desk can put a guest in, for the panel's room choice. */
+export interface DeskRoom {
+  id: string;
+  label: string;
+  typeId: string;
+  type: string;
+}
+
+/** Every room that can take a guest (not out of service), by type then number. */
+export function deskRooms(board: ApiBoard): DeskRoom[] {
+  const types = new Map(board.roomTypes.filter((t) => t.active).map((t) => [t.id, t.name]));
+  return board.rooms
+    .filter((r) => r.status === "available" && types.has(r.roomTypeId))
+    .map((r) => ({ id: r.id, label: r.label ?? "Room", typeId: r.roomTypeId, type: types.get(r.roomTypeId) ?? "" }))
+    .sort((a, b) => a.type.localeCompare(b.type) || a.label.localeCompare(b.label, undefined, { numeric: true }));
 }
 
 const owed = (s: ApiStay): number | null => s.folio?.balanceRwf ?? null;
@@ -137,6 +156,7 @@ export function bookingRows(board: ApiBoard): BookingRow[] {
       cancellation: b.cancellation,
       noShow: b.noShow,
       stayRef: b.stay?.reference ?? b.stay?.id ?? null,
+      roomId: b.holds.length === 1 ? (b.holds[0]?.roomId ?? null) : null,
     }));
 }
 
