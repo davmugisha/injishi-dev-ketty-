@@ -36,6 +36,12 @@
 -- admin in production. The two enums CREATEd here are new types, which is a
 -- different act, and usable at once.
 --
+-- `registration_business_type` is RECREATED rather than altered: 0108 inserts the
+-- enterprise fee row, and every pending migration runs in ONE transaction, where
+-- Postgres refuses to use a value `ALTER TYPE ... ADD VALUE` added (`unsafe use of
+-- new value`). A type CREATEd inside the transaction may be used in it (0005,
+-- 0036, 0074). Only `registration_fees.business_type` holds it.
+--
 -- FORWARD ONLY, like every migration here. Postgres cannot drop an enum value.
 CREATE TYPE "public"."enterprise_registration_kind" AS ENUM('tin', 'rca', 'rgb', 'other', 'none');--> statement-breakpoint
 CREATE TYPE "public"."psf_owner_group" AS ENUM('women', 'youth', 'pwd');--> statement-breakpoint
@@ -43,7 +49,10 @@ ALTER TYPE "public"."domain_kind" ADD VALUE IF NOT EXISTS 'enterprise';--> state
 ALTER TYPE "public"."psf_application_status" ADD VALUE IF NOT EXISTS 'approved' BEFORE 'member';--> statement-breakpoint
 ALTER TYPE "public"."psf_membership_family" ADD VALUE IF NOT EXISTS 'indatwa' BEFORE 'ordinary';--> statement-breakpoint
 ALTER TYPE "public"."psf_price_kind" ADD VALUE IF NOT EXISTS 'minimum' BEFORE 'set_by_psf';--> statement-breakpoint
-ALTER TYPE "public"."registration_business_type" ADD VALUE IF NOT EXISTS 'enterprise';--> statement-breakpoint
+ALTER TYPE "public"."registration_business_type" RENAME TO "registration_business_type_old";--> statement-breakpoint
+CREATE TYPE "public"."registration_business_type" AS ENUM('hospitality', 'residence', 'broker', 'enterprise');--> statement-breakpoint
+ALTER TABLE "registration_fees" ALTER COLUMN "business_type" SET DATA TYPE "public"."registration_business_type" USING "business_type"::text::"public"."registration_business_type";--> statement-breakpoint
+DROP TYPE "public"."registration_business_type_old";--> statement-breakpoint
 CREATE TABLE "business_code_counters" (
 	"district_id" integer PRIMARY KEY NOT NULL,
 	"last_number" integer DEFAULT 0 NOT NULL,
