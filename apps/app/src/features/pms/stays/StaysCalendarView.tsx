@@ -24,7 +24,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { checkInWalkIn, previewBookingMove, saveBookingMove } from "@/features/pms/front-desk-actions";
-import type { CalendarBoard, CalendarKind, CalendarStay } from "@/server/stays/desk";
+import type { CalendarBoard, CalendarKind, CalendarStay, DeskRoom } from "@/server/stays/desk";
 import { BookingPanel, type PanelStay } from "./BookingPanel";
 
 const KINDS: ScheduleKind[] = [
@@ -69,6 +69,7 @@ const panelStay = (s: CalendarStay): PanelStay => ({
   paidRwf: s.paidRwf,
   balanceRwf: s.balanceRwf,
   cancellation: s.cancellation,
+  roomId: s.roomId.startsWith(WAITING) ? null : s.roomId,
 });
 
 interface CalendarRoom {
@@ -187,6 +188,25 @@ export function StaysCalendarView({
     [shown, checkInAt, checkOutAt, canMove],
   );
   const open = board.stays.find((s) => s.id === openId) ?? null;
+  // Two stays in one room on a shared night: the panel says so.
+  const clashes = useMemo(() => {
+    const out = new Set<string>();
+    const live = board.stays.filter((s) => !s.roomId.startsWith(WAITING) && s.kind !== "checked_out");
+    for (const a of live)
+      for (const b of live)
+        if (a.id < b.id && a.roomId === b.roomId && a.start <= b.end && b.start <= a.end) {
+          out.add(a.id);
+          out.add(b.id);
+        }
+    return out;
+  }, [board.stays]);
+  const panelRooms = useMemo<DeskRoom[]>(
+    () =>
+      [...rooms.values()]
+        .filter((r) => r.bookable)
+        .map((r) => ({ id: r.id, label: r.label, typeId: r.typeId, type: r.type })),
+    [rooms],
+  );
 
   /** An arrival dragged moves the whole stay; a departure dragged changes how many nights. */
   const move = async (event: ScheduleEvent, next: { start: string }): Promise<string | null> => {
@@ -291,9 +311,10 @@ export function StaysCalendarView({
       )}
 
       <BookingPanel
-        stay={open ? panelStay(open) : null}
+        stay={open ? { ...panelStay(open), clash: clashes.has(open.id) } : null}
         today={board.today}
-        can={{ approve: can.approve, checkIn: can.checkIn }}
+        can={can}
+        rooms={panelRooms}
         onClose={() => setOpenId(null)}
       />
 

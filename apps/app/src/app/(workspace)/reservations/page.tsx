@@ -14,7 +14,7 @@ import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { dayNumber, deskPropertyName } from "@/server/sources/frontdesk";
 import { can, staysScope, staysSummary } from "@/server/stays/client";
-import { bookingRows, readDesk } from "@/server/stays/desk";
+import { bookingRows, deskRooms, readDesk } from "@/server/stays/desk";
 
 export const metadata: Metadata = { title: screens.Reservations.pageTitle };
 
@@ -31,11 +31,13 @@ export default async function ReservationsPage({
     return (
       <StayBookingsView
         rows={bookingRows(board)}
+        rooms={deskRooms(board)}
         today={board.today}
         openRef={booking ?? null}
         can={{
           approve: scope ? can(scope, "reservation.approve") : false,
           checkIn: scope ? can(scope, "stay.checkin") : false,
+          assign: scope ? can(scope, "reservation.assign") : false,
         }}
       />
     );

@@ -1,10 +1,13 @@
 "use client";
 
 import { FieldError, Label, TextArea, TextField, toast } from "@heroui/react";
+import type { ReservationChangeQuote } from "@injishi/contracts";
 import { screenHref } from "@injishi/data";
 import {
   ActionButton,
   ActionLink,
+  BoundedDatePicker,
+  CountStepper,
   FormDialog,
   formatDay,
   formatMoney,
@@ -12,18 +15,22 @@ import {
   formatPhone,
   KeyValueList,
   Money,
+  SelectField,
   SidePanel,
   StatusChip,
   type StatusTone,
 } from "@injishi/ui";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   approveBookingRequest,
   cancelBooking,
   declineBookingRequest,
+  previewBookingMove,
   recordNoShow,
+  saveBookingMove,
 } from "@/features/pms/front-desk-actions";
+import type { DeskRoom } from "@/server/stays/desk";
 
 /** Where a booking or stay stands, as the panel acts on it. */
 export type PanelState = "pending" | "confirmed" | "inhouse" | "left" | "closed";
@@ -64,10 +71,19 @@ export interface PanelStay {
   approvalExpiresAt?: string | null;
   cancellation: Quote;
   noShow?: Quote;
+  /** The room held for the stay, when one is: a date change keeps it. */
+  roomId?: string | null;
+  /** Another stay holds the same room on one of these nights. */
+  clash?: boolean;
 }
 
 const nightsBetween = (a: string, b: string) =>
   Math.max(1, Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000));
+const addDays = (iso: string, days: number) => {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+};
 
 /**
  * A booking or a stay beside the page, with its next steps: answer a request, check in, check out, open
@@ -77,15 +93,19 @@ export function BookingPanel({
   stay,
   today,
   can,
+  rooms = [],
   onClose,
 }: {
   stay: PanelStay | null;
   today: string;
-  can: { approve: boolean; checkIn: boolean };
+  can: { approve: boolean; checkIn: boolean; assign?: boolean };
+  /** The rooms a booking may move to (Move room). */
+  rooms?: DeskRoom[];
   onClose: () => void;
 }) {
   const router = useRouter();
   const [asking, setAsking] = useState<"cancel" | "no_show" | null>(null);
+  const [changing, setChanging] = useState<"dates" | "room" | null>(null);
   const [reason, setReason] = useState("");
   const [reasonError, setReasonError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -139,6 +159,16 @@ export function BookingPanel({
                 </ActionButton>
               </>
             ) : null}
+            {(stay.state === "confirmed" || stay.state === "pending") && can.approve && ref ? (
+              <ActionButton intent="ghost" icon="Calendar" onPress={() => setChanging("dates")}>
+                Change dates
+              </ActionButton>
+            ) : null}
+            {stay.state === "confirmed" && can.approve && can.assign && ref && rooms.length > 0 ? (
+              <ActionButton intent="ghost" icon="House" onPress={() => setChanging("room")}>
+                {stay.room ? "Move room" : "Choose room"}
+              </ActionButton>
+            ) : null}
             {stay.state === "confirmed" && can.approve && ref ? (
               <>
                 {stay.checkIn <= today ? (
@@ -161,14 +191,25 @@ export function BookingPanel({
               </ActionLink>
             ) : null}
             {stay.state === "inhouse" && bill ? (
-              <>
-                <ActionLink href={bill} icon="Receipt">
-                  Open the bill
-                </ActionLink>
-                <ActionLink href={bill} icon="ArrowRightFromSquare" intent="primary">
-                  Check out
-                </ActionLink>
-              </>
+              (stay.balanceRwf ?? 0) > 0 ? (
+                <>
+                  <ActionLink href={bill} icon="ArrowRightFromSquare">
+                    Check out
+                  </ActionLink>
+                  <ActionLink href={bill} icon="Wallet" intent="primary">
+                    Take payment
+                  </ActionLink>
+                </>
+              ) : (
+                <>
+                  <ActionLink href={bill} icon="Receipt">
+                    Open the bill
+                  </ActionLink>
+                  <ActionLink href={bill} icon="ArrowRightFromSquare" intent="primary">
+                    Check out
+                  </ActionLink>
+                </>
+              )
             ) : null}
             {stay.state !== "inhouse" && bill ? (
               <ActionLink href={bill} icon="Receipt" intent="primary">
@@ -198,6 +239,9 @@ export function BookingPanel({
           <blockquote className="rounded-[var(--inner-radius)] bg-default/60 px-3 py-2 text-sm">
             {stay.guestMessage}
           </blockquote>
+        ) : null}
+        {stay.clash ? (
+          <p className="text-sm text-danger">Another stay holds this room on one of these nights. Move one of them.</p>
         ) : null}
         {stay.state === "pending" && stay.approvalExpiresAt ? (
           <p className="text-xs text-muted">Answer by {formatDay(stay.approvalExpiresAt.slice(0, 10), "long")}.</p>
@@ -238,6 +282,138 @@ export function BookingPanel({
           <FieldError>{reasonError}</FieldError>
         </TextField>
       </FormDialog>
+
+      {changing && ref ? (
+        <ChangeStayDialog
+          mode={changing}
+          stay={stay}
+          reference={ref}
+          today={today}
+          rooms={rooms}
+          onClose={() => setChanging(null)}
+          onDone={() => {
+            setChanging(null);
+            onClose();
+            router.refresh();
+          }}
+        />
+      ) : null}
     </>
+  );
+}
+
+/**
+ * Change a booking's dates, or the room it is held in. The change is priced before it is saved (the
+ * booking change quote): a higher price goes on the guest's bill, a lower one stays as credit on it.
+ */
+function ChangeStayDialog({
+  mode,
+  stay,
+  reference,
+  today,
+  rooms,
+  onClose,
+  onDone,
+}: {
+  mode: "dates" | "room";
+  stay: PanelStay;
+  reference: string;
+  today: string;
+  rooms: DeskRoom[];
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [arrival, setArrival] = useState<string | null>(stay.checkIn);
+  const [nights, setNights] = useState(nightsBetween(stay.checkIn, stay.checkOut));
+  const [roomId, setRoomId] = useState<string | null>(mode === "room" ? null : (stay.roomId ?? null));
+  const [preview, setPreview] = useState<{ quote: ReservationChangeQuote | null; problems: string[] } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [checking, check] = useTransition();
+  const [saving, save] = useTransition();
+  const checkOut = arrival ? addDays(arrival, nights) : null;
+  const ready = !!arrival && !!checkOut && (mode === "dates" || !!roomId);
+
+  // Price the change whenever its answer changes.
+  useEffect(() => {
+    if (!arrival || !checkOut || (mode === "room" && !roomId)) {
+      setPreview(null);
+      return;
+    }
+    check(async () => {
+      const r = await previewBookingMove(reference, { roomId, checkIn: arrival, checkOut });
+      if (!r.ok) {
+        setError(r.error);
+        setPreview(null);
+        return;
+      }
+      setError(null);
+      setPreview(r.value);
+    });
+  }, [arrival, checkOut, roomId, mode, reference]);
+
+  const q = preview?.quote ?? null;
+  const price = !q
+    ? null
+    : q.differenceRwf > 0
+      ? `${formatMoney(q.differenceRwf)} more, on the bill`
+      : q.differenceRwf < 0
+        ? `${formatMoney(-q.differenceRwf)} less, as credit on the bill`
+        : "Same price";
+  const problems = [...(preview?.problems ?? []), ...(error ? [error] : [])];
+  const roomChoices = rooms
+    .filter((r) => r.id !== stay.roomId)
+    .map((r) => ({ id: r.id, label: `${r.label} · ${r.type}` }));
+
+  return (
+    <FormDialog
+      isOpen
+      onOpenChange={(o) => (o ? undefined : onClose())}
+      title={mode === "dates" ? "Change dates" : stay.room ? "Move room" : "Choose room"}
+      size="sm"
+      submitLabel="Save"
+      isPending={saving}
+      isSubmitDisabled={!ready || checking || problems.length > 0}
+      formError={problems.length > 0 ? problems.join(" ") : undefined}
+      footerHint={checking ? "Pricing the change…" : (price ?? undefined)}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!arrival || !checkOut) return;
+        save(async () => {
+          const r = await saveBookingMove(reference, { roomId, checkIn: arrival, checkOut });
+          if (!r.ok) {
+            toast.danger(r.error);
+            return;
+          }
+          toast.success(`${stay.guest}: ${formatDay(arrival)} to ${formatDay(checkOut)}`);
+          onDone();
+        });
+      }}
+    >
+      {mode === "dates" ? (
+        <>
+          <BoundedDatePicker label="Arrival" value={arrival} onChange={setArrival} minValue={today} isRequired />
+          <CountStepper
+            label="Nights"
+            unit="nights"
+            min={1}
+            max={90}
+            value={nights}
+            onChange={setNights}
+            description={checkOut ? `Leaves ${formatDay(checkOut, "long")}` : undefined}
+          />
+        </>
+      ) : (
+        <SelectField
+          label="Room"
+          name="room"
+          isRequired
+          options={roomChoices}
+          value={roomId}
+          onChange={setRoomId}
+          placeholder="Choose a room"
+          description="A room of another type is priced at that type's rate."
+        />
+      )}
+    </FormDialog>
   );
 }

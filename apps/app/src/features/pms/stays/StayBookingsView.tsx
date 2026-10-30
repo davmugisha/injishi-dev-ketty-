@@ -20,7 +20,7 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
-import type { BookingRow, BookingState } from "@/server/stays/desk";
+import type { BookingRow, BookingState, DeskRoom } from "@/server/stays/desk";
 import { BookingPanel, type PanelStay } from "./BookingPanel";
 
 const STATE: Record<BookingState, { label: string; tone: StatusTone }> = {
@@ -63,6 +63,7 @@ const panelStay = (b: BookingRow): PanelStay => ({
   approvalExpiresAt: b.approvalExpiresAt,
   cancellation: b.cancellation,
   noShow: b.noShow,
+  roomId: b.roomId,
 });
 
 /**
@@ -75,12 +76,15 @@ export function StayBookingsView({
   today,
   openRef,
   can,
+  rooms,
 }: {
   rows: BookingRow[];
+  /** The rooms a booking may move to. */
+  rooms: DeskRoom[];
   today: string;
   /** `?booking=` opens that booking's panel. */
   openRef: string | null;
-  can: { approve: boolean; checkIn: boolean };
+  can: { approve: boolean; checkIn: boolean; assign: boolean };
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -213,7 +217,7 @@ export function StayBookingsView({
         empty={<EmptyBlock icon="Calendar" title="No bookings yet" />}
       />
 
-      <BookingPanel stay={open ? panelStay(open) : null} today={today} can={can} onClose={close} />
+      <BookingPanel stay={open ? panelStay(open) : null} today={today} can={can} rooms={rooms} onClose={close} />
     </PageContent>
   );
 }
