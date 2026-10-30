@@ -4,21 +4,21 @@ import { PaymentsModule } from '../payments/payments.module';
 import { FolioModule } from '../pms/folio.module';
 import { TicketLifecycle } from '../pms/application/ticket-lifecycle';
 import { DepartmentsService } from './application/departments.service';
-import { GuestOrderingService } from './application/guest-ordering.service';
+import { GuestOrderingService } from '../outlets/application/guest-ordering.service';
 import { MessagingService } from './application/messaging.service';
-import { OrderPaymentService } from './application/order-payment.service';
-import { OutletsService } from './application/outlets.service';
+import { OrderPaymentService } from '../outlets/application/order-payment.service';
+import { OutletsService } from '../outlets/application/outlets.service';
 import { OwnerDashboardService } from './application/owner-dashboard.service';
 import { ResidenceService } from './application/residence.service';
-import { ServiceCatalogService } from './application/service-catalog.service';
+import { ServiceCatalogService } from '../outlets/application/service-catalog.service';
 import { DepartmentsRepository } from './infrastructure/departments.repository';
-import { GuestOrderingRepository } from './infrastructure/guest-ordering.repository';
+import { GuestOrderingRepository } from '../outlets/infrastructure/guest-ordering.repository';
 import { MessageTemplatesRepository } from './infrastructure/message-templates.repository';
 import { MessagingRepository } from './infrastructure/messaging.repository';
-import { OutletsRepository } from './infrastructure/outlets.repository';
+import { OutletsRepository } from '../outlets/infrastructure/outlets.repository';
 import { OwnerDashboardRepository } from './infrastructure/owner-dashboard.repository';
 import { ResidenceRepository } from './infrastructure/residence.repository';
-import { ServiceCatalogRepository } from './infrastructure/service-catalog.repository';
+import { ServiceCatalogRepository } from '../outlets/infrastructure/service-catalog.repository';
 
 /**
  * What is left of the operator command surface behind `/api/v1/ops/*` once PMS
