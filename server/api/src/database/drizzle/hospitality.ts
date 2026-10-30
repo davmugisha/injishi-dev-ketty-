@@ -604,3 +604,47 @@ export const arrivalGuides = pgTable('arrival_guides', {
 // ===========================================================================
 // §7  RESIDENCE  (leases + lifecycle + broker channel)
 // ===========================================================================
+
+/**
+ * A reservation the FRONT DESK made (0124, 2026-10-30): a phone call, a WhatsApp, an email, a walk in
+ * for a later day. One row per such booking, beside it rather than on it.
+ *
+ * A side table, not columns on `bookings`, for one reason the owner chose: the migration that adds it
+ * alters nothing that exists, so the live database takes it with no risk to a single booking read.
+ *
+ * - `guest_name` and `guest_phone`: the desk's guest has no account, so `bookings.guest_user_id` is null
+ *   and this is who the booking is for. Readers prefer an account's name and fall back to this.
+ * - `nationality`, `document_type`, `id_number`: what the desk took on the phone, carried to the
+ *   registration card at check in. Optional here; check in asks for what is missing.
+ * - `hold_until`: a booking held for the guest, not confirmed. Past it, the sweep releases the nights.
+ * - `rate_override_reason`: why the desk charged other than the room's price (the price itself is
+ *   the booking's locked nightly rate).
+ */
+export const bookingDeskDetails = pgTable(
+  'booking_desk_details',
+  {
+    bookingId: uuid('booking_id')
+      .primaryKey()
+      .references(() => bookings.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    guestName: text('guest_name').notNull(),
+    guestPhone: text('guest_phone'),
+    guestEmail: text('guest_email'),
+    /** ISO-3166-1 alpha-2, as the desk took it. */
+    nationality: char('nationality', { length: 2 }),
+    documentType: documentTypeEnum('document_type'),
+    idNumber: text('id_number'),
+    holdUntil: timestamp('hold_until', { withTimezone: true }),
+    rateOverrideReason: text('rate_override_reason'),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [
+    index('booking_desk_details_workspace_idx').on(t.workspaceId),
+    index('booking_desk_details_hold_idx')
+      .on(t.holdUntil)
+      .where(sql`${t.holdUntil} IS NOT NULL`),
+  ],
+);
