@@ -5,6 +5,7 @@ import { RadioButtonGroup, Segment } from "@heroui-pro/react";
 import type { RatesRoomType, RatesSpecialRange } from "@injishi/contracts";
 import {
   ActionButton,
+  AgendaCalendar,
   BoundedDateRangePicker,
   type DataColumn,
   DataTable,
@@ -19,7 +20,6 @@ import {
   MoneyInput,
   PageContent,
   RowActions,
-  Schedule,
   type ScheduleEvent,
   type ScheduleKind,
   SectionHeader,
@@ -306,7 +306,7 @@ function SpecialCalendar({
       })),
     [ranges, onEdit],
   );
-  return <Schedule label="Special dates" events={events} kinds={KINDS} today={today} />;
+  return <AgendaCalendar label="Special dates" events={events} kinds={KINDS} today={today} />;
 }
 
 const num = (v: string): number | null => {

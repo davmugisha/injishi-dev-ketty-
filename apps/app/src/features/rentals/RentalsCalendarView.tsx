@@ -1,7 +1,14 @@
 "use client";
 
 import type { MoveOutRow, RentalsMoney } from "@injishi/contracts";
-import { ActionLink, formatMoney, PageContent, Schedule, type ScheduleEvent, type ScheduleKind } from "@injishi/ui";
+import {
+  ActionLink,
+  AgendaCalendar,
+  formatMoney,
+  PageContent,
+  type ScheduleEvent,
+  type ScheduleKind,
+} from "@injishi/ui";
 import { useMemo } from "react";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { leaseHref } from "@/features/leases/shared";
@@ -81,7 +88,7 @@ export function RentalsCalendarView({
   return (
     <PageContent>
       <AreaHeader />
-      <Schedule label="Rent and move-out calendar" events={events} kinds={KINDS} today={today} />
+      <AgendaCalendar label="Rent and move-out calendar" events={events} kinds={KINDS} today={today} />
     </PageContent>
   );
 }

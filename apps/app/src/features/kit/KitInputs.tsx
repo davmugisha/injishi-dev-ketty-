@@ -1,9 +1,10 @@
 "use client";
 
-import { FieldError, Input, Label, TextField } from "@heroui/react";
+import { FieldError, Input, Label, TextField, toast } from "@heroui/react";
 import { stock } from "@injishi/data/media";
 import {
   ActionButton,
+  AgendaCalendar,
   BoundedDatePicker,
   CodeInput,
   CountrySelect,
@@ -26,7 +27,6 @@ import {
   presetPeriod,
   ResendCodeButton,
   readVideo,
-  Schedule,
   type ScheduleEvent,
   SectionCard,
   SidePanel,
@@ -721,12 +721,35 @@ export function CalendarSection({ today }: { today: string }) {
       })),
     [items],
   );
+  // A timed entry: it sits in the hours of the day and week views, and can be dragged or stretched.
+  const [visit, setVisit] = useState<ScheduleEvent>({
+    id: "visit",
+    kind: "open",
+    title: "Plumber visit",
+    start: today,
+    time: "10:00",
+    endTime: "11:30",
+    movable: true,
+    resizable: true,
+  });
+  const change = async (_e: ScheduleEvent, next: { start: string; time: string | null; endTime: string | null }) => {
+    setVisit((v) => ({ ...v, start: next.start, time: next.time ?? v.time, endTime: next.endTime ?? v.endTime }));
+    return null;
+  };
   return (
-    <Section id="calendar" title="Schedule" description="Pro Agenda month view: entries open a popover.">
-      <Schedule
+    <Section
+      id="calendar"
+      title="Calendar"
+      description="The Pro Agenda: day, week and month; choose a slot to create; drag or stretch a timed entry."
+    >
+      <AgendaCalendar
         label="Rent calendar"
         today={today}
-        events={events}
+        events={[...events, visit]}
+        onCreate={(day, time) => toast(`New entry on ${day} at ${time}`)}
+        onMove={change}
+        onResize={change}
+        hint="Choose a time in a day or week to add an entry"
         kinds={[
           { id: "open", label: "Due", color: "var(--accent)", tentative: true },
           { id: "overdue", label: "Overdue", color: "var(--danger)" },

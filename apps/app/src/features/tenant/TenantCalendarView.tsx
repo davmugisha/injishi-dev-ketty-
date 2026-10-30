@@ -8,7 +8,7 @@ import {
   type TenancyMoveOut,
   type TenantPaymentView,
 } from "@injishi/contracts";
-import { formatMoney, PageContent, Schedule, type ScheduleEvent, type ScheduleKind } from "@injishi/ui";
+import { AgendaCalendar, formatMoney, PageContent, type ScheduleEvent, type ScheduleKind } from "@injishi/ui";
 import { useMemo } from "react";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { placeWords } from "../leases/shared";
@@ -125,7 +125,7 @@ export function TenantCalendarView({
   return (
     <PageContent>
       <AreaHeader eyebrow={placeWords(tenancy)} />
-      <Schedule label="Your calendar" events={events} kinds={KINDS} today={today} />
+      <AgendaCalendar label="Your calendar" events={events} kinds={KINDS} today={today} />
     </PageContent>
   );
 }
