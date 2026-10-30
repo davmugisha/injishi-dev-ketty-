@@ -287,12 +287,12 @@ export declare const ContractTerms: z.ZodObject<{
     status: "active" | "scheduled" | "ended";
     decidedAt: string;
     startsOn: string;
+    decidedByName: string | null;
     employeeId: string;
     contractType: "permanent" | "fixed_term" | "casual";
     endsOn: string | null;
     wageRwf: number;
     endReason: string | null;
-    decidedByName: string | null;
     contractId: string;
     probationEndsOn: string | null;
     allowanceRwf: number;
@@ -301,12 +301,12 @@ export declare const ContractTerms: z.ZodObject<{
     status: "active" | "scheduled" | "ended";
     decidedAt: string;
     startsOn: string;
+    decidedByName: string | null;
     employeeId: string;
     contractType: "permanent" | "fixed_term" | "casual";
     endsOn: string | null;
     wageRwf: number;
     endReason: string | null;
-    decidedByName: string | null;
     contractId: string;
     probationEndsOn: string | null;
     allowanceRwf: number;
@@ -322,12 +322,12 @@ export declare const PayAccountLabel: z.ZodObject<{
     /** The last three or four digits. */
     lastDigits: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    kind: "bank" | "momo";
+    kind: "momo" | "bank";
     employeeId: string;
     provider: string;
     lastDigits: string;
 }, {
-    kind: "bank" | "momo";
+    kind: "momo" | "bank";
     employeeId: string;
     provider: string;
     lastDigits: string;
@@ -355,12 +355,12 @@ export declare const HrCompensation: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         decidedAt: string;
         startsOn: string;
+        decidedByName: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
         endsOn: string | null;
         wageRwf: number;
         endReason: string | null;
-        decidedByName: string | null;
         contractId: string;
         probationEndsOn: string | null;
         allowanceRwf: number;
@@ -369,12 +369,12 @@ export declare const HrCompensation: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         decidedAt: string;
         startsOn: string;
+        decidedByName: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
         endsOn: string | null;
         wageRwf: number;
         endReason: string | null;
-        decidedByName: string | null;
         contractId: string;
         probationEndsOn: string | null;
         allowanceRwf: number;
@@ -389,12 +389,12 @@ export declare const HrCompensation: z.ZodObject<{
         /** The last three or four digits. */
         lastDigits: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        kind: "bank" | "momo";
+        kind: "momo" | "bank";
         employeeId: string;
         provider: string;
         lastDigits: string;
     }, {
-        kind: "bank" | "momo";
+        kind: "momo" | "bank";
         employeeId: string;
         provider: string;
         lastDigits: string;
@@ -404,19 +404,19 @@ export declare const HrCompensation: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         decidedAt: string;
         startsOn: string;
+        decidedByName: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
         endsOn: string | null;
         wageRwf: number;
         endReason: string | null;
-        decidedByName: string | null;
         contractId: string;
         probationEndsOn: string | null;
         allowanceRwf: number;
         changeReason: string | null;
     }[];
     payAccounts: {
-        kind: "bank" | "momo";
+        kind: "momo" | "bank";
         employeeId: string;
         provider: string;
         lastDigits: string;
@@ -426,19 +426,19 @@ export declare const HrCompensation: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         decidedAt: string;
         startsOn: string;
+        decidedByName: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
         endsOn: string | null;
         wageRwf: number;
         endReason: string | null;
-        decidedByName: string | null;
         contractId: string;
         probationEndsOn: string | null;
         allowanceRwf: number;
         changeReason: string | null;
     }[];
     payAccounts: {
-        kind: "bank" | "momo";
+        kind: "momo" | "bank";
         employeeId: string;
         provider: string;
         lastDigits: string;

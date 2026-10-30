@@ -234,9 +234,9 @@ export declare const FrontDeskBooking: z.ZodObject<{
         lifecycle: "open" | "closed";
     } | null;
     channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
-    guestPhone: string | null;
     adults: number | null;
     children: number | null;
+    guestPhone: string | null;
     eta: string | null;
     deskNote: string | null;
     lockedNightlyRateRwf: number;
@@ -297,9 +297,9 @@ export declare const FrontDeskBooking: z.ZodObject<{
         lifecycle: "open" | "closed";
     } | null;
     channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
-    guestPhone: string | null;
     adults: number | null;
     children: number | null;
+    guestPhone: string | null;
     eta: string | null;
     deskNote: string | null;
     lockedNightlyRateRwf: number;
@@ -714,9 +714,9 @@ export declare const FrontDeskBoard: z.ZodObject<{
             lifecycle: "open" | "closed";
         } | null;
         channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
-        guestPhone: string | null;
         adults: number | null;
         children: number | null;
+        guestPhone: string | null;
         eta: string | null;
         deskNote: string | null;
         lockedNightlyRateRwf: number;
@@ -777,9 +777,9 @@ export declare const FrontDeskBoard: z.ZodObject<{
             lifecycle: "open" | "closed";
         } | null;
         channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
-        guestPhone: string | null;
         adults: number | null;
         children: number | null;
+        guestPhone: string | null;
         eta: string | null;
         deskNote: string | null;
         lockedNightlyRateRwf: number;
@@ -1109,9 +1109,9 @@ export declare const FrontDeskBoard: z.ZodObject<{
             lifecycle: "open" | "closed";
         } | null;
         channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
-        guestPhone: string | null;
         adults: number | null;
         children: number | null;
+        guestPhone: string | null;
         eta: string | null;
         deskNote: string | null;
         lockedNightlyRateRwf: number;
@@ -1239,9 +1239,9 @@ export declare const FrontDeskBoard: z.ZodObject<{
             lifecycle: "open" | "closed";
         } | null;
         channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
-        guestPhone: string | null;
         adults: number | null;
         children: number | null;
+        guestPhone: string | null;
         eta: string | null;
         deskNote: string | null;
         lockedNightlyRateRwf: number;

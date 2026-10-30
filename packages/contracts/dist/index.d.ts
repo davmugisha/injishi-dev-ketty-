@@ -18,6 +18,7 @@ export * from "./registration-documents";
 export * from "./inventory";
 export * from "./setup-steps";
 export * from "./booking";
+export * from "./booking-change";
 export * from "./trips";
 export * from "./refunds";
 export * from "./money-queue";

@@ -124,7 +124,7 @@ export declare const BrokerHome: z.ZodObject<{
         id: string;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    kitchen: "none" | "own" | "shared" | null;
+    kitchen: "shared" | "none" | "own" | null;
     district: string | null;
     sector: string | null;
     districtId: number | null;
@@ -166,7 +166,7 @@ export declare const BrokerHome: z.ZodObject<{
         id: string;
     } | null;
 }, {
-    kitchen: "none" | "own" | "shared" | null;
+    kitchen: "shared" | "none" | "own" | null;
     district: string | null;
     sector: string | null;
     districtId: number | null;
@@ -338,7 +338,7 @@ export declare const BrokerHomes: z.ZodObject<{
             id: string;
         }>>;
     }, "strip", z.ZodTypeAny, {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         district: string | null;
         sector: string | null;
         districtId: number | null;
@@ -380,7 +380,7 @@ export declare const BrokerHomes: z.ZodObject<{
             id: string;
         } | null;
     }, {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         district: string | null;
         sector: string | null;
         districtId: number | null;
@@ -485,7 +485,7 @@ export declare const BrokerHomes: z.ZodObject<{
         count: number;
     }[];
     homes: {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         district: string | null;
         sector: string | null;
         districtId: number | null;
@@ -548,7 +548,7 @@ export declare const BrokerHomes: z.ZodObject<{
         count: number;
     }[];
     homes: {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         district: string | null;
         sector: string | null;
         districtId: number | null;
@@ -1435,8 +1435,8 @@ export declare const BrokerReviews: z.ZodObject<{
         raterName: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    breakdown: number[];
     count: number;
+    breakdown: number[];
     reviews: {
         propertyName: string | null;
         from: "landlord" | "tenant";
@@ -1448,8 +1448,8 @@ export declare const BrokerReviews: z.ZodObject<{
     average: number | null;
     placedCount: number;
 }, {
-    breakdown: number[];
     count: number;
+    breakdown: number[];
     reviews: {
         propertyName: string | null;
         from: "landlord" | "tenant";

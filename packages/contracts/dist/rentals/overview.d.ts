@@ -18,16 +18,16 @@ export declare const RentalsAttentionItem: z.ZodObject<{
     /** danger: money or a legal deadline is late; warning: needs doing soon; info: waiting on someone else. */
     tone: z.ZodEnum<["danger", "warning", "info"]>;
 }, "strip", z.ZodTypeAny, {
+    count: number;
     kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
     amountRwf: number | null;
-    count: number;
     title: string;
     detail: string | null;
     tone: "info" | "warning" | "danger";
 }, {
+    count: number;
     kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
     amountRwf: number | null;
-    count: number;
     title: string;
     detail: string | null;
     tone: "info" | "warning" | "danger";
@@ -110,16 +110,16 @@ export declare const RentalsSummary: z.ZodObject<{
         /** danger: money or a legal deadline is late; warning: needs doing soon; info: waiting on someone else. */
         tone: z.ZodEnum<["danger", "warning", "info"]>;
     }, "strip", z.ZodTypeAny, {
+        count: number;
         kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
         amountRwf: number | null;
-        count: number;
         title: string;
         detail: string | null;
         tone: "info" | "warning" | "danger";
     }, {
+        count: number;
         kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
         amountRwf: number | null;
-        count: number;
         title: string;
         detail: string | null;
         tone: "info" | "warning" | "danger";
@@ -146,9 +146,9 @@ export declare const RentalsSummary: z.ZodObject<{
     };
     hasPayoutAccount: boolean;
     attention: {
+        count: number;
         kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
         amountRwf: number | null;
-        count: number;
         title: string;
         detail: string | null;
         tone: "info" | "warning" | "danger";
@@ -175,9 +175,9 @@ export declare const RentalsSummary: z.ZodObject<{
     };
     hasPayoutAccount: boolean;
     attention: {
+        count: number;
         kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
         amountRwf: number | null;
-        count: number;
         title: string;
         detail: string | null;
         tone: "info" | "warning" | "danger";

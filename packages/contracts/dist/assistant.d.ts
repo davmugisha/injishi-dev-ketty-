@@ -1776,6 +1776,7 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
         }[];
     }>>;
 }, "strip", z.ZodTypeAny, {
+    claimed: boolean;
     conversation: {
         id: string;
         expiresAt: string;
@@ -1820,8 +1821,8 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
             label: string;
         }[];
     } | null;
-    claimed: boolean;
 }, {
+    claimed: boolean;
     conversation: {
         id: string;
         expiresAt: string;
@@ -1866,7 +1867,6 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
             label: string;
         }[];
     } | null;
-    claimed: boolean;
 }>;
 export type ClaimAssistantConversationResult = z.infer<typeof ClaimAssistantConversationResult>;
 /** The stable `code` on an assistant error body. */

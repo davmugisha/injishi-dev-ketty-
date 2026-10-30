@@ -810,8 +810,8 @@ export declare const PosDiscount: z.ZodObject<{
     id: string;
     amountRwf: number;
     reason: string;
-    createdAt: string;
     decidedByName: string | null;
+    createdAt: string;
     requestedByName: string | null;
     orderItemId: string | null;
 }, {
@@ -819,8 +819,8 @@ export declare const PosDiscount: z.ZodObject<{
     id: string;
     amountRwf: number;
     reason: string;
-    createdAt: string;
     decidedByName: string | null;
+    createdAt: string;
     requestedByName: string | null;
     orderItemId: string | null;
 }>;
@@ -1054,8 +1054,8 @@ export declare const PosOrder: z.ZodObject<{
         id: string;
         amountRwf: number;
         reason: string;
-        createdAt: string;
         decidedByName: string | null;
+        createdAt: string;
         requestedByName: string | null;
         orderItemId: string | null;
     }, {
@@ -1063,8 +1063,8 @@ export declare const PosOrder: z.ZodObject<{
         id: string;
         amountRwf: number;
         reason: string;
-        createdAt: string;
         decidedByName: string | null;
+        createdAt: string;
         requestedByName: string | null;
         orderItemId: string | null;
     }>, "many">;
@@ -1199,8 +1199,8 @@ export declare const PosOrder: z.ZodObject<{
         id: string;
         amountRwf: number;
         reason: string;
-        createdAt: string;
         decidedByName: string | null;
+        createdAt: string;
         requestedByName: string | null;
         orderItemId: string | null;
     }[];
@@ -1280,8 +1280,8 @@ export declare const PosOrder: z.ZodObject<{
         id: string;
         amountRwf: number;
         reason: string;
-        createdAt: string;
         decidedByName: string | null;
+        createdAt: string;
         requestedByName: string | null;
         orderItemId: string | null;
     }[];
@@ -1435,8 +1435,8 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         id: string;
         amountRwf: number;
         reason: string;
-        createdAt: string;
         decidedByName: string | null;
+        createdAt: string;
         requestedByName: string | null;
         orderItemId: string | null;
     }, {
@@ -1444,8 +1444,8 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         id: string;
         amountRwf: number;
         reason: string;
-        createdAt: string;
         decidedByName: string | null;
+        createdAt: string;
         requestedByName: string | null;
         orderItemId: string | null;
     }>, "many">;
@@ -1732,8 +1732,8 @@ export declare const PosCashMovement: z.ZodObject<{
     kind: "paid_out" | "paid_in";
     amountRwf: number;
     reason: string;
-    createdAt: string;
     decidedByName: string | null;
+    createdAt: string;
     requestedByName: string | null;
 }, {
     status: "approved" | "rejected" | "pending_approval";
@@ -1741,8 +1741,8 @@ export declare const PosCashMovement: z.ZodObject<{
     kind: "paid_out" | "paid_in";
     amountRwf: number;
     reason: string;
-    createdAt: string;
     decidedByName: string | null;
+    createdAt: string;
     requestedByName: string | null;
 }>;
 export type PosCashMovement = z.infer<typeof PosCashMovement>;
@@ -1769,12 +1769,12 @@ export declare const PosShift: z.ZodObject<{
         amountRwf: z.ZodNumber;
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        amountRwf: number;
         count: number;
+        amountRwf: number;
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
     }, {
-        amountRwf: number;
         count: number;
+        amountRwf: number;
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
     }>, "many">;
     tipsRwf: z.ZodNumber;
@@ -1797,8 +1797,8 @@ export declare const PosShift: z.ZodObject<{
         kind: "paid_out" | "paid_in";
         amountRwf: number;
         reason: string;
-        createdAt: string;
         decidedByName: string | null;
+        createdAt: string;
         requestedByName: string | null;
     }, {
         status: "approved" | "rejected" | "pending_approval";
@@ -1806,8 +1806,8 @@ export declare const PosShift: z.ZodObject<{
         kind: "paid_out" | "paid_in";
         amountRwf: number;
         reason: string;
-        createdAt: string;
         decidedByName: string | null;
+        createdAt: string;
         requestedByName: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -1830,8 +1830,8 @@ export declare const PosShift: z.ZodObject<{
     countedCashRwf: number | null;
     varianceRwf: number | null;
     takingsByMethod: {
-        amountRwf: number;
         count: number;
+        amountRwf: number;
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
     }[];
     tipsRwf: number;
@@ -1843,8 +1843,8 @@ export declare const PosShift: z.ZodObject<{
         kind: "paid_out" | "paid_in";
         amountRwf: number;
         reason: string;
-        createdAt: string;
         decidedByName: string | null;
+        createdAt: string;
         requestedByName: string | null;
     }[];
 }, {
@@ -1867,8 +1867,8 @@ export declare const PosShift: z.ZodObject<{
     countedCashRwf: number | null;
     varianceRwf: number | null;
     takingsByMethod: {
-        amountRwf: number;
         count: number;
+        amountRwf: number;
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
     }[];
     tipsRwf: number;
@@ -1880,8 +1880,8 @@ export declare const PosShift: z.ZodObject<{
         kind: "paid_out" | "paid_in";
         amountRwf: number;
         reason: string;
-        createdAt: string;
         decidedByName: string | null;
+        createdAt: string;
         requestedByName: string | null;
     }[];
 }>;

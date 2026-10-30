@@ -698,6 +698,7 @@ export declare const ShiftRequest: z.ZodObject<{
     decidedAt: string | null;
     reason: string;
     decisionNote: string | null;
+    decidedByName: string | null;
     employee: {
         employeeId: string;
         displayName: string;
@@ -706,7 +707,6 @@ export declare const ShiftRequest: z.ZodObject<{
     createdAt: string;
     branchId: string | null;
     routedToMe: boolean;
-    decidedByName: string | null;
     routedTo: {
         employeeId: string;
         displayName: string;
@@ -731,6 +731,7 @@ export declare const ShiftRequest: z.ZodObject<{
     decidedAt: string | null;
     reason: string;
     decisionNote: string | null;
+    decidedByName: string | null;
     employee: {
         employeeId: string;
         displayName: string;
@@ -739,7 +740,6 @@ export declare const ShiftRequest: z.ZodObject<{
     createdAt: string;
     branchId: string | null;
     routedToMe: boolean;
-    decidedByName: string | null;
     routedTo: {
         employeeId: string;
         displayName: string;
@@ -965,6 +965,7 @@ export declare const AttendanceRequest: z.ZodObject<{
     decidedAt: string | null;
     reason: string;
     decisionNote: string | null;
+    decidedByName: string | null;
     employee: {
         employeeId: string;
         displayName: string;
@@ -976,7 +977,6 @@ export declare const AttendanceRequest: z.ZodObject<{
     clockInAt: string;
     clockOutAt: string;
     routedToMe: boolean;
-    decidedByName: string | null;
     routedTo: {
         employeeId: string;
         displayName: string;
@@ -995,6 +995,7 @@ export declare const AttendanceRequest: z.ZodObject<{
     decidedAt: string | null;
     reason: string;
     decisionNote: string | null;
+    decidedByName: string | null;
     employee: {
         employeeId: string;
         displayName: string;
@@ -1006,7 +1007,6 @@ export declare const AttendanceRequest: z.ZodObject<{
     clockInAt: string;
     clockOutAt: string;
     routedToMe: boolean;
-    decidedByName: string | null;
     routedTo: {
         employeeId: string;
         displayName: string;
@@ -1937,8 +1937,6 @@ export declare const LateEarlyReport: z.ZodObject<{
         recordId: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    from: string;
-    to: string;
     rows: {
         employee: {
             employeeId: string;
@@ -1951,9 +1949,9 @@ export declare const LateEarlyReport: z.ZodObject<{
         earlyMinutes: number;
         recordId: string;
     }[];
+    from: string;
+    to: string;
 }, {
-    from: string;
-    to: string;
     rows: {
         employee: {
             employeeId: string;
@@ -1966,6 +1964,8 @@ export declare const LateEarlyReport: z.ZodObject<{
         earlyMinutes: number;
         recordId: string;
     }[];
+    from: string;
+    to: string;
 }>;
 export type LateEarlyReport = z.infer<typeof LateEarlyReport>;
 export declare const MonthlySummaryRow: z.ZodObject<{
@@ -2070,7 +2070,6 @@ export declare const MonthlySummary: z.ZodObject<{
         earlyCount: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    month: string;
     rows: {
         employee: {
             employeeId: string;
@@ -2085,8 +2084,8 @@ export declare const MonthlySummary: z.ZodObject<{
         lateCount: number;
         earlyCount: number;
     }[];
+    month: string;
 }, {
-    month: string;
     rows: {
         employee: {
             employeeId: string;
@@ -2101,6 +2100,7 @@ export declare const MonthlySummary: z.ZodObject<{
         lateCount: number;
         earlyCount: number;
     }[];
+    month: string;
 }>;
 export type MonthlySummary = z.infer<typeof MonthlySummary>;
 export declare const InsightsQuery: z.ZodEffects<z.ZodObject<{
@@ -2712,6 +2712,7 @@ export declare const MyShiftRequestList: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -2720,7 +2721,6 @@ export declare const MyShiftRequestList: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -2745,6 +2745,7 @@ export declare const MyShiftRequestList: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -2753,7 +2754,6 @@ export declare const MyShiftRequestList: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -2844,6 +2844,7 @@ export declare const MyShiftRequestList: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -2852,7 +2853,6 @@ export declare const MyShiftRequestList: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -2877,6 +2877,7 @@ export declare const MyShiftRequestList: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -2885,7 +2886,6 @@ export declare const MyShiftRequestList: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -2912,6 +2912,7 @@ export declare const MyShiftRequestList: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -2920,7 +2921,6 @@ export declare const MyShiftRequestList: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -2946,6 +2946,7 @@ export declare const MyShiftRequestList: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -2954,7 +2955,6 @@ export declare const MyShiftRequestList: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -2981,6 +2981,7 @@ export declare const MyShiftRequestList: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -2989,7 +2990,6 @@ export declare const MyShiftRequestList: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -3015,6 +3015,7 @@ export declare const MyShiftRequestList: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -3023,7 +3024,6 @@ export declare const MyShiftRequestList: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -3328,6 +3328,7 @@ export declare const MyAttendance: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -3339,7 +3340,6 @@ export declare const MyAttendance: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -3358,6 +3358,7 @@ export declare const MyAttendance: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -3369,7 +3370,6 @@ export declare const MyAttendance: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -3390,6 +3390,7 @@ export declare const MyAttendance: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -3401,7 +3402,6 @@ export declare const MyAttendance: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -3457,6 +3457,7 @@ export declare const MyAttendance: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -3468,7 +3469,6 @@ export declare const MyAttendance: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -3576,6 +3576,7 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -3587,7 +3588,6 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -3606,6 +3606,7 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -3617,7 +3618,6 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -3638,6 +3638,7 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -3649,7 +3650,6 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -3670,6 +3670,7 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -3681,7 +3682,6 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -4288,6 +4288,7 @@ export declare const MyTeamRequests: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -4296,7 +4297,6 @@ export declare const MyTeamRequests: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -4321,6 +4321,7 @@ export declare const MyTeamRequests: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -4329,7 +4330,6 @@ export declare const MyTeamRequests: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -4404,6 +4404,7 @@ export declare const MyTeamRequests: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -4415,7 +4416,6 @@ export declare const MyTeamRequests: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -4434,6 +4434,7 @@ export declare const MyTeamRequests: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -4445,7 +4446,6 @@ export declare const MyTeamRequests: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -4516,14 +4516,14 @@ export declare const MyTeamRequests: z.ZodObject<{
             decision: "approved" | "rejected" | "skipped";
             decidedAt: string;
             note: string | null;
-            step: number;
             decidedByName: string | null;
+            step: number;
         }, {
             decision: "approved" | "rejected" | "skipped";
             decidedAt: string;
             note: string | null;
-            step: number;
             decidedByName: string | null;
+            step: number;
         }>, "many">;
         hasAttachment: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
@@ -4560,8 +4560,8 @@ export declare const MyTeamRequests: z.ZodObject<{
             decision: "approved" | "rejected" | "skipped";
             decidedAt: string;
             note: string | null;
-            step: number;
             decidedByName: string | null;
+            step: number;
         }[];
         hasAttachment: boolean;
     }, {
@@ -4598,8 +4598,8 @@ export declare const MyTeamRequests: z.ZodObject<{
             decision: "approved" | "rejected" | "skipped";
             decidedAt: string;
             note: string | null;
-            step: number;
             decidedByName: string | null;
+            step: number;
         }[];
         hasAttachment: boolean;
     }>, "many">;
@@ -4660,6 +4660,7 @@ export declare const MyTeamRequests: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -4674,7 +4675,6 @@ export declare const MyTeamRequests: z.ZodObject<{
             id: string;
         };
         routedToMe: boolean;
-        decidedByName: string | null;
         attendanceRecordId: string | null;
         routedTo: {
             employeeId: string;
@@ -4688,6 +4688,7 @@ export declare const MyTeamRequests: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -4702,7 +4703,6 @@ export declare const MyTeamRequests: z.ZodObject<{
             id: string;
         };
         routedToMe: boolean;
-        decidedByName: string | null;
         attendanceRecordId: string | null;
         routedTo: {
             employeeId: string;
@@ -4718,6 +4718,7 @@ export declare const MyTeamRequests: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -4726,7 +4727,6 @@ export declare const MyTeamRequests: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -4779,8 +4779,8 @@ export declare const MyTeamRequests: z.ZodObject<{
             decision: "approved" | "rejected" | "skipped";
             decidedAt: string;
             note: string | null;
-            step: number;
             decidedByName: string | null;
+            step: number;
         }[];
         hasAttachment: boolean;
     }[];
@@ -4790,6 +4790,7 @@ export declare const MyTeamRequests: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -4801,7 +4802,6 @@ export declare const MyTeamRequests: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -4822,6 +4822,7 @@ export declare const MyTeamRequests: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -4836,7 +4837,6 @@ export declare const MyTeamRequests: z.ZodObject<{
             id: string;
         };
         routedToMe: boolean;
-        decidedByName: string | null;
         attendanceRecordId: string | null;
         routedTo: {
             employeeId: string;
@@ -4852,6 +4852,7 @@ export declare const MyTeamRequests: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -4860,7 +4861,6 @@ export declare const MyTeamRequests: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -4913,8 +4913,8 @@ export declare const MyTeamRequests: z.ZodObject<{
             decision: "approved" | "rejected" | "skipped";
             decidedAt: string;
             note: string | null;
-            step: number;
             decidedByName: string | null;
+            step: number;
         }[];
         hasAttachment: boolean;
     }[];
@@ -4924,6 +4924,7 @@ export declare const MyTeamRequests: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -4935,7 +4936,6 @@ export declare const MyTeamRequests: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
-        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
@@ -4956,6 +4956,7 @@ export declare const MyTeamRequests: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -4970,7 +4971,6 @@ export declare const MyTeamRequests: z.ZodObject<{
             id: string;
         };
         routedToMe: boolean;
-        decidedByName: string | null;
         attendanceRecordId: string | null;
         routedTo: {
             employeeId: string;

@@ -1402,16 +1402,6 @@ export declare const RentRoll: z.ZodObject<{
         overdueLeases: number;
     }>;
 }, "strip", z.ZodTypeAny, {
-    totals: {
-        leases: number;
-        overdueRwf: number;
-        expectedRwf: number;
-        collectedRwf: number;
-        outstandingRwf: number;
-        overdueLeases: number;
-    };
-    month: string;
-    today: string;
     rows: {
         paidRwf: number;
         lease: {
@@ -1466,17 +1456,17 @@ export declare const RentRoll: z.ZodObject<{
             sentAt: string;
         } | null;
     }[];
+    totals: {
+        leases: number;
+        overdueRwf: number;
+        expectedRwf: number;
+        collectedRwf: number;
+        outstandingRwf: number;
+        overdueLeases: number;
+    };
+    month: string;
+    today: string;
 }, {
-    totals: {
-        leases: number;
-        overdueRwf: number;
-        expectedRwf: number;
-        collectedRwf: number;
-        outstandingRwf: number;
-        overdueLeases: number;
-    };
-    month: string;
-    today: string;
     rows: {
         paidRwf: number;
         lease: {
@@ -1531,6 +1521,16 @@ export declare const RentRoll: z.ZodObject<{
             sentAt: string;
         } | null;
     }[];
+    totals: {
+        leases: number;
+        overdueRwf: number;
+        expectedRwf: number;
+        collectedRwf: number;
+        outstandingRwf: number;
+        overdueLeases: number;
+    };
+    month: string;
+    today: string;
 }>;
 export type RentRoll = z.infer<typeof RentRoll>;
 /** `GET /ops/rent/summary?month`: the month's figures the Rent screen and the home read. */
@@ -1724,24 +1724,24 @@ export declare const RemindersSent: z.ZodObject<{
         chargeId: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
+    skipped: {
+        reason: string;
+        chargeId: string;
+    }[];
     sent: {
         chargeId: string;
         reminderId: string;
         emailedTo: string | null;
-    }[];
-    skipped: {
-        reason: string;
-        chargeId: string;
     }[];
 }, {
+    skipped: {
+        reason: string;
+        chargeId: string;
+    }[];
     sent: {
         chargeId: string;
         reminderId: string;
         emailedTo: string | null;
-    }[];
-    skipped: {
-        reason: string;
-        chargeId: string;
     }[];
 }>;
 export type RemindersSent = z.infer<typeof RemindersSent>;
@@ -1799,7 +1799,7 @@ export declare const PayoutView: z.ZodObject<{
     bookingReference: string | null;
     destination: string | null;
     statusLabel: string;
-    accountKind: "bank" | "momo" | "momo_pay" | null;
+    accountKind: "momo" | "bank" | "momo_pay" | null;
     payeeName: string | null;
 }, {
     status: "held" | "failed" | "paid" | "scheduled" | "queued";
@@ -1817,7 +1817,7 @@ export declare const PayoutView: z.ZodObject<{
     settledAt: string | null;
     destination: string | null;
     statusLabel: string;
-    accountKind: "bank" | "momo" | "momo_pay" | null;
+    accountKind: "momo" | "bank" | "momo_pay" | null;
     payeeName: string | null;
     bookingReference?: string | null | undefined;
 }>;
@@ -1876,7 +1876,7 @@ export declare const PayoutList: z.ZodObject<{
         bookingReference: string | null;
         destination: string | null;
         statusLabel: string;
-        accountKind: "bank" | "momo" | "momo_pay" | null;
+        accountKind: "momo" | "bank" | "momo_pay" | null;
         payeeName: string | null;
     }, {
         status: "held" | "failed" | "paid" | "scheduled" | "queued";
@@ -1894,7 +1894,7 @@ export declare const PayoutList: z.ZodObject<{
         settledAt: string | null;
         destination: string | null;
         statusLabel: string;
-        accountKind: "bank" | "momo" | "momo_pay" | null;
+        accountKind: "momo" | "bank" | "momo_pay" | null;
         payeeName: string | null;
         bookingReference?: string | null | undefined;
     }>, "many">;
@@ -1932,7 +1932,7 @@ export declare const PayoutList: z.ZodObject<{
         bookingReference: string | null;
         destination: string | null;
         statusLabel: string;
-        accountKind: "bank" | "momo" | "momo_pay" | null;
+        accountKind: "momo" | "bank" | "momo_pay" | null;
         payeeName: string | null;
     }[];
     totals: {
@@ -1958,7 +1958,7 @@ export declare const PayoutList: z.ZodObject<{
         settledAt: string | null;
         destination: string | null;
         statusLabel: string;
-        accountKind: "bank" | "momo" | "momo_pay" | null;
+        accountKind: "momo" | "bank" | "momo_pay" | null;
         payeeName: string | null;
         bookingReference?: string | null | undefined;
     }[];

@@ -420,15 +420,15 @@ export declare const OpenDepartmentResult: z.ZodObject<{
     /** False when the guest already had this conversation and we appended to it. */
     created: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
+    created: boolean;
     departmentName: string | null;
     threadId: string;
     departmentId: string;
-    created: boolean;
 }, {
+    created: boolean;
     departmentName: string | null;
     threadId: string;
     departmentId: string;
-    created: boolean;
 }>;
 export type OpenDepartmentResult = z.infer<typeof OpenDepartmentResult>;
 export declare const StayRefundState: z.ZodEnum<["submitted", "approved", "rejected", "withdrawn"]>;

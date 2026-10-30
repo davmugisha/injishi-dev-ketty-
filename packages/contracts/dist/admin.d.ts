@@ -189,13 +189,13 @@ export declare const AdminKpi: z.ZodObject<{
     value: number | null;
     key: string;
     label: string;
-    unit: "percent" | "count" | "rwf";
+    unit: "count" | "percent" | "rwf";
     previousValue: number | null;
 }, {
     value: number | null;
     key: string;
     label: string;
-    unit: "percent" | "count" | "rwf";
+    unit: "count" | "percent" | "rwf";
     previousValue: number | null;
 }>;
 export type AdminKpi = z.infer<typeof AdminKpi>;
@@ -253,14 +253,14 @@ export declare const AdminWorkQueueItem: z.ZodObject<{
     detail: z.ZodString;
     href: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    key: string;
     count: number;
+    key: string;
     title: string;
     detail: string;
     href: string;
 }, {
-    key: string;
     count: number;
+    key: string;
     title: string;
     detail: string;
     href: string;
@@ -340,13 +340,13 @@ export declare const AdminOverview: z.ZodObject<{
         value: number | null;
         key: string;
         label: string;
-        unit: "percent" | "count" | "rwf";
+        unit: "count" | "percent" | "rwf";
         previousValue: number | null;
     }, {
         value: number | null;
         key: string;
         label: string;
-        unit: "percent" | "count" | "rwf";
+        unit: "count" | "percent" | "rwf";
         previousValue: number | null;
     }>, "many">;
     revenue: z.ZodArray<z.ZodObject<{
@@ -388,14 +388,14 @@ export declare const AdminOverview: z.ZodObject<{
         detail: z.ZodString;
         href: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         count: number;
+        key: string;
         title: string;
         detail: string;
         href: string;
     }, {
-        key: string;
         count: number;
+        key: string;
         title: string;
         detail: string;
         href: string;
@@ -449,7 +449,7 @@ export declare const AdminOverview: z.ZodObject<{
         value: number | null;
         key: string;
         label: string;
-        unit: "percent" | "count" | "rwf";
+        unit: "count" | "percent" | "rwf";
         previousValue: number | null;
     }[];
     revenue: {
@@ -465,8 +465,8 @@ export declare const AdminOverview: z.ZodObject<{
         previousOrgCount: number | null;
     }[];
     workQueue: {
-        key: string;
         count: number;
+        key: string;
         title: string;
         detail: string;
         href: string;
@@ -492,7 +492,7 @@ export declare const AdminOverview: z.ZodObject<{
         value: number | null;
         key: string;
         label: string;
-        unit: "percent" | "count" | "rwf";
+        unit: "count" | "percent" | "rwf";
         previousValue: number | null;
     }[];
     revenue: {
@@ -508,8 +508,8 @@ export declare const AdminOverview: z.ZodObject<{
         previousOrgCount: number | null;
     }[];
     workQueue: {
-        key: string;
         count: number;
+        key: string;
         title: string;
         detail: string;
         href: string;
@@ -1052,10 +1052,10 @@ export declare const AdminOboRow: z.ZodObject<{
     intendedOwnerName: string;
     payoutLocked: boolean;
     claimStatus: "expired" | "registrant_held" | "owner_claimed";
+    claimedAt: string | null;
     orgName: string;
     registrantUserId: string;
     intendedOwnerEmail: string | null;
-    claimedAt: string | null;
 }, {
     id: string;
     districtName: string | null;
@@ -1064,10 +1064,10 @@ export declare const AdminOboRow: z.ZodObject<{
     intendedOwnerName: string;
     payoutLocked: boolean;
     claimStatus: "expired" | "registrant_held" | "owner_claimed";
+    claimedAt: string | null;
     orgName: string;
     registrantUserId: string;
     intendedOwnerEmail: string | null;
-    claimedAt: string | null;
 }>;
 export type AdminOboRow = z.infer<typeof AdminOboRow>;
 export declare const AdminOboListResponse: z.ZodObject<{
@@ -1091,10 +1091,10 @@ export declare const AdminOboListResponse: z.ZodObject<{
         intendedOwnerName: string;
         payoutLocked: boolean;
         claimStatus: "expired" | "registrant_held" | "owner_claimed";
+        claimedAt: string | null;
         orgName: string;
         registrantUserId: string;
         intendedOwnerEmail: string | null;
-        claimedAt: string | null;
     }, {
         id: string;
         districtName: string | null;
@@ -1103,10 +1103,10 @@ export declare const AdminOboListResponse: z.ZodObject<{
         intendedOwnerName: string;
         payoutLocked: boolean;
         claimStatus: "expired" | "registrant_held" | "owner_claimed";
+        claimedAt: string | null;
         orgName: string;
         registrantUserId: string;
         intendedOwnerEmail: string | null;
-        claimedAt: string | null;
     }>, "many">;
     meta: z.ZodObject<{
         total: z.ZodNumber;
@@ -1130,10 +1130,10 @@ export declare const AdminOboListResponse: z.ZodObject<{
         intendedOwnerName: string;
         payoutLocked: boolean;
         claimStatus: "expired" | "registrant_held" | "owner_claimed";
+        claimedAt: string | null;
         orgName: string;
         registrantUserId: string;
         intendedOwnerEmail: string | null;
-        claimedAt: string | null;
     }[];
     meta: {
         total: number;
@@ -1149,10 +1149,10 @@ export declare const AdminOboListResponse: z.ZodObject<{
         intendedOwnerName: string;
         payoutLocked: boolean;
         claimStatus: "expired" | "registrant_held" | "owner_claimed";
+        claimedAt: string | null;
         orgName: string;
         registrantUserId: string;
         intendedOwnerEmail: string | null;
-        claimedAt: string | null;
     }[];
     meta: {
         total: number;
@@ -5340,13 +5340,13 @@ export declare const AdminAnalytics: z.ZodObject<{
         value: number | null;
         key: string;
         label: string;
-        unit: "percent" | "count" | "rwf";
+        unit: "count" | "percent" | "rwf";
         previousValue: number | null;
     }, {
         value: number | null;
         key: string;
         label: string;
-        unit: "percent" | "count" | "rwf";
+        unit: "count" | "percent" | "rwf";
         previousValue: number | null;
     }>, "many">;
     series: z.ZodArray<z.ZodObject<{
@@ -5407,7 +5407,7 @@ export declare const AdminAnalytics: z.ZodObject<{
         value: number | null;
         key: string;
         label: string;
-        unit: "percent" | "count" | "rwf";
+        unit: "count" | "percent" | "rwf";
         previousValue: number | null;
     }[];
     series: {
@@ -5432,7 +5432,7 @@ export declare const AdminAnalytics: z.ZodObject<{
         value: number | null;
         key: string;
         label: string;
-        unit: "percent" | "count" | "rwf";
+        unit: "count" | "percent" | "rwf";
         previousValue: number | null;
     }[];
     series: {
@@ -5696,6 +5696,307 @@ export declare const AdminActionRequest: z.ZodObject<{
 }>;
 export type AdminActionRequest = z.infer<typeof AdminActionRequest>;
 /**
+ * One person in full (`GET /api/v1/admin/users/:userId`): the directory row,
+ * with EVERY government seat they hold rather than the newest one, and when
+ * their staff grant was given.
+ */
+export declare const AdminPersonDetail: z.ZodObject<{
+    id: z.ZodString;
+    name: z.ZodNullable<z.ZodString>;
+    email: z.ZodString;
+    emailVerified: z.ZodBoolean;
+    kyc: z.ZodEnum<["none", "pending", "verified"]>;
+    phoneMasked: z.ZodNullable<z.ZodString>;
+    nationalIdMasked: z.ZodNullable<z.ZodString>;
+    globalRoles: z.ZodArray<z.ZodEnum<["admin", "guest", "broker", "gov_oversight"]>, "many">;
+    memberships: z.ZodArray<z.ZodObject<{
+        orgId: z.ZodString;
+        orgName: z.ZodString;
+        domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
+        orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>;
+        /**
+         * A property of this person's relationship to this business, not of the
+         * business: an OBO registrant holds the owner role with payouts locked
+         * until the real owner claims, so the lock belongs on the membership.
+         */
+        payoutLocked: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        domain: "hospitality" | "residence" | "enterprise";
+        orgId: string;
+        payoutLocked: boolean;
+        orgName: string;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
+    }, {
+        domain: "hospitality" | "residence" | "enterprise";
+        orgId: string;
+        payoutLocked: boolean;
+        orgName: string;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
+    }>, "many">;
+    staffRoles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance", "trainer"]>, "many">;
+    oversight: z.ZodNullable<z.ZodObject<{
+        /**
+         * The assignment row. Added by ADR-053, because a grant that can be revoked
+         * has to be nameable: `DELETE /admin/users/:userId/oversight/:assignmentId`
+         * addresses this, and a revoke keyed on role plus scope would be guessing
+         * which of two grants was meant.
+         */
+        id: z.ZodString;
+        oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell"]>;
+        governmentBodyCode: z.ZodString;
+        /** `government_bodies.name_en`, joined on the code. The words a citizen knows. */
+        governmentBodyName: z.ZodNullable<z.ZodString>;
+        governmentTitle: z.ZodNullable<z.ZodString>;
+        scopeLevel: z.ZodEnum<["country", "province", "district", "sector", "cell", "village"]>;
+        scopeLabel: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        governmentBodyCode: string;
+        governmentTitle: string | null;
+        governmentBodyName: string | null;
+        scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
+        scopeLabel: string | null;
+    }, {
+        id: string;
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        governmentBodyCode: string;
+        governmentTitle: string | null;
+        governmentBodyName: string | null;
+        scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
+        scopeLabel: string | null;
+    }>>;
+    twoFactorEnrolled: z.ZodBoolean;
+    createdAt: z.ZodString;
+} & {
+    oversightGrants: z.ZodArray<z.ZodObject<{
+        /**
+         * The assignment row. Added by ADR-053, because a grant that can be revoked
+         * has to be nameable: `DELETE /admin/users/:userId/oversight/:assignmentId`
+         * addresses this, and a revoke keyed on role plus scope would be guessing
+         * which of two grants was meant.
+         */
+        id: z.ZodString;
+        oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell"]>;
+        governmentBodyCode: z.ZodString;
+        /** `government_bodies.name_en`, joined on the code. The words a citizen knows. */
+        governmentBodyName: z.ZodNullable<z.ZodString>;
+        governmentTitle: z.ZodNullable<z.ZodString>;
+        scopeLevel: z.ZodEnum<["country", "province", "district", "sector", "cell", "village"]>;
+        scopeLabel: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        governmentBodyCode: string;
+        governmentTitle: string | null;
+        governmentBodyName: string | null;
+        scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
+        scopeLabel: string | null;
+    }, {
+        id: string;
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        governmentBodyCode: string;
+        governmentTitle: string | null;
+        governmentBodyName: string | null;
+        scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
+        scopeLabel: string | null;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    name: string | null;
+    id: string;
+    email: string;
+    createdAt: string;
+    emailVerified: boolean;
+    kyc: "pending" | "verified" | "none";
+    phoneMasked: string | null;
+    nationalIdMasked: string | null;
+    globalRoles: ("broker" | "admin" | "guest" | "gov_oversight")[];
+    memberships: {
+        domain: "hospitality" | "residence" | "enterprise";
+        orgId: string;
+        payoutLocked: boolean;
+        orgName: string;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
+    }[];
+    staffRoles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
+    oversight: {
+        id: string;
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        governmentBodyCode: string;
+        governmentTitle: string | null;
+        governmentBodyName: string | null;
+        scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
+        scopeLabel: string | null;
+    } | null;
+    twoFactorEnrolled: boolean;
+    oversightGrants: {
+        id: string;
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        governmentBodyCode: string;
+        governmentTitle: string | null;
+        governmentBodyName: string | null;
+        scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
+        scopeLabel: string | null;
+    }[];
+}, {
+    name: string | null;
+    id: string;
+    email: string;
+    createdAt: string;
+    emailVerified: boolean;
+    kyc: "pending" | "verified" | "none";
+    phoneMasked: string | null;
+    nationalIdMasked: string | null;
+    globalRoles: ("broker" | "admin" | "guest" | "gov_oversight")[];
+    memberships: {
+        domain: "hospitality" | "residence" | "enterprise";
+        orgId: string;
+        payoutLocked: boolean;
+        orgName: string;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
+    }[];
+    staffRoles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
+    oversight: {
+        id: string;
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        governmentBodyCode: string;
+        governmentTitle: string | null;
+        governmentBodyName: string | null;
+        scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
+        scopeLabel: string | null;
+    } | null;
+    twoFactorEnrolled: boolean;
+    oversightGrants: {
+        id: string;
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        governmentBodyCode: string;
+        governmentTitle: string | null;
+        governmentBodyName: string | null;
+        scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
+        scopeLabel: string | null;
+    }[];
+}>;
+export type AdminPersonDetail = z.infer<typeof AdminPersonDetail>;
+/**
+ * Create an account by email (`POST /api/v1/admin/users`). The person signs in
+ * with the code emailed to that address; nothing else is set for them. An
+ * address that already has an account answers that account, not a second one.
+ */
+export declare const AdminCreateUserRequest: z.ZodObject<{
+    email: z.ZodString;
+    name: z.ZodString;
+    reason: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    email: string;
+    reason: string;
+}, {
+    name: string;
+    email: string;
+    reason: string;
+}>;
+export type AdminCreateUserRequest = z.infer<typeof AdminCreateUserRequest>;
+export declare const AdminCreateUserResponse: z.ZodObject<{
+    userId: z.ZodString;
+    /** False when the address already had an account, which is returned instead. */
+    created: z.ZodBoolean;
+}, "strip", z.ZodTypeAny, {
+    userId: string;
+    created: boolean;
+}, {
+    userId: string;
+    created: boolean;
+}>;
+export type AdminCreateUserResponse = z.infer<typeof AdminCreateUserResponse>;
+/**
+ * Set a person's platform staff roles (`PUT /api/v1/admin/users/:userId/staff-roles`).
+ * The whole set: an empty list ends their staff access.
+ */
+export declare const AdminSetStaffRolesRequest: z.ZodObject<{
+    roles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance", "trainer"]>, "many">;
+    reason: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    reason: string;
+    roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
+}, {
+    reason: string;
+    roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
+}>;
+export type AdminSetStaffRolesRequest = z.infer<typeof AdminSetStaffRolesRequest>;
+export declare const AdminStaffRolesResponse: z.ZodObject<{
+    userId: z.ZodString;
+    staffRoles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance", "trainer"]>, "many">;
+    auditEventId: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    userId: string;
+    staffRoles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
+    auditEventId: string;
+}, {
+    userId: string;
+    staffRoles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
+    auditEventId: string;
+}>;
+export type AdminStaffRolesResponse = z.infer<typeof AdminStaffRolesResponse>;
+/**
+ * Add a person to a business with a role (`POST /api/v1/admin/orgs/:orgId/members`).
+ * Directly, not by invitation: they are a member at once and are emailed that
+ * they were added. Making someone `owner` turns the current owner into a manager.
+ */
+export declare const AdminAddMemberRequest: z.ZodObject<{
+    email: z.ZodString;
+    name: z.ZodOptional<z.ZodString>;
+    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>;
+    reason: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    email: string;
+    reason: string;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
+    name?: string | undefined;
+}, {
+    email: string;
+    reason: string;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
+    name?: string | undefined;
+}>;
+export type AdminAddMemberRequest = z.infer<typeof AdminAddMemberRequest>;
+/** Change a member's role (`PATCH /api/v1/admin/orgs/:orgId/members/:userId`). */
+export declare const AdminChangeMemberRoleRequest: z.ZodObject<{
+    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>;
+    reason: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    reason: string;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
+}, {
+    reason: string;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
+}>;
+export type AdminChangeMemberRoleRequest = z.infer<typeof AdminChangeMemberRoleRequest>;
+/** What a member change did, including any owner it moved aside. */
+export declare const AdminMemberChange: z.ZodObject<{
+    orgId: z.ZodString;
+    userId: z.ZodString;
+    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
+    status: z.ZodEnum<["active", "removed"]>;
+    /** Owners made managers because this person became the owner. */
+    demotedOwnerIds: z.ZodArray<z.ZodString, "many">;
+    auditEventId: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    status: "active" | "removed";
+    orgId: string;
+    userId: string;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
+    auditEventId: string;
+    demotedOwnerIds: string[];
+}, {
+    status: "active" | "removed";
+    orgId: string;
+    userId: string;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
+    auditEventId: string;
+    demotedOwnerIds: string[];
+}>;
+export type AdminMemberChange = z.infer<typeof AdminMemberChange>;
+/**
  * Append a registration fee (ADR-053, AC-R9).
  *
  * APPEND, never edit: a new row with its own `effectiveFrom`. `currentFee` reads
@@ -5844,13 +6145,13 @@ export declare const AdminOrgStatusChange: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     orgId: string;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    from: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     auditEventId: string;
+    from: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
 }, {
     orgId: string;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    from: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     auditEventId: string;
+    from: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
 }>;
 export type AdminOrgStatusChange = z.infer<typeof AdminOrgStatusChange>;
 /**
@@ -5891,13 +6192,13 @@ export declare const AdminBrokerStatusChange: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "active" | "suspended";
     brokerId: string;
-    from: "active" | "suspended";
     auditEventId: string;
+    from: "active" | "suspended";
 }, {
     status: "active" | "suspended";
     brokerId: string;
-    from: "active" | "suspended";
     auditEventId: string;
+    from: "active" | "suspended";
 }>;
 export type AdminBrokerStatusChange = z.infer<typeof AdminBrokerStatusChange>;
 /**

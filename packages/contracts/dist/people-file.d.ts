@@ -225,7 +225,7 @@ export declare const PayAccount: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "active" | "retired";
     id: string;
-    kind: "bank" | "momo";
+    kind: "momo" | "bank";
     createdAt: string;
     isPrimary: boolean;
     bankName: string | null;
@@ -236,7 +236,7 @@ export declare const PayAccount: z.ZodObject<{
 }, {
     status: "active" | "retired";
     id: string;
-    kind: "bank" | "momo";
+    kind: "momo" | "bank";
     createdAt: string;
     isPrimary: boolean;
     bankName: string | null;
@@ -261,7 +261,7 @@ export declare const PayAccountList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "active" | "retired";
         id: string;
-        kind: "bank" | "momo";
+        kind: "momo" | "bank";
         createdAt: string;
         isPrimary: boolean;
         bankName: string | null;
@@ -272,7 +272,7 @@ export declare const PayAccountList: z.ZodObject<{
     }, {
         status: "active" | "retired";
         id: string;
-        kind: "bank" | "momo";
+        kind: "momo" | "bank";
         createdAt: string;
         isPrimary: boolean;
         bankName: string | null;
@@ -285,7 +285,7 @@ export declare const PayAccountList: z.ZodObject<{
     accounts: {
         status: "active" | "retired";
         id: string;
-        kind: "bank" | "momo";
+        kind: "momo" | "bank";
         createdAt: string;
         isPrimary: boolean;
         bankName: string | null;
@@ -298,7 +298,7 @@ export declare const PayAccountList: z.ZodObject<{
     accounts: {
         status: "active" | "retired";
         id: string;
-        kind: "bank" | "momo";
+        kind: "momo" | "bank";
         createdAt: string;
         isPrimary: boolean;
         bankName: string | null;
@@ -729,29 +729,29 @@ export declare const DocumentRequestSummary: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     id: string;
     description: string | null;
-    title: string;
-    createdAt: string;
-    dueOn: string | null;
     counts: {
         submitted: number;
         approved: number;
         rejected: number;
         requested: number;
     };
+    title: string;
+    createdAt: string;
+    dueOn: string | null;
     formats: ("pdf" | "jpg" | "png" | "heic")[];
     maxMb: number;
 }, {
     id: string;
     description: string | null;
-    title: string;
-    createdAt: string;
-    dueOn: string | null;
     counts: {
         submitted: number;
         approved: number;
         rejected: number;
         requested: number;
     };
+    title: string;
+    createdAt: string;
+    dueOn: string | null;
     formats: ("pdf" | "jpg" | "png" | "heic")[];
     maxMb: number;
 }>;
@@ -785,29 +785,29 @@ export declare const DocumentRequestList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         description: string | null;
-        title: string;
-        createdAt: string;
-        dueOn: string | null;
         counts: {
             submitted: number;
             approved: number;
             rejected: number;
             requested: number;
         };
+        title: string;
+        createdAt: string;
+        dueOn: string | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
     }, {
         id: string;
         description: string | null;
-        title: string;
-        createdAt: string;
-        dueOn: string | null;
         counts: {
             submitted: number;
             approved: number;
             rejected: number;
             requested: number;
         };
+        title: string;
+        createdAt: string;
+        dueOn: string | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
     }>, "many">;
@@ -815,15 +815,15 @@ export declare const DocumentRequestList: z.ZodObject<{
     requests: {
         id: string;
         description: string | null;
-        title: string;
-        createdAt: string;
-        dueOn: string | null;
         counts: {
             submitted: number;
             approved: number;
             rejected: number;
             requested: number;
         };
+        title: string;
+        createdAt: string;
+        dueOn: string | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
     }[];
@@ -831,15 +831,15 @@ export declare const DocumentRequestList: z.ZodObject<{
     requests: {
         id: string;
         description: string | null;
-        title: string;
-        createdAt: string;
-        dueOn: string | null;
         counts: {
             submitted: number;
             approved: number;
             rejected: number;
             requested: number;
         };
+        title: string;
+        createdAt: string;
+        dueOn: string | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
     }[];

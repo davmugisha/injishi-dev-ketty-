@@ -782,7 +782,7 @@ export declare const ResidencePayoutRow: z.ZodObject<{
     amountRwf: number;
     settledAt: string | null;
     periodMonth: string | null;
-    destination: "bank" | "momo" | null;
+    destination: "momo" | "bank" | null;
     destinationRef: string | null;
     scheduledReleaseAt: string | null;
 }, {
@@ -791,7 +791,7 @@ export declare const ResidencePayoutRow: z.ZodObject<{
     amountRwf: number;
     settledAt: string | null;
     periodMonth: string | null;
-    destination: "bank" | "momo" | null;
+    destination: "momo" | "bank" | null;
     destinationRef: string | null;
     scheduledReleaseAt: string | null;
 }>;
@@ -1548,7 +1548,7 @@ export declare const ResidenceView: z.ZodObject<{
         amountRwf: number;
         settledAt: string | null;
         periodMonth: string | null;
-        destination: "bank" | "momo" | null;
+        destination: "momo" | "bank" | null;
         destinationRef: string | null;
         scheduledReleaseAt: string | null;
     }, {
@@ -1557,7 +1557,7 @@ export declare const ResidenceView: z.ZodObject<{
         amountRwf: number;
         settledAt: string | null;
         periodMonth: string | null;
-        destination: "bank" | "momo" | null;
+        destination: "momo" | "bank" | null;
         destinationRef: string | null;
         scheduledReleaseAt: string | null;
     }>, "many">;
@@ -1626,7 +1626,7 @@ export declare const ResidenceView: z.ZodObject<{
         amountRwf: number;
         settledAt: string | null;
         periodMonth: string | null;
-        destination: "bank" | "momo" | null;
+        destination: "momo" | "bank" | null;
         destinationRef: string | null;
         scheduledReleaseAt: string | null;
     }[];
@@ -1882,7 +1882,7 @@ export declare const ResidenceView: z.ZodObject<{
         amountRwf: number;
         settledAt: string | null;
         periodMonth: string | null;
-        destination: "bank" | "momo" | null;
+        destination: "momo" | "bank" | null;
         destinationRef: string | null;
         scheduledReleaseAt: string | null;
     }[];

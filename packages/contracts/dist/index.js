@@ -34,6 +34,7 @@ __exportStar(require("./registration-documents"), exports);
 __exportStar(require("./inventory"), exports);
 __exportStar(require("./setup-steps"), exports);
 __exportStar(require("./booking"), exports);
+__exportStar(require("./booking-change"), exports);
 __exportStar(require("./trips"), exports);
 __exportStar(require("./refunds"), exports);
 __exportStar(require("./money-queue"), exports);

@@ -195,13 +195,13 @@ export declare const ListGroup: z.ZodObject<{
     label: z.ZodString;
     count: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
+    count: number;
     key: string | null;
     label: string;
-    count: number;
 }, {
+    count: number;
     key: string | null;
     label: string;
-    count: number;
 }>;
 export type ListGroup = z.infer<typeof ListGroup>;
 export declare const ListCount: z.ZodObject<{
@@ -239,13 +239,13 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
         label: z.ZodString;
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
+        count: number;
         key: string | null;
         label: string;
-        count: number;
     }, {
+        count: number;
         key: string | null;
         label: string;
-        count: number;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -273,9 +273,9 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
     page: number;
     pageSize: 10 | 50 | 100 | 25;
     groups?: {
+        count: number;
         key: string | null;
         label: string;
-        count: number;
     }[] | undefined;
     statusCounts?: {
         value: string;
@@ -291,9 +291,9 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
     page: number;
     pageSize: 10 | 50 | 100 | 25;
     groups?: {
+        count: number;
         key: string | null;
         label: string;
-        count: number;
     }[] | undefined;
     statusCounts?: {
         value: string;
@@ -471,6 +471,7 @@ export declare const SavedView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     id: string;
+    shared: boolean;
     config: {
         sort: {
             field: string;
@@ -488,7 +489,6 @@ export declare const SavedView: z.ZodObject<{
         columns?: string[] | undefined;
     };
     authorName: string | null;
-    shared: boolean;
     isDefault: boolean;
     listKey: string;
     mine: boolean;
@@ -496,6 +496,7 @@ export declare const SavedView: z.ZodObject<{
 }, {
     name: string;
     id: string;
+    shared: boolean;
     config: {
         sort?: {
             field: string;
@@ -513,7 +514,6 @@ export declare const SavedView: z.ZodObject<{
         columns?: string[] | undefined;
     };
     authorName: string | null;
-    shared: boolean;
     isDefault: boolean;
     listKey: string;
     mine: boolean;
@@ -594,6 +594,7 @@ export declare const SavedViewList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string;
         id: string;
+        shared: boolean;
         config: {
             sort: {
                 field: string;
@@ -611,7 +612,6 @@ export declare const SavedViewList: z.ZodObject<{
             columns?: string[] | undefined;
         };
         authorName: string | null;
-        shared: boolean;
         isDefault: boolean;
         listKey: string;
         mine: boolean;
@@ -619,6 +619,7 @@ export declare const SavedViewList: z.ZodObject<{
     }, {
         name: string;
         id: string;
+        shared: boolean;
         config: {
             sort?: {
                 field: string;
@@ -636,7 +637,6 @@ export declare const SavedViewList: z.ZodObject<{
             columns?: string[] | undefined;
         };
         authorName: string | null;
-        shared: boolean;
         isDefault: boolean;
         listKey: string;
         mine: boolean;
@@ -646,6 +646,7 @@ export declare const SavedViewList: z.ZodObject<{
     views: {
         name: string;
         id: string;
+        shared: boolean;
         config: {
             sort: {
                 field: string;
@@ -663,7 +664,6 @@ export declare const SavedViewList: z.ZodObject<{
             columns?: string[] | undefined;
         };
         authorName: string | null;
-        shared: boolean;
         isDefault: boolean;
         listKey: string;
         mine: boolean;
@@ -673,6 +673,7 @@ export declare const SavedViewList: z.ZodObject<{
     views: {
         name: string;
         id: string;
+        shared: boolean;
         config: {
             sort?: {
                 field: string;
@@ -690,7 +691,6 @@ export declare const SavedViewList: z.ZodObject<{
             columns?: string[] | undefined;
         };
         authorName: string | null;
-        shared: boolean;
         isDefault: boolean;
         listKey: string;
         mine: boolean;
@@ -766,6 +766,7 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
     isDefault: z.ZodDefault<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     name: string;
+    shared: boolean;
     config: {
         sort: {
             field: string;
@@ -782,7 +783,6 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     };
-    shared: boolean;
     isDefault: boolean;
     listKey: string;
 }, {
@@ -875,6 +875,7 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
     isDefault: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     name?: string | undefined;
+    shared?: boolean | undefined;
     config?: {
         sort: {
             field: string;
@@ -891,10 +892,10 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     } | undefined;
-    shared?: boolean | undefined;
     isDefault?: boolean | undefined;
 }, {
     name?: string | undefined;
+    shared?: boolean | undefined;
     config?: {
         sort?: {
             field: string;
@@ -911,10 +912,10 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     } | undefined;
-    shared?: boolean | undefined;
     isDefault?: boolean | undefined;
 }>, {
     name?: string | undefined;
+    shared?: boolean | undefined;
     config?: {
         sort: {
             field: string;
@@ -931,10 +932,10 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     } | undefined;
-    shared?: boolean | undefined;
     isDefault?: boolean | undefined;
 }, {
     name?: string | undefined;
+    shared?: boolean | undefined;
     config?: {
         sort?: {
             field: string;
@@ -951,7 +952,6 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     } | undefined;
-    shared?: boolean | undefined;
     isDefault?: boolean | undefined;
 }>;
 export type UpdateSavedViewRequest = z.infer<typeof UpdateSavedViewRequest>;

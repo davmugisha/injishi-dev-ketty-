@@ -2055,8 +2055,6 @@ export declare const PropertySetupProgress: z.ZodObject<{
     accommodationClass: string | null;
     accommodationClassOther: string | null;
     orgId: string;
-    propertyName: string | null;
-    propertyId: string | null;
     counts: {
         published: number;
         roomTypes: number;
@@ -2071,6 +2069,8 @@ export declare const PropertySetupProgress: z.ZodObject<{
         pricedRoomTypes: number;
         outlets: number;
     };
+    propertyName: string | null;
+    propertyId: string | null;
 }, {
     domain: "hospitality" | "residence" | "enterprise";
     legalName: string;
@@ -2078,8 +2078,6 @@ export declare const PropertySetupProgress: z.ZodObject<{
     accommodationClass: string | null;
     accommodationClassOther: string | null;
     orgId: string;
-    propertyName: string | null;
-    propertyId: string | null;
     counts: {
         published: number;
         roomTypes: number;
@@ -2094,6 +2092,8 @@ export declare const PropertySetupProgress: z.ZodObject<{
         pricedRoomTypes: number;
         outlets: number;
     };
+    propertyName: string | null;
+    propertyId: string | null;
     businessKind?: string | null | undefined;
 }>;
 export type PropertySetupProgress = z.infer<typeof PropertySetupProgress>;

@@ -909,8 +909,8 @@ export declare const MoveOutList: z.ZodObject<{
         daysLeft: number | null;
         endedOn: string | null;
     }[];
-    tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
     counts: Partial<Record<"settled" | "moved_out" | "to_acknowledge" | "moving_soon", number>>;
+    tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
 }, {
     items: {
         reference: string;
@@ -963,8 +963,8 @@ export declare const MoveOutList: z.ZodObject<{
         daysLeft: number | null;
         endedOn: string | null;
     }[];
-    tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
     counts: Partial<Record<"settled" | "moved_out" | "to_acknowledge" | "moving_soon", number>>;
+    tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
 }>;
 export type MoveOutList = z.infer<typeof MoveOutList>;
 /** `GET /ops/deposits`: every deposit with its lease. */

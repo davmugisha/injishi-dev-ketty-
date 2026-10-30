@@ -4223,14 +4223,14 @@ export declare const LeaveRequest: z.ZodObject<{
         decision: "approved" | "rejected" | "skipped";
         decidedAt: string;
         note: string | null;
-        step: number;
         decidedByName: string | null;
+        step: number;
     }, {
         decision: "approved" | "rejected" | "skipped";
         decidedAt: string;
         note: string | null;
-        step: number;
         decidedByName: string | null;
+        step: number;
     }>, "many">;
     /** A sick note or the like is attached; read it through its own route. */
     hasAttachment: z.ZodBoolean;
@@ -4268,8 +4268,8 @@ export declare const LeaveRequest: z.ZodObject<{
         decision: "approved" | "rejected" | "skipped";
         decidedAt: string;
         note: string | null;
-        step: number;
         decidedByName: string | null;
+        step: number;
     }[];
     hasAttachment: boolean;
 }, {
@@ -4306,8 +4306,8 @@ export declare const LeaveRequest: z.ZodObject<{
         decision: "approved" | "rejected" | "skipped";
         decidedAt: string;
         note: string | null;
-        step: number;
         decidedByName: string | null;
+        step: number;
     }[];
     hasAttachment: boolean;
 }>;
