@@ -19,8 +19,10 @@ export interface RailStep {
   id: string;
   title: string;
   status: "active" | "complete" | "inactive";
-  /** Not reached yet: drawn grey, not pressable. */
+  /** Not reached yet, or past what can change: drawn grey, not pressable. */
   locked: boolean;
+  /** Why it is locked, said to a screen reader and on hover ("Paid. Changes go through support."). */
+  why?: string | null;
 }
 
 export function RegisterRail({ steps, onGo }: { steps: RailStep[]; onGo: (id: string) => void }) {
@@ -35,6 +37,7 @@ export function RegisterRail({ steps, onGo }: { steps: RailStep[]; onGo: (id: st
                 type="button"
                 disabled={!pressable}
                 aria-current={step.status === "active" ? "step" : undefined}
+                title={step.locked && step.why ? step.why : undefined}
                 onClick={() => onGo(step.id)}
                 className={cn(
                   "flex w-full min-w-0 flex-col gap-2 rounded text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -62,7 +65,8 @@ export function RegisterRail({ steps, onGo }: { steps: RailStep[]; onGo: (id: st
                   {step.title}
                   <span className="sr-only">
                     {`, step ${i + 1} of ${steps.length}`}
-                    {step.status === "complete" ? ", done" : step.locked ? ", not reached yet" : ""}
+                    {step.status === "complete" ? ", done" : ""}
+                    {step.locked ? `, ${(step.why ?? "Not reached yet").toLowerCase()}` : ""}
                   </span>
                 </span>
               </button>
