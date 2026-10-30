@@ -134,6 +134,22 @@ export interface NavItem {
   chip?: string;
   /** Chip rendered as an alert (danger) count. */
   alert?: boolean;
+  /**
+   * The area's pages, shown as tabs at the top of each of them (Units, Leases, Faults, Move-outs). The item
+   * links to the first; it is current on any of them. A single page needs none.
+   */
+  tabs?: NavTab[];
+}
+
+/** One page of a sidebar area, as a tab. */
+export interface NavTab {
+  id: string;
+  label: string;
+  board: BoardId;
+  /** A count on the tab ("2" leases to sign). */
+  chip?: string;
+  /** Screens opened from this page that keep its tab current (a lease record under Leases). */
+  also?: BoardId[];
 }
 
 export interface NavGroup {

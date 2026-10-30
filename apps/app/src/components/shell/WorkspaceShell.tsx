@@ -4,9 +4,11 @@ import { Bars, BellDot, CircleQuestion, Comments, Magnifier } from "@gravity-ui/
 import { Kbd } from "@heroui/react";
 import { AppLayout, Navbar, Sidebar, useSidebar } from "@heroui-pro/react";
 import {
+  type BoardId,
   homeHref,
   type NavGroup,
   navHref,
+  navPlace,
   type Persona,
   RENTALS_SEARCH,
   screenByPath,
@@ -24,6 +26,7 @@ import { QuickSearch } from "./QuickSearch";
 import { SampleDataPill } from "./SampleData";
 import { TopbarStatusPill, TopbarStatusProvider } from "./TopbarStatus";
 import { UserMenu } from "./UserMenu";
+import { WorkspaceNavProvider } from "./WorkspaceNav";
 
 function NavMenu({
   groups,
@@ -32,7 +35,7 @@ function NavMenu({
   idPrefix = "",
 }: {
   groups: NavGroup[];
-  current: string | undefined;
+  current: BoardId | undefined;
   pathname: string;
   idPrefix?: string;
 }) {
@@ -47,7 +50,7 @@ function NavMenu({
                 key={item.id}
                 id={`${idPrefix}${item.id}`}
                 href={navHref(item.board, pathname)}
-                isCurrent={current === item.board}
+                isCurrent={current === item.board || navPlace([group], current)?.item === item}
                 textValue={item.label}
                 tooltip={item.chip ? `${item.label} · ${item.chip}` : item.label}
               >
@@ -170,7 +173,13 @@ export function WorkspaceShell({
   // A live screen shows only the pills it sets itself (<TopbarStatus>), never the registry's samples.
   const pills = live ? Object.values(overrides) : (topbar?.pills ?? []).map((p, i) => overrides[i] ?? p);
   // The lists a live workspace can search: only its own, through its own sidebar.
-  const searchable = live && groups.some((g) => g.items.some((i) => ["Leases", "Units", "Faults"].includes(i.board)));
+  const searchable =
+    live &&
+    groups.some((g) =>
+      g.items.some((i) =>
+        [i.board, ...(i.tabs ?? []).map((t) => t.board)].some((b) => ["Leases", "Units", "Faults"].includes(b)),
+      ),
+    );
   const [sidebarOpen, setSidebarOpen] = useRememberedSidebar();
 
   // ⌘K / Ctrl+K opens global search, as the artifact's search field advertises. A live workspace's
@@ -315,24 +324,26 @@ export function WorkspaceShell({
       className="workspace-shell"
     >
       <div className="min-w-0">
-        <TopbarStatusProvider value={setOverride}>
-          {REAL_DATA_ONLY.has(persona.id) && current && (sampleCollectionsByBoard[current] ?? 0) > 0 ? (
-            <PageContent>
-              <EmptyBlock
-                icon="Database"
-                title="This screen is not connected to Injishi's records yet"
-                description="It would show sample figures, so it is closed until it reads real data."
-                action={
-                  <ActionLink href={homeHref(persona.id)} icon="ArrowLeft">
-                    Back
-                  </ActionLink>
-                }
-              />
-            </PageContent>
-          ) : (
-            children
-          )}
-        </TopbarStatusProvider>
+        <WorkspaceNavProvider groups={groups}>
+          <TopbarStatusProvider value={setOverride}>
+            {REAL_DATA_ONLY.has(persona.id) && current && (sampleCollectionsByBoard[current] ?? 0) > 0 ? (
+              <PageContent>
+                <EmptyBlock
+                  icon="Database"
+                  title="This screen is not connected to Injishi's records yet"
+                  description="It would show sample figures, so it is closed until it reads real data."
+                  action={
+                    <ActionLink href={homeHref(persona.id)} icon="ArrowLeft">
+                      Back
+                    </ActionLink>
+                  }
+                />
+              </PageContent>
+            ) : (
+              children
+            )}
+          </TopbarStatusProvider>
+        </WorkspaceNavProvider>
       </div>
     </AppLayout>
   );

@@ -45,7 +45,16 @@ export function QuickSearch({ groups, placeholder }: { groups: NavGroup[]; place
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const items = useMemo(() => groups.flatMap((g) => g.items), [groups]);
+  // Every page of the sidebar: an area's tabs each count as a page.
+  const items = useMemo(
+    () =>
+      groups.flatMap((g) =>
+        g.items.flatMap((i) =>
+          i.tabs && i.tabs.length > 0 ? i.tabs.map((t) => ({ ...i, id: t.id, label: t.label, board: t.board })) : [i],
+        ),
+      ),
+    [groups],
+  );
   const words = q.trim();
   const lists: Hit[] = words
     ? items
