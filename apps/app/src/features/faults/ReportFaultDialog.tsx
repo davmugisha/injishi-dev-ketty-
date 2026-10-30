@@ -57,7 +57,7 @@ export function ReportFaultDialog({
   onSaved,
 }: {
   title: string;
-  description: string;
+  description?: string;
   /** The landlord picks the unit; the tenant's is their home. */
   units?: { id: string; label: string }[];
   create: (draft: FaultDraft) => Promise<ActionResult<{ id: string; reference: string | null }>>;

@@ -223,9 +223,10 @@ export function DataTable<T>({
   const clear = () => {
     setQuery("");
     setChosen({});
+    // The page clears its own (URL) search and filters in one go when it says how.
+    if (onClearFilters) return onClearFilters();
     search?.onChange?.("");
     for (const f of filters ?? []) if (f.value !== undefined) f.onChange?.(f.options[0]?.id ?? "all");
-    onClearFilters?.();
   };
 
   const rowHeader = columns.find((c) => c.isRowHeader) ?? columns[0];

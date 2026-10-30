@@ -1,16 +1,10 @@
 "use client";
 
 import { Toast } from "@heroui/react";
-import type {
-  GuestRelationship,
-  HostGuestTab,
-  LandlordGuestList,
-  LeaseStatus,
-  TenantGuestList,
-} from "@injishi/contracts";
+import type { GuestRelationship, LandlordGuestList, LeaseStatus, TenantGuestList } from "@injishi/contracts";
 import { ActionButton, PageContent, PageHeader } from "@injishi/ui";
-import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import {
   cancelLandlordGuest,
   cancelTenantGuest,
@@ -21,23 +15,12 @@ import {
 } from "./actions";
 import { HostGuestList } from "./HostGuestList";
 
-function useTab(): (tab: HostGuestTab) => void {
-  const router = useRouter();
-  const pathname = usePathname();
-  return (tab) => {
-    const params = new URLSearchParams(window.location.search);
-    params.set("tab", tab);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  };
-}
-
 /** A tenant's guests for one lease (P5): registered here, shared with the local leaders. */
 export function TenantGuestsView({
   leaseId,
   place,
   status,
   list,
-  tab,
   relationships,
   today,
 }: {
@@ -45,11 +28,9 @@ export function TenantGuestsView({
   place: string;
   status: LeaseStatus;
   list: TenantGuestList;
-  tab: HostGuestTab;
   relationships: GuestRelationship[];
   today: string;
 }) {
-  const onTab = useTab();
   const [registering, setRegistering] = useState(false);
   // A signed lease that has not ended can have guests; the stay falls inside it.
   const open = (status === "signed" || status === "active" || status === "ending") && list.window.end >= today;
@@ -74,8 +55,6 @@ export function TenantGuestsView({
       />
       <HostGuestList
         list={list}
-        tab={tab}
-        onTab={onTab}
         relationships={relationships}
         today={today}
         window={list.window}
@@ -96,22 +75,17 @@ export function TenantGuestsView({
 /** The landlord's own guests at their buildings (P5), never a tenant's. */
 export function LandlordGuestsView({
   list,
-  tab,
   relationships,
   today,
 }: {
   list: LandlordGuestList;
-  tab: HostGuestTab;
   relationships: GuestRelationship[];
   today: string;
 }) {
-  const onTab = useTab();
   const [registering, setRegistering] = useState(false);
   const body = (
     <HostGuestList
       list={list}
-      tab={tab}
-      onTab={onTab}
       relationships={relationships}
       today={today}
       buildings={list.buildings}
@@ -129,8 +103,7 @@ export function LandlordGuestsView({
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
-      <PageHeader
-        title="My guests"
+      <AreaHeader
         actions={
           list.buildings.length > 0 ? (
             <ActionButton icon="PersonPlus" intent="primary" onPress={() => setRegistering(true)}>

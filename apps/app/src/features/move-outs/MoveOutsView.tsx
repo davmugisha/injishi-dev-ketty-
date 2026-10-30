@@ -6,29 +6,25 @@ import {
   MOVE_OUT_REASON_LABEL,
   MOVE_OUT_TAB_LABEL,
   type MoveOutList,
+  type MoveOutListTab,
   type MoveOutRow,
-  type MoveOutTab,
   MoveOutTab as MoveOutTabSchema,
 } from "@injishi/contracts";
 import {
-  ActionButton,
   type DataColumn,
   DataTable,
   EmptyBlock,
-  FilterTabs,
   formatDay,
   IconAction,
-  ListToolbar,
   Money,
   PageContent,
-  PageHeader,
   RowActions,
-  SearchBar,
   StatusChip,
   UnitCell,
 } from "@injishi/ui";
 import { usePathname, useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { AcknowledgeDialog, RecordMoveOutDialog, SettleDepositPanel } from "./MoveOutDialogs";
 
 type Open = { kind: "ack" | "moveout" | "settle"; row: MoveOutRow } | null;
@@ -42,15 +38,8 @@ export function daysLeftWords(n: number | null): string {
   return n === -1 ? "Yesterday" : `${-n} days ago`;
 }
 
-const EMPTY: Record<MoveOutTab, string> = {
-  to_acknowledge: "No notice waits for you.",
-  moving_soon: "Nobody is moving out soon.",
-  moved_out: "No deposit waits to be settled.",
-  settled: "No settled move-outs yet.",
-};
-
 /**
- * Move-outs (WP 1.7): one toolbar row with the tabs and a search, then a list of leases with the days
+ * Move-outs (WP 1.7): one table of leases with the days left, a stage filter (all by default) and a search;
  * left. Acknowledge a notice, record the move out, and settle the deposit from each row.
  */
 export function MoveOutsView({
@@ -73,19 +62,18 @@ export function MoveOutsView({
   const [pending, start] = useTransition();
   const typing = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const go = (tab: MoveOutTab, query: string) => {
+  const go = (tab: MoveOutListTab, query: string) => {
     const params = new URLSearchParams();
-    if (tab !== "to_acknowledge") params.set("tab", tab);
+    if (tab !== "all") params.set("tab", tab);
     if (query.trim()) params.set("q", query.trim());
     const qs = params.toString();
     start(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }));
   };
 
-  const tabs = MoveOutTabSchema.options.map((t) => ({
-    id: t,
-    label: MOVE_OUT_TAB_LABEL[t],
-    count: list.counts[t] ?? 0,
-  }));
+  const tabs = [
+    { id: "all", label: "All", count: Object.values(list.counts).reduce((t, n) => t + (n ?? 0), 0) },
+    ...MoveOutTabSchema.options.map((t) => ({ id: t, label: MOVE_OUT_TAB_LABEL[t], count: list.counts[t] ?? 0 })),
+  ];
   const manyBuildings = new Set(list.items.map((r) => r.propertyName)).size > 1;
 
   const when = (r: MoveOutRow) =>
@@ -193,63 +181,10 @@ export function MoveOutsView({
     );
   };
 
-  const empty = q ? (
-    <EmptyBlock
-      icon="Magnifier"
-      title="No move-out matches"
-      description="Try another search."
-      action={
-        <ActionButton
-          icon="Xmark"
-          onPress={() => {
-            setSearch("");
-            go(list.tab, "");
-          }}
-        >
-          Clear search
-        </ActionButton>
-      }
-    />
-  ) : (
-    <EmptyBlock
-      icon="ArrowRightFromSquare"
-      title={EMPTY[list.tab]}
-      description="Notices from tenants show here."
-      action={
-        <ActionButton icon="FileText" onPress={() => router.push("/leases?tab=active")}>
-          Open active leases
-        </ActionButton>
-      }
-    />
-  );
-
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
-      <PageHeader title="Move-outs" />
-
-      <ListToolbar
-        tabs={
-          <FilterTabs
-            label="Move-outs by stage"
-            name="Stage"
-            tabs={tabs}
-            selectedKey={list.tab}
-            onSelectionChange={(k) => go(k as MoveOutTab, search)}
-          />
-        }
-      >
-        <SearchBar
-          label="Search move-outs"
-          value={search}
-          onChange={(v) => {
-            setSearch(v);
-            if (typing.current) clearTimeout(typing.current);
-            typing.current = setTimeout(() => go(list.tab, v), 300);
-          }}
-          placeholder="Tenant, unit or reference"
-        />
-      </ListToolbar>
+      <AreaHeader />
 
       <div className={pending ? "opacity-60 transition-opacity" : "transition-opacity"} aria-busy={pending}>
         <DataTable
@@ -269,7 +204,30 @@ export function MoveOutsView({
                 <StatusChip kind="deposit" status={r.deposit.tenantDisputedAt ? "disputed" : r.deposit.status} />
               ) : null,
           }}
-          empty={empty}
+          search={{
+            placeholder: "Tenant, unit or reference",
+            value: search,
+            onChange: (v) => {
+              setSearch(v);
+              if (typing.current) clearTimeout(typing.current);
+              typing.current = setTimeout(() => go(list.tab, v), 300);
+            },
+          }}
+          filters={[
+            {
+              id: "stage",
+              name: "Stage",
+              options: tabs,
+              value: list.tab,
+              onChange: (k) => go(k as MoveOutListTab, search),
+            },
+          ]}
+          onClearFilters={() => {
+            setSearch("");
+            go("all", "");
+          }}
+          noun={{ one: "move-out", many: "move-outs" }}
+          empty={<EmptyBlock icon="ArrowRightFromSquare" title="No move-outs yet" />}
         />
       </div>
 

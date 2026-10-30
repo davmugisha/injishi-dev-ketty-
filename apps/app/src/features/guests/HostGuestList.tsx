@@ -18,9 +18,7 @@ import {
   type DataColumn,
   DataTable,
   EmptyBlock,
-  FilterTabs,
   IconAction,
-  ListToolbar,
   PersonCell,
   RowActions,
   StatusChip,
@@ -32,7 +30,8 @@ import type { ActionResult } from "@/server/rentals/action-kit";
 import { phoneWords, ROUTE_STATE, stayWords } from "../oversight/guests/parts";
 import { GuestFormPanel } from "./GuestForm";
 
-const TABS: { id: HostGuestTab; label: string }[] = [
+const TABS: { id: HostGuestTab | "all"; label: string }[] = [
+  { id: "all", label: "All" },
   { id: "arriving", label: "Arriving" },
   { id: "staying", label: "Staying" },
   { id: "left", label: "Left" },
@@ -65,15 +64,13 @@ export interface GuestCalls {
 }
 
 /**
- * A host's overnight guests (P5), the same for a tenant and for a landlord: the tabs of where each stay
- * is with their counts, one table (a list on a phone) with who they are, the stay, who they are to the
+ * A host's overnight guests (P5), the same for a tenant and for a landlord: one table with a stay filter
+ * (all by default) and a search (a list on a phone) with who they are, the stay, who they are to the
  * host, where they come from and which leaders it went to, and Change or Cancel until arrival day has
  * passed. Registering opens the guest form in a side panel.
  */
 export function HostGuestList({
   list,
-  tab,
-  onTab,
   relationships,
   today,
   window,
@@ -85,8 +82,6 @@ export function HostGuestList({
   onRegistering,
 }: {
   list: HostGuestListData;
-  tab: HostGuestTab;
-  onTab: (tab: HostGuestTab) => void;
   relationships: readonly GuestRelationship[];
   today: string;
   window?: { start?: string | null; end?: string | null };
@@ -159,36 +154,38 @@ export function HostGuestList({
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <ListToolbar
-        tabs={
-          <FilterTabs
-            label="Guests by stay"
-            name="Show"
-            tabs={TABS.filter(
-              (t) => t.id !== "cancelled" || (list.counts.cancelled ?? 0) > 0 || tab === "cancelled",
-            ).map((t) => ({ ...t, count: list.counts[t.id] ?? 0 }))}
-            selectedKey={tab}
-            onSelectionChange={(k) => onTab(k as HostGuestTab)}
-          />
-        }
-      >
-        {list.guests.length > 0 ? (
-          <ul aria-label="What the leader chips mean" className="hidden items-center gap-3 text-xs text-muted md:flex">
-            {(["seen", "delivered", "waiting"] as const).map((key) => (
-              <li key={key} className="flex items-center gap-1.5">
-                <StatusDot tone={ROUTE_STATE[key].tone} />
-                {ROUTE_STATE[key].words}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </ListToolbar>
+      {list.guests.length > 0 ? (
+        <ul
+          aria-label="What the leader chips mean"
+          className="hidden items-center justify-end gap-3 text-xs text-muted md:flex"
+        >
+          {(["seen", "delivered", "waiting"] as const).map((key) => (
+            <li key={key} className="flex items-center gap-1.5">
+              <StatusDot tone={ROUTE_STATE[key].tone} />
+              {ROUTE_STATE[key].words}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <DataTable
         label="Guests"
         rows={list.guests}
         rowKey={(g) => g.id}
         columns={columns}
-        defaultSort={{ column: "stay", direction: tab === "left" ? "descending" : "ascending" }}
+        defaultSort={{ column: "stay", direction: "descending" }}
+        noun={{ one: "guest", many: "guests" }}
+        search={{ placeholder: "Guest name or phone", text: (g) => `${g.fullName} ${g.phone ?? ""}` }}
+        filters={[
+          {
+            id: "stay",
+            name: "Stay",
+            options: TABS.filter((t) => t.id !== "cancelled" || (list.counts.cancelled ?? 0) > 0).map((t) => ({
+              ...t,
+              count: t.id === "all" ? list.guests.length : (list.counts[t.id] ?? 0),
+            })),
+            match: (g, v) => (v === "cancelled" ? g.status === "cancelled" : g.status !== "cancelled" && g.stay === v),
+          },
+        ]}
         rowActions={(g) =>
           g.canChange && g.status !== "cancelled" ? (
             <RowActions>
@@ -217,18 +214,10 @@ export function HostGuestList({
         empty={
           <EmptyBlock
             icon="PersonPlus"
-            title={
-              tab === "arriving"
-                ? "Nobody is on the way"
-                : tab === "staying"
-                  ? "Nobody is staying now"
-                  : tab === "left"
-                    ? "No guest has left yet"
-                    : "No stay was cancelled"
-            }
-            description={canRegister ? "Register a guest before they stay the night." : (registerReason ?? undefined)}
+            title="No guests yet"
+            description={canRegister ? undefined : (registerReason ?? undefined)}
             action={
-              canRegister && tab !== "left" && tab !== "cancelled" ? (
+              canRegister ? (
                 <ActionButton icon="PersonPlus" intent="primary" onPress={() => onRegistering(true)}>
                   Register a guest
                 </ActionButton>

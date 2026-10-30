@@ -11,27 +11,20 @@ import {
 } from "@injishi/contracts";
 import {
   ActionButton,
-  CategoryDonut,
   type DataColumn,
   DataTable,
   DateText,
   EmptyBlock,
-  FilterTabs,
-  formatNumber,
   IconAction,
-  KpiStrip,
-  ListToolbar,
   Money,
-  MonthlyAmountArea,
   PageContent,
-  PageHeader,
   RowActions,
-  SearchBar,
   StatusChip,
   YearPicker,
 } from "@injishi/ui";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { AddExpensePanel, ReceiptDialog, VoidExpenseDialog } from "./ExpenseDialogs";
 
 export type ExpenseShow = "all" | "repairs" | "loan_interest" | "other";
@@ -41,20 +34,18 @@ const inShow = (e: ExpenseView, show: ExpenseShow) =>
   (show === "other" ? e.category !== "repairs" && e.category !== "loan_interest" : e.category === show);
 
 /**
- * Expenses (P4): the year's figures (each opens the list it counts), where the money went by category
- * and by month, and every expense with its receipt. Fixers paid for a fault land here by themselves;
+ * Expenses (P4): every expense of the year with its receipt, in one table with a search and a kind
+ * filter. Fixers paid for a fault land here by themselves;
  * the rest is written down here. A recorded expense can be voided with a reason.
  */
 export function ExpensesView({
   list,
-  show,
   today,
   properties,
   units,
   canManage,
 }: {
   list: ExpenseList;
-  show: ExpenseShow;
   today: string;
   properties: { id: string; name: string }[];
   units: { id: string; label: string; propertyId: string }[];
@@ -63,43 +54,14 @@ export function ExpensesView({
   const router = useRouter();
   const pathname = usePathname();
   const [pending, start] = useTransition();
-  const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
   const [voiding, setVoiding] = useState<ExpenseView | null>(null);
   const [attaching, setAttaching] = useState<ExpenseView | null>(null);
 
-  const href = (next: { year?: number; show?: ExpenseShow }) => {
-    const year = next.year ?? list.year;
-    const s = next.show ?? show;
-    const params = new URLSearchParams();
-    if (year !== Number(today.slice(0, 4))) params.set("year", String(year));
-    if (s !== "all") params.set("show", s);
-    const qs = params.toString();
-    return qs ? `${pathname}?${qs}` : pathname;
-  };
-  const go = (next: { year?: number; show?: ExpenseShow }) =>
-    start(() => router.replace(href(next), { scroll: false }));
-
-  const counted = list.items.filter((e) => !e.voided);
-  const count = (s: ExpenseShow) => list.items.filter((e) => inShow(e, s)).length;
-  const running = list.year === Number(today.slice(0, 4));
-  const lastMonth = running ? Number(today.slice(5, 7)) : 12;
-  const months = Array.from({ length: lastMonth }, (_, i) => {
-    const month = `${list.year}-${String(i + 1).padStart(2, "0")}`;
-    return { month, amount: counted.filter((e) => e.paidOn.startsWith(month)).reduce((t, e) => t + e.amountRwf, 0) };
-  });
-
-  const missingReceipts = counted.filter((e) => e.source === "recorded" && !e.hasReceipt);
-
-  const q = search.trim().toLowerCase();
-  const rows = list.items.filter(
-    (e) =>
-      inShow(e, show) &&
-      (!q ||
-        [e.payeeName, e.note, e.unitLabel, e.ticketTitle, EXPENSE_CATEGORY_LABEL[e.category]]
-          .filter(Boolean)
-          .some((t) => (t as string).toLowerCase().includes(q))),
-  );
+  const go = ({ year }: { year: number }) =>
+    start(() =>
+      router.replace(year !== Number(today.slice(0, 4)) ? `${pathname}?year=${year}` : pathname, { scroll: false }),
+    );
 
   const columns = useMemo<DataColumn<ExpenseView>[]>(
     () => [
@@ -201,8 +163,7 @@ export function ExpensesView({
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
-      <PageHeader
-        title="Expenses"
+      <AreaHeader
         actions={
           <>
             <YearPicker
@@ -217,76 +178,26 @@ export function ExpensesView({
         }
       />
 
-      <KpiStrip
-        label={`Expenses in ${list.year}`}
-        items={[
-          {
-            id: "all",
-            label: running ? "Spent so far" : "Spent",
-            value: list.totals.totalRwf,
-            icon: "Receipt",
-            footnote: `${formatNumber(counted.length)} ${counted.length === 1 ? "payment" : "payments"} in ${list.year}`,
-          },
-          {
-            id: "month",
-            label: running ? "This month" : "December",
-            value: months.at(-1)?.amount ?? 0,
-            icon: "Calendar",
-          },
-          {
-            id: "average",
-            label: "Monthly average",
-            value: months.length > 0 ? Math.round(list.totals.totalRwf / months.length) : 0,
-            icon: "ChartLine",
-          },
-          {
-            id: "receipts",
-            label: "Receipts missing",
-            value: missingReceipts.length,
-            format: "count",
-            icon: "Paperclip",
-            status: missingReceipts.length > 0 ? "warning" : undefined,
-            footnote: missingReceipts.length > 0 ? "Attach them from the list" : "All on file",
-          },
-        ]}
-      />
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <MonthlyAmountArea
-          title="By month"
-          seriesLabel="Spent"
-          narrowMonths={12}
-          data={months}
-          empty={{ icon: "Receipt", title: `Nothing spent in ${list.year} yet`, action: addButton ?? undefined }}
-        />
-        <CategoryDonut
-          title="By category"
-          data={list.totals.byCategory.map((c) => ({
-            category: EXPENSE_CATEGORY_LABEL[c.category],
-            amount: c.amountRwf,
-          }))}
-          emptyAction={addButton ?? undefined}
-        />
-      </div>
-
-      <ListToolbar
-        tabs={
-          <FilterTabs
-            label="Expenses by kind"
-            name="Kind"
-            tabs={tabs.map((t) => ({ ...t, count: count(t.id) }))}
-            selectedKey={show}
-            onSelectionChange={(key) => go({ show: key as ExpenseShow })}
-          />
-        }
-      >
-        <SearchBar label="Search expenses" value={search} onChange={setSearch} placeholder="Payee, unit or note" />
-      </ListToolbar>
-
       <div className={pending ? "opacity-60 transition-opacity" : "transition-opacity"} aria-busy={pending}>
         <DataTable
           label="Expenses"
-          rows={rows}
+          rows={list.items}
+          noun={{ one: "expense", many: "expenses" }}
+          search={{
+            placeholder: "Payee, unit or note",
+            text: (e) =>
+              [e.payeeName, e.note, e.unitLabel, e.ticketTitle, EXPENSE_CATEGORY_LABEL[e.category]]
+                .filter(Boolean)
+                .join(" "),
+          }}
+          filters={[
+            {
+              id: "kind",
+              name: "Kind",
+              options: tabs.map((t) => ({ ...t, count: list.items.filter((e) => inShow(e, t.id)).length })),
+              match: (e, v) => inShow(e, v as ExpenseShow),
+            },
+          ]}
           rowKey={(e) => e.id}
           columns={columns}
           defaultSort={{ column: "on", direction: "descending" }}
@@ -324,32 +235,7 @@ export function ExpensesView({
               </span>
             ),
           }}
-          empty={
-            show !== "all" || q ? (
-              <EmptyBlock
-                icon="Magnifier"
-                title="No expense matches"
-                action={
-                  <ActionButton
-                    icon="Xmark"
-                    onPress={() => {
-                      setSearch("");
-                      go({ show: "all" });
-                    }}
-                  >
-                    Clear filters
-                  </ActionButton>
-                }
-              />
-            ) : (
-              <EmptyBlock
-                icon="Receipt"
-                title={`No expenses in ${list.year}`}
-                description="Fixers you pay for a fault show here. Add the rest: the guard, water, loan interest."
-                action={addButton ?? undefined}
-              />
-            )
-          }
+          empty={<EmptyBlock icon="Receipt" title={`No expenses in ${list.year}`} action={addButton ?? undefined} />}
         />
       </div>
 
