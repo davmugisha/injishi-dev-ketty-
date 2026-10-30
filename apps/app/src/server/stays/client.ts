@@ -50,3 +50,8 @@ export function can(scope: Pick<StaysScope, "permissions">, ...any: string[]): b
 export const ratesCalendar = cache((from?: string, to?: string) =>
   get<import("@injishi/contracts").RatesCalendar>("/api/v1/ops/rates/calendar", { from, to }),
 );
+
+/** Every run of days from today on with its own price, closing or shortest stay. */
+export const ratesSpecialDates = cache(() =>
+  get<import("@injishi/contracts").RatesSpecialDates>("/api/v1/ops/rates/special-dates"),
+);

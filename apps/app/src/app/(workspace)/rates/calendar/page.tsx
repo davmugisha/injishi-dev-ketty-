@@ -14,21 +14,29 @@ import type {
 import { AvailabilityCalendarView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { PmsMount } from "@/features/pms/pms-mount";
-import { RatesCalendarView } from "@/features/pms/stays/RatesCalendarView";
+import { StayPricesView } from "@/features/pms/stays/StayPricesView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
-import { ratesCalendar, staysSummary } from "@/server/stays/client";
+import { ratesCalendar, ratesSpecialDates, staysSummary } from "@/server/stays/client";
 
 export const metadata: Metadata = { title: screens.AvailabilityCalendar.pageTitle };
 
-export default async function AvailabilityCalendarPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
+export default async function AvailabilityCalendarPage() {
   const persona = await requirePersona("AvailabilityCalendar");
-  // A stay business prices and closes its days here, live (2026-10-29).
-  const { from } = await searchParams;
-  const day = from && /^\d{4}-\d{2}-\d{2}$/.test(from) ? from : undefined;
-  const [summary, calendar] = await Promise.all([staysSummary(), ratesCalendar(day)]);
+  // A stay business's prices, live (2026-10-30): its room types' terms (a one day read) and special dates.
+  const summary = await staysSummary();
+  const [calendar, special] = summary
+    ? await Promise.all([ratesCalendar(summary.today, summary.today), ratesSpecialDates()])
+    : [null, null];
   if (summary && calendar) {
-    return <RatesCalendarView data={calendar} longStays={letsLongStays(summary.business.kind)} />;
+    return (
+      <StayPricesView
+        roomTypes={calendar.roomTypes}
+        ranges={special?.ranges ?? []}
+        today={calendar.today}
+        longStays={letsLongStays(summary.business.kind)}
+      />
+    );
   }
   const [windows, nights, ratePlans, roomTypes, groupBlocks, issues, channels, holds, reasons] = await Promise.all([
     getCollection<AvailabilityCalendarWindow>("commercial.calendarWindows"),
