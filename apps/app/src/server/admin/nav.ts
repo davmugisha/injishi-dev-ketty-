@@ -11,6 +11,7 @@ export function adminNav(): NavGroup[] {
       label: null,
       items: [
         { id: "businesses", label: "Businesses", icon: "Briefcase", board: "AdminBusinesses" },
+        { id: "people", label: "People", icon: "PersonsLock", board: "AdminPeople" },
         {
           id: "government",
           label: "Government",
