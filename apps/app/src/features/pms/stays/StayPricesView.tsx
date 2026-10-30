@@ -77,6 +77,8 @@ export function StayPricesView({
 }) {
   const [editing, setEditing] = useState<RatesRoomType | null>(null);
   const [special, setSpecial] = useState<RatesSpecialRange | "new" | null>(null);
+  // A day chosen on the calendar: a new special date starts there.
+  const [fromDay, setFromDay] = useState<string | null>(null);
   const [view, setView] = useState<"list" | "calendar">("list");
 
   if (roomTypes.length === 0) {
@@ -249,7 +251,15 @@ export function StayPricesView({
             }
           />
         ) : (
-          <SpecialCalendar ranges={ranges} today={today} onEdit={setSpecial} />
+          <SpecialCalendar
+            ranges={ranges}
+            today={today}
+            onEdit={setSpecial}
+            onAdd={(day) => {
+              setFromDay(day);
+              setSpecial("new");
+            }}
+          />
         )}
       </section>
 
@@ -260,9 +270,13 @@ export function StayPricesView({
         <SpecialPanel
           key={special === "new" ? "new" : rangeKey(special)}
           range={special === "new" ? null : special}
+          startDay={special === "new" ? fromDay : null}
           roomTypes={roomTypes}
           today={today}
-          onClose={() => setSpecial(null)}
+          onClose={() => {
+            setSpecial(null);
+            setFromDay(null);
+          }}
         />
       ) : null}
     </PageContent>
@@ -274,11 +288,15 @@ function SpecialCalendar({
   ranges,
   today,
   onEdit,
+  onAdd,
 }: {
   ranges: RatesSpecialRange[];
   today: string;
   onEdit: (r: RatesSpecialRange) => void;
+  /** A slot chosen on a day: add special dates from it. */
+  onAdd: (day: string) => void;
 }) {
+  const byKey = useMemo(() => new Map(ranges.map((r) => [rangeKey(r), r])), [ranges]);
   const events = useMemo<ScheduleEvent[]>(
     () =>
       ranges.map((r) => ({
@@ -306,7 +324,20 @@ function SpecialCalendar({
       })),
     [ranges, onEdit],
   );
-  return <AgendaCalendar label="Special dates" events={events} kinds={KINDS} today={today} />;
+  return (
+    <AgendaCalendar
+      label="Special dates"
+      events={events}
+      kinds={KINDS}
+      today={today}
+      onSelect={(e) => {
+        const r = byKey.get(e.id);
+        if (r) onEdit(r);
+      }}
+      onCreate={(day) => (day >= today ? onAdd(day) : undefined)}
+      hint="Choose a day in the day or week view to add special dates"
+    />
+  );
 }
 
 const num = (v: string): number | null => {
@@ -456,11 +487,14 @@ function NumberText({
 /** Add special dates, or change or remove a run: its own price or closed, and a shortest stay. */
 function SpecialPanel({
   range,
+  startDay = null,
   roomTypes,
   today,
   onClose,
 }: {
   range: RatesSpecialRange | null;
+  /** Where a new run starts, from a day chosen on the calendar. */
+  startDay?: string | null;
   roomTypes: RatesRoomType[];
   today: string;
   onClose: () => void;
@@ -468,7 +502,9 @@ function SpecialPanel({
   const router = useRouter();
   const [saving, start] = useTransition();
   const [typeId, setTypeId] = useState(range?.roomTypeId ?? "all");
-  const [days, setDays] = useState<DayRange | null>(range ? { start: range.from, end: range.to } : null);
+  const [days, setDays] = useState<DayRange | null>(
+    range ? { start: range.from, end: range.to } : startDay ? { start: startDay, end: startDay } : null,
+  );
   const [mode, setMode] = useState<"price" | "closed">(range?.closed ? "closed" : "price");
   const [price, setPrice] = useState<number | null>(range?.priceRwf ?? null);
   const [min, setMin] = useState(range?.minNights ? String(range.minNights) : "");
