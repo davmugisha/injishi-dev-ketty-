@@ -26,14 +26,15 @@ export function StepReview({
   rows,
   locked,
   onEdit,
-  kindLabel,
+  kindPhrase,
   fee,
 }: {
   rows: ReviewRow[];
   /** The fee is paid: no Edit. */
   locked: boolean;
   onEdit: (step: StepId) => void;
-  kindLabel: string;
+  /** The kind mid sentence, with its article: "a coffee shop" (`kindInSentence`). */
+  kindPhrase: string;
   fee: number | null;
 }) {
   return (
@@ -55,7 +56,7 @@ export function StepReview({
       </dl>
 
       <div className="flex flex-col gap-1 rounded-card bg-secondary px-4 py-4">
-        <span className="text-sm text-muted-foreground">Registration fee for a {kindLabel}</span>
+        <span className="text-sm text-muted-foreground">Registration fee for {kindPhrase}</span>
         <span className="text-2xl font-semibold tabular-nums">{fee === null ? "Not available yet" : formatRwf(fee)}</span>
         <span className="text-xs text-muted-foreground">Charged once, on the next step.</span>
       </div>

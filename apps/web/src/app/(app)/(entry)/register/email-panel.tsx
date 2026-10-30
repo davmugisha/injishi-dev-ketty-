@@ -34,7 +34,8 @@ const RESEND_COOLDOWN_S = 30;
  * goes on through `/start` to the persona's home, away from this registration,
  * so the demo is told its published code instead. The one thing
  * that differs is where the person stands afterwards: on `/register`, carried
- * straight on to About you, with no `?redirect=` and no `/start` in between.
+ * straight on to the registration's first step, Business, with no `?redirect=`
+ * and no `/start` in between.
  * The gate re-reads the session (`lib/session.ts`) and only a real session
  * moves the page on; a code this panel accepted proves nothing by itself.
  */

@@ -25,7 +25,7 @@ import { Callout } from "./register-shell";
 import { ChoiceTile, Field, Offline, TextInput } from "./wizard-ui";
 
 /**
- * Business name and TIN (Register.dc.html, step two's first section).
+ * Business name and TIN (Register.dc.html, Business's first section).
  *
  * The person types the name as they know it and the nine digits, and
  * "Validate with RRA" asks the company register (`POST /registrations/tin-check`).
@@ -256,7 +256,7 @@ export function SectionTin({
                 checked={capPick === "on_behalf_of"}
                 icon={<Users size={20} aria-hidden />}
                 title="I'm registering it for the owner"
-                description="You prepare it and name the owner. They claim it once Injishi approves it."
+                description="You prepare it and name the owner. They claim it once PSF approves it."
                 onSelect={() => onCapPick("on_behalf_of")}
               />
             </div>

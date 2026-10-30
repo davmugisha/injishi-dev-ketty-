@@ -22,9 +22,11 @@ import { TypedIdentityFields, composeFullName, type PersonalDraft } from "./step
 import { Field, Offline } from "./wizard-ui";
 
 /**
- * You and the company / Your identity (ADR-075 S4): scan the ID, then take a
- * selfie, for a National ID and a passport alike. No code is sent to any phone
- * (AC-4).
+ * You and the company / Your identity (ADR-075 S4): a Rwandan National ID is
+ * checked by its number and a selfie against NIDA's register, through GTBank
+ * (2026-10-30), and a passport by its photo page and a selfie through Smile
+ * ID. Where the NIDA check is off, the card is scanned instead. No code is
+ * sent to any phone (AC-4).
  *
  * Three faces, in the order a person meets them:
  * - The scanner, until something is on file. A refused try says what went
@@ -219,15 +221,16 @@ export function SectionIdentity({
         onDocumentTypeChange={setDocumentType}
         online={online}
         mode={identity.mode}
+        nationalIdMode={identity.nationalIdMode}
         onScanned={(result) => {
           setLast(result);
           onIdentity();
         }}
       />
       {failed ? (
-        <Callout tone="danger" icon={<TriangleAlert size={16} aria-hidden />} title="That scan did not pass" role="alert">
+        <Callout tone="danger" icon={<TriangleAlert size={16} aria-hidden />} title="That check did not pass" role="alert">
           {failed.message}
-          {failed.mayContinue ? null : " Try again with new photos. After 3 tries you can carry on, and PSF checks your ID."}
+          {failed.mayContinue ? null : " After 3 tries you can carry on, and PSF checks your ID."}
         </Callout>
       ) : null}
       {scan?.outcome === "machine_failed" && scan.mayContinue ? (
