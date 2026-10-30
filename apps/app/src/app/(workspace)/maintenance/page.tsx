@@ -3,14 +3,19 @@ import type { ConditionSignal, SignalReview, WorkOrder } from "@injishi/data/fix
 import { stock } from "@injishi/data/media";
 import type { Metadata } from "next";
 import { MaintenanceView } from "@/features/operations/MaintenanceView";
+import { StayMaintenanceView } from "@/features/stays/StayMaintenanceView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { placeName, readWorkOrders } from "@/server/sources/operations";
+import { staysSummary } from "@/server/stays/client";
 
 export const metadata: Metadata = { title: screens.Maintenance.pageTitle };
 
 export default async function MaintenancePage() {
   const persona = await requirePersona("Maintenance");
+  // A real stay business gets one table of its repairs, all live.
+  if (await staysSummary())
+    return <StayMaintenanceView orders={await getCollection<WorkOrder>("operations.workOrders")} />;
   const [workOrders, signals, reviews] = await Promise.all([
     getCollection<WorkOrder>("operations.workOrders"),
     getCollection<ConditionSignal>("operations.conditionSignals"),
