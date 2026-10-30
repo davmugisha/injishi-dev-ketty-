@@ -29,7 +29,7 @@ import type {
 } from "@injishi/data/fixtures/finance";
 import { GateChip, Icon, LinkButton, PageContent, PageHeader, StatusDot } from "@injishi/ui";
 import { type Key, useState } from "react";
-import { CheckIcon, lineTab, money, selectableRow, TabCount, ToneChip } from "./shared";
+import { CheckIcon, lineTab, money, selectableRow, TabCount, ToneChip } from "./pay-parts";
 
 interface ReconciliationData {
   sources: ReconSource[];

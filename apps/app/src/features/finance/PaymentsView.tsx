@@ -29,7 +29,7 @@ import { screenHref } from "@injishi/data";
 import type { DeskMethod, PaymentIntent, PaymentState, RefundRequest, Tone } from "@injishi/data/fixtures/finance";
 import { GateChip, Icon, KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { type Key, useState } from "react";
-import { CheckIcon, EventTimeline, lineTab, money, SubHeading, selectableRow, TabCount, ToneChip } from "./shared";
+import { CheckIcon, EventTimeline, lineTab, money, SubHeading, selectableRow, TabCount, ToneChip } from "./pay-parts";
 
 interface PaymentsData {
   payments: PaymentIntent[];
