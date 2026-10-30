@@ -665,18 +665,15 @@ export default function RegisterWizard({
     (next?: IdentityStatus) => {
       setErrors({});
       setFormError("");
-      void (async () => {
-        // Recording an identity rewrote the stored profile (name, birth date, ID), so the one loaded with the
-        // page is stale: editing it would send the old name.
-        const [res, prof] = await Promise.all([
-          next ? Promise.resolve({ status: "ok" as const, data: next }) : fetchIdentity(),
-          fetchMyProfile(),
-        ]);
-        if (prof.status === "ok") setProfile(prof.data);
-        if (res.status !== "ok") return;
-        setIdentity(res.data);
-        const person = res.data.onFile;
-        if (!person) return;
+      const take = (status: IdentityStatus) => {
+        setIdentity(status);
+        const person = status.onFile;
+        if (!person) {
+          // "Use a different ID": what the old identity filled in goes with it, and the section asks again.
+          setIdConfirmed(false);
+          setPersonal((p) => ({ ...p, firstName: "", middleName: "", lastName: "", dateOfBirth: "", documentNumber: "" }));
+          return;
+        }
         setPersonal((p) => ({
           ...p,
           ...splitFullName(person.fullName),
@@ -687,8 +684,21 @@ export default function RegisterWizard({
           documentNumber: "",
           issuingCountry: person.issuingCountry,
         }));
+      };
+      // An answer in hand shows at once; the profile and the TIN catch up behind it.
+      if (next) take(next);
+      void (async () => {
+        // Recording or dropping an identity rewrote the stored profile (name, birth date, ID), so the one loaded
+        // with the page is stale: editing it would send the old name.
+        const [res, prof] = await Promise.all([
+          next ? Promise.resolve({ status: "ok" as const, data: next }) : fetchIdentity(),
+          fetchMyProfile(),
+        ]);
+        if (prof.status === "ok") setProfile(prof.data);
+        if (res.status !== "ok") return;
+        if (!next) take(res.data);
         // Whether this ID is one of the directors is RRA's answer to the TIN asked by a caller with an ID on
-        // file, so the TIN is asked again now. The server matches again at creation (AC-7).
+        // file, so the TIN is asked again now, after a new ID or none. The server matches again at creation (AC-7).
         if (tinCheck && /^\d{9}$/.test(tinCheck.tin)) {
           const again = await checkTin(tinCheck.tin, capacity);
           if (again.status === "ok") setTinCheck({ tin: tinCheck.tin, verdict: again.data });
@@ -1202,6 +1212,25 @@ export default function RegisterWizard({
     else if (id === "cls") changeKind();
   };
 
+  /**
+   * Back from a step: the step before it, or from You, the first step, the business type. Never disabled while
+   * the answers can still change, so an earlier answer is always one press away.
+   */
+  const stepBack = (): void => {
+    const i = order.indexOf(step);
+    if (i > 0) goTo(order[i - 1]!);
+    else changeKind();
+  };
+  /** Back from an open section: the section before it, reopened with its answers, or the step before. */
+  const sectionBack = (id: SectionId): void => {
+    const ids = sectionOrder(path, step);
+    const i = ids.indexOf(id);
+    // Classification asks nothing, so Back passes over it.
+    const prev = ids.slice(0, Math.max(0, i)).reverse().find((s) => s !== "cls");
+    if (prev) editSection(prev);
+    else stepBack();
+  };
+
   const tinView: TinView = tinChecking ? { kind: "checking" } : verdict ? { kind: "result", verdict } : { kind: "idle" };
 
   const sectionBody = (id: SectionId): ReactNode => {
@@ -1243,6 +1272,7 @@ export default function RegisterWizard({
             errors={errors}
             onEditProfile={editStoredProfile}
             onNext={confirmId}
+            onBack={() => sectionBack("id")}
             online={online}
           />
         );
@@ -1527,7 +1557,15 @@ export default function RegisterWizard({
         position={{ n: stepIndex + 1, of: order.length }}
         title={pickingKind ? "What kind of business?" : STEP_TITLE[step]}
         lead={pickingKind ? "Pick the one that fits. It decides the documents we ask for." : LEAD[step]}
-        onBack={stepIndex > 0 && !(summary !== null && step === "review") ? () => goTo(order[stepIndex - 1]!) : null}
+        onBack={
+          pickingKind
+            ? kind !== null && kind !== "broker" && (kind !== "other" || business.accommodationClassOther.trim() !== "")
+              ? () => setChoosingKind(false)
+              : null
+            : summary !== null && step === "review"
+              ? null
+              : stepBack
+        }
         primary={primary}
       >
         {formError ? (

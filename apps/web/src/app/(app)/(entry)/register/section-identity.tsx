@@ -8,9 +8,9 @@ import {
   type IdentityStatus,
 } from "@injishi/contracts";
 import { Button } from "@injishi/web-ui";
-import { TriangleAlert } from "lucide-react";
+import { ArrowLeft, TriangleAlert } from "lucide-react";
 
-import { putTypedIdentity } from "@/data/identity";
+import { clearIdentity, putTypedIdentity } from "@/data/identity";
 import { apiResultMessage } from "@/lib/api";
 
 import { AddressPicker } from "./address-picker";
@@ -54,6 +54,7 @@ export function SectionIdentity({
   errors,
   onEditProfile,
   onNext,
+  onBack = null,
   hideNext = false,
   online = true,
 }: {
@@ -70,6 +71,8 @@ export function SectionIdentity({
   /** Open a complete profile to change what it holds. */
   onEditProfile: () => void;
   onNext: () => void;
+  /** Back to what came before this section: the step before, or the business type. */
+  onBack?: (() => void) | null;
   /** The step after this one is already open below (the broker form): no Next to press again. */
   hideNext?: boolean;
   /**
@@ -87,6 +90,31 @@ export function SectionIdentity({
   const [typedErrors, setTypedErrors] = useState<Record<string, string>>({});
   const [typedProblem, setTypedProblem] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [clearProblem, setClearProblem] = useState<string | null>(null);
+
+  /** "Use a different ID": the server drops the identity on file, and the scanner opens again. */
+  const replaceId = async () => {
+    setClearing(true);
+    setClearProblem(null);
+    const res = await clearIdentity();
+    setClearing(false);
+    if (res.status !== "ok") {
+      setClearProblem(apiResultMessage(res));
+      return;
+    }
+    setLast(null);
+    setTyping(false);
+    setDocumentType("national_id");
+    onIdentity(res.data);
+  };
+
+  const back = onBack ? (
+    <Button variant="ghost" onClick={onBack}>
+      <ArrowLeft size={16} aria-hidden />
+      Back
+    </Button>
+  ) : null;
 
   if (!identity) {
     return <p className="text-sm text-muted-foreground">Reading what is on file…</p>;
@@ -97,16 +125,27 @@ export function SectionIdentity({
     return (
       <>
         <IdentityCard person={onFile} />
+        <div className="-mt-2">
+          <Button variant="outline" size="sm" onClick={() => void replaceId()} pending={clearing} disabled={!online}>
+            Use a different ID
+          </Button>
+        </div>
+        {clearProblem ? (
+          <Callout tone="danger" icon={<TriangleAlert size={16} aria-hidden />} title="That did not go through">
+            {clearProblem}
+          </Callout>
+        ) : null}
         {profileComplete ? (
           <OnFile onEdit={onEditProfile} />
         ) : needsExtras ? (
           <Extras draft={draft} onDraftChange={onDraftChange} errors={errors} />
         ) : null}
-        {hideNext ? null : (
-          <div>
-            <Button onClick={onNext}>Next</Button>
+        {back || !hideNext ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {back}
+            {hideNext ? null : <Button onClick={onNext}>Next</Button>}
           </div>
-        )}
+        ) : null}
       </>
     );
   }
@@ -157,6 +196,7 @@ export function SectionIdentity({
           </Callout>
         ) : null}
         <div className="flex flex-wrap items-center gap-3">
+          {back}
           <Button
             onClick={() => void confirmTyped()}
             pending={saving}
@@ -199,11 +239,14 @@ export function SectionIdentity({
           {failed.mayContinue ? null : " After 3 tries you can carry on, and PSF checks your ID."}
         </Callout>
       ) : null}
-      {scan?.outcome === "machine_failed" && scan.mayContinue ? (
-        <div>
-          <Button variant="secondary" onClick={() => setTyping(true)}>
-            Continue, PSF will check it
-          </Button>
+      {back || (scan?.outcome === "machine_failed" && scan.mayContinue) ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {back}
+          {scan?.outcome === "machine_failed" && scan.mayContinue ? (
+            <Button variant="secondary" onClick={() => setTyping(true)}>
+              Continue, PSF will check it
+            </Button>
+          ) : null}
         </div>
       ) : null}
     </>
