@@ -63,10 +63,35 @@ function withOversightNav(nav: NavGroup[], persona: { id: string; access?: reado
         items: items.map((i) => ({ ...i, id: `psf-${i.id}` })),
       });
     }
-  } else if (allowed.has("OfficerHome")) {
+  } else if (allowed.has("OfficerHome") && persona.id !== "officer") {
     extras.push({
       label: "Oversight",
       items: [{ id: "officer-home", label: "Registrations", icon: "ShieldCheck", board: "OfficerHome" }],
+    });
+  }
+  // The other roles this person holds (server/auth.ts `withHats`): one group each, under their own.
+  if (allowed.has("LeaderGuests") && persona.id !== "officer") {
+    extras.push({
+      label: "Local guests",
+      items: [
+        { id: "hat-leader-guests", label: "Guests", icon: "PersonPlus", board: "LeaderGuests" },
+        { id: "hat-leader-reports", label: "Reports", icon: "ChartColumn", board: "LeaderReports" },
+      ],
+    });
+  }
+  if (allowed.has("TenantHome") && persona.id !== "tenant" && persona.id !== "landlord") {
+    extras.push({
+      label: "Where you rent",
+      items: [{ id: "hat-tenant", label: "My home", icon: "House", board: "TenantHome" }],
+    });
+  }
+  if (allowed.has("BrokerWork") && persona.id !== "broker") {
+    extras.push({
+      label: "Broker",
+      items: [
+        { id: "hat-broker", label: "Broker home", icon: "Briefcase", board: "BrokerWork" },
+        { id: "hat-broker-placements", label: "Placements", icon: "FileText", board: "BrokerPlacements" },
+      ],
     });
   }
   return extras.length ? [...nav, ...extras] : nav;
@@ -100,12 +125,12 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
                   stays
                   ? stays
                   : personaByEmail(account.user.email)?.id === persona.id
-                  ? navigationFor(persona.id)
-                  : ((BUSINESS_SHELLS.has(persona.id) ? await businessNav(account) : null) ??
-                    // A real person's sidebar lists only the screens that show their own records.
-                    withoutSampleCounts(navigationFor(persona.id))
-                      .map((g) => ({ ...g, items: g.items.filter((i) => openToRealPeople(i.board)) }))
-                      .filter((g) => g.items.length > 0));
+                    ? navigationFor(persona.id)
+                    : ((BUSINESS_SHELLS.has(persona.id) ? await businessNav(account) : null) ??
+                      // A real person's sidebar lists only the screens that show their own records.
+                      withoutSampleCounts(navigationFor(persona.id))
+                        .map((g) => ({ ...g, items: g.items.filter((i) => openToRealPeople(i.board)) }))
+                        .filter((g) => g.items.length > 0));
   if (nav.length === 0) {
     // Phone/tablet personas visiting a desktop screen they may open: home plus "what to try".
     nav = [
