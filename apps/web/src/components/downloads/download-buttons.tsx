@@ -19,7 +19,8 @@ import { downloadHref, type Platform } from "@/lib/download-links";
  * site, and the other is a bare screen with nothing to prefetch.
  *
  * The ink ground and snow label are fixed, so the button reads the same in
- * either theme. 45px tall, a full touch target.
+ * either theme. 45px tall, a full touch target, and a pill like every other
+ * button on the marketplace (ADR-036 call 5).
  */
 const BUTTONS: Record<Platform, { name: string; Mark: typeof AppleMark; mark: string }> = {
   ios: { name: "iPhone", Mark: AppleMark, mark: "size-6" },
@@ -34,7 +35,7 @@ export function DownloadButton({ platform, className }: { platform: Platform; cl
     <a
       href={downloadHref(platform)}
       className={cn(
-        "inline-flex h-12 w-44 shrink-0 items-center gap-3 rounded-xl bg-ink pr-4 pl-4 text-snow ring-1 ring-slate-line ring-inset transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
+        "inline-flex h-12 w-44 shrink-0 items-center gap-3 rounded-full bg-ink pr-5 pl-5 text-snow ring-1 ring-slate-line ring-inset transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
         className,
       )}
     >

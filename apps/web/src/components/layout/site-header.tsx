@@ -150,9 +150,9 @@ export function SiteHeader() {
             <nav
               className={cn(
                 // 60px on a phone, 67.5px from `md`, inside the 75px a white
-                // page reserves above. The sticky panels below the bar (Explore's
-                // map at `lg:top-20`, the booking widget at `lg:top-24`) still
-                // clear it.
+                // page reserves above. Explore's map (`lg:top-20`) clears the
+                // docked bar; the booking panels (`lg:top-28`) clear the floating
+                // pill, which ends near 85px. Grow the bar and move those too.
                 "flex h-16 w-full items-center justify-between gap-3 transition-all duration-300 ease-out md:h-18",
                 floating ? "px-4 md:px-4" : "px-4 md:px-6",
               )}
