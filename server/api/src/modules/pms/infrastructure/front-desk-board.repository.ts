@@ -168,7 +168,15 @@ export class FrontDeskBoardRepository {
   async bookings(workspaceId: string, propertyId: string, today: string): Promise<BoardBookingRow[]> {
     const rows = await this.rows(sql`
       SELECT b.id, b.reference, b.guest_user_id,
-             nullif(btrim(u.name), '') AS guest_name,
+             -- The account's name, else the name the desk took from the ID at
+             -- check in: a guest who signed up with only an email code has none.
+             coalesce(nullif(btrim(u.name), ''),
+                      (SELECT coalesce(nullif(btrim(s2.guest_name), ''), nullif(btrim(si.full_name), ''))
+                FROM guest_stays s2
+                LEFT JOIN stay_identities si ON si.guest_stay_id = s2.id
+               WHERE s2.booking_id = b.id
+               ORDER BY s2.entry_at DESC
+               LIMIT 1)) AS guest_name,
              up.phone_e164 AS guest_phone,
              b.check_in::text AS check_in, b.check_out::text AS check_out,
              b.guest_count, b.adults, b.children,
@@ -278,7 +286,9 @@ export class FrontDeskBoardRepository {
   async stays(workspaceId: string, propertyId: string, bookingIds: readonly string[]): Promise<BoardStayRow[]> {
     const rows = await this.rows(sql`
       SELECT s.id, s.reference, s.booking_id, b.reference AS booking_reference,
-             coalesce(nullif(btrim(u.name), ''), s.guest_name) AS guest_name,
+             coalesce(nullif(btrim(u.name), ''), nullif(btrim(s.guest_name), ''),
+                      (SELECT nullif(btrim(si.full_name), '') FROM stay_identities si
+                        WHERE si.guest_stay_id = s.id)) AS guest_name,
              s.room_id, r.label AS room_label, rt.name AS room_type_name,
              s.lifecycle, s.entry_at, s.planned_exit_at, s.actual_exit_at,
              b.channel, b.check_in::text AS check_in, b.check_out::text AS check_out,
@@ -347,7 +357,9 @@ export class FrontDeskBoardRepository {
         JOIN room_types rt ON rt.id = r.room_type_id
         LEFT JOIN LATERAL (
           SELECT s.id, s.planned_exit_at,
-                 coalesce(nullif(btrim(u.name), ''), s.guest_name) AS guest_name
+                 coalesce(nullif(btrim(u.name), ''), nullif(btrim(s.guest_name), ''),
+                          (SELECT nullif(btrim(si.full_name), '') FROM stay_identities si
+                            WHERE si.guest_stay_id = s.id)) AS guest_name
             FROM guest_stays s
             LEFT JOIN users u ON u.id = s.guest_user_id
            WHERE s.room_id = r.id AND s.lifecycle = 'open'
