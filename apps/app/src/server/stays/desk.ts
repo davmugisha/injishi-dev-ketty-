@@ -72,6 +72,14 @@ export interface DeskRoom {
   type: string;
 }
 
+/** The room types the desk can book, by name. */
+export function deskRoomTypes(board: ApiBoard): { id: string; name: string }[] {
+  return board.roomTypes
+    .filter((t) => t.active)
+    .map((t) => ({ id: t.id, name: t.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 /** Every room that can take a guest (not out of service), by type then number. */
 export function deskRooms(board: ApiBoard): DeskRoom[] {
   const types = new Map(board.roomTypes.filter((t) => t.active).map((t) => [t.id, t.name]));
@@ -82,6 +90,15 @@ export function deskRooms(board: ApiBoard): DeskRoom[] {
 }
 
 const owed = (s: ApiStay): number | null => s.folio?.balanceRwf ?? null;
+
+/**
+ * What a booking has paid: online (held in escrow) and, before check in, a deposit the desk put on its
+ * bill (0124). Before the stay opens the bill carries only deposits, so its credit is what was taken.
+ */
+const paidOf = (b: ApiBooking): number => {
+  const credit = !b.stay ? (b.folio?.balanceRwf ?? 0) : 0;
+  return b.paidRwf + (credit < 0 ? -credit : 0);
+};
 
 function stayRow(s: ApiStay, kind: DeskRowKind, board: ApiBoard): DeskRow {
   const booking = s.bookingId ? board.bookings.find((b) => b.id === s.bookingId) : undefined;
@@ -115,7 +132,7 @@ export function deskRows(board: ApiBoard): DeskRow[] {
       roomType: b.roomTypeName,
       from: b.checkIn,
       to: b.checkOut,
-      balanceRwf: Math.max(0, b.totalRwf - b.paidRwf),
+      balanceRwf: Math.max(0, b.totalRwf - paidOf(b)),
       eta: b.eta,
       bookingRef: b.reference,
       stayRef: null,
@@ -148,7 +165,7 @@ export function bookingRows(board: ApiBoard): BookingRow[] {
       state: b.state,
       channel: channelOf(b.channel),
       totalRwf: b.totalRwf,
-      paidRwf: b.paidRwf,
+      paidRwf: paidOf(b),
       eta: b.eta,
       note: b.deskNote,
       guestMessage: b.guestMessage,
@@ -293,8 +310,8 @@ export function calendarBoard(
       roomType: b.roomTypeName,
       guests: b.guestCount,
       totalRwf: b.totalRwf,
-      paidRwf: b.paidRwf,
-      balanceRwf: Math.max(0, b.totalRwf - b.paidRwf),
+      paidRwf: paidOf(b),
+      balanceRwf: Math.max(0, b.totalRwf - paidOf(b)),
       bookingRef: b.reference,
       stayRef: null,
       movable: b.status === "confirmed",
