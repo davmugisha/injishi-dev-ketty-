@@ -2,7 +2,7 @@
 
 import { Toast } from "@heroui/react";
 import type { GuestRelationship, LandlordGuestList, LeaseStatus, TenantGuestList } from "@injishi/contracts";
-import { ActionButton, PageContent, PageHeader } from "@injishi/ui";
+import { ActionButton, PageContent } from "@injishi/ui";
 import { useState } from "react";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import {
@@ -42,9 +42,8 @@ export function TenantGuestsView({
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
-      <PageHeader
+      <AreaHeader
         eyebrow={place}
-        title="Guests"
         actions={
           open ? (
             <ActionButton icon="PersonPlus" intent="primary" onPress={() => setRegistering(true)}>
