@@ -21,14 +21,12 @@ import {
   Button,
   Card,
   Chip,
-  Input,
   Label,
   ProgressBar,
   SearchField,
   Table,
   Tag,
   TagGroup,
-  TextField,
   Toast,
   toast,
 } from "@heroui/react";
@@ -43,6 +41,7 @@ import type {
 import { formatRwf, GateChip, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { useMemo, useState, useTransition } from "react";
 import { approveBookingRequest, cancelBooking, declineBookingRequest, recordNoShow } from "./actions";
+import { ReservationChange } from "./ReservationChange";
 import { ChoiceSelect, plural } from "./shared";
 
 interface ReservationsData {
@@ -86,11 +85,6 @@ function dayLabel(n: number): string {
   if (n < 1000) return `${n} Oct`;
   const d = new Date(n * 86_400_000);
   return `${d.getUTCDate()} ${MONTH_SHORT[d.getUTCMonth()]}`;
-}
-
-/** "12 Oct 2026" for a day number. */
-function dayLabelYear(n: number): string {
-  return n < 1000 ? `${n} Oct 2026` : `${dayLabel(n)} ${new Date(n * 86_400_000).getUTCFullYear()}`;
 }
 
 /** The saved views, read against the day the list was read on. */
@@ -573,10 +567,6 @@ function BookingInspector({
   const cxAfter = outcome
     ? `${outcome.refund > 0 ? `${formatRwf(outcome.refund)} back to the guest's wallet` : "No refund due"} · ${formatRwf(outcome.kept)} kept. ${outcome.rule}`
     : "Cancelled.";
-  const change = b.change ?? {
-    arrival: dayLabelYear(b.arrivalDay),
-    departure: dayLabelYear(b.arrivalDay + b.nights),
-  };
   const noShow = b.noShowQuote ?? null;
 
   return (
@@ -726,42 +716,15 @@ function BookingInspector({
         </Alert>
       ) : null}
       {canChange && mode === "modify" ? (
-        <Card variant="secondary" className="gap-3 p-3.5">
-          <span className="font-semibold">Change dates</span>
-          <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(130px,100%),1fr))]">
-            <TextField defaultValue={change.arrival} className="flex flex-col gap-1">
-              <Label>Arrival</Label>
-              <Input className="tabular" />
-            </TextField>
-            <TextField defaultValue={change.departure} className="flex flex-col gap-1">
-              <Label>Departure</Label>
-              <Input className="tabular" />
-            </TextField>
-          </div>
-          {/* Nothing checks the new dates (no route changes a booking's dates), so nothing claims they are free. */}
-          <Chip size="sm" variant="soft" color="default" className="self-start">
-            <CircleInfo className="size-3" />
-            <Chip.Label>Availability for new dates is not checked here</Chip.Label>
-          </Chip>
-          <p className="text-xs text-muted">
-            New nights are priced at today's published rate; the cancellation policy stays at the booking's version.
-            Upgrades and rate overrides go to your general manager.
-          </p>
-          <div className="flex justify-end gap-2">
-            <Button size="sm" variant="secondary" onPress={() => setMode("view")}>
-              Back
-            </Button>
-            <Button
-              size="sm"
-              onPress={() =>
-                // Changing dates reprices the stay and moves money; no route does it yet, so nothing is changed.
-                toast.warning("Changing dates is not available yet. Cancel and rebook, or ask your general manager.")
-              }
-            >
-              Save change
-            </Button>
-          </div>
-        </Card>
+        // The platform prices the change and settles the difference as the owner decided (0120).
+        <ReservationChange
+          bookingRef={b.id}
+          onBack={() => setMode("view")}
+          onDone={() => {
+            onActed();
+            setMode("view");
+          }}
+        />
       ) : null}
       {k === "noshow" && mode === "noshow" ? (
         <Card variant="secondary" className="gap-2.5 p-3.5">

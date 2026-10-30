@@ -1,5 +1,12 @@
 "use server";
 
+import type {
+  ReservationChangeAsk,
+  ReservationChangeForm,
+  ReservationChangeQuote,
+  ReservationChangeRequest,
+  ReservationChangeResult,
+} from "@injishi/contracts";
 import { revalidatePath } from "next/cache";
 import { requirePersona } from "@/lib/session";
 import { ApiError, ApiUnreachableError } from "@/server/api";
@@ -9,11 +16,15 @@ import {
   assignRoom,
   type CheckedIn,
   cancelReservation,
-  type GuestCard,
+  changeReservation,
   checkIn,
   declineRequest,
+  type GuestCard,
   markNoShow,
+  pollReservationChange,
+  quoteReservationChange,
   type RefundOutcome,
+  reservationChangeForm,
   type WalkedIn,
   type WalkInInput,
   walkIn,
@@ -117,5 +128,42 @@ export async function recordNoShow(bookingRef: string, reason: string): Promise<
     return null;
   });
   if (result.ok) refresh();
+  return result;
+}
+
+/** Reservations → Modify: the stay as it stands and the room types it may move to (0120). */
+export async function loadReservationChange(bookingRef: string): Promise<ActionResult<ReservationChangeForm>> {
+  await requirePersona("Reservations");
+  return attempt(async () => reservationChangeForm(await requestContext(), bookingRef));
+}
+
+/** Reservations → Modify: price the change as the desk edits it. Nothing moves. */
+export async function previewReservationChange(
+  bookingRef: string,
+  ask: ReservationChangeAsk,
+): Promise<ActionResult<ReservationChangeQuote>> {
+  await requirePersona("Reservations");
+  return attempt(async () => quoteReservationChange(await requestContext(), bookingRef, ask));
+}
+
+/** Reservations → Modify → Save: change the booking, or ask the guest to pay the difference by MoMo. */
+export async function saveReservationChange(
+  bookingRef: string,
+  body: ReservationChangeRequest,
+): Promise<ActionResult<ReservationChangeResult>> {
+  await requirePersona("Reservations");
+  const result = await attempt(async () => changeReservation(await requestContext(), bookingRef, body));
+  if (result.ok && result.value.status === "applied") refresh();
+  return result;
+}
+
+/** Reservations → Modify: has the guest paid the difference yet? The change applies when they have. */
+export async function checkReservationChange(
+  bookingRef: string,
+  attemptToken: string,
+): Promise<ActionResult<ReservationChangeResult>> {
+  await requirePersona("Reservations");
+  const result = await attempt(async () => pollReservationChange(await requestContext(), bookingRef, attemptToken));
+  if (result.ok && result.value.status === "applied") refresh();
   return result;
 }

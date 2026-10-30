@@ -1,9 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import {
+  bookingChanges,
   bookings,
   escrows,
+  folios,
   orgs,
   payoutAccounts,
   payouts,
@@ -11,6 +13,9 @@ import {
 } from '../../../database/drizzle/schema';
 import { destinationOf } from '../../rentals/domain/payout-accounts';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+
+/** The escrows that are the stay's money and are paid to the host: a caution deposit never is. */
+const STAY_MONEY = inArray(escrows.source, ['booking', 'booking_change']);
 
 /** Why a host payout waits: the same words a landlord's rent payout uses. */
 export const NO_PAYOUT_ACCOUNT_REASON = 'No payout account is set up. Add one under Getting paid.';
@@ -20,6 +25,11 @@ export interface CompletedStay {
   reference: string;
   /** Null when the booking held no escrow to release (a walk in, a refunded stay). */
   payout: { id: string; amountRwf: number; status: 'queued' | 'held'; destinationMasked: string | null } | null;
+  /**
+   * Credit a cheaper desk change left on the bill and the stay did not spend (0120): refunded to the guest
+   * out of the escrow, so it is not in the payout. Null when there is none.
+   */
+  changeCredit: { amountRwf: number; originalRef: string; workspaceId: string; folioId: string | null } | null;
 }
 
 /**
@@ -45,16 +55,65 @@ export class StayCompletionRepository {
         .returning({ id: bookings.id, reference: bookings.reference, workspaceId: bookings.workspaceId });
       if (!booking) return null;
 
-      const [escrow] = await tx
-        .select({ id: escrows.id, amountRwf: escrows.amountRwf })
+      // Every escrow the booking holds: its own, and any difference a guest paid by MoMo for a desk
+      // change (0120). The booking's own comes first; a change's credit is refunded against it.
+      const held = await tx
+        .select({
+          id: escrows.id,
+          amountRwf: escrows.amountRwf,
+          source: escrows.source,
+          adapterRef: escrows.adapterRef,
+        })
         .from(escrows)
-        .where(and(eq(escrows.bookingId, bookingId), eq(escrows.status, 'held')))
-        .for('update')
-        .limit(1);
-      const amountRwf = Number(escrow?.amountRwf ?? 0);
-      if (!escrow || amountRwf <= 0) return { bookingId, reference: booking.reference, payout: null };
+        .where(and(eq(escrows.bookingId, bookingId), eq(escrows.status, 'held'), STAY_MONEY))
+        .orderBy(escrows.createdAt)
+        .for('update');
+      const total = held.reduce((n, e) => n + Number(e.amountRwf), 0);
+      if (held.length === 0 || total <= 0) {
+        return { bookingId, reference: booking.reference, payout: null, changeCredit: null };
+      }
 
-      await tx.update(escrows).set({ status: 'released', updatedAt: now }).where(eq(escrows.id, escrow.id));
+      // The credit a cheaper change left that the bill still shows: what the changes gave, at most what
+      // the bill is in credit by, and at most what the booking's own capture can refund.
+      const own = held.find((e) => e.source === 'booking') ?? null;
+      const [credited] = await tx
+        .select({ credit: sql<number>`coalesce(-sum(${bookingChanges.differenceRwf}), 0)::bigint` })
+        .from(bookingChanges)
+        .where(
+          and(
+            eq(bookingChanges.bookingId, bookingId),
+            eq(bookingChanges.status, 'applied'),
+            eq(bookingChanges.settlement, 'credit'),
+          ),
+        );
+      const [bill] = await tx
+        .select({ id: folios.id, balanceRwf: folios.balanceRwf })
+        .from(folios)
+        .where(eq(folios.bookingId, bookingId))
+        .orderBy(sql`${folios.openedAt} desc`)
+        .limit(1);
+      const creditRwf =
+        own?.adapterRef && bill
+          ? Math.max(
+              0,
+              Math.min(
+                Number(credited?.credit ?? 0),
+                Math.max(0, -Number(bill.balanceRwf)),
+                Number(own.amountRwf),
+              ),
+            )
+          : 0;
+      const amountRwf = total - creditRwf;
+
+      await tx
+        .update(escrows)
+        .set({ status: 'released', updatedAt: now })
+        .where(and(eq(escrows.bookingId, bookingId), eq(escrows.status, 'held'), STAY_MONEY));
+      const changeCredit =
+        creditRwf > 0 && own?.adapterRef
+          ? { amountRwf: creditRwf, originalRef: own.adapterRef, workspaceId: booking.workspaceId, folioId: bill?.id ?? null }
+          : null;
+      if (amountRwf <= 0) return { bookingId, reference: booking.reference, payout: null, changeCredit };
 
       const [org] = await tx
         .select({ orgId: orgs.id, legalName: orgs.legalName })
@@ -102,6 +161,7 @@ export class StayCompletionRepository {
         bookingId,
         reference: booking.reference,
         payout: payout ? { id: payout.id, amountRwf, status, destinationMasked } : null,
+        changeCredit,
       };
     });
   }

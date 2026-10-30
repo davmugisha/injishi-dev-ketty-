@@ -232,6 +232,8 @@ export const paymentAttemptPurposeEnum = pgEnum('payment_attempt_purpose', [
   'registration_fee',
   // audric-main's PSF path (migration 0112): the membership fee.
   'psf_membership',
+  // The difference a reservation change costs, asked of the guest by MoMo (migration 0120).
+  'booking_change',
 ]);
 
 /**
@@ -773,7 +775,12 @@ export const ledgerTxnKindEnum = pgEnum('ledger_txn_kind', [
   'folio_settle',
 ]);
 
-export const escrowSourceEnum = pgEnum('escrow_source', ['booking', 'caution']);
+export const escrowSourceEnum = pgEnum('escrow_source', [
+  'booking',
+  'caution',
+  // What a guest paid by MoMo for a reservation change (migration 0120), held like the booking's own.
+  'booking_change',
+]);
 
 /**
  * An escrow is Hangaa's internal hold over its one GTBank account

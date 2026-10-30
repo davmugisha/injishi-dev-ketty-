@@ -4,6 +4,7 @@ import { Job } from 'bullmq';
 import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 
 import {
+  bookingChanges,
   accountName,
   bookings,
   orgMemberships,
@@ -80,7 +81,7 @@ export class BookingMailProcessor extends WorkerHost {
     // rather than failed — another processor may own it.
     if (job.name !== BOOKING_MAIL_JOB) return;
 
-    const { bookingId, event } = job.data as BookingMailJob;
+    const { bookingId, event, changeId } = job.data as BookingMailJob;
 
     const [row] = await this.db
       .select({
@@ -136,6 +137,7 @@ export class BookingMailProcessor extends WorkerHost {
       approvalExpiresAt: row.approvalExpiresAt ?? null,
       cancelledBy: row.cancelledBy ?? null,
       refundRwf: row.refundRwf ?? null,
+      change: changeId ? await this.changeFacts(changeId) : null,
     };
 
     /*
@@ -187,6 +189,16 @@ export class BookingMailProcessor extends WorkerHost {
    * collection the refund pays back, read through the attempt that waited on
    * it. Skipped when the refund has moved on since it was queued.
    */
+  /** What a change did to the money (0120), for its mail. */
+  private async changeFacts(changeId: string): Promise<{ differenceRwf: number; settlement: string } | null> {
+    const [row] = await this.db
+      .select({ differenceRwf: bookingChanges.differenceRwf, settlement: bookingChanges.settlement })
+      .from(bookingChanges)
+      .where(eq(bookingChanges.id, changeId))
+      .limit(1);
+    return row ? { differenceRwf: Number(row.differenceRwf), settlement: row.settlement } : null;
+  }
+
   private async sendRefundMail({ transactionId, event }: RefundMailJob): Promise<void> {
     const [refund] = await this.db
       .select({
@@ -268,6 +280,8 @@ function stillTrue(event: string, status: string): boolean {
     case 'request_sent':
     case 'host_request':
       return status === 'pending_approval';
+    case 'changed':
+      return status === 'confirmed';
     case 'cancelled':
     case 'host_guest_cancelled':
     case 'host_payment_reversed':

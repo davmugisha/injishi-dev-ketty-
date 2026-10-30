@@ -51,7 +51,9 @@ export type Alarm =
   /** The daily comparison with the bank's report found a difference (073 AC-22). */
   | 'RECONCILIATION_DISCREPANCY'
   /** A guest checked out and the stay's escrow could not be released to the host (0116). */
-  | 'STAY_COMPLETION_FAILED';
+  | 'STAY_COMPLETION_FAILED'
+  /** Credit a desk change left on the bill was not refunded at check out (0120): a person must pay it. */
+  | 'CHANGE_CREDIT_REFUND_FAILED';
 
 /** Where an HTTP fault happened. `route` is the pattern, never the path. */
 export interface HttpFacts {

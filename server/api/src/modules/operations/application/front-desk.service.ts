@@ -626,11 +626,18 @@ const PREPAID_STATUSES = new Set(['captured', 'refunded_partial', 'refund_pendin
  * The room the guest already paid for online: the locked nightly rate times
  * the nights, less any refund. Zero when nothing is held (refunded in full,
  * forfeited) or no rate was locked.
+ *
+ * Once a desk change has repriced the stay (0120) the nightly rate is the new
+ * price, so the room money recorded at that change is what was paid. The night
+ * audit then posts the new price, and the bill shows the difference owing, or
+ * in credit, on its own.
  */
 export function prepaidRoomRwf(
-  booking: Pick<CheckInSubject, 'checkIn' | 'checkOut' | 'lockedNightlyRateRwf' | 'paymentStatus' | 'refundRwf'>,
+  booking: Pick<CheckInSubject, 'checkIn' | 'checkOut' | 'lockedNightlyRateRwf' | 'paymentStatus' | 'refundRwf' | 'paidRoomRwf'>,
 ): number {
-  if (!booking.paymentStatus || !PREPAID_STATUSES.has(booking.paymentStatus) || !booking.lockedNightlyRateRwf) return 0;
+  if (!booking.paymentStatus || !PREPAID_STATUSES.has(booking.paymentStatus)) return 0;
+  if (booking.paidRoomRwf != null) return Math.max(0, booking.paidRoomRwf);
+  if (!booking.lockedNightlyRateRwf) return 0;
   const nights = Math.round(
     (Date.parse(`${booking.checkOut}T00:00:00Z`) - Date.parse(`${booking.checkIn}T00:00:00Z`)) / 86_400_000,
   );

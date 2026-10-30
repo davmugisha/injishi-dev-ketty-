@@ -7,6 +7,13 @@
  * resolved against the desk's own day (`GET /ops/front-desk`) before the command is sent, so a
  * reference or a room of another branch never reaches a command.
  */
+import type {
+  ReservationChangeAsk,
+  ReservationChangeForm,
+  ReservationChangeQuote,
+  ReservationChangeRequest,
+  ReservationChangeResult,
+} from "@injishi/contracts";
 import { ApiError } from "../api";
 import { type ApiBoard, deskBoard, forgetDeskBoard } from "../sources/frontdesk";
 import type { SourceContext } from "../sources/types";
@@ -301,5 +308,51 @@ export async function markNoShow(ctx: SourceContext, bookingRef: string, reason:
   const { booking } = await bookingOf(ctx, bookingRef);
   await command(ctx, () =>
     ctx.ops().post(`/api/v1/ops/reservations/${booking.id}/no-show`, { reason: reason || undefined }),
+  );
+}
+
+// ── Changing a reservation (0120): its dates, room type or party ────────────────────────────────────
+
+/** The stay as it stands and the room types it may move to, for the change form. */
+export async function reservationChangeForm(ctx: SourceContext, bookingRef: string): Promise<ReservationChangeForm> {
+  const { booking } = await bookingOf(ctx, bookingRef);
+  return ctx.ops().get<ReservationChangeForm>(`/api/v1/ops/reservations/${booking.id}/change`);
+}
+
+/** What the change would cost: the new price, the difference against what was paid, and the choices. */
+export async function quoteReservationChange(
+  ctx: SourceContext,
+  bookingRef: string,
+  ask: ReservationChangeAsk,
+): Promise<ReservationChangeQuote> {
+  const { booking } = await bookingOf(ctx, bookingRef);
+  return ctx.ops().post<ReservationChangeQuote>(`/api/v1/ops/reservations/${booking.id}/change/quote`, ask);
+}
+
+/** Make the change: at once, or once the guest pays the difference by MoMo. */
+export async function changeReservation(
+  ctx: SourceContext,
+  bookingRef: string,
+  body: ReservationChangeRequest,
+): Promise<ReservationChangeResult> {
+  const { booking } = await bookingOf(ctx, bookingRef);
+  return command(ctx, () =>
+    ctx.ops().post<ReservationChangeResult>(`/api/v1/ops/reservations/${booking.id}/change`, body),
+  );
+}
+
+/** Where the guest's MoMo payment of a change got to. */
+export async function pollReservationChange(
+  ctx: SourceContext,
+  bookingRef: string,
+  attemptToken: string,
+): Promise<ReservationChangeResult> {
+  const { booking } = await bookingOf(ctx, bookingRef);
+  return command(ctx, () =>
+    ctx
+      .ops()
+      .get<ReservationChangeResult>(
+        `/api/v1/ops/reservations/${booking.id}/change/attempts/${encodeURIComponent(attemptToken)}`,
+      ),
   );
 }

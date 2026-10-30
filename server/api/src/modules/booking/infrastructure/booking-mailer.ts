@@ -48,6 +48,8 @@ export interface BookingMailFacts {
   /** On a cancelled booking: who cancelled, and what went back. */
   cancelledBy?: string | null;
   refundRwf?: number | null;
+  /** On `changed`: what the change did to the money (0120). */
+  change?: { differenceRwf: number; settlement: string } | null;
 }
 
 @Injectable()
@@ -147,6 +149,21 @@ function compose(
           'Keep the reference handy for the front desk.',
         ].join('\n'),
       };
+
+    case 'changed': {
+      const c = f.change;
+      const line = !c || c.differenceRwf === 0
+        ? 'The price of your stay is the same.'
+        : c.differenceRwf < 0
+          ? `Your stay now costs ${money(-c.differenceRwf)} less. That amount stays on your bill as credit for anything you add during the stay, and what is left is refunded to you when you check out.`
+          : c.settlement === 'momo'
+            ? `Your stay now costs ${money(c.differenceRwf)} more, which you have paid by mobile money. It is held in escrow with the rest of your payment.`
+            : `Your stay now costs ${money(c.differenceRwf)} more. The property adds it to your bill, to settle at the front desk.`;
+      return {
+        subject: `Your booking at ${f.propertyName} was changed — ${f.reference}`,
+        body: [hi, '', `${f.propertyName} changed your booking. Here is how it stands now.`, '', stay, '', line, '', receipt].join('\n'),
+      };
+    }
 
     case 'request_sent':
       return {

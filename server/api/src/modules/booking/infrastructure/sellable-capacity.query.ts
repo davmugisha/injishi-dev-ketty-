@@ -51,6 +51,8 @@ export async function readNightlyCapacity(
     countHolds?: boolean;
     /** A payment hold not to count against itself: the press re-claiming it. */
     excludeAttemptKey?: string;
+    /** A booking not to count against itself: the reservation a desk change is moving (0120). */
+    excludeBookingId?: string;
   },
 ): Promise<NightCapacity[]> {
   const { roomTypeId, from, to, now } = args;
@@ -121,6 +123,7 @@ export async function readNightlyCapacity(
           .then((r) => r.rows.map((row) => row.day)),
   );
 
+  const otherBookings: SQL = args.excludeBookingId ? sql`and b.id <> ${args.excludeBookingId}` : sql``;
   const exclude: SQL = args.excludeAttemptKey
     ? sql`and a.idempotency_key <> ${args.excludeAttemptKey}`
     : sql``;
@@ -149,6 +152,7 @@ export async function readNightlyCapacity(
               and b.status in ('pending_approval', 'confirmed')
               and b.check_in <= d::date
               and b.check_out > d::date
+              ${otherBookings}
               -- A stay that checked out early holds no night from its
               -- departure day on (0116).
               and (b.completed_at is null

@@ -331,6 +331,9 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // assignment reads below did not widen: finance sees bookings, not the room
   // plan.
   '/ops/reservations/:id/assignments': ['owner', 'manager', 'receptionist'],
+  // The desk's change form and its poll of a MoMo request for the difference (0120): whoever may change it.
+  '/ops/reservations/:id/change': ['owner', 'manager', 'receptionist'],
+  '/ops/reservations/:id/change/attempts/:token': ['owner', 'manager', 'receptionist'],
   '/ops/room-assignments': ['owner', 'manager', 'receptionist'],
   '/ops/tickets': ['owner', 'manager', 'housekeeper'],
   '/ops/revenue': ['owner', 'manager', 'finance'],

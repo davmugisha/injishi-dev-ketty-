@@ -15,6 +15,8 @@ import { RegistrationService } from '../organization/application/registration.se
 import { PaymentAttemptRepository } from './infrastructure/payment-attempt.repository';
 import { BookingApprovalService } from './application/booking-approval.service';
 import { BookingCancellationService } from './application/booking-cancellation.service';
+import { BookingChangeService } from './application/booking-change.service';
+import { BookingChangeRepository } from './infrastructure/booking-change.repository';
 import { BookingDecisionService } from './application/booking-decision.service';
 import { BookingLifecycleService } from './application/booking-lifecycle.service';
 import { BookingNotificationsService } from './application/booking-notifications.service';
@@ -90,6 +92,9 @@ import { PayerNumberPurgeRepository } from './infrastructure/payer-number-purge.
     BookingCancellationService,
     BookingLifecycleService,
     OperatorReservationsService,
+    // The desk's changes to a confirmed reservation: dates, room type, party (0120).
+    BookingChangeRepository,
+    BookingChangeService,
     // The guest's own read of their own bookings. Its own repository, so the
     // 34 KB write-path one does not grow a thirteenth concern.
     GuestTripsRepository,
@@ -154,6 +159,10 @@ import { PayerNumberPurgeRepository } from './infrastructure/payer-number-purge.
     BookingApprovalService,
     BookingCancellationService,
     OperatorReservationsService,
+    // Exported for `OperatorReservationsController`'s change routes (0120).
+    BookingChangeService,
+    // Exported for the stay's completion, which refunds a change's unspent credit at check out.
+    BookingChangeRepository,
     // Exported for `MeController`, which is the only caller and lives in
     // `PublicApiModule`.
     GuestTripsService,

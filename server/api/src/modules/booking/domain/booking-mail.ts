@@ -49,6 +49,8 @@ export const BOOKING_MAIL_EVENTS = [
   'expired',
   /** The booking was cancelled, by either side, with its refund (F-B11). */
   'cancelled',
+  /** The desk changed the booking's dates, room type or party (0120). One mail per change. */
+  'changed',
   /** To the property: a request is waiting for an answer. */
   'host_request',
   /**
@@ -83,6 +85,8 @@ export const BOOKING_MAIL_JOB = 'booking-mail';
 export interface BookingMailJob {
   bookingId: string;
   event: BookingMailEvent;
+  /** On `changed`: the change it tells of, so a second change is a second mail (0120). */
+  changeId?: string;
 }
 
 /**
@@ -96,5 +100,7 @@ export interface BookingMailJob {
  * that our mail is noise.
  */
 export function bookingMailJobId(job: BookingMailJob): string {
-  return `${BOOKING_MAIL_JOB}:${job.bookingId}:${job.event}`;
+  // Three colon parts at most: BullMQ refuses a custom id with more ("Custom Id cannot contain :"), so a
+  // change's id joins the event with a hyphen (0120).
+  return `${BOOKING_MAIL_JOB}:${job.bookingId}:${job.event}${job.changeId ? `-${job.changeId}` : ''}`;
 }
