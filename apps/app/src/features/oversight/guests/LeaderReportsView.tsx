@@ -14,7 +14,6 @@ import {
   formatNumber,
   KpiStrip,
   PageContent,
-  PageHeader,
   type Period,
   PeriodPicker,
   periodFromRange,
@@ -22,10 +21,9 @@ import {
   StatusChip,
 } from "@injishi/ui";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { GuestFilters } from "./GuestFilters";
-import { ScopeLine } from "./parts";
 
-type OriginFilter = "all" | "nationals" | "international";
 
 /** The guest filters the address carries; the period and the area are kept apart. */
 const GUEST_FILTERS = ["origin", "nationality", "relationship", "flagged"] as const;
@@ -99,8 +97,7 @@ function ArrivalsChart({ report, className }: { report: GuestReport; className?:
   return (
     <ChartCard
       className={className}
-      title="Arrivals"
-      description={`Guests arriving per ${per}`}
+      title={`Arrivals (guests per ${per})`}
       isEmpty={total === 0}
       empty={{ icon: "Calendar", title: "Nobody arrived in this period" }}
       summary={`${formatNumber(total)} guests arrived. The busiest ${per} was ${busiest?.label ?? ""} with ${formatNumber(busiest?.count ?? 0)}.`}
@@ -129,12 +126,7 @@ function ChainCard({ report, className }: { report: GuestReport; className?: str
   // An API a version behind sends no chain: show the card empty, never break the page.
   const rows = report.chain ?? [];
   return (
-    <SectionCard
-      title="Along the chain"
-      description="Who received the guests and opened them"
-      className={className}
-      contentClassName="gap-0"
-    >
+    <SectionCard title="Opened along the chain" className={className} contentClassName="gap-0">
       {rows.length === 0 ? (
         <EmptyBlock size="sm" icon="Persons" title="No guests in this view" />
       ) : (
@@ -226,7 +218,6 @@ export function LeaderReportsView({
   const period: Period = periodFromRange(report.period.from, report.period.to, today);
   const { filters } = summary;
   const t = report.totals;
-  const origin = (params.get("origin") as OriginFilter | null) ?? "all";
   const nationality = params.get("nationality");
   const relationship = params.get("relationship");
   const filtered = [...GUEST_FILTERS, "sectorId", "cellId", "villageId"].some((k) => params.get(k));
@@ -246,9 +237,7 @@ export function LeaderReportsView({
 
   return (
     <PageContent>
-      <PageHeader
-        title="Guest reports"
-        description={<ScopeLine scopes={summary.scopes} />}
+      <AreaHeader
         actions={
           <>
             <ActionLink href={downloads.csv} icon="ArrowDownToLine" prefetch={false}>
@@ -333,24 +322,7 @@ export function LeaderReportsView({
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <ArrivalsChart report={report} className="lg:col-span-2" />
         <CountDonut
-          title="Rwandan or foreign"
-          description="By nationality. Press one to see only them."
-          totalLabel="Guests"
-          selected={origin === "all" ? null : origin}
-          onPick={(key) => go({ origin: key, nationality: null })}
-          data={[
-            { key: "nationals", label: "Rwandan", count: Math.max(0, t.registered - t.fromAbroad) },
-            { key: "international", label: "Foreign", count: t.fromAbroad },
-          ]}
-          empty={{ icon: "Globe", title: "No guests in this view", action: clearAction }}
-        />
-      </div>
-
-      <div className="grid min-w-0 gap-4 lg:grid-cols-3">
-        <ChainCard report={report} className="lg:col-span-2" />
-        <CountDonut
-          title="Nationalities"
-          description="Press one to see only them"
+          title="Nationalities (guests)"
           totalLabel="Guests"
           selected={nationality}
           onPick={(code) => go({ nationality: code, origin: null })}
@@ -359,75 +331,35 @@ export function LeaderReportsView({
         />
       </div>
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-3">
-        <SectionCard
-          title={`By ${AREA_WORD[report.areaLevel].toLowerCase()}`}
-          className="lg:col-span-2"
-          contentClassName="gap-0"
-        >
-          <DataTable
-            label={`Guests by ${AREA_WORD[report.areaLevel].toLowerCase()}`}
-            rows={report.byArea}
-            rowKey={(a) => String(a.id)}
-            defaultSort={{ column: "registered", direction: "descending" }}
-            empty={<EmptyBlock size="sm" icon="MapPin" title="No guests in this period" />}
-            columns={[
-              {
-                id: "name",
-                header: AREA_WORD[report.areaLevel],
-                isRowHeader: true,
-                sortValue: (a) => a.name,
-                cell: (a) => a.name,
-              },
-              {
-                id: "registered",
-                header: "Guests",
-                align: "end",
-                sortValue: (a) => a.registered,
-                cell: (a) => <span className="tabular">{formatNumber(a.registered)}</span>,
-              },
-              {
-                id: "abroad",
-                header: "Foreign",
-                align: "end",
-                sortValue: (a) => a.fromAbroad,
-                cell: (a) => <span className="tabular">{formatNumber(a.fromAbroad)}</span>,
-              },
-              {
-                id: "flagged",
-                header: "Flagged",
-                align: "end",
-                sortValue: (a) => a.flagged,
-                cell: (a) => <span className="tabular">{formatNumber(a.flagged)}</span>,
-              },
-            ]}
-            mobile={{
-              title: (a) => a.name,
-              description: (a) => `${formatNumber(a.fromAbroad)} foreign · ${formatNumber(a.flagged)} flagged`,
-              trailing: (a) => <span className="font-medium tabular">{formatNumber(a.registered)}</span>,
-            }}
-          />
-        </SectionCard>
-        <SectionCard title="Who they are to their hosts" className="h-full">
-          {report.byRelationship.length === 0 ? (
-            <EmptyBlock size="sm" icon="Persons" title="No guests in this period" />
-          ) : (
-            <RankedBars
-              what="relationship"
-              total={totalRelationship}
-              selected={relationship}
-              onPick={(code) => go({ relationship: code })}
-              rows={report.byRelationship.map((r) => ({ key: r.code, label: r.label, count: r.count }))}
-            />
-          )}
-        </SectionCard>
+      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-3">
+        <ChainCard report={report} className="lg:col-span-2" />
+        <div className="flex min-w-0 flex-col gap-4">
+          <SectionCard title="Who they are to their hosts">
+            {report.byRelationship.length === 0 ? (
+              <EmptyBlock size="sm" icon="Persons" title="No guests in this period" />
+            ) : (
+              <RankedBars
+                what="relationship"
+                total={totalRelationship}
+                selected={relationship}
+                onPick={(code) => go({ relationship: code })}
+                rows={report.byRelationship.map((r) => ({ key: r.code, label: r.label, count: r.count }))}
+              />
+            )}
+          </SectionCard>
+          {report.byArea.length > 1 ? (
+            <SectionCard title={`Guests by ${AREA_WORD[report.areaLevel].toLowerCase()}`}>
+              <RankedBars
+                what={AREA_WORD[report.areaLevel].toLowerCase()}
+                total={report.byArea.reduce((n, a) => n + a.registered, 0)}
+                rows={report.byArea.map((a) => ({ key: String(a.id), label: a.name, count: a.registered }))}
+              />
+            </SectionCard>
+          ) : null}
+        </div>
       </div>
 
-      <SectionCard
-        title="Homes with the most guests"
-        description="By address, never by who lives there"
-        contentClassName="gap-0"
-      >
+      <SectionCard title="Homes with the most guests" contentClassName="gap-0">
         <DataTable
           label="Homes with the most guests"
           rows={report.topHomes}
