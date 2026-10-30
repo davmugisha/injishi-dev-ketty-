@@ -20,10 +20,10 @@ import NextLink from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { sampleCollectionsByBoard } from "@/lib/coverage.generated";
+import { openToRealPeople, SAMPLE_ONLY } from "@/lib/real-screens";
 import { BrandMark } from "../brand";
 import { BusinessSwitcher } from "./BusinessSwitcher";
 import { QuickSearch } from "./QuickSearch";
-import { openToRealPeople } from "@/lib/real-screens";
 import { SampleDataPill } from "./SampleData";
 import { TopbarStatusPill, TopbarStatusProvider } from "./TopbarStatus";
 import { UserMenu } from "./UserMenu";
@@ -344,7 +344,7 @@ export function WorkspaceShell({
             (REAL_DATA_ONLY.has(persona.id)
               ? (sampleCollectionsByBoard[current] ?? 0) > 0
               : // A live screen (a rentals or stay business's) reads its own records.
-                !demo && !live && !openToRealPeople(current)) ? (
+                !demo && ((!live && !openToRealPeople(current)) || SAMPLE_ONLY.has(current))) ? (
               <PageContent>
                 <EmptyBlock
                   icon="Database"
