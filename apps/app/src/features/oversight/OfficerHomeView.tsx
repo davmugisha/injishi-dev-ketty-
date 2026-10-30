@@ -75,10 +75,17 @@ export function OfficerHomeView({
                 Membership
               </LinkButton>
             ) : null}
-            <LinkButton href={screenHref("DelegatedReports")} variant="secondary">
-              <Database className="size-4" />
-              Delegated data
-            </LinkButton>
+            {persona.id === "psf" ? (
+              <LinkButton href={screenHref("PsfReport")} variant="secondary">
+                <Database className="size-4" />
+                Overview
+              </LinkButton>
+            ) : (
+              <LinkButton href={screenHref("DelegatedReports")} variant="secondary">
+                <Database className="size-4" />
+                Delegated data
+              </LinkButton>
+            )}
             {open && data.firstCaseHref ? (
               <LinkButton href={data.firstCaseHref}>
                 <FileText className="size-4" />

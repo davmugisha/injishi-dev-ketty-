@@ -15,8 +15,9 @@ import type {
 import { Icon, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import NextLink from "next/link";
 import { useState } from "react";
+import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import { caseRef } from "@/server/sources/oversight";
-import { approveAction, checkDocumentAction, fieldVerifyAction, rejectAction } from "./actions";
+import { approveAction, checkDocumentAction, fieldVerifyAction, rejectAction, reviewAction } from "./actions";
 import { CaseDecision, type Choice } from "./CaseDecision";
 import { CaseDocuments } from "./CaseDocuments";
 import { CaseInfoDialog } from "./CaseInfoDialog";
@@ -75,7 +76,14 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
   };
   const onVerify = () => {
     if (!gate) return setStage("verified");
-    void decide(gate === "field" ? fieldVerifyAction(file.id, "") : approveAction(file.id, ""), "verified");
+    void decide(
+      gate === "field"
+        ? fieldVerifyAction(file.id, "")
+        : gate === "review"
+          ? reviewAction(file.id, "")
+          : approveAction(file.id, ""),
+      "verified",
+    );
   };
   const onReject = () => {
     if (!gate) return setStage("rejected");
@@ -126,40 +134,57 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
     },
   }[stage];
 
-  const liveStep: { current: number; items: [string, string][] } | null = gate
-    ? {
-        current:
-          gate === "field" ? (stage === "review" ? 1 : stage === "verified" ? 2 : 3) : stage === "review" ? 2 : 3,
-        items: [
-          ["Submitted", submitted],
-          [
-            "Document review",
-            gate === "approval"
-              ? "Recorded"
-              : stage === "review"
-                ? "You · in review"
-                : stage === "verified"
-                  ? "You · just now"
-                  : "Rejected · you",
+  // A PSF District Manager's review is one step: their Reviewed is the decision (0119).
+  const reviewStep: { current: number; items: [string, string][] } | null =
+    gate === "review"
+      ? {
+          current: stage === "review" ? 1 : 2,
+          items: [
+            ["Submitted", submitted],
+            [
+              "Your review",
+              stage === "review" ? "You · in review" : stage === "verified" ? "Reviewed · you" : "Rejected · you",
+            ],
+            ["Decision sent", stage === "review" ? "To the business" : "To the business · just now"],
           ],
-          [
-            "Approval",
-            gate === "field"
-              ? stage === "verified"
-                ? "Waiting for an approver"
-                : stage === "rejected"
-                  ? "Not needed"
-                  : "Second officer"
-              : stage === "review"
-                ? "You · in review"
-                : stage === "verified"
-                  ? "You · just now"
-                  : "Rejected · you",
-          ],
-          ["Decision sent", stage === "review" ? "To the business" : "To the business · just now"],
-        ] as [string, string][],
-      }
-    : null;
+        }
+      : null;
+  const liveStep: { current: number; items: [string, string][] } | null = reviewStep
+    ? reviewStep
+    : gate
+      ? {
+          current:
+            gate === "field" ? (stage === "review" ? 1 : stage === "verified" ? 2 : 3) : stage === "review" ? 2 : 3,
+          items: [
+            ["Submitted", submitted],
+            [
+              "Document review",
+              gate === "approval"
+                ? "Recorded"
+                : stage === "review"
+                  ? "You · in review"
+                  : stage === "verified"
+                    ? "You · just now"
+                    : "Rejected · you",
+            ],
+            [
+              "Approval",
+              gate === "field"
+                ? stage === "verified"
+                  ? "Waiting for an approver"
+                  : stage === "rejected"
+                    ? "Not needed"
+                    : "Second officer"
+                : stage === "review"
+                  ? "You · in review"
+                  : stage === "verified"
+                    ? "You · just now"
+                    : "Rejected · you",
+            ],
+            ["Decision sent", stage === "review" ? "To the business" : "To the business · just now"],
+          ] as [string, string][],
+        }
+      : null;
   const stepper = liveStep ?? steps;
 
   const liveEvent: CaseEvent | null =
@@ -241,7 +266,12 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
         : {
             id: "now",
             status: "success",
-            title: gate === "field" ? "You recorded the field verification" : "You approved the registration",
+            title:
+              gate === "field"
+                ? "You recorded the field verification"
+                : gate === "review"
+                  ? "You marked the registration reviewed"
+                  : "You approved the registration",
             detail:
               gate === "field"
                 ? "Just now · routed to an approving officer"
@@ -274,6 +304,7 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
 
   return (
     <PageContent className="text-[14px] leading-5">
+      {live ? <TopbarStatus kind="chip" tone="default" dot="default" label="Every record you open is logged" /> : null}
       <PageHeader
         eyebrow={
           <>
@@ -349,7 +380,9 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
                 <Alert.Title>Nothing is activated on paperwork alone</Alert.Title>
                 <Alert.Description>
                   {live
-                    ? `${file.business} is registered only after an officer has checked its documents and a second officer approves. Injishi records the decision; it does not make it.`
+                    ? gate === "review"
+                      ? `${file.business} is registered only after you have checked its documents and marked it reviewed. Injishi records the decision; it does not make it.`
+                      : `${file.business} is registered only after an officer has checked its documents and a second officer approves. Injishi records the decision; it does not make it.`
                     : "Isangano Lakeside Hotel shows as registered with Rubavu District only after you verify and a second officer approves. Injishi records the decision; it does not make it."}
                 </Alert.Description>
               </Alert.Content>
@@ -366,7 +399,9 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
                   {live
                     ? gate === "field"
                       ? "Open each document, then tick it. The registry records your name and time. Every document must be read before you can verify."
-                      : "Recorded by the field verifier. You decide on what they saw."
+                      : gate === "review"
+                        ? "Open each document, then tick it. The registry records your name and time. Every document must be read before you mark the business reviewed."
+                        : "Recorded by the field verifier. You decide on what they saw."
                     : "Every check records your name and time. All six are needed to verify."}
                 </Card.Description>
               </div>
@@ -387,7 +422,7 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
                   <li key={c.id} className="flex items-start justify-between gap-3 border-t border-separator py-2">
                     <Checkbox
                       isSelected={on}
-                      isDisabled={locked || (live && (gate !== "field" || on || busy))}
+                      isDisabled={locked || (live && (gate === "approval" || on || busy))}
                       onChange={(v) =>
                         live ? (v ? void readDocument(c.id) : undefined) : setChecks((s) => ({ ...s, [c.id]: v }))
                       }

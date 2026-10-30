@@ -32,7 +32,8 @@ export type Choice = "verify" | "reject";
 
 /** What a live case adds: the gate this officer decides, and the state of the call to the API. */
 interface LiveDecision {
-  gate: "field" | "approval";
+  /** `review`: a PSF District Manager's one step, whose Reviewed approves the business (0119). */
+  gate: "field" | "approval" | "review";
   /** The officer field-verified this case themselves, so the API will refuse their approval. */
   blocked: boolean;
   busy: boolean;
@@ -84,14 +85,20 @@ export function CaseDecision({
 }) {
   const decided = stage === "verified" || stage === "rejected";
   const approver = officers.find((o) => o.duty === "approver")?.name ?? "The approving officer";
-  const approving = live?.gate === "approval";
-  const passLabel = approving ? "Approve" : "Verify";
+  const oneStep = live?.gate === "review";
+  // Both open the business: the approver's gate, and the manager's one-step review.
+  const approving = live?.gate === "approval" || oneStep;
+  const passLabel = oneStep ? "Reviewed" : approving ? "Approve" : "Verify";
   const choices = CHOICES.map((c) =>
     c.id === "verify"
       ? {
           ...c,
           label: passLabel,
-          desc: approving ? "The checked documents support opening the business" : c.desc,
+          desc: oneStep
+            ? "The documents are genuine: approve the business"
+            : approving
+              ? "The checked documents support opening the business"
+              : c.desc,
         }
       : c,
   );
@@ -102,9 +109,11 @@ export function CaseDecision({
         <CardHeading id="dec-h">Your Decision</CardHeading>
         <Card.Description>
           {live
-            ? approving
-              ? "You are the approving officer. You did not field verify this case."
-              : "You are the field verifier. A different officer approves."
+            ? oneStep
+              ? "You are the PSF District Manager. Your review is the decision: marking it reviewed approves the business."
+              : approving
+                ? "You are the approving officer. You did not field verify this case."
+                : "You are the field verifier. A different officer approves."
             : "You are the verifying officer. A different officer approves."}
         </Card.Description>
       </Card.Header>
@@ -146,14 +155,20 @@ export function CaseDecision({
                   <Lock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                   <span>
                     {live
-                      ? `Verify unlocks when you have read every document. Still unread: ${missing.join(", ")}.`
+                      ? `${passLabel} unlocks when you have read every document. Still unread: ${missing.join(", ")}.`
                       : `Verify unlocks when all six checks are done. Still open: ${missing.join(", ")}.`}
                   </span>
                 </p>
               ) : null}
               <Button fullWidth isDisabled={missing.length > 0 || !!live?.blocked || !!live?.busy} onPress={onVerify}>
                 <Check className="size-4" />
-                {live ? (approving ? "Approve this business" : "Record verification") : "Record verification"}
+                {live
+                  ? oneStep
+                    ? "Mark reviewed and approve"
+                    : approving
+                      ? "Approve this business"
+                      : "Record verification"
+                  : "Record verification"}
               </Button>
             </>
           ) : (

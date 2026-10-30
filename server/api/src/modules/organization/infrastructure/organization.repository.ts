@@ -874,7 +874,7 @@ export class OrganizationRepository {
     decision: 'passed' | 'rejected';
     to: OrgRegistrationStatus;
     decidedByUserId: string;
-    oversightRole: 'business_field_verifier' | 'business_approver';
+    oversightRole: 'business_field_verifier' | 'business_approver' | 'psf_membership_officer';
     governmentBodyCode: string;
     governmentTitle: string | null;
     reasonCode: RegistrationRejectionReason | null;
@@ -1055,7 +1055,7 @@ export class OrganizationRepository {
     {
       stage: 'tin_verified' | 'field_verified';
       decision: 'passed' | 'rejected';
-      oversightRole: 'business_field_verifier' | 'business_approver';
+      oversightRole: 'business_field_verifier' | 'business_approver' | 'psf_membership_officer';
       governmentBodyCode: string;
       governmentTitle: string | null;
       reasonCode: RegistrationRejectionReason | null;
@@ -1480,6 +1480,7 @@ export class OrganizationRepository {
       legalName: string;
       stage: 'tin_verified' | 'field_verified';
       decision: 'passed' | 'rejected';
+      oversightRole: 'business_field_verifier' | 'business_approver' | 'psf_membership_officer';
       reasonCode: RegistrationRejectionReason | null;
       notes: string | null;
       governmentBodyCode: string;
@@ -1495,6 +1496,7 @@ export class OrganizationRepository {
         legalName: orgs.legalName,
         stage: orgRegistrationReviews.stage,
         decision: orgRegistrationReviews.decision,
+        oversightRole: orgRegistrationReviews.oversightRole,
         reasonCode: orgRegistrationReviews.reasonCode,
         notes: orgRegistrationReviews.notes,
         governmentBodyCode: orgRegistrationReviews.governmentBodyCode,
@@ -1612,7 +1614,7 @@ export class OrganizationRepository {
    * the one definition, exactly as the gate does.
    */
   async activeOversightAssignments(
-    role: 'business_field_verifier' | 'business_approver',
+    role: 'business_field_verifier' | 'business_approver' | 'psf_membership_officer',
   ): Promise<{
     userId: string;
     email: string;

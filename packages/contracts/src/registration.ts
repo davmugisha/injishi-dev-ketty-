@@ -1096,6 +1096,8 @@ export const OversightDecision = z.object({
     /** The gate decided: `tin_verified` is field verification, `field_verified` approval. */
     stage: z.enum(["tin_verified", "field_verified"]),
     decision: z.enum(["passed", "rejected"]),
+    /** Who decided it: a PSF District Manager's review is one step that approves (0119). */
+    oversightRole: z.enum(["business_field_verifier", "business_approver", "psf_membership_officer"]).optional(),
     reasonCode: RegistrationRejectionReason.nullable(),
     notes: z.string().nullable(),
     governmentBodyCode: z.string(),

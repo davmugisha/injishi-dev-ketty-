@@ -851,9 +851,11 @@ export const orgRegistrationReviews = pgTable(
     ),
     // The gate and the function that owns it must agree. Without this a
     // verifier could write an approval row and the pipeline would believe it.
+    // A PSF District Manager decides the first gate in one step (0119): their
+    // Reviewed approves the business, so their row sits at `tin_verified`.
     check(
       'org_registration_reviews_role_shape',
-      sql`(${t.stage} = 'tin_verified' AND ${t.oversightRole} = 'business_field_verifier')
+      sql`(${t.stage} = 'tin_verified' AND ${t.oversightRole} IN ('business_field_verifier', 'psf_membership_officer'))
           OR (${t.stage} = 'field_verified' AND ${t.oversightRole} = 'business_approver')`,
     ),
     // A rejection owes a reason; a pass must not carry one.

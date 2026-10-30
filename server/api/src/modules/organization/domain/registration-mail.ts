@@ -319,14 +319,16 @@ export function registrationApprovedMail(
  */
 export function officerQueueMail(input: {
   to: Addressee;
-  role: 'business_field_verifier' | 'business_approver';
+  role: 'business_field_verifier' | 'business_approver' | 'psf_membership_officer';
   legalName: string;
   districtName: string | null;
   sectorName: string | null;
   tin: string | null;
   link: string;
 }): RegistrationMail {
-  const verifier = input.role === 'business_field_verifier';
+  // A PSF District Manager reviews the documents too, and their Reviewed is the decision (0119).
+  const verifier = input.role !== 'business_approver';
+  const oneStep = input.role === 'psf_membership_officer';
   const place = [input.sectorName, input.districtName].filter(Boolean).join(', ');
   return compose({
     subject: verifier
@@ -336,7 +338,7 @@ export function officerQueueMail(input: {
     greeting: greeting(input.to),
     paragraphs: [
       verifier
-        ? `${input.legalName} has paid its registration fee${input.tin ? ' and passed the RRA TIN check' : ''}. Its documents are now in your review queue.`
+        ? `${input.legalName} has paid its registration fee${input.tin ? ' and passed the RRA TIN check' : ''}. Its documents are now in your review queue.${oneStep ? ' Marking it Reviewed approves the business.' : ''}`
         : `${input.legalName} has passed document review. It is now in your approval queue for a final decision.`,
     ],
     details: [

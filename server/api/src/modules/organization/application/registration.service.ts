@@ -101,8 +101,9 @@ const STAGE_FOR_ROLE: Readonly<
   dgie_national: null,
   dgie_village: null,
   dgie_cell: null,
-  // Membership is not a registration gate (ADR-056); its queue is its own.
-  psf_membership_officer: null,
+  // A PSF District Manager decides the first gate in one step (0119): their
+  // Reviewed approves the business. Membership keeps its own queue (ADR-056).
+  psf_membership_officer: 'tin_verified',
 };
 
 /**
@@ -905,6 +906,7 @@ export class RegistrationService {
       const to = nextStatus('submitted', 'tin_verified');
       if (to && (await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER))) {
         await this.mail.queueEntered(orgId, 'business_field_verifier');
+        await this.mail.queueEntered(orgId, 'psf_membership_officer');
       }
       return;
     }
@@ -925,6 +927,7 @@ export class RegistrationService {
       const to = nextStatus('submitted', 'tin_verified');
       if (to && (await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER))) {
         await this.mail.queueEntered(orgId, 'business_field_verifier');
+        await this.mail.queueEntered(orgId, 'psf_membership_officer');
         // ADR-056 AC-8 and AC-9: a PSF application waiting on this check is in
         // PSF's queue from now on. The stamp is its own guarded update, so a
         // resubmitted business that passes again emails no officer twice.
@@ -1246,6 +1249,45 @@ export class RegistrationService {
   }
 
   /**
+   * A PSF District Manager's one-step review: `tin_verified → approved`, and on
+   * to `active` as the approver's gate does (0119, the owner's decision).
+   *
+   * The documents are the review, so every one must be marked checked first, as
+   * at the field verifier's gate. There is no second officer: the manager's
+   * Reviewed is the decision, recorded at the first gate under their function.
+   */
+  async review(
+    orgId: string,
+    actorUserId: string,
+    grants: OversightGrant[],
+    notes: string | null,
+  ): Promise<RegistrationSummary> {
+    const grant = await this.grantCovering(orgId, grants, actorUserId);
+    const unread = (await this.orgs.documentsForOrg(orgId)).filter((d) => d.checkedAt === null).length;
+    if (unread > 0) {
+      throw new ConflictException(
+        unread === 1
+          ? 'One document on this registration has not been checked yet. Open it and mark it checked before marking the business reviewed.'
+          : `${unread} documents on this registration have not been checked yet. Open each one and mark it checked before marking the business reviewed.`,
+      );
+    }
+    const awaitingClaim = await this.orgs.isAwaitingOwnerClaim(orgId);
+    await this.decide({
+      orgId,
+      stage: 'tin_verified',
+      decision: 'passed',
+      to: 'approved',
+      actorUserId,
+      grant,
+      reasonCode: null,
+      notes,
+      thenActivate: !awaitingClaim,
+    });
+    await this.mail.approved(orgId, awaitingClaim);
+    return this.summary(orgId);
+  }
+
+  /**
    * Refuse at either gate, with a reason the registrant can act on.
    *
    * The stage is read from where the org actually IS, so an officer cannot
@@ -1480,7 +1522,8 @@ export class RegistrationService {
       decidedByUserId: input.actorUserId,
       oversightRole: input.grant.oversightRole as
         | 'business_field_verifier'
-        | 'business_approver',
+        | 'business_approver'
+        | 'psf_membership_officer',
       governmentBodyCode: input.grant.governmentBodyCode,
       governmentTitle: input.grant.governmentTitle,
       reasonCode: input.reasonCode,
@@ -1523,6 +1566,7 @@ export class RegistrationService {
         legalName: r.legalName,
         stage: r.stage,
         decision: r.decision,
+        oversightRole: r.oversightRole,
         reasonCode: r.reasonCode,
         notes: r.notes,
         governmentBodyCode: r.governmentBodyCode,

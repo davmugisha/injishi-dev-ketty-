@@ -1068,6 +1068,8 @@ exports.OversightDecision = zod_1.z.object({
     /** The gate decided: `tin_verified` is field verification, `field_verified` approval. */
     stage: zod_1.z.enum(["tin_verified", "field_verified"]),
     decision: zod_1.z.enum(["passed", "rejected"]),
+    /** Who decided it: a PSF District Manager's review is one step that approves (0119). */
+    oversightRole: zod_1.z.enum(["business_field_verifier", "business_approver", "psf_membership_officer"]).optional(),
     reasonCode: exports.RegistrationRejectionReason.nullable(),
     notes: zod_1.z.string().nullable(),
     governmentBodyCode: zod_1.z.string(),

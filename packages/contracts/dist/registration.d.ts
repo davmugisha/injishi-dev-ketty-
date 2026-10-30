@@ -4911,6 +4911,8 @@ export declare const OversightDecision: z.ZodObject<{
     /** The gate decided: `tin_verified` is field verification, `field_verified` approval. */
     stage: z.ZodEnum<["tin_verified", "field_verified"]>;
     decision: z.ZodEnum<["passed", "rejected"]>;
+    /** Who decided it: a PSF District Manager's review is one step that approves (0119). */
+    oversightRole: z.ZodOptional<z.ZodEnum<["business_field_verifier", "business_approver", "psf_membership_officer"]>>;
     reasonCode: z.ZodNullable<z.ZodEnum<["tin_not_found", "tin_mismatch", "premises_not_found", "documents_invalid", "documents_expired", "not_operating", "ownership_unclear", "duplicate_business", "other"]>>;
     notes: z.ZodNullable<z.ZodString>;
     governmentBodyCode: z.ZodString;
@@ -4927,6 +4929,7 @@ export declare const OversightDecision: z.ZodObject<{
     decidedAt: string;
     orgId: string;
     reviewId: string;
+    oversightRole?: "business_field_verifier" | "business_approver" | "psf_membership_officer" | undefined;
 }, {
     legalName: string;
     stage: "tin_verified" | "field_verified";
@@ -4938,6 +4941,7 @@ export declare const OversightDecision: z.ZodObject<{
     decidedAt: string;
     orgId: string;
     reviewId: string;
+    oversightRole?: "business_field_verifier" | "business_approver" | "psf_membership_officer" | undefined;
 }>;
 export type OversightDecision = z.infer<typeof OversightDecision>;
 /** A page of the log, newest first. `nextCursor` is null on the last page. */
@@ -4949,6 +4953,8 @@ export declare const OversightDecisionPage: z.ZodObject<{
         /** The gate decided: `tin_verified` is field verification, `field_verified` approval. */
         stage: z.ZodEnum<["tin_verified", "field_verified"]>;
         decision: z.ZodEnum<["passed", "rejected"]>;
+        /** Who decided it: a PSF District Manager's review is one step that approves (0119). */
+        oversightRole: z.ZodOptional<z.ZodEnum<["business_field_verifier", "business_approver", "psf_membership_officer"]>>;
         reasonCode: z.ZodNullable<z.ZodEnum<["tin_not_found", "tin_mismatch", "premises_not_found", "documents_invalid", "documents_expired", "not_operating", "ownership_unclear", "duplicate_business", "other"]>>;
         notes: z.ZodNullable<z.ZodString>;
         governmentBodyCode: z.ZodString;
@@ -4965,6 +4971,7 @@ export declare const OversightDecisionPage: z.ZodObject<{
         decidedAt: string;
         orgId: string;
         reviewId: string;
+        oversightRole?: "business_field_verifier" | "business_approver" | "psf_membership_officer" | undefined;
     }, {
         legalName: string;
         stage: "tin_verified" | "field_verified";
@@ -4976,6 +4983,7 @@ export declare const OversightDecisionPage: z.ZodObject<{
         decidedAt: string;
         orgId: string;
         reviewId: string;
+        oversightRole?: "business_field_verifier" | "business_approver" | "psf_membership_officer" | undefined;
     }>, "many">;
     nextCursor: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
@@ -4990,6 +4998,7 @@ export declare const OversightDecisionPage: z.ZodObject<{
         decidedAt: string;
         orgId: string;
         reviewId: string;
+        oversightRole?: "business_field_verifier" | "business_approver" | "psf_membership_officer" | undefined;
     }[];
     nextCursor: string | null;
 }, {
@@ -5004,6 +5013,7 @@ export declare const OversightDecisionPage: z.ZodObject<{
         decidedAt: string;
         orgId: string;
         reviewId: string;
+        oversightRole?: "business_field_verifier" | "business_approver" | "psf_membership_officer" | undefined;
     }[];
     nextCursor: string | null;
 }>;

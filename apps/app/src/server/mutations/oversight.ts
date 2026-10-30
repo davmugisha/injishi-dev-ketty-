@@ -69,21 +69,32 @@ export async function approve(ctx: SourceContext, orgId: string, notes?: string)
 }
 
 /**
- * Refuse at the gate this officer decides: `field-reject` for the field verifier, `reject` for the approver.
+ * A PSF District Manager's one-step review (`POST /registrations/:id/review`, 0119) → `approved`, and
+ * `active` unless an owner has yet to claim it.
+ */
+export async function review(ctx: SourceContext, orgId: string, notes?: string): Promise<RegistrationAfterDecision> {
+  const done = await ctx.api.post<RegistrationAfterDecision>(`${orgPath(orgId)}/review`, { notes: note(notes) });
+  forgetDesk(ctx);
+  return done;
+}
+
+/**
+ * Refuse at the gate this officer decides: `field-reject` for the field verifier and for a PSF District
+ * Manager's review (both are the first gate), `reject` for the approver.
  * Two routes on the API because each guard names one function; the caller says which gate it is at.
  * A reason code is required (it is what the owner is told to fix), and so is a note the owner can act on.
  */
 export async function reject(
   ctx: SourceContext,
   orgId: string,
-  gate: "field" | "approval",
+  gate: "field" | "approval" | "review",
   reasonCode: string,
   notes: string,
 ): Promise<RegistrationAfterDecision> {
   if (!isRejectionCode(reasonCode)) throw new OversightRefusal("Choose the reason the business is told.");
   const explanation = note(notes);
   if (!explanation) throw new OversightRefusal("Write the explanation the business reads.");
-  const route = gate === "field" ? "field-reject" : "reject";
+  const route = gate === "approval" ? "reject" : "field-reject";
   const done = await ctx.api.post<RegistrationAfterDecision>(`${orgPath(orgId)}/${route}`, {
     reasonCode,
     notes: explanation,

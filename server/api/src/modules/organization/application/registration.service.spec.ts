@@ -421,3 +421,89 @@ describe('RegistrationService.create, the franchise answer (ADR-075 AC-8)', () =
     expect(written(createRegistration)).toBeNull();
   });
 });
+
+describe("RegistrationService.review, a PSF District Manager's one step (0119)", () => {
+  const ORG = '11111111-1111-4111-8111-111111111111';
+  const MANAGER = '22222222-2222-4222-8222-222222222222';
+  const KICUKIRO = 23;
+  const grant = (districtId: number) => ({
+    assignmentId: '33333333-3333-4333-8333-333333333333',
+    oversightRole: 'psf_membership_officer' as const,
+    governmentBodyCode: 'PSF',
+    governmentTitle: 'District Manager',
+    scopeLevel: 'district' as const,
+    provinceId: null,
+    districtId,
+    sectorId: null,
+    cellId: null,
+    villageId: null,
+  });
+
+  function reviewing(opts: { unchecked?: number; awaitingClaim?: boolean } = {}) {
+    const recordReviewAndAdvance = vi.fn(async () => true);
+    const approved = vi.fn(async () => undefined);
+    const orgs = {
+      findById: vi.fn(async () => ({ id: ORG, status: 'tin_verified', districtId: KICUKIRO })),
+      holdsOrgRole: vi.fn(async () => false),
+      districtsByProvince: vi.fn(async () => new Map()),
+      documentsForOrg: vi.fn(async () => [
+        { checkedAt: new Date() },
+        ...Array.from({ length: opts.unchecked ?? 0 }, () => ({ checkedAt: null })),
+      ]),
+      isAwaitingOwnerClaim: vi.fn(async () => opts.awaitingClaim ?? false),
+      recordReviewAndAdvance,
+    } as unknown as OrganizationRepository;
+    const svc = new RegistrationService(
+      orgs,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      { approved } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+    vi.spyOn(svc, 'summary').mockResolvedValue({ status: 'active' } as never);
+    return { svc, recordReviewAndAdvance, approved };
+  }
+
+  it('approves and activates in one decision, recorded at the first gate under the manager', async () => {
+    const { svc, recordReviewAndAdvance, approved } = reviewing();
+    await svc.review(ORG, MANAGER, [grant(KICUKIRO)], 'Certificate matches RDB.');
+    expect(recordReviewAndAdvance).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: 'tin_verified',
+        decision: 'passed',
+        to: 'approved',
+        thenActivate: true,
+        oversightRole: 'psf_membership_officer',
+        decidedByUserId: MANAGER,
+      }),
+    );
+    expect(approved).toHaveBeenCalledWith(ORG, false);
+  });
+
+  it('holds an on-behalf-of business for its owner rather than activating it', async () => {
+    const { svc, recordReviewAndAdvance } = reviewing({ awaitingClaim: true });
+    await svc.review(ORG, MANAGER, [grant(KICUKIRO)], null);
+    expect(recordReviewAndAdvance).toHaveBeenCalledWith(expect.objectContaining({ thenActivate: false }));
+  });
+
+  it('refuses while a document is unread, and decides nothing', async () => {
+    const { svc, recordReviewAndAdvance } = reviewing({ unchecked: 2 });
+    await expect(svc.review(ORG, MANAGER, [grant(KICUKIRO)], null)).rejects.toThrow(
+      '2 documents on this registration have not been checked yet',
+    );
+    expect(recordReviewAndAdvance).not.toHaveBeenCalled();
+  });
+
+  it('refuses a business outside the district the manager covers', async () => {
+    const { svc, recordReviewAndAdvance } = reviewing();
+    await expect(svc.review(ORG, MANAGER, [grant(KICUKIRO + 1)], null)).rejects.toThrow(
+      'outside the region you are assigned to',
+    );
+    expect(recordReviewAndAdvance).not.toHaveBeenCalled();
+  });
+});

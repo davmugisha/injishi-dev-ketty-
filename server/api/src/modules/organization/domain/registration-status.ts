@@ -12,6 +12,7 @@ import type { OrgRegistrationStatus } from '@injishi/contracts';
  *
  *   pending_payment --(fee settles)--> submitted --(RRA ok)--> tin_verified
  *     --(field verifier)--> field_verified --(approver)--> approved
+ *   tin_verified --(PSF District Manager reviews, one step)--> approved
  *     --(automatic; OBO waits for the owner's claim)--> active
  *     --(admin)--> suspended --> active
  *
@@ -33,6 +34,7 @@ export type RegistrationEvent =
   | 'tin_verified'
   | 'field_verified'
   | 'approved'
+  | 'reviewed'
   | 'activated'
   | 'enterprise_registered'
   | 'rejected'
@@ -47,6 +49,9 @@ const TRANSITIONS: Readonly<
   tin_verified: { from: ['submitted'], to: 'tin_verified' },
   field_verified: { from: ['tin_verified'], to: 'field_verified' },
   approved: { from: ['field_verified'], to: 'approved' },
+  // A PSF District Manager's one-step review (0119): documents checked and
+  // the business approved by one decision, with no separate approver.
+  reviewed: { from: ['tin_verified'], to: 'approved' },
   activated: { from: ['approved'], to: 'active' },
   enterprise_registered: { from: ['submitted'], to: 'active' },
   // Rejection is reachable from every reviewable stage, and from nowhere else:

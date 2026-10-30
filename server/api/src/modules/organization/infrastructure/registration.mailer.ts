@@ -28,7 +28,7 @@ import { psfMembershipLink } from '../domain/psf-mail';
 import { OrganizationRepository } from './organization.repository';
 
 type Recipient = { userId: string; email: string; name: string | null };
-type OfficerRole = 'business_field_verifier' | 'business_approver';
+type OfficerRole = 'business_field_verifier' | 'business_approver' | 'psf_membership_officer';
 
 /**
  * Mails the registrant, and the officers who review them, as a business moves
