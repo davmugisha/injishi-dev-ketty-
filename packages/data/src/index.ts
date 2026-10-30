@@ -82,6 +82,17 @@ export function navPlace(
       if (tab || item.board === board) return { item, tab };
     }
   }
+  // Several boards share one route (`/messages` is the hotel's, the landlord's and the broker's): the
+  // path resolves to one of them, so an item of another board on the same route is the place.
+  const route = screens[board]?.route;
+  if (!route) return null;
+  const same = (b: BoardId) => screens[b]?.route === route;
+  for (const g of groups) {
+    for (const item of g.items) {
+      const tab = item.tabs?.find((t) => same(t.board)) ?? null;
+      if (tab || same(item.board)) return { item, tab };
+    }
+  }
   return null;
 }
 
