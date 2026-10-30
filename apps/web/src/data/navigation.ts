@@ -165,6 +165,9 @@ const WHITE_HEADER_ROUTES = [
   // The PSF page opens on a tonal band, never a photograph: a business of any
   // sector has no place to show, so the dark variant would paint white on it.
   "/psf",
+  // The app downloads page (mobile spec 0004) opens on a white ground with the
+  // phone shots in a tinted tile, not a photograph behind the bar.
+  "/downloads",
 ];
 
 export function headerVariantFor(pathname: string): "dark" | "white" {
@@ -210,6 +213,8 @@ export const FOOTER_COLUMNS: NavGroup[] = [
       // it gets a way in.
       { label: "Training", href: "/training" },
       { label: "Support", href: "/support" },
+      // The app downloads page (mobile spec 0004, AC-10).
+      { label: "Get the app", href: "/downloads" },
     ],
   },
   {

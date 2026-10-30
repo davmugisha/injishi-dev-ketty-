@@ -9,6 +9,7 @@ import { ListingSetupModule } from '../../modules/platform/property/listing-setu
 import { ListingModule } from '../../modules/listing/listing.module';
 import { MarketplaceModule } from '../../modules/marketplace/marketplace.module';
 import { OperationsModule } from '../../modules/operations/operations.module';
+import { OutletsModule } from '../../modules/outlets/outlets.module';
 import { OrganizationModule } from '../../modules/organization/organization.module';
 import { ListsModule } from '../../modules/lists/lists.module';
 import { PeopleModule } from '../../modules/hr/people.module';
@@ -221,6 +222,8 @@ import { TrainingPublicModule } from './training/training.module';
     // `PaymentSeam` for `/platform` (073-gtbank-payments AC-2, AC-17).
     PaymentsModule,
     OperationsModule,
+    // Outlets, their menus and order board, and guest ordering (ADR-074 stage 5).
+    OutletsModule,
     // The bar and restaurant point of sale (POS spec, phase 1). Payments are simulated.
     PosModule,
     OrganizationModule,

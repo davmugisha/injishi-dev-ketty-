@@ -6,6 +6,7 @@ import { GuestsModule } from '../guests/guests.module';
 import { ListingModule } from '../listing/listing.module';
 import { MailerModule } from '../mailer/mailer.module';
 import { OperationsModule } from '../operations/operations.module';
+import { OutletsModule } from '../outlets/outlets.module';
 import { OrganizationModule } from '../organization/organization.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { AvailabilityService } from './application/availability.service';
@@ -95,6 +96,8 @@ import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
   imports: [
     ListingModule,
     OperationsModule,
+    // Guest ordering and order payment: a payment attempt settles a pay now order (ADR-074 stage 5).
+    OutletsModule,
     PaymentsModule,
     EbmModule,
     /*
@@ -180,8 +183,9 @@ import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
     /*
      * The desk, the stay, the bill and the rooms (ADR-074 stage 4): PMS's
      * services that sat in OperationsModule until then. They use departments
-     * and the pay now settlement through OperationsModule's exports, and other
-     * products reach the folio only through FolioModule's port.
+     * through OperationsModule's exports and the pay now settlement through
+     * OutletsModule's, and other products reach the folio only through
+     * FolioModule's port.
      */
     FrontDeskRepository,
     FrontDeskService,

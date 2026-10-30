@@ -13,11 +13,12 @@ import {
 } from "@gravity-ui/icons";
 import { Alert, Button, Chip, Toast, toast } from "@heroui/react";
 import { EmptyState, Kanban, Segment } from "@heroui-pro/react";
-import type { KitchenStation, KitchenTicket, OrderSource } from "@injishi/data/fixtures/outlets";
 import { Icon, StatusDot, toneColor } from "@injishi/ui";
+import { FrameOverlays } from "@injishi/ui/phone";
 import { type CSSProperties, useState } from "react";
-import { BrandMark } from "@/components/brand";
-import { FrameOverlays, SourceChip } from "./shared";
+import type { KitchenStation, KitchenTicket, OrderSource } from "../../model/outlets.ts";
+import { useOutletsShell } from "../mount.tsx";
+import { SourceChip } from "../parts.tsx";
 
 type StationId = KitchenStation["id"] | "all";
 
@@ -77,6 +78,7 @@ export function KitchenDisplayView({
   tickets: KitchenTicket[];
   offline: boolean;
 }) {
+  const { BrandMark } = useOutletsShell();
   const [station, setStation] = useState<StationId>("all");
   const [status, setStatus] = useState<Record<string, KitchenTicket["status"]>>(() =>
     Object.fromEntries(tickets.map((t) => [t.id, t.status])),

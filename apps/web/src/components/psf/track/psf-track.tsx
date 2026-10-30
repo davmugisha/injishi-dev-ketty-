@@ -38,7 +38,7 @@ import { Button } from "@injishi/web-ui";
 import { emailPsfCertificate, fetchPsfTrack, payPsfMembership, payPsfRegistration, psfCertificateUrl, psfLogoSrc } from "@/data/psf";
 import { apiResultMessage, retryWhileFailed } from "@/lib/api";
 
-import { QrCode } from "@/components/receipt/qr-code";
+import { QrCode } from "@/components/shared/qr-code";
 
 import certificateStyles from "./certificate.module.css";
 
@@ -644,7 +644,7 @@ function Certificate({ view }: { view: PsfTrackView }) {
             ) : null}
             <div className="flex flex-col items-center gap-1.5">
               <span className={certificateStyles.qr}>
-                {origin ? <QrCode value={`${origin}/psf/track/${view.docId}`} size={72} label={`Verify ${view.docId}`} /> : <span className="size-18" />}
+                {origin ? <QrCode value={`${origin}/psf/track/${view.docId}`} size={72} light="var(--white)" ink="var(--ink)" label={`Verify ${view.docId}`} /> : <span className="size-18" />}
               </span>
               <p className="text-2xs uppercase tracking-[0.2em] text-muted-foreground">Scan to verify</p>
             </div>

@@ -4,12 +4,12 @@ import { ChevronLeft, CircleCheck, CircleInfo, Copy, Key, PaperPlane, Plus, Shop
 import { Alert, Avatar, Button, Card, Chip, Description, Label, Separator, Tabs, TextArea } from "@heroui/react";
 import { EmptyState, ItemCard, RadioButtonGroup, Segment, Stepper } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
-import type { Persona } from "@injishi/data";
-import type { BasketLine, MenuCategory, MenuItem, RoomServiceOrder, ServiceHour } from "@injishi/data/fixtures/outlets";
-import { stock } from "@injishi/data/media";
 import { KeyValueList, PhoneBody, PhoneTop, Photo, StatusDot } from "@injishi/ui";
 import { useMemo, useState } from "react";
-import { money } from "./shared";
+import type { BasketLine, MenuCategory, MenuItem, RoomServiceOrder, ServiceHour } from "../../model/outlets.ts";
+import type { Persona } from "../../model/shared.ts";
+import { useOutletsMedia } from "../mount.tsx";
+import { money } from "../parts.tsx";
 
 export type QrStep = "menu" | "item" | "basket" | "tracking";
 
@@ -31,6 +31,7 @@ const TITLES: Record<QrStep, string> = {
 
 /** Guest QR ordering for room 204 (artifact: QROrder). `?step=` opens menu, item, basket or tracking. */
 export function QrOrderView({ persona, step: initial, data }: { persona: Persona; step: QrStep; data: QrOrderData }) {
+  const { photo } = useOutletsMedia();
   const itemsById = useMemo(() => new Map(data.items.map((m) => [m.id, m])), [data.items]);
   const tilapia = itemsById.get("tilapia");
   const sides = tilapia?.optionGroups?.find((g) => g.id === "side")?.options ?? [];
@@ -237,7 +238,7 @@ export function QrOrderView({ persona, step: initial, data }: { persona: Persona
         {step === "item" && tilapia ? (
           <>
             <div className="relative h-[150px] overflow-hidden rounded-[18px] bg-surface-secondary">
-              <Photo image={stock.grilledTilapia} fill sizes="390px" alt={stock.grilledTilapia.alt} />
+              <Photo image={photo("grilledTilapia")} fill sizes="390px" alt={photo("grilledTilapia").alt} />
             </div>
             <div className="flex flex-col gap-0.5">
               <h2 className="text-[20px] leading-[26px] font-semibold">{tilapia.name}</h2>

@@ -270,7 +270,7 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
       : null;
 
   return (
-    <div className="flex h-max flex-col lg:sticky lg:top-24">
+    <div className="flex h-max flex-col lg:sticky lg:top-28">
       <aside
         id={BOOKING_ANCHOR}
         // The same soft surface as the key-facts tiles beside it: a hairline
@@ -569,7 +569,7 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
  */
 export function BookingWidgetSkeleton() {
   return (
-    <div className="flex h-max flex-col lg:sticky lg:top-24" aria-hidden>
+    <div className="flex h-max flex-col lg:sticky lg:top-28" aria-hidden>
       <div className="flex flex-col gap-4 rounded-card bg-card p-6 ring-1 ring-border">
         <div className="h-7 w-2/3 animate-pulse rounded bg-surface-secondary" />
         <div className="h-[136px] animate-pulse rounded-card bg-surface-secondary" />

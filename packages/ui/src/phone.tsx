@@ -58,6 +58,22 @@ function usePhoneOverlayHost() {
 }
 
 /**
+ * Overlays (dialogs, toasts) of a device screen render inside its tablet or phone frame, as the artifact's scrim
+ * and toast sit inside the device, not over the browser window. Wrap the screen's Modal and Toast.Provider in
+ * it. Outlets' kitchen display draws it; it was apps/app's until ADR-074 stage 5.
+ */
+export function FrameOverlays({ children }: { children: ReactNode }) {
+  const { anchor, portal, host } = usePhoneOverlayHost();
+  return (
+    <>
+      {anchor}
+      {portal}
+      <UNSAFE_PortalProvider getContainer={() => host}>{children}</UNSAFE_PortalProvider>
+    </>
+  );
+}
+
+/**
  * Bottom sheet of a phone screen (artifact: .ij-scrim--bottom + .ij-sheet-bottom), built on the Pro Sheet
  * and portalled into the phone frame.
  */

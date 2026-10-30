@@ -20,6 +20,7 @@ const config: NextConfig = {
     "@injishi/ui",
     "@injishi/utils",
     "@injishi/product-hr",
+    "@injishi/product-outlets",
     "@injishi/product-pms",
     "@injishi/data",
     "@injishi/db",

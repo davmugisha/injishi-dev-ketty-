@@ -26,7 +26,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { ServiceCatalogService } from '../../../modules/operations/application/service-catalog.service';
+import { ServiceCatalogService } from '../../../modules/outlets/application/service-catalog.service';
 import { IdempotencyKey } from '../../../shared/http/idempotency-key';
 import {
   CurrentUser,

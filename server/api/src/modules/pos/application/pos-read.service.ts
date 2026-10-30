@@ -34,7 +34,7 @@ import {
 } from '../../../database/drizzle/schema';
 import { inBranchScope, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import { isSellable, readOptions } from '../../operations/domain/sellable-item';
+import { isSellable, readOptions } from '../../outlets/domain/sellable-item';
 import { presentOrder, presentOrderSummaries, presentShift, presentTickets } from '../infrastructure/pos-present';
 import {
   audit,

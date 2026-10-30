@@ -13,6 +13,7 @@
 /* HR's views (ADR-074 stage 3): the product's own `@source "./"`, for the same reason. */
 @import "@injishi/product-hr/styles.css";
 @import "@injishi/design-tokens/heroui.css";
+@import "@injishi/product-outlets/styles.css";
 @import "@injishi/product-pms/styles.css";
 
 /*

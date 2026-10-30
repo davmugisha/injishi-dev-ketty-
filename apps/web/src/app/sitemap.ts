@@ -46,6 +46,7 @@ const SITE_PAGES = [
   "/training",
   "/about",
   "/support",
+  "/downloads",
 ] as const;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

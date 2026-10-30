@@ -53,10 +53,11 @@ describe("robots", () => {
     assert.equal(rule.allow, "/");
   });
 
-  test("disallows nothing but the unsubscribe links still sitting in inboxes", () => {
+  test("disallows nothing but the unsubscribe links still sitting in inboxes and the app smart link", () => {
     const [rule] = robots().rules;
 
-    assert.deepEqual(rule.disallow, ["/waitlist/unsubscribe/"]);
+    // `/get` only redirects, to a store or a Coming soon screen (mobile spec 0004, AC-9).
+    assert.deepEqual(rule.disallow, ["/waitlist/unsubscribe/", "/get"]);
   });
 
   test("points at an absolute sitemap on the site's own origin", () => {
@@ -95,7 +96,7 @@ describe("sitemap (covers: AC-I9)", () => {
 
     const urls = (await sitemap()).map((e) => e.url);
 
-    for (const path of ["/", "/explore", "/stays", "/stays/musanze", "/host", "/how-it-works"]) {
+    for (const path of ["/", "/explore", "/stays", "/stays/musanze", "/host", "/how-it-works", "/downloads"]) {
       assert.ok(urls.includes(`https://www.example.rw${path}`), `missing ${path}`);
     }
     // No guides are published yet (data/guides.ts), so neither the index nor an article is listed.
@@ -107,7 +108,7 @@ describe("sitemap (covers: AC-I9)", () => {
 
     const urls = (await sitemap()).map((e) => e.url);
 
-    for (const path of ["/book", "/demo", "/services", "/sign-in", "/register"]) {
+    for (const path of ["/book", "/demo", "/services", "/sign-in", "/register", "/downloads/coming-soon", "/get"]) {
       assert.ok(
         urls.every((u) => u !== `https://www.example.rw${path}` && !u.startsWith(`https://www.example.rw${path}/`)),
         `lists ${path}`,

@@ -42,7 +42,7 @@ import {
 } from '../../../database/drizzle/schema';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import { isSellable, priceLine, unclassifiedSentence } from '../../operations/domain/sellable-item';
+import { isSellable, priceLine, unclassifiedSentence } from '../../outlets/domain/sellable-item';
 import { presentOrder } from '../infrastructure/pos-present';
 import {
   audit,

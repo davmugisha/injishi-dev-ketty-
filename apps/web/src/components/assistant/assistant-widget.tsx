@@ -43,6 +43,7 @@ import {
   sendAssistantFeedback,
   sendAssistantMessage,
 } from "@/data/assistant";
+import { COMING_SOON_PATH } from "@/lib/download-links";
 
 /**
  * The support assistant on the public site (ADR-061 slice A).
@@ -122,9 +123,10 @@ export function AssistantWidget() {
 
   // The PSF pages are PSF's, with their own chrome (the `(partner)` group), and
   // "Ask Injishi" does not belong on them. The widget is mounted by the root
-  // layout, so it is the one that has to stay away.
+  // layout, so it is the one that has to stay away. The downloads Coming soon
+  // screen shows its two words and nothing else (mobile spec 0004, AC-7).
   const onPartnerPage = pathname === "/psf" || pathname?.startsWith("/psf/");
-  if (!enabled || onPartnerPage) return null;
+  if (!enabled || onPartnerPage || pathname === COMING_SOON_PATH) return null;
 
   async function send(text?: string) {
     const message = (text ?? draft).trim();

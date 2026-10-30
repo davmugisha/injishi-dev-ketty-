@@ -1,7 +1,9 @@
 import { encodeQr } from "@injishi/qr";
 
 /**
- * The clause 7.24.7 QR code, as an inline SVG.
+ * A QR code, as an inline SVG. Born as the receipt's clause 7.24.7 code, and
+ * shared since the downloads page (mobile spec 0004) draws its `/get` code with
+ * it too, so both inherit the painted quiet zone below.
  *
  * SVG rather than a canvas or a PNG for one reason that outranks the others:
  * this has to PRINT. A canvas is a raster at whatever device pixel ratio the
@@ -34,9 +36,17 @@ interface QrCodeProps {
    * receipt, which is where it belongs for a reader rather than a scanner.
    */
   label: string;
+  /**
+   * The light modules and the quiet zone, and the dark modules: CSS colours,
+   * usually a `var(--…)` token. The caller owns them because the ground differs
+   * (the receipt's paper, a page in either theme), but the light one is NEVER
+   * transparent; see the note on the `<rect>` below.
+   */
+  light: string;
+  ink: string;
 }
 
-export function QrCode({ value, size, label }: QrCodeProps) {
+export function QrCode({ value, size, label, light, ink }: QrCodeProps) {
   const symbol = encodeQr(value);
 
   const span = symbol.size + QUIET_ZONE * 2;
@@ -78,11 +88,12 @@ export function QrCode({ value, size, label }: QrCodeProps) {
         output onto black is exactly how the difference showed up, and the
         symbol failed to decode until the quiet zone stopped being borrowed.
 
-        Both colours come from custom properties the paper sets, so no value is
-        written here and neither can drift from the document around it.
+        Both colours come from the caller: the receipt passes the custom
+        properties its paper sets, so neither can drift from the document around
+        it, and the downloads page passes fixed tokens that hold in both themes.
       */}
-      <rect width={span} height={span} fill="var(--receipt-qr-light)" />
-      <path d={path} fill="var(--receipt-ink)" />
+      <rect width={span} height={span} fill={light} />
+      <path d={path} fill={ink} />
     </svg>
   );
 }

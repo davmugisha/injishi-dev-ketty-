@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { orderLineText } from '../infrastructure/order-thread-lines';
+import { orderLineText } from '../../outlets/infrastructure/order-thread-lines';
 
 import {
   type GuestPlaceRow,

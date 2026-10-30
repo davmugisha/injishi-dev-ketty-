@@ -1,0 +1,47 @@
+{
+  "private": true,
+  "name": "@injishi/product-outlets",
+  "version": "0.1.0",
+  "description": "Injishi Outlets (ADR-074): the screens of outlets and their menus, the live order board, the kitchen display, the guest's QR and room service order, and recipes. Views and the shapes they draw, with no authority, no secrets and no database: the app mounts the views on its routes and hands them their data, links and photographs.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./web": "./src/web/index.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "sideEffects": [
+    "*.css"
+  ],
+  "scripts": {
+    "lint": "pnpm run --silent lint:biome && pnpm run --silent lint:eslint",
+    "lint:biome": "biome lint .",
+    "lint:eslint": "eslint \"src/**/*.{ts,tsx}\"",
+    "test": "node ../../scripts/no-tests.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@injishi/product-contract": "workspace:*"
+  },
+  "peerDependencies": {
+    "@gravity-ui/icons": "2.22.1",
+    "@heroui-pro/react": "1.0.0-beta.10",
+    "@heroui/react": "3.2.6",
+    "@injishi/ui": "workspace:*",
+    "next": ">=15.5.24 <17",
+    "react": ">=19.1.0 <20"
+  },
+  "devDependencies": {
+    "@gravity-ui/icons": "2.22.1",
+    "@heroui-pro/react": "1.0.0-beta.10",
+    "@heroui/react": "3.2.6",
+    "@injishi/ui": "workspace:*",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@typescript-eslint/parser": "^8.68.0",
+    "eslint": "^10.9.1",
+    "next": "16.3.5",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "5.9.3"
+  }
+}

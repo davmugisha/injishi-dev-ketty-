@@ -3,8 +3,8 @@ import { describe, expect, it, type Mock, vi } from 'vitest';
 import { NotFoundException } from '@nestjs/common';
 
 import type { ListingService } from '../../listing/application/listing.service';
-import type { GuestOrderingService } from '../../operations/application/guest-ordering.service';
-import type { OrderPaymentService } from '../../operations/application/order-payment.service';
+import type { GuestOrderingService } from '../../outlets/application/guest-ordering.service';
+import type { OrderPaymentService } from '../../outlets/application/order-payment.service';
 import type { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
 import type { PaymentTransactionsRepository } from '../../payments/infrastructure/payment-transactions.repository';
 import {

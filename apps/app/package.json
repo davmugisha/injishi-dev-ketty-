@@ -26,6 +26,7 @@
     "@injishi/db": "workspace:*",
     "@injishi/design-tokens": "workspace:*",
     "@injishi/product-hr": "workspace:*",
+    "@injishi/product-outlets": "workspace:*",
     "@injishi/product-pms": "workspace:*",
     "@injishi/ui": "workspace:*",
     "@injishi/ui-contract": "workspace:*",
