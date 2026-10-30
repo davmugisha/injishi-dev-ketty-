@@ -21,6 +21,7 @@ import {
 import { useRouter } from "next/navigation";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import type { DeskRow, DeskRowKind } from "@/server/stays/desk";
+import { DeskHeaderActions, type DeskRoomType } from "./NewBookingPanel";
 
 const KIND: Record<DeskRowKind, { label: string; tone: StatusTone; rank: number }> = {
   request: { label: "Request", tone: "warning", rank: 0 },
@@ -62,7 +63,17 @@ function nextStep(r: DeskRow): { icon: IconKey; label: string; href: string } | 
  * today, in one table with a filter and a search. Each row's next step is its first action: check in,
  * check out, open the bill or answer a request.
  */
-export function StayTodayView({ rows, today }: { rows: DeskRow[]; today: string }) {
+export function StayTodayView({
+  rows,
+  today,
+  roomTypes,
+  canBook,
+}: {
+  rows: DeskRow[];
+  today: string;
+  roomTypes: DeskRoomType[];
+  canBook: boolean;
+}) {
   const router = useRouter();
   const columns: DataColumn<DeskRow>[] = [
     {
@@ -115,11 +126,7 @@ export function StayTodayView({ rows, today }: { rows: DeskRow[]; today: string 
     <PageContent>
       <AreaHeader
         eyebrow={formatDay(today, "long")}
-        actions={
-          <ActionLink href={screenHref("WalkIn")} icon="PersonPlus" intent="primary">
-            Walk in
-          </ActionLink>
-        }
+        actions={<DeskHeaderActions roomTypes={roomTypes} today={today} canBook={canBook} />}
       />
       <DataTable
         label="Today at the desk"

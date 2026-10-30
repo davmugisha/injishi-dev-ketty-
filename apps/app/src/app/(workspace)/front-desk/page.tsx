@@ -17,8 +17,8 @@ import { StayTodayView } from "@/features/pms/stays/StayTodayView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { deskPropertyName } from "@/server/sources/frontdesk";
-import { staysSummary } from "@/server/stays/client";
-import { deskRows, readDesk } from "@/server/stays/desk";
+import { can, staysScope, staysSummary } from "@/server/stays/client";
+import { deskRoomTypes, deskRows, readDesk } from "@/server/stays/desk";
 
 export const metadata: Metadata = { title: screens.FrontDeskToday.pageTitle };
 
@@ -27,7 +27,15 @@ export default async function FrontDeskTodayPage({ searchParams }: { searchParam
   // A real stay business (guest house, lodge, apartments) gets one table of today's guests, all live.
   if (await staysSummary()) {
     const board = await readDesk();
-    return <StayTodayView rows={deskRows(board)} today={board.today} />;
+    const scope = await staysScope();
+    return (
+      <StayTodayView
+        rows={deskRows(board)}
+        today={board.today}
+        roomTypes={deskRoomTypes(board)}
+        canBook={scope ? can(scope, "reservation.approve") : false}
+      />
+    );
   }
   const [kpis, tabs, arrivals, inHouse, departures, requests, readiness, roomTypes, rooms] = await Promise.all([
     getCollection<DeskKpi>("frontdesk.deskKpis"),

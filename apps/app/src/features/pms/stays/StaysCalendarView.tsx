@@ -1,12 +1,12 @@
 "use client";
 
-import { FieldError, Input, Label, TextField, toast } from "@heroui/react";
+import { toast } from "@heroui/react";
 import type { ReservationChangeQuote } from "@injishi/contracts";
 import { screenHref } from "@injishi/data";
 import {
+  ActionButton,
   ActionLink,
   AgendaCalendar,
-  CountStepper,
   EmptyBlock,
   FilterMenu,
   FormDialog,
@@ -14,18 +14,16 @@ import {
   formatMoney,
   KeyValueList,
   PageContent,
-  PhoneInput,
   type ScheduleEvent,
   type ScheduleKind,
-  SelectField,
-  SidePanel,
 } from "@injishi/ui";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
-import { checkInWalkIn, previewBookingMove, saveBookingMove } from "@/features/pms/front-desk-actions";
+import { previewBookingMove, saveBookingMove } from "@/features/pms/front-desk-actions";
 import type { CalendarBoard, CalendarKind, CalendarStay, DeskRoom } from "@/server/stays/desk";
 import { BookingPanel, type PanelStay } from "./BookingPanel";
+import { NewBookingPanel } from "./NewBookingPanel";
 
 const KINDS: ScheduleKind[] = [
   { id: "requested", label: "Request", color: "var(--warning)", tentative: true },
@@ -258,9 +256,16 @@ export function StaysCalendarView({
     <PageContent>
       <AreaHeader
         actions={
-          <ActionLink href={screenHref("WalkIn")} icon="PersonPlus" intent="primary">
-            Walk in
-          </ActionLink>
+          <>
+            <ActionLink href={screenHref("WalkIn")} icon="PersonPlus">
+              Walk in
+            </ActionLink>
+            {can.approve ? (
+              <ActionButton intent="primary" icon="Plus" onPress={() => setCreating({ day: board.today, time: "" })}>
+                New booking
+              </ActionButton>
+            ) : null}
+          </>
         }
       />
       {board.roomTypes.length === 0 ? (
@@ -279,9 +284,9 @@ export function StaysCalendarView({
           startHour={6}
           endHour={23}
           onSelect={(e) => setOpenId(stayIdOf(e.id))}
-          onCreate={can.checkIn ? (day, time) => setCreating({ day, time }) : undefined}
+          onCreate={can.approve ? (day, time) => setCreating({ day, time }) : undefined}
           onMove={canMove ? move : undefined}
-          hint={can.checkIn ? "Choose a time on a day to start a stay" : undefined}
+          hint={can.approve ? "Choose a time on a day to book a guest" : undefined}
           toolbar={
             <>
               <FilterMenu
@@ -319,12 +324,15 @@ export function StaysCalendarView({
       />
 
       {creating ? (
-        <NewStayPanel
-          day={creating.day}
+        <NewBookingPanel
+          roomTypes={board.roomTypes.map((t) => ({ id: t.id, name: t.name }))}
           today={board.today}
-          rooms={[...rooms.values()].filter(
-            (r) => r.bookable && (type === "all" || r.typeId === type) && (roomFilter === "all" || r.id === roomFilter),
-          )}
+          initial={{
+            day: creating.day,
+            time: creating.time,
+            ...(type !== "all" ? { roomTypeId: type } : {}),
+            ...(roomFilter !== "all" && !roomFilter.startsWith(WAITING) ? { roomId: roomFilter } : {}),
+          }}
           onClose={() => setCreating(null)}
         />
       ) : null}
@@ -357,115 +365,5 @@ export function StaysCalendarView({
         ) : null}
       </FormDialog>
     </PageContent>
-  );
-}
-
-/**
- * A new stay from the chosen day. The desk checks a guest in from today (a walk in, the API's
- * `POST /ops/stays/walk-in`); a booking for a later day comes with the desk's new booking form.
- */
-function NewStayPanel({
-  day,
-  today,
-  rooms,
-  onClose,
-}: {
-  day: string;
-  today: string;
-  rooms: CalendarRoom[];
-  onClose: () => void;
-}) {
-  const router = useRouter();
-  const [roomId, setRoomId] = useState<string | null>(rooms.length === 1 ? (rooms[0]?.id ?? null) : null);
-  const [nights, setNights] = useState(1);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [pending, start] = useTransition();
-  const later = day > today;
-  const room = rooms.find((r) => r.id === roomId) ?? null;
-
-  return (
-    <SidePanel
-      isOpen
-      onOpenChange={(o) => (o ? undefined : onClose())}
-      title="New stay"
-      description={formatDay(day, "long")}
-      submitLabel="Check in"
-      submitIcon="ArrowRightToSquare"
-      isPending={pending}
-      isSubmitDisabled={later}
-      validationErrors={errors}
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (later) return;
-        const problems: Record<string, string> = {};
-        if (!room) problems.room = "Choose a free room.";
-        if (!name.trim()) problems.guestName = "Type the guest's name as it is on their ID.";
-        setErrors(problems);
-        if (!room || Object.keys(problems).length > 0) return;
-        start(async () => {
-          const r = await checkInWalkIn({
-            roomTypeId: room.typeId,
-            roomId: room.id,
-            nights,
-            guestName: name.trim(),
-            phone: phone ?? undefined,
-          });
-          if (!r.ok) {
-            toast.danger(r.error);
-            return;
-          }
-          toast.success(`${name.trim()} checked in to ${r.value.room}`);
-          onClose();
-          router.refresh();
-        });
-      }}
-    >
-      {later ? (
-        <p className="text-sm text-muted">
-          The desk checks guests in from today. A booking for a later day is coming to this form.
-        </p>
-      ) : null}
-      <SelectField
-        label="Room"
-        name="room"
-        isRequired
-        isDisabled={later || rooms.length === 0}
-        options={rooms.map((r) => ({ id: r.id, label: `${r.label} · ${r.type}` }))}
-        value={roomId}
-        onChange={(v) => {
-          setRoomId(v);
-          setErrors((x) => ({ ...x, room: "" }));
-        }}
-        placeholder={rooms.length === 0 ? "No free room" : "Choose a room"}
-      />
-      <CountStepper
-        label="Nights"
-        unit="nights"
-        min={1}
-        max={90}
-        value={nights}
-        onChange={setNights}
-        isDisabled={later}
-        description={`Leaves ${formatDay(shift(day, nights), "long")}`}
-      />
-      <TextField
-        name="guestName"
-        isRequired
-        value={name}
-        onChange={(v) => {
-          setName(v);
-          setErrors((x) => ({ ...x, guestName: "" }));
-        }}
-        isDisabled={later}
-        className="flex flex-col gap-1"
-      >
-        <Label>Guest name</Label>
-        <Input autoComplete="off" />
-        <FieldError />
-      </TextField>
-      <PhoneInput label="Phone" value={phone} onChange={(v) => setPhone(v)} isDisabled={later} />
-    </SidePanel>
   );
 }

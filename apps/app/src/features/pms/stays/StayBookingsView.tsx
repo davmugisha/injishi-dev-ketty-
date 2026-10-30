@@ -2,7 +2,6 @@
 
 import { screenHref } from "@injishi/data";
 import {
-  ActionLink,
   type DataColumn,
   DataTable,
   DateText,
@@ -22,6 +21,7 @@ import { useState } from "react";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import type { BookingRow, BookingState, DeskRoom } from "@/server/stays/desk";
 import { BookingPanel, type PanelStay } from "./BookingPanel";
+import { DeskHeaderActions, type DeskRoomType } from "./NewBookingPanel";
 
 const STATE: Record<BookingState, { label: string; tone: StatusTone }> = {
   pending: { label: "Request", tone: "warning" },
@@ -77,8 +77,11 @@ export function StayBookingsView({
   openRef,
   can,
   rooms,
+  roomTypes,
 }: {
   rows: BookingRow[];
+  /** The room types the desk can book. */
+  roomTypes: DeskRoomType[];
   /** The rooms a booking may move to. */
   rooms: DeskRoom[];
   today: string;
@@ -150,13 +153,7 @@ export function StayBookingsView({
 
   return (
     <PageContent>
-      <AreaHeader
-        actions={
-          <ActionLink href={screenHref("WalkIn")} icon="PersonPlus" intent="primary">
-            Walk in
-          </ActionLink>
-        }
-      />
+      <AreaHeader actions={<DeskHeaderActions roomTypes={roomTypes} today={today} canBook={can.approve} />} />
       <DataTable
         label="Bookings"
         noun={{ one: "booking", many: "bookings" }}
