@@ -6,7 +6,6 @@ import { formatNumber, formatRwf, Icon, type IconKey, toneColor } from "@injishi
 import { type ReactNode, useState } from "react";
 import { UNSAFE_PortalProvider } from "react-aria";
 import type { Selection } from "react-aria-components";
-import { usePhoneOverlayHost } from "@/components/phone/PhoneSheet";
 
 /** "RWF 14,000" (whole francs). */
 export const money = (n: number) => formatRwf(Math.round(n));
@@ -23,21 +22,6 @@ export function firstKey(keys: Selection): string | null {
 
 const HOST =
   "pointer-events-none absolute inset-0 z-50 overflow-hidden [transform:translateZ(0)] [&>*]:pointer-events-auto";
-
-/**
- * Overlays (dialogs, toasts) of a device screen render inside its tablet or phone frame, as the artifact's scrim
- * and toast sit inside the device — not over the browser window. Wrap the screen's Modal and Toast.Provider in it.
- */
-export function FrameOverlays({ children }: { children: ReactNode }) {
-  const { anchor, portal, host } = usePhoneOverlayHost();
-  return (
-    <>
-      {anchor}
-      {portal}
-      <UNSAFE_PortalProvider getContainer={() => host}>{children}</UNSAFE_PortalProvider>
-    </>
-  );
-}
 
 /**
  * Overlays scoped to one region of a screen (artifact: the POS scrim covers the body under the header, which stays

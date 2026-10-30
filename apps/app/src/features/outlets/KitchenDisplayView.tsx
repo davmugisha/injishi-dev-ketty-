@@ -15,9 +15,10 @@ import { Alert, Button, Chip, Toast, toast } from "@heroui/react";
 import { EmptyState, Kanban, Segment } from "@heroui-pro/react";
 import type { KitchenStation, KitchenTicket, OrderSource } from "@injishi/data/fixtures/outlets";
 import { Icon, StatusDot, toneColor } from "@injishi/ui";
+import { FrameOverlays } from "@injishi/ui/phone";
 import { type CSSProperties, useState } from "react";
 import { BrandMark } from "@/components/brand";
-import { FrameOverlays, SourceChip } from "./shared";
+import { SourceChip } from "./shared";
 
 type StationId = KitchenStation["id"] | "all";
 
