@@ -1983,15 +1983,15 @@ export declare const PsfReportSlice: z.ZodObject<{
     count: z.ZodNumber;
     amountRwf: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
+    count: number;
     amountRwf: number;
     key: string;
     label: string;
-    count: number;
 }, {
+    count: number;
     amountRwf: number;
     key: string;
     label: string;
-    count: number;
 }>;
 export type PsfReportSlice = z.infer<typeof PsfReportSlice>;
 export declare const PsfDistrictRow: z.ZodObject<{
@@ -2180,18 +2180,320 @@ export declare const PsfReport: z.ZodObject<{
         overdue: z.ZodNumber;
         awaitingPayment: z.ZodNumber;
         expiringIn30Days: z.ZodNumber;
+        /** Renewals further out, and memberships past their end with no renewal (2026-10-30). */
+        expiringIn60Days: z.ZodNumber;
+        expiringIn90Days: z.ZodNumber;
+        lapsed: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
+        lapsed: number;
         members: number;
         waiting: number;
         overdue: number;
         awaitingPayment: number;
         expiringIn30Days: number;
+        expiringIn60Days: number;
+        expiringIn90Days: number;
     }, {
+        lapsed: number;
         members: number;
         waiting: number;
         overdue: number;
         awaitingPayment: number;
         expiringIn30Days: number;
+        expiringIn60Days: number;
+        expiringIn90Days: number;
+    }>;
+    /**
+     * Injishi registrations in the region (2026-10-30): where each business stands right now, and the
+     * decisions taken in the period. A PSF District Manager reviews the first gate in one step (0119).
+     */
+    registrations: z.ZodObject<{
+        waitingReview: z.ZodNumber;
+        waitingApproval: z.ZodNumber;
+        waitingPayment: z.ZodNumber;
+        active: z.ZodNumber;
+        rejected: z.ZodNumber;
+        suspended: z.ZodNumber;
+        approvedInPeriod: z.ZodObject<{
+            value: z.ZodNumber;
+            previous: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            value: number;
+            previous: number;
+        }, {
+            value: number;
+            previous: number;
+        }>;
+        rejectedInPeriod: z.ZodObject<{
+            value: z.ZodNumber;
+            previous: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            value: number;
+            previous: number;
+        }, {
+            value: number;
+            previous: number;
+        }>;
+        /** Days from the fee settling to the decision, the median over the period. */
+        medianDaysToDecision: z.ZodNullable<z.ZodNumber>;
+        /** The longest wait in the review queue right now, in whole days. */
+        oldestWaitingDays: z.ZodNullable<z.ZodNumber>;
+        /** Month by month: fees paid (registrations entering review) and the decisions on them. */
+        months: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            month: z.ZodString;
+            submitted: z.ZodNumber;
+            approved: z.ZodNumber;
+            rejected: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            submitted: number;
+            approved: number;
+            rejected: number;
+            month: string;
+        }, {
+            submitted: number;
+            approved: number;
+            rejected: number;
+            month: string;
+        }>, "many">>;
+        /** The businesses decided in the period, newest first, each opening its profile. */
+        decided: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            orgId: z.ZodString;
+            legalName: z.ZodString;
+            kindLabel: z.ZodString;
+            decision: z.ZodEnum<["approved", "rejected"]>;
+            decidedAt: z.ZodString;
+            decidedBy: z.ZodNullable<z.ZodString>;
+            status: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            status: string;
+            legalName: string;
+            decision: "approved" | "rejected";
+            decidedAt: string;
+            orgId: string;
+            decidedBy: string | null;
+            kindLabel: string;
+        }, {
+            status: string;
+            legalName: string;
+            decision: "approved" | "rejected";
+            decidedAt: string;
+            orgId: string;
+            decidedBy: string | null;
+            kindLabel: string;
+        }>, "many">>;
+    }, "strip", z.ZodTypeAny, {
+        active: number;
+        rejected: number;
+        suspended: number;
+        months: {
+            submitted: number;
+            approved: number;
+            rejected: number;
+            month: string;
+        }[];
+        waitingReview: number;
+        waitingApproval: number;
+        waitingPayment: number;
+        approvedInPeriod: {
+            value: number;
+            previous: number;
+        };
+        rejectedInPeriod: {
+            value: number;
+            previous: number;
+        };
+        medianDaysToDecision: number | null;
+        oldestWaitingDays: number | null;
+        decided: {
+            status: string;
+            legalName: string;
+            decision: "approved" | "rejected";
+            decidedAt: string;
+            orgId: string;
+            decidedBy: string | null;
+            kindLabel: string;
+        }[];
+    }, {
+        active: number;
+        rejected: number;
+        suspended: number;
+        waitingReview: number;
+        waitingApproval: number;
+        waitingPayment: number;
+        approvedInPeriod: {
+            value: number;
+            previous: number;
+        };
+        rejectedInPeriod: {
+            value: number;
+            previous: number;
+        };
+        medianDaysToDecision: number | null;
+        oldestWaitingDays: number | null;
+        months?: {
+            submitted: number;
+            approved: number;
+            rejected: number;
+            month: string;
+        }[] | undefined;
+        decided?: {
+            status: string;
+            legalName: string;
+            decision: "approved" | "rejected";
+            decidedAt: string;
+            orgId: string;
+            decidedBy: string | null;
+            kindLabel: string;
+        }[] | undefined;
+    }>;
+    /** The district's tourism economy on Injishi's own records, over the period (2026-10-30). */
+    economy: z.ZodObject<{
+        /** Active businesses by kind: hotels, guesthouses, apartments, residences, PSF enterprises. */
+        activeBusinesses: z.ZodArray<z.ZodObject<{
+            key: z.ZodString;
+            label: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            count: number;
+            key: string;
+            label: string;
+        }, {
+            count: number;
+            key: string;
+            label: string;
+        }>, "many">;
+        /** Confirmed bookings arriving in the period. */
+        bookings: z.ZodObject<{
+            value: z.ZodNumber;
+            previous: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            value: number;
+            previous: number;
+        }, {
+            value: number;
+            previous: number;
+        }>;
+        /** Guests × nights of those bookings. */
+        guestNights: z.ZodObject<{
+            value: z.ZodNumber;
+            previous: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            value: number;
+            previous: number;
+        }, {
+            value: number;
+            previous: number;
+        }>;
+        /** What those bookings are worth, RWF. */
+        bookedValueRwf: z.ZodObject<{
+            value: z.ZodNumber;
+            previous: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            value: number;
+            previous: number;
+        }, {
+            value: number;
+            previous: number;
+        }>;
+        /** Month by month, by the month guests arrive. */
+        months: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            month: z.ZodString;
+            bookings: z.ZodNumber;
+            guestNights: z.ZodNumber;
+            valueRwf: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            month: string;
+            bookings: number;
+            guestNights: number;
+            valueRwf: number;
+        }, {
+            month: string;
+            bookings: number;
+            guestNights: number;
+            valueRwf: number;
+        }>, "many">>;
+        /** The businesses that sold the most stays in the period. */
+        topBusinesses: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            orgId: z.ZodString;
+            legalName: z.ZodString;
+            bookings: z.ZodNumber;
+            guestNights: z.ZodNumber;
+            valueRwf: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            legalName: string;
+            orgId: string;
+            bookings: number;
+            guestNights: number;
+            valueRwf: number;
+        }, {
+            legalName: string;
+            orgId: string;
+            bookings: number;
+            guestNights: number;
+            valueRwf: number;
+        }>, "many">>;
+    }, "strip", z.ZodTypeAny, {
+        bookings: {
+            value: number;
+            previous: number;
+        };
+        months: {
+            month: string;
+            bookings: number;
+            guestNights: number;
+            valueRwf: number;
+        }[];
+        activeBusinesses: {
+            count: number;
+            key: string;
+            label: string;
+        }[];
+        guestNights: {
+            value: number;
+            previous: number;
+        };
+        bookedValueRwf: {
+            value: number;
+            previous: number;
+        };
+        topBusinesses: {
+            legalName: string;
+            orgId: string;
+            bookings: number;
+            guestNights: number;
+            valueRwf: number;
+        }[];
+    }, {
+        bookings: {
+            value: number;
+            previous: number;
+        };
+        activeBusinesses: {
+            count: number;
+            key: string;
+            label: string;
+        }[];
+        guestNights: {
+            value: number;
+            previous: number;
+        };
+        bookedValueRwf: {
+            value: number;
+            previous: number;
+        };
+        months?: {
+            month: string;
+            bookings: number;
+            guestNights: number;
+            valueRwf: number;
+        }[] | undefined;
+        topBusinesses?: {
+            legalName: string;
+            orgId: string;
+            bookings: number;
+            guestNights: number;
+            valueRwf: number;
+        }[] | undefined;
     }>;
     months: z.ZodArray<z.ZodObject<{
         month: z.ZodString;
@@ -2237,15 +2539,15 @@ export declare const PsfReport: z.ZodObject<{
         count: z.ZodNumber;
         amountRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
+        count: number;
         amountRwf: number;
         key: string;
         label: string;
-        count: number;
     }, {
+        count: number;
         amountRwf: number;
         key: string;
         label: string;
-        count: number;
     }>, "many">;
     byFamily: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
@@ -2253,15 +2555,15 @@ export declare const PsfReport: z.ZodObject<{
         count: z.ZodNumber;
         amountRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
+        count: number;
         amountRwf: number;
         key: string;
         label: string;
-        count: number;
     }, {
+        count: number;
         amountRwf: number;
         key: string;
         label: string;
-        count: number;
     }>, "many">;
     byGroup: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
@@ -2269,15 +2571,15 @@ export declare const PsfReport: z.ZodObject<{
         count: z.ZodNumber;
         amountRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
+        count: number;
         amountRwf: number;
         key: string;
         label: string;
-        count: number;
     }, {
+        count: number;
         amountRwf: number;
         key: string;
         label: string;
-        count: number;
     }>, "many">;
     districts: z.ZodArray<z.ZodObject<{
         districtId: z.ZodNumber;
@@ -2325,10 +2627,10 @@ export declare const PsfReport: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     regionLabel: string;
     byGroup: {
+        count: number;
         amountRwf: number;
         key: string;
         label: string;
-        count: number;
     }[];
     kpis: {
         approved: {
@@ -2385,12 +2687,80 @@ export declare const PsfReport: z.ZodObject<{
         registered: number;
         feesRwf: number;
     }[];
+    registrations: {
+        active: number;
+        rejected: number;
+        suspended: number;
+        months: {
+            submitted: number;
+            approved: number;
+            rejected: number;
+            month: string;
+        }[];
+        waitingReview: number;
+        waitingApproval: number;
+        waitingPayment: number;
+        approvedInPeriod: {
+            value: number;
+            previous: number;
+        };
+        rejectedInPeriod: {
+            value: number;
+            previous: number;
+        };
+        medianDaysToDecision: number | null;
+        oldestWaitingDays: number | null;
+        decided: {
+            status: string;
+            legalName: string;
+            decision: "approved" | "rejected";
+            decidedAt: string;
+            orgId: string;
+            decidedBy: string | null;
+            kindLabel: string;
+        }[];
+    };
     now: {
+        lapsed: number;
         members: number;
         waiting: number;
         overdue: number;
         awaitingPayment: number;
         expiringIn30Days: number;
+        expiringIn60Days: number;
+        expiringIn90Days: number;
+    };
+    economy: {
+        bookings: {
+            value: number;
+            previous: number;
+        };
+        months: {
+            month: string;
+            bookings: number;
+            guestNights: number;
+            valueRwf: number;
+        }[];
+        activeBusinesses: {
+            count: number;
+            key: string;
+            label: string;
+        }[];
+        guestNights: {
+            value: number;
+            previous: number;
+        };
+        bookedValueRwf: {
+            value: number;
+            previous: number;
+        };
+        topBusinesses: {
+            legalName: string;
+            orgId: string;
+            bookings: number;
+            guestNights: number;
+            valueRwf: number;
+        }[];
     };
     funnel: {
         approved: number;
@@ -2399,24 +2769,24 @@ export declare const PsfReport: z.ZodObject<{
         registered: number;
     };
     bySector: {
+        count: number;
         amountRwf: number;
         key: string;
         label: string;
-        count: number;
     }[];
     byFamily: {
+        count: number;
         amountRwf: number;
         key: string;
         label: string;
-        count: number;
     }[];
 }, {
     regionLabel: string;
     byGroup: {
+        count: number;
         amountRwf: number;
         key: string;
         label: string;
-        count: number;
     }[];
     kpis: {
         approved: {
@@ -2473,12 +2843,80 @@ export declare const PsfReport: z.ZodObject<{
         registered: number;
         feesRwf: number;
     }[];
+    registrations: {
+        active: number;
+        rejected: number;
+        suspended: number;
+        waitingReview: number;
+        waitingApproval: number;
+        waitingPayment: number;
+        approvedInPeriod: {
+            value: number;
+            previous: number;
+        };
+        rejectedInPeriod: {
+            value: number;
+            previous: number;
+        };
+        medianDaysToDecision: number | null;
+        oldestWaitingDays: number | null;
+        months?: {
+            submitted: number;
+            approved: number;
+            rejected: number;
+            month: string;
+        }[] | undefined;
+        decided?: {
+            status: string;
+            legalName: string;
+            decision: "approved" | "rejected";
+            decidedAt: string;
+            orgId: string;
+            decidedBy: string | null;
+            kindLabel: string;
+        }[] | undefined;
+    };
     now: {
+        lapsed: number;
         members: number;
         waiting: number;
         overdue: number;
         awaitingPayment: number;
         expiringIn30Days: number;
+        expiringIn60Days: number;
+        expiringIn90Days: number;
+    };
+    economy: {
+        bookings: {
+            value: number;
+            previous: number;
+        };
+        activeBusinesses: {
+            count: number;
+            key: string;
+            label: string;
+        }[];
+        guestNights: {
+            value: number;
+            previous: number;
+        };
+        bookedValueRwf: {
+            value: number;
+            previous: number;
+        };
+        months?: {
+            month: string;
+            bookings: number;
+            guestNights: number;
+            valueRwf: number;
+        }[] | undefined;
+        topBusinesses?: {
+            legalName: string;
+            orgId: string;
+            bookings: number;
+            guestNights: number;
+            valueRwf: number;
+        }[] | undefined;
     };
     funnel: {
         approved: number;
@@ -2487,16 +2925,16 @@ export declare const PsfReport: z.ZodObject<{
         registered: number;
     };
     bySector: {
+        count: number;
         amountRwf: number;
         key: string;
         label: string;
-        count: number;
     }[];
     byFamily: {
+        count: number;
         amountRwf: number;
         key: string;
         label: string;
-        count: number;
     }[];
 }>;
 export type PsfReport = z.infer<typeof PsfReport>;
@@ -3263,6 +3701,164 @@ export declare const PsfBusinessDetail: z.ZodObject<{
     }[] | undefined;
 }>;
 export type PsfBusinessDetail = z.infer<typeof PsfBusinessDetail>;
+/**
+ * `GET /oversight/psf/registrations/:orgId` (2026-10-30): a business's side on Injishi, for the PSF
+ * District Manager covering it, whatever its standing: what it is, who decided its registration and
+ * when, and whether guests can find it yet. A business PSF's register does not hold (rejected, a
+ * residence) still opens here.
+ */
+export declare const PsfRegistrationProfile: z.ZodObject<{
+    orgId: z.ZodString;
+    legalName: z.ZodString;
+    businessCode: z.ZodNullable<z.ZodString>;
+    kindLabel: z.ZodString;
+    domain: z.ZodString;
+    districtName: z.ZodNullable<z.ZodString>;
+    sectorName: z.ZodNullable<z.ZodString>;
+    addressText: z.ZodNullable<z.ZodString>;
+    tin: z.ZodNullable<z.ZodString>;
+    starGrade: z.ZodNullable<z.ZodNumber>;
+    starGradeConfirmed: z.ZodBoolean;
+    status: z.ZodString;
+    owner: z.ZodNullable<z.ZodObject<{
+        name: z.ZodNullable<z.ZodString>;
+        email: z.ZodString;
+        phone: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        name: string | null;
+        email: string;
+        phone: string | null;
+    }, {
+        name: string | null;
+        email: string;
+        phone: string | null;
+    }>>;
+    registeredAt: z.ZodString;
+    reviews: z.ZodArray<z.ZodObject<{
+        stage: z.ZodString;
+        decision: z.ZodEnum<["passed", "rejected"]>;
+        roleLabel: z.ZodString;
+        byName: z.ZodNullable<z.ZodString>;
+        at: z.ZodString;
+        notes: z.ZodNullable<z.ZodString>;
+        reasonLabel: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        stage: string;
+        decision: "rejected" | "passed";
+        notes: string | null;
+        at: string;
+        roleLabel: string;
+        reasonLabel: string | null;
+        byName: string | null;
+    }, {
+        stage: string;
+        decision: "rejected" | "passed";
+        notes: string | null;
+        at: string;
+        roleLabel: string;
+        reasonLabel: string | null;
+        byName: string | null;
+    }>, "many">;
+    listings: z.ZodArray<z.ZodObject<{
+        propertyName: z.ZodString;
+        status: z.ZodString;
+        publishedAt: z.ZodNullable<z.ZodString>;
+        slug: z.ZodNullable<z.ZodString>;
+        roomTypes: z.ZodNumber;
+        rooms: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        status: string;
+        slug: string | null;
+        publishedAt: string | null;
+        propertyName: string;
+        roomTypes: number;
+        rooms: number;
+    }, {
+        status: string;
+        slug: string | null;
+        publishedAt: string | null;
+        propertyName: string;
+        roomTypes: number;
+        rooms: number;
+    }>, "many">;
+    /** Confirmed bookings arriving in the last 90 days. */
+    bookings90Days: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    status: string;
+    owner: {
+        name: string | null;
+        email: string;
+        phone: string | null;
+    } | null;
+    domain: string;
+    districtName: string | null;
+    addressText: string | null;
+    tin: string | null;
+    legalName: string;
+    orgId: string;
+    sectorName: string | null;
+    businessCode: string | null;
+    registeredAt: string;
+    reviews: {
+        stage: string;
+        decision: "rejected" | "passed";
+        notes: string | null;
+        at: string;
+        roleLabel: string;
+        reasonLabel: string | null;
+        byName: string | null;
+    }[];
+    starGrade: number | null;
+    kindLabel: string;
+    starGradeConfirmed: boolean;
+    listings: {
+        status: string;
+        slug: string | null;
+        publishedAt: string | null;
+        propertyName: string;
+        roomTypes: number;
+        rooms: number;
+    }[];
+    bookings90Days: number;
+}, {
+    status: string;
+    owner: {
+        name: string | null;
+        email: string;
+        phone: string | null;
+    } | null;
+    domain: string;
+    districtName: string | null;
+    addressText: string | null;
+    tin: string | null;
+    legalName: string;
+    orgId: string;
+    sectorName: string | null;
+    businessCode: string | null;
+    registeredAt: string;
+    reviews: {
+        stage: string;
+        decision: "rejected" | "passed";
+        notes: string | null;
+        at: string;
+        roleLabel: string;
+        reasonLabel: string | null;
+        byName: string | null;
+    }[];
+    starGrade: number | null;
+    kindLabel: string;
+    starGradeConfirmed: boolean;
+    listings: {
+        status: string;
+        slug: string | null;
+        publishedAt: string | null;
+        propertyName: string;
+        roomTypes: number;
+        rooms: number;
+    }[];
+    bookings90Days: number;
+}>;
+export type PsfRegistrationProfile = z.infer<typeof PsfRegistrationProfile>;
 /**
  * Where a band's price came from: the district's own, PSF's national price,
  * or (neither set) the band's starting price from the tier catalogue.

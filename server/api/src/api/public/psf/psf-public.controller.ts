@@ -22,6 +22,7 @@ import {
   type PsfIdentityLookupResult,
   type PsfOfficerScope,
   type PsfPublicSubmitResult,
+  type PsfRegistrationProfile,
   type PsfReport,
   type PsfTrackPayResult,
   type PsfTrackView,
@@ -249,6 +250,15 @@ export class OversightPsfConsoleController {
     @Query(new ZodValidationPipe(PsfReportQuery)) query: PsfReportQuery,
   ): Promise<PsfReport> {
     return this.reports.report(grants, query);
+  }
+
+  /** One business's registration and listing on Injishi, whatever its standing (2026-10-30). */
+  @Get('registrations/:orgId')
+  registration(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @CurrentOversight() grants: OversightGrant[],
+  ): Promise<PsfRegistrationProfile> {
+    return this.reports.registrationProfile(grants, orgId);
   }
 
   @Get('decisions')

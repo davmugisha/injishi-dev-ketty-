@@ -549,7 +549,10 @@ async function personaFor(
   if (top?.orgRole && ROLE_PERSONA[top.orgRole]) return shellFor(top.orgRole);
   if (landing?.surface === "tenant") return personas.tenant;
   if (context ? context.staff.isStaff : await holds(cookie, "/api/v1/me/staff")) return personas.ops;
-  if (context ? context.oversight.length > 0 : await holds(cookie, "/api/v1/me/oversight")) return personas.officer;
+  const oversight = context ? context.oversight.map((g) => g.oversightRole) : await oversightRoles(cookie);
+  // A PSF District Manager's desk is the PSF console: membership, registration review and the overview.
+  if (oversight.includes("psf_membership_officer")) return personas.psf;
+  if (oversight.length > 0) return personas.officer;
   return personas.guest;
 }
 

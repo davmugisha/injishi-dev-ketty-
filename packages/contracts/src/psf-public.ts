@@ -470,6 +470,63 @@ export const PsfReport = z.object({
         overdue: z.number().int(),
         awaitingPayment: z.number().int(),
         expiringIn30Days: z.number().int(),
+        /** Renewals further out, and memberships past their end with no renewal (2026-10-30). */
+        expiringIn60Days: z.number().int(),
+        expiringIn90Days: z.number().int(),
+        lapsed: z.number().int(),
+    }),
+    /**
+     * Injishi registrations in the region (2026-10-30): where each business stands right now, and the
+     * decisions taken in the period. A PSF District Manager reviews the first gate in one step (0119).
+     */
+    registrations: z.object({
+        waitingReview: z.number().int(),
+        waitingApproval: z.number().int(),
+        waitingPayment: z.number().int(),
+        active: z.number().int(),
+        rejected: z.number().int(),
+        suspended: z.number().int(),
+        approvedInPeriod: PsfKpi,
+        rejectedInPeriod: PsfKpi,
+        /** Days from the fee settling to the decision, the median over the period. */
+        medianDaysToDecision: z.number().nullable(),
+        /** The longest wait in the review queue right now, in whole days. */
+        oldestWaitingDays: z.number().int().nullable(),
+        /** Month by month: fees paid (registrations entering review) and the decisions on them. */
+        months: z
+            .array(z.object({ month: z.string(), submitted: z.number().int(), approved: z.number().int(), rejected: z.number().int() }))
+            .default([]),
+        /** The businesses decided in the period, newest first, each opening its profile. */
+        decided: z
+            .array(z.object({
+                orgId: z.string(),
+                legalName: z.string(),
+                kindLabel: z.string(),
+                decision: z.enum(["approved", "rejected"]),
+                decidedAt: z.string(),
+                decidedBy: z.string().nullable(),
+                status: z.string(),
+            }))
+            .default([]),
+    }),
+    /** The district's tourism economy on Injishi's own records, over the period (2026-10-30). */
+    economy: z.object({
+        /** Active businesses by kind: hotels, guesthouses, apartments, residences, PSF enterprises. */
+        activeBusinesses: z.array(z.object({ key: z.string(), label: z.string(), count: z.number().int() })),
+        /** Confirmed bookings arriving in the period. */
+        bookings: PsfKpi,
+        /** Guests × nights of those bookings. */
+        guestNights: PsfKpi,
+        /** What those bookings are worth, RWF. */
+        bookedValueRwf: PsfKpi,
+        /** Month by month, by the month guests arrive. */
+        months: z
+            .array(z.object({ month: z.string(), bookings: z.number().int(), guestNights: z.number().int(), valueRwf: z.number().int() }))
+            .default([]),
+        /** The businesses that sold the most stays in the period. */
+        topBusinesses: z
+            .array(z.object({ orgId: z.string(), legalName: z.string(), bookings: z.number().int(), guestNights: z.number().int(), valueRwf: z.number().int() }))
+            .default([]),
     }),
     months: z.array(PsfReportMonth),
     funnel: z.object({ registered: z.number().int(), approved: z.number().int(), paid: z.number().int(), declined: z.number().int() }),
@@ -611,6 +668,48 @@ export const PsfBusinessDetail = z.object({
     branches: z.array(PsfBusinessBranch).default([]),
 });
 export type PsfBusinessDetail = z.infer<typeof PsfBusinessDetail>;
+/**
+ * `GET /oversight/psf/registrations/:orgId` (2026-10-30): a business's side on Injishi, for the PSF
+ * District Manager covering it, whatever its standing: what it is, who decided its registration and
+ * when, and whether guests can find it yet. A business PSF's register does not hold (rejected, a
+ * residence) still opens here.
+ */
+export const PsfRegistrationProfile = z.object({
+    orgId: z.string(),
+    legalName: z.string(),
+    businessCode: z.string().nullable(),
+    kindLabel: z.string(),
+    domain: z.string(),
+    districtName: z.string().nullable(),
+    sectorName: z.string().nullable(),
+    addressText: z.string().nullable(),
+    tin: z.string().nullable(),
+    starGrade: z.number().int().nullable(),
+    starGradeConfirmed: z.boolean(),
+    status: z.string(),
+    owner: z.object({ name: z.string().nullable(), email: z.string(), phone: z.string().nullable() }).nullable(),
+    registeredAt: z.string(),
+    reviews: z.array(z.object({
+        stage: z.string(),
+        decision: z.enum(["passed", "rejected"]),
+        roleLabel: z.string(),
+        byName: z.string().nullable(),
+        at: z.string(),
+        notes: z.string().nullable(),
+        reasonLabel: z.string().nullable(),
+    })),
+    listings: z.array(z.object({
+        propertyName: z.string(),
+        status: z.string(),
+        publishedAt: z.string().nullable(),
+        slug: z.string().nullable(),
+        roomTypes: z.number().int(),
+        rooms: z.number().int(),
+    })),
+    /** Confirmed bookings arriving in the last 90 days. */
+    bookings90Days: z.number().int(),
+});
+export type PsfRegistrationProfile = z.infer<typeof PsfRegistrationProfile>;
 
 // ---------------------------------------------------------------------------
 // What a band costs, by place (2026-10-20)

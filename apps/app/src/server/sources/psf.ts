@@ -1,3 +1,4 @@
+import type { OversightDocumentList, PsfBusinessDetail, PsfRegistrationProfile } from "@injishi/contracts";
 import type { SourceContext } from "./types";
 
 /**
@@ -192,7 +193,8 @@ export interface PsfRegisterSummary {
   byDistrict: PsfCount[];
 }
 
-export type PsfStanding = "waiting" | "member" | "lapsed" | "declined";
+/** Where a business stands with PSF: the API's own words (applied, awaiting_payment, member, …). */
+export type PsfStanding = import("@injishi/contracts").PsfStanding;
 
 /** One row of GET /api/v1/oversight/psf/businesses */
 export interface PsfBusinessRow {
@@ -222,12 +224,7 @@ export interface PsfBusinessesPage {
   total: number;
 }
 
-export const PSF_STANDING_LABEL: Readonly<Record<PsfStanding, string>> = {
-  waiting: "Waiting on PSF",
-  member: "Member",
-  lapsed: "Lapsed",
-  declined: "Declined",
-};
+export { PSF_STANDING_LABEL } from "@injishi/contracts";
 
 /** The register of businesses in the officer's region. */
 export function readPsfBusinesses(
@@ -251,55 +248,8 @@ export interface PsfKpi {
   previous: number;
 }
 
-/** GET /api/v1/oversight/psf/report */
-export interface PsfReport {
-  regionLabel: string;
-  from: string;
-  to: string;
-  kpis: {
-    registered: PsfKpi;
-    applied: PsfKpi;
-    approved: PsfKpi;
-    declined: PsfKpi;
-    newMembers: PsfKpi;
-    membershipFeesRwf: PsfKpi;
-    medianDecisionDays: { value: number | null; previous: number | null };
-  };
-  now: {
-    members: number;
-    waiting: number;
-    overdue: number;
-    awaitingPayment: number;
-    expiringIn30Days: number;
-  };
-  months: {
-    month: string;
-    registered: number;
-    applied: number;
-    approved: number;
-    members: number;
-    feesRwf: number;
-  }[];
-  funnel: { registered: number; approved: number; paid: number; declined: number };
-  bySector: { key: string; label: string; count: number; amountRwf: number }[];
-  byFamily: { key: string; label: string; count: number; amountRwf: number }[];
-  byGroup: { key: string; label: string; count: number; amountRwf: number }[];
-  districts: {
-    districtId: number;
-    name: string;
-    letters: string;
-    provinceName: string;
-    registered: number;
-    waiting: number;
-    overdue: number;
-    approved: number;
-    declined: number;
-    members: number;
-    membershipFeesRwf: number;
-    medianDecisionDays: number | null;
-    officers: string[];
-  }[];
-}
+/** GET /api/v1/oversight/psf/report: the contract's own shape, so a section the API adds reaches here. */
+export type PsfReport = import("@injishi/contracts").PsfReport;
 
 /** The officer's region over a period (defaults to the API's last 90 days when omitted). */
 export function readPsfReport(ctx: SourceContext, query: { from?: string; to?: string } = {}): Promise<PsfReport> {
@@ -308,4 +258,36 @@ export function readPsfReport(ctx: SourceContext, query: { from?: string; to?: s
   if (query.to) params.set("to", query.to);
   const qs = params.toString();
   return ctx.api.get<PsfReport>(`/api/v1/oversight/psf/report${qs ? `?${qs}` : ""}`);
+}
+
+/** A business's side on Injishi (2026-10-30): its decisions, owner and listing, whatever its standing. */
+export function readPsfRegistrationProfile(
+  ctx: SourceContext,
+  orgId: string,
+): Promise<PsfRegistrationProfile> {
+  return ctx.api.get<PsfRegistrationProfile>(`/api/v1/oversight/psf/registrations/${orgId}`);
+}
+
+/** Its PSF side: standing, applications, payments, branches. Null for a business PSF's register does not hold. */
+export async function readPsfBusinessDetail(
+  ctx: SourceContext,
+  orgId: string,
+): Promise<PsfBusinessDetail | null> {
+  try {
+    return await ctx.api.get<PsfBusinessDetail>(`/api/v1/oversight/psf/businesses/${orgId}`);
+  } catch {
+    return null;
+  }
+}
+
+/** The documents it registered with, each with a short-lived link to open it. Null when they cannot be read. */
+export async function readRegistrationDocuments(
+  ctx: SourceContext,
+  orgId: string,
+): Promise<OversightDocumentList | null> {
+  try {
+    return await ctx.api.get<OversightDocumentList>(`/api/v1/oversight/registrations/${orgId}/documents`);
+  } catch {
+    return null;
+  }
 }

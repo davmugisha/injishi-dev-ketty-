@@ -112,12 +112,15 @@ export class PsfReportRepository {
   }
 
   /** The region right now, not over a period. */
-  async now(scope: PsfScope, overdueDays: number, today: string, in30: string): Promise<{
+  async now(scope: PsfScope, overdueDays: number, today: string, in30: string, in60: string, in90: string): Promise<{
     members: number;
     waiting: number;
     overdue: number;
     awaitingPayment: number;
     expiringIn30Days: number;
+    expiringIn60Days: number;
+    expiringIn90Days: number;
+    lapsed: number;
   }> {
     const s = scopeSql(scope);
     const [a] = await this.many<Record<string, unknown>>(sql`
@@ -128,8 +131,11 @@ export class PsfReportRepository {
         FROM psf_membership_applications a JOIN orgs o ON o.id = a.org_id
        WHERE ${s}`);
     const [m] = await this.many<Record<string, unknown>>(sql`
-      SELECT count(*)::int AS members,
-             count(*) FILTER (WHERE m.expires_on >= ${today} AND m.expires_on <= ${in30})::int AS expiring
+      SELECT count(*) FILTER (WHERE m.expires_on IS NULL OR m.expires_on >= ${today})::int AS members,
+             count(*) FILTER (WHERE m.expires_on >= ${today} AND m.expires_on <= ${in30})::int AS expiring,
+             count(*) FILTER (WHERE m.expires_on >= ${today} AND m.expires_on <= ${in60})::int AS expiring60,
+             count(*) FILTER (WHERE m.expires_on >= ${today} AND m.expires_on <= ${in90})::int AS expiring90,
+             count(*) FILTER (WHERE m.expires_on < ${today})::int AS lapsed
         FROM psf_memberships m JOIN orgs o ON o.id = m.org_id
        WHERE m.ended_at IS NULL AND ${s}`);
     return {
@@ -138,7 +144,215 @@ export class PsfReportRepository {
       overdue: n(a?.overdue),
       awaitingPayment: n(a?.awaiting),
       expiringIn30Days: n(m?.expiring),
+      expiringIn60Days: n(m?.expiring60),
+      expiringIn90Days: n(m?.expiring90),
+      lapsed: n(m?.lapsed),
     };
+  }
+
+  /**
+   * Injishi registrations in the region right now, and the decisions of a period (2026-10-30). A PSF
+   * business (`enterprise`) has no officer gate, so only hospitality and residence registrations wait.
+   */
+  async registrations(scope: PsfScope, from: Date, to: Date): Promise<{
+    waitingReview: number;
+    waitingApproval: number;
+    waitingPayment: number;
+    active: number;
+    rejected: number;
+    suspended: number;
+    approved: number;
+    rejectedInPeriod: number;
+    decisionDays: number[];
+    oldestWaitingDays: number | null;
+  }> {
+    const s = scopeSql(scope);
+    const [now] = await this.many<Record<string, unknown>>(sql`
+      SELECT count(*) FILTER (WHERE o.registration_status::text IN ('submitted', 'tin_verified'))::int AS review,
+             count(*) FILTER (WHERE o.registration_status::text = 'field_verified')::int AS approval,
+             count(*) FILTER (WHERE o.registration_status::text = 'pending_payment')::int AS payment,
+             count(*) FILTER (WHERE o.registration_status::text IN ('approved', 'active'))::int AS active,
+             count(*) FILTER (WHERE o.registration_status::text = 'rejected')::int AS rejected,
+             count(*) FILTER (WHERE o.registration_status::text = 'suspended')::int AS suspended,
+             max(extract(epoch FROM now() - e.waiting_since) / 86400)
+               FILTER (WHERE o.registration_status::text IN ('submitted', 'tin_verified', 'field_verified')) AS oldest
+        FROM orgs o
+        LEFT JOIN LATERAL (
+          SELECT max(ev.occurred_at) AS waiting_since FROM org_registration_events ev
+           WHERE ev.org_id = o.id AND ev.to_status = o.registration_status
+        ) e ON true
+       WHERE o.domain::text <> 'enterprise' AND ${s}`);
+    // A decision in the period: the officer's move to approved or rejected, timed from the fee settling.
+    const decided = await this.many<{ to_status: string; days: number | null }>(sql`
+      SELECT ev.to_status::text AS to_status,
+             extract(epoch FROM ev.occurred_at - (
+               SELECT min(p.occurred_at) FROM org_registration_events p
+                WHERE p.org_id = ev.org_id AND p.to_status::text = 'submitted'
+             )) / 86400 AS days
+        FROM org_registration_events ev JOIN orgs o ON o.id = ev.org_id
+       WHERE ev.trigger::text = 'officer' AND ev.to_status::text IN ('approved', 'rejected')
+         AND ev.occurred_at >= ${from} AND ev.occurred_at < ${to}
+         AND o.domain::text <> 'enterprise' AND ${s}`);
+    const oldest = now?.oldest;
+    return {
+      waitingReview: n(now?.review),
+      waitingApproval: n(now?.approval),
+      waitingPayment: n(now?.payment),
+      active: n(now?.active),
+      rejected: n(now?.rejected),
+      suspended: n(now?.suspended),
+      approved: decided.filter((d) => d.to_status === 'approved').length,
+      rejectedInPeriod: decided.filter((d) => d.to_status === 'rejected').length,
+      decisionDays: decided.filter((d) => d.days !== null).map((d) => Number(d.days)),
+      oldestWaitingDays: oldest === null || oldest === undefined ? null : Math.floor(Number(oldest)),
+    };
+  }
+
+  /** Registrations month by month: fees paid (entering review), and the officers' decisions. */
+  async registrationMonths(scope: PsfScope, from: Date, to: Date): Promise<{ month: string; submitted: number; approved: number; rejected: number }[]> {
+    const rows = await this.many<{ m: string; submitted: number; approved: number; rejected: number }>(sql`
+      SELECT to_char(ev.occurred_at AT TIME ZONE 'Africa/Kigali', 'YYYY-MM') AS m,
+             count(*) FILTER (WHERE ev.to_status::text = 'submitted' AND ev.from_status::text = 'pending_payment')::int AS submitted,
+             count(*) FILTER (WHERE ev.trigger::text = 'officer' AND ev.to_status::text = 'approved')::int AS approved,
+             count(*) FILTER (WHERE ev.trigger::text = 'officer' AND ev.to_status::text = 'rejected')::int AS rejected
+        FROM org_registration_events ev JOIN orgs o ON o.id = ev.org_id
+       WHERE ev.occurred_at >= ${from} AND ev.occurred_at < ${to}
+         AND o.domain::text <> 'enterprise' AND ${scopeSql(scope)}
+       GROUP BY 1 ORDER BY 1`);
+    return rows.map((r) => ({ month: r.m, submitted: n(r.submitted), approved: n(r.approved), rejected: n(r.rejected) }));
+  }
+
+  /** The registrations an officer decided in the period, newest first, with who decided. */
+  async decided(scope: PsfScope, from: Date, to: Date): Promise<{
+    orgId: string;
+    legalName: string;
+    kind: string;
+    decision: 'approved' | 'rejected';
+    decidedAt: Date;
+    decidedBy: string | null;
+    status: string;
+  }[]> {
+    const rows = await this.many<Record<string, unknown>>(sql`
+      SELECT o.id AS org_id, o.legal_name, coalesce(o.accommodation_class, o.domain::text) AS kind,
+             ev.to_status::text AS decision, ev.occurred_at AS decided_at, u.name AS decided_by,
+             o.registration_status::text AS status
+        FROM org_registration_events ev
+        JOIN orgs o ON o.id = ev.org_id
+        LEFT JOIN users u ON u.id = ev.actor_user_id
+       WHERE ev.trigger::text = 'officer' AND ev.to_status::text IN ('approved', 'rejected')
+         AND ev.occurred_at >= ${from} AND ev.occurred_at < ${to}
+         AND o.domain::text <> 'enterprise' AND ${scopeSql(scope)}
+       ORDER BY ev.occurred_at DESC
+       LIMIT 100`);
+    return rows.map((r) => ({
+      orgId: String(r.org_id),
+      legalName: String(r.legal_name),
+      kind: String(r.kind),
+      decision: r.decision === 'rejected' ? 'rejected' : 'approved',
+      decidedAt: new Date(String(r.decided_at)),
+      decidedBy: r.decided_by ? String(r.decided_by) : null,
+      status: String(r.status),
+    }));
+  }
+
+  /** Confirmed bookings month by month, by the month guests arrive. */
+  async bookingMonths(scope: PsfScope, from: string, to: string): Promise<{ month: string; bookings: number; guestNights: number; valueRwf: number }[]> {
+    const rows = await this.many<Record<string, unknown>>(sql`
+      SELECT to_char(b.check_in, 'YYYY-MM') AS m, count(*)::int AS bookings,
+             coalesce(sum((b.check_out - b.check_in) * greatest(b.guest_count, 1)), 0)::bigint AS nights,
+             coalesce(sum(b.gross_rwf), 0)::bigint AS value
+        FROM bookings b
+        JOIN room_types rt ON rt.id = b.room_type_id
+        JOIN properties p ON p.id = rt.property_id
+        JOIN orgs o ON o.id = p.org_id
+       WHERE b.status::text = 'confirmed' AND b.check_in >= ${from}::date AND b.check_in < ${to}::date AND ${scopeSql(scope)}
+       GROUP BY 1 ORDER BY 1`);
+    return rows.map((r) => ({ month: String(r.m), bookings: n(r.bookings), guestNights: n(r.nights), valueRwf: n(r.value) }));
+  }
+
+  /** The businesses that sold the most stays arriving in the period. */
+  async topBusinesses(scope: PsfScope, from: string, to: string): Promise<{ orgId: string; legalName: string; bookings: number; guestNights: number; valueRwf: number }[]> {
+    const rows = await this.many<Record<string, unknown>>(sql`
+      SELECT o.id AS org_id, o.legal_name, count(*)::int AS bookings,
+             coalesce(sum((b.check_out - b.check_in) * greatest(b.guest_count, 1)), 0)::bigint AS nights,
+             coalesce(sum(b.gross_rwf), 0)::bigint AS value
+        FROM bookings b
+        JOIN room_types rt ON rt.id = b.room_type_id
+        JOIN properties p ON p.id = rt.property_id
+        JOIN orgs o ON o.id = p.org_id
+       WHERE b.status::text = 'confirmed' AND b.check_in >= ${from}::date AND b.check_in < ${to}::date AND ${scopeSql(scope)}
+       GROUP BY o.id, o.legal_name ORDER BY 3 DESC, 5 DESC LIMIT 10`);
+    return rows.map((r) => ({
+      orgId: String(r.org_id),
+      legalName: String(r.legal_name),
+      bookings: n(r.bookings),
+      guestNights: n(r.nights),
+      valueRwf: n(r.value),
+    }));
+  }
+
+  /** A business's side on Injishi, for its profile: the org, its owner, its decisions and its listings. */
+  async registrationProfile(orgId: string): Promise<{
+    org: Record<string, unknown>;
+    owner: Record<string, unknown> | null;
+    reviews: Record<string, unknown>[];
+    listings: Record<string, unknown>[];
+    bookings90Days: number;
+  } | null> {
+    const [org] = await this.many<Record<string, unknown>>(sql`
+      SELECT o.id, o.legal_name, o.business_code, coalesce(o.accommodation_class, o.domain::text) AS kind,
+             o.domain::text AS domain, o.district_id, d.name AS district_name, s.name AS sector_name,
+             o.address_text, o.tin, o.eac_star_grade, o.star_grade_verified_at,
+             o.registration_status::text AS status, o.created_at
+        FROM orgs o
+        LEFT JOIN districts d ON d.id = o.district_id
+        LEFT JOIN sectors s ON s.id = o.sector_id
+       WHERE o.id = ${orgId}::uuid`);
+    if (!org) return null;
+    const [owner] = await this.many<Record<string, unknown>>(sql`
+      SELECT u.name, u.email, u.phone_number FROM org_memberships m JOIN users u ON u.id = m.user_id
+       WHERE m.org_id = ${orgId}::uuid AND m.org_role::text = 'owner' AND m.removed_at IS NULL
+       ORDER BY m.created_at LIMIT 1`);
+    const reviews = await this.many<Record<string, unknown>>(sql`
+      SELECT r.stage::text AS stage, r.decision::text AS decision, r.oversight_role::text AS role,
+             u.name AS by_name, r.decided_at, r.notes, r.reason_code::text AS reason
+        FROM org_registration_reviews r LEFT JOIN users u ON u.id = r.decided_by_user_id
+       WHERE r.org_id = ${orgId}::uuid ORDER BY r.decided_at`);
+    const listings = await this.many<Record<string, unknown>>(sql`
+      SELECT p.name, coalesce(l.status::text, 'draft') AS status, l.published_at, p.slug,
+             (SELECT count(*) FROM room_types rt WHERE rt.property_id = p.id AND rt.status::text = 'active')::int AS room_types,
+             (SELECT coalesce(sum(rt.room_count), 0) FROM room_types rt WHERE rt.property_id = p.id AND rt.status::text = 'active')::int AS rooms
+        FROM properties p LEFT JOIN listings l ON l.property_id = p.id
+       WHERE p.org_id = ${orgId}::uuid AND p.archived_at IS NULL ORDER BY p.created_at`);
+    const [b] = await this.many<{ c: number }>(sql`
+      SELECT count(*)::int AS c FROM bookings b
+        JOIN room_types rt ON rt.id = b.room_type_id JOIN properties p ON p.id = rt.property_id
+       WHERE p.org_id = ${orgId}::uuid AND b.status::text = 'confirmed' AND b.check_in >= (current_date - 90)`);
+    return { org, owner: owner ?? null, reviews, listings, bookings90Days: n(b?.c) };
+  }
+
+  /** Active businesses by kind: an accommodation's class, else its domain. */
+  async activeBusinesses(scope: PsfScope): Promise<{ key: string; count: number }[]> {
+    const rows = await this.many<{ k: string; c: number }>(sql`
+      SELECT coalesce(o.accommodation_class, o.domain::text) AS k, count(*)::int AS c
+        FROM orgs o
+       WHERE o.registration_status::text IN ('approved', 'active') AND ${scopeSql(scope)}
+       GROUP BY 1 ORDER BY 2 DESC, 1`);
+    return rows.map((r) => ({ key: r.k, count: n(r.c) }));
+  }
+
+  /** Confirmed bookings arriving in a period at businesses in the region: count, guest nights, value. */
+  async bookings(scope: PsfScope, from: string, to: string): Promise<{ bookings: number; guestNights: number; valueRwf: number }> {
+    const [r] = await this.many<Record<string, unknown>>(sql`
+      SELECT count(*)::int AS bookings,
+             coalesce(sum((b.check_out - b.check_in) * greatest(b.guest_count, 1)), 0)::bigint AS guest_nights,
+             coalesce(sum(b.gross_rwf), 0)::bigint AS value
+        FROM bookings b
+        JOIN room_types rt ON rt.id = b.room_type_id
+        JOIN properties p ON p.id = rt.property_id
+        JOIN orgs o ON o.id = p.org_id
+       WHERE b.status::text = 'confirmed' AND b.check_in >= ${from}::date AND b.check_in < ${to}::date AND ${scopeSql(scope)}`);
+    return { bookings: n(r?.bookings), guestNights: n(r?.guest_nights), valueRwf: n(r?.value) };
   }
 
   /** Month by month, Kigali months, from `from` up to `to`. */

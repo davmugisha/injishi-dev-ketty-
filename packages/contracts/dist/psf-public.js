@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SetPsfTierFeeRequest = exports.PsfOfficerFeesView = exports.PsfOfficerFeeRow = exports.PsfFeesView = exports.PsfFeesQuery = exports.PsfTierFee = exports.PsfFeeSource = exports.PsfBusinessDetail = exports.PsfBusinessHistory = exports.PsfQueueAreaQuery = exports.PsfDecisionsPage = exports.PsfDecisionItem = exports.PsfDecisionsQuery = exports.PSF_OVERDUE_DAYS = exports.PsfReport = exports.PsfDistrictRow = exports.PsfReportSlice = exports.PsfReportMonth = exports.PsfKpi = exports.PsfReportQuery = exports.PsfAreaQuery = exports.PsfOfficerScope = exports.PsfScopeDistrict = exports.PsfTrackPayResult = exports.PsfTrackPayRequest = exports.PsfTrackView = exports.PsfPaymentLine = exports.PsfTrackEvent = exports.PsfTrackEventKind = exports.PSF_TRACK_STAGE_LABEL = exports.PsfTrackStage = exports.PsfPublicSubmitResult = exports.PSF_CHECK_TOKEN_HEADER = exports.PsfLogoUploadResult = exports.PsfPublicSubmitRequest = exports.PsfPublicMembership = exports.PsfPublicContact = exports.PsfPublicBusiness = exports.PsfPublicBranch = exports.MAX_PSF_BRANCHES = exports.PsfPublicAddress = exports.MomoPhone = exports.PsfVerifiedApplicant = exports.PsfIdentityConfirmRequest = exports.PsfIdentityLookupResult = exports.PsfIdentityLookupRequest = exports.PsfDocId = exports.PSF_DOC_ID_PATTERN = exports.PSF_DOC_ID_ALPHABET = void 0;
+exports.SetPsfTierFeeRequest = exports.PsfOfficerFeesView = exports.PsfOfficerFeeRow = exports.PsfFeesView = exports.PsfFeesQuery = exports.PsfTierFee = exports.PsfFeeSource = exports.PsfRegistrationProfile = exports.PsfBusinessDetail = exports.PsfBusinessHistory = exports.PsfQueueAreaQuery = exports.PsfDecisionsPage = exports.PsfDecisionItem = exports.PsfDecisionsQuery = exports.PSF_OVERDUE_DAYS = exports.PsfReport = exports.PsfDistrictRow = exports.PsfReportSlice = exports.PsfReportMonth = exports.PsfKpi = exports.PsfReportQuery = exports.PsfAreaQuery = exports.PsfOfficerScope = exports.PsfScopeDistrict = exports.PsfTrackPayResult = exports.PsfTrackPayRequest = exports.PsfTrackView = exports.PsfPaymentLine = exports.PsfTrackEvent = exports.PsfTrackEventKind = exports.PSF_TRACK_STAGE_LABEL = exports.PsfTrackStage = exports.PsfPublicSubmitResult = exports.PSF_CHECK_TOKEN_HEADER = exports.PsfLogoUploadResult = exports.PsfPublicSubmitRequest = exports.PsfPublicMembership = exports.PsfPublicContact = exports.PsfPublicBusiness = exports.PsfPublicBranch = exports.MAX_PSF_BRANCHES = exports.PsfPublicAddress = exports.MomoPhone = exports.PsfVerifiedApplicant = exports.PsfIdentityConfirmRequest = exports.PsfIdentityLookupResult = exports.PsfIdentityLookupRequest = exports.PsfDocId = exports.PSF_DOC_ID_PATTERN = exports.PSF_DOC_ID_ALPHABET = void 0;
 exports.newPsfDocId = newPsfDocId;
 exports.normalizePsfDocId = normalizePsfDocId;
 exports.isPsfDocId = isPsfDocId;
@@ -460,6 +460,63 @@ exports.PsfReport = zod_1.z.object({
         overdue: zod_1.z.number().int(),
         awaitingPayment: zod_1.z.number().int(),
         expiringIn30Days: zod_1.z.number().int(),
+        /** Renewals further out, and memberships past their end with no renewal (2026-10-30). */
+        expiringIn60Days: zod_1.z.number().int(),
+        expiringIn90Days: zod_1.z.number().int(),
+        lapsed: zod_1.z.number().int(),
+    }),
+    /**
+     * Injishi registrations in the region (2026-10-30): where each business stands right now, and the
+     * decisions taken in the period. A PSF District Manager reviews the first gate in one step (0119).
+     */
+    registrations: zod_1.z.object({
+        waitingReview: zod_1.z.number().int(),
+        waitingApproval: zod_1.z.number().int(),
+        waitingPayment: zod_1.z.number().int(),
+        active: zod_1.z.number().int(),
+        rejected: zod_1.z.number().int(),
+        suspended: zod_1.z.number().int(),
+        approvedInPeriod: exports.PsfKpi,
+        rejectedInPeriod: exports.PsfKpi,
+        /** Days from the fee settling to the decision, the median over the period. */
+        medianDaysToDecision: zod_1.z.number().nullable(),
+        /** The longest wait in the review queue right now, in whole days. */
+        oldestWaitingDays: zod_1.z.number().int().nullable(),
+        /** Month by month: fees paid (registrations entering review) and the decisions on them. */
+        months: zod_1.z
+            .array(zod_1.z.object({ month: zod_1.z.string(), submitted: zod_1.z.number().int(), approved: zod_1.z.number().int(), rejected: zod_1.z.number().int() }))
+            .default([]),
+        /** The businesses decided in the period, newest first, each opening its profile. */
+        decided: zod_1.z
+            .array(zod_1.z.object({
+            orgId: zod_1.z.string(),
+            legalName: zod_1.z.string(),
+            kindLabel: zod_1.z.string(),
+            decision: zod_1.z.enum(["approved", "rejected"]),
+            decidedAt: zod_1.z.string(),
+            decidedBy: zod_1.z.string().nullable(),
+            status: zod_1.z.string(),
+        }))
+            .default([]),
+    }),
+    /** The district's tourism economy on Injishi's own records, over the period (2026-10-30). */
+    economy: zod_1.z.object({
+        /** Active businesses by kind: hotels, guesthouses, apartments, residences, PSF enterprises. */
+        activeBusinesses: zod_1.z.array(zod_1.z.object({ key: zod_1.z.string(), label: zod_1.z.string(), count: zod_1.z.number().int() })),
+        /** Confirmed bookings arriving in the period. */
+        bookings: exports.PsfKpi,
+        /** Guests × nights of those bookings. */
+        guestNights: exports.PsfKpi,
+        /** What those bookings are worth, RWF. */
+        bookedValueRwf: exports.PsfKpi,
+        /** Month by month, by the month guests arrive. */
+        months: zod_1.z
+            .array(zod_1.z.object({ month: zod_1.z.string(), bookings: zod_1.z.number().int(), guestNights: zod_1.z.number().int(), valueRwf: zod_1.z.number().int() }))
+            .default([]),
+        /** The businesses that sold the most stays in the period. */
+        topBusinesses: zod_1.z
+            .array(zod_1.z.object({ orgId: zod_1.z.string(), legalName: zod_1.z.string(), bookings: zod_1.z.number().int(), guestNights: zod_1.z.number().int(), valueRwf: zod_1.z.number().int() }))
+            .default([]),
     }),
     months: zod_1.z.array(exports.PsfReportMonth),
     funnel: zod_1.z.object({ registered: zod_1.z.number().int(), approved: zod_1.z.number().int(), paid: zod_1.z.number().int(), declined: zod_1.z.number().int() }),
@@ -592,6 +649,47 @@ exports.PsfBusinessDetail = zod_1.z.object({
     history: exports.PsfBusinessHistory,
     /** Every branch it listed, in any district (2026-10-23), with where each stands. */
     branches: zod_1.z.array(psf_1.PsfBusinessBranch).default([]),
+});
+/**
+ * `GET /oversight/psf/registrations/:orgId` (2026-10-30): a business's side on Injishi, for the PSF
+ * District Manager covering it, whatever its standing: what it is, who decided its registration and
+ * when, and whether guests can find it yet. A business PSF's register does not hold (rejected, a
+ * residence) still opens here.
+ */
+exports.PsfRegistrationProfile = zod_1.z.object({
+    orgId: zod_1.z.string(),
+    legalName: zod_1.z.string(),
+    businessCode: zod_1.z.string().nullable(),
+    kindLabel: zod_1.z.string(),
+    domain: zod_1.z.string(),
+    districtName: zod_1.z.string().nullable(),
+    sectorName: zod_1.z.string().nullable(),
+    addressText: zod_1.z.string().nullable(),
+    tin: zod_1.z.string().nullable(),
+    starGrade: zod_1.z.number().int().nullable(),
+    starGradeConfirmed: zod_1.z.boolean(),
+    status: zod_1.z.string(),
+    owner: zod_1.z.object({ name: zod_1.z.string().nullable(), email: zod_1.z.string(), phone: zod_1.z.string().nullable() }).nullable(),
+    registeredAt: zod_1.z.string(),
+    reviews: zod_1.z.array(zod_1.z.object({
+        stage: zod_1.z.string(),
+        decision: zod_1.z.enum(["passed", "rejected"]),
+        roleLabel: zod_1.z.string(),
+        byName: zod_1.z.string().nullable(),
+        at: zod_1.z.string(),
+        notes: zod_1.z.string().nullable(),
+        reasonLabel: zod_1.z.string().nullable(),
+    })),
+    listings: zod_1.z.array(zod_1.z.object({
+        propertyName: zod_1.z.string(),
+        status: zod_1.z.string(),
+        publishedAt: zod_1.z.string().nullable(),
+        slug: zod_1.z.string().nullable(),
+        roomTypes: zod_1.z.number().int(),
+        rooms: zod_1.z.number().int(),
+    })),
+    /** Confirmed bookings arriving in the last 90 days. */
+    bookings90Days: zod_1.z.number().int(),
 });
 // ---------------------------------------------------------------------------
 // What a band costs, by place (2026-10-20)

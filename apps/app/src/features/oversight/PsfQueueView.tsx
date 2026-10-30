@@ -31,7 +31,7 @@ export function PsfQueueView({ scope, page, q }: { scope: PsfScope; page: PsfQue
       <PageHeader
         eyebrow={`${scope.title} · ${scope.label}`}
         title="Membership applications"
-        description={`${page.total} waiting on PSF${q ? ` matching “${q}”` : ""}. Paid when sent; PSF decides.`}
+        description={`${page.total} waiting on PSF${q ? ` matching “${q}”` : ""}. Businesses asking to join PSF: each paid when it applied, and waits for your decision.`}
       />
 
       {reporting ? (

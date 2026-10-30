@@ -7,9 +7,9 @@ import { readPsfBusinesses, readPsfRegisterSummary, readPsfScope, type PsfStandi
 
 export const metadata: Metadata = { title: screens.PsfRegister.pageTitle };
 
-const STANDINGS = new Set<PsfStanding>(["waiting", "member", "lapsed", "declined"]);
+const STANDINGS = new Set<PsfStanding>(["not_applied", "applied", "awaiting_payment", "member", "lapsed", "declined"]);
 
-/** Member register — same WorkspaceShell as /officer/delegated. */
+/** Businesses: every business in the manager's region on PSF's register, each opening its profile. */
 export default async function PsfRegisterPage({
   searchParams,
 }: {

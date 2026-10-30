@@ -1,5 +1,8 @@
 import {
+  ACCOMMODATION_CLASS_LABEL,
+  OVERSIGHT_ROLE_LABEL,
   PSF_DECLINE_REASON_LABEL,
+  REJECTION_REASON_LABEL,
   PSF_FAMILY_LABEL,
   PSF_OFFERED_FAMILIES,
   PSF_OVERDUE_DAYS,
@@ -15,8 +18,10 @@ import {
   type PsfOwnerGroup,
   type PsfReport,
   type PsfReportQuery,
+  type PsfRegistrationProfile,
+  type RegistrationRejectionReason,
 } from '@injishi/contracts';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { PsfReportRepository } from '../infrastructure/psf-report.repository';
 import { PsfMembershipService } from './psf-membership.service';
@@ -39,6 +44,29 @@ function addDays(isoDate: string, days: number): string {
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 const round1 = (v: number | null): number | null => (v === null ? null : Math.round(v * 10) / 10);
+
+/** The chart's months with every series filled, so a month with nothing still draws as zero. */
+function fillMonths<T extends Record<string, number>>(
+  keys: string[],
+  rows: ({ month: string } & T)[],
+  zero: T,
+): ({ month: string } & T)[] {
+  const by = new Map(rows.map((r) => [r.month, r]));
+  return keys.map((month) => ({ ...zero, ...(by.get(month) ?? {}), month }));
+}
+
+/** The first day of the chart's first month, as a Kigali date, for the bookings' date column. */
+function chartFromDay(chartFrom: Date): string {
+  return new Date(chartFrom.getTime() + 2 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+/** A business kind in words: an accommodation's RDB class, else what the business is. */
+const KIND_LABEL: Readonly<Record<string, string>> = {
+  ...(ACCOMMODATION_CLASS_LABEL as Readonly<Record<string, string>>),
+  hospitality: 'Hospitality',
+  residence: 'Residences',
+  enterprise: 'PSF enterprises',
+};
 
 /**
  * The PSF officer console's report and decision log (2026-10-19).
@@ -99,10 +127,32 @@ export class PsfReportService {
     // The chart always shows twelve months at least, so a short period still has a trend.
     const chartFrom = days < 330 ? kigaliMidnight(`${addDays(query.to, -335).slice(0, 7)}-01`) : from;
 
-    const [current, previous, now, months, funnel, bySector, byFamily, byGroup, districts, label] = await Promise.all([
+    const toDay = addDays(query.to, 1);
+    const prevFromDay = addDays(query.from, -days);
+    const [
+      current,
+      previous,
+      now,
+      months,
+      funnel,
+      bySector,
+      byFamily,
+      byGroup,
+      districts,
+      label,
+      registrations,
+      registrationsBefore,
+      kinds,
+      stays,
+      staysBefore,
+      registrationMonths,
+      decided,
+      bookingMonths,
+      top,
+    ] = await Promise.all([
       this.repo.periodCounts(scope, from, to),
       this.repo.periodCounts(scope, prevFrom, from),
-      this.repo.now(scope, PSF_OVERDUE_DAYS, today, addDays(today, 30)),
+      this.repo.now(scope, PSF_OVERDUE_DAYS, today, addDays(today, 30), addDays(today, 60), addDays(today, 90)),
       this.repo.months(scope, chartFrom, to),
       this.repo.funnel(scope, from, to),
       this.repo.bySector(scope, from, to),
@@ -110,6 +160,15 @@ export class PsfReportService {
       this.repo.byGroup(scope),
       this.repo.districts(scope, from, to, PSF_OVERDUE_DAYS),
       this.regionLabel(grants, query),
+      this.repo.registrations(scope, from, to),
+      this.repo.registrations(scope, prevFrom, from),
+      this.repo.activeBusinesses(scope),
+      this.repo.bookings(scope, query.from, toDay),
+      this.repo.bookings(scope, prevFromDay, query.from),
+      this.repo.registrationMonths(scope, chartFrom, to),
+      this.repo.decided(scope, from, to),
+      this.repo.bookingMonths(scope, chartFromDay(chartFrom), toDay),
+      this.repo.topBusinesses(scope, query.from, toDay),
     ]);
     const kpi = (k: keyof Omit<typeof current, 'decisionDays'>) => ({ value: current[k], previous: previous[k] });
     const families = new Map(byFamily.map((f) => [f.key, f]));
@@ -127,6 +186,36 @@ export class PsfReportService {
         medianDecisionDays: { value: round1(median(current.decisionDays)), previous: round1(median(previous.decisionDays)) },
       },
       now,
+      registrations: {
+        waitingReview: registrations.waitingReview,
+        waitingApproval: registrations.waitingApproval,
+        waitingPayment: registrations.waitingPayment,
+        active: registrations.active,
+        rejected: registrations.rejected,
+        suspended: registrations.suspended,
+        approvedInPeriod: { value: registrations.approved, previous: registrationsBefore.approved },
+        rejectedInPeriod: { value: registrations.rejectedInPeriod, previous: registrationsBefore.rejectedInPeriod },
+        medianDaysToDecision: round1(median(registrations.decisionDays)),
+        oldestWaitingDays: registrations.oldestWaitingDays,
+        months: fillMonths(months.map((m) => m.month), registrationMonths, { submitted: 0, approved: 0, rejected: 0 }),
+        decided: decided.map((d) => ({
+          orgId: d.orgId,
+          legalName: d.legalName,
+          kindLabel: KIND_LABEL[d.kind] ?? d.kind,
+          decision: d.decision,
+          decidedAt: d.decidedAt.toISOString(),
+          decidedBy: d.decidedBy,
+          status: d.status,
+        })),
+      },
+      economy: {
+        activeBusinesses: kinds.map((k) => ({ key: k.key, label: KIND_LABEL[k.key] ?? k.key, count: k.count })),
+        bookings: { value: stays.bookings, previous: staysBefore.bookings },
+        guestNights: { value: stays.guestNights, previous: staysBefore.guestNights },
+        bookedValueRwf: { value: stays.valueRwf, previous: staysBefore.valueRwf },
+        months: fillMonths(months.map((m) => m.month), bookingMonths, { bookings: 0, guestNights: 0, valueRwf: 0 }),
+        topBusinesses: top,
+      },
       months,
       funnel,
       bySector,
@@ -157,6 +246,62 @@ export class PsfReportService {
         medianDecisionDays: round1(median(d.decisionDays)),
         officers: d.officers,
       })),
+    };
+  }
+
+  /**
+   * One business's side on Injishi (2026-10-30), for the PSF District Manager covering it: what it is,
+   * who decided its registration and when, and whether guests can find it yet.
+   */
+  async registrationProfile(grants: OversightGrant[], orgId: string): Promise<PsfRegistrationProfile> {
+    const scope = await this.psf.scopeFor(grants);
+    const found = await this.repo.registrationProfile(orgId);
+    const districtId = found ? (found.org.district_id as number | null) : null;
+    if (!found || (scope !== null && (districtId === null || !scope.includes(districtId)))) {
+      throw new NotFoundException('This business is not in your region.');
+    }
+    const { org, owner, reviews, listings, bookings90Days } = found;
+    const iso = (v: unknown): string | null => (v ? new Date(String(v)).toISOString() : null);
+    return {
+      orgId: String(org.id),
+      legalName: String(org.legal_name),
+      businessCode: (org.business_code as string | null) ?? null,
+      kindLabel: KIND_LABEL[String(org.kind)] ?? String(org.kind),
+      domain: String(org.domain),
+      districtName: (org.district_name as string | null) ?? null,
+      sectorName: (org.sector_name as string | null) ?? null,
+      addressText: (org.address_text as string | null) ?? null,
+      tin: (org.tin as string | null) ?? null,
+      starGrade: org.eac_star_grade === null || org.eac_star_grade === undefined ? null : Number(org.eac_star_grade),
+      starGradeConfirmed: !!org.star_grade_verified_at,
+      status: String(org.status),
+      owner: owner
+        ? {
+            name: (owner.name as string | null) ?? null,
+            email: String(owner.email),
+            phone: (owner.phone_number as string | null) ?? null,
+          }
+        : null,
+      registeredAt: iso(org.created_at) ?? new Date().toISOString(),
+      reviews: reviews.map((r) => ({
+        stage: String(r.stage),
+        decision: r.decision === 'rejected' ? 'rejected' : 'passed',
+        roleLabel:
+          (OVERSIGHT_ROLE_LABEL as Readonly<Record<string, string>>)[String(r.role)] ?? String(r.role),
+        byName: (r.by_name as string | null) ?? null,
+        at: iso(r.decided_at) ?? '',
+        notes: (r.notes as string | null) ?? null,
+        reasonLabel: r.reason ? (REJECTION_REASON_LABEL[r.reason as RegistrationRejectionReason] ?? null) : null,
+      })),
+      listings: listings.map((l) => ({
+        propertyName: String(l.name),
+        status: String(l.status),
+        publishedAt: iso(l.published_at),
+        slug: (l.slug as string | null) ?? null,
+        roomTypes: Number(l.room_types ?? 0),
+        rooms: Number(l.rooms ?? 0),
+      })),
+      bookings90Days,
     };
   }
 

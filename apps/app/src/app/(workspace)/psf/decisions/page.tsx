@@ -13,7 +13,7 @@ export default async function PsfDecisionsPage() {
   await requirePersona("PsfDecisions");
   return (
     <PageContent>
-      <PageHeader title="Decisions" description="Membership approvals and declines, newest first." />
+      <PageHeader title="Membership decisions" description="Every PSF membership you approved or declined, newest first. Business approvals on Injishi are under Reports, Business approvals." />
       <OfficerBoundary requires="membership">
         <Suspense>
           <PsfDecisions embedded />
