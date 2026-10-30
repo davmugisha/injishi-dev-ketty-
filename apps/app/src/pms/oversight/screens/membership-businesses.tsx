@@ -229,11 +229,16 @@ function RegisterBody({ push }: { push: (t: QueuedToast) => void }) {
         {/* ── Filters ──────────────────────────────────────────────── */}
         <section className={cn(surfaceClass, "flex flex-col gap-3 p-3.5")}>
           <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1.4fr)_repeat(4,minmax(0,1fr))]">
-            <label className="relative">
-              <span className="sr-only">Search by name, code or TIN</span>
+            <div className="relative">
               <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input className="pl-9" placeholder="Name, code or TIN" value={search} onChange={(e) => setSearch(e.target.value)} />
-            </label>
+              <Input
+                aria-label="Search by name, code or TIN"
+                className="pl-9"
+                placeholder="Name, code or TIN"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
             <select
               aria-label="Sector"
               className={selectClass}

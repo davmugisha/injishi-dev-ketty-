@@ -149,7 +149,7 @@ export function SignInView({
   // Email code by default; a password only for those who set one (tenants), offered to every address.
   const [mode, setMode] = useState<"code" | "password" | "forgot">("code");
   const [saved, setSaved] = useState<string | null>(null);
-  const useEmail = (value: string) => {
+  const fillEmail = (value: string) => {
     setMode("code");
     setEmail(value);
     inputRef.current?.focus();
@@ -284,7 +284,7 @@ export function SignInView({
                         persona={p}
                         next={next}
                         highlighted={highlight === p.id}
-                        onUseEmail={useEmail}
+                        onUseEmail={fillEmail}
                       />
                     ))}
                     {open.map((o) => (
@@ -325,7 +325,7 @@ export function SignInView({
                           variant="ghost"
                           size="sm"
                           className="text-[13px] underline underline-offset-2"
-                          onPress={() => useEmail(r.email)}
+                          onPress={() => fillEmail(r.email)}
                         >
                           Use this email
                         </Button>

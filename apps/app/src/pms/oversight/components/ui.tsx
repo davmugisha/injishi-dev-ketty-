@@ -287,9 +287,11 @@ export const fieldStyle: CSSProperties = {
 };
 
 /** Uppercase field label. */
-export function FieldLabel({ children }: { children: ReactNode }) {
+export function FieldLabel({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) {
   return (
-    <label className="text-2xs font-bold tracking-[0.08em] uppercase text-[var(--muted2)]">{children}</label>
+    <label htmlFor={htmlFor} className="text-2xs font-bold tracking-[0.08em] uppercase text-[var(--muted2)]">
+      {children}
+    </label>
   );
 }
 

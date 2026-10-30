@@ -216,7 +216,6 @@ function FeeRow({
             <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded border border-primary bg-field px-3 focus-within:ring-2 focus-within:ring-ring">
               <span className="text-xs font-medium text-muted-foreground">RWF</span>
               <input
-                autoFocus
                 inputMode="numeric"
                 aria-label={`${row.tierName}, RWF a year`}
                 value={text ? Number(text.replace(/[^\d]/g, "") || 0).toLocaleString("en-US") : ""}

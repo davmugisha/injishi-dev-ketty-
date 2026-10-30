@@ -67,7 +67,7 @@ export function ReservationChange({
     return () => {
       live = false;
     };
-  }, [bookingRef]);
+  }, [bookingRef, loadReservationChange]);
 
   // Re-price after the desk stops editing for a moment.
   useEffect(() => {
@@ -83,7 +83,7 @@ export function ReservationChange({
       });
     }, 350);
     return () => clearTimeout(t);
-  }, [ask, form, bookingRef]);
+  }, [ask, form, bookingRef, previewReservationChange]);
 
   // While the guest is asked to pay, look every few seconds; the change applies the moment it lands.
   useEffect(() => {
@@ -99,7 +99,7 @@ export function ReservationChange({
       });
     }, 3000);
     return () => clearTimeout(t);
-  }, [waiting, bookingRef, onDone]);
+  }, [waiting, bookingRef, onDone, checkReservationChange]);
 
   if (loadError) {
     return (

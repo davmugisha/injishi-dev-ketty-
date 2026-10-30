@@ -265,7 +265,6 @@ function SubtypeForm({
         <label className="text-sm font-semibold">
           Name
           <input
-            autoFocus
             value={nameEn}
             onChange={(e) => setName(e.target.value)}
             placeholder="Like “Hospitality” or “Beekeeping”"
