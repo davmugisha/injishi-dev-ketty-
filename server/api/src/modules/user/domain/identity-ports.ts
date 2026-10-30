@@ -1,23 +1,27 @@
 /**
- * The document verifier seam (ADR-060, made the only identity seam by ADR-075):
- * one port, a mock that is honest about being one, and a live side that refuses
- * to boot until a provider is registered, in the style of the RRA TIN and SMS
- * seams.
+ * The two identity seams.
  *
- * It answers "is this document genuine, what does it say, and is this selfie
- * its holder?", for the front of a Rwandan National ID and a passport's photo
- * page alike (O-4). Sumsub, Persona or Smile ID would sit behind it; none is
- * chosen (ADR-075 D-a), and where the seam is `off` the scan keeps the photos
- * for the PSF officer to compare by eye (O-6).
+ * - The DOCUMENT VERIFIER (ADR-060, the only identity seam under ADR-075):
+ *   "is this document genuine, what does it say, and is this selfie its
+ *   holder?" for a passport's photo page, or the front of a National ID card
+ *   where the registry below is off. Smile ID sits behind it (job type 6).
  *
- * The population register seam, and the SMS code it sent to the register's
- * phone, went with ADR-075 AC-4: no code is sent to any phone during
- * registration.
+ * - The NATIONAL ID REGISTRY (2026-10-30, the owner's call): a Rwandan
+ *   National ID is checked by its NUMBER against NIDA's population register,
+ *   through GTBank's NIDA gateway, with the holder's selfie: "does this number
+ *   exist, who holds it, and is this selfie them?". It replaces the card scan
+ *   for National IDs wherever it runs; where it is `off` the card scan stays.
+ *
+ * Each has a mock that is honest about being one, a `sandbox` that runs the
+ * real HTTP adapter against Injishi Mock APIs (`server/mock-apis`), and a live
+ * side that refuses to boot until a provider is registered, in the style of
+ * the RRA TIN and SMS seams. No code is sent to any phone (ADR-075 AC-4).
  */
 
-export type IdentityAdapterMode = 'mock' | 'live' | 'off';
+export type IdentityAdapterMode = 'mock' | 'sandbox' | 'live' | 'off';
 
 export const DOCUMENT_VERIFIER = Symbol('DOCUMENT_VERIFIER');
+export const NATIONAL_ID_REGISTRY = Symbol('NATIONAL_ID_REGISTRY');
 
 export interface DocumentImage {
   mime: string | null;
@@ -51,22 +55,49 @@ export interface DocumentVerifierPort {
     /** The front of the card, or the passport's photo page. */
     front: DocumentImage;
     selfie: DocumentImage;
+    /** Where the document was issued, when the person said: a passport's country. `RW` for a National ID. */
+    issuingCountry?: string | null;
   }): Promise<DocumentCheck>;
 }
 
-/** The environment variable the seam reads. */
+/**
+ * What the population register said about a number and a selfie.
+ *
+ * `face` is `not_checked` when the gateway returned the record but compared
+ * no face: the identity is then held `pending` with the register's details,
+ * and the PSF officer compares the selfie before approving (ADR-075 O-6).
+ */
+export type NationalIdCheck =
+  | { status: 'verified'; holder: DocumentHolder; face: 'match' | 'not_checked'; generated: boolean }
+  | { status: 'rejected'; reason: 'not_found' | 'revoked' | 'face_mismatch' | 'unreadable' }
+  | { status: 'unavailable' };
+
+export interface NationalIdRegistryPort {
+  readonly mode: IdentityAdapterMode;
+  verify(input: {
+    /** Sixteen digits. */
+    documentNumber: string;
+    selfie: DocumentImage;
+    /** Ours, unique per try, so a provider can tell a retry from a new check. */
+    reference: string;
+  }): Promise<NationalIdCheck>;
+}
+
+/** The environment variables the seams read. */
 export const MODE_VARIABLE = 'DOCUMENT_VERIFIER_MODE';
+export const NIDA_MODE_VARIABLE = 'NIDA_ADAPTER_MODE';
 
 /**
- * The mode the seam runs in, decided ONCE at boot from its variable and from
- * what the database is (ADR-043's sample marker).
+ * A seam's mode, decided ONCE at boot from its variable and from what the
+ * database is (ADR-043's sample marker).
  *
  * - Unset: `mock` over a sample database, `off` over a real one. So every
  *   laptop and the demo verify against made-up people, and production keeps
  *   the photos for PSF and reads nothing.
- * - `mock` over a REAL database is refused. A mock that "verifies" people it
- *   invented would put invented identities on real accounts; that is the same
- *   failure as mock money on a real database (ADR-051), refused the same way.
+ * - `mock` or `sandbox` over a REAL database is refused. Both answer from
+ *   people somebody invented, and invented identities on real accounts are the
+ *   same failure as mock money on a real database (ADR-051), refused the same
+ *   way.
  * - Anything unreadable is refused rather than defaulted, as `SMS_MODE` does:
  *   `Live ` quietly becoming `off` is a deployment believing it verifies.
  */
@@ -77,14 +108,14 @@ export function resolveIdentityMode(
 ): IdentityAdapterMode {
   const value = (raw ?? '').trim().toLowerCase();
   if (value === '') return sampleData ? 'mock' : 'off';
-  if (value !== 'mock' && value !== 'live' && value !== 'off') {
-    throw new Error(`${variable} must be "mock", "live" or "off", got "${value}".`);
+  if (value !== 'mock' && value !== 'sandbox' && value !== 'live' && value !== 'off') {
+    throw new Error(`${variable} must be "mock", "sandbox", "live" or "off", got "${value}".`);
   }
-  if (value === 'mock' && !sampleData) {
+  if ((value === 'mock' || value === 'sandbox') && !sampleData) {
     throw new Error(
-      `${variable}=mock is refused over a database without the sample marker: ` +
-        'the mock verifies people it made up. Run "off" until a live provider ' +
-        'is registered, or run over a sample database.',
+      `${variable}=${value} is refused over a database without the sample marker: ` +
+        `the ${value === 'mock' ? 'mock verifies people it made up' : 'sandbox answers from Injishi Mock APIs’ invented registers'}. ` +
+        'Run "off" until a live provider is registered, or run over a sample database.',
     );
   }
   return value;

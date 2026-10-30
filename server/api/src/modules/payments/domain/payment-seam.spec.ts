@@ -25,10 +25,21 @@ describe('resolvePaymentSeam', () => {
       /PAYMENT_LIVE_PURPOSES names "bookings"/,
     );
     expect(() => resolvePaymentSeam({ GTBANK_RTP_NETWORKS: 'mtn_momo,tigo' })).toThrow(/tigo/);
-    expect(() => resolvePaymentSeam({ PAYMENT_ADAPTER_MODE: 'disabled' })).toThrow(/"mock", "live" or "off"/);
+    expect(() => resolvePaymentSeam({ PAYMENT_ADAPTER_MODE: 'disabled' })).toThrow(/"mock", "sandbox", "live" or "off"/);
     expect(() => resolvePaymentSeam({ GTBANK_MAX_COLLECTION_RWF: '12.5' })).toThrow(/positive whole number/);
     expect(() => resolvePaymentSeam({ GTBANK_COLLECTION_FEE_BPS: '-1' })).toThrow(/non negative/);
     expect(() => resolvePaymentSeam({ PAYMENT_REFUND_WINDOW_DAYS: '0' })).toThrow(/positive whole number/);
+  });
+
+  it('runs every purpose under sandbox, on GTBank rows that still say mock', () => {
+    const s = resolvePaymentSeam({ PAYMENT_ADAPTER_MODE: 'sandbox' });
+    expect(s.mode).toBe('sandbox');
+    expect(s.provider).toBe('gtbank');
+    expect(s.settlementLagMinutes).toBe(0);
+    const seam = new PaymentSeam(s);
+    expect(seam.adapterMode).toBe('mock');
+    expect(seam.isOffFor('registration_fee')).toBe(false);
+    expect(seam.rules().livePurposes).toContain('booking');
   });
 
   it('keeps GTBank settlement lag only under live; the mock settles at once', () => {

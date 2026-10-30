@@ -2,6 +2,7 @@ import {
   IdentityScanRequest,
   type IdentityScanResult,
   type IdentityStatus,
+  NationalIdCheckRequest,
   TypedIdentityRequest,
 } from '@injishi/contracts';
 import { Body, Controller, Get, HttpCode, Post, Put, UseGuards } from '@nestjs/common';
@@ -45,6 +46,21 @@ export class IdentityController {
     @CurrentUser() user: SessionUser,
   ): Promise<IdentityScanResult> {
     return this.identity.scan(user.id, body);
+  }
+
+  /**
+   * A National ID checked by its number against the population register
+   * (NIDA, through GTBank), with a selfie uploaded first as `id_photo`.
+   * Throttled with the scan: both keep a photo, and both count as a try.
+   */
+  @Post('national-id')
+  @HttpCode(200)
+  @Throttle({ money: { limit: 10, ttl: 600_000 } })
+  nationalId(
+    @Body(new ZodValidationPipe(NationalIdCheckRequest)) body: NationalIdCheckRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<IdentityScanResult> {
+    return this.identity.checkNationalId(user.id, body);
   }
 
   /** The details as printed, after a scan that read nothing or after the tries ran out. */

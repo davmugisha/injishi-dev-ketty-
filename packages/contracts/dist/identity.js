@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TypedIdentityRequest = exports.IdentityScanResult = exports.IdentityScanRequest = exports.IdentityStatus = exports.IdentityScanState = exports.IdentityOnFile = exports.IdentityScanReason = exports.IdentityScanOutcome = exports.SCAN_ATTEMPTS_BEFORE_CONTINUE = exports.IdentityAdapterMode = void 0;
+exports.NationalIdCheckRequest = exports.TypedIdentityRequest = exports.IdentityScanResult = exports.IdentityScanRequest = exports.IdentityStatus = exports.IdentityScanState = exports.IdentityOnFile = exports.IdentityScanReason = exports.IdentityScanOutcome = exports.SCAN_ATTEMPTS_BEFORE_CONTINUE = exports.IdentityAdapterMode = void 0;
 const zod_1 = require("zod");
 const primitives_1 = require("./primitives");
 const registration_1 = require("./registration");
@@ -11,11 +11,14 @@ const registration_1 = require("./registration");
 // them before approving (D-a, O-6).
 // ---------------------------------------------------------------------------
 /**
- * Which side of the document verifier seam a deployment runs. `off` is a real
- * answer, not a missing one: it is what a real database runs until a provider
- * is signed, and there the scan stores the photos for PSF and reads nothing.
+ * Which side of an identity seam a deployment runs. `off` is a real answer,
+ * not a missing one: it is what a real database runs until a provider is
+ * signed, and there the scan stores the photos for PSF and reads nothing.
+ * `sandbox` is the real HTTP adapter talking to Injishi Mock APIs
+ * (`server/mock-apis`): the people it answers about are as invented as the
+ * mock's.
  */
-exports.IdentityAdapterMode = zod_1.z.enum(["mock", "live", "off"]);
+exports.IdentityAdapterMode = zod_1.z.enum(["mock", "sandbox", "live", "off"]);
 /** How many tries a draft gets before the person may continue and PSF checks the ID by eye (AC-5). */
 exports.SCAN_ATTEMPTS_BEFORE_CONTINUE = 3;
 /**
@@ -25,7 +28,17 @@ exports.SCAN_ATTEMPTS_BEFORE_CONTINUE = 3;
  */
 exports.IdentityScanOutcome = zod_1.z.enum(["machine_passed", "machine_failed", "manual_needed"]);
 /** Why a checker refused a scan. Each has its own fix, worded by the server. */
-exports.IdentityScanReason = zod_1.z.enum(["not_authentic", "face_mismatch", "unreadable", "expired", "unavailable"]);
+exports.IdentityScanReason = zod_1.z.enum([
+    "not_authentic",
+    "face_mismatch",
+    "unreadable",
+    "expired",
+    "unavailable",
+    /** The population register holds no one under this National ID. */
+    "not_found",
+    /** The register holds the number, and the card was cancelled. */
+    "revoked",
+]);
 /**
  * The person on file, as the scan read them or as they typed them. The number
  * comes back MASKED, like every other read of it (§10); the server keeps the
@@ -50,6 +63,12 @@ exports.IdentityOnFile = zod_1.z.object({
      * compare the photos: the status reads "PSF will check your ID" (AC-6).
      */
     checked: zod_1.z.boolean(),
+    /**
+     * Where the details came from: read off a document by a checker, returned
+     * by the population register for a National ID number, or typed as
+     * printed. Optional for a client built before it existed.
+     */
+    source: zod_1.z.enum(["document", "registry", "typed"]).optional(),
 });
 /** The caller's latest scan, and how many tries this draft has used. */
 exports.IdentityScanState = zod_1.z.object({
@@ -69,7 +88,14 @@ exports.IdentityStatus = zod_1.z.object({
     scan: exports.IdentityScanState.nullable(),
     /** False where the seam is `off`: the scan keeps the photos and reads nothing, so the person types what is printed. */
     machineCheck: zod_1.z.boolean(),
+    /** The document verifier's mode: a passport, and a National ID card where the registry is off. */
     mode: exports.IdentityAdapterMode,
+    /**
+     * The National ID registry's mode (NIDA, through GTBank). Anything but
+     * `off` means a National ID is checked by its NUMBER and a selfie
+     * (`POST /me/identity/national-id`), not by scanning the card.
+     */
+    nationalIdMode: exports.IdentityAdapterMode,
 });
 const PhotoKey = zod_1.z.string().trim().min(1).max(300);
 /** `POST /api/v1/me/identity/scan`: the front of the card or the photo page, then a selfie, both uploaded first as `id_photo`. */
@@ -77,6 +103,8 @@ exports.IdentityScanRequest = zod_1.z.object({
     documentType: registration_1.AccountDocumentType,
     frontKey: PhotoKey,
     selfieKey: PhotoKey,
+    /** A passport's issuing country, which the document checker is told. Ignored for a National ID. */
+    issuingCountry: registration_1.CountryCode.optional(),
 });
 exports.IdentityScanResult = zod_1.z.object({
     outcome: exports.IdentityScanOutcome,
@@ -98,5 +126,15 @@ exports.TypedIdentityRequest = zod_1.z.object({
     fullName: registration_1.PersonalDetails.shape.fullName,
     dateOfBirth: registration_1.PersonalDetails.shape.dateOfBirth,
     document: registration_1.IdentityDocumentInput,
+});
+/**
+ * `POST /api/v1/me/identity/national-id`: a Rwandan National ID checked by its
+ * number against the population register (NIDA, through GTBank), with a
+ * selfie uploaded first as `id_photo`. Answers an `IdentityScanResult`, and
+ * counts as one try on the draft, as a scan does.
+ */
+exports.NationalIdCheckRequest = zod_1.z.object({
+    documentNumber: registration_1.RwandanNationalId,
+    selfieKey: PhotoKey,
 });
 //# sourceMappingURL=identity.js.map

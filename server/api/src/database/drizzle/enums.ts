@@ -365,8 +365,12 @@ export const identityScanOutcomeEnum = pgEnum('identity_scan_outcome', [
   'manual_needed',
 ]);
 
-/** The document verifier seam's mode when a scan ran. Unlike `adapter_mode`, `off` is a mode here. */
-export const identityAdapterModeEnum = pgEnum('identity_adapter_mode', ['mock', 'live', 'off']);
+/**
+ * An identity seam's mode when a check ran. Unlike `adapter_mode`, `off` is a
+ * mode here, and so is `sandbox`: the real HTTP adapter against Injishi Mock
+ * APIs, whose people are as invented as the mock's.
+ */
+export const identityAdapterModeEnum = pgEnum('identity_adapter_mode', ['mock', 'sandbox', 'live', 'off']);
 
 
 // §4.4 government oversight (Decision B) — stable function enum + scope level.

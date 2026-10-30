@@ -53,6 +53,6 @@ describe('PAYMENT_ADAPTER_MODE', () => {
   });
 
   it('refuses a value it cannot read', () => {
-    expect(() => resolveMode('disabled')).toThrow(/"mock", "live" or "off"/);
+    expect(() => resolveMode('disabled')).toThrow(/"mock", "sandbox", "live" or "off"/);
   });
 });
