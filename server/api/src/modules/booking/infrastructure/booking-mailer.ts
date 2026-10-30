@@ -1,3 +1,4 @@
+import { TOURISM_TAX_LABEL, tourismTaxIncludedRwf } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 
 import {
@@ -78,6 +79,15 @@ function money(amountRwf: number | null): string {
   return `RWF ${amountRwf.toLocaleString('en-RW')}`;
 }
 
+/**
+ * The tourism tax inside a stay's price (2026-10-30): 3%, included, never added. Said after the amount
+ * the guest paid, so the receipt-like line reads whole; nothing when there is no amount.
+ */
+function taxLine(grossRwf: number | null): string {
+  const tax = grossRwf === null ? 0 : tourismTaxIncludedRwf(grossRwf);
+  return tax > 0 ? ` It includes ${money(tax)} ${TOURISM_TAX_LABEL}.` : '';
+}
+
 /** `2026-09-20` → `Sun 20 Sep 2026`, the way the confirmation screen prints it. */
 const LONG_DATE = new Intl.DateTimeFormat('en-GB', {
   weekday: 'short',
@@ -124,7 +134,7 @@ function compose(
         body: [
           hi,
           '',
-          `Your room is held. ${money(f.grossRwf)} is in escrow and stays there until you check in — the host is paid after your stay, not before.`,
+          `Your room is held. ${money(f.grossRwf)} is in escrow and stays there until you check in — the host is paid after your stay, not before.${taxLine(f.grossRwf)}`,
           '',
           stay,
           '',
@@ -144,7 +154,7 @@ function compose(
         body: [
           hi,
           '',
-          `Your request is with the host. ${money(f.grossRwf)} has been taken and is held in escrow — it is NOT paid to anyone yet, and it comes back to you in full if the host declines or does not answer in time.`,
+          `Your request is with the host. ${money(f.grossRwf)} has been taken and is held in escrow — it is NOT paid to anyone yet, and it comes back to you in full if the host declines or does not answer in time.${taxLine(f.grossRwf)}`,
           '',
           stay,
           '',

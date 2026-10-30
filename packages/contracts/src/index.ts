@@ -73,3 +73,5 @@ export * from "./me-context";
 export * from "./guests";
 // The bar and restaurant point of sale (POS spec, phase 1).
 export * from "./pos";
+// Rwanda's 3% tourism tax, included in room prices (2026-10-30).
+export * from "./tourism-tax";

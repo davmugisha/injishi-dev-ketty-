@@ -1,7 +1,7 @@
 "use client";
 
 import { toast } from "@heroui/react";
-import type { PayoutList, PayoutView } from "@injishi/contracts";
+import { type PayoutList, type PayoutView, TOURISM_TAX_LABEL, tourismTaxIncludedRwf } from "@injishi/contracts";
 import { DataTable, DateText, EmptyBlock, formatMoney, IconAction, Money, SectionCard, StatusChip } from "@injishi/ui";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -109,7 +109,18 @@ export function Payouts({
             header: "Amount",
             align: "end",
             sortValue: (p) => p.amountRwf,
-            cell: (p) => <Money value={p.amountRwf} />,
+            // A booking's payout holds the 3% tourism tax the guest paid inside the room price (2026-10-30).
+            cell: (p) =>
+              host && p.bookingReference ? (
+                <span className="flex flex-col items-end">
+                  <Money value={p.amountRwf} />
+                  <span className="text-xs text-muted">
+                    incl. {formatMoney(tourismTaxIncludedRwf(p.amountRwf))} {TOURISM_TAX_LABEL.toLowerCase()}
+                  </span>
+                </span>
+              ) : (
+                <Money value={p.amountRwf} />
+              ),
           },
           {
             id: "status",

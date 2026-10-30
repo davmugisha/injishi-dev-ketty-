@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
-import { bedsLine, nightlyRateFor, type RoomBed, type RoomTypeSummary } from "@injishi/contracts";
+import { bedsLine, nightlyRateFor, type RoomBed, type RoomTypeSummary, TOURISM_TAX_LABEL } from "@injishi/contracts";
 import { Button, Popover, PopoverContent, PopoverTrigger } from "@injishi/web-ui";
 import { formatPrice, nightsBetween, pluralize } from "@injishi/utils";
 import { BookingGuestPicker } from "@/components/property/booking-guest-picker";
@@ -539,6 +539,12 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
               <b className="text-base text-page-fg">Total</b>
               <b className="text-base text-page-fg">{formatPrice(quote.grossRwf)}</b>
             </div>
+            {quote.tourismTaxRwf > 0 ? (
+              <p className="mt-1 flex items-center justify-between gap-4 text-sm text-page-fg-70">
+                <span>Includes {TOURISM_TAX_LABEL}</span>
+                <span>{formatPrice(quote.tourismTaxRwf)}</span>
+              </p>
+            ) : null}
           </>
         ) : null}
       </aside>

@@ -1,4 +1,4 @@
-import { computeBreakdown, type MoneyBreakdown, type RoomPriceBasis } from "@injishi/contracts";
+import { computeBreakdown, type MoneyBreakdown, type RoomPriceBasis, tourismTaxIncludedRwf } from "@injishi/contracts";
 import { buildMoneyLines, type MoneyLine } from "@injishi/utils/money";
 import { formatPrice } from "@injishi/utils";
 
@@ -21,6 +21,8 @@ import { formatPrice } from "@injishi/utils";
  */
 export interface QuotePreview extends MoneyBreakdown {
   lines: MoneyLine[];
+  /** Rwanda's 3% tourism tax inside the room's price (2026-10-30): shown, never added. */
+  tourismTaxRwf: number;
 }
 
 /** Returns null when there are no nights to price. */
@@ -55,7 +57,9 @@ export function computeQuote({
     serviceFee: "Guest service fee",
   });
 
-  return { ...amounts, lines };
+  // What the guest pays for the room, after any discount, holds the tax.
+  const tourismTaxRwf = tourismTaxIncludedRwf(amounts.accommodationRwf - amounts.nonRefundableDiscountRwf);
+  return { ...amounts, lines, tourismTaxRwf };
 }
 
 const CANCELLATION_COPY = {

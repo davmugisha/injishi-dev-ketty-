@@ -67,4 +67,5 @@ export * from "./rentals";
 export * from "./me-context";
 export * from "./guests";
 export * from "./pos";
+export * from "./tourism-tax";
 //# sourceMappingURL=index.d.ts.map

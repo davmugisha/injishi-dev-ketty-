@@ -1,5 +1,7 @@
 "use client";
 
+import { TOURISM_TAX_LABEL, tourismTaxIncludedRwf } from "@injishi/contracts";
+
 import {
   ArrowRightToSquare,
   ArrowsRotateRight,
@@ -399,8 +401,8 @@ export function WalkInView({
                     <span>Subtotal</span>
                     <span className="tabular">{formatRwf(q.sub)}</span>
                   </li>
-                  {/* The night audit posts each room night at the stay's rate with no tax line of its own, and no levy
-                      is posted to a bill: the estimate adds neither. */}
+                  {/* The night audit posts each room night at the stay's rate with no tax line of its own; Rwanda's
+                      3% tourism tax is inside that rate (2026-10-30), so the estimate shows it and adds nothing. */}
                   <li className="flex items-start justify-between gap-2">
                     <span className="flex flex-col gap-0.5">
                       <span>VAT</span>
@@ -412,10 +414,10 @@ export function WalkInView({
                   </li>
                   <li className="flex items-center justify-between gap-2">
                     <span className="flex flex-col">
-                      <span>Tourism levy</span>
-                      <span className="text-[11px] text-muted">Not posted to the bill</span>
+                      <span>{TOURISM_TAX_LABEL}</span>
+                      <span className="text-[11px] text-muted">Included in the room rate, not added</span>
                     </span>
-                    <span className="whitespace-nowrap text-muted">Not added</span>
+                    <span className="whitespace-nowrap text-muted tabular">{formatRwf(tourismTaxIncludedRwf(q.sub))}</span>
                   </li>
                   <li className="flex justify-between gap-2 border-t border-separator pt-2 text-[15px] font-semibold">
                     <span>Total</span>

@@ -89,4 +89,6 @@ __exportStar(require("./me-context"), exports);
 __exportStar(require("./guests"), exports);
 // The bar and restaurant point of sale (POS spec, phase 1).
 __exportStar(require("./pos"), exports);
+// Rwanda's 3% tourism tax, included in room prices (2026-10-30).
+__exportStar(require("./tourism-tax"), exports);
 //# sourceMappingURL=index.js.map

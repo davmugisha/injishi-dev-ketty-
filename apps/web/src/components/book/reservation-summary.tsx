@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { BookablePropertySummary, RoomTypeSummary } from "@injishi/contracts";
+import { type BookablePropertySummary, type RoomTypeSummary, TOURISM_TAX_LABEL } from "@injishi/contracts";
 import { Separator } from "@injishi/web-ui";
 import { formatPrice } from "@injishi/utils";
 import { BOOKING_ANCHOR, ROOM_PARAM } from "@/components/property/room-param";
@@ -172,6 +172,12 @@ export function ReservationSummary({
           </b>
           <b className="text-sm text-page-fg">{formatPrice(quote.grossRwf)}</b>
         </div>
+        {quote.tourismTaxRwf > 0 ? (
+          <p className="mt-1 flex items-center justify-between gap-4 text-xs text-page-fg-70">
+            <span>Includes {TOURISM_TAX_LABEL}</span>
+            <span>{formatPrice(quote.tourismTaxRwf)}</span>
+          </p>
+        ) : null}
         {/*
           `PriceBreakdownLink` stood here: a component that took the quote,
           renamed it `_quote`, ignored it, and printed a sentence about itself.
