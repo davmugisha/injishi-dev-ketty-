@@ -11,11 +11,12 @@ import {
 } from "@gravity-ui/icons";
 import { Alert, Button, Card, Checkbox, Chip, Modal, Table } from "@heroui/react";
 import { EmptyState, ListView, Segment } from "@heroui-pro/react";
-import type { CommissionLine, LogEntry, Payout, Tone } from "@injishi/product-finance";
-import { useBoardHref } from "@injishi/product-finance/web";
 import { KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { useState } from "react";
-import { firstKey, type KpiItem, KpiStrip, LogTimeline, Note, rwf, Stack } from "./shared";
+import type { CommissionLine, LogEntry, Payout } from "../../model/accounting.ts";
+import type { Tone } from "../../model/shared.ts";
+import { firstKey, type KpiItem, KpiStrip, LogTimeline, Note, rwf, Stack } from "../accounting-parts.tsx";
+import { useBoardHref } from "../mount.tsx";
 
 type Stage = "await" | "hold" | "approved" | "second";
 

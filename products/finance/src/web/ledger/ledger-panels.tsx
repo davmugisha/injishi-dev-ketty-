@@ -17,11 +17,12 @@ import {
 } from "@gravity-ui/icons";
 import { Button, Card, Chip, Label, ProgressBar, Table } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
-import type { ClosePeriod, ExportBatch, JournalEntry, LedgerAccount, Tone } from "@injishi/product-finance";
-import { useBoardHref } from "@injishi/product-finance/web";
 import { GateChip, TextLink, toneColor } from "@injishi/ui";
 import { type ComponentType, Fragment, type SVGProps } from "react";
-import { MetaList, Note, num, rwf, Stack } from "./shared";
+import type { ClosePeriod, ExportBatch, JournalEntry, LedgerAccount } from "../../model/accounting.ts";
+import type { Tone } from "../../model/shared.ts";
+import { MetaList, Note, num, rwf, Stack } from "../accounting-parts.tsx";
+import { useBoardHref } from "../mount.tsx";
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 

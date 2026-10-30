@@ -19,6 +19,8 @@ import {
   TextField,
 } from "@heroui/react";
 import { ListView, Segment, Stepper } from "@heroui-pro/react";
+import { Icon, KeyValueList, LinkButton, PageContent, PageHeader, StatusDot } from "@injishi/ui";
+import { type ReactNode, useState } from "react";
 import type {
   CashDenomination,
   CashierShift,
@@ -27,11 +29,9 @@ import type {
   FloatRow,
   ShiftTender,
   TillStatus,
-} from "@injishi/product-finance";
-import { useBoardHref, useFinanceShell } from "@injishi/product-finance/web";
-import { Icon, KeyValueList, LinkButton, PageContent, PageHeader, StatusDot } from "@injishi/ui";
-import { type ReactNode, useState } from "react";
-import { CheckList, money, SubHeading, ToneChip } from "./shared";
+} from "../../model/finance.ts";
+import { useBoardHref, useFinanceShell } from "../mount.tsx";
+import { CheckList, money, SubHeading, ToneChip } from "../parts.tsx";
 
 interface ShiftCloseData {
   shift: CashierShift;

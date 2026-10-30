@@ -3,12 +3,13 @@
 import { ArrowDownToLine, Link, ShieldExclamation } from "@gravity-ui/icons";
 import { Avatar, Button, Card, Chip, Separator, Table } from "@heroui/react";
 import { ListView, Segment } from "@heroui-pro/react";
-import type { BoardId, FiscalProfile, Levy, VatDeclaration, VatSummary } from "@injishi/product-finance";
-import { useBoardHref } from "@injishi/product-finance/web";
 import { GateChip, KeyValueList, LinkButton, PageContent, PageHeader, TextLink, toneColor } from "@injishi/ui";
 import { useState } from "react";
-import { CardHeading, MetaList, Note, num, rwf } from "./shared";
-import { type DeclarationStage, TaxDeclarationCard } from "./TaxDeclarationCard";
+import type { FiscalProfile, Levy, VatDeclaration, VatSummary } from "../../model/accounting.ts";
+import type { BoardId } from "../../model/shared.ts";
+import { CardHeading, MetaList, Note, num, rwf } from "../accounting-parts.tsx";
+import { useBoardHref } from "../mount.tsx";
+import { type DeclarationStage, TaxDeclarationCard } from "./tax-declaration-card.tsx";
 
 const PERIODS = [
   { id: "sep", label: "September 2026" },

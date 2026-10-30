@@ -3,9 +3,9 @@
 import { Card, type Selection } from "@heroui/react";
 import { KPIGroup, Timeline } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
-import type { AccountingKpi, KpiStatus, LogEntry } from "@injishi/product-finance";
 import { formatNumber, formatRwf, Icon } from "@injishi/ui";
 import { Fragment, type ReactNode } from "react";
+import type { AccountingKpi, KpiStatus, LogEntry } from "../model/accounting.ts";
 
 /** "RWF 410,000"; negatives as "−RWF 11,800" (typographic minus, as on the artifact). */
 export function rwf(value: number): string {

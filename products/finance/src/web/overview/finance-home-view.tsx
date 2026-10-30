@@ -29,6 +29,9 @@ import {
 } from "@heroui/react";
 import { EmptyState, KPIGroup, ListView, Segment } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
+import { Icon, KeyValueList, LinkButton, PageContent, PageHeader, StatusDot } from "@injishi/ui";
+import NextLink from "next/link";
+import { Fragment, type Key, useEffect, useState } from "react";
 import type {
   Check,
   ExceptionCategory,
@@ -37,12 +40,9 @@ import type {
   FinanceException,
   FinanceKpi,
   ResolvedException,
-  Tone,
-} from "@injishi/product-finance";
-import { useBoardHref } from "@injishi/product-finance/web";
-import { Icon, KeyValueList, LinkButton, PageContent, PageHeader, StatusDot } from "@injishi/ui";
-import NextLink from "next/link";
-import { Fragment, type Key, useEffect, useState } from "react";
+} from "../../model/finance.ts";
+import type { Tone } from "../../model/shared.ts";
+import { useBoardHref } from "../mount.tsx";
 import {
   CheckList,
   EventTimeline,
@@ -53,7 +53,7 @@ import {
   selectableRow,
   TabCount,
   ToneChip,
-} from "./shared";
+} from "../parts.tsx";
 
 export type QueryOutcome = "successful" | "failed" | "no-answer";
 type Outcome = "verified" | "failed" | "investigating";

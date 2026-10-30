@@ -2,12 +2,12 @@
 
 import { ChartColumn, CircleDashed, Lock, Plus } from "@gravity-ui/icons";
 import { Button, Card, Tabs } from "@heroui/react";
-import type { AccountingKpi, ClosePeriod, ExportBatch, JournalEntry, LedgerAccount } from "@injishi/product-finance";
-import { useBoardHref } from "@injishi/product-finance/web";
 import { GateChip, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { type ReactNode, useState } from "react";
-import { LedgerAccountsPanel, LedgerClosePanel, LedgerExportsPanel, LedgerJournalPanel } from "./LedgerPanels";
-import { KpiStrip, LINE_LIST, LINE_PANEL, LINE_TAB } from "./shared";
+import type { AccountingKpi, ClosePeriod, ExportBatch, JournalEntry, LedgerAccount } from "../../model/accounting.ts";
+import { KpiStrip, LINE_LIST, LINE_PANEL, LINE_TAB } from "../accounting-parts.tsx";
+import { useBoardHref } from "../mount.tsx";
+import { LedgerAccountsPanel, LedgerClosePanel, LedgerExportsPanel, LedgerJournalPanel } from "./ledger-panels.tsx";
 
 export type LedgerTab = "journal" | "coa" | "close" | "exports";
 

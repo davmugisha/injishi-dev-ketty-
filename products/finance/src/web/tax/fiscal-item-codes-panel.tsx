@@ -3,9 +3,10 @@
 import { TriangleExclamation } from "@gravity-ui/icons";
 import { Alert, Button, Card, Chip, Description, type Key, Label, ListBox, Select, Table } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
-import type { ItemCode, Tone } from "@injishi/product-finance";
 import { toneColor } from "@injishi/ui";
 import { useState } from "react";
+import type { ItemCode } from "../../model/accounting.ts";
+import type { Tone } from "../../model/shared.ts";
 
 const STATE: Record<"mapped" | "done" | "unmapped" | "review", { label: string; tone: Tone }> = {
   mapped: { label: "Mapped", tone: "success" },

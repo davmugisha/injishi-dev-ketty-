@@ -25,11 +25,12 @@ import {
   TextField,
 } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
-import type { DeskMethod, PaymentIntent, PaymentState, RefundRequest, Tone } from "@injishi/product-pay";
-import { useBoardHref } from "@injishi/product-pay/web";
 import { GateChip, Icon, KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { type Key, useState } from "react";
-import { CheckIcon, EventTimeline, lineTab, money, SubHeading, selectableRow, TabCount, ToneChip } from "./pay-parts";
+import type { DeskMethod, PaymentIntent, PaymentState, RefundRequest } from "../../model/finance.ts";
+import type { Tone } from "../../model/shared.ts";
+import { useBoardHref } from "../mount.tsx";
+import { CheckIcon, EventTimeline, lineTab, money, SubHeading, selectableRow, TabCount, ToneChip } from "../parts.tsx";
 
 interface PaymentsData {
   payments: PaymentIntent[];

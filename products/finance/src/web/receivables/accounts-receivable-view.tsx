@@ -4,22 +4,25 @@ import { ArrowDownToLine, ArrowRightArrowLeft, Briefcase } from "@gravity-ui/ico
 import { Avatar, Button, Card, Chip, ProgressBar, Table, Tabs } from "@heroui/react";
 import { EmptyState, ListView, Segment, Widget } from "@heroui-pro/react";
 import { BarChart } from "@heroui-pro/react/bar-chart";
-import type {
-  AccountingKpi,
-  AgingBucket,
-  ArAccount,
-  BankTransfer,
-  LogEntry,
-  Persona,
-  Tone,
-} from "@injishi/product-finance";
-import { useBoardHref } from "@injishi/product-finance/web";
 import { LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { useState } from "react";
 import { Cell, LabelList } from "recharts";
-import { ArAccountCard, ArCollectionsCard, ArInvoicesCard, type DisputeState } from "./ArAccountCards";
-import { ArAllocationDialog } from "./ArAllocationDialog";
-import { firstKey, type KpiItem, KpiStrip, LINE_LIST, LINE_PANEL, LINE_TAB, Note, rwf, Stack } from "./shared";
+import type { AccountingKpi, AgingBucket, ArAccount, BankTransfer, LogEntry } from "../../model/accounting.ts";
+import type { Persona, Tone } from "../../model/shared.ts";
+import {
+  firstKey,
+  type KpiItem,
+  KpiStrip,
+  LINE_LIST,
+  LINE_PANEL,
+  LINE_TAB,
+  Note,
+  rwf,
+  Stack,
+} from "../accounting-parts.tsx";
+import { useBoardHref } from "../mount.tsx";
+import { ArAccountCard, ArCollectionsCard, ArInvoicesCard, type DisputeState } from "./ar-account-cards.tsx";
+import { ArAllocationDialog } from "./ar-allocation-dialog.tsx";
 
 interface AccountsReceivableData {
   kpis: AccountingKpi[];

@@ -18,18 +18,12 @@ import {
 } from "@heroui/react";
 import { ItemCard, ListView, Widget } from "@heroui-pro/react";
 import { BarChart } from "@heroui-pro/react/bar-chart";
-import type {
-  MatchSummaryItem,
-  ReconInvoice,
-  ReconMatch,
-  ReconSource,
-  SettlementBatch,
-  Tone,
-} from "@injishi/product-pay";
-import { useBoardHref } from "@injishi/product-pay/web";
 import { GateChip, Icon, LinkButton, PageContent, PageHeader, StatusDot } from "@injishi/ui";
 import { type Key, useState } from "react";
-import { CheckIcon, lineTab, money, selectableRow, TabCount, ToneChip } from "./pay-parts";
+import type { MatchSummaryItem, ReconInvoice, ReconMatch, ReconSource, SettlementBatch } from "../../model/finance.ts";
+import type { Tone } from "../../model/shared.ts";
+import { useBoardHref } from "../mount.tsx";
+import { CheckIcon, lineTab, money, selectableRow, TabCount, ToneChip } from "../parts.tsx";
 
 interface ReconciliationData {
   sources: ReconSource[];

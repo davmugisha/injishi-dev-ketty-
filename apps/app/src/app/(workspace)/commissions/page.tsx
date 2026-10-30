@@ -1,7 +1,7 @@
 import { screens } from "@injishi/data";
 import type { CommissionLine, Payout } from "@injishi/data/fixtures/accounting";
+import { CommissionsView } from "@injishi/product-finance/web";
 import type { Metadata } from "next";
-import { CommissionsView } from "@/features/accounting/CommissionsView";
 import { FinanceMount } from "@/features/finance/finance-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";

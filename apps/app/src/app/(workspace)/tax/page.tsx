@@ -1,7 +1,7 @@
 import { screens } from "@injishi/data";
 import type { FiscalProfile, Levy, VatDeclaration, VatSummary } from "@injishi/data/fixtures/accounting";
+import { TaxSummaryView } from "@injishi/product-finance/web";
 import type { Metadata } from "next";
-import { TaxSummaryView } from "@/features/accounting/TaxSummaryView";
 import { FinanceMount } from "@/features/finance/finance-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";

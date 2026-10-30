@@ -3,10 +3,11 @@
 import { Envelope, HandOk, Lock } from "@gravity-ui/icons";
 import { Button, Card, Chip, Input, Label, TextField } from "@heroui/react";
 import { ItemCard, ListView } from "@heroui-pro/react";
-import type { ArAccount, LogEntry, Tone } from "@injishi/product-finance";
 import { KeyValueList, toneColor } from "@injishi/ui";
 import { useState } from "react";
-import { CardHeading, LogTimeline, Note, rwf } from "./shared";
+import type { ArAccount, LogEntry } from "../../model/accounting.ts";
+import type { Tone } from "../../model/shared.ts";
+import { CardHeading, LogTimeline, Note, rwf } from "../accounting-parts.tsx";
 
 export type DisputeState = "open" | "credit" | "reject";
 

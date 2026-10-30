@@ -1,7 +1,7 @@
 import { screens } from "@injishi/data";
 import type { AccountingKpi, AgingBucket, ArAccount, BankTransfer } from "@injishi/data/fixtures/accounting";
+import { AccountsReceivableView } from "@injishi/product-finance/web";
 import type { Metadata } from "next";
-import { AccountsReceivableView } from "@/features/accounting/AccountsReceivableView";
 import { FinanceMount } from "@/features/finance/finance-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";

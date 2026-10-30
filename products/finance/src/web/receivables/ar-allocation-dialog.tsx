@@ -2,9 +2,9 @@
 
 import { CircleInfo } from "@gravity-ui/icons";
 import { Alert, Button, Input, Modal, Table } from "@heroui/react";
-import type { AllocationProposal, BankTransfer } from "@injishi/product-finance";
 import { useState } from "react";
-import { num, rwf } from "./shared";
+import type { AllocationProposal, BankTransfer } from "../../model/accounting.ts";
+import { num, rwf } from "../accounting-parts.tsx";
 
 const parse = (v: string) => Number(v.replace(/[^\d]/g, "")) || 0;
 

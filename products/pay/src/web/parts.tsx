@@ -1,11 +1,17 @@
 "use client";
 
+/*
+ * The Finance helpers Pay's two screens draw (payments and reconciliation), copied from `./shared.tsx` so Pay's
+ * move takes whole files (ADR-074 stage 6). Finance keeps the original.
+ */
+
 import { CircleCheckFill, CircleDashed, CircleExclamationFill, CircleXmarkFill } from "@gravity-ui/icons";
 import { Chip } from "@heroui/react";
 import { Timeline } from "@heroui-pro/react";
-import type { CheckTone, FinanceEvent, Tone } from "@injishi/product-finance";
 import { formatRwf, toneColor } from "@injishi/ui";
 import type { ReactNode } from "react";
+import type { CheckTone, FinanceEvent } from "../model/finance.ts";
+import type { Tone } from "../model/shared.ts";
 
 /** "RWF 118,400"; negatives use a true minus sign, as the design does ("−RWF 3,500"). */
 export function money(value: number): string {
@@ -18,9 +24,6 @@ export const selectableRow = "cursor-pointer data-[selected=true]:*:bg-accent-so
 /** Underline tabs sized to their label, left-aligned (artifact: ij-tabs-line). */
 export const lineTab = "w-auto whitespace-nowrap";
 
-/** Group header row inside a table (artifact: a full-width row on surface-secondary). */
-export const groupCell = "bg-surface-secondary py-1.5";
-
 const CHECK_ICONS = {
   success: { Icon: CircleCheckFill, className: "text-success" },
   warning: { Icon: CircleExclamationFill, className: "text-warning" },
@@ -32,29 +35,6 @@ const CHECK_ICONS = {
 export function CheckIcon({ tone, className = "mt-0.5 size-4 shrink-0" }: { tone: CheckTone; className?: string }) {
   const { Icon, className: color } = CHECK_ICONS[tone];
   return <Icon aria-hidden="true" className={`${color} ${className}`} />;
-}
-
-/** Evidence list: an outcome icon, a label and a muted detail line per check. */
-export function CheckList({
-  items,
-  gap = "gap-2.5",
-}: {
-  items: { tone: CheckTone; label: ReactNode; detail: ReactNode }[];
-  gap?: string;
-}) {
-  return (
-    <ul className={`m-0 flex list-none flex-col p-0 ${gap}`}>
-      {items.map((c) => (
-        <li key={`${c.label}-${c.detail}`} className="flex items-start gap-2.5">
-          <CheckIcon tone={c.tone} />
-          <span className="flex min-w-0 flex-col">
-            <span className="text-[13px] leading-[18px] font-medium">{c.label}</span>
-            <span className="text-xs leading-4 text-muted tabular">{c.detail}</span>
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
 }
 
 /** Compact history timeline (artifact: timeline--sm timeline--compact). */

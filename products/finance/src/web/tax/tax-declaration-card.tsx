@@ -26,9 +26,9 @@ import {
   TextField,
 } from "@heroui/react";
 import { EmptyState, Stepper } from "@heroui-pro/react";
-import type { FiscalProfile, VatDeclaration } from "@injishi/product-finance";
 import { type ComponentType, type SVGProps, useState } from "react";
-import { CardHeading } from "./shared";
+import type { FiscalProfile, VatDeclaration } from "../../model/accounting.ts";
+import { CardHeading } from "../accounting-parts.tsx";
 
 export type DeclarationStage = VatDeclaration["stage"];
 

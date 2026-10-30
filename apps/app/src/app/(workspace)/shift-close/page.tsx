@@ -7,10 +7,10 @@ import type {
   ShiftTender,
   TillStatus,
 } from "@injishi/data/fixtures/finance";
+import { ShiftCloseView } from "@injishi/product-finance/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { FinanceMount } from "@/features/finance/finance-mount";
-import { ShiftCloseView } from "@/features/finance/ShiftCloseView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";
 

@@ -3,6 +3,8 @@
 import { ArrowUturnCcwLeft, Briefcase, FileCheck, FileText, Link, Lock, Printer, QrCode } from "@gravity-ui/icons";
 import { Button, Card, Chip, Separator, Table } from "@heroui/react";
 import { ListView } from "@heroui-pro/react";
+import { Icon, LinkButton, toneColor } from "@injishi/ui";
+import type { ComponentType, SVGProps } from "react";
 import type {
   FiscalDocumentKind,
   FiscalInvoice,
@@ -11,12 +13,10 @@ import type {
   FiscalReceipt,
   VsdcDevice,
   ZReport,
-} from "@injishi/product-finance";
-import { useBoardHref } from "@injishi/product-finance/web";
-import { Icon, LinkButton, toneColor } from "@injishi/ui";
-import type { ComponentType, SVGProps } from "react";
-import { FISCAL_STATUS } from "./fiscal";
-import { CardHeading, firstKey, Note, num, rwf } from "./shared";
+} from "../../model/accounting.ts";
+import { CardHeading, firstKey, Note, num, rwf } from "../accounting-parts.tsx";
+import { useBoardHref } from "../mount.tsx";
+import { FISCAL_STATUS } from "./fiscal.ts";
 
 const INVOICE_KIND: Record<FiscalInvoice["kind"], { label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = {
   proforma: { label: "Proforma", icon: FileText },

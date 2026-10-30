@@ -2,11 +2,11 @@
 
 import { ArrowsRotateRight, ArrowUpFromLine, Magnifier, OctagonXmark, Tag } from "@gravity-ui/icons";
 import { Alert, Button, Card, Chip, Table } from "@heroui/react";
-import { useBoardHref } from "@injishi/product-finance/web";
 import { KeyValueList, LinkButton, toneColor } from "@injishi/ui";
 import type { ComponentType, SVGProps } from "react";
-import { FISCAL_STATUS, type QueueRow } from "./fiscal";
-import { firstKey, LogTimeline, Note, rwf, Stack } from "./shared";
+import { firstKey, LogTimeline, Note, rwf, Stack } from "../accounting-parts.tsx";
+import { useBoardHref } from "../mount.tsx";
+import { FISCAL_STATUS, type QueueRow } from "./fiscal.ts";
 
 const EXPLAIN: Record<string, string> = {
   pending:

@@ -1,7 +1,7 @@
 import { screens } from "@injishi/data";
 import type { DeskMethod, PaymentIntent, RefundRequest } from "@injishi/data/fixtures/finance";
+import { PaymentsView } from "@injishi/product-pay/web";
 import type { Metadata } from "next";
-import { PaymentsView } from "@/features/finance/PaymentsView";
 import { PayMount } from "@/features/pay/pay-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";

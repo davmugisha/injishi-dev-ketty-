@@ -3,6 +3,8 @@
 import { CloudSlash, FileCheck, Lock, PlugConnection, Receipt, ShieldExclamation } from "@gravity-ui/icons";
 import { Alert, Card, Chip, Tabs } from "@heroui/react";
 import { EmptyState, Segment } from "@heroui-pro/react";
+import { GateChip, KeyValueList, LinkButton, PageContent, PageHeader, TextLink } from "@injishi/ui";
+import { type ReactNode, useState } from "react";
 import type {
   FiscalDocumentKind,
   FiscalInvoice,
@@ -11,18 +13,21 @@ import type {
   FiscalQueueItem,
   FiscalReceipt,
   ItemCode,
-  Persona,
   VsdcDevice,
   ZReport,
-} from "@injishi/product-finance";
-import { useBoardHref, useFinanceShell } from "@injishi/product-finance/web";
-import { GateChip, KeyValueList, LinkButton, PageContent, PageHeader, TextLink } from "@injishi/ui";
-import { type ReactNode, useState } from "react";
-import { FiscalItemCodesPanel } from "./FiscalItemCodesPanel";
-import { FiscalInvoicesPanel, FiscalJournalPanel, FiscalNumberingPanel, FiscalReceiptsPanel } from "./FiscalPanels";
-import { FiscalQueuePanel } from "./FiscalQueuePanel";
-import { buildQueueRows } from "./fiscal";
-import { CardHeading, type KpiItem, KpiStrip, LINE_LIST, LINE_PANEL, LINE_TAB } from "./shared";
+} from "../../model/accounting.ts";
+import type { Persona } from "../../model/shared.ts";
+import { CardHeading, type KpiItem, KpiStrip, LINE_LIST, LINE_PANEL, LINE_TAB } from "../accounting-parts.tsx";
+import { useBoardHref, useFinanceShell } from "../mount.tsx";
+import { buildQueueRows } from "./fiscal.ts";
+import { FiscalItemCodesPanel } from "./fiscal-item-codes-panel.tsx";
+import {
+  FiscalInvoicesPanel,
+  FiscalJournalPanel,
+  FiscalNumberingPanel,
+  FiscalReceiptsPanel,
+} from "./fiscal-panels.tsx";
+import { FiscalQueuePanel } from "./fiscal-queue-panel.tsx";
 
 export type FiscalTab = "invoices" | "receipts" | "queue" | "numbering" | "journal" | "items";
 
