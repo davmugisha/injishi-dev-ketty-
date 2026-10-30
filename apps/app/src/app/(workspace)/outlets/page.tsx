@@ -7,8 +7,9 @@ import type {
   OutletOrder,
   OutletOrderLoad,
 } from "@injishi/data/fixtures/operations";
+import { OutletsMenusView, type OutletTab } from "@injishi/product-outlets/web";
 import type { Metadata } from "next";
-import { OutletsMenusView, type OutletTab } from "@/features/operations/OutletsMenusView";
+import { OutletsMount } from "@/features/outlets/outlets-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { placeName } from "@/server/sources/operations";
@@ -29,11 +30,13 @@ export default async function OutletsMenusPage({ searchParams }: { searchParams:
   const tabs: OutletTab[] = ["outlets", "menus", "orders", "offers"];
   const initialTab = tabs.find((t) => t === tab) ?? "outlets";
   return (
-    <OutletsMenusView
-      placeName={placeName(await requestContext())}
-      persona={persona}
-      initialTab={initialTab}
-      data={{ outlets, departments, menus, orders, orderLoad, offers }}
-    />
+    <OutletsMount>
+      <OutletsMenusView
+        placeName={placeName(await requestContext())}
+        persona={persona}
+        initialTab={initialTab}
+        data={{ outlets, departments, menus, orders, orderLoad, offers }}
+      />
+    </OutletsMount>
   );
 }

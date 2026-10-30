@@ -28,7 +28,7 @@ import {
 } from '../domain/sellable-item';
 import { PaymentSeam } from '../../payments/domain/payment-seam';
 import { FolioPort } from '../../pms/application/folio-port';
-import { MessagingService } from './messaging.service';
+import { MessagingService } from '../../operations/application/messaging.service';
 import {
   GuestOrderingRepository,
   type InHouseStay,

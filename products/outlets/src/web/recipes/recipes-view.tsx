@@ -13,11 +13,11 @@ import { Alert, Button, Card, Chip, Description, Label, ListBox, Table } from "@
 import { ItemCard, KPIGroup, Segment } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
-import type { PosEvent, ProductionBatch, Recipe, RecipeIngredient } from "@injishi/data/fixtures/stock";
 import { formatNumber, Icon, KeyValueList, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { Fragment, type Key, useState } from "react";
-import { TopbarStatus } from "@/components/shell/TopbarStatus";
-import { KvRows, Muted, money, SectionTitle, ToneChip } from "./shared";
+import type { PosEvent, ProductionBatch, Recipe, RecipeIngredient } from "../../model/stock.ts";
+import { useOutletsShell } from "../mount.tsx";
+import { KvRows, Muted, money, SectionTitle, ToneChip } from "./parts.tsx";
 
 interface RecipesData {
   recipes: Recipe[];
@@ -47,6 +47,7 @@ function firstKey(keys: "all" | Set<Key>): string | null {
 }
 
 export function RecipesView({ data }: { data: RecipesData }) {
+  const { TopbarStatus } = useOutletsShell();
   const [rec, setRec] = useState(data.recipes[0]?.id ?? "");
   const [portions, setPortions] = useState(1);
   const [basis, setBasis] = useState<Basis>("avg");

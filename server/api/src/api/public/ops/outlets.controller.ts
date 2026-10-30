@@ -16,7 +16,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { OutletsService } from '../../../modules/operations/application/outlets.service';
+import { OutletsService } from '../../../modules/outlets/application/outlets.service';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,

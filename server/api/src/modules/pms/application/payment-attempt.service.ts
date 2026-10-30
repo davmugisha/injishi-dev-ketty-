@@ -17,8 +17,8 @@ import {
 } from '@nestjs/common';
 
 import { ListingService } from '../../listing/application/listing.service';
-import { GuestOrderingService } from '../../operations/application/guest-ordering.service';
-import { OrderPaymentService } from '../../operations/application/order-payment.service';
+import { GuestOrderingService } from '../../outlets/application/guest-ordering.service';
+import { OrderPaymentService } from '../../outlets/application/order-payment.service';
 import { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
 import { feeDuplicateKeyFor, registrationFeeKeyFor, voidKeyFor } from '../../payments/domain/keys';
 import { PaymentTransactionsRepository } from '../../payments/infrastructure/payment-transactions.repository';
