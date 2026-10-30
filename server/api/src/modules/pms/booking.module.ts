@@ -18,6 +18,8 @@ import { PaymentAttemptRepository } from './infrastructure/payment-attempt.repos
 import { BookingApprovalService } from './application/booking-approval.service';
 import { BookingCancellationService } from './application/booking-cancellation.service';
 import { BookingChangeService } from './application/booking-change.service';
+import { DeskReservationService } from './application/desk-reservation.service';
+import { DeskReservationRepository } from './infrastructure/desk-reservation.repository';
 import { StayCompletionService } from './application/stay-completion.service';
 import { BookingChangeRepository } from './infrastructure/booking-change.repository';
 import { StayCompletionRepository } from './infrastructure/stay-completion.repository';
@@ -138,6 +140,8 @@ import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
     // The desk's changes to a confirmed reservation: dates, room type, party (0120).
     BookingChangeRepository,
     BookingChangeService,
+    DeskReservationService,
+    DeskReservationRepository,
     // The guest's own read of their own bookings. Its own repository, so the
     // 34 KB write-path one does not grow a thirteenth concern.
     GuestTripsRepository,
@@ -256,6 +260,7 @@ import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
     OperatorReservationsService,
     // Exported for `OperatorReservationsController`'s change routes (0120).
     BookingChangeService,
+    DeskReservationService,
     // Exported for the stay's completion, which refunds a change's unspent credit at check out.
     BookingChangeRepository,
     // Exported for `MeController`, which is the only caller and lives in
