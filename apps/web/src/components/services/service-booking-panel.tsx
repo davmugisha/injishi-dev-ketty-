@@ -31,7 +31,7 @@ export function ServiceBookingPanel({ service }: { service: ServiceListing }) {
   ].join(" ");
 
   return (
-    <aside className="flex flex-col gap-5 rounded-card border border-border bg-card p-6 lg:sticky lg:top-24">
+    <aside className="flex flex-col gap-5 rounded-card border border-border bg-card p-6 lg:sticky lg:top-28">
       <div>
         <div className="flex flex-wrap items-baseline gap-x-2">
           <b className="text-display-sm font-bold text-page-fg">

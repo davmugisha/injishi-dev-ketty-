@@ -43,6 +43,7 @@ import {
   sendAssistantFeedback,
   sendAssistantMessage,
 } from "@/data/assistant";
+import { COMING_SOON_PATH } from "@/lib/download-links";
 
 /**
  * The support assistant on the public site (ADR-061 slice A).
@@ -120,7 +121,9 @@ export function AssistantWidget() {
     endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [conversation, pending, open]);
 
-  if (!enabled) return null;
+  // The downloads Coming soon screen shows its two words and nothing else
+  // (mobile spec 0004, AC-7), so the launcher stays off it.
+  if (!enabled || pathname === COMING_SOON_PATH) return null;
 
   async function send(text?: string) {
     const message = (text ?? draft).trim();

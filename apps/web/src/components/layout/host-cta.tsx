@@ -57,7 +57,7 @@ export function HostCta({ className }: { className?: string }) {
   const { label, href, variant } = copyFor(useHostStanding());
 
   return (
-    <Button asChild size="md" variant={variant} className={cn("shrink-0 px-5", className)}>
+    <Button asChild size="lg" variant={variant} className={cn("shrink-0 px-6", className)}>
       <Link href={href}>{label}</Link>
     </Button>
   );

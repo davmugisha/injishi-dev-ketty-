@@ -18,6 +18,9 @@ import { WEB_URL } from "@/lib/web-url";
  * of those links can still sit in somebody's inbox. Each URL holds one person's
  * token, and an indexed token is a person's identifier in a public index, even
  * though the page itself is gone.
+ *
+ * `/get` is the app smart link (mobile spec 0004). It only ever redirects, to a
+ * store or to a Coming soon screen, so there is nothing at it to index.
  */
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -25,7 +28,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/waitlist/unsubscribe/"],
+        disallow: ["/waitlist/unsubscribe/", "/get"],
       },
     ],
     sitemap: `${WEB_URL}/sitemap.xml`,
