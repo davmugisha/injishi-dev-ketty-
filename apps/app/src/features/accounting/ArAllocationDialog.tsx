@@ -2,7 +2,7 @@
 
 import { CircleInfo } from "@gravity-ui/icons";
 import { Alert, Button, Input, Modal, Table } from "@heroui/react";
-import type { AllocationProposal, BankTransfer } from "@injishi/data/fixtures/accounting";
+import type { AllocationProposal, BankTransfer } from "@injishi/product-finance";
 import { useState } from "react";
 import { num, rwf } from "./shared";
 

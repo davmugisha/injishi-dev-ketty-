@@ -3,7 +3,6 @@
 import { ArrowUturnCcwLeft, Briefcase, FileCheck, FileText, Link, Lock, Printer, QrCode } from "@gravity-ui/icons";
 import { Button, Card, Chip, Separator, Table } from "@heroui/react";
 import { ListView } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
 import type {
   FiscalDocumentKind,
   FiscalInvoice,
@@ -12,7 +11,8 @@ import type {
   FiscalReceipt,
   VsdcDevice,
   ZReport,
-} from "@injishi/data/fixtures/accounting";
+} from "@injishi/product-finance";
+import { useBoardHref } from "@injishi/product-finance/web";
 import { Icon, LinkButton, toneColor } from "@injishi/ui";
 import type { ComponentType, SVGProps } from "react";
 import { FISCAL_STATUS } from "./fiscal";
@@ -114,6 +114,7 @@ export function FiscalReceiptsPanel({
   copied: boolean;
   onCopy: () => void;
 }) {
+  const screenHref = useBoardHref();
   const rc = selected;
   const isRefund = rc.kind === "refund";
   const kindColor = (r: FiscalReceipt) => (r.kind === "refund" ? "warning" : "default");

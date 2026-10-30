@@ -3,7 +3,7 @@
 import { TriangleExclamation } from "@gravity-ui/icons";
 import { Alert, Button, Card, Chip, Description, type Key, Label, ListBox, Select, Table } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
-import type { ItemCode, Tone } from "@injishi/data/fixtures/accounting";
+import type { ItemCode, Tone } from "@injishi/product-finance";
 import { toneColor } from "@injishi/ui";
 import { useState } from "react";
 

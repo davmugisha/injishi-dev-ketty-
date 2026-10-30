@@ -26,7 +26,7 @@ import {
   TextField,
 } from "@heroui/react";
 import { EmptyState, Stepper } from "@heroui-pro/react";
-import type { FiscalProfile, VatDeclaration } from "@injishi/data/fixtures/accounting";
+import type { FiscalProfile, VatDeclaration } from "@injishi/product-finance";
 import { type ComponentType, type SVGProps, useState } from "react";
 import { CardHeading } from "./shared";
 

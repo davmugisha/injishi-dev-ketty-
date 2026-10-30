@@ -29,7 +29,6 @@ import {
 } from "@heroui/react";
 import { EmptyState, KPIGroup, ListView, Segment } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
-import { screenHref } from "@injishi/data";
 import type {
   Check,
   ExceptionCategory,
@@ -39,7 +38,8 @@ import type {
   FinanceKpi,
   ResolvedException,
   Tone,
-} from "@injishi/data/fixtures/finance";
+} from "@injishi/product-finance";
+import { useBoardHref } from "@injishi/product-finance/web";
 import { Icon, KeyValueList, LinkButton, PageContent, PageHeader, StatusDot } from "@injishi/ui";
 import NextLink from "next/link";
 import { Fragment, type Key, useEffect, useState } from "react";
@@ -106,6 +106,7 @@ function firstKey(keys: "all" | Set<Key>): string | null {
 }
 
 export function FinanceHomeView({ data, queryOutcome }: { data: FinanceHomeData; queryOutcome: QueryOutcome }) {
+  const screenHref = useBoardHref();
   const [scope, setScope] = useState("all");
   const [tab, setTab] = useState<string>("all");
   const [sel, setSel] = useState("ex1");

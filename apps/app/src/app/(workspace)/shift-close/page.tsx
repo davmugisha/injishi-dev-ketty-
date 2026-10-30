@@ -9,6 +9,7 @@ import type {
 } from "@injishi/data/fixtures/finance";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { FinanceMount } from "@/features/finance/finance-mount";
 import { ShiftCloseView } from "@/features/finance/ShiftCloseView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";
@@ -29,5 +30,9 @@ export default async function ShiftClosePage() {
     getCollection<TillStatus>("finance.tillStatuses"),
   ]);
   if (!shift) notFound();
-  return <ShiftCloseView data={{ shift, denominations, floatRows, tenders, excluded, tills }} />;
+  return (
+    <FinanceMount>
+      <ShiftCloseView data={{ shift, denominations, floatRows, tenders, excluded, tills }} />
+    </FinanceMount>
+  );
 }

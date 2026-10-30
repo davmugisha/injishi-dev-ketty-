@@ -19,7 +19,6 @@ import {
   TextField,
 } from "@heroui/react";
 import { ListView, Segment, Stepper } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
 import type {
   CashDenomination,
   CashierShift,
@@ -28,10 +27,10 @@ import type {
   FloatRow,
   ShiftTender,
   TillStatus,
-} from "@injishi/data/fixtures/finance";
+} from "@injishi/product-finance";
+import { useBoardHref, useFinanceShell } from "@injishi/product-finance/web";
 import { Icon, KeyValueList, LinkButton, PageContent, PageHeader, StatusDot } from "@injishi/ui";
 import { type ReactNode, useState } from "react";
-import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import { CheckList, money, SubHeading, ToneChip } from "./shared";
 
 interface ShiftCloseData {
@@ -85,6 +84,8 @@ function StatTile({
 }
 
 export function ShiftCloseView({ data }: { data: ShiftCloseData }) {
+  const screenHref = useBoardHref();
+  const { TopbarStatus } = useFinanceShell();
   const { shift } = data;
   const [current, setCurrent] = useState(2);
   const [max, setMax] = useState(2);

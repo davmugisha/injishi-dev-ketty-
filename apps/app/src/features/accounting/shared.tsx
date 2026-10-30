@@ -3,7 +3,7 @@
 import { Card, type Selection } from "@heroui/react";
 import { KPIGroup, Timeline } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
-import type { AccountingKpi, KpiStatus, LogEntry } from "@injishi/data/fixtures/accounting";
+import type { AccountingKpi, KpiStatus, LogEntry } from "@injishi/product-finance";
 import { formatNumber, formatRwf, Icon } from "@injishi/ui";
 import { Fragment, type ReactNode } from "react";
 

@@ -2,6 +2,7 @@ import { screens } from "@injishi/data";
 import type { FiscalProfile, Levy, VatDeclaration, VatSummary } from "@injishi/data/fixtures/accounting";
 import type { Metadata } from "next";
 import { TaxSummaryView } from "@/features/accounting/TaxSummaryView";
+import { FinanceMount } from "@/features/finance/finance-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -23,14 +24,16 @@ export default async function TaxSummaryPage({
   ]);
   const { declaration, merchant, period } = await searchParams;
   return (
-    <TaxSummaryView
-      merchants={merchants}
-      summaries={summaries}
-      declarations={declarations}
-      levies={levies}
-      stageOverride={STAGES.find((s) => s === declaration) ?? null}
-      initialMerchant={merchants.find((m) => m.id === merchant)?.id ?? merchants[0]?.id ?? "ahl"}
-      initialPeriod={period === "oct" ? "oct" : "sep"}
-    />
+    <FinanceMount>
+      <TaxSummaryView
+        merchants={merchants}
+        summaries={summaries}
+        declarations={declarations}
+        levies={levies}
+        stageOverride={STAGES.find((s) => s === declaration) ?? null}
+        initialMerchant={merchants.find((m) => m.id === merchant)?.id ?? merchants[0]?.id ?? "ahl"}
+        initialPeriod={period === "oct" ? "oct" : "sep"}
+      />
+    </FinanceMount>
   );
 }

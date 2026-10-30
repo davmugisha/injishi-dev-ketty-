@@ -11,8 +11,8 @@ import {
 } from "@gravity-ui/icons";
 import { Alert, Button, Card, Checkbox, Chip, Modal, Table } from "@heroui/react";
 import { EmptyState, ListView, Segment } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
-import type { CommissionLine, LogEntry, Payout, Tone } from "@injishi/data/fixtures/accounting";
+import type { CommissionLine, LogEntry, Payout, Tone } from "@injishi/product-finance";
+import { useBoardHref } from "@injishi/product-finance/web";
 import { KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { useState } from "react";
 import { firstKey, type KpiItem, KpiStrip, LogTimeline, Note, rwf, Stack } from "./shared";
@@ -52,6 +52,7 @@ interface Row extends CommissionLine {
 }
 
 export function CommissionsView({ lines, payouts }: { lines: CommissionLine[]; payouts: Payout[] }) {
+  const screenHref = useBoardHref();
   const [filter, setFilter] = useState<string>("all");
   const [sel, setSel] = useState(lines[0]?.id ?? "");
   // Lines that can be approved now (tax document on file) start selected, as on the board.

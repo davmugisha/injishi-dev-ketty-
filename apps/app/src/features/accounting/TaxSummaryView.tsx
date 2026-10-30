@@ -3,8 +3,8 @@
 import { ArrowDownToLine, Link, ShieldExclamation } from "@gravity-ui/icons";
 import { Avatar, Button, Card, Chip, Separator, Table } from "@heroui/react";
 import { ListView, Segment } from "@heroui-pro/react";
-import { type BoardId, screenHref } from "@injishi/data";
-import type { FiscalProfile, Levy, VatDeclaration, VatSummary } from "@injishi/data/fixtures/accounting";
+import type { BoardId, FiscalProfile, Levy, VatDeclaration, VatSummary } from "@injishi/product-finance";
+import { useBoardHref } from "@injishi/product-finance/web";
 import { GateChip, KeyValueList, LinkButton, PageContent, PageHeader, TextLink, toneColor } from "@injishi/ui";
 import { useState } from "react";
 import { CardHeading, MetaList, Note, num, rwf } from "./shared";
@@ -35,6 +35,7 @@ export function TaxSummaryView({
   initialMerchant: string;
   initialPeriod: "sep" | "oct";
 }) {
+  const screenHref = useBoardHref();
   const [merchantId, setMerchantId] = useState(initialMerchant);
   const [period, setPeriod] = useState<"sep" | "oct">(initialPeriod);
   const [stages, setStages] = useState<Record<string, DeclarationStage>>({});

@@ -25,8 +25,8 @@ import {
   TextField,
 } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
-import type { DeskMethod, PaymentIntent, PaymentState, RefundRequest, Tone } from "@injishi/data/fixtures/finance";
+import type { DeskMethod, PaymentIntent, PaymentState, RefundRequest, Tone } from "@injishi/product-pay";
+import { useBoardHref } from "@injishi/product-pay/web";
 import { GateChip, Icon, KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { type Key, useState } from "react";
 import { CheckIcon, EventTimeline, lineTab, money, SubHeading, selectableRow, TabCount, ToneChip } from "./pay-parts";
@@ -81,6 +81,7 @@ const attemptsOf = (x: PaymentIntent) => x.events.filter((e) => e.title.startsWi
 const OLDER_CLOSED_INTENTS = 156;
 
 export function PaymentsView({ data }: { data: PaymentsData }) {
+  const screenHref = useBoardHref();
   const [tab, setTab] = useState("all");
   const [sel, setSel] = useState("PI-77126");
   const [dialog, setDialog] = useState<"exec" | "desk" | null>(null);

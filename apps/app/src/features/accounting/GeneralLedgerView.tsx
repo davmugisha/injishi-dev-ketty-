@@ -2,14 +2,8 @@
 
 import { ChartColumn, CircleDashed, Lock, Plus } from "@gravity-ui/icons";
 import { Button, Card, Tabs } from "@heroui/react";
-import { screenHref } from "@injishi/data";
-import type {
-  AccountingKpi,
-  ClosePeriod,
-  ExportBatch,
-  JournalEntry,
-  LedgerAccount,
-} from "@injishi/data/fixtures/accounting";
+import type { AccountingKpi, ClosePeriod, ExportBatch, JournalEntry, LedgerAccount } from "@injishi/product-finance";
+import { useBoardHref } from "@injishi/product-finance/web";
 import { GateChip, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { type ReactNode, useState } from "react";
 import { LedgerAccountsPanel, LedgerClosePanel, LedgerExportsPanel, LedgerJournalPanel } from "./LedgerPanels";
@@ -33,6 +27,7 @@ const TABS: { id: LedgerTab; label: string }[] = [
 ];
 
 export function GeneralLedgerView({ initialTab, data }: { initialTab: LedgerTab; data: GeneralLedgerData }) {
+  const screenHref = useBoardHref();
   const [tab, setTab] = useState<LedgerTab>(initialTab);
   const [source, setSource] = useState("all");
   const [open, setOpen] = useState("JE-26-10-0436");

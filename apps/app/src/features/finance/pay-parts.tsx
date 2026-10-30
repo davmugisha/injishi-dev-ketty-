@@ -8,7 +8,7 @@
 import { CircleCheckFill, CircleDashed, CircleExclamationFill, CircleXmarkFill } from "@gravity-ui/icons";
 import { Chip } from "@heroui/react";
 import { Timeline } from "@heroui-pro/react";
-import type { CheckTone, FinanceEvent, Tone } from "@injishi/data/fixtures/finance";
+import type { CheckTone, FinanceEvent, Tone } from "@injishi/product-pay";
 import { formatRwf, toneColor } from "@injishi/ui";
 import type { ReactNode } from "react";
 

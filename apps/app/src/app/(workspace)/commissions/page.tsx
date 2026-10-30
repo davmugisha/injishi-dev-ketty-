@@ -2,6 +2,7 @@ import { screens } from "@injishi/data";
 import type { CommissionLine, Payout } from "@injishi/data/fixtures/accounting";
 import type { Metadata } from "next";
 import { CommissionsView } from "@/features/accounting/CommissionsView";
+import { FinanceMount } from "@/features/finance/finance-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -13,5 +14,9 @@ export default async function CommissionsPage() {
     getCollection<CommissionLine>("accounting.commissions"),
     getCollection<Payout>("accounting.payouts"),
   ]);
-  return <CommissionsView lines={lines} payouts={payouts} />;
+  return (
+    <FinanceMount>
+      <CommissionsView lines={lines} payouts={payouts} />
+    </FinanceMount>
+  );
 }

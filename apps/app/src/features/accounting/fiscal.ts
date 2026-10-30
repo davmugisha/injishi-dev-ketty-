@@ -1,4 +1,4 @@
-import type { FiscalQueueItem, FiscalStatus, LogEntry, Tone } from "@injishi/data/fixtures/accounting";
+import type { FiscalQueueItem, FiscalStatus, LogEntry, Tone } from "@injishi/product-finance";
 
 /** Chip label and tone for each fiscal document state (artifact: FiscalReceipts CH). */
 export const FISCAL_STATUS: Record<FiscalStatus, { label: string; tone: Tone }> = {

@@ -3,7 +3,6 @@
 import { CloudSlash, FileCheck, Lock, PlugConnection, Receipt, ShieldExclamation } from "@gravity-ui/icons";
 import { Alert, Card, Chip, Tabs } from "@heroui/react";
 import { EmptyState, Segment } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
 import type {
   FiscalDocumentKind,
   FiscalInvoice,
@@ -12,12 +11,13 @@ import type {
   FiscalQueueItem,
   FiscalReceipt,
   ItemCode,
+  Persona,
   VsdcDevice,
   ZReport,
-} from "@injishi/data/fixtures/accounting";
+} from "@injishi/product-finance";
+import { useBoardHref, useFinanceShell } from "@injishi/product-finance/web";
 import { GateChip, KeyValueList, LinkButton, PageContent, PageHeader, TextLink } from "@injishi/ui";
 import { type ReactNode, useState } from "react";
-import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import { FiscalItemCodesPanel } from "./FiscalItemCodesPanel";
 import { FiscalInvoicesPanel, FiscalJournalPanel, FiscalNumberingPanel, FiscalReceiptsPanel } from "./FiscalPanels";
 import { FiscalQueuePanel } from "./FiscalQueuePanel";
@@ -65,6 +65,8 @@ export function FiscalReceiptsView({
   initialMerchant: string;
   data: FiscalReceiptsData;
 }) {
+  const screenHref = useBoardHref();
+  const { TopbarStatus } = useFinanceShell();
   const [merchant, setMerchant] = useState(initialMerchant);
   const [tab, setTab] = useState<FiscalTab>(initialTab);
   const [selQ, setSelQ] = useState("");

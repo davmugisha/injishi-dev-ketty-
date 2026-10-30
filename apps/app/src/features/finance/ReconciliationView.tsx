@@ -18,7 +18,6 @@ import {
 } from "@heroui/react";
 import { ItemCard, ListView, Widget } from "@heroui-pro/react";
 import { BarChart } from "@heroui-pro/react/bar-chart";
-import { screenHref } from "@injishi/data";
 import type {
   MatchSummaryItem,
   ReconInvoice,
@@ -26,7 +25,8 @@ import type {
   ReconSource,
   SettlementBatch,
   Tone,
-} from "@injishi/data/fixtures/finance";
+} from "@injishi/product-pay";
+import { useBoardHref } from "@injishi/product-pay/web";
 import { GateChip, Icon, LinkButton, PageContent, PageHeader, StatusDot } from "@injishi/ui";
 import { type Key, useState } from "react";
 import { CheckIcon, lineTab, money, selectableRow, TabCount, ToneChip } from "./pay-parts";
@@ -68,6 +68,7 @@ function firstKey(keys: "all" | Set<Key>): string | null {
 const amountOrDash = (n: number | null, empty: string) => (n === null ? empty : money(n));
 
 export function ReconciliationView({ data }: { data: ReconciliationData }) {
+  const screenHref = useBoardHref();
   const [tab, setTab] = useState<ReconMatch["tab"]>("suggested");
   const [sel, setSel] = useState("s1");
   const [done, setDone] = useState<Record<string, boolean>>({});

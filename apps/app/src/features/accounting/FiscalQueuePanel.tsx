@@ -2,7 +2,7 @@
 
 import { ArrowsRotateRight, ArrowUpFromLine, Magnifier, OctagonXmark, Tag } from "@gravity-ui/icons";
 import { Alert, Button, Card, Chip, Table } from "@heroui/react";
-import { screenHref } from "@injishi/data";
+import { useBoardHref } from "@injishi/product-finance/web";
 import { KeyValueList, LinkButton, toneColor } from "@injishi/ui";
 import type { ComponentType, SVGProps } from "react";
 import { FISCAL_STATUS, type QueueRow } from "./fiscal";
@@ -46,6 +46,7 @@ export function FiscalQueuePanel({
   onResubmit: (id: string) => void;
   onMapItem: (itemId: string) => void;
 }) {
+  const screenHref = useBoardHref();
   const sel = selected;
   const status = FISCAL_STATUS[sel.current];
   const mappedOk = !sel.itemId || Boolean(mapped[sel.itemId]);

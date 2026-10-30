@@ -3,7 +3,7 @@
 import { Envelope, HandOk, Lock } from "@gravity-ui/icons";
 import { Button, Card, Chip, Input, Label, TextField } from "@heroui/react";
 import { ItemCard, ListView } from "@heroui-pro/react";
-import type { ArAccount, LogEntry, Tone } from "@injishi/data/fixtures/accounting";
+import type { ArAccount, LogEntry, Tone } from "@injishi/product-finance";
 import { KeyValueList, toneColor } from "@injishi/ui";
 import { useState } from "react";
 import { CardHeading, LogTimeline, Note, rwf } from "./shared";

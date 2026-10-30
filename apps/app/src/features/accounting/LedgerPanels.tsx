@@ -17,8 +17,8 @@ import {
 } from "@gravity-ui/icons";
 import { Button, Card, Chip, Label, ProgressBar, Table } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
-import type { ClosePeriod, ExportBatch, JournalEntry, LedgerAccount, Tone } from "@injishi/data/fixtures/accounting";
+import type { ClosePeriod, ExportBatch, JournalEntry, LedgerAccount, Tone } from "@injishi/product-finance";
+import { useBoardHref } from "@injishi/product-finance/web";
 import { GateChip, TextLink, toneColor } from "@injishi/ui";
 import { type ComponentType, Fragment, type SVGProps } from "react";
 import { MetaList, Note, num, rwf, Stack } from "./shared";
@@ -431,6 +431,7 @@ export function LedgerExportsPanel({
   rerun: Record<string, boolean>;
   onRerun: (id: string) => void;
 }) {
+  const screenHref = useBoardHref();
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">

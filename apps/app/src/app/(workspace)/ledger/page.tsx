@@ -8,6 +8,7 @@ import type {
 } from "@injishi/data/fixtures/accounting";
 import type { Metadata } from "next";
 import { GeneralLedgerView, type LedgerTab } from "@/features/accounting/GeneralLedgerView";
+import { FinanceMount } from "@/features/finance/finance-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -26,9 +27,11 @@ export default async function GeneralLedgerPage({ searchParams }: { searchParams
   ]);
   const { tab } = await searchParams;
   return (
-    <GeneralLedgerView
-      initialTab={TABS.find((t) => t === tab) ?? "journal"}
-      data={{ kpis: kpis.filter((k) => k.board === "GeneralLedger"), entries, accounts, periods, batches }}
-    />
+    <FinanceMount>
+      <GeneralLedgerView
+        initialTab={TABS.find((t) => t === tab) ?? "journal"}
+        data={{ kpis: kpis.filter((k) => k.board === "GeneralLedger"), entries, accounts, periods, batches }}
+      />
+    </FinanceMount>
   );
 }

@@ -4,15 +4,16 @@ import { ArrowDownToLine, ArrowRightArrowLeft, Briefcase } from "@gravity-ui/ico
 import { Avatar, Button, Card, Chip, ProgressBar, Table, Tabs } from "@heroui/react";
 import { EmptyState, ListView, Segment, Widget } from "@heroui-pro/react";
 import { BarChart } from "@heroui-pro/react/bar-chart";
-import { type Persona, screenHref } from "@injishi/data";
 import type {
   AccountingKpi,
   AgingBucket,
   ArAccount,
   BankTransfer,
   LogEntry,
+  Persona,
   Tone,
-} from "@injishi/data/fixtures/accounting";
+} from "@injishi/product-finance";
+import { useBoardHref } from "@injishi/product-finance/web";
 import { LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { useState } from "react";
 import { Cell, LabelList } from "recharts";
@@ -199,6 +200,7 @@ export function AccountsReceivableView({
   initialEntity: "ahl" | "res";
   data: AccountsReceivableData;
 }) {
+  const screenHref = useBoardHref();
   const [entity, setEntity] = useState<"ahl" | "res">(initialEntity);
   const [kind, setKind] = useState<KindId>("all");
   const [sel, setSel] = useState(data.accounts[0]?.id ?? "");
