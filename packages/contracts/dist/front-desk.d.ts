@@ -1418,4 +1418,387 @@ export declare const DeskMessageTemplateList: z.ZodObject<{
     }[];
 }>;
 export type DeskMessageTemplateList = z.infer<typeof DeskMessageTemplateList>;
+/**
+ * THE DESK BOOKS A GUEST (`POST /api/v1/ops/reservations`, 0124): a phone call, a WhatsApp, an email or a
+ * walk in for a later day. One room type, one party, any nights from today. The guest needs no account:
+ * their name and phone are the booking's. A room may be held at once (`roomId`), or later ("No room yet").
+ * The price is the room type's for those nights unless the desk sets another, with a reason. A deposit the
+ * desk took (cash, or a MoMo payment the guest already made, by its reference) goes on the guest's bill.
+ */
+export declare const DeskReservationChannel: z.ZodEnum<["phone", "direct", "walk_in", "travel_agent", "corporate"]>;
+export type DeskReservationChannel = z.infer<typeof DeskReservationChannel>;
+export declare const DeskReservationAsk: z.ZodEffects<z.ZodObject<{
+    checkIn: z.ZodString;
+    checkOut: z.ZodString;
+    roomTypeId: z.ZodString;
+    adults: z.ZodNumber;
+    children: z.ZodDefault<z.ZodNumber>;
+    /** A nightly price other than the room type's, for the whole party. */
+    nightlyRateRwf: z.ZodOptional<z.ZodNumber>;
+}, "strip", z.ZodTypeAny, {
+    roomTypeId: string;
+    checkIn: string;
+    checkOut: string;
+    adults: number;
+    children: number;
+    nightlyRateRwf?: number | undefined;
+}, {
+    roomTypeId: string;
+    checkIn: string;
+    checkOut: string;
+    adults: number;
+    nightlyRateRwf?: number | undefined;
+    children?: number | undefined;
+}>, {
+    roomTypeId: string;
+    checkIn: string;
+    checkOut: string;
+    adults: number;
+    children: number;
+    nightlyRateRwf?: number | undefined;
+}, {
+    roomTypeId: string;
+    checkIn: string;
+    checkOut: string;
+    adults: number;
+    nightlyRateRwf?: number | undefined;
+    children?: number | undefined;
+}>;
+export type DeskReservationAsk = z.infer<typeof DeskReservationAsk>;
+/** What the desk's booking would cost and whether the room type is free, before anything is written. */
+export declare const DeskReservationQuote: z.ZodObject<{
+    nights: z.ZodNumber;
+    /** The room type's own nightly price for this party and these nights. */
+    nightlyRateRwf: z.ZodNumber;
+    /** What will be charged a night: the desk's price when it set one. */
+    chargedNightlyRwf: z.ZodNumber;
+    totalRwf: z.ZodNumber;
+    freeRooms: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        label: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        label: string;
+    }, {
+        id: string;
+        label: string;
+    }>, "many">;
+    available: z.ZodBoolean;
+    problems: z.ZodArray<z.ZodString, "many">;
+}, "strip", z.ZodTypeAny, {
+    nightlyRateRwf: number;
+    nights: number;
+    totalRwf: number;
+    available: boolean;
+    problems: string[];
+    chargedNightlyRwf: number;
+    freeRooms: {
+        id: string;
+        label: string;
+    }[];
+}, {
+    nightlyRateRwf: number;
+    nights: number;
+    totalRwf: number;
+    available: boolean;
+    problems: string[];
+    chargedNightlyRwf: number;
+    freeRooms: {
+        id: string;
+        label: string;
+    }[];
+}>;
+export type DeskReservationQuote = z.infer<typeof DeskReservationQuote>;
+export declare const DeskReservationRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<z.ZodObject<{
+    checkIn: z.ZodString;
+    checkOut: z.ZodString;
+    roomTypeId: z.ZodString;
+    /** Hold this room for the stay now; without it the booking waits for a room. */
+    roomId: z.ZodOptional<z.ZodString>;
+    adults: z.ZodNumber;
+    children: z.ZodDefault<z.ZodNumber>;
+    guest: z.ZodObject<{
+        fullName: z.ZodString;
+        phone: z.ZodOptional<z.ZodString>;
+        email: z.ZodOptional<z.ZodString>;
+        nationality: z.ZodOptional<z.ZodString>;
+        documentType: z.ZodOptional<z.ZodEnum<["national_id", "passport", "other"]>>;
+        idNumber: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        fullName: string;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        email?: string | undefined;
+        phone?: string | undefined;
+        idNumber?: string | undefined;
+        nationality?: string | undefined;
+    }, {
+        fullName: string;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        email?: string | undefined;
+        phone?: string | undefined;
+        idNumber?: string | undefined;
+        nationality?: string | undefined;
+    }>;
+    channel: z.ZodEnum<["phone", "direct", "walk_in", "travel_agent", "corporate"]>;
+    eta: z.ZodOptional<z.ZodString>;
+    note: z.ZodOptional<z.ZodString>;
+    /** Held for the guest until then; past it, the nights are released. */
+    holdUntil: z.ZodOptional<z.ZodString>;
+    nightlyRateRwf: z.ZodOptional<z.ZodNumber>;
+    rateOverrideReason: z.ZodOptional<z.ZodString>;
+    deposit: z.ZodOptional<z.ZodObject<{
+        method: z.ZodEnum<["cash", "mobile_money"]>;
+        amountRwf: z.ZodNumber;
+        reference: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        amountRwf: number;
+        method: "mobile_money" | "cash";
+        reference?: string | undefined;
+    }, {
+        amountRwf: number;
+        method: "mobile_money" | "cash";
+        reference?: string | undefined;
+    }>>;
+}, "strip", z.ZodTypeAny, {
+    guest: {
+        fullName: string;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        email?: string | undefined;
+        phone?: string | undefined;
+        idNumber?: string | undefined;
+        nationality?: string | undefined;
+    };
+    roomTypeId: string;
+    checkIn: string;
+    checkOut: string;
+    channel: "phone" | "direct" | "travel_agent" | "corporate" | "walk_in";
+    adults: number;
+    children: number;
+    nightlyRateRwf?: number | undefined;
+    note?: string | undefined;
+    deposit?: {
+        amountRwf: number;
+        method: "mobile_money" | "cash";
+        reference?: string | undefined;
+    } | undefined;
+    roomId?: string | undefined;
+    eta?: string | undefined;
+    holdUntil?: string | undefined;
+    rateOverrideReason?: string | undefined;
+}, {
+    guest: {
+        fullName: string;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        email?: string | undefined;
+        phone?: string | undefined;
+        idNumber?: string | undefined;
+        nationality?: string | undefined;
+    };
+    roomTypeId: string;
+    checkIn: string;
+    checkOut: string;
+    channel: "phone" | "direct" | "travel_agent" | "corporate" | "walk_in";
+    adults: number;
+    nightlyRateRwf?: number | undefined;
+    note?: string | undefined;
+    deposit?: {
+        amountRwf: number;
+        method: "mobile_money" | "cash";
+        reference?: string | undefined;
+    } | undefined;
+    roomId?: string | undefined;
+    children?: number | undefined;
+    eta?: string | undefined;
+    holdUntil?: string | undefined;
+    rateOverrideReason?: string | undefined;
+}>, {
+    guest: {
+        fullName: string;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        email?: string | undefined;
+        phone?: string | undefined;
+        idNumber?: string | undefined;
+        nationality?: string | undefined;
+    };
+    roomTypeId: string;
+    checkIn: string;
+    checkOut: string;
+    channel: "phone" | "direct" | "travel_agent" | "corporate" | "walk_in";
+    adults: number;
+    children: number;
+    nightlyRateRwf?: number | undefined;
+    note?: string | undefined;
+    deposit?: {
+        amountRwf: number;
+        method: "mobile_money" | "cash";
+        reference?: string | undefined;
+    } | undefined;
+    roomId?: string | undefined;
+    eta?: string | undefined;
+    holdUntil?: string | undefined;
+    rateOverrideReason?: string | undefined;
+}, {
+    guest: {
+        fullName: string;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        email?: string | undefined;
+        phone?: string | undefined;
+        idNumber?: string | undefined;
+        nationality?: string | undefined;
+    };
+    roomTypeId: string;
+    checkIn: string;
+    checkOut: string;
+    channel: "phone" | "direct" | "travel_agent" | "corporate" | "walk_in";
+    adults: number;
+    nightlyRateRwf?: number | undefined;
+    note?: string | undefined;
+    deposit?: {
+        amountRwf: number;
+        method: "mobile_money" | "cash";
+        reference?: string | undefined;
+    } | undefined;
+    roomId?: string | undefined;
+    children?: number | undefined;
+    eta?: string | undefined;
+    holdUntil?: string | undefined;
+    rateOverrideReason?: string | undefined;
+}>, {
+    guest: {
+        fullName: string;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        email?: string | undefined;
+        phone?: string | undefined;
+        idNumber?: string | undefined;
+        nationality?: string | undefined;
+    };
+    roomTypeId: string;
+    checkIn: string;
+    checkOut: string;
+    channel: "phone" | "direct" | "travel_agent" | "corporate" | "walk_in";
+    adults: number;
+    children: number;
+    nightlyRateRwf?: number | undefined;
+    note?: string | undefined;
+    deposit?: {
+        amountRwf: number;
+        method: "mobile_money" | "cash";
+        reference?: string | undefined;
+    } | undefined;
+    roomId?: string | undefined;
+    eta?: string | undefined;
+    holdUntil?: string | undefined;
+    rateOverrideReason?: string | undefined;
+}, {
+    guest: {
+        fullName: string;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        email?: string | undefined;
+        phone?: string | undefined;
+        idNumber?: string | undefined;
+        nationality?: string | undefined;
+    };
+    roomTypeId: string;
+    checkIn: string;
+    checkOut: string;
+    channel: "phone" | "direct" | "travel_agent" | "corporate" | "walk_in";
+    adults: number;
+    nightlyRateRwf?: number | undefined;
+    note?: string | undefined;
+    deposit?: {
+        amountRwf: number;
+        method: "mobile_money" | "cash";
+        reference?: string | undefined;
+    } | undefined;
+    roomId?: string | undefined;
+    children?: number | undefined;
+    eta?: string | undefined;
+    holdUntil?: string | undefined;
+    rateOverrideReason?: string | undefined;
+}>, {
+    guest: {
+        fullName: string;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        email?: string | undefined;
+        phone?: string | undefined;
+        idNumber?: string | undefined;
+        nationality?: string | undefined;
+    };
+    roomTypeId: string;
+    checkIn: string;
+    checkOut: string;
+    channel: "phone" | "direct" | "travel_agent" | "corporate" | "walk_in";
+    adults: number;
+    children: number;
+    nightlyRateRwf?: number | undefined;
+    note?: string | undefined;
+    deposit?: {
+        amountRwf: number;
+        method: "mobile_money" | "cash";
+        reference?: string | undefined;
+    } | undefined;
+    roomId?: string | undefined;
+    eta?: string | undefined;
+    holdUntil?: string | undefined;
+    rateOverrideReason?: string | undefined;
+}, {
+    guest: {
+        fullName: string;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        email?: string | undefined;
+        phone?: string | undefined;
+        idNumber?: string | undefined;
+        nationality?: string | undefined;
+    };
+    roomTypeId: string;
+    checkIn: string;
+    checkOut: string;
+    channel: "phone" | "direct" | "travel_agent" | "corporate" | "walk_in";
+    adults: number;
+    nightlyRateRwf?: number | undefined;
+    note?: string | undefined;
+    deposit?: {
+        amountRwf: number;
+        method: "mobile_money" | "cash";
+        reference?: string | undefined;
+    } | undefined;
+    roomId?: string | undefined;
+    children?: number | undefined;
+    eta?: string | undefined;
+    holdUntil?: string | undefined;
+    rateOverrideReason?: string | undefined;
+}>;
+export type DeskReservationRequest = z.infer<typeof DeskReservationRequest>;
+export declare const DeskReservationResult: z.ZodObject<{
+    id: z.ZodString;
+    reference: z.ZodString;
+    checkIn: z.ZodString;
+    checkOut: z.ZodString;
+    totalRwf: z.ZodNumber;
+    /** The room held, when one was asked for and was free. */
+    roomLabel: z.ZodNullable<z.ZodString>;
+    /** Why the room asked for could not be held; the booking waits for a room. */
+    roomProblem: z.ZodNullable<z.ZodString>;
+    /** The folio the deposit went on, when one was taken. */
+    folioId: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    id: string;
+    checkIn: string;
+    checkOut: string;
+    reference: string;
+    totalRwf: number;
+    roomLabel: string | null;
+    folioId: string | null;
+    roomProblem: string | null;
+}, {
+    id: string;
+    checkIn: string;
+    checkOut: string;
+    reference: string;
+    totalRwf: number;
+    roomLabel: string | null;
+    folioId: string | null;
+    roomProblem: string | null;
+}>;
+export type DeskReservationResult = z.infer<typeof DeskReservationResult>;
 //# sourceMappingURL=front-desk.d.ts.map

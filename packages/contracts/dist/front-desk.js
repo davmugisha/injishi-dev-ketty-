@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DeskMessageTemplateList = exports.DeskMessageTemplate = exports.MarkNoShowRequest = exports.CancelReservationRequest = exports.FrontDeskBoardQuery = exports.FrontDeskBoard = exports.FrontDeskRoomType = exports.FrontDeskRoom = exports.FrontDeskStay = exports.FrontDeskBooking = exports.FrontDeskRefundQuote = exports.FrontDeskFolio = exports.FrontDeskHold = exports.BookingChannel = void 0;
+exports.DeskReservationResult = exports.DeskReservationRequest = exports.DeskReservationQuote = exports.DeskReservationAsk = exports.DeskReservationChannel = exports.DeskMessageTemplateList = exports.DeskMessageTemplate = exports.MarkNoShowRequest = exports.CancelReservationRequest = exports.FrontDeskBoardQuery = exports.FrontDeskBoard = exports.FrontDeskRoomType = exports.FrontDeskRoom = exports.FrontDeskStay = exports.FrontDeskBooking = exports.FrontDeskRefundQuote = exports.FrontDeskFolio = exports.FrontDeskHold = exports.BookingChannel = void 0;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const ops_1 = require("./ops");
@@ -237,4 +237,90 @@ exports.DeskMessageTemplate = zod_1.z.object({
     }),
 });
 exports.DeskMessageTemplateList = zod_1.z.object({ templates: zod_1.z.array(exports.DeskMessageTemplate) });
+/**
+ * THE DESK BOOKS A GUEST (`POST /api/v1/ops/reservations`, 0124): a phone call, a WhatsApp, an email or a
+ * walk in for a later day. One room type, one party, any nights from today. The guest needs no account:
+ * their name and phone are the booking's. A room may be held at once (`roomId`), or later ("No room yet").
+ * The price is the room type's for those nights unless the desk sets another, with a reason. A deposit the
+ * desk took (cash, or a MoMo payment the guest already made, by its reference) goes on the guest's bill.
+ */
+exports.DeskReservationChannel = zod_1.z.enum(["phone", "direct", "walk_in", "travel_agent", "corporate"]);
+const HHMM = zod_1.z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a time like 14:30.");
+exports.DeskReservationAsk = zod_1.z
+    .object({
+    checkIn: IsoDate,
+    checkOut: IsoDate,
+    roomTypeId: primitives_1.Uuid,
+    adults: zod_1.z.number().int().min(1).max(20),
+    children: zod_1.z.number().int().min(0).max(20).default(0),
+    /** A nightly price other than the room type's, for the whole party. */
+    nightlyRateRwf: primitives_1.RwfAmount.optional(),
+})
+    .refine((a) => a.checkOut > a.checkIn, { message: "Departure must be after arrival.", path: ["checkOut"] });
+/** What the desk's booking would cost and whether the room type is free, before anything is written. */
+exports.DeskReservationQuote = zod_1.z.object({
+    nights: zod_1.z.number().int(),
+    /** The room type's own nightly price for this party and these nights. */
+    nightlyRateRwf: primitives_1.RwfAmount,
+    /** What will be charged a night: the desk's price when it set one. */
+    chargedNightlyRwf: primitives_1.RwfAmount,
+    totalRwf: primitives_1.RwfAmount,
+    freeRooms: zod_1.z.array(zod_1.z.object({ id: primitives_1.Uuid, label: zod_1.z.string() })),
+    available: zod_1.z.boolean(),
+    problems: zod_1.z.array(zod_1.z.string()),
+});
+exports.DeskReservationRequest = zod_1.z
+    .object({
+    checkIn: IsoDate,
+    checkOut: IsoDate,
+    roomTypeId: primitives_1.Uuid,
+    /** Hold this room for the stay now; without it the booking waits for a room. */
+    roomId: primitives_1.Uuid.optional(),
+    adults: zod_1.z.number().int().min(1).max(20),
+    children: zod_1.z.number().int().min(0).max(20).default(0),
+    guest: zod_1.z.object({
+        fullName: zod_1.z.string().trim().min(1, "Type the guest's name.").max(200),
+        phone: zod_1.z.string().trim().min(8).max(20).optional(),
+        email: zod_1.z.string().trim().email().max(200).optional(),
+        nationality: zod_1.z.string().length(2).toUpperCase().optional(),
+        documentType: primitives_1.DocumentType.optional(),
+        idNumber: zod_1.z.string().trim().min(1).max(40).optional(),
+    }),
+    channel: exports.DeskReservationChannel,
+    eta: HHMM.optional(),
+    note: zod_1.z.string().trim().max(500).optional(),
+    /** Held for the guest until then; past it, the nights are released. */
+    holdUntil: zod_1.z.string().datetime({ offset: true }).optional(),
+    nightlyRateRwf: primitives_1.RwfAmount.optional(),
+    rateOverrideReason: zod_1.z.string().trim().min(3, "Say why the price changed.").max(300).optional(),
+    deposit: zod_1.z
+        .object({
+        method: zod_1.z.enum(["cash", "mobile_money"]),
+        amountRwf: zod_1.z.number().int().positive(),
+        reference: zod_1.z.string().trim().max(120).optional(),
+    })
+        .optional(),
+})
+    .refine((r) => r.checkOut > r.checkIn, { message: "Departure must be after arrival.", path: ["checkOut"] })
+    .refine((r) => r.nightlyRateRwf === undefined || !!r.rateOverrideReason, {
+    message: "Say why the price changed.",
+    path: ["rateOverrideReason"],
+})
+    .refine((r) => r.deposit?.method !== "mobile_money" || !!r.deposit.reference, {
+    message: "Type the MoMo transaction reference.",
+    path: ["deposit", "reference"],
+});
+exports.DeskReservationResult = zod_1.z.object({
+    id: primitives_1.Uuid,
+    reference: zod_1.z.string(),
+    checkIn: IsoDate,
+    checkOut: IsoDate,
+    totalRwf: primitives_1.RwfAmount,
+    /** The room held, when one was asked for and was free. */
+    roomLabel: zod_1.z.string().nullable(),
+    /** Why the room asked for could not be held; the booking waits for a room. */
+    roomProblem: zod_1.z.string().nullable(),
+    /** The folio the deposit went on, when one was taken. */
+    folioId: primitives_1.Uuid.nullable(),
+});
 //# sourceMappingURL=front-desk.js.map
