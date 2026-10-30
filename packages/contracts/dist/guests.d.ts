@@ -1329,7 +1329,8 @@ export declare const GuestRelationship: z.ZodObject<{
     needsDetail: boolean;
 }>;
 export type GuestRelationship = z.infer<typeof GuestRelationship>;
-export declare const LeaderGuestTab: z.ZodEnum<["arriving", "staying", "left", "flagged"]>;
+/** `all` (the default): every guest in the area, nothing chosen for the leader. */
+export declare const LeaderGuestTab: z.ZodEnum<["all", "arriving", "staying", "left", "flagged"]>;
 export type LeaderGuestTab = z.infer<typeof LeaderGuestTab>;
 /** The Arriving tab's window: the next 7 days, or everyone arriving after that. */
 export declare const LeaderArrivingWhen: z.ZodEnum<["soon", "later"]>;
@@ -1338,7 +1339,7 @@ export type LeaderArrivingWhen = z.infer<typeof LeaderArrivingWhen>;
 export declare const ReportOrigin: z.ZodEnum<["nationals", "international"]>;
 export type ReportOrigin = z.infer<typeof ReportOrigin>;
 export declare const LeaderGuestQuery: z.ZodObject<{
-    tab: z.ZodDefault<z.ZodEnum<["arriving", "staying", "left", "flagged"]>>;
+    tab: z.ZodDefault<z.ZodEnum<["all", "arriving", "staying", "left", "flagged"]>>;
     when: z.ZodDefault<z.ZodEnum<["soon", "later"]>>;
     sectorId: z.ZodOptional<z.ZodNumber>;
     cellId: z.ZodOptional<z.ZodNumber>;
@@ -1351,7 +1352,7 @@ export declare const LeaderGuestQuery: z.ZodObject<{
     page: z.ZodDefault<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     page: number;
-    tab: "arriving" | "staying" | "left" | "flagged";
+    tab: "all" | "arriving" | "staying" | "left" | "flagged";
     when: "soon" | "later";
     sectorId?: number | undefined;
     cellId?: number | undefined;
@@ -1367,7 +1368,7 @@ export declare const LeaderGuestQuery: z.ZodObject<{
     q?: string | undefined;
     nationality?: string | undefined;
     origin?: "nationals" | "international" | undefined;
-    tab?: "arriving" | "staying" | "left" | "flagged" | undefined;
+    tab?: "all" | "arriving" | "staying" | "left" | "flagged" | undefined;
     when?: "soon" | "later" | undefined;
 }>;
 export type LeaderGuestQuery = z.infer<typeof LeaderGuestQuery>;
@@ -2220,7 +2221,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
         stayingByDay?: number[] | undefined;
     }>;
 } & {
-    tab: z.ZodEnum<["arriving", "staying", "left", "flagged"]>;
+    tab: z.ZodEnum<["all", "arriving", "staying", "left", "flagged"]>;
     when: z.ZodEnum<["soon", "later"]>;
     guests: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -2500,7 +2501,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
         assignmentId: string;
         roleLabel: string;
     }[];
-    tab: "arriving" | "staying" | "left" | "flagged";
+    tab: "all" | "arriving" | "staying" | "left" | "flagged";
     counts: {
         current: number;
         arriving: number;
@@ -2600,7 +2601,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
         assignmentId: string;
         roleLabel: string;
     }[];
-    tab: "arriving" | "staying" | "left" | "flagged";
+    tab: "all" | "arriving" | "staying" | "left" | "flagged";
     counts: {
         arriving: number;
         staying: number;

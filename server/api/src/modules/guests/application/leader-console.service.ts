@@ -69,6 +69,12 @@ export function tabSql(q: Pick<LeaderGuestQuery, 'tab' | 'when' | 'q'>, today: s
     ? sql` and (g.full_name ilike ${`%${q.q}%`} or g.phone like ${`%${q.q.replace(/\s/g, '')}%`} or coalesce(g.id_number, '') ilike ${`%${q.q}%`})`
     : sql``;
   switch (q.tab) {
+    case 'all':
+      // Everyone in the area: who is to come or staying first, soonest arrival first; then who left.
+      return {
+        where: sql`(true${search})`,
+        order: sql`(g.departure_on < ${today}::date) asc, case when g.departure_on < ${today}::date then null else g.arrival_on end asc, g.departure_on desc`,
+      };
     case 'arriving':
       return q.when === 'later'
         ? { where: sql`(g.arrival_on > ${soon}::date${search})`, order: sql`g.arrival_on asc` }

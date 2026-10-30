@@ -151,6 +151,9 @@ describe('LeaderConsoleService · scope', () => {
     expect(render(narrowSql({})).sql).toBe('true');
     const soon = render(tabSql({ tab: 'arriving', when: 'soon' }, '2026-10-24').where);
     expect(soon.params).toEqual(['2026-10-24', '2026-10-31']);
+    // Nothing chosen: every guest, only the search narrows it.
+    expect(render(tabSql({ tab: 'all', when: 'soon' }, '2026-10-24').where).params).toEqual([]);
+    expect(render(tabSql({ tab: 'all', when: 'soon', q: 'ana' }, '2026-10-24').where).params).toEqual(['%ana%', '%ana%', '%ana%']);
     const later = render(tabSql({ tab: 'arriving', when: 'later' }, '2026-10-24').where);
     expect(later.sql).toBe('(g.arrival_on > $1::date)');
     expect(render(tabSql({ tab: 'staying', when: 'soon', q: 'grace' }, '2026-10-24').where).params).toEqual(['2026-10-24', '2026-10-24', '%grace%', '%grace%', '%grace%']);

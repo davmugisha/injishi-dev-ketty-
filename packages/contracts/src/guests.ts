@@ -476,7 +476,8 @@ export type GuestRelationship = z.infer<typeof GuestRelationship>;
 
 // --- The leader's console ---------------------------------------------------------------
 
-export const LeaderGuestTab = z.enum(["arriving", "staying", "left", "flagged"]);
+/** `all` (the default): every guest in the area, nothing chosen for the leader. */
+export const LeaderGuestTab = z.enum(["all", "arriving", "staying", "left", "flagged"]);
 export type LeaderGuestTab = z.infer<typeof LeaderGuestTab>;
 
 const AreaId = z.coerce.number().int().positive();
@@ -490,7 +491,7 @@ export const ReportOrigin = z.enum(["nationals", "international"]);
 export type ReportOrigin = z.infer<typeof ReportOrigin>;
 
 export const LeaderGuestQuery = z.object({
-  tab: LeaderGuestTab.default("arriving"),
+  tab: LeaderGuestTab.default("all"),
   when: LeaderArrivingWhen.default("soon"),
   sectorId: AreaId.optional(),
   cellId: AreaId.optional(),

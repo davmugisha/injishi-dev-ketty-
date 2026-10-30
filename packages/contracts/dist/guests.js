@@ -411,14 +411,15 @@ exports.LandlordGuestList = exports.HostGuestList.extend({
 exports.GuestCountry = zod_1.z.object({ code: zod_1.z.string(), name: zod_1.z.string() });
 exports.GuestRelationship = zod_1.z.object({ code: zod_1.z.string(), label: zod_1.z.string(), needsDetail: zod_1.z.boolean() });
 // --- The leader's console ---------------------------------------------------------------
-exports.LeaderGuestTab = zod_1.z.enum(["arriving", "staying", "left", "flagged"]);
+/** `all` (the default): every guest in the area, nothing chosen for the leader. */
+exports.LeaderGuestTab = zod_1.z.enum(["all", "arriving", "staying", "left", "flagged"]);
 const AreaId = zod_1.z.coerce.number().int().positive();
 /** The Arriving tab's window: the next 7 days, or everyone arriving after that. */
 exports.LeaderArrivingWhen = zod_1.z.enum(["soon", "later"]);
 /** A guest filter by nationality, in the leader's words: everyone, Rwandans, or guests from other countries. */
 exports.ReportOrigin = zod_1.z.enum(["nationals", "international"]);
 exports.LeaderGuestQuery = zod_1.z.object({
-    tab: exports.LeaderGuestTab.default("arriving"),
+    tab: exports.LeaderGuestTab.default("all"),
     when: exports.LeaderArrivingWhen.default("soon"),
     sectorId: AreaId.optional(),
     cellId: AreaId.optional(),
