@@ -9,7 +9,7 @@
  * the person is signed in on web and here at once.
  */
 
-import { landlordBusiness, type MeContext, type MeContextBusiness } from "@injishi/contracts";
+import { isLeaderRole, landlordBusiness, type MeContext, type MeContextBusiness } from "@injishi/contracts";
 import {
   type BoardId,
   DEMO_OTP,
@@ -485,6 +485,9 @@ async function personaFor(
   if (top?.orgRole && ROLE_PERSONA[top.orgRole]) return shellFor(top.orgRole);
   if (landing?.surface === "tenant") return personas.tenant;
   if (context ? context.staff.isStaff : await holds(cookie, "/api/v1/me/staff")) return personas.ops;
+  // A local leader or DGIE officer reviews no business: they land on the guests in their area.
+  if (context && context.oversight.length > 0 && context.oversight.every((g) => isLeaderRole(g.oversightRole)))
+    return { ...personas.officer, home: "LeaderGuests" };
   if (context ? context.oversight.length > 0 : await holds(cookie, "/api/v1/me/oversight")) return personas.officer;
   return personas.guest;
 }
