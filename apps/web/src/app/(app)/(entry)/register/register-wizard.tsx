@@ -703,10 +703,14 @@ export default function RegisterWizard({
     if (!(profile?.complete === true && !editingProfile)) {
       const parsed = PersonalDetails.safeParse(personalCandidate(personal, identityOnFile !== null));
       if (!parsed.success) {
-        setErrors(issuesToErrors(parsed.error.issues));
+        const found = issuesToErrors(parsed.error.issues);
+        setErrors(found);
+        // Some fields (the date of birth read off the ID) have no input on this step, so say it here too.
+        setFormError(Object.values(found)[0] ?? "Check your details.");
         return;
       }
     }
+    setFormError("");
     setIdConfirmed(true);
   };
 
