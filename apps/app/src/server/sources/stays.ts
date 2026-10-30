@@ -706,8 +706,11 @@ function presentMessages(lines: ApiMessage[], today: string): ThreadMessage[] {
             text: m.body,
             meta: `${clock(m.createdAt)} · ${m.senderName ?? "Front desk"} · guest app`,
             delivery: [],
+            id: m.id,
+            at: m.createdAt,
+            sender: m.senderName,
           }
-        : { t: "guest", text: m.body, meta: `${clock(m.createdAt)} · guest app` },
+        : { t: "guest", text: m.body, meta: `${clock(m.createdAt)} · guest app`, id: m.id, at: m.createdAt },
     );
   }
   return out;

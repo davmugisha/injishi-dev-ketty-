@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar, Button, Modal } from "@heroui/react";
+import { Avatar, Button, Dropdown, Label, Modal } from "@heroui/react";
 import {
   ChatAttachment,
   ChatAttachmentGroup,
@@ -88,7 +88,18 @@ export interface ChatThreadProps {
   isLoading?: boolean;
   /** Who is typing now, when the live line says so. */
   typing?: string | null;
+  /** Saved replies the composer offers (a business's templates), by group (a language). */
+  suggestions?: readonly ChatSuggestion[];
   className?: string;
+}
+
+/** A saved reply: pressing it puts its words in the composer. */
+export interface ChatSuggestion {
+  id: string;
+  label: string;
+  text: string;
+  /** "English", "Kinyarwanda". */
+  group?: string;
 }
 
 /** A finger or mouse held this long on the microphone records until it lets go; shorter is a click. */
@@ -305,12 +316,14 @@ function Composer({
   accept,
   checkFiles,
   maxVoiceSeconds,
+  suggestions,
 }: {
   onSend: (draft: ChatDraft) => Promise<void>;
   placeholder: string;
   accept?: string;
   checkFiles?: ChatThreadProps["checkFiles"];
   maxVoiceSeconds: number;
+  suggestions?: readonly ChatSuggestion[];
 }) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<Pending[]>([]);
@@ -525,6 +538,34 @@ function Composer({
               )}
             />
           ) : null}
+          {suggestions && suggestions.length > 0 && !recording ? (
+            <Dropdown>
+              <PromptInput.Action aria-label="Saved replies" tooltip="Saved replies">
+                <Icon name="FileText" />
+              </PromptInput.Action>
+              <Dropdown.Popover placement="top start" className="max-h-80 min-w-56 overflow-y-auto">
+                <Dropdown.Menu
+                  aria-label="Saved replies"
+                  onAction={(key) => {
+                    const hit = suggestions.find((x) => x.id === String(key));
+                    if (hit) setText(hit.text);
+                  }}
+                >
+                  {[...new Set(suggestions.map((x) => x.group ?? ""))].map((group) => (
+                    <Dropdown.Section key={group || "all"} aria-label={group || "Replies"}>
+                      {suggestions
+                        .filter((x) => (x.group ?? "") === group)
+                        .map((x) => (
+                          <Dropdown.Item key={x.id} id={x.id} textValue={x.label}>
+                            <Label>{group ? `${x.label} (${group})` : x.label}</Label>
+                          </Dropdown.Item>
+                        ))}
+                    </Dropdown.Section>
+                  ))}
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+          ) : null}
         </PromptInput.ToolbarStart>
         <PromptInput.ToolbarEnd className="gap-1.5">
           {recording ? (
@@ -640,6 +681,7 @@ export function ChatThread({
   maxVoiceSeconds = 120,
   isLoading = false,
   typing,
+  suggestions,
   className,
 }: ChatThreadProps) {
   const scroller = useRef<HTMLDivElement>(null);
@@ -850,6 +892,7 @@ export function ChatThread({
           accept={accept}
           checkFiles={checkFiles}
           maxVoiceSeconds={maxVoiceSeconds}
+          suggestions={suggestions}
         />
       )}
       <Modal.Backdrop isOpen={gallery !== null} onOpenChange={(open) => (open ? undefined : setGallery(null))}>
