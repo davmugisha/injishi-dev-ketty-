@@ -95,10 +95,11 @@ describe("sitemap (covers: AC-I9)", () => {
 
     const urls = (await sitemap()).map((e) => e.url);
 
-    for (const path of ["/", "/explore", "/stays", "/stays/musanze", "/host", "/how-it-works", "/guides"]) {
+    for (const path of ["/", "/explore", "/stays", "/stays/musanze", "/host", "/how-it-works"]) {
       assert.ok(urls.includes(`https://www.example.rw${path}`), `missing ${path}`);
     }
-    assert.ok(urls.some((u) => u.startsWith("https://www.example.rw/guides/")), "no guide listed");
+    // No guides are published yet (data/guides.ts), so neither the index nor an article is listed.
+    assert.ok(urls.every((u) => !u.startsWith("https://www.example.rw/guides")), "lists a guide that does not exist");
   });
 
   test("never lists a page that tells crawlers not to index it", async () => {

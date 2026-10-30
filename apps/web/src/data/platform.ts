@@ -78,16 +78,6 @@ export function offersGoogle(platform: PlatformInfo | null): boolean {
 }
 
 /**
- * True only on a positive answer that the API serves a SAMPLE database: the
- * demo, staging, a laptop. The pages built on invented fixtures (`/services`)
- * answer only then, because fictional hotels at made-up prices are a demo
- * prop, and production served them as real offers until 2026-10-21.
- */
-export function servesSampleData(platform: PlatformInfo | null): boolean {
-  return platform?.sampleData === true;
-}
-
-/**
  * How the registration fee is taken on this stack (073-gtbank-payments AC-2,
  * AC-17), read from the API's `integrations` and `paymentRules`:
  * - `free`: payments are off for the fee, so it is recorded with no money

@@ -65,7 +65,7 @@ const WORKSPACES: readonly Slide[] = [
     tab: "Compliance",
     src: "/media/injishi-rra-compliance.webp",
     title: "RRA handled in the background",
-    desc: "EBM e-invoices per sale and lease contracts auto-filed — compliance without the paperwork.",
+    desc: "Each sale is prepared as an EBM e-invoice and every lease is kept on file, ready for RRA.",
   },
 ];
 
