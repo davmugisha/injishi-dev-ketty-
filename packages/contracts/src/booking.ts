@@ -668,6 +668,28 @@ export const CANCELLATION_TIERS: Record<CancellationTier, {
     firm: { windowHours: 30 * 24, beforePercent: 50, afterPercent: 0 },
     strict_extended_stay: { windowHours: 30 * 24, beforePercent: 50, afterPercent: 0 },
 };
+/** "24 hours" or "5 days": a window in the words a guest reads. */
+function windowWords(hours: number): string {
+    return hours % 24 === 0 && hours >= 48 ? `${hours / 24} days` : `${hours} hours`;
+}
+/**
+ * A tier in one sentence for the guest, from the same rules the refund is
+ * computed with (`CANCELLATION_TIERS`), so the words can never drift from the
+ * money. The web used to keep its own copy of these sentences.
+ */
+export function cancellationSummary(tier: CancellationTier | null, nonRefundable = false): string {
+    if (nonRefundable)
+        return "Non-refundable: nothing is refunded if you cancel.";
+    const rule = CANCELLATION_TIERS[tier ?? "flexible"];
+    const window = windowWords(rule.windowHours);
+    if (rule.beforePercent === 100)
+        return rule.afterPercent === 0
+            ? `Free cancellation up to ${window} before check-in.`
+            : `Free cancellation up to ${window} before check-in, then ${rule.afterPercent}% refunded.`;
+    return rule.afterPercent === 0
+        ? `${rule.beforePercent}% refunded up to ${window} before check-in, nothing after.`
+        : `${rule.beforePercent}% refunded up to ${window} before check-in, then ${rule.afterPercent}%.`;
+}
 /** Who cancelled. A host cancellation always refunds in full (F-B11). */
 export const CancellationParty = z.enum(["guest", "host"]);
 export type CancellationParty = z.infer<typeof CancellationParty>;

@@ -1563,6 +1563,12 @@ export declare const CANCELLATION_TIERS: Record<CancellationTier, {
     beforePercent: number;
     afterPercent: number;
 }>;
+/**
+ * A tier in one sentence for the guest, from the same rules the refund is
+ * computed with (`CANCELLATION_TIERS`), so the words can never drift from the
+ * money. The web used to keep its own copy of these sentences.
+ */
+export declare function cancellationSummary(tier: CancellationTier | null, nonRefundable?: boolean): string;
 /** Who cancelled. A host cancellation always refunds in full (F-B11). */
 export declare const CancellationParty: z.ZodEnum<["guest", "host"]>;
 export type CancellationParty = z.infer<typeof CancellationParty>;

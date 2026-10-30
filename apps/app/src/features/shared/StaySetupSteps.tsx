@@ -657,7 +657,7 @@ function RoomLine({ data, row }: { data: Open; row: RoomTypeRow }) {
   const facts = [
     row.beds?.length ? bedsLine(row.beds) : null,
     row.maxAdults != null
-      ? `${row.maxAdults} ${row.maxAdults === 1 ? "adult" : "adults"}${row.maxChildren ? ` + ${row.maxChildren} children` : ""}`
+      ? `${row.maxAdults} ${row.maxAdults === 1 ? "adult" : "adults"}${row.maxChildren ? ` + ${row.maxChildren} ${row.maxChildren === 1 ? "child" : "children"}` : ""}`
       : null,
     row.sizeM2 ? `${row.sizeM2} m²` : null,
     `${row.sellableRoomCount} ${row.sellableRoomCount === 1 ? words.unitSingular : words.unitPlural}`,
