@@ -364,8 +364,8 @@ export async function pollReservationChange(
 // ── Moving a booking on the calendar: other nights, another room ───────────────────────────────────────
 
 export interface BookingMove {
-  /** The room it moves into, by id. */
-  roomId: string;
+  /** The room it moves into, by id; null keeps it in its room type with no room held yet. */
+  roomId: string | null;
   /** The first night and the morning they leave. */
   checkIn: string;
   checkOut: string;
@@ -378,9 +378,9 @@ export async function quoteBookingMove(
   move: BookingMove,
 ): Promise<{ quote: ReservationChangeQuote | null; problems: string[] }> {
   const { board, booking } = await bookingOf(ctx, bookingRef);
-  const room = roomOf(board, move.roomId);
+  const roomTypeId = move.roomId ? roomOf(board, move.roomId).roomTypeId : booking.roomTypeId;
   const sameStay =
-    move.checkIn === booking.checkIn && move.checkOut === booking.checkOut && room.roomTypeId === booking.roomTypeId;
+    move.checkIn === booking.checkIn && move.checkOut === booking.checkOut && roomTypeId === booking.roomTypeId;
   if (sameStay) return { quote: null, problems: [] };
   const form = await ctx.ops().get<ReservationChangeForm>(`/api/v1/ops/reservations/${booking.id}/change`);
   if (form.problems.length > 0) return { quote: null, problems: form.problems };
@@ -388,7 +388,7 @@ export async function quoteBookingMove(
     ...form.current,
     checkIn: move.checkIn,
     checkOut: move.checkOut,
-    roomTypeId: room.roomTypeId,
+    roomTypeId,
   });
   return { quote, problems: quote.problems };
 }
@@ -400,13 +400,14 @@ export async function quoteBookingMove(
  */
 export async function moveBooking(ctx: SourceContext, bookingRef: string, move: BookingMove): Promise<void> {
   const { board, booking } = await bookingOf(ctx, bookingRef);
-  const room = roomOf(board, move.roomId);
+  const room = move.roomId ? roomOf(board, move.roomId) : null;
+  const roomTypeId = room?.roomTypeId ?? booking.roomTypeId;
   const sameStay =
-    move.checkIn === booking.checkIn && move.checkOut === booking.checkOut && room.roomTypeId === booking.roomTypeId;
+    move.checkIn === booking.checkIn && move.checkOut === booking.checkOut && roomTypeId === booking.roomTypeId;
   await command(ctx, async () => {
     if (!sameStay) {
       const form = await ctx.ops().get<ReservationChangeForm>(`/api/v1/ops/reservations/${booking.id}/change`);
-      const ask = { ...form.current, checkIn: move.checkIn, checkOut: move.checkOut, roomTypeId: room.roomTypeId };
+      const ask = { ...form.current, checkIn: move.checkIn, checkOut: move.checkOut, roomTypeId };
       const quote = await ctx
         .ops()
         .post<ReservationChangeQuote>(`/api/v1/ops/reservations/${booking.id}/change/quote`, ask);
@@ -427,6 +428,7 @@ export async function moveBooking(ctx: SourceContext, bookingRef: string, move: 
         await ctx.ops().delete(`/api/v1/ops/reservations/${booking.id}/assign/${h.id}`);
       }
     }
-    await ctx.ops().post(`/api/v1/ops/reservations/${booking.id}/assign`, { roomId: room.id });
+    // No room chosen: the booking keeps its type and waits for a room ("No room yet").
+    if (room) await ctx.ops().post(`/api/v1/ops/reservations/${booking.id}/assign`, { roomId: room.id });
   });
 }

@@ -170,6 +170,10 @@ export interface CalendarStay {
   /** A confirmed booking nobody has checked in yet: it may move to other nights or rooms. */
   movable: boolean;
   cancellation: { refundRwf: number; keptRwf: number; rule: string } | null;
+  /** When the guest said they arrive (`HH:mm`), for a booking not yet checked in. */
+  eta: string | null;
+  /** The room type, by id: the calendar's type filter. */
+  roomTypeId: string | null;
 }
 
 export interface CalendarRoomType {
@@ -180,6 +184,9 @@ export interface CalendarRoomType {
 
 export interface CalendarBoard {
   today: string;
+  /** The property's check-in and check-out times (`HH:mm`): where arrivals and departures sit on the clock. */
+  checkInTime: string;
+  checkOutTime: string;
   roomTypes: CalendarRoomType[];
   stays: CalendarStay[];
 }
@@ -251,6 +258,8 @@ export function calendarBoard(
       stayRef: s.reference ?? s.id,
       movable: false,
       cancellation: null,
+      eta: null,
+      roomTypeId: board.rooms.find((r) => r.id === s.roomId)?.roomTypeId ?? null,
     });
   }
 
@@ -270,6 +279,8 @@ export function calendarBoard(
       stayRef: null,
       movable: b.status === "confirmed",
       cancellation: b.cancellation,
+      eta: b.eta,
+      roomTypeId: b.roomTypeId,
     };
     if (b.holds.length === 0) {
       stays.push({
@@ -322,6 +333,8 @@ export function calendarBoard(
       stayRef: h.reference,
       movable: false,
       cancellation: null,
+      eta: null,
+      roomTypeId: room.roomTypeId,
     });
   }
 
@@ -339,5 +352,11 @@ export function calendarBoard(
     })
     .filter((t) => t.rooms.length > 0);
 
-  return { today, roomTypes, stays };
+  return {
+    today,
+    checkInTime: board.property.checkInTime ?? "14:00",
+    checkOutTime: board.property.checkOutTime ?? "11:00",
+    roomTypes,
+    stays,
+  };
 }

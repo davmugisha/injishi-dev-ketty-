@@ -90,4 +90,14 @@ describe("calendarBoard", () => {
       expect.objectContaining({ kind: "requested", roomId: "waiting:double", movable: false }),
     );
   });
+
+  test("arrivals and departures sit at the guest's time, else the property's check-in and check-out", () => {
+    const out = calendarBoard(board([booking("c", { eta: "16:30" }), booking("d", { eta: null })]));
+    expect(out.checkInTime).toBe("14:00");
+    expect(out.checkOutTime).toBe("11:00");
+    expect(out.stays.map((s) => [s.eta, s.roomTypeId])).toEqual([
+      ["16:30", "double"],
+      [null, "double"],
+    ]);
+  });
 });
