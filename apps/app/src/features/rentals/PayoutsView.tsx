@@ -2,21 +2,20 @@
 
 import { toast } from "@heroui/react";
 import type { PayoutList, PayoutView } from "@injishi/contracts";
-import { DataTable, DateText, EmptyBlock, formatMoney, IconAction, Money, SectionCard, StatusChip } from "@injishi/ui";
+import { DataTable, DateText, EmptyBlock, formatMoney, IconAction, Money, PageContent, StatusChip } from "@injishi/ui";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { retryPayout } from "../actions";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
+import { retryPayout } from "./actions";
 
 /**
- * The rent Injishi sent on to the business (Getting paid): each payout with the tenant's payment it came
- * from, where it went and where it stands; a failed or held one can be sent again to the primary account.
+ * The rent Injishi sent on to the business (Money > Payouts): each payout with the tenant's payment it
+ * came from, where it went and where it stands; a failed or held one can be sent again to the primary
+ * account. One table with a status filter and a search.
  */
-export function Payouts({ list, canRetry }: { list: PayoutList | null; canRetry: boolean }) {
+export function PayoutsView({ list, canRetry }: { list: PayoutList; canRetry: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
-  if (!list) return null;
-  const { totals } = list;
-  const waiting = totals.queuedRwf + totals.heldRwf;
   const retry = async (p: PayoutView) => {
     setBusy(p.id);
     const result = await retryPayout(p.id);
@@ -29,28 +28,41 @@ export function Payouts({ list, canRetry }: { list: PayoutList | null; canRetry:
     router.refresh();
   };
   return (
-    <SectionCard
-      title="Payouts"
-      description={
-        list.payouts.length === 0
-          ? undefined
-          : `${formatMoney(totals.paidRwf)} paid out${waiting > 0 ? `, ${formatMoney(waiting)} on the way` : ""}${
-              totals.failedRwf > 0 ? `, ${formatMoney(totals.failedRwf)} failed` : ""
-            }`
-      }
-      contentClassName="gap-0"
-    >
+    <PageContent>
+      <AreaHeader />
       <DataTable<PayoutView>
         label="Payouts"
         rows={list.payouts}
         rowKey={(p) => p.id}
         defaultSort={{ column: "date", direction: "descending" }}
+        noun={{ one: "payout", many: "payouts" }}
+        search={{
+          placeholder: "Tenant or lease",
+          text: (p) => `${p.payment?.tenantName ?? ""} ${p.payment?.leaseReference ?? ""}`,
+        }}
+        filters={[
+          {
+            id: "status",
+            name: "Status",
+            options: [
+              { id: "all", label: "All" },
+              { id: "paid", label: "Paid out" },
+              { id: "on_the_way", label: "On the way" },
+              { id: "failed", label: "Failed or held" },
+            ],
+            match: (p, v) =>
+              v === "paid"
+                ? p.status === "paid"
+                : v === "failed"
+                  ? p.status === "failed" || p.status === "held"
+                  : p.status === "queued" || p.status === "scheduled",
+          },
+        ]}
         empty={
           <EmptyBlock
-            size="sm"
             icon="Wallet"
             title="No payouts yet"
-            description="When a tenant pays through Injishi, the money is sent to your primary account."
+            description="Rent paid through Injishi goes to your primary account."
           />
         }
         columns={[
@@ -93,6 +105,7 @@ export function Payouts({ list, canRetry }: { list: PayoutList | null; canRetry:
           {
             id: "status",
             header: "Status",
+            sortValue: (p) => p.status,
             cell: (p) => <StatusChip kind="payout" status={p.status} />,
           },
         ]}
@@ -120,6 +133,6 @@ export function Payouts({ list, canRetry }: { list: PayoutList | null; canRetry:
           ),
         }}
       />
-    </SectionCard>
+    </PageContent>
   );
 }
