@@ -8,6 +8,7 @@ import {
   Select,
   TextArea as HeroTextArea,
 } from "@heroui/react";
+import { Badge } from "@injishi/web-ui";
 
 /**
  * The small shared pieces every step of the wizard uses.
@@ -275,9 +276,9 @@ export function ChoiceCard({
         <span className="flex flex-1 flex-wrap items-center justify-between gap-x-2 gap-y-1">
           <span className="text-sm font-semibold">{title}</span>
           {checked && badge ? (
-            <span className="rounded-full bg-accent-brand/15 px-2 py-0.5 text-2xs font-semibold text-accent-text">
+            <Badge variant="accent" size="sm">
               {badge}
-            </span>
+            </Badge>
           ) : null}
         </span>
       </span>
@@ -345,6 +346,11 @@ export { formatRwf } from "@/lib/money";
  * keys, the focus ring and the screen reader all work without being rebuilt.
  * The input is visually hidden rather than removed, so the group is a real
  * radio group and not a div that listens for clicks.
+ *
+ * A press on the tile that is ALREADY picked still answers. A radio fires no
+ * change when it is checked again, so after Change reopened the chooser, the
+ * kind already chosen could not be chosen again to close it; the click is
+ * caught for that one case, and a press on any other tile stays the change.
  */
 export function TileCard({
   name,
@@ -379,6 +385,9 @@ export function TileCard({
         value={value}
         checked={checked}
         onChange={() => onSelect(value)}
+        onClick={() => {
+          if (checked) onSelect(value);
+        }}
         className="sr-only"
       />
       {icon ? (
@@ -396,7 +405,7 @@ export function TileCard({
       <span className="flex flex-col gap-0.5">
         <span className="text-sm font-semibold">{label}</span>
         {blurb ? (
-          <span className="text-xs leading-[1.5] text-muted-foreground">
+          <span className="text-xs leading-normal text-muted-foreground">
             {blurb}
           </span>
         ) : null}
@@ -440,78 +449,6 @@ export function ChoiceTile({
         {description ? <span className="text-xs text-muted-foreground">{description}</span> : null}
       </span>
     </label>
-  );
-}
-
-/**
- * A six digit code in six boxes (the artboard's). Typing moves to the next box,
- * Backspace on an empty box moves back, and a pasted or autofilled code is
- * spread across all six, so an SMS code offered by the phone fills in one tap.
- * `value` is the digits typed so far, never padded.
- */
-export function CodeBoxes({
-  value,
-  onChange,
-  onComplete,
-  idPrefix,
-  disabled,
-  invalid,
-}: {
-  value: string;
-  onChange: (next: string) => void;
-  onComplete?: (code: string) => void;
-  idPrefix: string;
-  disabled?: boolean;
-  invalid?: boolean;
-}) {
-  const digits = value.replace(/\D/g, "").slice(0, 6);
-  const focusBox = (i: number) => {
-    const el = document.getElementById(`${idPrefix}-${Math.max(0, Math.min(5, i))}`);
-    if (el instanceof HTMLInputElement) {
-      el.focus();
-      el.select();
-    }
-  };
-  const write = (next: string, focusAt: number) => {
-    const clean = next.replace(/\D/g, "").slice(0, 6);
-    onChange(clean);
-    focusBox(focusAt);
-    if (clean.length === 6) onComplete?.(clean);
-  };
-  return (
-    <div className="flex flex-wrap gap-2">
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <input
-          key={i}
-          id={`${idPrefix}-${i}`}
-          type="text"
-          inputMode="numeric"
-          autoComplete={i === 0 ? "one-time-code" : "off"}
-          maxLength={i === 0 ? 6 : 1}
-          aria-label={`Digit ${i + 1} of 6`}
-          aria-invalid={invalid ? true : undefined}
-          disabled={disabled}
-          value={digits[i] ?? ""}
-          onChange={(e) => {
-            const typed = e.target.value.replace(/\D/g, "");
-            if (typed.length > 1) {
-              // Pasted or autofilled: spread it from this box on.
-              write(digits.slice(0, i) + typed, i + typed.length);
-              return;
-            }
-            const next = digits.slice(0, i) + typed + digits.slice(i + 1);
-            write(next, typed ? i + 1 : i);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Backspace" && !digits[i] && i > 0) {
-              e.preventDefault();
-              write(digits.slice(0, i - 1) + digits.slice(i), i - 1);
-            }
-          }}
-          className="size-12 rounded border border-input bg-field text-center text-xl font-semibold tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[invalid=true]:border-destructive disabled:opacity-50"
-        />
-      ))}
-    </div>
   );
 }
 

@@ -19,6 +19,13 @@
  * double run of the effect reads the token the first run captured instead of the
  * address the first run already cleared.
  *
+ * SIGNED OUT, THE LINK IS HANDED TO SIGN-IN, NOT DROPPED. A session can be gone
+ * by the time the preview asks (the gate in `proxy.ts` let a live one through a
+ * moment before), and the address no longer holds the link. So the ref keeps the
+ * whole claim url too, and a signed out answer offers sign-in with `?redirect=`
+ * back to it, the way `register-gate.tsx` builds its own: the one place the
+ * token is written back, and the same place the gate itself would have sent it.
+ *
  * WHAT IT NEVER SAYS. Whether the signed in account's identity document matches.
  * The preview is a session plus the token; the match is the claim's, and every
  * refusal is the same answer, so the page lists what a claim needs rather than
@@ -53,12 +60,15 @@ const STAGE_LABEL: Readonly<Record<OrgRegistrationStatus, string>> = {
 type View =
   | { kind: "loading" }
   | { kind: "invalid" }
+  /** No live session: sign in, and come back to this same claim link. */
+  | { kind: "signed_out"; back: string }
   | { kind: "failed"; message: string }
   | { kind: "ready"; preview: ClaimPreview }
   | { kind: "claimed"; preview: ClaimPreview; summary: RegistrationSummary };
 
 export default function Page() {
-  const link = useRef<{ orgId: string; token: string } | null | undefined>(undefined);
+  /** The claim link, read once: the org, the token, and the whole url, for sign-in to bring the claimant back to. */
+  const link = useRef<{ orgId: string; token: string; back: string } | null | undefined>(undefined);
   const [view, setView] = useState<View>({ kind: "loading" });
   const [attested, setAttested] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -69,7 +79,7 @@ export default function Page() {
       const params = new URLSearchParams(window.location.search);
       const orgId = params.get("org");
       const token = params.get("token");
-      link.current = orgId && token ? { orgId, token } : null;
+      link.current = orgId && token ? { orgId, token, back: `${window.location.pathname}${window.location.search}` } : null;
       if (params.has("token") || params.has("org")) {
         window.history.replaceState(window.history.state, "", "/claim-org");
       }
@@ -85,6 +95,7 @@ export default function Page() {
       const res = await previewOrgClaim(captured.orgId, captured.token);
       if (cancelled) return;
       if (res.status === "ok") setView({ kind: "ready", preview: res.data });
+      else if (res.status === "unauthenticated") setView({ kind: "signed_out", back: captured.back });
       else if (res.status === "refused" && res.httpStatus === 404) setView({ kind: "invalid" });
       else setView({ kind: "failed", message: apiResultMessage(res) });
     })();
@@ -102,6 +113,10 @@ export default function Page() {
     setBusy(false);
     if (res.status === "ok") {
       setView({ kind: "claimed", preview: view.preview, summary: res.data });
+      return;
+    }
+    if (res.status === "unauthenticated") {
+      setView({ kind: "signed_out", back: captured.back });
       return;
     }
     setClaimError(
@@ -128,6 +143,10 @@ export default function Page() {
         ) : null}
 
         {view.kind === "invalid" ? <InvalidLink /> : null}
+
+        {view.kind === "signed_out" ? (
+          <SignInToClaim signInHref={`/sign-in?redirect=${encodeURIComponent(view.back)}`} />
+        ) : null}
 
         {view.kind === "failed" ? (
           <>
@@ -179,6 +198,29 @@ function InvalidLink() {
   );
 }
 
+/**
+ * Signed out: the claim needs the claimant's own account, so sign-in is offered
+ * with this same claim link as the way back. Nothing about the business is
+ * shown, because the preview is the session's to see.
+ */
+function SignInToClaim({ signInHref }: { signInHref: string }) {
+  return (
+    <>
+      <h1 className={"font-display text-3xl font-bold tracking-tight"}>
+        {"Sign in to claim this business"}
+      </h1>
+      <p className={"mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground"}>
+        {"Use the account that holds the national ID document the registrant recorded for you. We'll bring you straight back to this claim."}
+      </p>
+      <div className={"mt-6"}>
+        <UiButton asChild variant="primary">
+          <a href={signInHref}>{"Sign in to claim"}</a>
+        </UiButton>
+      </div>
+    </>
+  );
+}
+
 function ClaimBody({
   preview,
   summary,
@@ -216,7 +258,7 @@ function ClaimBody({
         {claimed
           ? stage === "active"
             ? "The claim is recorded and the business is yours and live."
-            : "The claim is recorded and the business is yours. It goes live once the government review approves it."
+            : "The claim is recorded and the business is yours. It goes live once PSF approves it."
           : "Someone registered this business on your behalf. Claiming makes you its owner."}
       </p>
 

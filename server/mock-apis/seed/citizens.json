@@ -1,0 +1,69 @@
+[
+  {
+    "nationalId": "1199080123456789",
+    "foreNames": "Rayan",
+    "surname": "Iraguha",
+    "dateOfBirth": "1990-02-14",
+    "sex": "M",
+    "note": "The seeded persona rayan@demo.injishi.com. Owner of Iraguha Guest House (TIN 998000003)."
+  },
+  {
+    "nationalId": "1198870034567812",
+    "foreNames": "Aline",
+    "surname": "Uwase",
+    "dateOfBirth": "1988-07-21",
+    "sex": "F",
+    "note": "Sole director of Uwase Hospitality Ltd (TIN 998000001): registers it as its owner."
+  },
+  {
+    "nationalId": "1198580045678923",
+    "foreNames": "Eric",
+    "surname": "Habimana",
+    "dateOfBirth": "1985-11-03",
+    "sex": "M",
+    "note": "Director of Kivu Lakeside Lodges Ltd (TIN 998000002), with Diane Mukamana."
+  },
+  {
+    "nationalId": "1199270056789034",
+    "foreNames": "Diane",
+    "surname": "Mukamana",
+    "dateOfBirth": "1992-04-09",
+    "sex": "F",
+    "note": "Director of Kivu Lakeside Lodges Ltd (TIN 998000002), with Eric Habimana."
+  },
+  {
+    "nationalId": "1198280099012378",
+    "foreNames": "Jean",
+    "surname": "Niyonzima",
+    "dateOfBirth": "1982-06-30",
+    "sex": "M",
+    "note": "Director of Akagera Safari Camps Ltd (TIN 998000004), beside a Kenyan director who holds a passport."
+  },
+  {
+    "nationalId": "1199170088901267",
+    "foreNames": "Clarisse",
+    "surname": "Uwimana",
+    "dateOfBirth": "1991-01-18",
+    "sex": "F",
+    "scenario": "face_not_checked",
+    "note": "Director of Inzozi Rooftop Bar Ltd (TIN 998000005). The gateway returns her record but compares no face, so PSF checks the selfie."
+  },
+  {
+    "nationalId": "1199380077890156",
+    "foreNames": "Patrick",
+    "surname": "Mugabo",
+    "dateOfBirth": "1993-09-25",
+    "sex": "M",
+    "scenario": "face_mismatch",
+    "note": "Found, but every selfie fails the face match: the impersonation case."
+  },
+  {
+    "nationalId": "1198770066789045",
+    "foreNames": "Grace",
+    "surname": "Ingabire",
+    "dateOfBirth": "1987-03-12",
+    "sex": "F",
+    "scenario": "revoked",
+    "note": "Her card was cancelled: found, and refused."
+  }
+]

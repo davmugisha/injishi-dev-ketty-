@@ -8,8 +8,7 @@ import {
   type PaymentInstrument,
   type RegistrationFeeAttemptStatus,
 } from "@injishi/contracts";
-import { Button, Checkbox } from "@injishi/web-ui";
-import { cn } from "@injishi/utils";
+import { Badge, Button, Checkbox } from "@injishi/web-ui";
 
 import { PaymentPrompt } from "@/components/book/payment-prompt";
 import { CheckoutField, CheckoutFieldGroup } from "@/components/book/checkout-field";
@@ -98,7 +97,7 @@ export function feeLimitProblem(
  * The artboard's bank transfer is not built: GTBank collects by mobile money.
  */
 export function StepPay({
-  kindLabel,
+  kindPhrase,
   fee,
   paid,
   paidOn,
@@ -116,7 +115,8 @@ export function StepPay({
   onSettled,
   onEnded,
 }: {
-  kindLabel: string;
+  /** The kind mid sentence, with its article: "a coffee shop" (`kindInSentence`). */
+  kindPhrase: string;
   fee: number | null;
   paid: boolean;
   /** When the fee was recorded, as a person reads it, once it is. */
@@ -162,21 +162,18 @@ export function StepPay({
     <>
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-card bg-secondary px-4 py-4">
         <div className="flex flex-col gap-0.5">
-          <span className="text-sm text-muted-foreground">Registration fee for a {kindLabel}</span>
+          <span className="text-sm text-muted-foreground">Registration fee for {kindPhrase}</span>
           <span className="text-2xl font-semibold tabular-nums">{fee === null ? "Not available yet" : formatRwf(fee)}</span>
         </div>
         <div className="flex items-center gap-2">
           {feeMode === "test" && !paid ? (
-            <span className="rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning">Test payment</span>
+            <Badge variant="warning" size="sm">
+              Test payment
+            </Badge>
           ) : null}
-          <span
-            className={cn(
-              "rounded-full px-2.5 py-0.5 text-xs font-medium",
-              paid ? "bg-success/15 text-success" : "bg-card text-muted-foreground",
-            )}
-          >
+          <Badge variant={paid ? "success" : "default"} size="sm">
             {paid ? "Paid" : waiting ? "Waiting for your approval" : "Not paid"}
-          </span>
+          </Badge>
         </div>
       </div>
 

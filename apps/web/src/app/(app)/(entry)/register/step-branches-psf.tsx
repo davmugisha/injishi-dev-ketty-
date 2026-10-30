@@ -8,10 +8,11 @@ import { GitBranch, Plus, Trash2 } from "lucide-react";
 import { AddressPicker, useAddressLine, type AddressDraft } from "./address-picker";
 import { branchReady, newBranchDraft, type BranchDraft, type BusinessDraft } from "./business-draft";
 import { PsfApplication, type PsfDraft } from "./psf-application";
-import { ChoiceTile, Field, TextInput } from "./wizard-ui";
+import { ChoiceCard, ChoiceTile, Field, Fieldset, TextInput } from "./wizard-ui";
 
 /**
- * Step 3, Branches and PSF (Register.dc.html). Both optional.
+ * Branches and PSF, the end of Business once its sections are done
+ * (Register.dc.html). Both optional.
  *
  * BRANCHES are the other sites that trade under the same TIN (ADR-054): up to
  * twenty now, more after approval. Each is named and placed to the sector; a
@@ -82,7 +83,7 @@ export function StepBranchesPsf({
           </span>
         </div>
         <p className="text-sm text-muted-foreground">
-          Your head office is the address from step 2. Add the other sites that share TIN {tinLabel}: up to{" "}
+          Your head office is the location above. Add the other sites that share TIN {tinLabel}: up to{" "}
           {MAX_REGISTRATION_BRANCHES} now, more after approval. A site with its own TIN registers on its own.
         </p>
 
@@ -154,36 +155,31 @@ export function StepBranchesPsf({
         <h3 id="register-psf-title" className="text-base font-semibold">
           PSF membership
         </h3>
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-sm font-semibold">
-            Is the business a member of the Private Sector Federation (PSF)?
-          </legend>
-          <div className="flex flex-wrap gap-x-7 gap-y-1">
+        <Fieldset legend="Is the business a member of the Private Sector Federation (PSF)?">
+          <div className="grid gap-3 sm:grid-cols-2">
             {(
               [
-                [true, "Yes"],
-                [false, "No"],
+                [true, "yes", "Yes"],
+                [false, "no", "No"],
               ] as const
-            ).map(([value, label]) => (
-              <label key={label} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="psf-member"
-                  checked={business.psfMember === value}
-                  onChange={() =>
-                    onBusinessChange({
-                      ...business,
-                      psfMember: value,
-                      ...(value ? { psfApply: null } : { psfMembershipNumber: "" }),
-                    })
-                  }
-                  className="size-4"
-                />
-                {label}
-              </label>
+            ).map(([member, value, label]) => (
+              <ChoiceCard
+                key={value}
+                name="psf-member"
+                value={value}
+                checked={business.psfMember === member}
+                title={label}
+                onSelect={() =>
+                  onBusinessChange({
+                    ...business,
+                    psfMember: member,
+                    ...(member ? { psfApply: null } : { psfMembershipNumber: "" }),
+                  })
+                }
+              />
             ))}
           </div>
-        </fieldset>
+        </Fieldset>
 
         {business.psfMember === true ? (
           <div className="max-w-form">

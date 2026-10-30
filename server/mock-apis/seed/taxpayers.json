@@ -1,0 +1,81 @@
+[
+  {
+    "tin": "998000001",
+    "taxpayerName": "Uwase Hospitality Ltd",
+    "legalForm": "PRIVATE_LIMITED",
+    "registrationDate": "2019-03-12",
+    "vatRegistered": true,
+    "address": { "provinceCode": 1, "districtCode": 102, "sectorCode": 10201, "street": "KG 11 Ave" },
+    "directors": [{ "fullName": "Aline Uwase", "nationalId": "1198870034567812" }],
+    "note": "One director. Sign up with Aline's National ID and register it as its owner."
+  },
+  {
+    "tin": "998000002",
+    "taxpayerName": "Kivu Lakeside Lodges Ltd",
+    "legalForm": "PRIVATE_LIMITED",
+    "registrationDate": "2016-09-30",
+    "vatRegistered": true,
+    "address": { "provinceCode": 3, "districtCode": 303, "sectorCode": 30301, "street": "Lake Kivu Rd" },
+    "directors": [
+      { "fullName": "Eric Habimana", "nationalId": "1198580045678923" },
+      { "fullName": "Diane Mukamana", "nationalId": "1199270056789034" }
+    ],
+    "note": "Two directors. Anyone else registers it on their behalf and names one as the owner."
+  },
+  {
+    "tin": "998000003",
+    "taxpayerName": "Iraguha Guest House",
+    "legalForm": "SOLE_PROPRIETOR",
+    "registrationDate": "2021-06-01",
+    "vatRegistered": false,
+    "address": { "provinceCode": 4, "districtCode": 403, "sectorCode": 40301, "street": "Musanze Main Rd" },
+    "directors": [{ "fullName": "Rayan Iraguha", "nationalId": "1199080123456789", "role": "OWNER" }],
+    "note": "A sole trader: Rayan trades under his own name."
+  },
+  {
+    "tin": "998000004",
+    "taxpayerName": "Akagera Safari Camps Ltd",
+    "tradingName": "Akagera Tented Camp",
+    "legalForm": "PRIVATE_LIMITED",
+    "registrationDate": "2018-01-15",
+    "vatRegistered": true,
+    "address": { "provinceCode": 5, "districtCode": 504, "sectorCode": 50408, "street": "Akagera Park Rd" },
+    "directors": [
+      { "fullName": "Sarah Wanjiku", "passportNumber": "P10000001" },
+      { "fullName": "Jean Niyonzima", "nationalId": "1198280099012378" }
+    ],
+    "note": "A foreign director by passport (Smile ID path) and a Rwandan one by National ID."
+  },
+  {
+    "tin": "998000005",
+    "taxpayerName": "Inzozi Rooftop Bar Ltd",
+    "legalForm": "PRIVATE_LIMITED",
+    "registrationDate": "2022-11-08",
+    "vatRegistered": false,
+    "address": { "provinceCode": 1, "districtCode": 102, "sectorCode": 10208, "street": "KG 9 Ave" },
+    "directors": [{ "fullName": "Clarisse Uwimana", "nationalId": "1199170088901267" }],
+    "note": "A venue. Its director's face is not compared by the gateway, so PSF checks her selfie."
+  },
+  {
+    "tin": "998000097",
+    "taxpayerName": "Old Gisenyi Inn Ltd",
+    "legalForm": "PRIVATE_LIMITED",
+    "registrationDate": "2009-04-20",
+    "vatRegistered": false,
+    "address": { "provinceCode": 3, "districtCode": 301, "sectorCode": 30101, "street": "Kibuye Rd" },
+    "directors": [{ "fullName": "Grace Ingabire", "nationalId": "1198770066789045" }],
+    "scenario": "deregistered",
+    "note": "RRA closed this TIN: the check refuses it."
+  },
+  {
+    "tin": "998000098",
+    "taxpayerName": "Rubavu Beach Resort Ltd",
+    "legalForm": "PRIVATE_LIMITED",
+    "registrationDate": "2014-08-02",
+    "vatRegistered": true,
+    "address": { "provinceCode": 3, "districtCode": 301, "sectorCode": 30101, "street": "Lakeside Ave" },
+    "directors": [],
+    "scenario": "outage",
+    "note": "RRA answers 503 for this TIN: the wizard lets you carry on, and the API checks again after payment."
+  }
+]

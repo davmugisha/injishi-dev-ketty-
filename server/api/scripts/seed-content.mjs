@@ -120,14 +120,15 @@ async function main() {
       console.warn('! Gasabo district not found — seed geography first. Continuing with null district.');
     }
 
-    // 3. Org (hospitality; accommodation_class is required by the check constraint).
+    // 3. Org (hospitality; business_kind, NOT NULL since ADR-075 migration 0075,
+    //    and accommodation_class are both required by the check constraint).
     //    Umurage is a city guesthouse, which the D24 card set now names directly
     //    — it no longer has to borrow `town_hotel`.
     await client.query(
-      `insert into orgs (id, legal_name, domain, rdb_entity_group, accommodation_class,
+      `insert into orgs (id, legal_name, domain, rdb_entity_group, business_kind, accommodation_class,
                          tourism_license_number, chamber_of_tourism_member, tin,
                          registration_status, district_id, address_text)
-       values ($1, $2, 'hospitality', 'accommodation', 'guest_house',
+       values ($1, $2, 'hospitality', 'accommodation', 'guest_house', 'guest_house',
                $3, true, $4, 'active', $5, $6)
        on conflict (id) do nothing`,
       [

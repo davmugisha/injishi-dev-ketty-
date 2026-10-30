@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { KycStatus } from "./primitives";
-import { AccountDocumentType, CountryCode, Gender, IdentityDocumentInput, PersonalDetails } from "./registration";
+import { AccountDocumentType, CountryCode, Gender, IdentityDocumentInput, PersonalDetails, RwandanNationalId } from "./registration";
 // ---------------------------------------------------------------------------
 // Identity (ADR-060, rebuilt by ADR-075 A1): the ID is scanned, front then a
 // selfie, for a National ID and a passport alike. No code is sent to any phone
@@ -8,11 +8,14 @@ import { AccountDocumentType, CountryCode, Gender, IdentityDocumentInput, Person
 // them before approving (D-a, O-6).
 // ---------------------------------------------------------------------------
 /**
- * Which side of the document verifier seam a deployment runs. `off` is a real
- * answer, not a missing one: it is what a real database runs until a provider
- * is signed, and there the scan stores the photos for PSF and reads nothing.
+ * Which side of an identity seam a deployment runs. `off` is a real answer,
+ * not a missing one: it is what a real database runs until a provider is
+ * signed, and there the scan stores the photos for PSF and reads nothing.
+ * `sandbox` is the real HTTP adapter talking to Injishi Mock APIs
+ * (`server/mock-apis`): the people it answers about are as invented as the
+ * mock's.
  */
-export const IdentityAdapterMode = z.enum(["mock", "live", "off"]);
+export const IdentityAdapterMode = z.enum(["mock", "sandbox", "live", "off"]);
 export type IdentityAdapterMode = z.infer<typeof IdentityAdapterMode>;
 /** How many tries a draft gets before the person may continue and PSF checks the ID by eye (AC-5). */
 export const SCAN_ATTEMPTS_BEFORE_CONTINUE = 3;
@@ -24,7 +27,17 @@ export const SCAN_ATTEMPTS_BEFORE_CONTINUE = 3;
 export const IdentityScanOutcome = z.enum(["machine_passed", "machine_failed", "manual_needed"]);
 export type IdentityScanOutcome = z.infer<typeof IdentityScanOutcome>;
 /** Why a checker refused a scan. Each has its own fix, worded by the server. */
-export const IdentityScanReason = z.enum(["not_authentic", "face_mismatch", "unreadable", "expired", "unavailable"]);
+export const IdentityScanReason = z.enum([
+    "not_authentic",
+    "face_mismatch",
+    "unreadable",
+    "expired",
+    "unavailable",
+    /** The population register holds no one under this National ID. */
+    "not_found",
+    /** The register holds the number, and the card was cancelled. */
+    "revoked",
+]);
 export type IdentityScanReason = z.infer<typeof IdentityScanReason>;
 /**
  * The person on file, as the scan read them or as they typed them. The number
@@ -50,6 +63,12 @@ export const IdentityOnFile = z.object({
      * compare the photos: the status reads "PSF will check your ID" (AC-6).
      */
     checked: z.boolean(),
+    /**
+     * Where the details came from: read off a document by a checker, returned
+     * by the population register for a National ID number, or typed as
+     * printed. Optional for a client built before it existed.
+     */
+    source: z.enum(["document", "registry", "typed"]).optional(),
 });
 export type IdentityOnFile = z.infer<typeof IdentityOnFile>;
 /** The caller's latest scan, and how many tries this draft has used. */
@@ -71,7 +90,14 @@ export const IdentityStatus = z.object({
     scan: IdentityScanState.nullable(),
     /** False where the seam is `off`: the scan keeps the photos and reads nothing, so the person types what is printed. */
     machineCheck: z.boolean(),
+    /** The document verifier's mode: a passport, and a National ID card where the registry is off. */
     mode: IdentityAdapterMode,
+    /**
+     * The National ID registry's mode (NIDA, through GTBank). Anything but
+     * `off` means a National ID is checked by its NUMBER and a selfie
+     * (`POST /me/identity/national-id`), not by scanning the card.
+     */
+    nationalIdMode: IdentityAdapterMode,
 });
 export type IdentityStatus = z.infer<typeof IdentityStatus>;
 const PhotoKey = z.string().trim().min(1).max(300);
@@ -80,6 +106,8 @@ export const IdentityScanRequest = z.object({
     documentType: AccountDocumentType,
     frontKey: PhotoKey,
     selfieKey: PhotoKey,
+    /** A passport's issuing country, which the document checker is told. Ignored for a National ID. */
+    issuingCountry: CountryCode.optional(),
 });
 export type IdentityScanRequest = z.infer<typeof IdentityScanRequest>;
 export const IdentityScanResult = z.object({
@@ -105,3 +133,14 @@ export const TypedIdentityRequest = z.object({
     document: IdentityDocumentInput,
 });
 export type TypedIdentityRequest = z.infer<typeof TypedIdentityRequest>;
+/**
+ * `POST /api/v1/me/identity/national-id`: a Rwandan National ID checked by its
+ * number against the population register (NIDA, through GTBank), with a
+ * selfie uploaded first as `id_photo`. Answers an `IdentityScanResult`, and
+ * counts as one try on the draft, as a scan does.
+ */
+export const NationalIdCheckRequest = z.object({
+    documentNumber: RwandanNationalId,
+    selfieKey: PhotoKey,
+});
+export type NationalIdCheckRequest = z.infer<typeof NationalIdCheckRequest>;

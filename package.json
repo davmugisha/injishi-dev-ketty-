@@ -33,6 +33,8 @@
     "api:worker": "pnpm --filter @injishi/api worker",
     "api:worker:dev": "pnpm --filter @injishi/api worker:dev",
     "api:worker:dev:test": "pnpm --filter @injishi/api worker:dev:test",
+    "mock-apis:dev": "pnpm --filter @injishi/mock-apis dev",
+    "mock-apis:start": "pnpm --filter @injishi/mock-apis start",
     "db:seed": "pnpm --filter @injishi/api db:seed",
     "fixtures:seed": "pnpm --filter @injishi/db seed",
     "fixtures:reset": "pnpm --filter @injishi/db reset",

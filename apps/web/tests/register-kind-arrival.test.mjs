@@ -33,7 +33,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const src = (p) => readFileSync(resolve(here, "../src", p), "utf8");
 
 const { HOST_PROPERTY_KINDS, hostKindHref, findHostKind } = await import("@/data/host");
-const { findRegistrationKind, registrationForKind } = await import(
+const { findRegistrationKind, kindInSentence, registrationForKind } = await import(
   "@/app/(app)/(entry)/register/registration-kinds"
 );
 const { openingStep, resumeStep, stepOrder } = await import(
@@ -141,6 +141,20 @@ describe("the wizard, given a kind", () => {
     // What the wizard opened on is where saving starts: opening it writes nothing.
     assert.match(wizard, /useDraftAutosave\(\{ userId, draft: draftNow, start: saveStart \}\)/);
     assert.match(wizard, /setSaveStart\(\{ savedAt: null, push: false \}\)/);
+  });
+
+  test("names the kind mid sentence with its article, in lower case (the fee line said \"a Apartment\")", () => {
+    assert.equal(kindInSentence("apartment"), "an apartment");
+    assert.equal(kindInSentence("coffee_shop"), "a coffee shop");
+    assert.equal(kindInSentence("other"), "a business");
+    assert.equal(kindInSentence(null), "a business");
+  });
+
+  test("a saved draft of another kind is reopened, never opened over (ADR-075 S9)", () => {
+    const wizard = src("app/(app)/(entry)/register/register-wizard.tsx");
+    // The restore no longer requires the draft's kind to match `?kind=`, and says so when it does not.
+    assert.match(wizard, /if \(saved && savedKind !== null && checks\.registrationId === undefined\) \{/);
+    assert.match(wizard, /if \(arrivalKind !== null && savedKind !== arrivalKind\) setHeldDraft\(savedKind\)/);
   });
 
   test("the wizard reads its opening and its resume from that module", () => {

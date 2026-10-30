@@ -1,6 +1,7 @@
 import {
   ACCOMMODATION_CLASS_LABEL,
   AccommodationClass,
+  BUSINESS_KIND_NOUN,
   type BusinessKind,
   type RdbEntityGroup,
   type RegistrantRole,
@@ -127,6 +128,17 @@ function entryOf({ value, blurb, group }: { value: RegistrationKind; blurb: stri
 export const REGISTRATION_KINDS: RegistrationKindEntry[] = ENTRIES.map(entryOf);
 
 const KNOWN_KINDS: RegistrationKindEntry[] = [...REGISTRATION_KINDS, entryOf(BROKER_ENTRY)];
+
+/**
+ * A kind as it reads mid sentence, with its article: "a coffee shop", "an
+ * apartment", and "a business" for a kind with no noun of its own (Other). The
+ * noun is `BUSINESS_KIND_NOUN`'s, the same word the heading says, so "a Apartment"
+ * and "a Other" from a Title Case tile label cannot come back.
+ */
+export function kindInSentence(kind: BusinessKind | null): string {
+  const noun = (kind ? BUSINESS_KIND_NOUN[kind] : null) ?? "business";
+  return `${/^[aeiou]/i.test(noun) ? "an" : "a"} ${noun}`;
+}
 
 /** Read a kind back off the query string, checked against the list above. */
 export function findRegistrationKind(

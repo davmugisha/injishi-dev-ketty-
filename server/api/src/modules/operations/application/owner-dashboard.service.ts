@@ -100,7 +100,8 @@ export class OwnerDashboardService {
         ws.branchScope.coverage === 'all' && ws.branchScope.selectedPropertyId === null
           ? [...fiscal.values()].reduce((s, n) => s + n, 0)
           : branchHealth.reduce((s, b) => s + b.fiscalPendingOver2h, 0),
-      paymentsMode: this.seam.mode,
+      // Sandbox money is as invented as the mock's, and the badge says so.
+      paymentsMode: this.seam.mode === 'sandbox' ? 'mock' : this.seam.mode,
       branches: branchHealth,
     };
   }

@@ -153,11 +153,13 @@ export class IdentityRepository {
   async recordScan(input: {
     userId: string;
     documentType: 'national_id' | 'passport';
-    frontObjectKey: string;
+    /** `document_scan` (the default) or `national_id_registry`, which has no front photo. */
+    checkKind?: 'document_scan' | 'national_id_registry';
+    frontObjectKey: string | null;
     selfieObjectKey: string;
     outcome: 'machine_passed' | 'machine_failed' | 'manual_needed';
     reason: string | null;
-    adapterMode: 'mock' | 'live' | 'off';
+    adapterMode: 'mock' | 'sandbox' | 'live' | 'off';
   }): Promise<number> {
     return this.db.transaction(async (tx) => {
       await tx.insert(identityScans).values(input);
@@ -219,6 +221,12 @@ export class IdentityRepository {
       documentType: 'national_id' | 'passport';
       documentNumber: string;
       issuingCountry: string;
+      /**
+       * Where the pending details came from, kept on the KYC row: null when
+       * typed, `national_id_registry` when the population register returned
+       * them and only the selfie is left for PSF to compare.
+       */
+      method?: string | null;
     },
   ): Promise<void> {
     const now = new Date();
@@ -242,7 +250,7 @@ export class IdentityRepository {
         kycStatus: 'pending' as const,
         legalFullName: input.fullName,
         dob: input.dateOfBirth,
-        verifiedMethod: null,
+        verifiedMethod: input.method ?? null,
         verifiedAt: null,
       };
       await tx
