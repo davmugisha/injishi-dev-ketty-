@@ -395,6 +395,8 @@ export class BookingRepository {
           checkIn: input.checkIn,
           checkOut: input.checkOut,
           guestCount: input.guests,
+          // Every booking this repository creates is a guest's own, online.
+          channel: 'marketplace',
           status: input.status,
           bookingMode: input.bookingMode,
           // The party's nightly charge (per-guest rate × guests), so every
