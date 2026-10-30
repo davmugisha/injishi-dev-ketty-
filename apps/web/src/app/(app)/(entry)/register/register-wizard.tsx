@@ -26,7 +26,7 @@ import {
   registerHeadingFor,
 } from "@injishi/contracts";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowRight, CircleAlert, History, Landmark } from "lucide-react";
+import { ArrowLeft, ArrowRight, CircleAlert, History, Landmark, Lock } from "lucide-react";
 import { Badge, Button } from "@injishi/web-ui";
 
 import { openAssistant } from "@/components/assistant/assistant-widget";
@@ -79,6 +79,8 @@ import {
   openableThrough,
   openingStep,
   pathFor,
+  previousSection,
+  railLock,
   resumeStep,
   sectionOrder,
   sectionStates,
@@ -617,18 +619,37 @@ export default function RegisterWizard({
     }
   }
 
-  /** The TIN is being changed: drop what the old answer filled in. */
+  /**
+   * The TIN is being changed: drop what the old answer filled in, and only that. The name and the location
+   * RRA gave for the old TIN go (the location is asked again), a name or an address the person typed stays.
+   */
   const changeTin = (raw: string) => {
+    const same = tinCheck !== null && normalizeTin(raw) === tinCheck.tin;
     setBusiness((b) => ({
       ...b,
       tin: raw,
-      ...(registry && sameName(b.legalName, registry.legalName) ? { legalName: "", address: { ...EMPTY_ADDRESS } } : {}),
+      ...(!same && registry && sameName(b.legalName, registry.legalName) ? { legalName: "" } : {}),
+      ...(!same && prefilled ? { address: { ...EMPTY_ADDRESS } } : {}),
     }));
+    if (same) return;
     if (tinCheck) setTinCheck(null);
     setTinConfirmed(false);
     setCarryOnPending(false);
-    setPrefilled(false);
-    setLocSaved(false);
+    if (prefilled) {
+      setPrefilled(false);
+      setLocSaved(false);
+    }
+  };
+
+  /** "Change TIN" on a checked answer: the field opens again with the digits kept. */
+  const reopenTin = () => {
+    setBusiness((b) => ({
+      ...b,
+      ...(registry && sameName(b.legalName, registry.legalName) ? { legalName: "" } : {}),
+    }));
+    setTinCheck(null);
+    setTinConfirmed(false);
+    setCarryOnPending(false);
   };
 
   const confirmTin = () => {
@@ -912,7 +933,7 @@ export default function RegisterWizard({
     if (!parsed.success) {
       const found = issuesToErrors(parsed.error.issues);
       setErrors(found);
-      setFormError(`Something needs fixing: ${Object.values(found)[0] ?? "check your answers"}. Use Edit on Review to go back to it.`);
+      setFormError(`Something needs fixing: ${Object.values(found)[0] ?? "check your answers"}. Use Change on Review to go back to it.`);
       return null;
     }
     return createRegistration(parsed.data, idempotencyKey);
@@ -1200,11 +1221,9 @@ export default function RegisterWizard({
   };
   const editSection = (id: SectionId) => {
     setFormError("");
-    if (id === "tin") {
-      setTinCheck(null);
-      setTinConfirmed(false);
-      setCarryOnPending(false);
-    } else if (id === "id") setIdConfirmed(false);
+    // Change reopens a section with its answers kept: the TIN's check stays until the TIN itself changes.
+    if (id === "tin") setTinConfirmed(false);
+    else if (id === "id") setIdConfirmed(false);
     else if (id === "intended") setIntendedConfirmed(false);
     else if (id === "loc") setLocSaved(false);
     else if (id === "fr") setFrConfirmed(false);
@@ -1219,14 +1238,15 @@ export default function RegisterWizard({
   const stepBack = (): void => {
     const i = order.indexOf(step);
     if (i > 0) goTo(order[i - 1]!);
-    else changeKind();
+    else {
+      // The business type, asked over You; Back from it returns here.
+      setFormError("");
+      setChoosingKind(true);
+    }
   };
   /** Back from an open section: the section before it, reopened with its answers, or the step before. */
   const sectionBack = (id: SectionId): void => {
-    const ids = sectionOrder(path, step);
-    const i = ids.indexOf(id);
-    // Classification asks nothing, so Back passes over it.
-    const prev = ids.slice(0, Math.max(0, i)).reverse().find((s) => s !== "cls");
+    const prev = previousSection(sectionOrder(path, step), id);
     if (prev) editSection(prev);
     else stepBack();
   };
@@ -1256,6 +1276,8 @@ export default function RegisterWizard({
             isDirector={isDirector}
             onPrepareForOwner={prepareForOwner}
             onNext={confirmTin}
+            onBack={() => sectionBack("tin")}
+            onChangeTin={reopenTin}
             error={errors["business.legalName"] ?? errors["business.tin"]}
             online={online}
           />
@@ -1284,7 +1306,11 @@ export default function RegisterWizard({
               RRA&apos;s directors for this TIN. The claim link goes to their email.
             </p>
             <IntendedOwnerFields title="Who owns it" value={intendedOwner} onChange={setIntendedOwner} errors={errors} />
-            <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="ghost" onClick={() => sectionBack("intended")}>
+                <ArrowLeft size={16} aria-hidden />
+                Back
+              </Button>
               <Button onClick={confirmIntended}>Next</Button>
             </div>
           </>
@@ -1298,10 +1324,19 @@ export default function RegisterWizard({
             errors={errors}
             errorPrefix="business.address"
             onSave={() => setLocSaved(true)}
+            onBack={() => sectionBack("loc")}
           />
         );
       case "fr":
-        return <SectionFranchise draft={business} onChange={setBusiness} errors={errors} onNext={confirmFranchise} />;
+        return (
+          <SectionFranchise
+            draft={business}
+            onChange={setBusiness}
+            errors={errors}
+            onNext={confirmFranchise}
+            onBack={() => sectionBack("fr")}
+          />
+        );
       case "upi":
         return (
           <SectionProperty
@@ -1312,6 +1347,7 @@ export default function RegisterWizard({
               setErrors({});
               setUpiConfirmed(true);
             }}
+            onBack={() => sectionBack("upi")}
           />
         );
       case "cls":
@@ -1452,13 +1488,16 @@ export default function RegisterWizard({
   const stepIndex = Math.max(0, order.indexOf(step));
   // The artboard ticks and opens only what has been reached (`reachedIndex`, above): a step whose answers are
   // all optional is complete before anyone has seen it.
-  const rail: RailStep[] = order.map((id, i) => ({
-    id,
-    title: STEP_TITLE[id],
-    status: id === step ? "active" : complete(id) && visited.has(id) ? "complete" : "inactive",
-    // Once the registration exists, only what is left to do can be opened.
-    locked: summary !== null ? id !== "review" && id !== "pay" : i > Math.min(openable, reachedIndex),
-  }));
+  const rail: RailStep[] = order.map((id) => {
+    const why = railLock(order, id, { current: step, openable, reached: reachedIndex, created: summary !== null, paid });
+    return {
+      id,
+      title: STEP_TITLE[id],
+      status: id === step ? "active" : complete(id) && visited.has(id) ? "complete" : "inactive",
+      locked: why !== null,
+      why,
+    };
+  });
 
   let body: ReactNode;
   if (screen === "resume") {
@@ -1544,7 +1583,7 @@ export default function RegisterWizard({
               state={(sectionState[id] as "done" | "open") ?? "open"}
               summary={sectionSummary(id)}
               checkedBy={sectionChecked(id)}
-              editText={id === "cls" ? "Change" : "Edit"}
+              editText="Change"
               onEdit={summary === null ? () => editSection(id) : null}
             >
               {sectionBody(id)}
@@ -1632,6 +1671,12 @@ export default function RegisterWizard({
           <StepDocuments kind={documentKind} franchisee={franchisee} docs={docs} onDocsChange={setDocs} errors={errors} online={online} />
         ) : null}
 
+        {summary !== null && !paid && (step === "review" || step === "pay") ? (
+          <Callout tone="info" icon={<Lock size={16} aria-hidden />} title="Your answers are locked">
+            The registration was created when you first pressed Pay, so You, Business and Documents can&apos;t be
+            changed here. To change one, contact support before you pay.
+          </Callout>
+        ) : null}
         {step === "review" ? (
           <StepReview
             rows={rows}
