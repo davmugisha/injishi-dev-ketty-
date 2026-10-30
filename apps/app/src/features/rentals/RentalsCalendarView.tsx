@@ -9,6 +9,7 @@ import {
   type ScheduleEvent,
   type ScheduleKind,
 } from "@injishi/ui";
+import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { leaseHref } from "@/features/leases/shared";
@@ -24,7 +25,8 @@ const short = (n: number) => formatMoney(n, { compact: true });
 
 /**
  * The landlord's calendar (2026-10-30): rent as it falls due, what is overdue, what was paid, and who
- * moves out when, on one month. Read only: rent days follow each lease, so nothing here is dragged.
+ * moves out when, in a day, week or month. Rent days follow each lease, so nothing here is dragged; a day
+ * chosen in the day or week view starts a new lease on it.
  */
 export function RentalsCalendarView({
   today,
@@ -35,6 +37,7 @@ export function RentalsCalendarView({
   money: RentalsMoney | null;
   moveOuts: MoveOutRow[];
 }) {
+  const router = useRouter();
   const events = useMemo<ScheduleEvent[]>(() => {
     const open = (leaseId: string) => (
       <ActionLink href={leaseHref(leaseId)} size="sm" icon="FileText">
@@ -88,7 +91,16 @@ export function RentalsCalendarView({
   return (
     <PageContent>
       <AreaHeader />
-      <AgendaCalendar label="Rent and move-out calendar" events={events} kinds={KINDS} today={today} />
+      <AgendaCalendar
+        label="Rent and move-out calendar"
+        events={events}
+        kinds={KINDS}
+        today={today}
+        onCreate={(day) => {
+          if (day >= today) router.push(`/leases/new?start=${day}`);
+        }}
+        hint="Choose a day in the day or week view to start a new lease then"
+      />
     </PageContent>
   );
 }
