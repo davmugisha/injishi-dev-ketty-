@@ -1,17 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { MAX_REGISTRATION_BRANCHES, type PsfTier } from "@injishi/contracts";
+import { looksLikePsfNumber, MAX_REGISTRATION_BRANCHES, type PsfTier } from "@injishi/contracts";
 import { Button } from "@injishi/web-ui";
 import { GitBranch, Plus, Trash2 } from "lucide-react";
 
 import { AddressPicker, useAddressLine, type AddressDraft } from "./address-picker";
 import { branchReady, newBranchDraft, type BranchDraft, type BusinessDraft } from "./business-draft";
 import { PsfApplication, type PsfDraft } from "./psf-application";
-import { ChoiceTile, Field, TextInput } from "./wizard-ui";
+import { ChoiceCard, ChoiceTile, Field, Fieldset, TextInput } from "./wizard-ui";
 
 /**
- * Step 3, Branches and PSF (Register.dc.html). Both optional.
+ * Branches and PSF, the end of Business once its sections are done
+ * (Register.dc.html). Both optional.
  *
  * BRANCHES are the other sites that trade under the same TIN (ADR-054): up to
  * twenty now, more after approval. Each is named and placed to the sector; a
@@ -82,7 +83,7 @@ export function StepBranchesPsf({
           </span>
         </div>
         <p className="text-sm text-muted-foreground">
-          Your head office is the address from step 2. Add the other sites that share TIN {tinLabel}: up to{" "}
+          Your head office is the location above. Add the other sites that share TIN {tinLabel}: up to{" "}
           {MAX_REGISTRATION_BRANCHES} now, more after approval. A site with its own TIN registers on its own.
         </p>
 
@@ -154,43 +155,43 @@ export function StepBranchesPsf({
         <h3 id="register-psf-title" className="text-base font-semibold">
           PSF membership
         </h3>
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-sm font-semibold">
-            Is the business a member of the Private Sector Federation (PSF)?
-          </legend>
-          <div className="flex flex-wrap gap-x-7 gap-y-1">
+        <Fieldset legend="Is the business a member of the Private Sector Federation (PSF)?">
+          <div className="grid gap-3 sm:grid-cols-2">
             {(
               [
-                [true, "Yes"],
-                [false, "No"],
+                [true, "yes", "Yes"],
+                [false, "no", "No"],
               ] as const
-            ).map(([value, label]) => (
-              <label key={label} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="psf-member"
-                  checked={business.psfMember === value}
-                  onChange={() =>
-                    onBusinessChange({
-                      ...business,
-                      psfMember: value,
-                      ...(value ? { psfApply: null } : { psfMembershipNumber: "" }),
-                    })
-                  }
-                  className="size-4"
-                />
-                {label}
-              </label>
+            ).map(([member, value, label]) => (
+              <ChoiceCard
+                key={value}
+                name="psf-member"
+                value={value}
+                checked={business.psfMember === member}
+                title={label}
+                onSelect={() =>
+                  onBusinessChange({
+                    ...business,
+                    psfMember: member,
+                    ...(member ? { psfApply: null } : { psfMembershipNumber: "" }),
+                  })
+                }
+              />
             ))}
           </div>
-        </fieldset>
+        </Fieldset>
 
         {business.psfMember === true ? (
           <div className="max-w-form">
             <Field
               label="PSF membership number"
-              hint="PSF's officer sees this as your claim. Injishi does not check it."
-              error={errors["business.psfMembershipNumber"]}
+              hint="As it is on your PSF card. PSF confirms it against its member list; until then your business shows as claimed, not a member."
+              error={
+                errors["business.psfMembershipNumber"] ??
+                (business.psfMembershipNumber.trim().length > 3 && !looksLikePsfNumber(business.psfMembershipNumber)
+                  ? "That does not look like a PSF membership number. Type it in full, as on your card."
+                  : undefined)
+              }
             >
               <TextInput
                 className="w-full tabular-nums"
@@ -208,7 +209,7 @@ export function StepBranchesPsf({
               name="psf-plan"
               checked={business.psfApply === true}
               title="Apply now"
-              description="PSF's full form, here. It goes to PSF once Injishi approves your business."
+              description="Fill PSF’s form here. It is filed with this registration; PSF reviews it alongside Injishi’s checks."
               onSelect={() => {
                 onBusinessChange({ ...business, psfApply: true });
                 onApplyNow();
@@ -218,7 +219,7 @@ export function StepBranchesPsf({
               name="psf-plan"
               checked={business.psfApply === false}
               title="Not now"
-              description="Apply from your workspace whenever you like."
+              description="Register on Injishi only. Apply for PSF later from your workspace."
               onSelect={() => onBusinessChange({ ...business, psfApply: false })}
             />
           </div>

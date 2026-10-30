@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 import withSerwistInit from "@serwist/next";
 import { appHandoffRedirects, appHandoffRscRewrites, oldZoneRedirects } from "./src/lib/app-handoff";
 
@@ -91,13 +92,15 @@ const nextConfig: NextConfig = {
     // document to render into; globalNotFound lets app/global-not-found.tsx
     // supply its own <html> and <body> (ADR-013 call 7).
     globalNotFound: true,
-    // Next 15.5.4's dev-only Segment Explorer devtool injects a client
-    // reference (segment-explorer-node.js#SegmentViewNode) that the RSC client
-    // manifest fails to resolve after a hot recompile, 500ing every route and
-    // killing the dev server. Off until the upstream regression is patched.
     // A barrel import of @injishi/web-ui would otherwise pull all 16 of its
     // client components into a server page that wanted one Button (ADR-008).
     optimizePackageImports: ["@injishi/web-ui", "lucide-react"],
+    // The rewrite proxy to the operator zone gives up after 30s by default. In
+    // development the zone compiles a page on its first request, and
+    // `/w/[workspaceId]` alone took 29.8s cold, so web answered 500 ("socket
+    // hang up") while the zone was still finishing a 200. Production serves a
+    // prebuilt zone, so it keeps the default.
+    proxyTimeout: process.env.NODE_ENV === "development" ? 180_000 : undefined,
   },
   /**
    * NO REWRITES. The operator app (`apps/app`) has its own origin in every
@@ -203,12 +206,16 @@ const nextConfig: NextConfig = {
 };
 
 /**
- * WEBPACK, NOT TURBOPACK (Next 16). Next 16 builds with Turbopack by default and
- * refuses a config that carries a `webpack` function, which `@serwist/next` adds
- * to generate `public/sw.js`. So web's `dev` and `build` scripts pass
- * `--webpack`, the bundler web always built with under Next 15, and the service
- * worker keeps working unchanged. Moving to Turbopack means moving the service
- * worker to `@serwist/turbopack` first.
+ * WEBPACK FOR THE BUILD, TURBOPACK FOR DEV (Next 16). Next 16 builds with
+ * Turbopack by default and refuses a config that carries a `webpack` function,
+ * which `@serwist/next` adds to generate `public/sw.js`. So web's `build` script
+ * passes `--webpack`, the bundler web always built with under Next 15, and the
+ * service worker keeps working unchanged. Moving the build to Turbopack means
+ * moving the service worker to `@serwist/turbopack` first.
+ *
+ * `next dev` never had a service worker (`disable` below), so the dev server
+ * skips the wrapper and runs on Turbopack: under webpack a page's first visit
+ * took about 24 s to compile (2026-10-30).
  */
 const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
@@ -255,4 +262,5 @@ const withSerwist = withSerwistInit({
   ],
 });
 
-export default withSerwist(nextConfig);
+export default (phase: string): NextConfig =>
+  phase === PHASE_DEVELOPMENT_SERVER ? nextConfig : withSerwist(nextConfig);

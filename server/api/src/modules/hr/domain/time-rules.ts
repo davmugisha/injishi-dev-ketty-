@@ -1,3 +1,5 @@
+import type { AttendancePendingReason } from '@injishi/contracts';
+
 import { addDays, eachDate } from './hr-calendar';
 
 /**
@@ -280,15 +282,56 @@ export function phonePunchVerdict(input: {
   point: { lat: number; lng: number; accuracyM: number | null } | null;
   branch: { lat: number; lng: number } | null;
   radiusM: number;
-}): { validated: boolean; distanceM: number | null; reason: string | null } {
-  if (!input.point) return { validated: false, distanceM: null, reason: 'No location was sent.' };
-  if (!input.branch) return { validated: false, distanceM: null, reason: 'The branch has no location set.' };
+}): { validated: boolean; distanceM: number | null; reason: string | null; code: LocationPendingReason | null } {
+  if (!input.point) return { validated: false, distanceM: null, reason: 'No location was sent.', code: 'no_location' };
+  if (!input.branch) {
+    return { validated: false, distanceM: null, reason: 'The branch has no location set.', code: 'no_branch_location' };
+  }
   const distanceM = distanceMeters(input.point, input.branch);
   if (input.point.accuracyM === null || input.point.accuracyM > MAX_TRUSTED_ACCURACY_M) {
-    return { validated: false, distanceM, reason: 'The phone could not tell closely enough where it was.' };
+    return {
+      validated: false,
+      distanceM,
+      reason: 'The phone could not tell closely enough where it was.',
+      code: 'poor_accuracy',
+    };
   }
   if (distanceM > input.radiusM) {
-    return { validated: false, distanceM, reason: `It was ${distanceM} m from the branch.` };
+    return { validated: false, distanceM, reason: `It was ${distanceM} m from the branch.`, code: 'outside_fence' };
   }
-  return { validated: true, distanceM, reason: null };
+  return { validated: true, distanceM, reason: null, code: null };
+}
+
+/** The location reasons of `phonePunchVerdict`, as stored on the record (mobile spec 0003, D-ao). */
+export type LocationPendingReason = Exclude<AttendancePendingReason, 'late_sync'>;
+
+/**
+ * Every reason a phone punch waits, in the stored order: the location reason
+ * first, then `late_sync` for one that arrived late. The first is the one the
+ * record keeps; the flagged event carries them all.
+ */
+export function punchPendingReasons(input: {
+  location: LocationPendingReason | null;
+  lateSync: boolean;
+}): AttendancePendingReason[] {
+  return [...(input.location ? [input.location] : []), ...(input.lateSync ? (['late_sync'] as const) : [])];
+}
+
+/**
+ * Whether a phone clock out that found nothing open replaces the end the sweep
+ * gave the person's latest record (mobile spec 0003, D-ap): the record is one
+ * the sweep closed (`auto_closed`), the sweep ran after the tap (the record's
+ * last change), and the tap came after the clock in. Otherwise the phone was
+ * simply not clocked in.
+ */
+export function takesLateClockOut(
+  record: { status: string; autoClosed: boolean; updatedAt: Date; clockInAt: Date },
+  at: Date,
+): boolean {
+  return (
+    record.status === 'closed' &&
+    record.autoClosed &&
+    record.updatedAt.getTime() > at.getTime() &&
+    at.getTime() > record.clockInAt.getTime()
+  );
 }

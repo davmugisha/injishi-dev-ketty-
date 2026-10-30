@@ -249,19 +249,14 @@ export const StayRegistrationDetails = z
     fullName: z.string().trim().min(1).max(200).optional(),
     documentType: z.enum(["national_id", "passport", "other"]).optional(),
     idNumber: z.string().trim().min(1).max(64).optional(),
+    /**
+     * ISO-3166-1 alpha-2, as on the document. It decides who the stay is
+     * reported to (0114): every guest goes to the local leaders where the
+     * hotel is, and a guest from abroad to DGIE too.
+     */
+    nationality: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Pick a country").optional(),
     /** Home address, free text: Rwandan and foreign addresses do not share a shape. */
     addressText: z.string().trim().min(1).max(500).optional(),
-    /**
-     * ISO 3166-1 alpha-2, as the document says (2026-10-29). With a phone, it files the guest with the
-     * local leaders of the property's village, and with DGIE for a guest from abroad, as the law asks
-     * every place that lets rooms to keep.
-     */
-    nationality: z
-      .string()
-      .trim()
-      .regex(/^[A-Za-z]{2}$/)
-      .transform((v) => v.toUpperCase())
-      .optional(),
     /**
      * Where the "continue in the app" mail goes. The ONE address this stay's
      * claim invitation is ever sent to, which is why it is captured here at the

@@ -149,7 +149,11 @@ export function SiteHeader() {
           >
             <nav
               className={cn(
-                "flex h-16 w-full items-center justify-between gap-3 transition-all duration-300 ease-out md:h-16",
+                // 60px on a phone, 67.5px from `md`, inside the 75px a white
+                // page reserves above. Explore's map (`lg:top-20`) clears the
+                // docked bar; the booking panels (`lg:top-28`) clear the floating
+                // pill, which ends near 85px. Grow the bar and move those too.
+                "flex h-16 w-full items-center justify-between gap-3 transition-all duration-300 ease-out md:h-18",
                 floating ? "px-4 md:px-4" : "px-4 md:px-6",
               )}
             >
@@ -170,7 +174,7 @@ export function SiteHeader() {
                     // else. Two filters rather than two files, so the asset and
                     // the colour it needs cannot drift apart.
                     className={cn(
-                      "h-5 w-auto md:h-6",
+                      "h-5 w-auto md:h-7",
                       onPhoto ? "brightness-0 invert" : "dark:brightness-0 dark:invert",
                     )}
                   />
@@ -209,7 +213,7 @@ export function SiteHeader() {
                       key={item.href}
                       asChild
                       variant="ghost"
-                      size="md"
+                      size="lg"
                       className={content}
                     >
                       <Link href={item.href}>{item.label}</Link>

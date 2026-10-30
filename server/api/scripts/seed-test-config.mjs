@@ -6,8 +6,9 @@
  *
  *   node scripts/seed-test-config.mjs
  *
- * Today: the registration fee for each kind of business (5,000 RWF, the same
- * dev default seed-content.mjs writes), without which a landlord, host or
+ * Today: the registration fee for each kind of business (RWF 50,000 for every
+ * hospitality business, the owner's fee and the one seed-content.mjs writes;
+ * 5,000 for a residence and a broker), without which a landlord, host or
  * broker cannot finish registering. Later phases add theirs here (broker plan
  * prices, for one) when they are settings rather than migrations.
  *
@@ -20,7 +21,7 @@ import { loadApiEnv } from './env-file.mjs';
 import { assertSampleDatabase, describeDatabase } from './sample-database.mjs';
 
 const REGISTRATION_FEES = [
-  ['hospitality', 5000],
+  ['hospitality', 50000],
   ['residence', 5000],
   ['broker', 5000],
 ];

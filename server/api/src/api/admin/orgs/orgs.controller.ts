@@ -13,6 +13,7 @@ import {
   type AdminOrgSubscription,
   type AdminOrgTimelineResponse,
   type AdminTinRecheckResult,
+  type StarGradeStatus,
 } from '@injishi/contracts';
 import {
   Body,
@@ -221,6 +222,39 @@ export class AdminOrgsController {
     @CurrentUser() user: SessionUser,
   ): Promise<AdminOrgStatusChange> {
     return this.actions.move(orgId, 'suspended', user.id, body.reason);
+  }
+
+  /**
+   * 0118: confirm the star grade a business said, once checked against RDB's grading certificate. Guests
+   * see the stars only from then. `admin.business.review`: checking a business's papers is the review.
+   */
+  @Get(':orgId/star-grade')
+  @RequireStaffPermission('admin.business.view')
+  starGrade(@Param('orgId', ParseUUIDPipe) orgId: string): Promise<StarGradeStatus> {
+    return this.actions.starGrade(orgId);
+  }
+
+  @Post(':orgId/star-grade/confirm')
+  @HttpCode(200)
+  @RequireStaffPermission('admin.business.review')
+  confirmStarGrade(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Body(new ZodValidationPipe(AdminActionRequest)) body: AdminActionRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<StarGradeStatus> {
+    return this.actions.confirmStarGrade(orgId, user.id, body.reason, true);
+  }
+
+  /** 0118: withdraw a confirmed star grade, when the certificate lapsed or did not match. */
+  @Post(':orgId/star-grade/withdraw')
+  @HttpCode(200)
+  @RequireStaffPermission('admin.business.review')
+  withdrawStarGrade(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Body(new ZodValidationPipe(AdminActionRequest)) body: AdminActionRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<StarGradeStatus> {
+    return this.actions.confirmStarGrade(orgId, user.id, body.reason, false);
   }
 
   /** Put a suspended business back to trading. 409 unless it is suspended. */

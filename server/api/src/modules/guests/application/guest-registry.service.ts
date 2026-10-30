@@ -9,7 +9,6 @@ import {
   type LandlordGuestRequest,
   type TenantGuestList,
   type TenantGuestRequest,
-  addDays,
   OTHER_RELATIONSHIP,
   guestIdOf,
   guestIdProblem,
@@ -34,8 +33,6 @@ import { GuestRoutingService } from './guest-routing.service';
 /** What anyone but the lease's own tenant is told (the same words as the tenancy routes). */
 export const TENANCY_NOT_FOUND = "We couldn't find this lease on your account.";
 const GUEST_NOT_FOUND = 'That guest was not found.';
-/** Who a stay business's guest is to it: a paying guest (inactive on the hosts' forms). */
-const STAY_RELATIONSHIP = 'stay_guest';
 
 /** A lease takes guests once it is signed and until it ends. */
 const LEASE_TAKES_GUESTS = new Set(['signed', 'active', 'ending']);
@@ -299,60 +296,19 @@ export class GuestRegistryService {
     };
   }
 
-  /** File a registration and its routes, with the audit and outbox rows, then email the leaders. */
   /**
-   * A stay business's guest, filed at check in (2026-10-29): Rwandan law makes an accommodation keep a
-   * record of every guest for the authorities, and the leaders of the place (and DGIE for a guest from
-   * abroad) read it the same way they read a tenant's guest. One registration per stay; a check in that
-   * is retried files nothing twice. Returns null, and files nothing, when the desk did not record the
-   * nationality and a phone, the two facts the leaders need.
+   * File a hotel stay's guest (0114): the same transaction, routes, audit and
+   * outbox as a residence's guest, at the hotel's own place.
    */
-  async fileStayGuest(input: {
-    workspaceId: string;
-    propertyId: string;
-    guestStayId: string;
-    userId: string;
-    fullName: string;
-    phone: string | null;
-    nationality: string | null;
-    idKind: 'national_id' | 'passport' | null;
-    idNumber: string | null;
-    arrivalOn: string;
-    departureOn: string;
-  }): Promise<string | null> {
-    if (!input.nationality || !input.phone) return null;
-    if (await this.guests.stayRegistered(input.guestStayId)) return null;
-    const home = await this.guests.buildingHome(input.workspaceId, input.propertyId, null);
-    if (!home) return null;
-    if (!(await this.guests.countryName(input.nationality))) return null;
-    // A document the desk typed in a shape the registry does not hold is left off rather than refusing the guest.
-    const typed = { nationality: input.nationality, idKind: input.idKind, idNumber: input.idNumber };
-    const id = guestIdProblem(typed) ? { idKind: null, idNumber: null } : guestIdOf(typed);
-    const departureOn = input.departureOn > input.arrivalOn ? input.departureOn : addDays(input.arrivalOn, 1);
-    return this.file(
-      home,
-      {
-        fullName: input.fullName.trim(),
-        phone: input.phone,
-        nationality: input.nationality,
-        idKind: id.idKind,
-        idNumber: id.idNumber,
-        relationship: STAY_RELATIONSHIP,
-        relationshipOther: null,
-        originCountry: input.nationality,
-        originVillageId: null,
-        arrivalOn: input.arrivalOn,
-        // The leaders' record spans at most 90 days; a longer stay is filed again as it runs on (the sweep).
-        departureOn: departureOn < addDays(input.arrivalOn, 90) ? departureOn : addDays(input.arrivalOn, 90),
-      },
-      { hostKind: 'hotel', leaseId: null, userId: input.userId, guestStayId: input.guestStayId },
-    );
+  fileHotelStay(home: HomeRow, values: GuestValues, stayId: string, userId: string): Promise<string> {
+    return this.file(home, values, { hostKind: 'hotel', leaseId: null, userId, guestStayId: stayId });
   }
 
+  /** File a registration and its routes, with the audit and outbox rows, then email the leaders. */
   private async file(
     home: HomeRow,
     values: GuestValues,
-    host: { hostKind: GuestHostKind; leaseId: string | null; userId: string; guestStayId?: string },
+    host: { hostKind: GuestHostKind; leaseId: string | null; userId: string; guestStayId?: string | null },
   ): Promise<string> {
     const now = this.now();
     const area = { villageId: home.villageId, cellId: home.cellId, sectorId: home.sectorId, districtId: home.districtId, provinceId: home.provinceId ?? null };

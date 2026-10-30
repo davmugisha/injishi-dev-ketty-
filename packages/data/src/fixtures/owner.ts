@@ -2029,7 +2029,19 @@ const complianceFixtures = {
 } satisfies FixtureSet;
 // ── TeamRoles ───────────────────────────────────────────────────────────────────────────────────────────
 /** Role preset ids of Team and roles (Owner, General manager, Front desk, Staff, Finance, HR, Storekeeper). */
-export type TeamRolesRoleId = "owner" | "manager" | "frontdesk" | "staff" | "finance" | "hr" | "store";
+export type TeamRolesRoleId =
+  | "owner"
+  | "manager"
+  | "frontdesk"
+  | "staff"
+  | "finance"
+  | "hr"
+  | "store"
+  // The outlet roles (2026-10-30): each the API's own org role, so a grant names it.
+  | "cashier"
+  | "waiter"
+  | "bartender"
+  | "kitchen";
 
 /** Sign-in status of a member. "pending" = an invite a manager requested, waiting for the owner's approval. */
 export type TeamRolesMemberStatus = "active" | "invited" | "pending" | "revoked";

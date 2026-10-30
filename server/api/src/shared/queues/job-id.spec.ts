@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Job, type Queue } from 'bullmq';
 
-import { BOOKING_MAIL_EVENTS, bookingMailJobId } from '../../modules/booking/domain/booking-mail';
+import { BOOKING_MAIL_EVENTS, bookingMailJobId } from '../../modules/pms/domain/booking-mail';
 import { trainingMailJobId, trainingReminderJobId } from '../../modules/training/domain/training-mail';
 import { queueJobId } from './job-id';
 
@@ -101,5 +101,10 @@ describe('derived mail job ids', () => {
 
   it.each(BOOKING_MAIL_EVENTS)('a %s booking mail id is accepted', (event) => {
     expect(bullmqVerdict(bookingMailJobId({ bookingId: ID, event }))).toBe('accepted');
+  });
+
+  it('a reservation change mail id, one per change, is accepted (0120)', () => {
+    const changeId = '8a1f0c2e-4b7d-4c1a-9e3f-2d6b5a4c3e21';
+    expect(bullmqVerdict(bookingMailJobId({ bookingId: ID, event: 'changed', changeId }))).toBe('accepted');
   });
 });

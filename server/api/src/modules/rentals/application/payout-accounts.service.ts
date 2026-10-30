@@ -7,7 +7,7 @@ import type { TokenCipher } from '../../ebm/infrastructure/token-cipher';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { destinationOf, detailsOf, last4, sameDestination, type PayoutAccountDetails } from '../domain/payout-accounts';
-import { assertResidence, type ResidenceWorkspace } from '../domain/residence';
+import { assertPaidBusiness, type ResidenceWorkspace } from '../domain/residence';
 import { PAYOUT_ACCOUNT_CIPHER, accountNumberContext } from '../infrastructure/payout-account-cipher';
 import {
   PayoutAccountsRepository,
@@ -43,12 +43,12 @@ export class PayoutAccountsService {
   ) {}
 
   async list(ws: ScopedWorkspace): Promise<PayoutAccountList> {
-    const r = assertResidence(ws);
+    const r = assertPaidBusiness(ws);
     return { accounts: (await this.accounts.list(r.orgId)).map(presentPayoutAccount) };
   }
 
   async create(ws: ScopedWorkspace, userId: string, body: PayoutAccountInput): Promise<PayoutAccountList> {
-    const r = assertResidence(ws);
+    const r = assertPaidBusiness(ws);
     const details = detailsOf(body);
     const id = randomUUID();
     await this.db.transaction(async (tx) => {
@@ -78,7 +78,7 @@ export class PayoutAccountsService {
 
   /** Replace an account's details (the whole account is sent again). Its primary standing stays unless asked. */
   async update(ws: ScopedWorkspace, userId: string, id: string, body: PayoutAccountInput): Promise<PayoutAccountList> {
-    const r = assertResidence(ws);
+    const r = assertPaidBusiness(ws);
     const details = detailsOf(body);
     await this.db.transaction(async (tx) => {
       const current = await this.accounts.lockOrg(tx, r.orgId);
@@ -107,7 +107,7 @@ export class PayoutAccountsService {
   }
 
   async makePrimary(ws: ScopedWorkspace, userId: string, id: string): Promise<PayoutAccountList> {
-    const r = assertResidence(ws);
+    const r = assertPaidBusiness(ws);
     await this.db.transaction(async (tx) => {
       const current = await this.accounts.lockOrg(tx, r.orgId);
       const row = current.find((a) => a.id === id);
@@ -132,7 +132,7 @@ export class PayoutAccountsService {
    * rent keeps a place to go whenever one exists.
    */
   async retire(ws: ScopedWorkspace, userId: string, id: string): Promise<PayoutAccountList> {
-    const r = assertResidence(ws);
+    const r = assertPaidBusiness(ws);
     await this.db.transaction(async (tx) => {
       const current = await this.accounts.lockOrg(tx, r.orgId);
       const row = current.find((a) => a.id === id);

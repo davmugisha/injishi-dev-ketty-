@@ -96,6 +96,12 @@ export const QUEUES = {
    * scheduler's policy is per queue.
    */
   hrDaily: 'HrDaily',
+  /**
+   * Mobile spec 0003 (D-r): the daily sweep of the shared idempotency store,
+   * deleting answers kept longer than 30 days. Its own queue, because a
+   * scheduler's policy is per queue.
+   */
+  idempotencySweep: 'IdempotencySweep',
   /** Rentals (blueprint 2.6): see `RENTALS_QUEUES` above. */
   ...RENTALS_QUEUES,
 } as const;

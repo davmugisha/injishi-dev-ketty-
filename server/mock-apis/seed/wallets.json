@@ -1,0 +1,40 @@
+[
+  {
+    "msisdn": "+250788000211",
+    "network": "MTN",
+    "holderName": "Rayan Iraguha",
+    "note": "Approves a prompt after a few seconds."
+  },
+  {
+    "msisdn": "+250788300412",
+    "network": "MTN",
+    "holderName": "Aline Uwase",
+    "note": "Approves a prompt after a few seconds."
+  },
+  {
+    "msisdn": "+250788300523",
+    "network": "MTN",
+    "holderName": "Eric Habimana",
+    "behaviour": "manual",
+    "note": "The prompt waits for you: press Approve or Decline in this console."
+  },
+  {
+    "msisdn": "+250788300634",
+    "network": "MTN",
+    "holderName": "Diane Mukamana",
+    "note": "Approves a prompt after a few seconds."
+  },
+  {
+    "msisdn": "+250732845190",
+    "network": "AIRTEL",
+    "holderName": "Jean Niyonzima",
+    "note": "An Airtel Money wallet."
+  },
+  {
+    "msisdn": "+250788455610",
+    "network": "MTN",
+    "holderName": "Clarisse Uwimana",
+    "behaviour": "decline",
+    "note": "Declines every prompt."
+  }
+]

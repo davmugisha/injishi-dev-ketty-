@@ -296,12 +296,11 @@ async function ownerCompliance(ctx: SourceContext): Promise<ComplianceEvent[]> {
           id: "gtbank",
           status: mode === "off" ? "warning" : "default",
           icon: "Lock",
-          title:
-            mode === "off" ? "Payments are switched off on this platform" : "GT Bank production access not verified",
+          title: mode === "off" ? "Payments are switched off on this platform" : "Payments are in test mode",
           detail:
             mode === "off"
               ? "Every charge is refused until a payment provider is connected"
-              : "Payments run on the sandbox adapter · no production provider is connected yet",
+              : "Guests can book, but no real money moves until Injishi connects its live payment provider",
           board: "Integrations",
         };
   return [licence, vsdc, bank, psf];

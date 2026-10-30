@@ -1,19 +1,31 @@
 import { screens } from "@injishi/data";
-import type { AccessReview, Broker, RoleFamily, StaffMember } from "@injishi/data/fixtures/platformops";
 import type { Metadata } from "next";
-import { AdminPeopleView } from "@/features/platformops/AdminPeopleView";
+import { PeopleView } from "@/features/admin/people/PeopleView";
+import { Refused } from "@/features/admin/people/Refused";
 import { requirePersona } from "@/lib/session";
-import { getCollection } from "@/server/data";
+import { ApiError } from "@/server/api";
+import { staffAccess } from "@/server/admin/leaders";
+import { people } from "@/server/admin/people";
 
 export const metadata: Metadata = { title: screens.AdminPeople.pageTitle };
 
-export default async function AdminPeoplePage() {
+type Search = Record<string, string | string[] | undefined>;
+const one = (v: string | string[] | undefined): string | undefined => (Array.isArray(v) ? v[0] : v);
+
+/**
+ * People (2026-10-29), read from the admin API as this staffer: every account, searchable. It was a page of
+ * sample staff and brokers whose buttons did nothing.
+ */
+export default async function AdminPeoplePage({ searchParams }: { searchParams: Promise<Search> }) {
   await requirePersona("AdminPeople");
-  const [families, staff, reviews, brokers] = await Promise.all([
-    getCollection<RoleFamily>("platformops.roleFamilies"),
-    getCollection<StaffMember>("platformops.staff"),
-    getCollection<AccessReview>("platformops.accessReviews"),
-    getCollection<Broker>("platformops.brokers"),
-  ]);
-  return <AdminPeopleView data={{ families, staff, reviews, brokers }} />;
+  const sp = await searchParams;
+  const q = one(sp.q)?.trim() ?? "";
+  const page = Math.max(1, Number(one(sp.page)) || 1);
+  try {
+    const [list, access] = await Promise.all([people(q, page), staffAccess()]);
+    return <PeopleView list={list} q={q} canCreate={access.permissions.includes("admin.user.role.grant")} />;
+  } catch (error) {
+    if (error instanceof ApiError && error.forbidden) return <Refused code={error.code} />;
+    throw error;
+  }
 }

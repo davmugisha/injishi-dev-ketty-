@@ -28,7 +28,7 @@ import {
   assertInBranchScope,
   type ScopedWorkspace,
 } from '../../../shared/auth/branch-scope';
-import { localToday } from '../../booking/domain/pricing';
+import { localToday } from '../../pms/domain/pricing';
 import { scrubPhoneNumbers } from './scrub';
 import {
   type DeskSubject,
@@ -39,7 +39,7 @@ import {
   type ThreadRow,
   MessagingRepository,
 } from '../infrastructure/messaging.repository';
-import type { MyStayRow } from '../infrastructure/stay-claim.repository';
+import type { MyStayRow } from '../../pms/application/stay-claim.service';
 
 /**
  * The page cursor: a message's `(created_at, id)`, base64url so it reads as

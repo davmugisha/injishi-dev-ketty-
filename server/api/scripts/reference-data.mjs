@@ -99,6 +99,15 @@ export const AMENITY_CATALOGUE = [
   ['guard', "Safety", "Security on site", "Umuzamu w'umutekano"],
   ['generator', "Safety", "Backup generator", "Jeneratori y'ingoboka"],
   ['firstaid', "Safety", "First-aid kit", "Agasanduku k'ubutabazi"],
+  // 0118 (2026-10-30): the facilities the booking platforms ask of a hotel that the catalogue lacked.
+  // Their Kinyarwanda labels are owed: null until someone who writes it supplies them, never a guess.
+  ['bar', "Food & drink", "Bar", null],
+  ['gym', "Leisure & business", "Fitness room", null],
+  ['spa', "Leisure & business", "Spa", null],
+  ['meeting', "Leisure & business", "Meeting room", null],
+  ['stepfree', "Accessibility", "Step-free entrance", null],
+  ['accessible_room', "Accessibility", "Accessible room", null],
+  ['lift', "Accessibility", "Lift", null],
 ];
 
 /** The government bodies an oversight assignment can name. DGIE is the district immigration officer's (P5). */

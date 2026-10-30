@@ -103,7 +103,7 @@ export function AccountMenu({
         <div
           aria-hidden
           className={cn(
-            "size-9 shrink-0 animate-pulse rounded-full bg-current opacity-20",
+            "size-10 shrink-0 animate-pulse rounded-full bg-current opacity-20",
             className,
           )}
         />
@@ -119,7 +119,7 @@ export function AccountMenu({
         <Button
           asChild
           variant={onPhoto ? "inverse" : "ghost"}
-          size="md"
+          size="lg"
           className={className}
         >
           <Link href="/sign-in">Sign In</Link>
@@ -147,7 +147,7 @@ export function AccountMenu({
             className,
           )}
         >
-          <Avatar className="size-9">
+          <Avatar className="size-10">
             {/* `AvatarImage` unmounts itself when the src fails to load, so the
                 fallback below is the initials path AND the broken-photo path
                 without a second branch here. */}

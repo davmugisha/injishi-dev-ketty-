@@ -13,6 +13,8 @@ export function HomeGuides() {
   const guides = [...GUIDES]
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
     .slice(0, 3);
+  // No articles, no strip: an empty "Guides" heading is a promise with nothing behind it.
+  if (guides.length === 0) return null;
 
   return (
     <section className="section-y container flex flex-col gap-8">

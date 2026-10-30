@@ -33,7 +33,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const src = (p) => readFileSync(resolve(here, "../src", p), "utf8");
 
 const { HOST_PROPERTY_KINDS, hostKindHref, findHostKind } = await import("@/data/host");
-const { findRegistrationKind, registrationForKind } = await import(
+const { findRegistrationKind, kindInSentence, registrationForKind } = await import(
   "@/app/(app)/(entry)/register/registration-kinds"
 );
 const { openingStep, resumeStep, stepOrder } = await import(
@@ -45,6 +45,9 @@ const { safeRedirect } = await import("@/lib/redirect");
 describe("a tile on /host", () => {
   test("goes straight to /register with its kind", () => {
     for (const kind of HOST_PROPERTY_KINDS) {
+      // The PSF tile is the one exception: it opens the PSF page first, which
+      // says what joining PSF costs, and whose button registers (next test).
+      if (kind.value === "psf") continue;
       const href = hostKindHref(kind.value);
       const url = new URL(href, "http://x.invalid");
       assert.equal(url.pathname, "/register", `${kind.value} links to ${href}`);
@@ -52,8 +55,20 @@ describe("a tile on /host", () => {
     }
   });
 
+  test("the PSF tile opens the PSF page, and the account wizard no longer registers PSF", () => {
+    assert.equal(hostKindHref("psf"), "/psf");
+    // Joining PSF is the public form at /psf/register (2026-10-19); the
+    // wizard drops `?kind=psf`, and the page redirects it before that.
+    assert.equal(findRegistrationKind("psf"), null);
+    assert.match(
+      src("app/(app)/(entry)/register/page.tsx"),
+      /if \(kind === "psf"\) redirect\("\/psf\/register"\)/,
+    );
+  });
+
   test("carries a kind the registration form accepts, so none lands unanswered", () => {
     for (const kind of HOST_PROPERTY_KINDS) {
+      if (kind.value === "psf") continue;
       const entry = findRegistrationKind(kind.value);
       assert.ok(entry, `/register would drop ?kind=${kind.value}`);
       // And a kind the server can price: every chooser tile is a business, never a broker.
@@ -108,17 +123,17 @@ describe("the sign in round trip", () => {
 });
 
 describe("the wizard, given a kind", () => {
-  test("opens on Business whether or not the kind arrived; Business asks it when it did not (ADR-075 S3)", () => {
-    assert.equal(openingStep(), "business");
+  test("opens on You whether or not the kind arrived; the kind is asked first when it did not (ADR-075 S3)", () => {
+    assert.equal(openingStep(), "you");
   });
 
   test("reopens a draft on the step it was left at, which never asks again a kind the draft already knows (ADR-075 S9)", () => {
-    assert.equal(resumeStep("you"), "you");
-    assert.equal(resumeStep(undefined), "business");
+    assert.equal(resumeStep("business"), "business");
+    assert.equal(resumeStep(undefined), "you");
   });
 
-  test("walks the same five steps whether or not the kind arrived: the kind is a question inside Business", () => {
-    assert.deepEqual(stepOrder(), ["business", "you", "documents", "review", "pay"]);
+  test("walks the same five steps whether or not the kind arrived: the person, then the business", () => {
+    assert.deepEqual(stepOrder(), ["you", "business", "documents", "review", "pay"]);
   });
 
   test("saves as the answers are typed, never on opening (ADR-075 S9; R02)", () => {
@@ -126,6 +141,20 @@ describe("the wizard, given a kind", () => {
     // What the wizard opened on is where saving starts: opening it writes nothing.
     assert.match(wizard, /useDraftAutosave\(\{ userId, draft: draftNow, start: saveStart \}\)/);
     assert.match(wizard, /setSaveStart\(\{ savedAt: null, push: false \}\)/);
+  });
+
+  test("names the kind mid sentence with its article, in lower case (the fee line said \"a Apartment\")", () => {
+    assert.equal(kindInSentence("apartment"), "an apartment");
+    assert.equal(kindInSentence("coffee_shop"), "a coffee shop");
+    assert.equal(kindInSentence("other"), "a business");
+    assert.equal(kindInSentence(null), "a business");
+  });
+
+  test("a saved draft of another kind is reopened, never opened over (ADR-075 S9)", () => {
+    const wizard = src("app/(app)/(entry)/register/register-wizard.tsx");
+    // The restore no longer requires the draft's kind to match `?kind=`, and says so when it does not.
+    assert.match(wizard, /if \(saved && savedKind !== null && checks\.registrationId === undefined\) \{/);
+    assert.match(wizard, /if \(arrivalKind !== null && savedKind !== arrivalKind\) setHeldDraft\(savedKind\)/);
   });
 
   test("the wizard reads its opening and its resume from that module", () => {

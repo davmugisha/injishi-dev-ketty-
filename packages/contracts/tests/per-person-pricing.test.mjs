@@ -17,17 +17,27 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { computeBreakdown, stayNightlyRateRwf, MAX_INFANTS } = require("../dist/index.js");
+const { breakdownAsCharged, computeBreakdown, stayNightlyRateRwf, MAX_INFANTS } = require("../dist/index.js");
 
 describe("per-person pricing", () => {
-  test("adding guests multiplies the accommodation and the fee", () => {
+  test("adding guests multiplies the accommodation, and nothing is added on top", () => {
     const one = computeBreakdown({ nightlyRateRwf: 164_000, nights: 35, nonRefundable: false, guests: 1 });
     const two = computeBreakdown({ nightlyRateRwf: 164_000, nights: 35, nonRefundable: false, guests: 2 });
     assert.equal(one.accommodationRwf, 5_740_000);
     assert.equal(two.accommodationRwf, 11_480_000);
     assert.equal(two.guests, 2);
-    assert.equal(two.serviceFeeRwf, Math.round(11_480_000 * 0.05));
-    assert.equal(two.grossRwf, 11_480_000 + 574_000);
+    // No guest service fee since 2026-10-29: the guest pays the room rate.
+    assert.equal(two.serviceFeeRwf, 0);
+    assert.equal(two.grossRwf, 11_480_000);
+  });
+
+  test("a booking paid under the old 5% fee reads back as it was charged", () => {
+    const args = { nightlyRateRwf: 164_000, nights: 35, nonRefundable: false, guests: 2 };
+    const old = breakdownAsCharged(args, 11_480_000 + 574_000);
+    assert.equal(old.serviceFeeRwf, 574_000);
+    assert.equal(old.grossRwf, 12_054_000);
+    // A charge that is neither today's nor the old fee is left for the caller to refuse.
+    assert.equal(breakdownAsCharged(args, 11_480_001).grossRwf, 11_480_000);
   });
 
   test("no party given means one guest, so existing callers keep their totals", () => {

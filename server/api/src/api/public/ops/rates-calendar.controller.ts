@@ -1,7 +1,7 @@
 import { type RatesCalendar, RatesDaysUpdate, RatesTermsUpdate } from '@injishi/contracts';
 import { Body, Controller, Get, Put, Query, UseGuards } from '@nestjs/common';
 
-import { RatesCalendarService } from '../../../modules/listing-setup/application/rates-calendar.service';
+import { RatesCalendarService } from '../../../modules/platform/property/application/rates-calendar.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import { CurrentWorkspace, RequirePermission, WorkspaceGuard } from '../../../shared/auth/workspace.guard';

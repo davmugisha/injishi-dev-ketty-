@@ -2,13 +2,14 @@ import { Module } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 import { AuthModule } from '../../modules/auth/auth.module';
-import { BookingModule } from '../../modules/booking/booking.module';
+import { BookingModule } from '../../modules/pms/booking.module';
 import { PaymentsModule } from '../../modules/payments/payments.module';
 import { GeographyModule } from '../../modules/geography/geography.module';
-import { ListingSetupModule } from '../../modules/listing-setup/listing-setup.module';
+import { ListingSetupModule } from '../../modules/platform/property/listing-setup.module';
 import { ListingModule } from '../../modules/listing/listing.module';
 import { MarketplaceModule } from '../../modules/marketplace/marketplace.module';
 import { OperationsModule } from '../../modules/operations/operations.module';
+import { OutletsModule } from '../../modules/outlets/outlets.module';
 import { OrganizationModule } from '../../modules/organization/organization.module';
 import { ListsModule } from '../../modules/lists/lists.module';
 import { PeopleModule } from '../../modules/hr/people.module';
@@ -33,6 +34,8 @@ import { MeLeaseInvitationsController, MeTenanciesController } from './me/tenanc
 import { LeaseInvitationsController } from './lease-invitations/lease-invitations.controller';
 import { MeStaysController } from './me/stays.controller';
 import { MeWorkController } from './me/work.controller';
+import { MeWorkChecklistsController } from './me/work-checklists.controller';
+import { MeWorkDocumentsController } from './me/work-documents.controller';
 import { MeWorkLeaveController } from './me/work-leave.controller';
 import { MeWorkPayController } from './me/work-pay.controller';
 import { KioskController } from './kiosk/kiosk.controller';
@@ -68,6 +71,7 @@ import { OpsHrController } from './ops/hr.controller';
 import { OpsOrgChartController } from './ops/org-chart.controller';
 import { OpsHrWorkforceController, OpsRosterCoverController } from './ops/hr-workforce.controller';
 import { OpsPayAccountsController } from './ops/pay-accounts.controller';
+import { OpsChecklistsController } from './ops/checklists.controller';
 import { OpsPoliciesController } from './ops/policies.controller';
 import { OpsStaffAnnouncementsController } from './ops/staff-announcements.controller';
 import { OpsListViewsController } from './ops/list-views.controller';
@@ -180,9 +184,11 @@ import { OversightController } from './oversight/oversight.controller';
 import { PlatformController } from './platform/platform.controller';
 import {
   OversightPsfController,
+  OversightPsfRegisterController,
   PsfMembershipController,
   PsfTiersController,
 } from './psf/psf-membership.controller';
+import { OversightPsfConsoleController, PsfPublicController } from './psf/psf-public.controller';
 import { OrgClaimsController } from './registrations/org-claims.controller';
 import { IdentityController } from './me/identity.controller';
 import { SelfCheckInController } from './me/self-check-in.controller';
@@ -218,6 +224,8 @@ import { TrainingPublicModule } from './training/training.module';
     // `PaymentSeam` for `/platform` (073-gtbank-payments AC-2, AC-17).
     PaymentsModule,
     OperationsModule,
+    // Outlets, their menus and order board, and guest ordering (ADR-074 stage 5).
+    OutletsModule,
     // The bar and restaurant point of sale (POS spec, phase 1). Payments are simulated.
     PosModule,
     OrganizationModule,
@@ -272,11 +280,16 @@ import { TrainingPublicModule } from './training/training.module';
     OrgClaimsController,
     // Accepting a staff invitation, before the invitee holds the workspace.
     StaffInvitationsController,
-    // PSF membership (ADR-056): the tiers, a business's application, and the
-    // PSF membership officer's queue.
+    // PSF membership (ADR-056, widened by the PSF path): the tiers and sectors,
+    // a business's application and payment, the PSF membership officer's
+    // queue, and the register of their region's businesses.
     PsfTiersController,
     PsfMembershipController,
     OversightPsfController,
+    OversightPsfRegisterController,
+    // The public PSF path and the officer console's report (2026-10-19).
+    PsfPublicController,
+    OversightPsfConsoleController,
     UploadsController,
     InventoryController,
     OpsReservationsController,
@@ -304,6 +317,7 @@ import { TrainingPublicModule } from './training/training.module';
     OpsDocumentsController,
     OpsDocumentRequestsController,
     OpsPoliciesController,
+    OpsChecklistsController,
     OpsStaffAnnouncementsController,
     OpsDisciplinaryActionsController,
     OpsOrgChartController,
@@ -433,6 +447,8 @@ import { TrainingPublicModule } from './training/training.module';
     MeWorkLeaveController,
     MeWorkStaffController,
     MeWorkPayController,
+    MeWorkChecklistsController,
+    MeWorkDocumentsController,
     KioskController,
     TwoFactorController,
     PasswordController,

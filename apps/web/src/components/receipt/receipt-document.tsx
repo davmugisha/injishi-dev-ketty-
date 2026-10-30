@@ -1,6 +1,6 @@
 import { ebmGroupInFours, type EbmReceipt } from "@injishi/contracts";
 
-import { QrCode } from "./qr-code";
+import { QrCode } from "@/components/shared/qr-code";
 import {
   amount,
   carriesSignature,
@@ -333,6 +333,8 @@ export function ReceiptDocument({ receipt }: ReceiptDocumentProps) {
               <QrCode
                 value={sdc.qrData}
                 size={148}
+                light="var(--receipt-qr-light)"
+                ink="var(--receipt-ink)"
                 label={`Verification QR code for receipt ${receiptCounter(sdc)}, encoding the VSDC date, time, device identifier, counter, internal data and signature`}
               />
             </div>

@@ -7,9 +7,10 @@ import type {
   GuestTrip,
   HotelDepartment,
 } from "@injishi/data/fixtures/guest";
+import { GuestTripView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { GuestTripView } from "@/features/guest/GuestTripView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";
 
@@ -29,10 +30,12 @@ export default async function GuestTripPage({ searchParams }: { searchParams: Pr
   if (!booking || !departments.length) notFound();
   const { claim } = await searchParams;
   return (
-    <GuestTripView
-      persona={persona}
-      data={{ trips, booking, guide, tiers, departments, messages: messages.filter((m) => m.thread === "booking") }}
-      claim={claim === "unclaimed" ? "unclaimed" : "linked"}
-    />
+    <PmsMount>
+      <GuestTripView
+        persona={persona}
+        data={{ trips, booking, guide, tiers, departments, messages: messages.filter((m) => m.thread === "booking") }}
+        claim={claim === "unclaimed" ? "unclaimed" : "linked"}
+      />
+    </PmsMount>
   );
 }

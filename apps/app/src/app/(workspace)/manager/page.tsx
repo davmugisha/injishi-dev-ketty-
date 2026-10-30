@@ -11,7 +11,7 @@ import type {
 } from "@injishi/data/fixtures/commercial";
 import type { Metadata } from "next";
 import { ManagerTodayView } from "@/features/commercial/ManagerTodayView";
-import { StayHomeView } from "@/features/stays/StayHomeView";
+import { StayHomeView } from "@/features/pms/stays/StayHomeView";
 import { currentAccount, requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 import { staysActivity, staysSummary } from "@/server/stays/client";

@@ -7,6 +7,13 @@
  * resolved against the desk's own day (`GET /ops/front-desk`) before the command is sent, so a
  * reference or a room of another branch never reaches a command.
  */
+import type {
+  ReservationChangeAsk,
+  ReservationChangeForm,
+  ReservationChangeQuote,
+  ReservationChangeRequest,
+  ReservationChangeResult,
+} from "@injishi/contracts";
 import { ApiError } from "../api";
 import { type ApiBoard, deskBoard, forgetDeskBoard } from "../sources/frontdesk";
 import type { SourceContext } from "../sources/types";
@@ -46,8 +53,30 @@ interface CheckInInput {
   roomLabel: string;
   /** Cash taken at the desk, posted to the bill once the stay is open. One key per press of "Record cash". */
   cash?: { amountRwf: number; idempotencyKey: string } | null;
-  /** What the area's leaders are sent. */
-  guest?: CheckInGuestCard;
+  /** The registration card: nationality and the document, which decide who the stay is reported to. */
+  guest?: GuestCard;
+}
+
+/** The name, nationality and document, as the desk read them from the guest's ID (`StayRegistrationDetails`). */
+export interface GuestCard {
+  /** Only for a booking that names nobody; the API's limit is 200 characters. */
+  fullName?: string;
+  nationality?: string;
+  documentType?: "national_id" | "passport" | "other";
+  idNumber?: string;
+}
+
+function guestCard(card: GuestCard | undefined): GuestCard {
+  if (!card) return {};
+  const fullName = card.fullName?.trim().slice(0, 200);
+  const nationality = card.nationality?.trim().toUpperCase();
+  const idNumber = card.idNumber?.trim();
+  return {
+    ...(fullName ? { fullName } : {}),
+    ...(nationality && /^[A-Z]{2}$/.test(nationality) ? { nationality } : {}),
+    ...(card.documentType ? { documentType: card.documentType } : {}),
+    ...(idNumber ? { idNumber } : {}),
+  };
 }
 
 export interface CheckedIn {
@@ -61,38 +90,14 @@ export interface CheckedIn {
  * opens the stay and its bill and credits what the guest paid online; cash taken at the desk is then
  * recorded on that bill (POST /ops/folios/:id/payments) under the key minted when it was counted.
  */
-/** What the desk records for the area's leaders at check in (2026-10-29). */
-export interface CheckInGuestCard {
-  fullName?: string;
-  phone?: string;
-  nationality?: string;
-  documentType?: "national_id" | "passport";
-  idNumber?: string;
-}
-
-/** The card as the API takes it: only what was typed. */
-function cardOf(card: CheckInGuestCard | undefined) {
-  if (!card) return undefined;
-  const phone = card.phone?.trim();
-  const id = card.idNumber?.trim().toUpperCase();
-  const out = {
-    ...(card.fullName?.trim() ? { fullName: card.fullName.trim() } : {}),
-    ...(phone ? { phone } : {}),
-    ...(card.nationality ? { nationality: card.nationality } : {}),
-    ...(id && card.documentType ? { documentType: card.documentType, idNumber: id } : {}),
-    invite: false,
-  };
-  return Object.keys(out).length > 1 ? out : undefined;
-}
-
 export async function checkIn(ctx: SourceContext, input: CheckInInput): Promise<CheckedIn> {
   const { board, booking } = await bookingOf(ctx, input.bookingRef);
   const room = roomOf(board, input.roomLabel);
   return command(ctx, async () => {
-    const guest = cardOf(input.guest);
+    const card = guestCard(input.guest);
     const stay = await ctx.ops().post<{ id: string }>(`/api/v1/ops/stays/${booking.id}/checkin`, {
       roomId: room.id,
-      ...(guest ? { guest } : {}),
+      ...(Object.keys(card).length ? { guest: card } : {}),
     });
     // The stay's bill, read back from the desk's day as it now stands.
     const after = await ctx.ops().get<ApiBoard>("/api/v1/ops/front-desk");
@@ -174,10 +179,8 @@ export interface WalkInInput {
   phone?: string;
   /** Where the claim code goes, so the guest can carry on in the app. */
   email?: string;
-  /** ISO 3166-1 alpha-2: with a phone, files the guest with the area's leaders (and DGIE from abroad). */
-  nationality?: string;
-  documentType?: "national_id" | "passport";
-  idNumber?: string;
+  /** The registration card (0114). */
+  guest?: GuestCard;
 }
 
 export interface WalkedIn {
@@ -256,15 +259,7 @@ export async function walkIn(ctx: SourceContext, input: WalkInInput): Promise<Wa
       roomId: room.id,
       guestName: name,
       plannedExitAt: new Date(`${leaves}T${checkOutTime}:00+02:00`).toISOString(),
-      guest: {
-        fullName: name,
-        ...(phone ? { phone } : {}),
-        ...(email ? { email } : {}),
-        ...(input.nationality ? { nationality: input.nationality } : {}),
-        ...(input.idNumber?.trim() && input.documentType
-          ? { documentType: input.documentType, idNumber: input.idNumber.trim().toUpperCase() }
-          : {}),
-      },
+      guest: { fullName: name, ...guestCard(input.guest), ...(phone ? { phone } : {}), ...(email ? { email } : {}) },
     });
     const after = await ctx.ops().get<ApiBoard>("/api/v1/ops/front-desk");
     const opened = after.stays.find((s) => s.id === stay.id);
@@ -313,5 +308,51 @@ export async function markNoShow(ctx: SourceContext, bookingRef: string, reason:
   const { booking } = await bookingOf(ctx, bookingRef);
   await command(ctx, () =>
     ctx.ops().post(`/api/v1/ops/reservations/${booking.id}/no-show`, { reason: reason || undefined }),
+  );
+}
+
+// ── Changing a reservation (0120): its dates, room type or party ────────────────────────────────────
+
+/** The stay as it stands and the room types it may move to, for the change form. */
+export async function reservationChangeForm(ctx: SourceContext, bookingRef: string): Promise<ReservationChangeForm> {
+  const { booking } = await bookingOf(ctx, bookingRef);
+  return ctx.ops().get<ReservationChangeForm>(`/api/v1/ops/reservations/${booking.id}/change`);
+}
+
+/** What the change would cost: the new price, the difference against what was paid, and the choices. */
+export async function quoteReservationChange(
+  ctx: SourceContext,
+  bookingRef: string,
+  ask: ReservationChangeAsk,
+): Promise<ReservationChangeQuote> {
+  const { booking } = await bookingOf(ctx, bookingRef);
+  return ctx.ops().post<ReservationChangeQuote>(`/api/v1/ops/reservations/${booking.id}/change/quote`, ask);
+}
+
+/** Make the change: at once, or once the guest pays the difference by MoMo. */
+export async function changeReservation(
+  ctx: SourceContext,
+  bookingRef: string,
+  body: ReservationChangeRequest,
+): Promise<ReservationChangeResult> {
+  const { booking } = await bookingOf(ctx, bookingRef);
+  return command(ctx, () =>
+    ctx.ops().post<ReservationChangeResult>(`/api/v1/ops/reservations/${booking.id}/change`, body),
+  );
+}
+
+/** Where the guest's MoMo payment of a change got to. */
+export async function pollReservationChange(
+  ctx: SourceContext,
+  bookingRef: string,
+  attemptToken: string,
+): Promise<ReservationChangeResult> {
+  const { booking } = await bookingOf(ctx, bookingRef);
+  return command(ctx, () =>
+    ctx
+      .ops()
+      .get<ReservationChangeResult>(
+        `/api/v1/ops/reservations/${booking.id}/change/attempts/${encodeURIComponent(attemptToken)}`,
+      ),
   );
 }

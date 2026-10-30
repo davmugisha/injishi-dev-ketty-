@@ -30,7 +30,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { RegistrationFeePaymentService } from '../../../modules/booking/application/registration-fee-payment.service';
+import { RegistrationFeePaymentService } from '../../../modules/pms/application/registration-fee-payment.service';
 import { POLL_LIMIT_PER_MINUTE } from '../bookings/bookings.controller';
 import { BrokerRegistrationService } from '../../../modules/organization/application/broker-registration.service';
 import { RegistrationService } from '../../../modules/organization/application/registration.service';
@@ -245,13 +245,29 @@ export class RegistrationsController {
   }
 
   /**
+   * A PSF District Manager's one-step review → `approved`, and on to `active`
+   * as an approval always goes (0119). Region is checked in the service.
+   */
+  @Post(':id/review')
+  @UseGuards(SessionGuard, OversightGuard)
+  @RequireOversight('psf_membership_officer')
+  review(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(PassGateRequest)) body: PassGateRequest,
+    @CurrentUser() user: SessionUser,
+    @CurrentOversight() grants: OversightGrant[],
+  ): Promise<RegistrationSummary> {
+    return this.registrations.review(id, user.id, grants, body.notes ?? null);
+  }
+
+  /**
    * Refuse at the field verification gate, with a reason the registrant can act
-   * on. The approver's refusal is the sibling route below — two routes rather
+   * on. A PSF District Manager refuses here too: their review is that gate. The approver's refusal is the sibling route below — two routes rather
    * than one, because the guard has to name a single function.
    */
   @Post(':id/field-reject')
   @UseGuards(SessionGuard, OversightGuard)
-  @RequireOversight('business_field_verifier')
+  @RequireOversight('business_field_verifier', 'psf_membership_officer')
   fieldReject(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(RejectRegistrationRequest))

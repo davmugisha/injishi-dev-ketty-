@@ -7,7 +7,7 @@ import { AddressPicker, type AddressDraft } from "./address-picker";
 import { Callout } from "./register-shell";
 
 /**
- * Location (Register.dc.html, step two's last section): province to village,
+ * Location (Register.dc.html, a section of Business): province to village,
  * and a street or landmark. When RRA holds an address for the TIN, its province,
  * district and sector are filled in already and only the cell and village are
  * left to pick.
@@ -51,7 +51,7 @@ export function SectionLocation({
       <Callout tone="info" icon={<Info size={16} aria-hidden />} title={prefilled ? "Filled in from RRA" : "Where it is"}>
         {prefilled
           ? "Filled in from the address RRA holds for this TIN. Pick the cell and village to finish."
-          : "Pick where it is, level by level. A district officer visits this address."}
+          : "Pick where it is, level by level, down to the village."}
       </Callout>
       <AddressPicker
         idPrefix="register-location"
@@ -70,7 +70,7 @@ export function SectionLocation({
           Save location
         </Button>
         <span id="register-location-why" className="text-xs text-muted-foreground">
-          {missing.length ? `Pick the ${missing.join(" and ")} to save.` : "You can change it later from Overview."}
+          {missing.length ? `Pick the ${missing.join(" and ")} to save.` : "You can change it until you pay."}
         </span>
       </div>
     </>

@@ -102,7 +102,9 @@ test("appointing: the area at the level the role covers", () => {
   assert.equal(AppointOfficerRequest.parse(leader).email, "a@b.rw");
   assert.equal(AppointOfficerRequest.safeParse({ ...leader, scopeLevel: "district", districtId: 1 }).success, false);
   assert.equal(AppointOfficerRequest.safeParse({ ...leader, sectorId: null }).success, false);
-  assert.equal(AppointOfficerRequest.safeParse({ ...leader, role: "psf_membership_officer", scopeLevel: "district", districtId: 1 }).success, false);
+  // A PSF District Manager is appointed to a district: that is the manager who decides.
+  assert.equal(AppointOfficerRequest.safeParse({ ...leader, role: "psf_membership_officer", scopeLevel: "district", districtId: 1, sectorId: null }).success, true);
+  assert.equal(AppointOfficerRequest.safeParse({ ...leader, role: "psf_membership_officer", scopeLevel: "village", villageId: 1, sectorId: null }).success, false);
 });
 
 test("a report period: the end not before the start, at most two years", () => {

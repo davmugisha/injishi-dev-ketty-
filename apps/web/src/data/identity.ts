@@ -28,10 +28,26 @@ export async function scanIdentity(
   documentType: AccountDocumentType,
   frontKey: string,
   selfieKey: string,
+  issuingCountry?: string,
 ): Promise<ApiResult<IdentityScanResult>> {
   const res = await apiFetch<unknown>("/api/v1/me/identity/scan", {
     method: "POST",
-    body: { documentType, frontKey, selfieKey },
+    body: { documentType, frontKey, selfieKey, ...(issuingCountry ? { issuingCountry } : {}) },
+  });
+  if (res.status !== "ok") return res;
+  const parsed = IdentityScanResult.safeParse(res.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+}
+
+/**
+ * A National ID checked by its number against NIDA's register (through
+ * GTBank), with a selfie uploaded first. No code goes to any phone. The number
+ * goes to the server and nowhere else: it is never kept in the draft.
+ */
+export async function checkNationalId(documentNumber: string, selfieKey: string): Promise<ApiResult<IdentityScanResult>> {
+  const res = await apiFetch<unknown>("/api/v1/me/identity/national-id", {
+    method: "POST",
+    body: { documentNumber, selfieKey },
   });
   if (res.status !== "ok") return res;
   const parsed = IdentityScanResult.safeParse(res.data);

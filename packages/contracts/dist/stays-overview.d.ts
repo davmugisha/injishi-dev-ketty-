@@ -73,13 +73,13 @@ export declare const StaysSummary: z.ZodObject<{
         size: "full" | "compact";
         properties: number;
     };
-    today: string;
     counts: {
         inHouse: number;
         arrivalsToday: number;
         departuresToday: number;
         requestsWaiting: number;
     };
+    today: string;
 }, {
     business: {
         kind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
@@ -90,13 +90,13 @@ export declare const StaysSummary: z.ZodObject<{
         size: "full" | "compact";
         properties: number;
     };
-    today: string;
     counts: {
         inHouse: number;
         arrivalsToday: number;
         departuresToday: number;
         requestsWaiting: number;
     };
+    today: string;
 }>;
 export type StaysSummary = z.infer<typeof StaysSummary>;
 /** Where a stay stands, as the home and the calendar word it. */

@@ -42,7 +42,7 @@ const WEB = at("apps/web/src/app/(marketplace)/stay/page.tsx");
 const APP = at("apps/app/src/features/frontdesk/arrivals.tsx");
 const MOBILE = at("apps/mobile/src/screens/stay.tsx");
 const PACKAGE = at("packages/ui/src/layout.tsx");
-const SERVER = at("server/api/src/modules/booking/booking.module.ts");
+const SERVER = at("server/api/src/modules/pms/booking.module.ts");
 
 const valid = (code, filename) => ({ code, filename });
 const invalid = (code, filename, messageId) => ({ code, filename, errors: [{ messageId }] });
@@ -97,7 +97,7 @@ describe("injishi/product-boundaries", () => {
         invalid(`import { definition } from "@injishi/product-hr";`, SERVER, "serverToProduct"),
         // Client code to the server, a driver, a provider SDK or auth's server entry.
         invalid(`import { BookingService } from "@injishi/api";`, APP, "clientToServer"),
-        invalid(`import { x } from "../../../../../server/api/src/modules/booking/booking.service.ts";`, APP, "clientToServer"),
+        invalid(`import { x } from "../../../../../server/api/src/modules/pms/booking.service.ts";`, APP, "clientToServer"),
         invalid(`import { Pool } from "pg";`, APP, "clientToServer"),
         invalid(`import { pgTable } from "drizzle-orm/pg-core";`, PMS, "clientToServer"),
         invalid(`import { S3Client } from "@aws-sdk/client-s3";`, WEB, "clientToServer"),

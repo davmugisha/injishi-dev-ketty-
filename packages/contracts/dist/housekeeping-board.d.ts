@@ -61,17 +61,17 @@ export declare const HousekeepingBoardRoom: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "active" | "requested";
         id: string;
-        workOrderId: string | null;
-        workOrderReference: string | null;
         startsAt: string;
         endsAt: string | null;
+        workOrderId: string | null;
+        workOrderReference: string | null;
     }, {
         status: "active" | "requested";
         id: string;
-        workOrderId: string | null;
-        workOrderReference: string | null;
         startsAt: string;
         endsAt: string | null;
+        workOrderId: string | null;
+        workOrderReference: string | null;
     }>>;
 }, "strip", z.ZodTypeAny, {
     status: "available" | "maintenance" | "out_of_service";
@@ -95,10 +95,10 @@ export declare const HousekeepingBoardRoom: z.ZodObject<{
     block: {
         status: "active" | "requested";
         id: string;
-        workOrderId: string | null;
-        workOrderReference: string | null;
         startsAt: string;
         endsAt: string | null;
+        workOrderId: string | null;
+        workOrderReference: string | null;
     } | null;
 }, {
     status: "available" | "maintenance" | "out_of_service";
@@ -122,10 +122,10 @@ export declare const HousekeepingBoardRoom: z.ZodObject<{
     block: {
         status: "active" | "requested";
         id: string;
-        workOrderId: string | null;
-        workOrderReference: string | null;
         startsAt: string;
         endsAt: string | null;
+        workOrderId: string | null;
+        workOrderReference: string | null;
     } | null;
 }>;
 export type HousekeepingBoardRoom = z.infer<typeof HousekeepingBoardRoom>;
@@ -383,17 +383,17 @@ export declare const HousekeepingBoard: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             status: "active" | "requested";
             id: string;
-            workOrderId: string | null;
-            workOrderReference: string | null;
             startsAt: string;
             endsAt: string | null;
+            workOrderId: string | null;
+            workOrderReference: string | null;
         }, {
             status: "active" | "requested";
             id: string;
-            workOrderId: string | null;
-            workOrderReference: string | null;
             startsAt: string;
             endsAt: string | null;
+            workOrderId: string | null;
+            workOrderReference: string | null;
         }>>;
     }, "strip", z.ZodTypeAny, {
         status: "available" | "maintenance" | "out_of_service";
@@ -417,10 +417,10 @@ export declare const HousekeepingBoard: z.ZodObject<{
         block: {
             status: "active" | "requested";
             id: string;
-            workOrderId: string | null;
-            workOrderReference: string | null;
             startsAt: string;
             endsAt: string | null;
+            workOrderId: string | null;
+            workOrderReference: string | null;
         } | null;
     }, {
         status: "available" | "maintenance" | "out_of_service";
@@ -444,10 +444,10 @@ export declare const HousekeepingBoard: z.ZodObject<{
         block: {
             status: "active" | "requested";
             id: string;
-            workOrderId: string | null;
-            workOrderReference: string | null;
             startsAt: string;
             endsAt: string | null;
+            workOrderId: string | null;
+            workOrderReference: string | null;
         } | null;
     }>, "many">;
     tasks: z.ZodArray<z.ZodObject<{
@@ -690,10 +690,10 @@ export declare const HousekeepingBoard: z.ZodObject<{
         block: {
             status: "active" | "requested";
             id: string;
-            workOrderId: string | null;
-            workOrderReference: string | null;
             startsAt: string;
             endsAt: string | null;
+            workOrderId: string | null;
+            workOrderReference: string | null;
         } | null;
     }[];
     propertyId: string;
@@ -783,10 +783,10 @@ export declare const HousekeepingBoard: z.ZodObject<{
         block: {
             status: "active" | "requested";
             id: string;
-            workOrderId: string | null;
-            workOrderReference: string | null;
             startsAt: string;
             endsAt: string | null;
+            workOrderId: string | null;
+            workOrderReference: string | null;
         } | null;
     }[];
     propertyId: string;

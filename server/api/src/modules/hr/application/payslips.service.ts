@@ -6,7 +6,7 @@ import { assertInBranchScope, coversProperty, type ScopedWorkspace } from '../..
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { runBulk } from '../../../shared/lists/bulk';
 import { pageOf } from '../../../shared/lists/list-query';
-import { isCalendarDate, localMidnight } from '../../booking/domain/pricing';
+import { isCalendarDate, localMidnight } from '../../pms/domain/pricing';
 import { writeHrAudit } from '../infrastructure/hr-audit';
 import { PayRecordsRepository, type PayslipFullRow, type PayslipListRow } from '../infrastructure/pay-records.repository';
 import { PayrollRepository } from '../infrastructure/payroll.repository';

@@ -12,31 +12,40 @@ import {
   PsfOwnership,
   PsfTradeDirection,
   countryName,
+  psfFeeProblem,
+  psfStartingFee,
   type PsfTier,
 } from "@injishi/contracts";
-import { Button, Checkbox } from "@injishi/web-ui";
+import { Badge, Button, Checkbox } from "@injishi/web-ui";
 import { X } from "lucide-react";
 
 import { formatRwf } from "@/lib/money";
 
 import { COUNTRY_OPTIONS } from "./country-options";
 import { PhoneInput } from "./phone-input";
-import { Field, SelectField, TextInput } from "./wizard-ui";
+import { ChoiceCard, Field, Fieldset, SelectField, TextInput } from "./wizard-ui";
 
 /**
  * PSF's own membership form (ADR-056), as the registration artboard draws it
  * under "Apply now": sent with the registration as `business.psfApplication`,
- * written in the same transaction, and passed to PSF only once Injishi approves
- * the business. Injishi takes no payment for PSF (`PSF_FEE_NOTICE`).
+ * written in the same transaction, and passed to PSF only once the district's
+ * PSF officer approves the business. Injishi takes no payment for PSF
+ * (`PSF_FEE_NOTICE`).
  *
  * What the wizard already knows is filled in (the name RRA holds, the company
- * type, the checked name, birth date and phone), so most of it is read and
- * confirmed rather than typed. The ID is the one checked on step two
- * (`useDocumentOnFile`), never typed again, when there is one on file.
+ * type, the name, birth date and phone), so most of it is read and confirmed
+ * rather than typed. This form sits on Business, step one, BEFORE You asks for
+ * the ID, so nothing has been checked in this walk yet: the ID it names is one
+ * already on file, from an earlier scan or the account (`useDocumentOnFile`),
+ * when there is one. With none it asks for a National ID or a passport, the two
+ * `PsfIdDocument` takes; an ID recorded on You afterwards replaces the typed
+ * one, because the request then names the document on file.
  */
 
 export interface PsfDraft {
   requestedTierCode: string;
+  /** Digits the applicant will pay a year for the chosen band (declared to PSF). */
+  declaredFee: string;
   companyName: string;
   streetAddress: string;
   website: string;
@@ -54,13 +63,15 @@ export interface PsfDraft {
   phoneE164: string;
   email: string;
   dateOfBirth: string;
-  /** Only when no checked document is on file to use. */
-  nationalId: string;
+  /** Only when no document is on file to use: which ID, and its number. */
+  idType: "national_id" | "passport";
+  idNumber: string;
   consent: boolean;
 }
 
 export const EMPTY_PSF: PsfDraft = {
   requestedTierCode: "",
+  declaredFee: "",
   companyName: "",
   streetAddress: "",
   website: "",
@@ -78,15 +89,24 @@ export const EMPTY_PSF: PsfDraft = {
   phoneE164: "",
   email: "",
   dateOfBirth: "",
-  nationalId: "",
+  idType: "national_id",
+  idNumber: "",
   consent: false,
 };
+
+/** Digits only: `5,000,000` and `5 000 000` both become 5000000. */
+function amountOf(raw: string): number | null {
+  const digits = raw.replace(/[\s,]/g, "");
+  return /^\d+$/.test(digits) ? Number(digits) : null;
+}
 
 /** The draft in the contract's shape: absent optionals absent, the ID from file when there is one. */
 export function psfCandidate(d: PsfDraft, documentOnFile: boolean): unknown {
   const trading = d.tradeDirection !== "none";
+  const amount = amountOf(d.declaredFee);
   return {
     requestedTierCode: d.requestedTierCode,
+    ...(amount !== null ? { declaredFeeRwf: amount } : {}),
     companyName: d.companyName,
     streetAddress: d.streetAddress,
     ...(d.website.trim() ? { website: d.website.trim() } : {}),
@@ -105,7 +125,12 @@ export function psfCandidate(d: PsfDraft, documentOnFile: boolean): unknown {
     email: d.email,
     ...(documentOnFile
       ? { useDocumentOnFile: true }
-      : { idDocument: { documentType: "national_id", documentNumber: d.nationalId.replace(/\s+/g, "") } }),
+      : {
+          idDocument:
+            d.idType === "passport"
+              ? { documentType: "passport", documentNumber: d.idNumber }
+              : { documentType: "national_id", documentNumber: d.idNumber.replace(/\s+/g, "") },
+        }),
     dateOfBirth: d.dateOfBirth,
     ...(d.consent ? { consent: true } : {}),
   };
@@ -115,6 +140,8 @@ function tierLabel(t: PsfTier): string {
   if (t.priceKind === "fixed" && t.annualFeeRwf !== null) return `${t.nameEn}, ${formatRwf(t.annualFeeRwf)} a year`;
   if (t.priceKind === "range" && t.annualFeeMinRwf !== null && t.annualFeeMaxRwf !== null)
     return `${t.nameEn}, ${formatRwf(t.annualFeeMinRwf)} to ${formatRwf(t.annualFeeMaxRwf)} a year`;
+  if (t.priceKind === "minimum" && t.annualFeeMinRwf !== null)
+    return `${t.nameEn}, from ${formatRwf(t.annualFeeMinRwf)} a year`;
   return `${t.nameEn}, priced by PSF`;
 }
 
@@ -136,24 +163,38 @@ export function PsfApplication({
   tiers: PsfTier[] | null;
   tiersFailed: boolean;
   onRetryTiers: () => void;
-  /** "National ID ending 6789, the one checked", or null when no document is on file. */
+  /** "National ID ending 6789, already checked", or null when no document is on file. */
   documentLine: string | null;
   errors: Record<string, string>;
 }) {
   const set = <K extends keyof PsfDraft>(key: K, value: PsfDraft[K]) => onChange({ ...draft, [key]: value });
-  const e = (k: string) => errors[`psf.${k}`];
+  const e = (k: string) => errors[`psf.${k}`] ?? errors[`business.psfApplication.${k}`];
   const trading = draft.tradeDirection !== "none";
+  const tier = (tiers ?? []).find((t) => t.code === draft.requestedTierCode) ?? null;
+  const amount = amountOf(draft.declaredFee);
+  const amountProblem = tier && tier.priceKind !== "set_by_psf" && draft.declaredFee.trim() ? psfFeeProblem(tier, amount) : null;
+  const needsDeclared = tier !== null && tier.priceKind !== "set_by_psf";
+
+  const pickTier = (code: string) => {
+    const next = (tiers ?? []).find((t) => t.code === code) ?? null;
+    const start = next ? psfStartingFee(next) : null;
+    onChange({
+      ...draft,
+      requestedTierCode: code,
+      declaredFee: start !== null ? String(start) : "",
+    });
+  };
 
   return (
     <div className="flex flex-col gap-5 rounded-card bg-secondary p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-base font-semibold">PSF membership application</h4>
-        <span className="rounded-full bg-card px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-          Sent to PSF after approval
-        </span>
+        <Badge variant="subtle" size="sm">
+          Filed with this registration
+        </Badge>
       </div>
 
-      <div className="max-w-form">
+      <div className="max-w-form flex flex-col gap-4">
         <Field label="Membership tier" hint={PSF_FEE_NOTICE} error={e("requestedTierCode")}>
           <SelectField
             id="psf-tier"
@@ -162,11 +203,33 @@ export function PsfApplication({
             disabled={tiersFailed || tiers === null || !tiers.some((t) => t.active)}
             invalid={Boolean(e("requestedTierCode"))}
             options={(tiers ?? []).filter((t) => t.active).map((t) => ({ value: t.code, label: tierLabel(t) }))}
-            onChange={(v) => set("requestedTierCode", v)}
+            onChange={pickTier}
           />
         </Field>
+        {tier && needsDeclared ? (
+          <Field
+            label="What you will pay a year (RWF)"
+            hint={
+              amountProblem ??
+              e("declaredFeeRwf") ??
+              (tier.priceKind === "minimum" && tier.annualFeeMinRwf !== null
+                ? `This band starts at ${formatRwf(tier.annualFeeMinRwf)}. Pick Indatwa or Indashyikirwa for a lower amount.`
+                : tierLabel(tier))
+            }
+            error={amountProblem ?? e("declaredFeeRwf")}
+          >
+            <TextInput
+              className="w-full tabular-nums"
+              inputMode="numeric"
+              value={draft.declaredFee ? Number(draft.declaredFee).toLocaleString("en-US") : ""}
+              aria-invalid={Boolean(amountProblem || e("declaredFeeRwf"))}
+              readOnly={tier.priceKind === "fixed"}
+              onChange={(ev) => set("declaredFee", ev.target.value.replace(/[^\d]/g, "").slice(0, 12))}
+            />
+          </Field>
+        ) : null}
         {tiersFailed || (tiers !== null && !tiers.some((t) => t.active)) ? (
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
             <span>{tiersFailed ? "We couldn't load PSF's membership tiers." : "PSF has no active membership tiers right now."}</span>
             <Button variant="ghost" size="sm" onClick={onRetryTiers}>Try again</Button>
           </div>
@@ -292,35 +355,29 @@ export function PsfApplication({
         </Field>
       </div>
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-semibold">Gender, as PSF&apos;s form asks it</legend>
-        <div className="flex flex-wrap gap-x-7 gap-y-2">
+      <Fieldset
+        legend="Gender, as PSF's form asks it"
+        hint="This goes to PSF only. Your Injishi profile keeps your own answer."
+        error={e("gender")}
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
           {(
             [
               ["male", "Male"],
               ["female", "Female"],
             ] as const
           ).map(([value, label]) => (
-            <label key={value} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name="psf-gender"
-                value={value}
-                checked={draft.gender === value}
-                onChange={() => set("gender", value)}
-                className="size-4"
-              />
-              {label}
-            </label>
+            <ChoiceCard
+              key={value}
+              name="psf-gender"
+              value={value}
+              checked={draft.gender === value}
+              title={label}
+              onSelect={() => set("gender", value)}
+            />
           ))}
         </div>
-        <span className="text-xs text-muted-foreground">This goes to PSF only. Your Injishi profile keeps your own answer.</span>
-        {e("gender") ? (
-          <span role="alert" className="text-sm text-destructive">
-            {e("gender")}
-          </span>
-        ) : null}
-      </fieldset>
+      </Fieldset>
 
       {documentLine ? (
         <dl className="flex flex-wrap gap-x-4 gap-y-1 rounded-card bg-card px-4 py-3 text-sm">
@@ -328,13 +385,28 @@ export function PsfApplication({
           <dd className="font-medium">{documentLine}</dd>
         </dl>
       ) : (
-        <div className="max-w-form">
-          <Field label="National ID for PSF" hint="16 digits" error={e("idDocument.documentNumber") ?? e("idDocument")}>
+        <div className="grid max-w-form gap-4 sm:grid-cols-2">
+          <Field label="ID for PSF">
+            <SelectField
+              id="psf-id-type"
+              value={draft.idType}
+              options={[
+                { value: "national_id", label: "Rwandan National ID" },
+                { value: "passport", label: "Passport" },
+              ]}
+              onChange={(v) => onChange({ ...draft, idType: v === "passport" ? "passport" : "national_id", idNumber: "" })}
+            />
+          </Field>
+          <Field
+            label={draft.idType === "passport" ? "Passport number" : "National ID number"}
+            hint={draft.idType === "passport" ? "6 to 12 letters or digits" : "16 digits"}
+            error={e("idDocument.documentNumber") ?? e("idDocument")}
+          >
             <TextInput
               className="w-full tabular-nums"
-              inputMode="numeric"
-              value={draft.nationalId}
-              onChange={(ev) => set("nationalId", ev.target.value)}
+              inputMode={draft.idType === "passport" ? "text" : "numeric"}
+              value={draft.idNumber}
+              onChange={(ev) => set("idNumber", ev.target.value)}
             />
           </Field>
         </div>

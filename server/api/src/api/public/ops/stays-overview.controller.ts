@@ -1,7 +1,7 @@
 import type { StaysActivity, StaysSummary } from '@injishi/contracts';
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 
-import { StaysOverviewService } from '../../../modules/operations/application/stays-overview.service';
+import { StaysOverviewService } from '../../../modules/pms/application/stays-overview.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import { CurrentWorkspace, RequireAnyPermission, WorkspaceGuard } from '../../../shared/auth/workspace.guard';

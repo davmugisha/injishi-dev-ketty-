@@ -70,16 +70,14 @@ export interface GuestMailInput {
 }
 
 function stayLine(input: GuestMailInput): string {
-  const host =
-    input.hostKind === 'tenant' ? 'A tenant' : input.hostKind === 'hotel' ? 'A guest house, lodge or hotel' : 'A landlord';
+  const host = input.hostKind === 'tenant' ? 'A tenant' : input.hostKind === 'hotel' ? 'A hotel' : 'A landlord';
   const where = input.area ? ` in ${input.area}` : '';
   const dates =
     input.arrivalOn === input.departureOn
       ? `on ${longDate(input.arrivalOn)}`
       : `from ${longDate(input.arrivalOn)} to ${longDate(input.departureOn)}`;
-  return input.hostKind === 'hotel'
-    ? `${host}${where} checked in a guest staying ${dates}.`
-    : `${host}${where} registered a guest staying ${dates}.`;
+  if (input.hostKind === 'hotel') return `${host}${where} checked in a guest staying ${dates}.`;
+  return `${host}${where} registered a guest staying ${dates}.`;
 }
 
 /** A guest was filed in the leader's area: one per registration, per leader. */

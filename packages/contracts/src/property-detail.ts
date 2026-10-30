@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { RoomTypeSummary } from "./booking";
 import { PropertyFacility } from "./outlets";
+import { PropertyPolicies } from "./property-policies";
 // --- Read: property detail (F-B15) -----------------------------------------
 /**
  * Its own file because `facilities` reaches `outlets.ts`, which reaches
@@ -27,6 +28,10 @@ export const PropertyDetail = z.object({
     checkInTime: z.string().nullable(),
     checkOutTime: z.string().nullable(),
     houseRules: z.string().nullable(),
+    /** 0117: the check-in window's end, the front desk, languages and the house rules as choices. */
+    policies: PropertyPolicies.optional(),
+    /** 0118: RDB's star grade, only once an officer has confirmed it; null otherwise. */
+    starGrade: z.number().int().min(1).max(5).nullish(),
     /**
      * One absolute URL per photograph, in the operator's order, the cover first.
      *
@@ -69,6 +74,19 @@ export const PropertyCard = z.object({
     photos: z.array(z.string().url()),
     /** The cheapest priced, sellable room type; null when none is priced. */
     fromNightlyRateRwf: z.number().int().nonnegative().nullable(),
+    /**
+     * How that price is counted: `per_unit` when every room type is let whole (a
+     * villa, an apartment), `per_item` when the place sells a menu and is not
+     * booked (a bar, a coffee shop), else `per_person`. Default per person, so an
+     * older API's card still parses.
+     */
+    fromPriceBasis: z.enum(["per_person", "per_unit", "per_item"]).default("per_person"),
+    /**
+     * What the business registered as (`orgs.business_kind`, else its class):
+     * "hotel", "villa", "coffee_shop". Default null so an older API's card
+     * still parses; a card with none says "Stay", never a guess from the name.
+     */
+    businessKind: z.string().nullable().default(null),
     /** The most guests any active room type sleeps; null when none states it. */
     maxGuests: z.number().int().positive().nullable(),
     roomTypeCount: z.number().int().nonnegative(),

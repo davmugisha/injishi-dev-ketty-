@@ -12,12 +12,14 @@ import {
   type MyAttendanceRequestList,
   type MyMonthlySummary,
   type MyRoster,
+  type MyShiftOptions,
   type MyShiftRequestList,
   type MyTeam,
   type MyTeamAttendance,
   type MyTeamRequests,
   type MyTeamRoster,
   type MyWorkFileList,
+  type MyWorkToday,
   type PhoneClockResult,
   type ShiftRequest,
 } from '@injishi/contracts';
@@ -40,6 +42,7 @@ import {
   SessionGuard,
   type SessionUser,
 } from '../../../shared/auth/session.guard';
+import { Idempotent } from '../../../shared/http/idempotency.interceptor';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -63,24 +66,39 @@ export class MeWorkController {
   }
 
   // --- Clock in and out from the phone ------------------------------------------------
+  //
+  // Mobile spec 0003: a punch carries the time of the tap (`ReportedTime`) and
+  // may carry an `Idempotency-Key`, so a phone that was offline sends it later,
+  // at the time it happened, and a resend has its effect once.
+
+  /** The shift card in one read: today's shifts, the open record and the last clock out (mobile spec 0003, D-u). */
+  @Get(':employeeId/today')
+  today(
+    @Param('employeeId', ParseUUIDPipe) employeeId: string,
+    @CurrentUser() user: SessionUser,
+  ): Promise<MyWorkToday> {
+    return this.work.today(user.id, employeeId);
+  }
 
   @Post(':employeeId/clock-in')
+  @Idempotent()
   clockIn(
     @Param('employeeId', ParseUUIDPipe) employeeId: string,
     @Body(new ZodValidationPipe(PhoneClockRequest)) body: PhoneClockRequest,
     @CurrentUser() user: SessionUser,
   ): Promise<PhoneClockResult> {
-    return this.work.clockIn(user.id, employeeId, body);
+    return this.work.clockIn(user.id, employeeId, body, new Date());
   }
 
   @Post(':employeeId/clock-out')
   @HttpCode(200)
+  @Idempotent()
   clockOut(
     @Param('employeeId', ParseUUIDPipe) employeeId: string,
     @Body(new ZodValidationPipe(PhoneClockRequest)) body: PhoneClockRequest,
     @CurrentUser() user: SessionUser,
   ): Promise<PhoneClockResult> {
-    return this.work.clockOut(user.id, employeeId, body);
+    return this.work.clockOut(user.id, employeeId, body, new Date());
   }
 
   // --- Roster and shift requests ------------------------------------------------------
@@ -100,6 +118,15 @@ export class MeWorkController {
     @CurrentUser() user: SessionUser,
   ): Promise<MyShiftRequestList> {
     return this.work.shiftRequests(user.id, employeeId);
+  }
+
+  /** The shifts and colleagues a request of the caller's own may name. */
+  @Get(':employeeId/shift-options')
+  shiftOptions(
+    @Param('employeeId', ParseUUIDPipe) employeeId: string,
+    @CurrentUser() user: SessionUser,
+  ): Promise<MyShiftOptions> {
+    return this.work.shiftOptions(user.id, employeeId);
   }
 
   @Post(':employeeId/shift-requests')

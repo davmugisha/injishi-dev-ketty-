@@ -1,6 +1,6 @@
 import { screens } from "@injishi/data";
 import type { Metadata } from "next";
-import { StaysCalendarView } from "@/features/stays/StaysCalendarView";
+import { StaysCalendarView } from "@/features/pms/stays/StaysCalendarView";
 import { requirePersona } from "@/lib/session";
 import { staysActivity } from "@/server/stays/client";
 

@@ -30,7 +30,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
-import { approvalPolicyEnum, bookingModeEnum, brokerFeeKindEnum, cancellationTierEnum, checkInMethodEnum, domainKindEnum, housekeepingStatusEnum, listingStatusEnum, rateDerivationKindEnum, ratePlanStatusEnum, rentalUnitStateEnum, roomStatusEnum, roomTypeStatusEnum, unitKitchenEnum } from './enums';
+import { approvalPolicyEnum, bookingModeEnum, roomPriceBasisEnum, brokerFeeKindEnum, cancellationTierEnum, checkInMethodEnum, domainKindEnum, housekeepingStatusEnum, listingStatusEnum, rateDerivationKindEnum, ratePlanStatusEnum, rentalUnitStateEnum, roomStatusEnum, roomTypeStatusEnum, unitKitchenEnum } from './enums';
 import { districts, sectors, villages } from './geography';
 import { storedObjects } from './hospitality';
 import { departments } from './operations';
@@ -78,9 +78,31 @@ export const properties = pgTable(
     longitude: numeric('longitude'),
     locationPrivacy: boolean('location_privacy').notNull().default(false),
     timezone: text('timezone').notNull().default('Africa/Kigali'),
+    // 0117: check-in is a window, from `check_in_time` until `check_in_until`.
     checkInTime: time('check_in_time'),
+    checkInUntil: time('check_in_until'),
     checkOutTime: time('check_out_time'),
     houseRules: text('house_rules'),
+    // 0117: what a guest is told before booking, as choices the platforms ask for. Every value is held
+    // to its list by a CHECK constraint as well as by the contract (`PropertyPolicies`).
+    frontDesk: text('front_desk'),
+    frontDeskOpens: time('front_desk_opens'),
+    frontDeskCloses: time('front_desk_closes'),
+    languages: text('languages').array().notNull().default(sql`'{}'::text[]`),
+    whatsapp: text('whatsapp'),
+    directions: text('directions'),
+    minCheckInAge: smallint('min_check_in_age'),
+    childrenPolicy: text('children_policy'),
+    petsPolicy: text('pets_policy'),
+    smokingPolicy: text('smoking_policy'),
+    partiesPolicy: text('parties_policy'),
+    quietFrom: time('quiet_from'),
+    quietUntil: time('quiet_until'),
+    internet: text('internet'),
+    parking: text('parking'),
+    /** 0118: a crib is free, charged (`crib_price_rwf` a night) or not offered. */
+    cribs: text('cribs'),
+    cribPriceRwf: amount('crib_price_rwf'),
     // How a guest or an officer reaches the property itself, which is not
     // always how they reach its owner: a group runs several front desks.
     // Nullable, because every property that predates the setup screen has none.
@@ -192,6 +214,8 @@ export const propertyPhotos = pgTable(
     /** 0 based and dense. The operator's chosen order, not an upload order. */
     position: integer('position').notNull(),
     isCover: boolean('is_cover').notNull().default(false),
+    /** 0118: the room type this photograph shows; null is the property itself. */
+    roomTypeId: uuid('room_type_id').references((): AnyPgColumn => roomTypes.id, { onDelete: 'set null' }),
     caption: text('caption'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
@@ -239,6 +263,18 @@ export const roomTypes = pgTable(
     amenityDetail: jsonb('amenity_detail'),
     status: roomTypeStatusEnum('status').notNull().default('active'),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
+    /** Per person, per whole unit, or per menu item (0115). */
+    priceBasis: roomPriceBasisEnum('price_basis').notNull().default('per_person'),
+    /** 0117: what one guest pays for a room priced per room; null means the room price. */
+    singleGuestPriceRwf: amount('single_guest_price_rwf'),
+    /** 0117: the kind of room (a Double sleeps two in one bed, a Twin two in two), its beds, size and bathroom. */
+    roomCategory: text('room_category'),
+    beds: jsonb('beds').$type<{ type: string; count: number }[]>(),
+    sizeM2: smallint('size_m2'),
+    bathroom: text('bathroom'),
+    /** 0118: how many extra beds the room takes, and what one costs a night, settled at the property. */
+    extraBedsMax: smallint('extra_beds_max'),
+    extraBedPriceRwf: amount('extra_bed_price_rwf'),
 
     // --- DEPRECATED (F-L03/F-L07 expand phase) ----------------------------
     // These are superseded but NOT yet dropped: the booking engine, contracts

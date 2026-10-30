@@ -1,9 +1,10 @@
 import { screens } from "@injishi/data";
 import type { ConditionSignal, SignalReview, WorkOrder } from "@injishi/data/fixtures/operations";
 import { stock } from "@injishi/data/media";
+import { MaintenanceView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { MaintenanceView } from "@/features/operations/MaintenanceView";
-import { StayMaintenanceView } from "@/features/stays/StayMaintenanceView";
+import { PmsMount } from "@/features/pms/pms-mount";
+import { StayMaintenanceView } from "@/features/pms/stays/StayMaintenanceView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { placeName, readWorkOrders } from "@/server/sources/operations";
@@ -32,16 +33,18 @@ export default async function MaintenancePage() {
     ]),
   );
   return (
-    <MaintenanceView
-      persona={persona}
-      data={{
-        workOrders,
-        signals,
-        reviews,
-        placeName: placeName(ctx),
-        medianHoursToClose: list.medianHoursToClose,
-        unshownPhotos,
-      }}
-    />
+    <PmsMount>
+      <MaintenanceView
+        persona={persona}
+        data={{
+          workOrders,
+          signals,
+          reviews,
+          placeName: placeName(ctx),
+          medianHoursToClose: list.medianHoursToClose,
+          unshownPhotos,
+        }}
+      />
+    </PmsMount>
   );
 }

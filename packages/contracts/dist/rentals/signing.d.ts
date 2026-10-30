@@ -26,13 +26,13 @@ export declare const SigningCodeSent: z.ZodObject<{
     resendInSeconds: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     sent: boolean;
-    expiresInSeconds: number;
     sentTo: string;
+    expiresInSeconds: number;
     resendInSeconds: number;
 }, {
     sent: boolean;
-    expiresInSeconds: number;
     sentTo: string;
+    expiresInSeconds: number;
     resendInSeconds: number;
 }>;
 export type SigningCodeSent = z.infer<typeof SigningCodeSent>;

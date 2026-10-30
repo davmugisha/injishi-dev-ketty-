@@ -44,7 +44,7 @@ function route(role: LeaderRole, over: Partial<RouteRow> = {}): RouteRow {
 
 type RepoMocks = Record<
   | 'holders' | 'find' | 'routesFor' | 'markNotified' | 'waitingRoutes' | 'currentWithRoles' | 'transaction' | 'relocate' | 'deliverWaiting'
-  | 'handOverWaiting' | 'areaNames' | 'releaseEnded',
+  | 'handOverWaiting' | 'areaNames' | 'releaseEnded' | 'rollHotelStays',
   Mock
 >;
 

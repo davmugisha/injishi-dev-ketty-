@@ -1,5 +1,5 @@
 {
-  "id": "a15bbb91-6d59-4307-a69d-0e68e138bb69",
+  "id": "8d029161-c50d-4352-b308-590c103ba218",
   "prevId": "006e0f4c-c648-4ff1-b062-106a9fe06791",
   "version": "7",
   "dialect": "postgresql",
@@ -26984,6 +26984,44 @@
           "notNull": true,
           "default": false
         },
+        "in_received_at": {
+          "name": "in_received_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "in_device_at": {
+          "name": "in_device_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "out_received_at": {
+          "name": "out_received_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "out_device_at": {
+          "name": "out_device_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "in_pending_reason": {
+          "name": "in_pending_reason",
+          "type": "attendance_pending_reason",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "out_pending_reason": {
+          "name": "out_pending_reason",
+          "type": "attendance_pending_reason",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -45387,12 +45425,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "guest_stay_id": {
-          "name": "guest_stay_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "registered_by_user_id": {
           "name": "registered_by_user_id",
           "type": "uuid",
@@ -45433,7 +45465,7 @@
           "name": "phone",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "nationality": {
           "name": "nationality",
@@ -45458,7 +45490,7 @@
           "name": "relationship",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "relationship_other": {
           "name": "relationship_other",
@@ -45571,22 +45603,6 @@
           ],
           "isUnique": false,
           "where": "\"guest_registrations\".\"lease_id\" IS NOT NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "guest_registrations_stay_uk": {
-          "name": "guest_registrations_stay_uk",
-          "columns": [
-            {
-              "expression": "guest_stay_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"guest_registrations\".\"guest_stay_id\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -45772,19 +45788,6 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "guest_registrations_guest_stay_id_guest_stays_id_fk": {
-          "name": "guest_registrations_guest_stay_id_guest_stays_id_fk",
-          "tableFrom": "guest_registrations",
-          "tableTo": "guest_stays",
-          "columnsFrom": [
-            "guest_stay_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "guest_registrations_registered_by_user_id_users_id_fk": {
           "name": "guest_registrations_registered_by_user_id_users_id_fk",
           "tableFrom": "guest_registrations",
@@ -45922,7 +45925,7 @@
       "checkConstraints": {
         "guest_registrations_host_shape": {
           "name": "guest_registrations_host_shape",
-          "value": "((\"guest_registrations\".\"host_kind\"::text = 'tenant'::text) AND (\"guest_registrations\".\"lease_id\" IS NOT NULL) AND (\"guest_registrations\".\"guest_stay_id\" IS NULL)) OR ((\"guest_registrations\".\"host_kind\"::text = 'landlord'::text) AND (\"guest_registrations\".\"lease_id\" IS NULL) AND (\"guest_registrations\".\"guest_stay_id\" IS NULL)) OR ((\"guest_registrations\".\"host_kind\"::text = 'hotel'::text) AND (\"guest_registrations\".\"lease_id\" IS NULL) AND (\"guest_registrations\".\"unit_id\" IS NULL) AND (\"guest_registrations\".\"guest_stay_id\" IS NOT NULL))"
+          "value": "(\"guest_registrations\".\"host_kind\" = 'tenant' AND \"guest_registrations\".\"lease_id\" IS NOT NULL) OR (\"guest_registrations\".\"host_kind\" = 'landlord' AND \"guest_registrations\".\"lease_id\" IS NULL)"
         },
         "guest_registrations_area_shape": {
           "name": "guest_registrations_area_shape",
@@ -45934,11 +45937,7 @@
         },
         "guest_registrations_phone_e164": {
           "name": "guest_registrations_phone_e164",
-          "value": "(\"guest_registrations\".\"phone\" IS NULL) OR (\"guest_registrations\".\"phone\" ~ '^[+][1-9][0-9]{7,14}$'::text)"
-        },
-        "guest_registrations_residence_fields": {
-          "name": "guest_registrations_residence_fields",
-          "value": "(\"guest_registrations\".\"host_kind\"::text = 'hotel'::text) OR ((\"guest_registrations\".\"relationship\" IS NOT NULL) AND (\"guest_registrations\".\"phone\" IS NOT NULL))"
+          "value": "\"guest_registrations\".\"phone\" ~ '^[+][1-9][0-9]{7,14}$'"
         },
         "guest_registrations_id_shape": {
           "name": "guest_registrations_id_shape",
@@ -45950,11 +45949,11 @@
         },
         "guest_registrations_origin_shape": {
           "name": "guest_registrations_origin_shape",
-          "value": "((\"guest_registrations\".\"host_kind\"::text = 'hotel'::text) AND ((\"guest_registrations\".\"origin_country\" = 'RW'::text) OR (\"guest_registrations\".\"origin_village_id\" IS NULL))) OR ((\"guest_registrations\".\"host_kind\"::text <> 'hotel'::text) AND ((\"guest_registrations\".\"origin_country\" = 'RW'::text) = (\"guest_registrations\".\"origin_village_id\" IS NOT NULL)))"
+          "value": "(\"guest_registrations\".\"origin_country\" = 'RW') = (\"guest_registrations\".\"origin_village_id\" IS NOT NULL)"
         },
         "guest_registrations_dates": {
           "name": "guest_registrations_dates",
-          "value": "(\"guest_registrations\".\"departure_on\" >= \"guest_registrations\".\"arrival_on\") AND ((\"guest_registrations\".\"departure_on\" - \"guest_registrations\".\"arrival_on\") <= 90)"
+          "value": "\"guest_registrations\".\"departure_on\" >= \"guest_registrations\".\"arrival_on\" AND \"guest_registrations\".\"departure_on\" - \"guest_registrations\".\"arrival_on\" <= 90"
         },
         "guest_registrations_cancelled_shape": {
           "name": "guest_registrations_cancelled_shape",
@@ -50621,6 +50620,112 @@
         }
       },
       "isRLSEnabled": false
+    },
+    "public.idempotency_keys": {
+      "name": "idempotency_keys",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "method": {
+          "name": "method",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "route": {
+          "name": "route",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_hash": {
+          "name": "request_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status_code": {
+          "name": "status_code",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "response_body": {
+          "name": "response_body",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idempotency_keys_created_idx": {
+          "name": "idempotency_keys_created_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "idempotency_keys_user_id_users_id_fk": {
+          "name": "idempotency_keys_user_id_users_id_fk",
+          "tableFrom": "idempotency_keys",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "idempotency_keys_user_id_key_pk": {
+          "name": "idempotency_keys_user_id_key_pk",
+          "columns": [
+            "user_id",
+            "key"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -52603,6 +52708,17 @@
         "payment_failed"
       ]
     },
+    "public.attendance_pending_reason": {
+      "name": "attendance_pending_reason",
+      "schema": "public",
+      "values": [
+        "no_location",
+        "no_branch_location",
+        "poor_accuracy",
+        "outside_fence",
+        "late_sync"
+      ]
+    },
     "public.hr_attendance_source": {
       "name": "hr_attendance_source",
       "schema": "public",
@@ -53300,8 +53416,7 @@
       "schema": "public",
       "values": [
         "tenant",
-        "landlord",
-        "hotel"
+        "landlord"
       ]
     },
     "public.guest_registration_status": {

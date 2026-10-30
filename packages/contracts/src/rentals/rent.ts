@@ -475,6 +475,11 @@ export const PayoutView = z.object({
   accountKind: PayoutAccountKind.nullable(),
   payeeName: z.string().nullable(),
   payment: z.object({ id: Uuid, leaseId: Uuid, leaseReference: z.string(), tenantName: z.string(), receiptNumber: z.string().nullable() }).nullable(),
+  /**
+   * A host's payout for a stay (0116): the booking it pays, by reference.
+   * Null on rent. Default null, so an older API's body still parses.
+   */
+  bookingReference: z.string().nullable().default(null),
   failureReason: z.string().nullable(),
   createdAt: IsoMoment,
   settledAt: IsoMoment.nullable(),

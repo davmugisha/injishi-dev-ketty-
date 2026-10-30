@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateOrgHolidayRequest = exports.OrgHolidayList = exports.OrgHoliday = exports.KioskPunchResult = exports.KioskPunchRequest = exports.KioskSession = exports.KioskPairRequest = exports.KioskPinState = exports.ChangeMyKioskPinRequest = exports.SetKioskPinRequest = exports.UnlockKioskPinRequest = exports.KioskPairingCode = exports.CreateKioskRequest = exports.KioskList = exports.Kiosk = exports.KioskStatus = exports.PutBranchClockSettingsRequest = exports.PutAttendancePolicyRequest = exports.AttendanceSettings = exports.BranchClockSettings = exports.AttendancePolicy = exports.DecideOvertimeRequest = exports.CreateMyAttendanceRequestRequest = exports.CreateAttendanceRequestRequest = exports.AttendanceRequest = exports.AttendanceRequestStatus = exports.DecideRequestBody = exports.CreateMyShiftRequestRequest = exports.CreateShiftRequestRequest = exports.ShiftRequest = exports.ShiftRequestStatus = exports.ShiftRequestKind = exports.EndRotationAssignmentRequest = exports.CreateRotationAssignmentRequest = exports.RotationAssignmentQuery = exports.RotationAssignmentList = exports.RotationAssignment = exports.UpdateRotationPatternRequest = exports.CreateRotationPatternRequest = exports.RotationPatternQuery = exports.RotationPatternList = exports.RotationPattern = exports.RotationPatternStatus = exports.RotationStep = exports.RotationRule = exports.RosterWeekQuery = exports.RosterWeek = exports.RosterPublicationList = exports.RosterPublication = exports.PublishRosterRequest = void 0;
-exports.MyTeamRequests = exports.TeamRequestsQuery = exports.TeamRequestKind = exports.MyTeamAttendance = exports.MyTeamRoster = exports.MyTeam = exports.MyMonthlySummary = exports.MonthQuery = exports.MyAttendanceRequestList = exports.MyAttendance = exports.MyShiftRequestList = exports.MyRoster = exports.RangeQuery = exports.PhoneClockResult = exports.PhoneClockRequest = exports.MyWorkFileList = exports.MyWorkFile = exports.MonthlyQuery = exports.InsightsQuery = exports.MonthlySummary = exports.MonthlySummaryRow = exports.LateEarlyReport = exports.LateEarlyRow = exports.UpdateWeeklyOffRequest = exports.CreateWeeklyOffRequest = exports.WeeklyOffList = exports.WeeklyOff = exports.UpdateOrgHolidayRequest = void 0;
+exports.MyTeamRequests = exports.TeamRequestsQuery = exports.TeamRequestKind = exports.MyTeamAttendance = exports.MyTeamRoster = exports.MyTeam = exports.MyMonthlySummary = exports.MonthQuery = exports.MyAttendanceRequestList = exports.MyAttendance = exports.MyShiftOptions = exports.MyShiftRequestList = exports.MyRoster = exports.RangeQuery = exports.MyWorkToday = exports.MyWorkTodayShift = exports.PhoneClockResult = exports.PhoneClockRequest = exports.MyWorkFileList = exports.MyWorkFile = exports.MonthlyQuery = exports.InsightsQuery = exports.MonthlySummary = exports.MonthlySummaryRow = exports.LateEarlyReport = exports.LateEarlyRow = exports.UpdateWeeklyOffRequest = exports.CreateWeeklyOffRequest = exports.WeeklyOffList = exports.WeeklyOff = exports.UpdateOrgHolidayRequest = void 0;
 const zod_1 = require("zod");
 const leave_1 = require("./leave");
+const offline_1 = require("./offline");
 const people_1 = require("./people");
 /**
  * Time (ADR-058, 058-time): publishing the roster, rotations, shift and swap
@@ -428,12 +429,18 @@ exports.MyWorkFile = zod_1.z.object({
     openRecord: zod_1.z.object({ id: Uuid, clockInAt: zod_1.z.string() }).nullable(),
 });
 exports.MyWorkFileList = zod_1.z.object({ files: zod_1.z.array(exports.MyWorkFile) });
-/** `POST /me/work/:employeeId/clock-in` and `/clock-out`: where the phone says it is, when it says. */
-exports.PhoneClockRequest = zod_1.z.object({
+/**
+ * `POST /me/work/:employeeId/clock-in` and `/clock-out`: where the phone says it
+ * is, and when the tap really happened (mobile spec 0003, `ReportedTime`).
+ */
+exports.PhoneClockRequest = zod_1.z
+    .object({
     lat: zod_1.z.number().min(-90).max(90).optional(),
     lng: zod_1.z.number().min(-180).max(180).optional(),
     accuracyM: zod_1.z.number().min(0).max(100000).optional(),
-});
+})
+    .merge(offline_1.ReportedTime)
+    .superRefine(offline_1.reportedTimePair);
 /** What a phone punch came to: the record, and whether it waits for validation and why. */
 exports.PhoneClockResult = zod_1.z.object({
     record: people_1.AttendanceRecord,
@@ -441,6 +448,43 @@ exports.PhoneClockResult = zod_1.z.object({
     /** Why it waits, in words; null when validated. */
     pendingReason: zod_1.z.string().nullable(),
     distanceM: zod_1.z.number().int().nullable(),
+});
+/** One published shift on the phone's shift card, with its template's planned break. */
+exports.MyWorkTodayShift = zod_1.z.object({
+    rosterEntryId: Uuid,
+    shiftName: zod_1.z.string(),
+    startsAt: zod_1.z.string(),
+    endsAt: zod_1.z.string(),
+    /** The template's planned break: what paid hours use, whatever breaks are recorded. */
+    breakMinutes: zod_1.z.number().int().min(0),
+    propertyId: Uuid,
+});
+/**
+ * `GET /me/work/:employeeId/today`: the phone's shift card in one read (mobile
+ * spec 0003, D-u). `shifts` holds the published, scheduled entries of today's
+ * Kigali work date, every one that overlaps the two hours either side of now
+ * (a night shift that crossed midnight), and the open record's own entry, by
+ * `startsAt`. `generatedAt` is the server's clock, for the phone's overlay.
+ */
+exports.MyWorkToday = zod_1.z.object({
+    employeeId: Uuid,
+    workDate: IsoDate,
+    generatedAt: zod_1.z.string(),
+    shifts: zod_1.z.array(exports.MyWorkTodayShift),
+    openRecord: zod_1.z
+        .object({
+        id: Uuid,
+        rosterEntryId: Uuid.nullable(),
+        workDate: IsoDate,
+        clockInAt: zod_1.z.string(),
+        validated: zod_1.z.boolean(),
+        pendingReason: people_1.AttendancePendingReason.nullable(),
+    })
+        .nullable(),
+    /** The open break; breaks arrive with milestone 3, so null until then. */
+    openBreak: zod_1.z.object({ id: Uuid, startedAt: zod_1.z.string() }).nullable(),
+    /** The latest clock out of this work day, when one closed. */
+    lastClockOutAt: zod_1.z.string().nullable(),
 });
 exports.RangeQuery = zod_1.z.object({ from: IsoDate, to: IsoDate }).superRefine(rangeRefine);
 /** `GET /me/work/:employeeId/roster`: published entries only (AC-TM2). */
@@ -451,6 +495,12 @@ exports.MyShiftRequestList = zod_1.z.object({
     /** Swaps colleagues asked of them, waiting for an answer. */
     askedOfMe: zod_1.z.array(exports.ShiftRequest),
 });
+/**
+ * `GET /me/work/:employeeId/shift-options`: what a request of the person's own
+ * may name (AC-TM5). The active shifts of the branch they work at, and the
+ * colleagues there a swap could be with: a roster card each, never a file.
+ */
+exports.MyShiftOptions = zod_1.z.object({ shifts: zod_1.z.array(people_1.ShiftTemplate), colleagues: zod_1.z.array(people_1.RosterCard) });
 exports.MyAttendance = zod_1.z.object({
     from: IsoDate,
     to: IsoDate,

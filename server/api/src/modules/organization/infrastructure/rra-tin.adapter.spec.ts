@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { RraTinAdapter } from './rra-tin.adapter';
+import { RraTinHttpAdapter } from './rra-tin-http.adapter';
 import { resolveTinMode, tinAdapterProvider } from './tin-adapter.provider';
 
 /**
@@ -57,9 +58,18 @@ describe('tinAdapterProvider', () => {
     );
   });
 
+  it('binds the HTTP adapter under sandbox, and only over a sample database', () => {
+    expect(resolveTinMode({ RRA_TIN_ADAPTER_MODE: 'Sandbox' })).toBe('sandbox');
+    const provider = tinAdapterProvider({ RRA_TIN_ADAPTER_MODE: 'sandbox' }) as {
+      useFactory: (platform: { sampleData: boolean }) => RraTinAdapter;
+    };
+    expect(provider.useFactory({ sampleData: true })).toBeInstanceOf(RraTinHttpAdapter);
+    expect(() => provider.useFactory({ sampleData: false })).toThrow(/RRA_TIN_ADAPTER_MODE=sandbox is refused/);
+  });
+
   it('refuses an unreadable mode rather than defaulting to mock', () => {
     expect(() => resolveTinMode({ RRA_TIN_ADAPTER_MODE: 'yes' })).toThrow(
-      /RRA_TIN_ADAPTER_MODE must be "mock" or "live"/,
+      /RRA_TIN_ADAPTER_MODE must be "mock", "sandbox" or "live"/,
     );
   });
 });

@@ -57,10 +57,15 @@ export async function approveAction(orgId: string, notes: string): Promise<Actio
   return run(async () => (await oversight.approve(await ctx(), orgId, notes)).status, true);
 }
 
+/** "Mark reviewed and approve" → `POST /registrations/:id/review` (a PSF District Manager, one step). */
+export async function reviewAction(orgId: string, notes: string): Promise<ActionResult<string>> {
+  return run(async () => (await oversight.review(await ctx(), orgId, notes)).status, true);
+}
+
 /** "Record rejection" → `field-reject` or `reject`, by the gate this officer decides. */
 export async function rejectAction(
   orgId: string,
-  gate: "field" | "approval",
+  gate: "field" | "approval" | "review",
   reasonCode: string,
   notes: string,
 ): Promise<ActionResult<string>> {

@@ -162,7 +162,7 @@ const ENTRIES: KnowledgeArticle[] = [
     href: null,
     lastVerified: '2026-09-30',
     status: 'current',
-    source: 'server/api/src/modules/listing-setup/domain/publish-eligibility.ts',
+    source: 'server/api/src/modules/platform/property/domain/publish-eligibility.ts',
   },
   {
     id: 'contact-support',

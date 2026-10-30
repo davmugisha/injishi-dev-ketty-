@@ -4,6 +4,7 @@ import type {
   PropertyDetail,
   RoomTypeSummary,
 } from '@injishi/contracts';
+import { policiesFromRow } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, desc, eq, exists, inArray, isNotNull, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
@@ -26,6 +27,76 @@ import {
   type Database,
 } from '../../../shared/database/database.module';
 import { buildFacilities } from '../domain/facilities';
+
+/** 0117: what a room is and who may sleep there, as every public room type read selects it. */
+const ROOM_FACT_COLUMNS = {
+  singleGuestPriceRwf: roomTypes.singleGuestPriceRwf,
+  roomCategory: roomTypes.roomCategory,
+  beds: roomTypes.beds,
+  maxAdults: roomTypes.maxAdults,
+  maxChildren: roomTypes.maxChildren,
+  sizeM2: roomTypes.sizeM2,
+  bathroom: roomTypes.bathroom,
+  extraBedsMax: roomTypes.extraBedsMax,
+  extraBedPriceRwf: roomTypes.extraBedPriceRwf,
+};
+
+/** The room facts off a row, nulls kept; the CHECK constraint holds `bathroom` to its two values. */
+function roomFactsOf(r: {
+  singleGuestPriceRwf: number | null;
+  roomCategory: string | null;
+  beds: { type: string; count: number }[] | null;
+  maxAdults: number | null;
+  maxChildren: number | null;
+  sizeM2: number | null;
+  bathroom: string | null;
+  extraBedsMax: number | null;
+  extraBedPriceRwf: number | null;
+}): {
+  singleGuestPriceRwf: number | null;
+  roomCategory: string | null;
+  beds: { type: string; count: number }[] | null;
+  maxAdults: number | null;
+  maxChildren: number | null;
+  sizeM2: number | null;
+  bathroom: 'private' | 'shared' | null;
+  extraBedsMax: number | null;
+  extraBedPriceRwf: number | null;
+} {
+  return {
+    singleGuestPriceRwf: r.singleGuestPriceRwf ?? null,
+    roomCategory: r.roomCategory,
+    beds: r.beds,
+    maxAdults: r.maxAdults,
+    maxChildren: r.maxChildren,
+    sizeM2: r.sizeM2,
+    bathroom: r.bathroom as 'private' | 'shared' | null,
+    extraBedsMax: r.extraBedsMax,
+    extraBedPriceRwf: r.extraBedPriceRwf ?? null,
+  };
+}
+
+/** 0117: the policy columns of a property's public page. */
+const POLICY_COLUMNS = {
+  checkInUntil: properties.checkInUntil,
+  frontDesk: properties.frontDesk,
+  frontDeskOpens: properties.frontDeskOpens,
+  frontDeskCloses: properties.frontDeskCloses,
+  languages: properties.languages,
+  whatsapp: properties.whatsapp,
+  directions: properties.directions,
+  minCheckInAge: properties.minCheckInAge,
+  childrenPolicy: properties.childrenPolicy,
+  petsPolicy: properties.petsPolicy,
+  smokingPolicy: properties.smokingPolicy,
+  partiesPolicy: properties.partiesPolicy,
+  quietFrom: properties.quietFrom,
+  quietUntil: properties.quietUntil,
+  internet: properties.internet,
+  parking: properties.parking,
+  cribs: properties.cribs,
+  cribPriceRwf: properties.cribPriceRwf,
+};
 
 const operatorParty = alias(outletParties, 'operator_party');
 
@@ -58,9 +129,11 @@ const PUBLICLY_VISIBLE = and(
  * is configuration, so `ListingService` builds it. The repository never returns
  * an object key to a caller that could put one on the wire.
  */
-export type PublicPropertyRecord = Omit<PropertyDetail, 'photos'> & {
+export type PublicPropertyRecord = Omit<PropertyDetail, 'photos' | 'roomTypes'> & {
   /** In the operator's order; the first is the cover. */
   photoIds: string[];
+  /** 0118: each with the id of its own first photograph, which the service turns into a route URL. */
+  roomTypes: (RoomTypeSummary & { photoId: string | null })[];
 };
 
 /** A discovery card, with its photographs as ids for the same reason. */
@@ -106,6 +179,9 @@ export class ListingRepository {
         checkInTime: properties.checkInTime,
         checkOutTime: properties.checkOutTime,
         houseRules: properties.houseRules,
+        policies: POLICY_COLUMNS,
+        // 0118: shown only once an officer has confirmed it against RDB's certificate.
+        starGrade: sql<number | null>`case when ${orgs.starGradeVerifiedAt} is not null then ${orgs.eacStarGrade} end`,
       })
       .from(properties)
       .innerJoin(listings, eq(listings.propertyId, properties.id))
@@ -137,6 +213,8 @@ export class ListingRepository {
       checkInTime: row.checkInTime ?? null,
       checkOutTime: row.checkOutTime ?? null,
       houseRules: row.houseRules ?? null,
+      policies: policiesFromRow(row.policies),
+      starGrade: row.starGrade ?? null,
       photoIds,
       roomTypes: types,
       facilities,
@@ -282,7 +360,12 @@ export class ListingRepository {
         latitude: properties.latitude,
         longitude: properties.longitude,
         fromNightlyRateRwf: sql<number | null>`min(${roomTypes.basePriceRwf}) filter (where ${roomTypes.status} = 'active' and ${roomTypes.domain} = 'hospitality')`,
+        fromPriceBasis: sql<'per_person' | 'per_unit' | 'per_item'>`case
+          when bool_and(${roomTypes.priceBasis} = 'per_item') filter (where ${roomTypes.status} = 'active') then 'per_item'
+          when bool_and(${roomTypes.priceBasis} = 'per_unit') filter (where ${roomTypes.status} = 'active') then 'per_unit'
+          else 'per_person' end`,
         maxGuests: sql<number | null>`max(${roomTypes.capacity}) filter (where ${roomTypes.status} = 'active')`,
+        businessKind: sql<string | null>`coalesce(${orgs.businessKind}::text, ${orgs.accommodationClass})`,
         roomTypeCount: sql<number>`count(${roomTypes.id}) filter (where ${roomTypes.status} = 'active')::int`,
       })
       .from(properties)
@@ -291,7 +374,7 @@ export class ListingRepository {
       .leftJoin(districts, eq(districts.id, properties.districtId))
       .leftJoin(roomTypes, eq(roomTypes.propertyId, properties.id))
       .where(and(PUBLICLY_VISIBLE, isNotNull(properties.slug)))
-      .groupBy(properties.id, districts.name)
+      .groupBy(properties.id, districts.name, orgs.businessKind, orgs.accommodationClass)
       .orderBy(asc(properties.name))
       .limit(limit);
 
@@ -327,6 +410,8 @@ export class ListingRepository {
       photoIds: photoIdsByProperty.get(row.id) ?? [],
       // Aggregates over bigint come back as strings from pg.
       fromNightlyRateRwf: row.fromNightlyRateRwf === null ? null : Number(row.fromNightlyRateRwf),
+      fromPriceBasis: row.fromPriceBasis,
+      businessKind: row.businessKind ?? null,
       maxGuests: row.maxGuests === null ? null : Number(row.maxGuests),
       roomTypeCount: Number(row.roomTypeCount),
     }));
@@ -359,7 +444,9 @@ export class ListingRepository {
         approvalPolicy: roomTypes.approvalPolicy,
         cancellationTier: roomTypes.cancellationTier,
         nonrefundableEligible: roomTypes.nonrefundableEligible,
+        priceBasis: roomTypes.priceBasis,
         minStay: roomTypes.minStay,
+        ...ROOM_FACT_COLUMNS,
         propertyId: properties.id,
         propertySlug: properties.slug,
         propertyName: properties.name,
@@ -408,7 +495,9 @@ export class ListingRepository {
         approvalPolicy: row.approvalPolicy,
         cancellationTier: row.cancellationTier,
         nonrefundableEligible: row.nonrefundableEligible,
+        priceBasis: row.priceBasis,
         minStay: row.minStay ?? null,
+        ...roomFactsOf(row),
       },
     };
   }
@@ -456,9 +545,13 @@ export class ListingRepository {
   }
 
   /** Active Room types for a property, cheapest first. */
-  async findRoomTypes(propertyId: string): Promise<RoomTypeSummary[]> {
+  async findRoomTypes(propertyId: string): Promise<(RoomTypeSummary & { photoId: string | null })[]> {
     const rows = await this.db
       .select({
+        // 0118: the room type's own first photograph, in the operator's order. The outer column is named in
+        // full: in a select list Drizzle writes a lone table's columns unqualified, and a bare "id" here would
+        // be the photograph's own.
+        photoId: sql<string | null>`(select pp.id from ${propertyPhotos} pp where pp.room_type_id = "room_types"."id" order by pp.position limit 1)`,
         id: roomTypes.id,
         name: roomTypes.name,
         domain: roomTypes.domain,
@@ -469,7 +562,9 @@ export class ListingRepository {
         approvalPolicy: roomTypes.approvalPolicy,
         cancellationTier: roomTypes.cancellationTier,
         nonrefundableEligible: roomTypes.nonrefundableEligible,
+        priceBasis: roomTypes.priceBasis,
         minStay: roomTypes.minStay,
+        ...ROOM_FACT_COLUMNS,
       })
       .from(roomTypes)
       .where(
@@ -485,10 +580,14 @@ export class ListingRepository {
       capacity: r.capacity ?? null,
       nightlyRateRwf: r.nightlyRateRwf ?? null,
       minStay: r.minStay ?? null,
+      ...roomFactsOf(r),
     }));
   }
 
-  /** The single Room type a booking is being made against (F-B05: one per Booking in v1). */
+  /**
+   * The single Room type a booking is being made against (F-B05: one per Booking in v1),
+   * only while its property is publicly visible (published, business active).
+   */
   async findRoomTypeForBooking(roomTypeId: string): Promise<
     | (RoomTypeSummary & { propertyId: string; workspaceId: string })
     | null
@@ -505,13 +604,25 @@ export class ListingRepository {
         approvalPolicy: roomTypes.approvalPolicy,
         cancellationTier: roomTypes.cancellationTier,
         nonrefundableEligible: roomTypes.nonrefundableEligible,
+        priceBasis: roomTypes.priceBasis,
         minStay: roomTypes.minStay,
+        ...ROOM_FACT_COLUMNS,
         propertyId: roomTypes.propertyId,
         workspaceId: roomTypes.workspaceId,
       })
       .from(roomTypes)
+      .innerJoin(properties, eq(properties.id, roomTypes.propertyId))
+      .innerJoin(listings, eq(listings.propertyId, properties.id))
+      .innerJoin(orgs, eq(orgs.id, properties.orgId))
       .where(
-        and(eq(roomTypes.id, roomTypeId), eq(roomTypes.status, 'active')),
+        and(
+          eq(roomTypes.id, roomTypeId),
+          eq(roomTypes.status, 'active'),
+          // Only what a guest can see is sellable. A business in review may
+          // build room types before approval, and a suspended one keeps its
+          // listing; neither is bookable by naming the id directly.
+          PUBLICLY_VISIBLE,
+        ),
       )
       .limit(1);
 
@@ -520,6 +631,7 @@ export class ListingRepository {
       ...row,
       capacity: row.capacity ?? null,
       nightlyRateRwf: row.nightlyRateRwf ?? null,
+      ...roomFactsOf(row),
     };
   }
 

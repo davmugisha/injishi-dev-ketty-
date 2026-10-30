@@ -14,12 +14,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { AmenitiesService } from '../../../modules/operations/application/amenities.service';
+import { AmenitiesService } from '../../../modules/platform/property/application/amenities.service';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
   RequireAnyPermission,
-  RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -69,9 +68,12 @@ export class OpsAmenitiesController {
     };
   }
 
-  /** Start offering one. Doing it twice is the same fact, not an error. */
+  /**
+   * Start offering one. Doing it twice is the same fact, not an error. `listing.manage` too (0118): what a
+   * stay offers is part of its listing, and a business in review builds its listing holding only that.
+   */
   @Post()
-  @RequirePermission('amenity.manage')
+  @RequireAnyPermission('amenity.manage', 'listing.manage')
   async add(
     @Body(new ZodValidationPipe(AddAmenityRequest)) body: AddAmenityRequest,
     @CurrentWorkspace() workspace: ScopedWorkspace,
@@ -81,7 +83,7 @@ export class OpsAmenitiesController {
 
   /** Stop offering one. Removing one never offered is also not an error. */
   @Delete(':code')
-  @RequirePermission('amenity.manage')
+  @RequireAnyPermission('amenity.manage', 'listing.manage')
   async remove(
     @Param('code') code: string,
     @Query(new ZodValidationPipe(PropertyScopedQuery))

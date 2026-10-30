@@ -41,10 +41,10 @@ import {
   workspaceLabel,
 } from '@injishi/contracts';
 
-import { GuestRefundsService } from '../../../modules/booking/application/guest-refunds.service';
-import { GuestTripsService } from '../../../modules/booking/application/guest-trips.service';
-import { PaymentAttemptService } from '../../../modules/booking/application/payment-attempt.service';
-import { GuestOrderingService } from '../../../modules/operations/application/guest-ordering.service';
+import { GuestRefundsService } from '../../../modules/pms/application/guest-refunds.service';
+import { GuestTripsService } from '../../../modules/pms/application/guest-trips.service';
+import { PaymentAttemptService } from '../../../modules/pms/application/payment-attempt.service';
+import { GuestOrderingService } from '../../../modules/outlets/application/guest-ordering.service';
 import { MessagingService } from '../../../modules/operations/application/messaging.service';
 import { IdempotencyKey } from '../../../shared/http/idempotency-key';
 import { ProfileService } from '../../../modules/user/application/profile.service';

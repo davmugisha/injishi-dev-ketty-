@@ -18,16 +18,16 @@ export declare const RentalsAttentionItem: z.ZodObject<{
     /** danger: money or a legal deadline is late; warning: needs doing soon; info: waiting on someone else. */
     tone: z.ZodEnum<["danger", "warning", "info"]>;
 }, "strip", z.ZodTypeAny, {
+    count: number;
     kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
     amountRwf: number | null;
-    count: number;
     title: string;
     detail: string | null;
     tone: "info" | "warning" | "danger";
 }, {
+    count: number;
     kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
     amountRwf: number | null;
-    count: number;
     title: string;
     detail: string | null;
     tone: "info" | "warning" | "danger";
@@ -90,12 +90,12 @@ export declare const RentalsSummary: z.ZodObject<{
         complete: boolean;
         total: number;
         done: number;
-        next: "units" | "location" | "signatory" | "getting_paid" | "lease_defaults" | null;
+        next: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults" | null;
     }, {
         complete: boolean;
         total: number;
         done: number;
-        next: "units" | "location" | "signatory" | "getting_paid" | "lease_defaults" | null;
+        next: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults" | null;
     }>;
     hasPayoutAccount: z.ZodBoolean;
     attention: z.ZodArray<z.ZodObject<{
@@ -110,16 +110,16 @@ export declare const RentalsSummary: z.ZodObject<{
         /** danger: money or a legal deadline is late; warning: needs doing soon; info: waiting on someone else. */
         tone: z.ZodEnum<["danger", "warning", "info"]>;
     }, "strip", z.ZodTypeAny, {
+        count: number;
         kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
         amountRwf: number | null;
-        count: number;
         title: string;
         detail: string | null;
         tone: "info" | "warning" | "danger";
     }, {
+        count: number;
         kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
         amountRwf: number | null;
-        count: number;
         title: string;
         detail: string | null;
         tone: "info" | "warning" | "danger";
@@ -142,13 +142,13 @@ export declare const RentalsSummary: z.ZodObject<{
         complete: boolean;
         total: number;
         done: number;
-        next: "units" | "location" | "signatory" | "getting_paid" | "lease_defaults" | null;
+        next: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults" | null;
     };
     hasPayoutAccount: boolean;
     attention: {
+        count: number;
         kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
         amountRwf: number | null;
-        count: number;
         title: string;
         detail: string | null;
         tone: "info" | "warning" | "danger";
@@ -171,13 +171,13 @@ export declare const RentalsSummary: z.ZodObject<{
         complete: boolean;
         total: number;
         done: number;
-        next: "units" | "location" | "signatory" | "getting_paid" | "lease_defaults" | null;
+        next: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults" | null;
     };
     hasPayoutAccount: boolean;
     attention: {
+        count: number;
         kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
         amountRwf: number | null;
-        count: number;
         title: string;
         detail: string | null;
         tone: "info" | "warning" | "danger";

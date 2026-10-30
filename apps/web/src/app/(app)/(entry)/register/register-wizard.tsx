@@ -5,6 +5,7 @@ import {
   FranchiseDeclaration,
   IntendedOwner,
   PersonalDetails,
+  looksLikePsfNumber,
   PsfApplicationInput,
   type BrokerRegistrationSummary,
   type BusinessKind,
@@ -25,7 +26,7 @@ import {
   registerHeadingFor,
 } from "@injishi/contracts";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowRight, CircleAlert, Landmark } from "lucide-react";
+import { ArrowRight, CircleAlert, History, Landmark } from "lucide-react";
 import { Badge, Button } from "@injishi/web-ui";
 
 import { openAssistant } from "@/components/assistant/assistant-widget";
@@ -87,7 +88,13 @@ import {
   type StepId,
 } from "./register-steps";
 import { fromServerDraft, toServerDraft, type WizardAnswers } from "./register-draft";
-import { REGISTRATION_KINDS, findRegistrationKind, registrationForKind, type RegistrationKind } from "./registration-kinds";
+import {
+  REGISTRATION_KINDS,
+  findRegistrationKind,
+  kindInSentence,
+  registrationForKind,
+  type RegistrationKind,
+} from "./registration-kinds";
 import { BrokerSignup } from "./broker-signup";
 import { SectionIdentity } from "./section-identity";
 import { SectionLocation, missingLevels } from "./section-location";
@@ -108,10 +115,11 @@ import { formatRwf } from "./wizard-ui";
  * Business registration (F-S03 / FL01) as ADR-075 A1 decides it, on the real
  * API: the owner presses List Business and walks five steps.
  *
- * FIVE STEPS: Business (the kind when none arrived, then sections that show in
- * order: the TIN with RRA and who is registering it, the classification, the
- * location; then branches and PSF), You (the ID and the director check),
- * Documents, Review (no agreement, no signature) and Pay, whose first press
+ * FIVE STEPS, after the kind when none arrived: You (the person: the ID, a
+ * phone, a home address, and nothing about the business), Business (sections
+ * that show in order: the TIN with RRA, who is registering it and the director
+ * check, on the helper path the owner, the classification, the location; then
+ * branches and PSF), Documents, Review (no agreement, no signature) and Pay, whose first press
  * creates the registration. A residence walks the same five, with its property
  * and UPI in Business. `register-steps.ts` owns the order, the sections and the
  * saving; this component owns the state and the calls.
@@ -178,6 +186,15 @@ function kindOfSummary(summary: RegistrationSummary): RegistrationKind | null {
   return findRegistrationKind(summary.businessKind) ? (summary.businessKind as RegistrationKind) : null;
 }
 
+/**
+ * Business opens on the kind chooser: no kind yet, or Other with nothing said
+ * about it, because Other is answered by the description under its tile and the
+ * chooser is the only place that asks it (a `?kind=other` arrival included).
+ */
+function opensChooser(kind: RegistrationKind | null, other: string): boolean {
+  return kind === null || (kind === "other" && other.trim() === "");
+}
+
 export default function RegisterWizard({
   initialKind = null,
   user,
@@ -189,7 +206,7 @@ export default function RegisterWizard({
   initialKind?: RegistrationKind | null;
   /** The session the gate resolved. */
   user: SessionUser | null;
-  /** The API said it is the demo, so the register's SMS code is the published one. */
+  /** The API said it is the demo, so the header says the data is sample data. */
   demo: boolean;
   /** How the fee is taken on this stack, from `/platform` (073-gtbank-payments AC-17). */
   feeMode?: RegistrationFeeMode;
@@ -203,8 +220,13 @@ export default function RegisterWizard({
   const [screen, setScreen] = useState<Screen>("resume");
   const [step, setStep] = useState<StepId>("business");
   const [kind, setKind] = useState<RegistrationKind | null>(arrivalKind);
-  /** Business is showing the kind chooser: no kind yet, or Change was pressed. */
-  const [choosingKind, setChoosingKind] = useState(arrivalKind === null);
+  /** Business is showing the kind chooser: no kind yet, Other not yet described, or Change was pressed. */
+  const [choosingKind, setChoosingKind] = useState(() => opensChooser(arrivalKind, ""));
+  /**
+   * A saved draft of ANOTHER kind was reopened instead of the kind this person arrived with: the kind it was
+   * saved as, said above the step until they carry on with it or deliberately start over.
+   */
+  const [heldDraft, setHeldDraft] = useState<RegistrationKind | null>(null);
   const [capacity, setCapacity] = useState<RegistrantCapacity>("owner");
   const [capPick, setCapPick] = useState<RegistrantCapacity>("owner");
   const [intendedOwner, setIntendedOwner] = useState({ name: "", nationalId: "", email: "" });
@@ -255,7 +277,7 @@ export default function RegisterWizard({
   const online = useOnline();
   const userId = user?.id ?? null;
 
-  // Step two's sections: what has been answered and confirmed.
+  // Business's and You's sections: what has been answered and confirmed.
   const [tinCheck, setTinCheck] = useState<TinCheck>(null);
   const [tinChecking, setTinChecking] = useState(false);
   const [carryOnPending, setCarryOnPending] = useState(false);
@@ -320,7 +342,7 @@ export default function RegisterWizard({
   ) {
     const done = new Set<RegistrationDraftDone>(saved.done);
     setKind(savedKind);
-    setChoosingKind(false);
+    setChoosingKind(opensChooser(savedKind, saved.business.accommodationClassOther));
     setCapacity(saved.capacity);
     setCapPick(saved.capacity);
     setIntendedOwner(saved.intendedOwner);
@@ -409,16 +431,14 @@ export default function RegisterWizard({
         : null;
       const savedKind =
         saved?.kind && findRegistrationKind(saved.kind as RegistrationKind) ? (saved.kind as RegistrationKind) : null;
-      // A draft for a business not yet registered, of the kind this person came for (any, when they came for
-      // none). One the first Pay press already made into a registration opens on that registration instead.
-      if (
-        saved &&
-        savedKind !== null &&
-        checks.registrationId === undefined &&
-        (arrivalKind === null || savedKind === arrivalKind)
-      ) {
+      // A draft for a business not yet registered reopens, whatever kind this person came for: a saved draft wins
+      // over `?kind=`. Opening the arrival kind fresh beside it would have saved over the draft at the first
+      // change, with nothing said. When the kinds differ the step says so, and starting over is a press that says
+      // what it deletes. One the first Pay press already made into a registration opens on that registration instead.
+      if (saved && savedKind !== null && checks.registrationId === undefined) {
         restore(saved, savedKind, checks, prof.status === "ok" ? prof.data : null, fillVerified);
         setSaveStart({ savedAt: read ? read.savedAt : (device?.basedOn ?? null), push: choice.push });
+        if (arrivalKind !== null && savedKind !== arrivalKind) setHeldDraft(savedKind);
         return;
       }
 
@@ -524,11 +544,13 @@ export default function RegisterWizard({
     const before = kind ? registrationForKind(kind).role : null;
     const derived = registrationForKind(next);
     setKind(next);
-    setChoosingKind(false);
+    // Every tile is answered by its press but Other, whose answer is the description under it: the chooser stays
+    // open on Other until that is given and Next pressed.
+    setChoosingKind(next === "other");
     setErrors({});
     setFormError("");
     // A changed register (RRA for a TIN, the land register for a UPI) starts
-    // step two over.
+    // Business's sections over.
     if (before !== derived.role) {
       setTinCheck(null);
       setTinConfirmed(false);
@@ -540,18 +562,25 @@ export default function RegisterWizard({
     setBusiness((b) => ({
       ...b,
       accommodationClass: derived.accommodationClass ?? "",
-      accommodationClassOther:
-        derived.accommodationClassOther ?? (derived.accommodationClass === "other" ? b.accommodationClassOther : ""),
+      // What Other was described as is kept through a press on another tile, so coming back to Other finds it.
+      // Only Other sends it (`businessCandidate`).
+      accommodationClassOther: derived.accommodationClassOther ?? b.accommodationClassOther,
     }));
+  };
+  /** Other is described: the chooser closes on Business's sections, as a press on any other tile does. */
+  const otherDescribed = () => {
+    if (kind !== "other" || business.accommodationClassOther.trim() === "") return;
+    setErrors({});
+    setChoosingKind(false);
   };
   const changeKind = () => {
     setChoosingKind(true);
     setFormError("");
     setScreen("steps");
-    setStep("business");
+    setStep(youDone ? "business" : "you");
   };
 
-  // --- step two: the TIN --------------------------------------------------------
+  // --- Business: the TIN ---------------------------------------------------------
   async function validateTin() {
     if (!/^\d{9}$/.test(tin)) return;
     setTinChecking(true);
@@ -630,7 +659,7 @@ export default function RegisterWizard({
     setIntendedOwner((o) => ({ ...o, name: o.name || directors[0]?.name || "" }));
   };
 
-  // --- step two: the ID -------------------------------------------------------
+  // --- You: the ID ---------------------------------------------------------------
   /** A scan or typed details changed what is on file: read it, fill the draft from it, and ask RRA again. */
   const onIdentity = useCallback(
     (next?: IdentityStatus) => {
@@ -710,7 +739,7 @@ export default function RegisterWizard({
   const prepareForOwner = () => {
     setCapacity("on_behalf_of");
     setCapPick("on_behalf_of");
-    setIdConfirmed(true);
+    setTinConfirmed(true);
     void nameTheOwner();
   };
 
@@ -736,10 +765,10 @@ export default function RegisterWizard({
         return (
           tinConfirmed &&
           ((verdict?.result === "verified" && !nameDiffers) || (verdict?.result === "pending" && carryOnPending)) &&
-          legalName.length >= 2
+          legalName.length >= 2 &&
+          // The owner must be one of RRA's directors; someone who is not registers it for the owner.
+          !(capacity === "owner" && isDirector === false)
         );
-      case "owner":
-        return identityOk && isDirector !== false;
       case "id":
         return identityOk;
       case "intended":
@@ -766,10 +795,12 @@ export default function RegisterWizard({
 
   const onFile = documentOnFileFor(identity, profile);
   /** The ID line PSF's form shows, saying where the number comes from. */
-  const documentOnFile = onFile ? `${onFile.label}, ${onFile.source === "checked" ? "the one checked" : "on your account"}` : null;
+  const documentOnFile = onFile ? `${onFile.label}, ${onFile.source === "checked" ? "already checked" : "on your account"}` : null;
   const psfReady =
     path === "landlord" ||
-    business.psfMember !== false ||
+    (business.psfMember === true
+      ? !business.psfMembershipNumber.trim() || looksLikePsfNumber(business.psfMembershipNumber)
+      : business.psfMember !== false) ||
     business.psfApply !== true ||
     PsfApplicationInput.safeParse(psfCandidate(psf, documentOnFile !== null)).success;
   // The rows Documents asks for, by the kind the org will carry (ADR-075 S5).
@@ -825,7 +856,7 @@ export default function RegisterWizard({
   /** Where an issue at `key` is answered, so a refusal sends the person there. */
   const stepForIssue = (key: string): StepId => {
     if (key.startsWith("business.certificates")) return "documents";
-    if (key.startsWith("personal") || key.startsWith("capacity") || key.startsWith("intendedOwner")) return "you";
+    if (key.startsWith("personal")) return "you";
     return "business";
   };
 
@@ -1022,11 +1053,13 @@ export default function RegisterWizard({
   };
 
   /**
-   * A fresh registration, beside whatever is already in flight. It starts from
-   * nothing saved: the draft, its checks and this browser's copy go first, so
-   * nothing of the last business is carried into it.
+   * A fresh registration, beside whatever is already in flight, or in place of a
+   * saved draft of another kind the person chose to start over from. It starts
+   * from nothing saved: the draft, its checks and this browser's copy go first,
+   * so nothing of the last business is carried into it.
    */
   const startNew = async () => {
+    setHeldDraft(null);
     await clearRegistrationDraft();
     if (userId) clearDeviceCopy(userId);
     autosave.reset();
@@ -1058,7 +1091,7 @@ export default function RegisterWizard({
       accommodationClassOther: derived?.accommodationClassOther ?? "",
     });
     setKind(arrivalKind);
-    setChoosingKind(arrivalKind === null);
+    setChoosingKind(opensChooser(arrivalKind, ""));
     setScreen(arrivalKind === "broker" ? "broker" : "steps");
     setStep(openingStep());
   };
@@ -1090,8 +1123,10 @@ export default function RegisterWizard({
 
   // --- render ------------------------------------------------------------------
   const kindEntry = kind ? (REGISTRATION_KINDS.find((k) => k.value === kind) ?? null) : null;
-  const summaryKindLabel = summary ? BUSINESS_KIND_LABEL[summary.businessKind] : null;
+  const summaryKindLabel = summary?.businessKind ? BUSINESS_KIND_LABEL[summary.businessKind] : null;
   const kindLabel = kindEntry?.label ?? summaryKindLabel ?? "business";
+  // Mid sentence, with its article: "Registration fee for an apartment".
+  const kindPhrase = kindInSentence(summary?.businessKind ?? documentKind);
   const landlord = path === "landlord";
 
   const verifiedName = identity?.onFile?.fullName ?? null;
@@ -1113,7 +1148,6 @@ export default function RegisterWizard({
 
   const SECTION_TITLE: Record<SectionId, string> = {
     tin: "Business name and TIN",
-    owner: "You and the company",
     id: "Your identity",
     intended: "The owner",
     cls: "Classification",
@@ -1125,10 +1159,11 @@ export default function RegisterWizard({
   const sectionSummary = (id: SectionId): string => {
     switch (id) {
       case "tin":
-        return `${legalName || "Not named"} · TIN ${formatTin(tin)} · ${capacity === "owner" ? "you own or direct it" : "you register it for the owner"}`;
-      case "owner":
+        return `${legalName || "Not named"} · TIN ${formatTin(tin)} · ${
+          capacity === "owner" ? (isDirector ? "you're listed as a director" : "you own or direct it") : "you register it for the owner"
+        }`;
       case "id":
-        return [registrantName || "You", idLine, id === "owner" && isDirector ? "a director" : null].filter(Boolean).join(" · ");
+        return [registrantName || "You", idLine].filter(Boolean).join(" · ");
       case "intended":
         return `${intendedOwner.name.trim()} · ${intendedOwner.email.trim()} · claims it after approval`;
       case "cls":
@@ -1145,7 +1180,7 @@ export default function RegisterWizard({
   };
   const sectionChecked = (id: SectionId): string | null => {
     if (id === "tin") return verdict?.result === "verified" ? "Checked by RRA" : null;
-    if (id === "owner" || id === "id") return checkedBy;
+    if (id === "id") return checkedBy;
     if (id === "upi") return "Format checked";
     return null;
   };
@@ -1155,7 +1190,7 @@ export default function RegisterWizard({
       setTinCheck(null);
       setTinConfirmed(false);
       setCarryOnPending(false);
-    } else if (id === "owner" || id === "id") setIdConfirmed(false);
+    } else if (id === "id") setIdConfirmed(false);
     else if (id === "intended") setIntendedConfirmed(false);
     else if (id === "loc") setLocSaved(false);
     else if (id === "fr") setFrConfirmed(false);
@@ -1185,25 +1220,23 @@ export default function RegisterWizard({
             onAskInjishi={() => {
               if (!openAssistant()) window.location.assign("/help");
             }}
+            isDirector={isDirector}
+            onPrepareForOwner={prepareForOwner}
             onNext={confirmTin}
             error={errors["business.legalName"] ?? errors["business.tin"]}
             online={online}
           />
         );
-      case "owner":
       case "id":
         return (
           <SectionIdentity
-            path={path}
             identity={identity}
             profileComplete={profile?.complete === true && !editingProfile}
             draft={personal}
             onDraftChange={setPersonal}
             onIdentity={onIdentity}
             needsExtras={!personalOk}
-            isDirector={id === "owner" ? isDirector : null}
             errors={errors}
-            onPrepareForOwner={prepareForOwner}
             onEditProfile={editStoredProfile}
             onNext={confirmId}
             online={online}
@@ -1213,7 +1246,7 @@ export default function RegisterWizard({
         return (
           <>
             <p className="text-sm">
-              The owner claims the business with this National ID once Injishi approves it, so it has to be one of
+              The owner claims the business with this National ID once PSF approves it, so it has to be one of
               RRA&apos;s directors for this TIN. The claim link goes to their email.
             </p>
             <IntendedOwnerFields title="Who owns it" value={intendedOwner} onChange={setIntendedOwner} errors={errors} />
@@ -1264,7 +1297,7 @@ export default function RegisterWizard({
       ? `A member${business.psfMembershipNumber.trim() ? `, number ${business.psfMembershipNumber.trim()}` : ""}`
       : business.psfMember === false
         ? business.psfApply === true
-          ? `Applying${tiers?.find((t) => t.code === psf.requestedTierCode)?.nameEn ? `: ${tiers.find((t) => t.code === psf.requestedTierCode)!.nameEn}` : ""}. Sent to PSF after approval`
+          ? `Applying${tiers?.find((t) => t.code === psf.requestedTierCode)?.nameEn ? `: ${tiers.find((t) => t.code === psf.requestedTierCode)!.nameEn}` : ""}. Filed with this registration`
           : "Not a member, not applying now"
         : "Not answered";
   // Mid sentence: "checked", but PSF and ID keep their capitals.
@@ -1274,19 +1307,31 @@ export default function RegisterWizard({
     ? [{ title: "Registering", value: `${kindLabel} · ${summary.legalName}`, step: null }]
     : landlord
       ? [
+          { title: "You", value: youRow, step: "you" },
           { title: "Business type", value: kindLabel, step: "business" },
           { title: "The property", value: `${business.legalName.trim()} · UPI ${business.upi.trim()}`, step: "business" },
           { title: "Location", value: locLine ?? "Not chosen", step: "business" },
-          { title: "You", value: youRow, step: "you" },
           { title: "Documents", value: docsText, step: "documents" },
         ]
       : [
+          { title: "You", value: youRow, step: "you" },
           { title: "Business type", value: kindLabel, step: "business" },
           {
             title: "The business",
-            value: `${legalName} · TIN ${formatTin(tin)}${verdict?.result === "verified" ? " · checked by RRA" : " · RRA checks it after payment"}`,
+            value: `${legalName} · TIN ${formatTin(tin)}${verdict?.result === "verified" ? " · checked by RRA" : " · RRA checks it after payment"}${
+              path !== "helper" && isDirector ? " · you're listed as a director" : ""
+            }`,
             step: "business",
           },
+          ...(path === "helper"
+            ? [
+                {
+                  title: "The owner",
+                  value: `${intendedOwner.name.trim()} · ${intendedOwner.email.trim()} · claims it after approval`,
+                  step: "business" as const,
+                },
+              ]
+            : []),
           { title: "Location", value: locLine ?? "Not chosen", step: "business" },
           { title: "Franchise", value: franchiseLine(business), step: "business" },
           {
@@ -1297,44 +1342,46 @@ export default function RegisterWizard({
             step: "business",
           },
           { title: "PSF", value: psfText, step: "business" },
-          path === "helper"
-            ? { title: "You", value: youRow, step: "you" }
-            : { title: "You", value: `${youRow}${isDirector ? ", a director" : ""}`, step: "you" },
-          ...(path === "helper"
-            ? [
-                {
-                  title: "The owner",
-                  value: `${intendedOwner.name.trim()} · ${intendedOwner.email.trim()} · claims it after approval`,
-                  step: "you" as const,
-                },
-              ]
-            : []),
           { title: "Documents", value: docsText, step: "documents" },
         ];
 
+  // No kind arrived, or Change was pressed: the kind is asked before You and Business, whichever is open.
+  const pickingKind = summary === null && (choosingKind || !kind);
+  // How this stack checks an ID: a National ID by its number with NIDA, unless that check is off here.
+  const idLead =
+    identity && identity.nationalIdMode !== "off"
+      ? "Check your National ID with NIDA, or scan your passport, then take a selfie."
+      : "Scan your ID, then take a selfie.";
   const LEAD: Record<StepId, string> = {
-    business: choosingKind || !kind
-      ? "Pick the one that fits. It decides the documents we ask for."
-      : landlord
-        ? "Tell us about the property and where it is."
+    business: landlord
+      ? "Tell us about the property and where it is."
+      : path === "helper"
+        ? "Check the TIN with RRA, name the owner, then say where the business is. The owner claims it once Injishi approves it."
         : "Check the TIN with RRA, then say where the business is.",
     you:
       path === "helper"
-        ? "Scan your ID, then take a selfie, and name the owner. They claim the business once PSF approves it."
-        : "Scan your ID, then take a selfie.",
+        ? `${idLead} Then name the owner. They claim the business once PSF approves it.`
+        : idLead,
     documents: landlord ? "Upload the land title." : "Upload your RDB certificate. The rest are optional.",
     review: "Check your answers. You can change them until you pay.",
     pay: "Pay the registration fee. PSF reviews your registration next.",
   };
 
   let primary: StepPrimary | null = { label: "Continue", icon: <ArrowRight size={16} aria-hidden />, onPress: next };
-  if (step === "business") {
-    if (choosingKind || !kindOk) {
-      primary = {
-        ...primary,
-        disabled: true,
-        why: kind === "other" && !choosingKind ? "Say what kind of place it is to continue." : "Pick a business type to continue.",
-      };
+  if (pickingKind) {
+    // What is actually missing: a kind, Other's description, or the Next under it.
+    const why =
+      kind === null
+        ? "Pick a business type to continue."
+        : kind === "other"
+          ? business.accommodationClassOther.trim() === ""
+            ? "Say what kind of place it is to continue."
+            : "Press Next under your description to continue."
+          : "Press the business type that fits to continue.";
+    primary = { ...primary, disabled: true, why };
+  } else if (step === "business") {
+    if (!kindOk) {
+      primary = { ...primary, disabled: true, why: "Say what kind of place it is to continue." };
     } else if (!businessDone) {
       primary = { ...primary, disabled: true, why: "Finish the sections above to continue." };
     }
@@ -1426,16 +1473,13 @@ export default function RegisterWizard({
         }
       >
         <SectionIdentity
-          path="landlord"
           identity={identity}
           profileComplete={profile?.complete === true && !editingProfile}
           draft={personal}
           onDraftChange={setPersonal}
           onIdentity={onIdentity}
           needsExtras={!personalOk}
-          isDirector={null}
           errors={errors}
-          onPrepareForOwner={() => undefined}
           onEditProfile={editStoredProfile}
           onNext={checkBrokerDetails}
           hideNext={brokerDetailsOk}
@@ -1477,8 +1521,8 @@ export default function RegisterWizard({
     body = (
       <StepFrame
         position={{ n: stepIndex + 1, of: order.length }}
-        title={STEP_TITLE[step]}
-        lead={LEAD[step]}
+        title={pickingKind ? "What kind of business?" : STEP_TITLE[step]}
+        lead={pickingKind ? "Pick the one that fits. It decides the documents we ask for." : LEAD[step]}
         onBack={stepIndex > 0 && !(summary !== null && step === "review") ? () => goTo(order[stepIndex - 1]!) : null}
         primary={primary}
       >
@@ -1487,23 +1531,32 @@ export default function RegisterWizard({
             {formError}
           </Callout>
         ) : null}
+        {heldDraft !== null && arrivalKind !== null && summary === null ? (
+          <HeldDraftNotice
+            savedAs={kindInSentence(registrationForKind(heldDraft).businessKind)}
+            arrivedFor={arrivalKind}
+            onStartOver={() => void startNew()}
+            onKeep={() => setHeldDraft(null)}
+          />
+        ) : null}
         {autosave.state === "failed" && autosave.message ? (
           <Callout tone="danger" icon={<CircleAlert size={16} aria-hidden />} title="Your answers are not saved">
             {autosave.message}
           </Callout>
         ) : null}
 
-        {step === "business" && (choosingKind || !kind) ? (
+        {pickingKind ? (
           <StepType
             kind={kind}
             other={business.accommodationClassOther}
             otherError={errors["business.accommodationClassOther"]}
             onChoose={chooseKind}
             onOtherChange={(v) => setBusiness((b) => ({ ...b, accommodationClassOther: v }))}
+            onOtherDone={otherDescribed}
           />
         ) : null}
 
-        {step === "business" && !(choosingKind || !kind) ? (
+        {step === "business" && !pickingKind ? (
           <>
             {sectionList(bizSections)}
             {!landlord && businessDone ? (
@@ -1531,7 +1584,7 @@ export default function RegisterWizard({
           </>
         ) : null}
 
-        {step === "you" ? sectionList(youSections) : null}
+        {step === "you" && !pickingKind ? sectionList(youSections) : null}
 
         {step === "documents" ? (
           <StepDocuments kind={documentKind} franchisee={franchisee} docs={docs} onDocsChange={setDocs} errors={errors} online={online} />
@@ -1545,14 +1598,14 @@ export default function RegisterWizard({
               setReviewed(false);
               goTo(to);
             }}
-            kindLabel={kindLabel}
+            kindPhrase={kindPhrase}
             fee={fee}
           />
         ) : null}
 
         {step === "pay" ? (
           <StepPay
-            kindLabel={kindLabel}
+            kindPhrase={kindPhrase}
             fee={fee}
             paid={paid}
             paidOn={onDay(summary?.submittedAt ?? null)}
@@ -1628,6 +1681,44 @@ function BrokerDone({ broker, onOwnPlace }: { broker: BrokerRegistrationSummary;
         </div>
       }
     />
+  );
+}
+
+/**
+ * A saved draft of another kind was reopened rather than overwritten (ADR-075
+ * S9): which kind it is, and the two ways on. Starting over deletes it, and the
+ * press says so; carrying on keeps it as it was left.
+ */
+function HeldDraftNotice({
+  savedAs,
+  arrivedFor,
+  onStartOver,
+  onKeep,
+}: {
+  /** "a hotel": the kind the saved draft is for. */
+  savedAs: string;
+  /** The kind this person arrived with, `?kind=`. */
+  arrivedFor: RegistrationKind;
+  onStartOver: () => void;
+  onKeep: () => void;
+}) {
+  const instead = arrivedFor === "broker" ? "a broker" : kindInSentence(registrationForKind(arrivedFor).businessKind);
+  const goal = arrivedFor === "broker" ? "register as a broker" : `register ${instead}`;
+  return (
+    <Callout tone="info" icon={<History size={16} aria-hidden />} title="You have a registration in progress">
+      <p>
+        You started registering {savedAs}, so it is open where you left it. To {goal} instead, start over: that
+        deletes the answers you saved.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={onStartOver}>
+          Start over as {instead}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onKeep}>
+          Keep going
+        </Button>
+      </div>
+    </Callout>
   );
 }
 

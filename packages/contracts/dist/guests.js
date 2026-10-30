@@ -180,7 +180,10 @@ exports.OVERSIGHT_ROLE_SCOPES = {
     business_field_verifier: ["country", "province", "district"],
     business_approver: ["country", "province", "district"],
     tax_compliance_officer: ["country", "province", "district"],
-    psf_membership_officer: ["country"],
+    // A PSF District Manager decides at district level; province and national
+    // managers watch above them (`OVERSIGHT_ROLE_POSTING.psf_membership_officer`).
+    // This said country only, so the one who decides could not be appointed.
+    psf_membership_officer: ["country", "province", "district"],
 };
 /**
  * The chain a registration goes along, in order: local government's village leader, cell executive
@@ -196,7 +199,7 @@ function isFromAbroad(nationality) {
     return nationality.toUpperCase() !== exports.RWANDA_CODE;
 }
 // --- Guest vocabulary -------------------------------------------------------------
-/** Who filed a guest: a tenant, a landlord, or a hotel, lodge, guest house or apartment block at check in. */
+/** `hotel`: a guest checked in at a hotel, motel or lodge, filed by the desk (0114). */
 exports.GuestHostKind = zod_1.z.enum(["tenant", "landlord", "hotel"]);
 exports.GuestRegistrationStatus = zod_1.z.enum(["submitted", "cancelled"]);
 /** Where a stay is on a given day. */

@@ -10,9 +10,10 @@ import type {
   ReadinessRoom,
   RoomType,
 } from "@injishi/data/fixtures/frontdesk";
+import { FrontDeskTodayView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { FrontDeskTodayView } from "@/features/frontdesk/FrontDeskTodayView";
-import { StayTodayView } from "@/features/stays/StayTodayView";
+import { PmsMount } from "@/features/pms/pms-mount";
+import { StayTodayView } from "@/features/pms/stays/StayTodayView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { deskPropertyName } from "@/server/sources/frontdesk";
@@ -44,21 +45,23 @@ export default async function FrontDeskTodayPage({ searchParams }: { searchParam
   const property = await deskPropertyName(ctx);
   const { offline } = await searchParams;
   return (
-    <FrontDeskTodayView
-      offline={offline === "1" || offline === "true"}
-      data={{
-        kpis,
-        tabs,
-        arrivals,
-        inHouse,
-        departures,
-        requests,
-        readiness,
-        roomTypes,
-        rooms,
-        today: ctx.today.iso,
-        property,
-      }}
-    />
+    <PmsMount>
+      <FrontDeskTodayView
+        offline={offline === "1" || offline === "true"}
+        data={{
+          kpis,
+          tabs,
+          arrivals,
+          inHouse,
+          departures,
+          requests,
+          readiness,
+          roomTypes,
+          rooms,
+          today: ctx.today.iso,
+          property,
+        }}
+      />
+    </PmsMount>
   );
 }

@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import RegisterGate from "./register-gate";
 import { findRegistrationKind } from "./registration-kinds";
 
@@ -8,7 +10,7 @@ import { findRegistrationKind } from "./registration-kinds";
  * A thin server shell around one client component. The page has no state of
  * its own: the gate resolves the identity in the browser (the Better Auth
  * cookie belongs to the API origin, so the Next server never receives it), and
- * the wizard owns everything after that, from About you to the one In review
+ * the wizard owns everything after that, from Business to the one In review
  * page.
  */
 export const metadata = {
@@ -43,6 +45,8 @@ export default async function Page({
   searchParams: Promise<{ kind?: string }>;
 }) {
   const { kind } = await searchParams;
+  // Joining PSF has its own public form since 2026-10-19: no account, a docID.
+  if (kind === "psf") redirect("/psf/register");
   const chosen = findRegistrationKind(kind);
 
   return <RegisterGate initialKind={chosen?.value ?? null} />;

@@ -23,16 +23,22 @@
  * the screen that shows them.
  */
 
-/** What one call to the API can turn out to be. */
+/**
+ * What one call to the API can turn out to be. `serverDate` is the answer's
+ * `date` header when it sent one: the API's own clock, which an offline client
+ * compares with its own (a phone's clock may be wrong by hours).
+ */
 export type ApiResult<T> =
-  | { status: "ok"; data: T }
+  | { status: "ok"; data: T; serverDate?: string }
   /** The session is missing or expired. Never conflated with `failed`: an outage is not a sign out. */
   | { status: "unauthenticated" }
   /**
    * The API refused. `message` is present only when the API wrote one for a
    * person, never Nest's framework text ("Forbidden resource"), so a screen
    * either shows it or supplies its own sentence. `code` is the machine
-   * readable reason when one was sent (`contract_not_accepted`).
+   * readable reason when one was sent (`contract_not_accepted`). `body` is the
+   * whole parsed answer, for the fields a refusal carries beside them (the open
+   * record on `409 already_open`).
    */
   | {
       status: "refused";
@@ -40,6 +46,8 @@ export type ApiResult<T> =
       message?: string;
       code?: string;
       issues?: RefusalIssue[];
+      body?: unknown;
+      serverDate?: string;
     }
   /** Unreachable, timed out, or an answer the API did not write. */
   | { status: "failed" };
@@ -122,10 +130,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   const doFetch = options.fetch ?? fetch;
 
   async function request<T>(path: string, init: ApiRequest = {}): Promise<ApiResult<T>> {
-    const url = new URL(`${baseUrl}${path.startsWith("/") ? path : `/${path}`}`);
-    for (const [key, value] of Object.entries(init.query ?? {})) {
-      if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
-    }
+    const url = `${baseUrl}${path.startsWith("/") ? path : `/${path}`}${queryString(init.query)}`;
 
     const headers: Record<string, string> = { accept: "application/json", ...(await options.headers?.()) };
     if (init.workspaceId) headers["x-workspace-id"] = init.workspaceId;
@@ -140,41 +145,75 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       body = JSON.stringify(init.body);
     }
 
-    let response: Response;
+    const deadline = timeoutSignal(init.timeoutMs ?? options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
     try {
-      response = await doFetch(url, {
-        method: init.method ?? (body === undefined ? "GET" : "POST"),
-        credentials: options.credentials ?? "include",
-        cache: "no-store",
-        headers,
-        body,
-        signal: AbortSignal.timeout(init.timeoutMs ?? options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
-      });
-    } catch {
-      return { status: "failed" };
+      let response: Response;
+      try {
+        response = await doFetch(url, {
+          method: init.method ?? (body === undefined ? "GET" : "POST"),
+          credentials: options.credentials ?? "include",
+          cache: "no-store",
+          headers,
+          body,
+          signal: deadline.signal,
+        });
+      } catch {
+        return { status: "failed" };
+      }
+
+      if (response.status === 401) return { status: "unauthenticated" };
+      const date = response.headers.get("date") ?? undefined;
+      const serverDate = date ? { serverDate: date } : {};
+      if (response.status === 204) return { status: "ok", data: null as T, ...serverDate };
+
+      const parsed: unknown = await response.json().catch(() => NOT_JSON);
+
+      // Every refusal Nest sends is JSON. A plain text error is the gateway
+      // talking (Traefik's `404 page not found` while the API restarts), which is
+      // the "we could not ask" case, not a refusal.
+      if (!response.ok && parsed === NOT_JSON) return { status: "failed" };
+      if (!response.ok) return { ...refusal(response.status, parsed), ...serverDate };
+      return { status: "ok", data: (parsed === NOT_JSON ? null : parsed) as T, ...serverDate };
+    } finally {
+      deadline.clear();
     }
-
-    if (response.status === 401) return { status: "unauthenticated" };
-    if (response.status === 204) return { status: "ok", data: null as T };
-
-    const parsed: unknown = await response.json().catch(() => NOT_JSON);
-
-    // Every refusal Nest sends is JSON. A plain text error is the gateway
-    // talking (Traefik's `404 page not found` while the API restarts), which is
-    // the "we could not ask" case, not a refusal.
-    if (!response.ok && parsed === NOT_JSON) return { status: "failed" };
-    if (!response.ok) return refusal(response.status, parsed);
-    return { status: "ok", data: (parsed === NOT_JSON ? null : parsed) as T };
   }
 
   async function requestParsed<T>(schema: ParseSchema<T>, path: string, init?: ApiRequest): Promise<ApiResult<T>> {
     const result = await request<unknown>(path, init);
     if (result.status !== "ok") return result;
     const checked = schema.safeParse(result.data);
-    return checked.success ? { status: "ok", data: checked.data } : { status: "failed" };
+    if (!checked.success) return { status: "failed" };
+    return { status: "ok", data: checked.data, ...(result.serverDate ? { serverDate: result.serverDate } : {}) };
   }
 
   return { request, requestParsed };
+}
+
+/**
+ * `?a=1&b=2` from the defined values, or nothing. Built by hand rather than
+ * through `URL.searchParams`, so it reads the same in every runtime the
+ * client runs in, React Native's included.
+ */
+function queryString(query: ApiRequest["query"]): string {
+  const pairs = Object.entries(query ?? {}).flatMap(([key, value]) =>
+    value === undefined || value === null || value === ""
+      ? []
+      : [`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`],
+  );
+  return pairs.length > 0 ? `?${pairs.join("&")}` : "";
+}
+
+/**
+ * A signal that aborts after `ms`. `AbortSignal.timeout` where the runtime has
+ * it; React Native's `AbortSignal` does not, so there a timer aborts a
+ * controller, cleared once the call settles.
+ */
+function timeoutSignal(ms: number): { signal: AbortSignal; clear: () => void } {
+  if (typeof AbortSignal.timeout === "function") return { signal: AbortSignal.timeout(ms), clear: () => {} };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return { signal: controller.signal, clear: () => clearTimeout(timer) };
 }
 
 function refusal(httpStatus: number, body: unknown): ApiResult<never> {
@@ -187,6 +226,7 @@ function refusal(httpStatus: number, body: unknown): ApiResult<never> {
     ...(message ? { message } : {}),
     ...(code ? { code } : {}),
     ...(issues.length > 0 ? { issues } : {}),
+    body,
   };
 }
 

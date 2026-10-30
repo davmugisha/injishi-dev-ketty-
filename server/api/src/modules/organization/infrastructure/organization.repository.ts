@@ -1,9 +1,13 @@
-import type {
-  BusinessKind,
-  Domain,
-  OrgRegistrationStatus,
-  RegistrationBusinessType,
-  RegistrationRejectionReason,
+import {
+  districtLetters,
+  formatBusinessCode,
+  type BusinessKind,
+  type Domain,
+  type EnterpriseRegistrationKind,
+  type OrgRegistrationStatus,
+  type PsfOwnerGroup,
+  type RegistrationBusinessType,
+  type RegistrationRejectionReason,
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import {
@@ -19,6 +23,7 @@ import {
 import { storedObjects } from '../../../database/drizzle/hospitality';
 import {
   auditEvents,
+  businessCodeCounters,
   districts,
   oboRegistrations,
   orgCertificates,
@@ -47,14 +52,16 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
-import { insertPropertyWithListing } from '../../listing-setup/infrastructure/insert-property';
+import { insertPropertyWithListing } from '../../platform/property/infrastructure/insert-property';
 import {
   recordRegistrationEvent,
   type RegistrationMover,
 } from './registration-events';
 import {
   insertPsfApplication,
-  insertSelfDeclaredMembership,
+  insertPsfBranches,
+  type NewPsfBranch,
+  fileMembershipClaim,
   type NewPsfApplication,
 } from './psf-membership.repository';
 import { pendingTinAttemptsSql } from './tin-recheck.sql';
@@ -94,7 +101,8 @@ export interface CreateOrgRow {
   legalName: string;
   domain: Domain;
   /** What kind of business it is (ADR-075 D-h). */
-  businessKind: BusinessKind;
+  /** Null for a PSF business (`enterprise`), which is not a place. */
+  businessKind: BusinessKind | null;
   /** The Pay press's `Idempotency-Key` (ADR-075 AC-14), or null for a caller that sent none. */
   creationKey: string | null;
   rdbEntityGroup: string | null;
@@ -149,6 +157,8 @@ export interface CreateOrgRow {
     sectorId: number;
     /** Derived from the sector by the service, never taken from the request. */
     districtId: number;
+    /** Checked by the service to lie in `sectorId`. */
+    villageId: number | null;
     street: string | null;
     isHeadOffice: boolean;
   }[];
@@ -160,6 +170,15 @@ export interface CreateOrgRow {
   psfApplication: Omit<NewPsfApplication, 'orgId'> | null;
   /** A Yes with a membership number (ADR-056 AC-7). Null otherwise. */
   psfMembershipNumber: string | null;
+  /**
+   * THE PSF PATH. The association a business belongs to (required for an
+   * `enterprise`, RHA by default for a hotel), its owner groups, and how an
+   * `enterprise` is registered when its TIN is optional.
+   */
+  psfAssociationCode: string | null;
+  ownerGroups: PsfOwnerGroup[];
+  registrationKind: EnterpriseRegistrationKind | null;
+  registrationNumber: string | null;
   /**
    * Part of a franchise, and how (ADR-075 AC-8), written as the org's
    * `org_franchises` row. Null for No, which writes no row.
@@ -290,6 +309,10 @@ export class OrganizationRepository {
           sectorId: input.sectorId,
           villageId: input.villageId,
           addressText: input.addressText,
+          psfAssociationCode: input.psfAssociationCode,
+          ownerGroups: input.ownerGroups,
+          registrationKind: input.registrationKind,
+          registrationNumber: input.registrationNumber,
           registrationStatus: 'pending_payment',
         })
         .returning({ id: orgs.id });
@@ -324,11 +347,13 @@ export class OrganizationRepository {
       if (input.psfApplication) {
         await insertPsfApplication(tx, { ...input.psfApplication, orgId: org.id });
       }
+      // A typed number is a claim until PSF confirms it (0121); PSF's own list may confirm it here.
       if (input.psfMembershipNumber) {
-        await insertSelfDeclaredMembership(tx, {
+        await fileMembershipClaim(tx, {
           orgId: org.id,
           membershipNumber: input.psfMembershipNumber,
-          recordedByUserId: input.ownerUserId,
+          tin: input.tin ?? null,
+          claimedByUserId: input.ownerUserId,
         });
       }
 
@@ -343,6 +368,7 @@ export class OrganizationRepository {
           name: branch.name,
           sectorId: branch.sectorId,
           districtId: branch.districtId,
+          villageId: branch.villageId,
           street: branch.street,
           isHeadOffice: branch.isHeadOffice,
         });
@@ -450,6 +476,76 @@ export class OrganizationRepository {
   }
 
   /**
+   * THE PUBLIC PSF PATH (2026-10-19): a business, its application and its
+   * branches, in ONE transaction, with no workspace and no owner. There is no
+   * registration fee bill (2026-10-23): the membership fee is the payment.
+   *
+   * Nobody signed in, so nobody is given a workspace to open: the docID on the
+   * application is what the business keeps. The first event is the system's,
+   * because the actor shape needs a person behind any other trigger. Returns
+   * what the payment that follows needs.
+   */
+  async createPublicPsfRegistration(input: {
+    legalName: string;
+    tin: string | null;
+    districtId: number;
+    sectorId: number;
+    villageId: number | null;
+    addressText: string;
+    psfAssociationCode: string;
+    psfAssociationOther: string | null;
+    psfSubsectorId: string | null;
+    psfSubsectorOther: string | null;
+    ownerGroups: PsfOwnerGroup[];
+    registrationKind: EnterpriseRegistrationKind;
+    registrationNumber: string | null;
+    /** Its logo (2026-10-23), already checked to be an unused `org_logo` object. */
+    logoObjectKey: string | null;
+    application: Omit<NewPsfApplication, 'orgId'>;
+    /** The other places it trades from, each for its own district's officer. */
+    branches: readonly NewPsfBranch[];
+  }): Promise<{ orgId: string; applicationId: string; docId: string }> {
+    // No registration fee (2026-10-23): the membership fee is the one payment.
+    if (input.tin) {
+      const [clash] = await this.db.select({ id: orgs.id }).from(orgs).where(eq(orgs.tin, input.tin)).limit(1);
+      if (clash) throw new DuplicateTinError();
+    }
+    return this.db.transaction(async (tx) => {
+      const [org] = await tx
+        .insert(orgs)
+        .values({
+          legalName: input.legalName,
+          domain: 'enterprise',
+          tin: input.tin,
+          districtId: input.districtId,
+          sectorId: input.sectorId,
+          villageId: input.villageId,
+          addressText: input.addressText,
+          psfAssociationCode: input.psfAssociationCode,
+          psfAssociationOther: input.psfAssociationOther,
+          psfSubsectorId: input.psfSubsectorId,
+          psfSubsectorOther: input.psfSubsectorOther,
+          ownerGroups: input.ownerGroups,
+          registrationKind: input.registrationKind,
+          registrationNumber: input.registrationNumber,
+          logoObjectKey: input.logoObjectKey,
+          registrationStatus: 'pending_payment',
+        })
+        .returning({ id: orgs.id });
+      if (!org) throw new Error('Org insert returned no row.');
+      await recordRegistrationEvent(tx, {
+        orgId: org.id,
+        from: null,
+        to: 'pending_payment',
+        mover: { trigger: 'system', actorUserId: null },
+      });
+      const application = await insertPsfApplication(tx, { ...input.application, orgId: org.id });
+      await insertPsfBranches(tx, application.id, org.id, input.branches);
+      return { orgId: org.id, applicationId: application.id, docId: input.application.docId };
+    });
+  }
+
+  /**
    * The district each sector sits in, keyed by sector id. A sector that does
    * not exist is absent from the map, which the caller refuses.
    */
@@ -494,6 +590,14 @@ export class OrganizationRepository {
    * The org moves FIRST and the invoice second, inside one transaction, so a
    * move that cannot find its invoice is undone rather than submitting a
    * business nobody paid for.
+   *
+   * A business on the PSF path (`enterprise`) signs no operator contract: it
+   * lists nothing on the marketplace, which is what the contract governs.
+   *
+   * The business's code (`KIC0001`) is issued HERE, in the same transaction,
+   * because paying is what makes a registration a registered business: a code
+   * is never spent on a draft nobody paid for, and a paid business always has
+   * one.
    */
   /** The org a registration invoice bills (073-gtbank-payments AC-16). */
   async orgOfRegistrationInvoice(invoiceId: string): Promise<string | null> {
@@ -524,6 +628,30 @@ export class OrganizationRepository {
       )
       .returning({ id: subscriptionInvoices.id });
     return reopened.length > 0;
+  }
+
+  /**
+   * The public PSF form's payment settled (2026-10-23): the membership fee is
+   * the one payment, with no registration fee invoice, so this moves the
+   * business to PSF and gives it its code, guarded on still waiting for it.
+   */
+  async settlePublicPsfPayment(orgId: string): Promise<boolean> {
+    return this.db.transaction(async (tx) => {
+      const advanced = await tx
+        .update(orgs)
+        .set({ registrationStatus: 'submitted', updatedAt: new Date() })
+        .where(and(eq(orgs.id, orgId), eq(orgs.registrationStatus, 'pending_payment'), eq(orgs.domain, 'enterprise')))
+        .returning({ id: orgs.id });
+      if (advanced.length === 0) return false;
+      await recordRegistrationEvent(tx, {
+        orgId,
+        from: 'pending_payment',
+        to: 'submitted',
+        mover: { trigger: 'system', actorUserId: null },
+      });
+      await issueBusinessCode(tx, orgId);
+      return true;
+    });
   }
 
   async settleRegistrationFee(
@@ -569,6 +697,7 @@ export class OrganizationRepository {
           to: 'submitted',
           mover,
         });
+        await issueBusinessCode(tx, orgId);
         // The draft this registration was made from has nothing left to hold (ADR-075 D-m): its checks and its
         // tries reset with it, so a helper's next business starts clean. Only the draft marked with THIS
         // registration, never one its registrant has since begun for another business.
@@ -678,8 +807,9 @@ export class OrganizationRepository {
         id: string;
         legalName: string;
         domain: Domain;
-        businessKind: BusinessKind;
+        businessKind: BusinessKind | null;
         accommodationClass: string | null;
+        businessCode: string | null;
         tin: string | null;
         districtId: number | null;
         status: OrgRegistrationStatus;
@@ -699,6 +829,7 @@ export class OrganizationRepository {
         domain: orgs.domain,
         businessKind: orgs.businessKind,
         accommodationClass: orgs.accommodationClass,
+        businessCode: orgs.businessCode,
         tin: orgs.tin,
         districtId: orgs.districtId,
         status: orgs.registrationStatus,
@@ -744,7 +875,7 @@ export class OrganizationRepository {
     decision: 'passed' | 'rejected';
     to: OrgRegistrationStatus;
     decidedByUserId: string;
-    oversightRole: 'business_field_verifier' | 'business_approver';
+    oversightRole: 'business_field_verifier' | 'business_approver' | 'psf_membership_officer';
     governmentBodyCode: string;
     governmentTitle: string | null;
     reasonCode: RegistrationRejectionReason | null;
@@ -925,7 +1056,7 @@ export class OrganizationRepository {
     {
       stage: 'tin_verified' | 'field_verified';
       decision: 'passed' | 'rejected';
-      oversightRole: 'business_field_verifier' | 'business_approver';
+      oversightRole: 'business_field_verifier' | 'business_approver' | 'psf_membership_officer';
       governmentBodyCode: string;
       governmentTitle: string | null;
       reasonCode: RegistrationRejectionReason | null;
@@ -1350,6 +1481,7 @@ export class OrganizationRepository {
       legalName: string;
       stage: 'tin_verified' | 'field_verified';
       decision: 'passed' | 'rejected';
+      oversightRole: 'business_field_verifier' | 'business_approver' | 'psf_membership_officer';
       reasonCode: RegistrationRejectionReason | null;
       notes: string | null;
       governmentBodyCode: string;
@@ -1365,6 +1497,7 @@ export class OrganizationRepository {
         legalName: orgs.legalName,
         stage: orgRegistrationReviews.stage,
         decision: orgRegistrationReviews.decision,
+        oversightRole: orgRegistrationReviews.oversightRole,
         reasonCode: orgRegistrationReviews.reasonCode,
         notes: orgRegistrationReviews.notes,
         governmentBodyCode: orgRegistrationReviews.governmentBodyCode,
@@ -1413,7 +1546,9 @@ export class OrganizationRepository {
   /** What a registration mail names: the business, where it is, its workspace. */
   async registrationMailFacts(orgId: string): Promise<{
     legalName: string;
+    domain: string;
     tin: string | null;
+    businessCode: string | null;
     districtId: number | null;
     districtName: string | null;
     sectorName: string | null;
@@ -1422,7 +1557,9 @@ export class OrganizationRepository {
     const [row] = await this.db
       .select({
         legalName: orgs.legalName,
+        domain: orgs.domain,
         tin: orgs.tin,
+        businessCode: orgs.businessCode,
         districtId: orgs.districtId,
         districtName: districts.name,
         sectorName: sectors.name,
@@ -1478,7 +1615,7 @@ export class OrganizationRepository {
    * the one definition, exactly as the gate does.
    */
   async activeOversightAssignments(
-    role: 'business_field_verifier' | 'business_approver',
+    role: 'business_field_verifier' | 'business_approver' | 'psf_membership_officer',
   ): Promise<{
     userId: string;
     email: string;
@@ -1524,4 +1661,50 @@ export class OrganizationRepository {
         districtId: r.districtId,
       }));
   }
+}
+
+/**
+ * Give a business its code: its district's letters and the next number there
+ * (`DISTRICT_LETTERS` in `@injishi/contracts`). Inside the caller's transaction.
+ *
+ * The counter is bumped with one upsert, which takes the district's counter
+ * row lock, so two businesses settling at once in the same district queue on
+ * it and draw consecutive numbers rather than the same one. A business that
+ * already has a code keeps it (the code never changes), and one with no
+ * district gets none rather than a made up one.
+ *
+ * A number already taken (a code set by hand, a counter restored from an old
+ * backup) is skipped rather than failing the payment that drew it.
+ */
+async function issueBusinessCode(
+  tx: Parameters<Parameters<Database['transaction']>[0]>[0],
+  orgId: string,
+): Promise<string | null> {
+  const [org] = await tx
+    .select({ districtId: orgs.districtId, districtName: districts.name, code: orgs.businessCode })
+    .from(orgs)
+    .leftJoin(districts, eq(districts.id, orgs.districtId))
+    .where(eq(orgs.id, orgId))
+    .limit(1);
+  if (!org) return null;
+  if (org.code || org.districtId === null) return org.code;
+
+  const letters = districtLetters(org.districtId, org.districtName);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const [counter] = await tx
+      .insert(businessCodeCounters)
+      .values({ districtId: org.districtId, lastNumber: 1 })
+      .onConflictDoUpdate({
+        target: businessCodeCounters.districtId,
+        set: { lastNumber: sql`${businessCodeCounters.lastNumber} + 1`, updatedAt: new Date() },
+      })
+      .returning({ n: businessCodeCounters.lastNumber });
+    if (!counter) throw new Error('Business code counter returned no row.');
+    const code = formatBusinessCode(letters, counter.n);
+    const [taken] = await tx.select({ id: orgs.id }).from(orgs).where(eq(orgs.businessCode, code)).limit(1);
+    if (taken) continue;
+    await tx.update(orgs).set({ businessCode: code }).where(eq(orgs.id, orgId));
+    return code;
+  }
+  throw new Error(`No free business code in district ${org.districtId} after five tries.`);
 }

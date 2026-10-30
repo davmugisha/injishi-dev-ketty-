@@ -4,6 +4,7 @@
 //
 // Nothing here is a secret: this file, eas.json and every EXPO_PUBLIC_ value end up in the build.
 
+import palette from "@injishi/design-tokens/native.json";
 import type { ConfigContext, ExpoConfig } from "expo/config";
 
 type Variant = "development" | "preview" | "production";
@@ -85,9 +86,31 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     experiments: {
       typedRoutes: true,
     },
-    plugins: ["expo-router", "expo-sqlite", "expo-font", "expo-dev-client", "expo-updates"],
+    plugins: [
+      "expo-router",
+      "expo-sqlite",
+      "expo-font",
+      "expo-dev-client",
+      "expo-updates",
+      // The splash on the theme's own background (mobile spec 0002, D-w). One image for both
+      // themes: the mark measures 4.25:1 on the dark background, over the 3:1 an icon needs. The
+      // background is baked into the build, so changing it needs new builds.
+      [
+        "expo-splash-screen",
+        {
+          image: "./assets/splash-icon.png",
+          imageWidth: 200,
+          resizeMode: "contain",
+          backgroundColor: palette.light.background,
+          dark: { image: "./assets/splash-icon.png", backgroundColor: palette.dark.background },
+        },
+      ],
+    ],
     extra: {
       eas: { projectId: EAS_PROJECT_ID },
+      // Read by src/lib/app-variant.ts: the design system preview opens in development and preview
+      // builds only (spec 0002, D-x). Part of the fingerprint, so it moves the runtime version.
+      appVariant: variant(),
     },
   };
 };

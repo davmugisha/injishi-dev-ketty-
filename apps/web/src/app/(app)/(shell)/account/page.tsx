@@ -5,39 +5,26 @@ import { useState } from "react";
 import { Button } from "@injishi/web-ui";
 import { Icon } from "@/components/app/icon";
 import { useSignOutAndLeave } from "@/components/auth/sign-out";
-import { sessionDisplayName, useSessionUser } from "@/lib/session";
+import { displayNameFrom, initialsFrom } from "@/lib/avatar";
+import { useSessionUser } from "@/lib/session";
 
 /**
- * ONE account screen, not one per workspace (ADR-018, D-g, AC-11).
+ * ONE account screen, not one per workspace (ADR-018, D-g, AC-11). An account is a property of the
+ * PERSON, and a person has one.
  *
- * A person used to carry `personal/account` and `broker/account` here and an
- * account screen per operator workspace there. An account is a property of the
- * PERSON, and a person has one, so it collapses to one per app.
+ * IT READS THE SESSION AND ONLY THE SESSION. `lib/session.ts` is the one caller of `getSession()` in this
+ * app, which is why the name here and the name beside the avatar can never disagree.
  *
- * IT READS THE SESSION AND ONLY THE SESSION. `lib/session.ts` is the one caller
- * of `getSession()` in this app; every surface that needs identity goes through
- * it. The shell's own identity comes from the same place, which is why the name
- * here and the name beside the avatar can never disagree.
- *
- * The lenses this screen will grow — identity and documents, security, notification
- * preferences, claiming a walk in stay — are named below rather than stubbed as
- * empty tabs, because a tab that does nothing reads as broken and a sentence does
- * not.
+ * 2026-10-30 redesign: a profile header, the places a guest comes back for, and how they sign in. The
+ * list of lenses still to come ("identity and documents, security, notifications") is gone from the
+ * screen: a page that advertises what it does not do reads as unfinished.
  */
 
-/**
- * What a guest who has booked comes to their account FOR.
- *
- * The screen said what it would grow into and offered nothing that worked, so
- * the only live control on it was "Sign out". These three all exist, and the
- * sidebar is not always in view — it is a drawer below `lg`. Refunds joined
- * them with 073-gtbank-payments: a cancelled stay's money is owed and followed
- * there, so four links sit in two columns.
- */
+/** What a guest who has booked comes to their account FOR. */
 const ACCOUNT_LINKS = [
-  { href: "/trips", icon: "map-pin", label: "Trips", detail: "Dates, receipts and cancelling" },
-  { href: "/inbox", icon: "inbox", label: "Messages", detail: "The property and its departments" },
-  { href: "/saved", icon: "heart", label: "Saved", detail: "Stays kept for later" },
+  { href: "/trips", icon: "map-pin", label: "Trips", detail: "Dates, directions, receipts and cancelling" },
+  { href: "/inbox", icon: "message-square", label: "Messages", detail: "Talk to the property and its departments" },
+  { href: "/saved", icon: "heart", label: "Saved", detail: "Stays you kept for later" },
   { href: "/account/refunds", icon: "banknote", label: "Refunds", detail: "Money on its way back to you" },
 ] as const;
 
@@ -46,109 +33,121 @@ export default function Page() {
   const { signingOut, signOutAndLeave } = useSignOutAndLeave(signOut);
   const [retrying, setRetrying] = useState(false);
 
-  return (
-    <div className="mx-auto max-w-read px-4 py-8 sm:px-6">
-      <h1 className="font-display text-2xl font-bold tracking-tight">Account</h1>
+  if (status === "loading") {
+    return (
+      <div className="mx-auto max-w-read px-4 py-8 sm:px-6">
+        <div className="h-36 animate-pulse rounded-card bg-secondary" />
+        <span className="sr-only" role="status">
+          Getting your details
+        </span>
+      </div>
+    );
+  }
 
-      <section className="mt-5 rounded-card border border-border bg-card p-5">
-        {status === "loading" ? (
-          <p className="text-sm text-muted-foreground">Getting your details…</p>
-        ) : status === "unreachable" ? (
-          // NOT "signed out". A network failure says nothing either way about a
-          // session, and telling somebody to sign in again sends them to fix
-          // something that is not broken. What it DID lack was a way out: the
-          // sentence said "try again" and offered nothing to try again with, so
-          // the only move left was a browser reload.
-          <div>
-            <p className="text-sm text-muted-foreground">
-              We couldn&rsquo;t reach Injishi just now, so we can&rsquo;t show your
-              details. Your account is fine.
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              pending={retrying}
-              onClick={() => {
-                setRetrying(true);
-                void refresh().finally(() => setRetrying(false));
-              }}
-            >
-              <Icon name="refresh-cw" className="h-4 w-4" />
-              {retrying ? "Trying again…" : "Try again"}
-            </Button>
-          </div>
-        ) : status === "anonymous" || !user ? (
+  if (status === "unreachable") {
+    // NOT "signed out": a network failure says nothing about a session, and telling somebody to sign
+    // in again sends them to fix something that is not broken.
+    return (
+      <div className="mx-auto max-w-read px-4 py-8 sm:px-6">
+        <section className="rounded-card border border-border bg-card p-6">
+          <p className="text-sm text-muted-foreground">
+            We couldn&rsquo;t reach Injishi just now, so we can&rsquo;t show your details. Your account is fine.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            pending={retrying}
+            onClick={() => {
+              setRetrying(true);
+              void refresh().finally(() => setRetrying(false));
+            }}
+          >
+            <Icon name="refresh-cw" className="h-4 w-4" />
+            {retrying ? "Trying again…" : "Try again"}
+          </Button>
+        </section>
+      </div>
+    );
+  }
+
+  if (status === "anonymous" || !user) {
+    return (
+      <div className="mx-auto max-w-read px-4 py-8 sm:px-6">
+        <section className="rounded-card border border-border bg-card p-6">
           <p className="text-sm text-muted-foreground">
             You are not signed in.{" "}
-            <a href="/sign-in" className="font-semibold underline">
+            <a href="/sign-in?redirect=%2Faccount" className="font-semibold underline">
               Sign in
             </a>
           </p>
-        ) : (
-          <dl className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <dt className="text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                Name
-              </dt>
-              <dd className="mt-1 text-sm">{sessionDisplayName(user)}</dd>
-            </div>
-            <div>
-              <dt className="text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                Email
-              </dt>
-              <dd className="money mt-1 text-sm">{user.email}</dd>
-            </div>
-          </dl>
-        )}
+        </section>
+      </div>
+    );
+  }
+
+  // The name the sidebar shows, so the two never disagree.
+  const name = displayNameFrom(user.name, user.email);
+
+  return (
+    <div className="mx-auto flex max-w-read animate-arrive flex-col gap-5 px-4 py-8 sm:px-6">
+      <section className="overflow-hidden rounded-card border border-border bg-card">
+        <div className="h-20 bg-gradient-to-r from-primary/80 to-accent/70" aria-hidden />
+        <div className="-mt-10 flex flex-wrap items-end gap-4 px-6 pb-6">
+          <span className="flex size-20 shrink-0 items-center justify-center rounded-full border-4 border-card bg-primary font-display text-2xl font-bold text-primary-foreground">
+            {initialsFrom(user.name, user.email)}
+          </span>
+          <div className="min-w-0 grow pt-12 pb-1">
+            <h2 className="truncate font-display text-2xl font-bold tracking-tight">{name}</h2>
+            <p className="money truncate text-sm text-muted-foreground">{user.email}</p>
+          </div>
+        </div>
       </section>
 
-      {/* Offered only to somebody signed in: every one of these screens asks
-          for a session, so an anonymous reader would be sent to three dead
-          ends from a panel that already told them to sign in. */}
-      {status === "authenticated" ? (
-        <nav aria-label="Your stays" className="mt-4 grid gap-3 sm:grid-cols-2">
-          {ACCOUNT_LINKS.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="flex items-start gap-3 rounded-card border border-border bg-card p-4 hover:bg-secondary"
-            >
-              <Icon name={link.icon} className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-              <span>
-                <span className="block text-sm font-semibold">{link.label}</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">{link.detail}</span>
-              </span>
-            </a>
-          ))}
-        </nav>
-      ) : null}
+      <nav aria-label="Your stays" className="grid gap-3 sm:grid-cols-2">
+        {ACCOUNT_LINKS.map((link) => (
+          <a
+            key={link.href}
+            href={link.href}
+            className="group flex items-center gap-4 rounded-card border border-border bg-card p-4 transition-colors hover:bg-secondary"
+          >
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-card bg-secondary text-foreground transition-colors group-hover:bg-card">
+              <Icon name={link.icon} className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 grow">
+              <span className="block text-sm font-semibold">{link.label}</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">{link.detail}</span>
+            </span>
+            <Icon name="chevron-right" className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </a>
+        ))}
+      </nav>
 
-      <section className="mt-4 rounded-card border border-dashed border-border p-5">
-        <h2 className="text-sm font-semibold">Coming to this screen</h2>
-        <ul className="mt-2 space-y-1.5 text-sm text-muted-foreground">
-          <li>Identity and documents, the KYC you complete once</li>
-          <li>Security, including which devices hold a session</li>
-          <li>Which notifications reach you, and how</li>
-          <li>Claiming a stay you booked at the desk without an account</li>
-        </ul>
+      <section className="rounded-card border border-border bg-card p-5">
+        <div className="flex items-start gap-4">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-card bg-secondary">
+            <Icon name="shield-check" className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 grow">
+            <h3 className="text-sm font-semibold">Signing in</h3>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              There is no password to remember: each time you sign in, Injishi sends a one-time code to{" "}
+              <span className="money text-foreground">{user.email}</span>.
+            </p>
+          </div>
+        </div>
+        {/* It leaves, like the header menu and the sidebar, and lands somewhere that says so. */}
+        <div className="mt-4 flex justify-end border-t border-border pt-4">
+          <Button variant="outline" pending={signingOut} onClick={signOutAndLeave}>
+            <Icon name="log-out" className="h-4 w-4" />
+            {signingOut ? "Signing out…" : "Sign out"}
+          </Button>
+        </div>
       </section>
 
-      {/* It used to sign out in place: this panel flipped to "You are not signed
-          in" while the shell around it went on showing the person's name and
-          initials, so the screen disagreed with itself. It leaves now, like the
-          header menu and the sidebar, and lands somewhere that says so. */}
-      {status === "authenticated" ? (
-        <Button
-          variant="ghost"
-          className="mt-5"
-          pending={signingOut}
-          onClick={signOutAndLeave}
-        >
-          <Icon name="log-out" className="h-4 w-4" />
-          {signingOut ? "Signing out…" : "Sign out"}
-        </Button>
-      ) : null}
+      <p className="text-center text-xs text-muted-foreground">
+        Need a hand? <a href="/support" className="font-semibold underline">Visit Support</a>
+      </p>
     </div>
   );
 }

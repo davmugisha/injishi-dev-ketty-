@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   AdminUnclaimedStaysResponse,
+  AdminPersonDetail,
   AdminUserListResponse,
   type AdminKycState,
   type AdminOversightGrant,
@@ -129,6 +130,43 @@ export class AdminUsersService {
     return AdminUserListResponse.parse({
       items,
       meta: { total, page, pageSize },
+    });
+  }
+
+  /**
+   * One person, with every authority they hold (`GET /admin/users/:userId`).
+   *
+   * The same trail rule as the directory: the read is recorded before it is
+   * answered. Every government seat is returned, not the newest one, because
+   * this page is where a staffer ends one of several.
+   */
+  async getUser(userId: string, actorUserId: string, reason: string): Promise<AdminPersonDetail> {
+    const row = await this.repo.userById(userId);
+    if (!row) throw new NotFoundException('No user has that id.');
+    await this.access.recordRead({ actorUserId, subjectUserIds: [userId], dataClass: 'national_id', reason });
+    const ids = [userId];
+    const [roles, memberships, staff, oversight] = await Promise.all([
+      this.repo.globalRolesFor(ids),
+      this.repo.membershipsFor(ids),
+      this.repo.staffRolesFor(ids),
+      this.repo.oversightFor(ids),
+    ]);
+    const grants = oversight.map(toOversightGrant);
+    return AdminPersonDetail.parse({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      emailVerified: row.emailVerified,
+      kyc: toKycState(row.kycStatus),
+      phoneMasked: maskPhone(row.phoneE164),
+      nationalIdMasked: maskNationalId(row.nationalId),
+      globalRoles: roles.map((r) => r.globalRole),
+      memberships: memberships.map(toMembership),
+      staffRoles: staff[0]?.staffRoles ?? [],
+      oversight: grants[0] ?? null,
+      oversightGrants: grants,
+      twoFactorEnrolled: isTwoFactorEnrolled(row),
+      createdAt: row.createdAt.toISOString(),
     });
   }
 

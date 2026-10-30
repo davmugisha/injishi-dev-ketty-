@@ -6,9 +6,10 @@ import type {
   GuestStayRecord,
   PaymentMethod,
 } from "@injishi/data/fixtures/guest";
+import { type FolioPaymentState, type FolioStage, GuestFolioView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { type FolioPaymentState, type FolioStage, GuestFolioView } from "@/features/guest/GuestFolioView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -35,10 +36,12 @@ export default async function GuestFolioPage({
   if (!folio || !stay || !charges.length) notFound();
   const { stage, payment } = await searchParams;
   return (
-    <GuestFolioView
-      data={{ folio, charges, payments, methods, initials: stay.initials, property: stay.property }}
-      stage={STAGES.includes(stage as FolioStage) ? (stage as FolioStage) : "in-stay"}
-      payment={PAYMENTS.includes(payment as FolioPaymentState) ? (payment as FolioPaymentState) : "ready"}
-    />
+    <PmsMount>
+      <GuestFolioView
+        data={{ folio, charges, payments, methods, initials: stay.initials, property: stay.property }}
+        stage={STAGES.includes(stage as FolioStage) ? (stage as FolioStage) : "in-stay"}
+        payment={PAYMENTS.includes(payment as FolioPaymentState) ? (payment as FolioPaymentState) : "ready"}
+      />
+    </PmsMount>
   );
 }

@@ -34,6 +34,7 @@ import {
   type PropertyCard,
   REQUIRED_CONSENTS,
   type SavedPlace,
+  nightlyRateFor,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -44,7 +45,7 @@ import {
 } from '@nestjs/common';
 import { z } from 'zod';
 
-import { APPROVAL_WINDOW_HOURS } from '../../booking/domain/pricing';
+import { APPROVAL_WINDOW_HOURS } from '../../pms/domain/pricing';
 import { ListingService } from '../../listing/application/listing.service';
 import { placeLine } from '../domain/place-line';
 import { type CardRow, MarketplaceRepository, type RoomCardRow } from '../infrastructure/marketplace.repository';
@@ -116,6 +117,8 @@ export class MarketplaceService {
       districtName: detail.districtName,
       photos: detail.photos,
       fromNightlyRateRwf: null,
+      fromPriceBasis: 'per_person',
+      businessKind: null,
       maxGuests: null,
       roomTypeCount: detail.roomTypes.length,
       latitude: detail.latitude,
@@ -165,6 +168,8 @@ export class MarketplaceService {
       throw new BadRequestException(`${room.roomType.name} sleeps ${capacity}.`);
     }
     if (room.roomType.nightlyRateRwf === null) throw new ConflictException('This room has no price yet.');
+    // A room priced per room charges one guest its one guest price, when it has one (0117).
+    const nightly = nightlyRateFor({ ...room.roomType, nightlyRateRwf: rate.nightlyRateRwf }, q.guests);
     const tier = room.roomType.cancellationTier ?? 'flexible';
     const rule = CANCELLATION_TIERS[tier];
     const time = /^\d{2}:\d{2}/.exec(room.property.checkInTime ?? '')?.[0] ?? '14:00';
@@ -190,7 +195,13 @@ export class MarketplaceService {
       checkIn: q.checkIn,
       checkOut: q.checkOut,
       guests: q.guests,
-      breakdown: computeBreakdown({ nightlyRateRwf: rate.nightlyRateRwf, nights, nonRefundable: false, guests: q.guests }),
+      breakdown: computeBreakdown({
+        nightlyRateRwf: nightly,
+        nights,
+        nonRefundable: false,
+        guests: q.guests,
+        priceBasis: room.roomType.priceBasis,
+      }),
       bookingMode: room.roomType.bookingMode,
       approvalWindowHours: room.roomType.bookingMode === 'request_to_book' ? APPROVAL_WINDOW_HOURS : null,
       cancellationTier: tier,

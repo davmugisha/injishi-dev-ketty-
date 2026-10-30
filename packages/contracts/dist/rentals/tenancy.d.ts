@@ -599,9 +599,9 @@ export declare const TenancyDetail: z.ZodObject<{
         occupants: string[];
         otherTerms: string | null;
     };
+    cancelReason: string | null;
     cancelledAt: string | null;
     updatedAt: string;
-    cancelReason: string | null;
     place: {
         province: string | null;
         district: string | null;
@@ -682,9 +682,9 @@ export declare const TenancyDetail: z.ZodObject<{
         occupants: string[];
         otherTerms: string | null;
     };
+    cancelReason: string | null;
     cancelledAt: string | null;
     updatedAt: string;
-    cancelReason: string | null;
     place: {
         province: string | null;
         district: string | null;

@@ -288,7 +288,7 @@ function buildSections(selected: Listing[], intent?: StayIntent): Section[] {
     sameBasis && priced.length >= 2 ? Math.min(...priced.map((l) => l.nightlyRateRwf!)) : null;
   const rated = selected.filter((l) => l.rating !== null);
   const topScore = rated.length >= 2 ? Math.max(...rated.map((l) => l.rating!.score)) : null;
-  const sleeps = selected.map((l) => l.maxGuests);
+  const sleeps = selected.map((l) => l.maxGuests).filter((n): n is number => n !== null);
   const mostGuests = new Set(sleeps).size > 1 ? Math.max(...sleeps) : null;
 
   // Facilities: the union of what the compared stays list, most common first,
@@ -380,7 +380,8 @@ function buildSections(selected: Listing[], intent?: StayIntent): Section[] {
         },
         {
           label: "Sleeps",
-          cell: (l) => `Up to ${l.maxGuests} ${l.maxGuests === 1 ? "guest" : "guests"}`,
+          cell: (l) =>
+            l.maxGuests === null ? "Not stated" : `Up to ${l.maxGuests} ${l.maxGuests === 1 ? "guest" : "guests"}`,
           key: (l) => String(l.maxGuests),
           best: mostGuests === null ? undefined : slugsWhere((l) => l.maxGuests === mostGuests),
           bestLabel: "Sleeps most",

@@ -7,9 +7,10 @@ import type {
   HousekeepingStaff,
   RoomHistory,
 } from "@injishi/data/fixtures/operations";
+import { HousekeepingBoardView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { HousekeepingBoardView } from "@/features/operations/HousekeepingBoardView";
-import { StayCleaningView } from "@/features/stays/StayCleaningView";
+import { PmsMount } from "@/features/pms/pms-mount";
+import { StayCleaningView } from "@/features/pms/stays/StayCleaningView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { readBoard } from "@/server/sources/operations";
@@ -33,10 +34,12 @@ export default async function HousekeepingBoardPage({ searchParams }: { searchPa
   const { propertyName } = await readBoard(await requestContext());
   const { view } = await searchParams;
   return (
-    <HousekeepingBoardView
-      persona={persona}
-      initialView={view === "rooms" ? "rooms" : "tasks"}
-      data={{ rooms, roomHistory, tasks, staff, escalations, rules, propertyName }}
-    />
+    <PmsMount>
+      <HousekeepingBoardView
+        persona={persona}
+        initialView={view === "rooms" ? "rooms" : "tasks"}
+        data={{ rooms, roomHistory, tasks, staff, escalations, rules, propertyName }}
+      />
+    </PmsMount>
   );
 }

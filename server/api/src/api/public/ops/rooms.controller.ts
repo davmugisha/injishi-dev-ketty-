@@ -13,7 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { FrontDeskService } from '../../../modules/operations/application/front-desk.service';
+import { FrontDeskService } from '../../../modules/pms/application/front-desk.service';
 import {
   CurrentUser,
   SessionGuard,

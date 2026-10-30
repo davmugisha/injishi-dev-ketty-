@@ -1,0 +1,95 @@
+/* The Coming soon words (mobile spec 0004, AC-7).
+ *
+ * Seven typefaces, one every 0.6 seconds, on a loop, in this order:
+ * Instrument Sans 600, Instrument Serif, Figtree 900, Space Mono 700,
+ * Instrument Serif italic, Bricolage Grotesque 800, Figtree 300.
+ *
+ * PURE CSS, NO SCRIPT. The frames switch `font-family`, `font-weight`,
+ * `font-style` and `letter-spacing` in discrete steps (`step-end`), so the
+ * words never fade or slide between faces. The text itself never changes, so a
+ * screen reader hears "Coming soon" once. It loops forever, like the reference:
+ * the words are the whole page, so the rule on moving content shown beside other
+ * content does not apply, and switching a typeface causes no flashing. Reduced
+ * motion stops it on the first frame.
+ *
+ * The size is fluid rather than a step on the type scale, because the words are
+ * sized to the screen, not to the text around them (there is none). Below `md`
+ * they are set large enough to break onto two lines, "Coming" over "soon"; from
+ * `md` up they stay on one line, and the widest frame (Space Mono) still fits. */
+
+.word {
+  margin: 0;
+  font-family: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  font-style: normal;
+  letter-spacing: -0.035em;
+  line-height: 0.92;
+  font-size: clamp(3.5rem, 22vw, 7rem);
+  text-wrap: balance;
+  animation: typefaces 4.2s step-end infinite;
+}
+
+@media (min-width: 48rem) {
+  .word {
+    font-size: clamp(4rem, 11vw, 10rem);
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .word {
+    animation: none;
+  }
+}
+
+@keyframes typefaces {
+  0% {
+    font-family: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
+    font-weight: 600;
+    font-style: normal;
+    letter-spacing: -0.035em;
+  }
+
+  14.2857% {
+    font-family: var(--font-instrument-serif), Georgia, serif;
+    font-weight: 400;
+    font-style: normal;
+    letter-spacing: -0.02em;
+  }
+
+  28.5714% {
+    font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+    font-weight: 900;
+    font-style: normal;
+    letter-spacing: -0.045em;
+  }
+
+  42.8571% {
+    font-family: var(--font-space-mono), ui-monospace, monospace;
+    font-weight: 700;
+    font-style: normal;
+    letter-spacing: -0.06em;
+  }
+
+  57.1429% {
+    font-family: var(--font-instrument-serif), Georgia, serif;
+    font-weight: 400;
+    font-style: italic;
+    letter-spacing: -0.02em;
+  }
+
+  71.4286% {
+    font-family: var(--font-bricolage-grotesque), ui-sans-serif, system-ui, sans-serif;
+    font-weight: 800;
+    font-style: normal;
+    letter-spacing: -0.04em;
+  }
+
+  85.7143%,
+  100% {
+    font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+    font-weight: 300;
+    font-style: normal;
+    letter-spacing: -0.03em;
+  }
+}

@@ -81,11 +81,12 @@ describe("the promises that contradicted the flow", () => {
     }
   });
 
-  test("step one says what to have to hand, and that only the certificates may wait", () => {
+  test("step one says what to have to hand, certificates included (no field visit, 2026-10-29)", () => {
     const first = HOST_STEPS[0];
     assert.match(first.body, /\bID\b/);
     assert.match(first.body, /TIN/);
-    assert.match(first.body, /certificates can wait/i);
+    assert.match(first.body, /certificates/i);
+    assert.doesNotMatch(first.body, /visit/i);
     assert.match(first.body, /ten minutes/i);
   });
 });
@@ -107,7 +108,7 @@ describe("/host states the charges plainly", () => {
 
   test("the hero says both charges before the kind is chosen", () => {
     const hero = readFileSync(join(SRC, "components/host/host-hero.tsx"), "utf8").replace(/\s+/g, " ");
-    assert.match(hero, /A one time registration fee, then a monthly plan once you are live\./);
+    assert.match(hero, /A one-time registration fee, then a monthly plan once\s+you&apos;re\s+live\./);
     assert.match(hero, /href="#host-charges"/);
     const charges = readFileSync(join(SRC, "components/host/host-charges.tsx"), "utf8");
     assert.match(charges, /id="host-charges"/);

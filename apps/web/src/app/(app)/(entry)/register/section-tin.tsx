@@ -25,7 +25,7 @@ import { Callout } from "./register-shell";
 import { ChoiceTile, Field, Offline, TextInput } from "./wizard-ui";
 
 /**
- * Business name and TIN (Register.dc.html, step two's first section).
+ * Business name and TIN (Register.dc.html, Business's first section).
  *
  * The person types the name as they know it and the nine digits, and
  * "Validate with RRA" asks the company register (`POST /registrations/tin-check`).
@@ -41,7 +41,11 @@ import { ChoiceTile, Field, Offline, TextInput } from "./wizard-ui";
  *    checks the TIN again after the fee.
  *
  * Then "Who is registering it?": the owner, or someone preparing it for the
- * owner, who names them and the owner claims it after approval (ADR-053).
+ * owner, who names them and the owner claims it after approval (ADR-053). For
+ * the owner, RRA's answer on whether their ID (from You, the step before) is
+ * among the directors for this TIN: listed or not, never the directors' names,
+ * because the name matched may be typed (AC-7). The server matches again at
+ * creation. Someone not listed registers it for the owner instead.
  */
 
 export type TinView =
@@ -63,6 +67,8 @@ export function SectionTin({
   onCheckAnother,
   onCarryOn,
   onAskInjishi,
+  isDirector,
+  onPrepareForOwner,
   onNext,
   error,
   online = true,
@@ -81,6 +87,10 @@ export function SectionTin({
   onCheckAnother: () => void;
   onCarryOn: () => void;
   onAskInjishi: () => void;
+  /** RRA's answer for the owner: is the registrant's ID among the directors? True, false, or not known. */
+  isDirector: boolean | null;
+  /** Switch to "I'm registering it for the owner" when RRA does not list the registrant. */
+  onPrepareForOwner: () => void;
   onNext: () => void;
   error?: string;
   /** The device has a network. RRA cannot be asked without one, and the section says so (ADR-075 S9). */
@@ -256,14 +266,41 @@ export function SectionTin({
                 checked={capPick === "on_behalf_of"}
                 icon={<Users size={20} aria-hidden />}
                 title="I'm registering it for the owner"
-                description="You prepare it and name the owner. They claim it once Injishi approves it."
+                description="You prepare it and name the owner. They claim it once PSF approves it."
                 onSelect={() => onCapPick("on_behalf_of")}
               />
             </div>
           </fieldset>
-          <div>
-            <Button onClick={onNext}>Next</Button>
-          </div>
+          {capPick === "owner" && isDirector === true ? (
+            <Callout tone="success" icon={<CircleCheck size={16} aria-hidden />} title="You're listed as a director" />
+          ) : null}
+          {capPick === "owner" && isDirector === false ? (
+            <>
+              <Callout
+                tone="warning"
+                icon={<TriangleAlert size={16} aria-hidden />}
+                title="You're not listed as a director"
+                role="alert"
+              >
+                RRA does not list your ID among the directors for this TIN. Register it for the owner instead: you
+                name them, and they claim it with their own ID once Injishi approves it.
+              </Callout>
+              <div>
+                <Button onClick={onPrepareForOwner}>Register it for the owner instead</Button>
+              </div>
+            </>
+          ) : (
+            <>
+              {capPick === "on_behalf_of" && isDirector === false ? (
+                <p className="text-sm text-muted-foreground">
+                  RRA does not list your ID among the directors for this TIN, so you register it for the owner.
+                </p>
+              ) : null}
+              <div>
+                <Button onClick={onNext}>Next</Button>
+              </div>
+            </>
+          )}
         </>
       ) : null}
     </>

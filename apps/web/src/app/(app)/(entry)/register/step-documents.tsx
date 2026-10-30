@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import type { BusinessKind, OrgCertificateKind } from "@injishi/contracts";
-import { Button } from "@injishi/web-ui";
+import { Badge, Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { File, FileCheck, FileText, FileUp, Flame, HeartPulse, Medal, ShieldCheck, Stamp, X } from "lucide-react";
 
@@ -24,8 +24,13 @@ import { Field, Offline, SelectField, formatBytes } from "./wizard-ui";
  * The drop zone at the top takes several files at once and asks which row each
  * one is, because a guessed kind files a tax clearance under the RDB
  * certificate for the officer who opens it. A file is uploaded the moment it is
- * chosen (`POST /uploads/certificate`, 10 MB, PDF or image) and sent with the
- * registration when the first Pay press creates it.
+ * chosen (`POST /uploads/certificate`, 10 MB, a PDF, JPEG, PNG or WebP) and sent
+ * with the registration when the first Pay press creates it. Several dropped at
+ * once are each tried, and every one that did not go up is named.
+ *
+ * A PHONE PHOTO IS NOT ALWAYS FINE. An iPhone saves HEIC by default and the
+ * certificate upload refuses it, so the step asks for JPEG or PNG, and names
+ * HEIC when one is chosen rather than sending it to be refused.
  */
 
 const ACCEPT = "application/pdf,image/jpeg,image/png,image/webp";
@@ -48,8 +53,11 @@ function whyNot(file: globalThis.File): string | null {
   if (file.size === 0) return "the file is empty";
   if (file.size > MAX_BYTES) return `${formatBytes(file.size)}, larger than 10 MB`;
   const type = file.type.toLowerCase();
+  if (type === "image/heic" || type === "image/heif" || /\.hei[cf]$/i.test(file.name)) {
+    return "a HEIC photo, which we cannot read. Save it as a JPEG (on an iPhone: Settings, Camera, Formats, Most Compatible) and upload that";
+  }
   const byName = /\.(pdf|jpe?g|png|webp)$/i.test(file.name);
-  if ((type !== "" && !ACCEPTED.includes(type)) || (type === "" && !byName)) return "not a PDF, JPG or PNG";
+  if ((type !== "" && !ACCEPTED.includes(type)) || (type === "" && !byName)) return "not a PDF, JPEG or PNG";
   return null;
 }
 
@@ -144,10 +152,11 @@ export function StepDocuments({
         problems.push(`${file.name}: ${problem}`);
         continue;
       }
+      // One refusal says nothing about the next file, so the rest are still tried and every failure is named.
       const res = await uploadCertificate(file);
       if (res.status !== "ok") {
         problems.push(`${file.name}: ${apiResultMessage(res)}`);
-        break;
+        continue;
       }
       added.push({ objectKey: res.data.objectKey, filename: res.data.filename, sizeBytes: res.data.sizeBytes });
     }
@@ -196,7 +205,8 @@ export function StepDocuments({
         <FileUp size={28} aria-hidden className="text-muted-foreground" />
         <p className="text-sm font-semibold">Drop files here or browse</p>
         <p className="text-xs text-muted-foreground">
-          PDF, JPG or PNG, up to 10 MB each. Phone photos are fine if all four corners show.
+          PDF, JPEG or PNG, up to 10 MB each. A photo must be a JPEG or PNG with all four corners showing; an
+          iPhone&apos;s HEIC photo is not accepted.
         </p>
         {zoneBusy ? (
           <span role="status" className="text-xs text-muted-foreground">
@@ -274,14 +284,14 @@ export function StepDocuments({
           const Icon = ICON[row.kind] ?? File;
           const chip =
             state === "done"
-              ? { label: "Uploaded", cls: "bg-success/15 text-success" }
+              ? ({ label: "Uploaded", variant: "success" } as const)
               : state === "failed"
-                ? { label: "Failed", cls: "bg-destructive/10 text-destructive" }
+                ? ({ label: "Failed", variant: "danger" } as const)
                 : state === "uploading"
-                  ? { label: "Uploading", cls: "bg-card text-muted-foreground" }
+                  ? ({ label: "Uploading", variant: "default" } as const)
                   : row.required
-                    ? { label: "Needed", cls: "bg-warning/15 text-foreground" }
-                    : { label: "Optional", cls: "bg-card text-muted-foreground" };
+                    ? ({ label: "Needed", variant: "warning" } as const)
+                    : ({ label: "Optional", variant: "default" } as const);
           const meta =
             refusal && doc
               ? `${doc.filename} · ${refusal}`
@@ -304,16 +314,18 @@ export function StepDocuments({
                   <span className="flex flex-wrap items-center gap-2 text-sm font-semibold">
                     {row.label}
                     {row.required ? (
-                      <span className="rounded-full bg-accent-brand/15 px-2 py-0.5 text-2xs font-semibold text-accent-text">
+                      <Badge variant="accent" size="sm">
                         Required
-                      </span>
+                      </Badge>
                     ) : null}
                   </span>
                   <span className={cn("break-words text-xs", state === "failed" ? "text-destructive" : "text-muted-foreground")}>
                     {meta}
                   </span>
                 </span>
-                <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", chip.cls)}>{chip.label}</span>
+                <Badge variant={chip.variant} size="sm">
+                  {chip.label}
+                </Badge>
                 {state === "done" ? (
                   <Button variant="ghost" size="sm" onClick={() => remove(row.kind)}>
                     Remove<span className="sr-only">: {row.label}</span>

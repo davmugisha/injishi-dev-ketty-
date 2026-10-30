@@ -1,12 +1,14 @@
 /**
- * The You step scans the ID, front then a selfie, for a National ID and a
- * passport alike, and sends no code to any phone (ADR-075 S4, AC-4 to AC-7).
+ * The You step checks a Rwandan National ID by its number and a selfie against
+ * NIDA (through GTBank, since 2026-10-30), scans a passport's photo page and a
+ * selfie, and sends no code to any phone (ADR-075 S4, AC-4 to AC-7).
  *
- * The scan itself is proved over HTTP by `server/api/scripts/verify-adr075-identity.mjs`
- * and in the browser walk. This pins what a reader of the source can check: the
- * SMS path and its words are gone from every file the step is built from, the
- * client calls only the scan and the typed details, and the step says the
- * statuses and the director line the ADR words.
+ * The adapters are proved over HTTP against Injishi Mock APIs by
+ * `server/api/src/shared/http/sandbox-adapters.spec.ts`. This pins what a
+ * reader of the source can check: the SMS path and its words are gone from
+ * every file the step is built from, the client calls only the scan, the
+ * National ID check and the typed details, and the step says the statuses and
+ * the director line the ADR words.
  *
  * Run: pnpm --filter @injishi/web test
  */
@@ -25,6 +27,8 @@ const registerFiles = readdirSync(REGISTER)
 const identityClient = read(resolve(here, "../src/data/identity.ts"));
 const scanner = read(resolve(REGISTER, "identity-verifier.tsx"));
 const section = read(resolve(REGISTER, "section-identity.tsx"));
+// The director line is the business's, under "Who is registering it?", not the person's.
+const tinSection = read(resolve(REGISTER, "section-tin.tsx"));
 
 describe("no code is sent to any phone (AC-4)", () => {
   test("no register file names the SMS routes or speaks their words", () => {
@@ -41,21 +45,28 @@ describe("no code is sent to any phone (AC-4)", () => {
     }
   });
 
-  test("the client calls only the scan and the typed details", () => {
+  test("the client calls only the scan, the National ID check and the typed details", () => {
     assert.match(identityClient, /"\/api\/v1\/me\/identity\/scan"/);
+    assert.match(identityClient, /"\/api\/v1\/me\/identity\/national-id"/);
     assert.match(identityClient, /"\/api\/v1\/me\/identity\/document", \{ method: "PUT"/);
     assert.doesNotMatch(identityClient, /identity\/passport/);
   });
 });
 
-describe("the scan (AC-5, AC-6)", () => {
-  test("one scanner for both documents: the front or the photo page, then a selfie", () => {
-    assert.match(scanner, /"national_id", "National ID"/);
-    assert.match(scanner, /"passport", "Passport"/);
-    assert.match(scanner, /The front of your ID card/);
+describe("the check (AC-5, AC-6, and NIDA by number since 2026-10-30)", () => {
+  test("a National ID is its number and a selfie; a passport its country, photo page and selfie", () => {
+    assert.match(scanner, /value="national_id">Rwandan National ID</);
+    assert.match(scanner, /value="passport">Passport</);
+    assert.match(scanner, /label="Your National ID number"/);
+    assert.match(scanner, /label="Country that issued your passport"/);
     assert.match(scanner, /Your passport's photo page/);
     assert.match(scanner, /label="A selfie"/);
-    assert.match(scanner, /I agree to Injishi checking my ID\./);
+    assert.match(scanner, /I agree to Injishi checking my ID with NIDA\./);
+  });
+
+  test("the card is still scanned where the NIDA check is off", () => {
+    assert.match(scanner, /const byNumber = !passport && nationalIdMode !== "off"/);
+    assert.match(scanner, /The front of your ID card/);
   });
 
   test("the status is Checked only when the record says checked, otherwise PSF will check", () => {
@@ -68,17 +79,22 @@ describe("the scan (AC-5, AC-6)", () => {
     assert.match(section, /putTypedIdentity/);
   });
 
-  test("demo notes show in demo mode only", () => {
-    assert.match(scanner, /mode === "mock" \? \(/);
+  test("demo notes show in demo and sandbox modes only", () => {
+    assert.match(scanner, /demo === "mock" \? \(/);
+    assert.match(scanner, /demo === "sandbox" \? \(/);
   });
 });
 
 describe("the director line (AC-7)", () => {
   test("the owner learns listed or not, and is pointed to the helper path, never shown the names", () => {
-    assert.match(section, /You're listed as a director/);
-    assert.match(section, /You're not listed as a director/);
-    assert.match(section, /Register it for the owner instead/);
-    assert.doesNotMatch(section, /directorNames|RRA lists/);
+    assert.match(tinSection, /You're listed as a director/);
+    assert.match(tinSection, /You're not listed as a director/);
+    assert.match(tinSection, /Register it for the owner instead/);
+    assert.doesNotMatch(tinSection, /directorNames|RRA lists/);
+  });
+
+  test("the identity section is about the person alone: no director line, no TIN", () => {
+    assert.doesNotMatch(section, /director|TIN/);
   });
 
   test("the contract asks for the directors' names only with the helper's capacity", async () => {

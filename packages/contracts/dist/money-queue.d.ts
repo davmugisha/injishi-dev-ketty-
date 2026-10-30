@@ -325,7 +325,7 @@ export declare const MoneyOverrideView: z.ZodObject<{
     canDecide: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     id: string;
-    state: "approved" | "rejected" | "initiated" | "applied";
+    state: "approved" | "rejected" | "applied" | "initiated";
     amountRwf: number | null;
     reason: string;
     canDecide: boolean;
@@ -337,7 +337,7 @@ export declare const MoneyOverrideView: z.ZodObject<{
     decidedBy: string | null;
 }, {
     id: string;
-    state: "approved" | "rejected" | "initiated" | "applied";
+    state: "approved" | "rejected" | "applied" | "initiated";
     amountRwf: number | null;
     reason: string;
     canDecide: boolean;
@@ -366,7 +366,7 @@ export declare const MoneyOverrideList: z.ZodObject<{
         canDecide: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
         id: string;
-        state: "approved" | "rejected" | "initiated" | "applied";
+        state: "approved" | "rejected" | "applied" | "initiated";
         amountRwf: number | null;
         reason: string;
         canDecide: boolean;
@@ -378,7 +378,7 @@ export declare const MoneyOverrideList: z.ZodObject<{
         decidedBy: string | null;
     }, {
         id: string;
-        state: "approved" | "rejected" | "initiated" | "applied";
+        state: "approved" | "rejected" | "applied" | "initiated";
         amountRwf: number | null;
         reason: string;
         canDecide: boolean;
@@ -392,7 +392,7 @@ export declare const MoneyOverrideList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     overrides: {
         id: string;
-        state: "approved" | "rejected" | "initiated" | "applied";
+        state: "approved" | "rejected" | "applied" | "initiated";
         amountRwf: number | null;
         reason: string;
         canDecide: boolean;
@@ -406,7 +406,7 @@ export declare const MoneyOverrideList: z.ZodObject<{
 }, {
     overrides: {
         id: string;
-        state: "approved" | "rejected" | "initiated" | "applied";
+        state: "approved" | "rejected" | "applied" | "initiated";
         amountRwf: number | null;
         reason: string;
         canDecide: boolean;

@@ -1,7 +1,8 @@
 import { screens } from "@injishi/data";
 import type { StorePart, WorkOrder } from "@injishi/data/fixtures/staff";
+import { TechWorkOrdersView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { TechWorkOrdersView } from "@/features/staff/TechWorkOrdersView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { myProfile } from "@/server/sources/staff";
@@ -17,5 +18,9 @@ export default async function TechWorkOrdersPage() {
     getCollection<StorePart>("staff.storeParts"),
   ]);
   // No open order is not a 404: the view says so (and keeps an order it just resolved on screen).
-  return <TechWorkOrdersView persona={persona} data={{ profile: profile ?? null, orders, store }} />;
+  return (
+    <PmsMount>
+      <TechWorkOrdersView persona={persona} data={{ profile: profile ?? null, orders, store }} />
+    </PmsMount>
+  );
 }

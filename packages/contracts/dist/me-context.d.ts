@@ -7,7 +7,7 @@ export declare const MeContextBusiness: z.ZodObject<{
     workspaceId: z.ZodString;
     orgId: z.ZodString;
     orgName: z.ZodString;
-    domain: z.ZodEnum<["hospitality", "residence"]>;
+    domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
     role: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
     registrationStatus: z.ZodNullable<z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>>;
     /** Approved and running: only then does it grant any permission. */
@@ -16,7 +16,7 @@ export declare const MeContextBusiness: z.ZodObject<{
     /** A landlord business's lease signatory, as their ID names them; null until set or for other businesses. */
     signatoryName: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     orgId: string;
     workspaceId: string;
@@ -26,7 +26,7 @@ export declare const MeContextBusiness: z.ZodObject<{
     signatoryName: string | null;
     operational: boolean;
 }, {
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     orgId: string;
     workspaceId: string;
@@ -88,7 +88,7 @@ export declare const MeContext: z.ZodObject<{
         workspaceId: z.ZodString;
         orgId: z.ZodString;
         orgName: z.ZodString;
-        domain: z.ZodEnum<["hospitality", "residence"]>;
+        domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
         role: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
         registrationStatus: z.ZodNullable<z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>>;
         /** Approved and running: only then does it grant any permission. */
@@ -97,7 +97,7 @@ export declare const MeContext: z.ZodObject<{
         /** A landlord business's lease signatory, as their ID names them; null until set or for other businesses. */
         signatoryName: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         orgId: string;
         workspaceId: string;
@@ -107,7 +107,7 @@ export declare const MeContext: z.ZodObject<{
         signatoryName: string | null;
         operational: boolean;
     }, {
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         orgId: string;
         workspaceId: string;
@@ -246,8 +246,9 @@ export declare const MeContext: z.ZodObject<{
         roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
         isStaff: boolean;
     };
+    activeWorkspaceId: string | null;
     businesses: {
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         orgId: string;
         workspaceId: string;
@@ -268,7 +269,6 @@ export declare const MeContext: z.ZodObject<{
         endDate: string;
         landlordName: string;
     }[];
-    activeWorkspaceId: string | null;
     landing: {
         workspaceId: string | null;
         surface: "business" | "broker" | "admin" | "guest" | "landlord" | "tenant" | "leader";
@@ -300,8 +300,9 @@ export declare const MeContext: z.ZodObject<{
         roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
         isStaff: boolean;
     };
+    activeWorkspaceId: string | null;
     businesses: {
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         orgId: string;
         workspaceId: string;
@@ -322,7 +323,6 @@ export declare const MeContext: z.ZodObject<{
         endDate: string;
         landlordName: string;
     }[];
-    activeWorkspaceId: string | null;
     landing: {
         workspaceId: string | null;
         surface: "business" | "broker" | "admin" | "guest" | "landlord" | "tenant" | "leader";

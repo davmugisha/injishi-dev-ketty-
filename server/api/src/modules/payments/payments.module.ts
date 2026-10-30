@@ -1,5 +1,7 @@
 import { Logger, Module, type Provider } from '@nestjs/common';
 
+import { resolveMockApis, sandboxRefusedOverRealData } from '../../shared/config/mock-apis';
+import { PLATFORM, type Platform } from '../../shared/config/platform';
 import { DisbursementDispatcher } from './application/disbursement-dispatcher.service';
 import { MoneyQueueService } from './application/money-queue.service';
 import { PaymentCompensationService } from './application/payment-compensation.service';
@@ -14,6 +16,7 @@ import {
   resolvePaymentSeam,
   resolveSeamMode,
 } from './domain/payment-seam';
+import { GtbankPaymentAdapter } from './infrastructure/gtbank-payment.adapter';
 import { GuardedPaymentPort } from './infrastructure/guarded-payment.port';
 import { MockPaymentAdapter } from './infrastructure/mock-payment.adapter';
 import { MoneyQueueRepository } from './infrastructure/money-queue.repository';
@@ -37,21 +40,28 @@ import { RecordedPaymentPort } from './infrastructure/recorded-payment.port';
  * alone holds the guarded port beneath the writer (`GUARDED_PAYMENT_PORT`).
  */
 
-/** The live adapter, once one exists. Null until then, and boot refuses. */
-const LIVE_ADAPTER: (new () => PaymentPort) | null = null;
+/**
+ * The live adapter, once one exists. Null until then, and boot refuses.
+ *
+ * When GTBank's Integration Specifications arrive, `live` binds
+ * `GtbankPaymentAdapter` with GTBank's base URL and credentials: the class
+ * `sandbox` already runs against Injishi Mock APIs, its mapping corrected to
+ * the document and run through ADR-073 D-h's conformance first.
+ */
+const LIVE_ADAPTER: (() => PaymentPort) | null = null;
 
 /** What `PAYMENT_ADAPTER_MODE` may say. Kept under its old names for callers. */
 export type PaymentAdapterSetting = PaymentSeamMode;
 export const resolveMode = resolveSeamMode;
 
-function adapterClass(settings: PaymentSeamSettings): new () => PaymentPort {
+function adapterFor(settings: PaymentSeamSettings, platform: Pick<Platform, 'sampleData'>): PaymentPort {
   const log = new Logger('PaymentsModule');
   if (settings.mode === 'off') {
     // Production until a provider is signed (booking audit, 2026-09-13): the
     // compose file used to leave this unset, which meant mock, which meant a
     // real database recording imaginary money as captured.
     log.warn('Payment adapter: OFF, every charge is refused');
-    return OffPaymentAdapter;
+    return new OffPaymentAdapter();
   }
   if (settings.mode === 'live') {
     if (!LIVE_ADAPTER) {
@@ -66,10 +76,27 @@ function adapterClass(settings: PaymentSeamSettings): new () => PaymentPort {
     log.log(
       `Payment adapter: live (guarded), live purposes: ${[...settings.livePurposes].join(', ') || 'none'}`,
     );
-    return LIVE_ADAPTER;
+    return LIVE_ADAPTER();
+  }
+  if (settings.mode === 'sandbox') {
+    // Invented money over a real database is refused here as well as at
+    // `platform.ts`, which only sees a database a compose file declared real.
+    if (!platform.sampleData) throw sandboxRefusedOverRealData('PAYMENT_ADAPTER_MODE');
+    const endpoint = resolveMockApis(process.env);
+    log.warn(`Payment adapter: sandbox, GTBank Payment Hub on Injishi Mock APIs at ${endpoint.url} (sample database only)`);
+    return new GtbankPaymentAdapter({
+      mode: 'sandbox',
+      baseUrl: `${endpoint.url}/gtbank`,
+      clientId: endpoint.credentials.gtbank.clientId,
+      clientSecret: endpoint.credentials.gtbank.clientSecret,
+      webhookSecret: endpoint.credentials.gtbank.webhookSecret,
+      // Under the guarded port's ceiling, so the adapter says how unknown a
+      // timeout is before the ceiling says it for it.
+      timeoutMs: Math.max(1_000, Number(process.env.PAYMENT_TIMEOUT_MS ?? 8_000) - 500),
+    });
   }
   log.log('Payment adapter: mock, guarded (F-S08 not yet live)');
-  return MockPaymentAdapter;
+  return new MockPaymentAdapter();
 }
 
 const RAW_ADAPTER = Symbol('RAW_PAYMENT_ADAPTER');
@@ -84,7 +111,11 @@ function paymentProviders(): Provider[] {
     PayeeIdentityRepository,
     PaymentOutcomes,
     RefundsOwedService,
-    { provide: RAW_ADAPTER, useClass: adapterClass(settings) },
+    {
+      provide: RAW_ADAPTER,
+      inject: [PLATFORM],
+      useFactory: (platform: Platform): PaymentPort => adapterFor(settings, platform),
+    },
     {
       provide: GUARDED_PAYMENT_PORT,
       inject: [RAW_ADAPTER],

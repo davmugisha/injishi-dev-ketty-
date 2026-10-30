@@ -76,7 +76,13 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
     name: draft.name,
     contact: draft.contact,
     role: "",
-    scope: draft.scope,
+    // Every property of the business to begin with (2026-10-30): a business with one hotel had nothing
+    // ticked, so the invite was invalid before anyone touched it. Unticking narrows the grant.
+    scope: (() => {
+      const live = scopes.filter((s) => s.kind === "property").map((s) => s.id);
+      const kept = draft.scope.filter((id) => live.includes(id));
+      return kept.length ? kept : live;
+    })(),
     expiry: draft.expiry,
     endDate: "",
     twoStep: true,

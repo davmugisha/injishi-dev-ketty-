@@ -1,3 +1,4 @@
+import { HOTEL_GUEST } from '../domain/hotel-guest';
 import { Inject, Injectable } from '@nestjs/common';
 import type { GuestHostKind, IdKind, LeaderRole } from '@injishi/contracts';
 import { sql, type SQL } from 'drizzle-orm';
@@ -120,16 +121,39 @@ export interface BuildingRow {
 /** What a registration stores about the guest. */
 export interface GuestValues {
   fullName: string;
-  phone: string;
+  /** E.164; null only for a hotel guest who gave none (0114). */
+  phone: string | null;
   nationality: string;
   idKind: IdKind | null;
   idNumber: string | null;
-  relationship: string;
+  /** Null only for a hotel guest, who has no host to be related to (0114). */
+  relationship: string | null;
   relationshipOther: string | null;
   originCountry: string;
   originVillageId: number | null;
   arrivalOn: string;
   departureOn: string;
+}
+
+/** What a hotel stay says about its guest, from the desk card, the stay and the account (0114). */
+export interface HotelStayFacts {
+  stayId: string;
+  workspaceId: string;
+  propertyId: string;
+  /** `YYYY-MM-DD`, Kigali: the day the guest was checked in. */
+  arrivalOn: string;
+  /** `YYYY-MM-DD`: the booking's checkout, else the planned exit, else null. */
+  departureOn: string | null;
+  fullName: string | null;
+  phone: string | null;
+  cardNationality: string | null;
+  cardDocumentType: string | null;
+  cardIdNumber: string | null;
+  accountDocumentType: string | null;
+  accountIdNumber: string | null;
+  accountIssuingCountry: string | null;
+  profileCountry: string | null;
+  profileVillageId: number | null;
 }
 
 /** A guest as a report counts it, plus where it is. */
@@ -194,6 +218,15 @@ const AREA_NAMES = sql`
   left join sectors s on s.id = g.sector_id
   left join districts d on d.id = g.district_id`;
 
+/**
+ * Who the guest is to the host, as every read names it. A hotel guest (0114)
+ * has no host to be related to, so the register's readers see the one word
+ * `HOTEL_GUEST` instead, and a report counts hotel stays as their own row.
+ */
+const RELATIONSHIP_SELECT = sql.raw(
+  `coalesce(g.relationship, '${HOTEL_GUEST.code}') as relationship, coalesce(gr.label, '${HOTEL_GUEST.label}') as "relationshipLabel"`,
+);
+
 const REGISTRATION_SELECT = sql`
   select g.id, g.org_id as "orgId", g.workspace_id as "workspaceId", g.host_kind::text as "hostKind",
          g.lease_id as "leaseId", g.property_id as "propertyId", p.name as "propertyName",
@@ -202,9 +235,9 @@ const REGISTRATION_SELECT = sql`
          d.province_id as "provinceId",
          v.name as "villageName", ce.name as "cellName", s.name as "sectorName", d.name as "districtName",
          g.registered_by_user_id as "registeredByUserId",
-         g.full_name as "fullName", g.phone, g.nationality, c.name as "nationalityName",
+         g.full_name as "fullName", coalesce(g.phone, '') as phone, g.nationality, c.name as "nationalityName",
          g.id_kind::text as "idKind", g.id_number as "idNumber",
-         coalesce(g.relationship, 'stay_guest') as relationship, coalesce(gr.label, 'Staying guest') as "relationshipLabel", g.relationship_other as "relationshipOther",
+         ${RELATIONSHIP_SELECT}, g.relationship_other as "relationshipOther",
          g.origin_country as "originCountry", oc.name as "originCountryName", g.origin_village_id as "originVillageId",
          ov.name as "originVillageName", oce.name as "originCellName", os.name as "originSectorName", od.name as "originDistrictName",
          to_char(g.arrival_on, 'YYYY-MM-DD') as "arrivalOn", to_char(g.departure_on, 'YYYY-MM-DD') as "departureOn",
@@ -327,13 +360,6 @@ export class GuestRegistryRepository {
     return row;
   }
 
-  /** Whether a stay already has its registration (check in is retried; the leaders hear once). */
-  async stayRegistered(guestStayId: string): Promise<boolean> {
-    const result = await this.db.execute(sql`
-      select 1 from guest_registrations where guest_stay_id = ${guestStayId} limit 1`);
-    return rowsOf<{ '?column?': number }>(result).length > 0;
-  }
-
   /** The landlord's buildings, each with where it is and its units. */
   async buildings(workspaceId: string): Promise<BuildingRow[]> {
     const result = await this.db.execute(sql`
@@ -347,6 +373,48 @@ export class GuestRegistryRepository {
        where p.workspace_id = ${workspaceId} and p.archived_at is null
        order by p.name`);
     return rowsOf<BuildingRow>(result);
+  }
+
+  /**
+   * A checked-in hotel stay's guest, as the register needs it (0114): the desk
+   * card first, then the stay's own contact, then the guest's account.
+   */
+  async hotelStayFacts(stayId: string): Promise<HotelStayFacts | null> {
+    const result = await this.db.execute(sql`
+      select s.id as "stayId", s.workspace_id as "workspaceId", r.property_id as "propertyId",
+             to_char(s.entry_at at time zone 'Africa/Kigali', 'YYYY-MM-DD') as "arrivalOn",
+             coalesce(to_char(b.check_out, 'YYYY-MM-DD'),
+                      to_char(s.planned_exit_at at time zone 'Africa/Kigali', 'YYYY-MM-DD')) as "departureOn",
+             coalesce(nullif(btrim(si.full_name), ''), nullif(btrim(s.guest_name), ''),
+                      nullif(btrim(vi.legal_full_name), ''), nullif(btrim(up.display_name), ''), nullif(btrim(u.name), '')) as "fullName",
+             coalesce(nullif(btrim(s.guest_phone), ''), up.phone_e164, u.phone_number) as phone,
+             si.nationality as "cardNationality", si.document_type::text as "cardDocumentType", si.id_number as "cardIdNumber",
+             idoc.document_type::text as "accountDocumentType", idoc.document_number as "accountIdNumber",
+             idoc.issuing_country as "accountIssuingCountry",
+             up.country as "profileCountry", up.village_id as "profileVillageId"
+        from guest_stays s
+        join rooms r on r.id = s.room_id
+        left join bookings b on b.id = s.booking_id
+        left join stay_identities si on si.guest_stay_id = s.id
+        left join users u on u.id = s.guest_user_id
+        left join user_profiles up on up.user_id = s.guest_user_id
+        left join verified_identities vi on vi.user_id = s.guest_user_id
+        left join lateral (
+          select d.document_type, d.document_number, d.issuing_country
+            from identity_documents d
+           where d.identity_id = s.guest_user_id and d.status = 'active'
+           order by d.is_primary desc, d.created_at desc
+           limit 1) idoc on true
+       where s.id = ${stayId}
+       limit 1`);
+    return rowsOf<HotelStayFacts>(result)[0] ?? null;
+  }
+
+  /** Whether a hotel stay already has its registration: a check in files once. */
+  async hasStayRegistration(stayId: string): Promise<boolean> {
+    const result = await this.db.execute(sql`
+      select 1 from guest_registrations where guest_stay_id = ${stayId} limit 1`);
+    return rowsOf(result).length > 0;
   }
 
   /** A property's place now, for routing a guest whose home's village was set later. */
@@ -431,10 +499,10 @@ export class GuestRegistryRepository {
       leaseId: string | null;
       propertyId: string;
       unitId: string | null;
-      /** A stay business's guest: the stay checked in. */
-      guestStayId?: string | null;
       registeredByUserId: string;
       area: Area;
+      /** The hotel stay, for a `hotel` registration (0114). */
+      guestStayId?: string | null;
     },
   ): Promise<string> {
     const [row] = await tx
@@ -795,7 +863,7 @@ export class GuestRegistryRepository {
   async reportRows(scope: SQL, narrow: SQL, from: string, to: string): Promise<ReportRowRaw[]> {
     const result = await this.db.execute(sql`
       select to_char(g.arrival_on, 'YYYY-MM-DD') as "arrivalOn", to_char(g.departure_on, 'YYYY-MM-DD') as "departureOn",
-             g.nationality, c.name as "nationalityName", coalesce(g.relationship, 'stay_guest') as relationship, coalesce(gr.label, 'Staying guest') as "relationshipLabel",
+             g.nationality, c.name as "nationalityName", ${RELATIONSHIP_SELECT},
              g.sector_id as "sectorId", s.name as "sectorName", g.cell_id as "cellId", ce.name as "cellName",
              g.village_id as "villageId", v.name as "villageName", d.name as "districtName",
              g.property_id as "propertyId", g.unit_id as "unitId", p.address_text as "addressText", u.label as "unitLabel",

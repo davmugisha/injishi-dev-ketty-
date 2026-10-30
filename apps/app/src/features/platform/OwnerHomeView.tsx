@@ -76,18 +76,49 @@ const COUNT_WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven"
 export interface SetupDue {
   workspaceId: string;
   businessName: string;
+  /** Setup is closed: unpaid, sent back, suspended or unclaimed. */
   notApproved: boolean;
+  /** Paid and being reviewed: setup is open, Publish waits for approval. */
+  inReview: boolean;
+  /** What the listing still lacks besides approval, in the setup page's words. */
+  missing: string[];
   href: string;
+}
+
+function setupDueWords(b: SetupDue): { title: string; text: string; cta: string } {
+  if (b.notApproved)
+    return {
+      title: `${b.businessName} is not approved yet`,
+      text: "See where the registration stands and anything it still needs.",
+      cta: "See where it stands",
+    };
+  const left = b.missing.join(" ");
+  if (b.inReview)
+    return {
+      title: `${b.businessName} is in review`,
+      text: left
+        ? `Get your listing ready while we review it. ${left} You can publish once it is approved.`
+        : "Your listing is ready. You can publish as soon as it is approved.",
+      cta: "Open setup",
+    };
+  return {
+    title: `${b.businessName} is not on the marketplace yet`,
+    text: left ? `${left} Then publish. Guests see nothing until you do.` : "Everything is in place. Publish it to go live.",
+    cta: "Set up your property",
+  };
 }
 
 export function OwnerHomeView({
   persona,
   data,
   setupDue = [],
+  sample = false,
 }: {
   persona: Persona;
   data: OwnerHomeData;
   setupDue?: SetupDue[];
+  /** One of the demo's own people: Reports and Approvals are still the demo's, and only they see the links. */
+  sample?: boolean;
 }) {
   const waiting = data.decisions.length;
   const unsettled = data.kpis.find((k) => k.id === "unsettled");
@@ -110,34 +141,31 @@ export function OwnerHomeView({
         actions={
           // The figures here are tonight's and today's, as each one's label says. A period switch changed none
           // of them, so other periods are in Reports.
-          <LinkButton href={screenHref("Reports")} variant="secondary">
-            <ChartColumn className="size-4" />
-            Open reports
-          </LinkButton>
+          sample ? (
+            <LinkButton href={screenHref("Reports")} variant="secondary">
+              <ChartColumn className="size-4" />
+              Open reports
+            </LinkButton>
+          ) : null
         }
       />
 
-      {setupDue.map((b) => (
+      {setupDue.map((b) => {
         // The setup page is the one path to the marketplace: rooms, prices, a photograph, publish. Nothing
         // else in this shell linked to it, so an approved owner signing in here never found it.
-        <Alert key={b.workspaceId} status={b.notApproved ? "default" : "accent"} role="status">
-          <Alert.Content>
-            <Alert.Title>
-              {b.notApproved
-                ? `${b.businessName} is not approved yet`
-                : `${b.businessName} is not on the marketplace yet`}
-            </Alert.Title>
-            <Alert.Description>
-              {b.notApproved
-                ? "See where the registration stands and anything it still needs. Setup opens once it is approved."
-                : "Add a priced room type and a photograph, then publish. Guests see nothing until you do."}
-            </Alert.Description>
-          </Alert.Content>
-          <LinkButton href={b.href} variant="primary">
-            {b.notApproved ? "See where it stands" : "Set up your property"}
-          </LinkButton>
-        </Alert>
-      ))}
+        const words = setupDueWords(b);
+        return (
+          <Alert key={b.workspaceId} status={b.notApproved ? "default" : "accent"} role="status">
+            <Alert.Content>
+              <Alert.Title>{words.title}</Alert.Title>
+              <Alert.Description>{words.text}</Alert.Description>
+            </Alert.Content>
+            <LinkButton href={b.href} variant="primary">
+              {words.cta}
+            </LinkButton>
+          </Alert>
+        );
+      })}
 
       <section aria-label="Key figures">
         <KPIGroup className="flex-wrap">
@@ -177,9 +205,11 @@ export function OwnerHomeView({
                 Only the owner can decide these. Each opens with its evidence.
               </ItemCardGroup.Description>
             </div>
-            <LinkButton href={screenHref("Approvals")} size="sm" variant="ghost">
-              All approvals
-            </LinkButton>
+            {sample ? (
+              <LinkButton href={screenHref("Approvals")} size="sm" variant="ghost">
+                All approvals
+              </LinkButton>
+            ) : null}
           </ItemCardGroup.Header>
           {data.decisions.length === 0 ? <p className="text-sm text-muted">Nothing is waiting for you.</p> : null}
           {data.decisions.map((d) => (

@@ -16,7 +16,15 @@ const config: NextConfig = {
   // a zone and kept the two `/_next` folders apart; web forwards nothing now.
   assetPrefix: process.env.OPERATOR_ASSET_PREFIX ?? "/operator-static",
   // Workspace packages ship TypeScript source.
-  transpilePackages: ["@injishi/ui", "@injishi/product-hr", "@injishi/data", "@injishi/db"],
+  transpilePackages: [
+    "@injishi/ui",
+    "@injishi/utils",
+    "@injishi/product-hr",
+    "@injishi/product-outlets",
+    "@injishi/product-pms",
+    "@injishi/data",
+    "@injishi/db",
+  ],
   // Native embedded-database driver stays a Node.js dependency of the server bundle.
   serverExternalPackages: ["@libsql/client", "libsql"],
   experimental: {
@@ -30,10 +38,9 @@ const config: NextConfig = {
     const webUrl = (process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000").replace(/\/$/, "");
     return [
       { source: "/", destination: webUrl, permanent: false },
-      // The console's old address. Web sent every officer here after sign-in and the approval mails and
-      // bookmarks still name it; the console is `/officer` now and this app had nothing at `/oversight`.
-      { source: "/oversight", destination: "/officer", permanent: false },
-      { source: "/oversight/:path*", destination: "/officer", permanent: false },
+      // KYB queues live at `/officer`. PSF membership (and the `/oversight` resolver /
+      // verifier / approver routes) are real pages under `/oversight/*` — do not
+      // redirect that tree here or membership officers loop: /officer → overview → /officer.
     ];
   },
 };

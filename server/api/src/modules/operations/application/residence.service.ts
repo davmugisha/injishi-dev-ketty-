@@ -16,7 +16,7 @@ import {
   type TicketRow,
   ResidenceRepository,
 } from '../infrastructure/residence.repository';
-import { TicketLifecycle } from './ticket-lifecycle';
+import { TicketLifecycle } from '../../pms/application/ticket-lifecycle';
 
 /*
  * What is left of the first residence service: the tickets board, which hotel

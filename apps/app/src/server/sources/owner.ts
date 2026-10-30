@@ -32,7 +32,8 @@ import { defineSources, type SourceContext } from "./types";
 
 // ── API shapes (as @injishi/contracts defines them) ─────────────────────────────────────────────────────
 
-type OrgRole = "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+/** The API's org roles, all of them (`@injishi/contracts` OrgRole). */
+type OrgRole = import("@injishi/contracts").OrgRole;
 
 /** GET /api/v1/inventory/properties (OperatorPropertySummary, the fields read here). */
 export interface ApiProperty {
@@ -288,6 +289,8 @@ export function daysUntil(ctx: SourceContext, iso: string): number {
 // ── Team and roles ────────────────────────────────────────────────────────────────────────────────────
 
 /** The platform's org roles as the screen's role ids. `store` has no platform role yet. */
+// Every org role the API lists (2026-10-30: the outlet roles and the stock controller were missing, so
+// they counted no permissions and an invite to one named no role).
 const ROLE_ID: Record<OrgRole, TeamRolesRoleId> = {
   owner: "owner",
   manager: "manager",
@@ -295,12 +298,29 @@ const ROLE_ID: Record<OrgRole, TeamRolesRoleId> = {
   finance: "finance",
   hr: "hr",
   housekeeper: "staff",
+  cashier: "cashier",
+  waiter: "waiter",
+  bartender: "bartender",
+  kitchen: "kitchen",
+  stock_controller: "store",
 };
 export const ORG_ROLE_OF: Partial<Record<TeamRolesRoleId, OrgRole>> = Object.fromEntries(
   Object.entries(ROLE_ID).map(([org, id]) => [id, org as OrgRole]),
 );
 
-const ROLE_ORDER: TeamRolesRoleId[] = ["owner", "manager", "finance", "hr", "frontdesk", "staff", "store"];
+const ROLE_ORDER: TeamRolesRoleId[] = [
+  "owner",
+  "manager",
+  "finance",
+  "hr",
+  "frontdesk",
+  "staff",
+  "cashier",
+  "waiter",
+  "bartender",
+  "kitchen",
+  "store",
+];
 const STATUS_ORDER: TeamRolesMemberStatus[] = ["active", "pending", "invited", "revoked"];
 
 /** "Now", "Today 09:58", "Yesterday 22:40", "11 Oct 16:20". */
@@ -458,17 +478,6 @@ function cannot(permissions: string[]): string {
 }
 
 /** The storekeeper the interface draws has no platform role yet (world.mjs ROLE_GAPS): shown, not grantable. */
-const STOREKEEPER: TeamRolesRole = {
-  id: "store",
-  name: "Storekeeper",
-  proposed: true,
-  beingDefined: true,
-  inMatrix: false,
-  invitable: false,
-  permissions: [],
-  extraPermissions: [],
-  cannot: "Not a platform role yet: stock and purchasing are not built, so the preset is still being defined.",
-};
 
 // ── Reports ──────────────────────────────────────────────────────────────────────────────────────────
 
@@ -752,16 +761,23 @@ export const sources = defineSources({
             id: ROLE_ID[r.orgRole],
             name: r.label,
             proposed: false,
-            beingDefined: false,
+            // A role the platform gives nothing yet (the stock controller: stock is not built) is shown as
+            // being defined and is not offered to invite.
+            beingDefined: r.permissions.length === 0,
             inMatrix: true,
-            invitable: r.orgRole !== "owner",
+            invitable: r.orgRole !== "owner" && r.permissions.length > 0,
             permissions: r.permissions,
             extraPermissions: [],
-            cannot: r.orgRole === "owner" ? "" : cannot(r.permissions),
+            cannot:
+              r.orgRole === "owner"
+                ? ""
+                : r.permissions.length === 0
+                  ? "Stock and purchasing are not built yet, so this role holds nothing to grant."
+                  : cannot(r.permissions),
           }),
         )
         .sort((a, b) => ROLE_ORDER.indexOf(a.id) - ROLE_ORDER.indexOf(b.id));
-      return [...roles, STOREKEEPER];
+      return roles;
     },
   },
 

@@ -17,6 +17,7 @@
  * TINs come from the 999 block and UPIs from the demo range, so no seeded business can collide
  * with, or be mistaken for, a real taxpayer.
  */
+import { businessKindFor } from '../business-kind.mjs';
 import { syntheticCoordFor } from '../synthetic-coords.mjs';
 import { districtId, iid, kigaliAt, sectorId, userId } from './lib.mjs';
 
@@ -283,11 +284,12 @@ export async function seedWorld(ctx) {
   for (const o of ORGS) {
     await c.query(
       `INSERT INTO orgs (id, legal_name, domain, rdb_entity_group, accommodation_class,
-                         residence_class, tin, upi, registration_status, district_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', $9)
+                         residence_class, tin, upi, registration_status, district_id, business_kind)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', $9, $10)
        ON CONFLICT (id) DO UPDATE SET legal_name = EXCLUDED.legal_name, registration_status = 'active'`,
       [o.id, o.legalName, o.domain, o.entityGroup, o.accommodationClass ?? null, o.residenceClass ?? null,
-        o.tin ?? null, o.upi ?? null, await districtId(c, o.district)],
+        o.tin ?? null, o.upi ?? null, await districtId(c, o.district),
+        businessKindFor({ domain: o.domain, accommodationClass: o.accommodationClass })],
     );
     await c.query(
       `INSERT INTO workspaces (id, kind, org_id) VALUES ($1, 'business', $2) ON CONFLICT DO NOTHING`,

@@ -221,9 +221,9 @@ export declare const FrontDeskBooking: z.ZodObject<{
     confirmedAt: string | null;
     refundRwf: number | null;
     cancelledBy: string | null;
+    paidRwf: number;
     createdAt: string;
     guestName: string | null;
-    paidRwf: number;
     guestCount: number;
     roomTypeName: string;
     totalRwf: number;
@@ -234,9 +234,9 @@ export declare const FrontDeskBooking: z.ZodObject<{
         lifecycle: "open" | "closed";
     } | null;
     channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
-    guestPhone: string | null;
     adults: number | null;
     children: number | null;
+    guestPhone: string | null;
     eta: string | null;
     deskNote: string | null;
     lockedNightlyRateRwf: number;
@@ -284,9 +284,9 @@ export declare const FrontDeskBooking: z.ZodObject<{
     confirmedAt: string | null;
     refundRwf: number | null;
     cancelledBy: string | null;
+    paidRwf: number;
     createdAt: string;
     guestName: string | null;
-    paidRwf: number;
     guestCount: number;
     roomTypeName: string;
     totalRwf: number;
@@ -297,9 +297,9 @@ export declare const FrontDeskBooking: z.ZodObject<{
         lifecycle: "open" | "closed";
     } | null;
     channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
-    guestPhone: string | null;
     adults: number | null;
     children: number | null;
+    guestPhone: string | null;
     eta: string | null;
     deskNote: string | null;
     lockedNightlyRateRwf: number;
@@ -523,18 +523,18 @@ export declare const FrontDeskRoomType: z.ZodObject<{
     name: string;
     id: string;
     roomCount: number;
+    beds: string | null;
     sleeps: number;
     rateRwf: number | null;
-    beds: string | null;
     freeTonight: number;
 }, {
     active: boolean;
     name: string;
     id: string;
     roomCount: number;
+    beds: string | null;
     sleeps: number;
     rateRwf: number | null;
-    beds: string | null;
     freeTonight: number;
 }>;
 export type FrontDeskRoomType = z.infer<typeof FrontDeskRoomType>;
@@ -701,9 +701,9 @@ export declare const FrontDeskBoard: z.ZodObject<{
         confirmedAt: string | null;
         refundRwf: number | null;
         cancelledBy: string | null;
+        paidRwf: number;
         createdAt: string;
         guestName: string | null;
-        paidRwf: number;
         guestCount: number;
         roomTypeName: string;
         totalRwf: number;
@@ -714,9 +714,9 @@ export declare const FrontDeskBoard: z.ZodObject<{
             lifecycle: "open" | "closed";
         } | null;
         channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
-        guestPhone: string | null;
         adults: number | null;
         children: number | null;
+        guestPhone: string | null;
         eta: string | null;
         deskNote: string | null;
         lockedNightlyRateRwf: number;
@@ -764,9 +764,9 @@ export declare const FrontDeskBoard: z.ZodObject<{
         confirmedAt: string | null;
         refundRwf: number | null;
         cancelledBy: string | null;
+        paidRwf: number;
         createdAt: string;
         guestName: string | null;
-        paidRwf: number;
         guestCount: number;
         roomTypeName: string;
         totalRwf: number;
@@ -777,9 +777,9 @@ export declare const FrontDeskBoard: z.ZodObject<{
             lifecycle: "open" | "closed";
         } | null;
         channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
-        guestPhone: string | null;
         adults: number | null;
         children: number | null;
+        guestPhone: string | null;
         eta: string | null;
         deskNote: string | null;
         lockedNightlyRateRwf: number;
@@ -1000,18 +1000,18 @@ export declare const FrontDeskBoard: z.ZodObject<{
         name: string;
         id: string;
         roomCount: number;
+        beds: string | null;
         sleeps: number;
         rateRwf: number | null;
-        beds: string | null;
         freeTonight: number;
     }, {
         active: boolean;
         name: string;
         id: string;
         roomCount: number;
+        beds: string | null;
         sleeps: number;
         rateRwf: number | null;
-        beds: string | null;
         freeTonight: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -1026,9 +1026,9 @@ export declare const FrontDeskBoard: z.ZodObject<{
         name: string;
         id: string;
         roomCount: number;
+        beds: string | null;
         sleeps: number;
         rateRwf: number | null;
-        beds: string | null;
         freeTonight: number;
     }[];
     rooms: {
@@ -1096,9 +1096,9 @@ export declare const FrontDeskBoard: z.ZodObject<{
         confirmedAt: string | null;
         refundRwf: number | null;
         cancelledBy: string | null;
+        paidRwf: number;
         createdAt: string;
         guestName: string | null;
-        paidRwf: number;
         guestCount: number;
         roomTypeName: string;
         totalRwf: number;
@@ -1109,9 +1109,9 @@ export declare const FrontDeskBoard: z.ZodObject<{
             lifecycle: "open" | "closed";
         } | null;
         channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
-        guestPhone: string | null;
         adults: number | null;
         children: number | null;
+        guestPhone: string | null;
         eta: string | null;
         deskNote: string | null;
         lockedNightlyRateRwf: number;
@@ -1156,9 +1156,9 @@ export declare const FrontDeskBoard: z.ZodObject<{
         name: string;
         id: string;
         roomCount: number;
+        beds: string | null;
         sleeps: number;
         rateRwf: number | null;
-        beds: string | null;
         freeTonight: number;
     }[];
     rooms: {
@@ -1226,9 +1226,9 @@ export declare const FrontDeskBoard: z.ZodObject<{
         confirmedAt: string | null;
         refundRwf: number | null;
         cancelledBy: string | null;
+        paidRwf: number;
         createdAt: string;
         guestName: string | null;
-        paidRwf: number;
         guestCount: number;
         roomTypeName: string;
         totalRwf: number;
@@ -1239,9 +1239,9 @@ export declare const FrontDeskBoard: z.ZodObject<{
             lifecycle: "open" | "closed";
         } | null;
         channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
-        guestPhone: string | null;
         adults: number | null;
         children: number | null;
+        guestPhone: string | null;
         eta: string | null;
         deskNote: string | null;
         lockedNightlyRateRwf: number;

@@ -816,17 +816,39 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
       ],
     },
   ],
+  // The PSF District Manager's portal (2026-10-30): the work waiting on them, the records they keep,
+  // one page per report, and PSF's own settings.
   psf: [
     {
-      label: null,
+      label: "To do",
       items: [
-        {
-          id: "apps",
-          label: "Applications",
-          icon: "FileText",
-          board: "PsfConsole",
-          chip: "8",
-        },
+        { id: "apps", label: "Membership applications", icon: "FileText", board: "PsfConsole" },
+        { id: "claims", label: "Membership claims", icon: "CircleCheck", board: "PsfClaims" },
+        { id: "registrations", label: "Business approvals", icon: "ShieldCheck", board: "OfficerHome" },
+      ],
+    },
+    {
+      label: "Records",
+      items: [
+        { id: "register", label: "Businesses", icon: "FolderHouse", board: "PsfRegister" },
+        { id: "decisions", label: "Membership decisions", icon: "FileCheck", board: "PsfDecisions" },
+      ],
+    },
+    {
+      label: "Reports",
+      items: [
+        { id: "overview", label: "Overview", icon: "ChartColumn", board: "PsfReport", href: "/psf/report/overview" },
+        { id: "r-membership", label: "Membership", icon: "ChartPie", board: "PsfReport", href: "/psf/report/membership" },
+        { id: "r-approvals", label: "Business approvals", icon: "ChartLine", board: "PsfReport", href: "/psf/report/approvals" },
+        { id: "r-economy", label: "District economy", icon: "Wallet", board: "PsfReport", href: "/psf/report/economy" },
+        { id: "r-members", label: "Member register", icon: "Persons", board: "PsfReport", href: "/psf/report/members" },
+      ],
+    },
+    {
+      label: "Settings",
+      items: [
+        { id: "fees", label: "Fees", icon: "CreditCard", board: "PsfFees" },
+        { id: "subtypes", label: "Subtypes", icon: "Tag", board: "PsfSubtypes" },
       ],
     },
   ],

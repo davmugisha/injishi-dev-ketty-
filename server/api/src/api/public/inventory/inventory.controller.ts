@@ -16,6 +16,8 @@ import {
   type OperatorRoomTypeList,
   type PropertyPhotoList,
   ReorderPropertyPhotosRequest,
+  SetStarGradeRequest,
+  type StarGradeStatus,
   UpdatePropertyRequest,
   UpdateRatePlanRequest,
   UpdateRoomTypeRequest,
@@ -30,16 +32,17 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
 
-import { InventoryService } from '../../../modules/listing-setup/application/inventory.service';
-import { PropertyPhotosService } from '../../../modules/listing-setup/application/property-photos.service';
-import { RatePlansService } from '../../../modules/listing-setup/application/rate-plans.service';
-import { RoomTypesService } from '../../../modules/listing-setup/application/room-types.service';
-import { RoomsService } from '../../../modules/listing-setup/application/rooms.service';
-import { SetupProgressService } from '../../../modules/listing-setup/application/setup-progress.service';
+import { InventoryService } from '../../../modules/platform/property/application/inventory.service';
+import { PropertyPhotosService } from '../../../modules/platform/property/application/property-photos.service';
+import { RatePlansService } from '../../../modules/platform/property/application/rate-plans.service';
+import { RoomTypesService } from '../../../modules/platform/property/application/room-types.service';
+import { RoomsService } from '../../../modules/platform/property/application/rooms.service';
+import { SetupProgressService } from '../../../modules/platform/property/application/setup-progress.service';
 import {
   CurrentUser,
   SessionGuard,
@@ -319,6 +322,25 @@ export class InventoryController {
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<PropertySetupProgress> {
     return this.setup.progress(workspace, propertyId);
+  }
+
+  // -------------------------------------------------------------------------
+  // Star grade (0118)
+  // -------------------------------------------------------------------------
+
+  /** The business's star grade and whether an officer has confirmed it. */
+  @Get('star-grade')
+  starGrade(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<StarGradeStatus> {
+    return this.inventory.starGrade(workspace);
+  }
+
+  /** Say the grade RDB gave, or that it has none. Withdraws any confirmation until an officer checks again. */
+  @Put('star-grade')
+  setStarGrade(
+    @Body(new ZodValidationPipe(SetStarGradeRequest)) body: SetStarGradeRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<StarGradeStatus> {
+    return this.inventory.setStarGrade(workspace, body.grade);
   }
 
   // -------------------------------------------------------------------------

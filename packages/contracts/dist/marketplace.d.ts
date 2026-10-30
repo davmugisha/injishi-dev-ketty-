@@ -21,7 +21,7 @@ export declare const MarketListingCard: z.ZodObject<{
     id: z.ZodString;
     slug: z.ZodString;
     name: z.ZodString;
-    domain: z.ZodEnum<["hospitality", "residence"]>;
+    domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
     kind: z.ZodEnum<["hotel", "lodge", "tented", "guest", "apartment", "villa", "house", "studio"]>;
     /** "Gisenyi, Rubavu": the sector and district, as the property is filed. */
     where: z.ZodString;
@@ -52,11 +52,11 @@ export declare const MarketListingCard: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     id: string;
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     bookingMode: "instant_book" | "request_to_book" | null;
     slug: string;
     districtName: string | null;
-    kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio";
+    kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented";
     legalName: string;
     priceRwf: number | null;
     rating: number | null;
@@ -75,11 +75,11 @@ export declare const MarketListingCard: z.ZodObject<{
 }, {
     name: string;
     id: string;
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     bookingMode: "instant_book" | "request_to_book" | null;
     slug: string;
     districtName: string | null;
-    kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio";
+    kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented";
     legalName: string;
     priceRwf: number | null;
     rating: number | null;
@@ -103,7 +103,7 @@ export declare const MarketCatalogue: z.ZodObject<{
         id: z.ZodString;
         slug: z.ZodString;
         name: z.ZodString;
-        domain: z.ZodEnum<["hospitality", "residence"]>;
+        domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
         kind: z.ZodEnum<["hotel", "lodge", "tented", "guest", "apartment", "villa", "house", "studio"]>;
         /** "Gisenyi, Rubavu": the sector and district, as the property is filed. */
         where: z.ZodString;
@@ -134,11 +134,11 @@ export declare const MarketCatalogue: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string;
         id: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         bookingMode: "instant_book" | "request_to_book" | null;
         slug: string;
         districtName: string | null;
-        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio";
+        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented";
         legalName: string;
         priceRwf: number | null;
         rating: number | null;
@@ -157,11 +157,11 @@ export declare const MarketCatalogue: z.ZodObject<{
     }, {
         name: string;
         id: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         bookingMode: "instant_book" | "request_to_book" | null;
         slug: string;
         districtName: string | null;
-        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio";
+        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented";
         legalName: string;
         priceRwf: number | null;
         rating: number | null;
@@ -182,11 +182,11 @@ export declare const MarketCatalogue: z.ZodObject<{
     listings: {
         name: string;
         id: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         bookingMode: "instant_book" | "request_to_book" | null;
         slug: string;
         districtName: string | null;
-        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio";
+        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented";
         legalName: string;
         priceRwf: number | null;
         rating: number | null;
@@ -207,11 +207,11 @@ export declare const MarketCatalogue: z.ZodObject<{
     listings: {
         name: string;
         id: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         bookingMode: "instant_book" | "request_to_book" | null;
         slug: string;
         districtName: string | null;
-        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio";
+        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented";
         legalName: string;
         priceRwf: number | null;
         rating: number | null;
@@ -259,6 +259,8 @@ export declare const MarketRoomCard: z.ZodObject<{
     bookingMode: "instant_book" | "request_to_book" | null;
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
     nonrefundableEligible: boolean;
+    maxAdults: number | null;
+    maxChildren: number | null;
     priceRwf: number | null;
     sizeSqm: number | null;
     sleeps: number | null;
@@ -267,8 +269,6 @@ export declare const MarketRoomCard: z.ZodObject<{
     stockPhoto: string;
     bed: string;
     highlight: string;
-    maxAdults: number | null;
-    maxChildren: number | null;
 }, {
     name: string;
     id: string;
@@ -276,6 +276,8 @@ export declare const MarketRoomCard: z.ZodObject<{
     bookingMode: "instant_book" | "request_to_book" | null;
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
     nonrefundableEligible: boolean;
+    maxAdults: number | null;
+    maxChildren: number | null;
     priceRwf: number | null;
     sizeSqm: number | null;
     sleeps: number | null;
@@ -284,8 +286,6 @@ export declare const MarketRoomCard: z.ZodObject<{
     stockPhoto: string;
     bed: string;
     highlight: string;
-    maxAdults: number | null;
-    maxChildren: number | null;
 }>;
 export type MarketRoomCard = z.infer<typeof MarketRoomCard>;
 export declare const MarketRooms: z.ZodObject<{
@@ -318,6 +318,8 @@ export declare const MarketRooms: z.ZodObject<{
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
+        maxAdults: number | null;
+        maxChildren: number | null;
         priceRwf: number | null;
         sizeSqm: number | null;
         sleeps: number | null;
@@ -326,8 +328,6 @@ export declare const MarketRooms: z.ZodObject<{
         stockPhoto: string;
         bed: string;
         highlight: string;
-        maxAdults: number | null;
-        maxChildren: number | null;
     }, {
         name: string;
         id: string;
@@ -335,6 +335,8 @@ export declare const MarketRooms: z.ZodObject<{
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
+        maxAdults: number | null;
+        maxChildren: number | null;
         priceRwf: number | null;
         sizeSqm: number | null;
         sleeps: number | null;
@@ -343,8 +345,6 @@ export declare const MarketRooms: z.ZodObject<{
         stockPhoto: string;
         bed: string;
         highlight: string;
-        maxAdults: number | null;
-        maxChildren: number | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     rooms: {
@@ -354,6 +354,8 @@ export declare const MarketRooms: z.ZodObject<{
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
+        maxAdults: number | null;
+        maxChildren: number | null;
         priceRwf: number | null;
         sizeSqm: number | null;
         sleeps: number | null;
@@ -362,8 +364,6 @@ export declare const MarketRooms: z.ZodObject<{
         stockPhoto: string;
         bed: string;
         highlight: string;
-        maxAdults: number | null;
-        maxChildren: number | null;
     }[];
 }, {
     rooms: {
@@ -373,6 +373,8 @@ export declare const MarketRooms: z.ZodObject<{
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
+        maxAdults: number | null;
+        maxChildren: number | null;
         priceRwf: number | null;
         sizeSqm: number | null;
         sleeps: number | null;
@@ -381,8 +383,6 @@ export declare const MarketRooms: z.ZodObject<{
         stockPhoto: string;
         bed: string;
         highlight: string;
-        maxAdults: number | null;
-        maxChildren: number | null;
     }[];
 }>;
 export type MarketRooms = z.infer<typeof MarketRooms>;
@@ -567,7 +567,7 @@ export declare const MarketPropertyPage: z.ZodObject<{
         id: z.ZodString;
         slug: z.ZodString;
         name: z.ZodString;
-        domain: z.ZodEnum<["hospitality", "residence"]>;
+        domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
         kind: z.ZodEnum<["hotel", "lodge", "tented", "guest", "apartment", "villa", "house", "studio"]>;
         /** "Gisenyi, Rubavu": the sector and district, as the property is filed. */
         where: z.ZodString;
@@ -598,11 +598,11 @@ export declare const MarketPropertyPage: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string;
         id: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         bookingMode: "instant_book" | "request_to_book" | null;
         slug: string;
         districtName: string | null;
-        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio";
+        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented";
         legalName: string;
         priceRwf: number | null;
         rating: number | null;
@@ -621,11 +621,11 @@ export declare const MarketPropertyPage: z.ZodObject<{
     }, {
         name: string;
         id: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         bookingMode: "instant_book" | "request_to_book" | null;
         slug: string;
         districtName: string | null;
-        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio";
+        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented";
         legalName: string;
         priceRwf: number | null;
         rating: number | null;
@@ -717,15 +717,15 @@ export declare const MarketPropertyPage: z.ZodObject<{
         /** The business's other published properties, by name. */
         otherProperties: z.ZodArray<z.ZodString, "many">;
     }, "strip", z.ZodTypeAny, {
-        legalName: string;
         tin: string | null;
+        legalName: string;
         upi: string | null;
         verifiedAt: string | null;
         licenceValidTo: string | null;
         otherProperties: string[];
     }, {
-        legalName: string;
         tin: string | null;
+        legalName: string;
         upi: string | null;
         verifiedAt: string | null;
         licenceValidTo: string | null;
@@ -760,6 +760,8 @@ export declare const MarketPropertyPage: z.ZodObject<{
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
+        maxAdults: number | null;
+        maxChildren: number | null;
         priceRwf: number | null;
         sizeSqm: number | null;
         sleeps: number | null;
@@ -768,8 +770,6 @@ export declare const MarketPropertyPage: z.ZodObject<{
         stockPhoto: string;
         bed: string;
         highlight: string;
-        maxAdults: number | null;
-        maxChildren: number | null;
     }, {
         name: string;
         id: string;
@@ -777,6 +777,8 @@ export declare const MarketPropertyPage: z.ZodObject<{
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
+        maxAdults: number | null;
+        maxChildren: number | null;
         priceRwf: number | null;
         sizeSqm: number | null;
         sleeps: number | null;
@@ -785,13 +787,11 @@ export declare const MarketPropertyPage: z.ZodObject<{
         stockPhoto: string;
         bed: string;
         highlight: string;
-        maxAdults: number | null;
-        maxChildren: number | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     business: {
-        legalName: string;
         tin: string | null;
+        legalName: string;
         upi: string | null;
         verifiedAt: string | null;
         licenceValidTo: string | null;
@@ -803,11 +803,11 @@ export declare const MarketPropertyPage: z.ZodObject<{
     card: {
         name: string;
         id: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         bookingMode: "instant_book" | "request_to_book" | null;
         slug: string;
         districtName: string | null;
-        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio";
+        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented";
         legalName: string;
         priceRwf: number | null;
         rating: number | null;
@@ -824,6 +824,7 @@ export declare const MarketPropertyPage: z.ZodObject<{
         floorAreaSqm: number | null;
         hasPage: boolean;
     };
+    description: string | null;
     rooms: {
         name: string;
         id: string;
@@ -831,6 +832,8 @@ export declare const MarketPropertyPage: z.ZodObject<{
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
+        maxAdults: number | null;
+        maxChildren: number | null;
         priceRwf: number | null;
         sizeSqm: number | null;
         sleeps: number | null;
@@ -839,10 +842,7 @@ export declare const MarketPropertyPage: z.ZodObject<{
         stockPhoto: string;
         bed: string;
         highlight: string;
-        maxAdults: number | null;
-        maxChildren: number | null;
     }[];
-    description: string | null;
     houseRules: string | null;
     facilities: {
         code: string;
@@ -869,8 +869,8 @@ export declare const MarketPropertyPage: z.ZodObject<{
     nonRefundableDiscount: number;
 }, {
     business: {
-        legalName: string;
         tin: string | null;
+        legalName: string;
         upi: string | null;
         verifiedAt: string | null;
         licenceValidTo: string | null;
@@ -882,11 +882,11 @@ export declare const MarketPropertyPage: z.ZodObject<{
     card: {
         name: string;
         id: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         bookingMode: "instant_book" | "request_to_book" | null;
         slug: string;
         districtName: string | null;
-        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio";
+        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented";
         legalName: string;
         priceRwf: number | null;
         rating: number | null;
@@ -903,6 +903,7 @@ export declare const MarketPropertyPage: z.ZodObject<{
         floorAreaSqm: number | null;
         hasPage: boolean;
     };
+    description: string | null;
     rooms: {
         name: string;
         id: string;
@@ -910,6 +911,8 @@ export declare const MarketPropertyPage: z.ZodObject<{
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
+        maxAdults: number | null;
+        maxChildren: number | null;
         priceRwf: number | null;
         sizeSqm: number | null;
         sleeps: number | null;
@@ -918,10 +921,7 @@ export declare const MarketPropertyPage: z.ZodObject<{
         stockPhoto: string;
         bed: string;
         highlight: string;
-        maxAdults: number | null;
-        maxChildren: number | null;
     }[];
-    description: string | null;
     houseRules: string | null;
     facilities: {
         code: string;
@@ -953,7 +953,7 @@ export declare const SavedPlace: z.ZodObject<{
     slug: z.ZodNullable<z.ZodString>;
     name: z.ZodString;
     where: z.ZodString;
-    domain: z.ZodEnum<["hospitality", "residence"]>;
+    domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
     kind: z.ZodNullable<z.ZodEnum<["hotel", "lodge", "tented", "guest", "apartment", "villa", "house", "studio"]>>;
     stockPhoto: z.ZodNullable<z.ZodString>;
     /** The price today, as the card states it. */
@@ -967,10 +967,10 @@ export declare const SavedPlace: z.ZodObject<{
     savedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     bookingMode: "instant_book" | "request_to_book" | null;
     slug: string | null;
-    kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio" | null;
+    kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented" | null;
     priceRwf: number | null;
     available: boolean;
     propertyId: string;
@@ -981,10 +981,10 @@ export declare const SavedPlace: z.ZodObject<{
     savedPriceRwf: number | null;
 }, {
     name: string;
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     bookingMode: "instant_book" | "request_to_book" | null;
     slug: string | null;
-    kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio" | null;
+    kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented" | null;
     priceRwf: number | null;
     available: boolean;
     propertyId: string;
@@ -1002,7 +1002,7 @@ export declare const MySaved: z.ZodObject<{
         slug: z.ZodNullable<z.ZodString>;
         name: z.ZodString;
         where: z.ZodString;
-        domain: z.ZodEnum<["hospitality", "residence"]>;
+        domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
         kind: z.ZodNullable<z.ZodEnum<["hotel", "lodge", "tented", "guest", "apartment", "villa", "house", "studio"]>>;
         stockPhoto: z.ZodNullable<z.ZodString>;
         /** The price today, as the card states it. */
@@ -1016,10 +1016,10 @@ export declare const MySaved: z.ZodObject<{
         savedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         bookingMode: "instant_book" | "request_to_book" | null;
         slug: string | null;
-        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio" | null;
+        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented" | null;
         priceRwf: number | null;
         available: boolean;
         propertyId: string;
@@ -1030,10 +1030,10 @@ export declare const MySaved: z.ZodObject<{
         savedPriceRwf: number | null;
     }, {
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         bookingMode: "instant_book" | "request_to_book" | null;
         slug: string | null;
-        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio" | null;
+        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented" | null;
         priceRwf: number | null;
         available: boolean;
         propertyId: string;
@@ -1046,10 +1046,10 @@ export declare const MySaved: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     saved: {
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         bookingMode: "instant_book" | "request_to_book" | null;
         slug: string | null;
-        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio" | null;
+        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented" | null;
         priceRwf: number | null;
         available: boolean;
         propertyId: string;
@@ -1062,10 +1062,10 @@ export declare const MySaved: z.ZodObject<{
 }, {
     saved: {
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         bookingMode: "instant_book" | "request_to_book" | null;
         slug: string | null;
-        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio" | null;
+        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented" | null;
         priceRwf: number | null;
         available: boolean;
         propertyId: string;
@@ -1090,7 +1090,7 @@ export declare const GuestCollection: z.ZodObject<{
         slug: z.ZodNullable<z.ZodString>;
         name: z.ZodString;
         where: z.ZodString;
-        domain: z.ZodEnum<["hospitality", "residence"]>;
+        domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
         kind: z.ZodNullable<z.ZodEnum<["hotel", "lodge", "tented", "guest", "apartment", "villa", "house", "studio"]>>;
         stockPhoto: z.ZodNullable<z.ZodString>;
         /** The price today, as the card states it. */
@@ -1104,10 +1104,10 @@ export declare const GuestCollection: z.ZodObject<{
         savedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         bookingMode: "instant_book" | "request_to_book" | null;
         slug: string | null;
-        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio" | null;
+        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented" | null;
         priceRwf: number | null;
         available: boolean;
         propertyId: string;
@@ -1118,10 +1118,10 @@ export declare const GuestCollection: z.ZodObject<{
         savedPriceRwf: number | null;
     }, {
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         bookingMode: "instant_book" | "request_to_book" | null;
         slug: string | null;
-        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio" | null;
+        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented" | null;
         priceRwf: number | null;
         available: boolean;
         propertyId: string;
@@ -1136,10 +1136,10 @@ export declare const GuestCollection: z.ZodObject<{
     id: string;
     items: {
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         bookingMode: "instant_book" | "request_to_book" | null;
         slug: string | null;
-        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio" | null;
+        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented" | null;
         priceRwf: number | null;
         available: boolean;
         propertyId: string;
@@ -1151,16 +1151,16 @@ export declare const GuestCollection: z.ZodObject<{
     }[];
     createdAt: string;
     isDefault: boolean;
-    visibility: "shared" | "private";
+    visibility: "private" | "shared";
 }, {
     name: string;
     id: string;
     items: {
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         bookingMode: "instant_book" | "request_to_book" | null;
         slug: string | null;
-        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio" | null;
+        kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented" | null;
         priceRwf: number | null;
         available: boolean;
         propertyId: string;
@@ -1172,7 +1172,7 @@ export declare const GuestCollection: z.ZodObject<{
     }[];
     createdAt: string;
     isDefault: boolean;
-    visibility: "shared" | "private";
+    visibility: "private" | "shared";
 }>;
 export type GuestCollection = z.infer<typeof GuestCollection>;
 export declare const MyCollections: z.ZodObject<{
@@ -1188,7 +1188,7 @@ export declare const MyCollections: z.ZodObject<{
             slug: z.ZodNullable<z.ZodString>;
             name: z.ZodString;
             where: z.ZodString;
-            domain: z.ZodEnum<["hospitality", "residence"]>;
+            domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
             kind: z.ZodNullable<z.ZodEnum<["hotel", "lodge", "tented", "guest", "apartment", "villa", "house", "studio"]>>;
             stockPhoto: z.ZodNullable<z.ZodString>;
             /** The price today, as the card states it. */
@@ -1202,10 +1202,10 @@ export declare const MyCollections: z.ZodObject<{
             savedAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
             name: string;
-            domain: "hospitality" | "residence";
+            domain: "hospitality" | "residence" | "enterprise";
             bookingMode: "instant_book" | "request_to_book" | null;
             slug: string | null;
-            kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio" | null;
+            kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented" | null;
             priceRwf: number | null;
             available: boolean;
             propertyId: string;
@@ -1216,10 +1216,10 @@ export declare const MyCollections: z.ZodObject<{
             savedPriceRwf: number | null;
         }, {
             name: string;
-            domain: "hospitality" | "residence";
+            domain: "hospitality" | "residence" | "enterprise";
             bookingMode: "instant_book" | "request_to_book" | null;
             slug: string | null;
-            kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio" | null;
+            kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented" | null;
             priceRwf: number | null;
             available: boolean;
             propertyId: string;
@@ -1234,10 +1234,10 @@ export declare const MyCollections: z.ZodObject<{
         id: string;
         items: {
             name: string;
-            domain: "hospitality" | "residence";
+            domain: "hospitality" | "residence" | "enterprise";
             bookingMode: "instant_book" | "request_to_book" | null;
             slug: string | null;
-            kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio" | null;
+            kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented" | null;
             priceRwf: number | null;
             available: boolean;
             propertyId: string;
@@ -1249,16 +1249,16 @@ export declare const MyCollections: z.ZodObject<{
         }[];
         createdAt: string;
         isDefault: boolean;
-        visibility: "shared" | "private";
+        visibility: "private" | "shared";
     }, {
         name: string;
         id: string;
         items: {
             name: string;
-            domain: "hospitality" | "residence";
+            domain: "hospitality" | "residence" | "enterprise";
             bookingMode: "instant_book" | "request_to_book" | null;
             slug: string | null;
-            kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio" | null;
+            kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented" | null;
             priceRwf: number | null;
             available: boolean;
             propertyId: string;
@@ -1270,7 +1270,7 @@ export declare const MyCollections: z.ZodObject<{
         }[];
         createdAt: string;
         isDefault: boolean;
-        visibility: "shared" | "private";
+        visibility: "private" | "shared";
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     collections: {
@@ -1278,10 +1278,10 @@ export declare const MyCollections: z.ZodObject<{
         id: string;
         items: {
             name: string;
-            domain: "hospitality" | "residence";
+            domain: "hospitality" | "residence" | "enterprise";
             bookingMode: "instant_book" | "request_to_book" | null;
             slug: string | null;
-            kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio" | null;
+            kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented" | null;
             priceRwf: number | null;
             available: boolean;
             propertyId: string;
@@ -1293,7 +1293,7 @@ export declare const MyCollections: z.ZodObject<{
         }[];
         createdAt: string;
         isDefault: boolean;
-        visibility: "shared" | "private";
+        visibility: "private" | "shared";
     }[];
 }, {
     collections: {
@@ -1301,10 +1301,10 @@ export declare const MyCollections: z.ZodObject<{
         id: string;
         items: {
             name: string;
-            domain: "hospitality" | "residence";
+            domain: "hospitality" | "residence" | "enterprise";
             bookingMode: "instant_book" | "request_to_book" | null;
             slug: string | null;
-            kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "tented" | "studio" | null;
+            kind: "guest" | "hotel" | "apartment" | "lodge" | "villa" | "house" | "studio" | "tented" | null;
             priceRwf: number | null;
             available: boolean;
             propertyId: string;
@@ -1316,7 +1316,7 @@ export declare const MyCollections: z.ZodObject<{
         }[];
         createdAt: string;
         isDefault: boolean;
-        visibility: "shared" | "private";
+        visibility: "private" | "shared";
     }[];
 }>;
 export type MyCollections = z.infer<typeof MyCollections>;

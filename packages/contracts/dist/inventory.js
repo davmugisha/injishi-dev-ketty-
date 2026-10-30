@@ -6,6 +6,7 @@ const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const ops_1 = require("./ops");
 const primitives_1 = require("./primitives");
+const property_policies_1 = require("./property-policies");
 /**
  * The operator write path for inventory (ADR-009).
  *
@@ -51,6 +52,20 @@ const propertyFields = {
         .min(2, "Give the property a name guests will recognise.")
         .max(200, "That name is too long for our records."),
     sectorId: zod_1.z.number().int().positive("Choose a sector."),
+    /**
+     * The village the property stands in, which must lie in `sectorId`. It is
+     * what puts a check-in in front of that village's leader and its cell's
+     * executive (the guest register, 0114); with only a sector, the sector and
+     * DASSO see the guest and the village never does. `null` clears it.
+     */
+    villageId: zod_1.z.number().int().positive("Choose a village.").nullable().optional(),
+    /**
+     * Where the property is on the map, as the host pinned it. Inside Rwanda,
+     * and both or neither: a guest is only ever shown a point the host gave
+     * (the website used to invent one at the district centre). `null` clears.
+     */
+    latitude: zod_1.z.number().gte(-2.9, "That point is outside Rwanda.").lte(-1.0, "That point is outside Rwanda.").nullable().optional(),
+    longitude: zod_1.z.number().gte(28.8, "That point is outside Rwanda.").lte(31.0, "That point is outside Rwanda.").nullable().optional(),
     /** The street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
     street: zod_1.z.string().trim().max(200).optional(),
     description: zod_1.z.string().trim().max(4000).optional(),
@@ -64,6 +79,8 @@ const propertyFields = {
         .regex(/^\d{2}:\d{2}(:\d{2})?$/, "Use a time like 11:00.")
         .optional(),
     houseRules: zod_1.z.string().trim().max(4000).optional(),
+    /** 0117: the check-in window's end, the front desk, languages and the house rules as choices. */
+    ...property_policies_1.propertyPolicyFields,
     /**
      * Hide the exact pin from the public until a stay is confirmed. Already
      * respected by the public read path, so this is a real toggle, not a stub.
@@ -154,6 +171,11 @@ exports.PropertyAddress = zod_1.z.object({
     districtName: zod_1.z.string().nullable(),
     sectorId: zod_1.z.number().int().nullable(),
     sectorName: zod_1.z.string().nullable(),
+    /** Resolved from the village. Default null so an older API's body still parses. */
+    cellId: zod_1.z.number().int().nullable().default(null),
+    cellName: zod_1.z.string().nullable().default(null),
+    villageId: zod_1.z.number().int().nullable().default(null),
+    villageName: zod_1.z.string().nullable().default(null),
     street: zod_1.z.string().nullable(),
 });
 /** One row in the operator's property list. */
@@ -204,6 +226,8 @@ exports.PropertyPhoto = zod_1.z.object({
     isCover: zod_1.z.boolean(),
     caption: zod_1.z.string().nullable(),
     url: zod_1.z.string(),
+    /** 0118: the room type it shows; null is the property. Optional for an older API. */
+    roomTypeId: primitives_1.Uuid.nullish(),
 });
 /**
  * One property in full, as its owner sees it.
@@ -214,6 +238,7 @@ exports.PropertyPhoto = zod_1.z.object({
  * or an order, so they became rows.
  */
 exports.OperatorProperty = exports.OperatorPropertySummary.extend({
+    ...property_policies_1.PropertyPolicies.shape,
     description: zod_1.z.string().nullable(),
     checkInTime: zod_1.z.string().nullable(),
     checkOutTime: zod_1.z.string().nullable(),
@@ -222,6 +247,9 @@ exports.OperatorProperty = exports.OperatorPropertySummary.extend({
     timezone: zod_1.z.string(),
     contactPhone: zod_1.z.string().nullable(),
     contactEmail: zod_1.z.string().nullable(),
+    /** The map point the host pinned; null until they do. Default null for an older API. */
+    latitude: zod_1.z.number().nullable().default(null),
+    longitude: zod_1.z.number().nullable().default(null),
     photos: zod_1.z.array(exports.PropertyPhoto),
     /**
      * Empty until feature 2 builds the room type write path. An empty array is a
@@ -234,7 +262,19 @@ exports.OperatorProperty = exports.OperatorPropertySummary.extend({
         domain: primitives_1.Domain,
         status: zod_1.z.enum(["active", "archived"]),
         basePriceRwf: zod_1.z.number().int().nullable(),
+        priceBasis: booking_1.RoomPriceBasis.default("per_person"),
         sellableRoomCount: zod_1.z.number().int(),
+        /** 0117. Optional, so an older API's answer still parses. */
+        maxGuests: zod_1.z.number().int().nullish(),
+        maxAdults: zod_1.z.number().int().nullish(),
+        maxChildren: zod_1.z.number().int().nullish(),
+        roomCategory: zod_1.z.string().nullish(),
+        beds: zod_1.z.array(zod_1.z.object({ type: zod_1.z.string(), count: zod_1.z.number().int().positive() })).nullish(),
+        sizeM2: zod_1.z.number().int().nullish(),
+        bathroom: zod_1.z.enum(["private", "shared"]).nullish(),
+        singleGuestPriceRwf: zod_1.z.number().int().nullish(),
+        extraBedsMax: zod_1.z.number().int().nullish(),
+        extraBedPriceRwf: zod_1.z.number().int().nullish(),
     })),
 });
 /**
@@ -313,15 +353,28 @@ exports.PublishBlocker = zod_1.z.enum([
      * listing nobody can see is not a listing.
      */
     "no_photo",
+    /** 0117: a stay says its check-in window, its front desk and a language its staff speak. */
+    "missing_check_in",
+    "missing_front_desk",
+    "missing_language",
+    /** 0117: every room type of a stay says its beds and how many adults it takes. */
+    "room_type_without_beds",
+    /** 0118: every room type of a stay has a photograph of its own. */
+    "room_type_without_photo",
 ]);
 exports.PUBLISH_BLOCKER_LABEL = {
-    org_not_active: "This business is not approved yet.",
+    org_not_active: "Publishing opens once your business is approved.",
     missing_name: "Give the property a name.",
     missing_sector: "Choose the sector the property is in.",
     no_active_room_type: "Add at least one room type.",
     no_priced_room_type: "At least one room type needs a price.",
     no_sellable_room: "At least one room has to be available to sell.",
     no_photo: "Add at least one photograph of the property.",
+    missing_check_in: "Say when guests can check in.",
+    missing_front_desk: "Say when the front desk is open.",
+    missing_language: "Pick at least one language your staff speak.",
+    room_type_without_beds: "Give every room type its beds and the number of adults it takes.",
+    room_type_without_photo: "Add a photograph of every room type.",
 };
 /** Which screen a blocker sends the operator back to. */
 function stepForPublishBlocker(blocker) {
@@ -330,10 +383,15 @@ function stepForPublishBlocker(blocker) {
             return "registration";
         case "missing_name":
         case "missing_sector":
+        case "missing_check_in":
+        case "missing_front_desk":
+        case "missing_language":
             return "property";
         case "no_active_room_type":
         case "no_priced_room_type":
         case "no_sellable_room":
+        case "room_type_without_beds":
+        case "room_type_without_photo":
             return "room_types";
         case "no_photo":
             return "photos";
@@ -382,8 +440,15 @@ const roomTypeFields = {
         .nullable(),
     bookingMode: booking_1.BookingMode.optional(),
     cancellationTier: booking_1.CancellationTier.optional(),
+    /**
+     * Per person (the default), per whole unit, or per menu item. A `per_item`
+     * row is never bookable, so it is stored with no booking mode.
+     */
+    priceBasis: booking_1.RoomPriceBasis.optional(),
     /** How many rooms of this type exist. Seeds nothing; `rooms` is the truth. */
     roomCount: zod_1.z.number().int().positive().max(10000).optional(),
+    /** 0117: the kind of room, its beds, who may sleep there, its size and bathroom, the one guest price. */
+    ...property_policies_1.roomTypeDetailFields,
 };
 /**
  * What one physical room or unit is called on the door: `101`, `Tent 4`,
@@ -427,6 +492,7 @@ exports.OperatorRoomType = zod_1.z.object({
     basePriceRwf: zod_1.z.number().int().nullable(),
     bookingMode: booking_1.BookingMode.nullable(),
     cancellationTier: booking_1.CancellationTier.nullable(),
+    priceBasis: booking_1.RoomPriceBasis.default("per_person"),
     roomCount: zod_1.z.number().int(),
     sellableRoomCount: zod_1.z.number().int(),
     /** The plan this type sells on by default. Exactly one, always. */
@@ -487,6 +553,8 @@ exports.AttachPropertyPhotoRequest = exports.WorkspaceScoped.extend({
     /** The first photograph on a property becomes the cover whatever this says. */
     isCover: zod_1.z.boolean().optional(),
     caption: zod_1.z.string().trim().max(300).optional(),
+    /** 0118: the room type it shows, on this property; absent is a photograph of the property. */
+    roomTypeId: primitives_1.Uuid.optional(),
 });
 /**
  * Reorder, re caption, or move the cover, in one call.
@@ -600,6 +668,24 @@ exports.PropertySetupProgress = zod_1.z.object({
     legalName: zod_1.z.string(),
     domain: primitives_1.Domain,
     accommodationClass: zod_1.z.string().nullable(),
+    /**
+     * Free-text when `accommodationClass` is `other` (coffee shop, bar &
+     * restaurant, etc.). Null on the eight lodging classes and on residence.
+     */
+    accommodationClassOther: zod_1.z.string().nullable(),
+    /**
+     * RDB entity group on the org. Coffee shops and bars land in
+     * `restaurant_bar_nightclub`; hotels in `accommodation`. Drives setup
+     * vocabulary so a venue is not asked for rooms.
+     */
+    entityGroup: zod_1.z.string().nullable(),
+    /**
+     * What the business said it is at registration (`orgs.business_kind`): a
+     * hotel, a villa, a coffee shop. The one field setup should branch on; the
+     * class and entity group are kept for a business registered before it.
+     * Default null so an older API's body still parses.
+     */
+    businessKind: zod_1.z.string().nullable().default(null),
     propertyId: primitives_1.Uuid.nullable(),
     propertyName: zod_1.z.string().nullable(),
     counts: exports.PropertySetupCounts,

@@ -28,6 +28,7 @@ import { createHash } from 'node:crypto';
 
 import { computeBreakdown, stayNightlyRateRwf } from '@injishi/contracts';
 
+import { businessKindFor } from '../business-kind.mjs';
 import { syntheticCoordFor } from '../synthetic-coords.mjs';
 import { day, districtId, iid, kigaliAt, parseFixtureDate, sectorId, shiftDate, userId } from './lib.mjs';
 import { ORG, PROPERTY, WORKSPACE, roomId, roomTypeId } from './world.mjs';
@@ -96,11 +97,12 @@ async function upsertBusiness(c, item, index) {
   // Synthetic identifiers only: a 999-block TIN, a demo-range UPI, never the prototype's real-looking ones.
   await c.query(
     `INSERT INTO orgs (id, legal_name, domain, rdb_entity_group, accommodation_class, residence_class, tin, upi,
-                       registration_status, district_id)
-     VALUES ($1, $2, $3, 'accommodation', $4, $5, $6, $7, 'active', $8)
+                       registration_status, district_id, business_kind)
+     VALUES ($1, $2, $3, 'accommodation', $4, $5, $6, $7, 'active', $8, $9)
      ON CONFLICT (id) DO UPDATE SET legal_name = EXCLUDED.legal_name, registration_status = 'active'`,
     [org, item.entity, home ? 'residence' : 'hospitality', home ? null : CLASS[item.type], home ? 'residential_landlord' : null,
-      home ? null : `9993000${String(index).padStart(2, '0')}`, home ? `1/02/09/01/93${String(index).padStart(2, '0')}` : null, district],
+      home ? null : `9993000${String(index).padStart(2, '0')}`, home ? `1/02/09/01/93${String(index).padStart(2, '0')}` : null, district,
+      businessKindFor({ domain: home ? 'residence' : 'hospitality', accommodationClass: home ? null : CLASS[item.type] })],
   );
   await c.query(`INSERT INTO workspaces (id, kind, org_id) VALUES ($1, 'business', $2) ON CONFLICT DO NOTHING`, [workspace, org]);
   const slug = slugify(item.name);

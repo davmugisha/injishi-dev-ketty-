@@ -386,7 +386,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
     orgId: z.ZodNullable<z.ZodString>;
     orgName: z.ZodNullable<z.ZodString>;
     /** Host vs Landlord. Set only for `business`. */
-    domain: z.ZodNullable<z.ZodEnum<["hospitality", "residence"]>>;
+    domain: z.ZodNullable<z.ZodEnum<["hospitality", "residence", "enterprise"]>>;
     /** The person's role in that org. Set only for `business`. */
     orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
     /**
@@ -465,7 +465,8 @@ export declare const WorkspaceAccess: z.ZodObject<{
      * (ADR-056). Computed on the server by `isPsfApplicant`, which reads the
      * owner membership and the on behalf claim, never a permission: a pending
      * business holds none (ADR-053 rule 2), and the application must be
-     * reachable at every registration stage. Null outside hospitality.
+     * reachable at every registration stage. Null outside a hospitality or PSF
+     * business.
      *
      * Defaults to null when absent, so a client built after this field landed
      * still parses a grant from an API built before it.
@@ -478,7 +479,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
         canManage: boolean;
     }>>>;
 }, "strip", z.ZodTypeAny, {
-    domain: "hospitality" | "residence" | null;
+    domain: "hospitality" | "residence" | "enterprise" | null;
     kind: "business" | "broker" | "personal";
     branches: {
         name: string;
@@ -499,7 +500,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
         canManage: boolean;
     } | null;
 }, {
-    domain: "hospitality" | "residence" | null;
+    domain: "hospitality" | "residence" | "enterprise" | null;
     kind: "business" | "broker" | "personal";
     branches: {
         name: string;
@@ -522,6 +523,269 @@ export declare const WorkspaceAccess: z.ZodObject<{
 }>;
 export type WorkspaceAccess = z.infer<typeof WorkspaceAccess>;
 /**
+ * The emailed step up for this session (F-S02): whether the person's workspaces
+ * demand it, and whether THIS session has presented a code. `verified` means
+ * something only when `required` is true.
+ */
+export declare const TwoFactorStatus: z.ZodObject<{
+    required: z.ZodBoolean;
+    verified: z.ZodBoolean;
+}, "strip", z.ZodTypeAny, {
+    verified: boolean;
+    required: boolean;
+}, {
+    verified: boolean;
+    required: boolean;
+}>;
+export type TwoFactorStatus = z.infer<typeof TwoFactorStatus>;
+/** `GET /me/workspaces`: every workspace the caller holds, the one this session last acted in, and the step up. */
+export declare const MyWorkspaces: z.ZodObject<{
+    workspaces: z.ZodArray<z.ZodObject<{
+        workspaceId: z.ZodString;
+        kind: z.ZodEnum<["business", "broker", "personal"]>;
+        /** Set only for `business` workspaces. */
+        orgId: z.ZodNullable<z.ZodString>;
+        orgName: z.ZodNullable<z.ZodString>;
+        /** Host vs Landlord. Set only for `business`. */
+        domain: z.ZodNullable<z.ZodEnum<["hospitality", "residence", "enterprise"]>>;
+        /** The person's role in that org. Set only for `business`. */
+        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
+        /**
+         * Where the org sits in the registration pipeline. Set only for `business`.
+         *
+         * This is on the wire because it is not decoration: it is what decides
+         * whether `permissions` is populated at all (see `isOperational`). A client
+         * renders the pending pipeline from it; the server refuses from it.
+         */
+        registrationStatus: z.ZodNullable<z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>>;
+        /** Resolved for this workspace, never global to the person. */
+        permissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.manage", "lease.sign", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "people.view", "people.manage", "roster.manage", "attendance.record", "attendance.approve", "leave.approve", "payroll.draft", "payroll.run", "lostfound.manage", "payout.manage", "expense.manage", "tax.manage", "guest.register", "pos.sell", "pos.checkout", "pos.discount", "pos.override", "pos.refund", "table.manage", "kitchen.work", "register.operate", "shift.review"]>, "many">;
+        /**
+         * The USALI categories this business actually runs (ADR-035, D-a).
+         *
+         * On the grant because it decides which SECTIONS a nav has, and screen
+         * access in the operator app is derived from the nav. It used to be read
+         * from `data/demo.ts`, so a fixture decided which doors a real hotel had:
+         * a property with no `fnb` department still got the Services door, and one
+         * that ran a restaurant might not.
+         *
+         * Empty for `broker` and `personal`, which run no departments, and for a
+         * business whose departments have not been seeded. Empty means "no optional
+         * section", never "everything" — a nav must fail closed.
+         *
+         * Categories, not names. The names are an editable per property catalog
+         * (D14) and two hotels spell the same department differently; the category
+         * is the stable vocabulary both sides already share.
+         */
+        departments: z.ZodArray<z.ZodEnum<["rooms", "fnb", "spa_recreation", "other_operated", "misc_income", "admin_general", "sales_marketing", "it", "engineering", "utilities", "hr"]>, "many">;
+        /**
+         * What this workspace's property is called (ADR-035).
+         *
+         * **On the grant, and NOT read from `/inventory/properties`, because that
+         * controller is gated on `listing.manage`.** The operator topbar says which
+         * business and which property you are in on every screen, and a receptionist
+         * — who may not manage listings — was getting a 403 on every page load for a
+         * name. Identity is not a listing operation.
+         *
+         * The head office's name when this member covers it, else the first covered
+         * branch by name (ADR-054 AC-S3). Made ONCE, here, rather than differently
+         * in each screen that needs it.
+         *
+         * Null for `broker` and `personal`, which have no property, and for a
+         * business that has not created one yet.
+         */
+        propertyName: z.ZodNullable<z.ZodString>;
+        /**
+         * The active branches this member covers, head office first then by name
+         * (ADR-054 AC-S3). Every branch when `branchCoverage` is `all`. Empty for
+         * `broker` and `personal`, and for a business with no property yet.
+         *
+         * Seeing a branch is COVERAGE, not a permission: the switcher reads this,
+         * and the API narrows rows by the same list.
+         */
+        branches: z.ZodArray<z.ZodObject<{
+            id: z.ZodString;
+            name: z.ZodString;
+            districtName: z.ZodNullable<z.ZodString>;
+            isHeadOffice: z.ZodBoolean;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            id: string;
+            districtName: string | null;
+            isHeadOffice: boolean;
+        }, {
+            name: string;
+            id: string;
+            districtName: string | null;
+            isHeadOffice: boolean;
+        }>, "many">;
+        /** `limited` when the member is limited to some branches. Null outside `business`. */
+        branchCoverage: z.ZodNullable<z.ZodEnum<["all", "limited"]>>;
+        /**
+         * Whether this person may see and act on the business's PSF membership
+         * (ADR-056). Computed on the server by `isPsfApplicant`, which reads the
+         * owner membership and the on behalf claim, never a permission: a pending
+         * business holds none (ADR-053 rule 2), and the application must be
+         * reachable at every registration stage. Null outside a hospitality or PSF
+         * business.
+         *
+         * Defaults to null when absent, so a client built after this field landed
+         * still parses a grant from an API built before it.
+         */
+        psfMembership: z.ZodDefault<z.ZodNullable<z.ZodObject<{
+            canManage: z.ZodBoolean;
+        }, "strip", z.ZodTypeAny, {
+            canManage: boolean;
+        }, {
+            canManage: boolean;
+        }>>>;
+    } & {
+        label: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        domain: "hospitality" | "residence" | "enterprise" | null;
+        kind: "business" | "broker" | "personal";
+        branches: {
+            name: string;
+            id: string;
+            districtName: string | null;
+            isHeadOffice: boolean;
+        }[];
+        orgId: string | null;
+        workspaceId: string;
+        registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
+        label: string;
+        orgName: string | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
+        propertyName: string | null;
+        departments: ("hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities")[];
+        permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
+        branchCoverage: "limited" | "all" | null;
+        psfMembership: {
+            canManage: boolean;
+        } | null;
+    }, {
+        domain: "hospitality" | "residence" | "enterprise" | null;
+        kind: "business" | "broker" | "personal";
+        branches: {
+            name: string;
+            id: string;
+            districtName: string | null;
+            isHeadOffice: boolean;
+        }[];
+        orgId: string | null;
+        workspaceId: string;
+        registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
+        label: string;
+        orgName: string | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
+        propertyName: string | null;
+        departments: ("hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities")[];
+        permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
+        branchCoverage: "limited" | "all" | null;
+        psfMembership?: {
+            canManage: boolean;
+        } | null | undefined;
+    }>, "many">;
+    activeWorkspaceId: z.ZodNullable<z.ZodString>;
+    twoFactor: z.ZodObject<{
+        required: z.ZodBoolean;
+        verified: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        verified: boolean;
+        required: boolean;
+    }, {
+        verified: boolean;
+        required: boolean;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    workspaces: {
+        domain: "hospitality" | "residence" | "enterprise" | null;
+        kind: "business" | "broker" | "personal";
+        branches: {
+            name: string;
+            id: string;
+            districtName: string | null;
+            isHeadOffice: boolean;
+        }[];
+        orgId: string | null;
+        workspaceId: string;
+        registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
+        label: string;
+        orgName: string | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
+        propertyName: string | null;
+        departments: ("hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities")[];
+        permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
+        branchCoverage: "limited" | "all" | null;
+        psfMembership: {
+            canManage: boolean;
+        } | null;
+    }[];
+    activeWorkspaceId: string | null;
+    twoFactor: {
+        verified: boolean;
+        required: boolean;
+    };
+}, {
+    workspaces: {
+        domain: "hospitality" | "residence" | "enterprise" | null;
+        kind: "business" | "broker" | "personal";
+        branches: {
+            name: string;
+            id: string;
+            districtName: string | null;
+            isHeadOffice: boolean;
+        }[];
+        orgId: string | null;
+        workspaceId: string;
+        registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
+        label: string;
+        orgName: string | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
+        propertyName: string | null;
+        departments: ("hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities")[];
+        permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
+        branchCoverage: "limited" | "all" | null;
+        psfMembership?: {
+            canManage: boolean;
+        } | null | undefined;
+    }[];
+    activeWorkspaceId: string | null;
+    twoFactor: {
+        verified: boolean;
+        required: boolean;
+    };
+}>;
+export type MyWorkspaces = z.infer<typeof MyWorkspaces>;
+/** `GET /me/two-factor`: the step up's state and the masked address a code goes to. */
+export declare const TwoFactorChallenge: z.ZodObject<{
+    required: z.ZodBoolean;
+    verified: z.ZodBoolean;
+} & {
+    sentTo: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    verified: boolean;
+    required: boolean;
+    sentTo: string;
+}, {
+    verified: boolean;
+    required: boolean;
+    sentTo: string;
+}>;
+export type TwoFactorChallenge = z.infer<typeof TwoFactorChallenge>;
+/** `POST /me/two-factor/send`: where the code went and how long it works. */
+export declare const TwoFactorSent: z.ZodObject<{
+    sentTo: z.ZodString;
+    expiresInSeconds: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    sentTo: string;
+    expiresInSeconds: number;
+}, {
+    sentTo: string;
+    expiresInSeconds: number;
+}>;
+export type TwoFactorSent = z.infer<typeof TwoFactorSent>;
+/**
  * May this org's workspace actually DO anything yet?
  *
  * Only `active`. A business that has paid but is not approved, or is approved
@@ -532,6 +796,19 @@ export type WorkspaceAccess = z.infer<typeof WorkspaceAccess>;
  * take away the one screen that explains the wait.
  */
 export declare function isOperational(registrationStatus: OrgRegistrationStatus | null): boolean;
+/**
+ * The statuses in which a business may build its listing before approval.
+ *
+ * The fee is paid and the documents are being read online. Waiting for the
+ * second officer before a host may add a room type or a photograph only moves
+ * the work to after approval, when the host wants to be selling. So these
+ * statuses hold `listing.manage` and nothing else: no money, no staff, and no
+ * publish, which still waits for `active` (`publishBlockersFor`,
+ * `org_not_active`). A rejected, suspended or unclaimed (OBO `approved`)
+ * business holds nothing, as before.
+ */
+export declare const SETUP_DURING_REVIEW_STATUSES: ReadonlySet<OrgRegistrationStatus>;
+export declare function canSetUpDuringReview(registrationStatus: OrgRegistrationStatus | null): boolean;
 /** Plain wording for why a pending workspace refused. Names the stage. */
 export declare const REGISTRATION_STAGE_MESSAGE: Readonly<Record<OrgRegistrationStatus, string>>;
 /** What the operator app calls this workspace. */
@@ -558,7 +835,7 @@ export declare function workspaceLabel(a: {
  * and defaults to none, so every existing caller keeps the platform defaults and
  * a business that has never opened the Roles screen is unaffected. It is applied
  * INSIDE the registration gate rather than beside it: an org that is not
- * `active` holds nothing, and a business cannot grant its way past its own
+ * `active` holds nothing (or, in review, only `listing.manage`), and a business cannot grant its way past its own
  * approval.
  */
 export declare function permissionsForWorkspace(input: {

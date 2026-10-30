@@ -68,7 +68,7 @@ export function QuickSearch({ groups, placeholder }: { groups: NavGroup[]; place
     : [];
   const pages: Hit[] = items
     .filter((i) => !words || i.label.toLowerCase().includes(words.toLowerCase()))
-    .map((i) => ({ id: `go-${i.id}`, label: i.label, icon: i.icon, href: navHref(i.board, pathname) }));
+    .map((i) => ({ id: `go-${i.id}`, label: i.label, icon: i.icon, href: i.href ?? navHref(i.board, pathname) }));
   const sections = [
     { id: "find", heading: "Search", hits: lists },
     { id: "go", heading: "Go to", hits: pages },

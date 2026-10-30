@@ -1,7 +1,7 @@
 import { RoomAvailability } from '@injishi/contracts';
 import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 
-import { AvailabilityService } from '../../../modules/booking/application/availability.service';
+import { AvailabilityService } from '../../../modules/pms/application/availability.service';
 
 /**
  * What is left to sell → `GET /api/v1/room-types/:roomTypeId/availability`
