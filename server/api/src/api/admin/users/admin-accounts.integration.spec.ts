@@ -12,6 +12,8 @@ import type { GuestNotifier } from '../../../modules/guests/infrastructure/guest
 import type { Database } from '../../../shared/database/database.module';
 import { AdminAccountsService } from './admin-accounts.service';
 
+type MembershipRow = Pick<typeof schema.orgMemberships.$inferSelect, 'orgRole' | 'status'>;
+
 /**
  * The admin account writes against Postgres (2026-10-29): accounts, staff
  * roles and business members, with the refusals that keep the console and a
@@ -36,7 +38,7 @@ maybe('admin accounts against Postgres (ACCOUNTS_IT_DATABASE_URL)', () => {
   let ownerId: string;
 
   const reason = 'Integration test';
-  const conflictCode = async (p: Promise<unknown>) => {
+  const conflictCode = async (p: Promise<unknown>): Promise<string | undefined> => {
     try {
       await p;
     } catch (error) {
@@ -45,7 +47,7 @@ maybe('admin accounts against Postgres (ACCOUNTS_IT_DATABASE_URL)', () => {
     }
     throw new Error('expected a refusal');
   };
-  const membership = async (userId: string) => {
+  const membership = async (userId: string): Promise<MembershipRow | undefined> => {
     const [row] = await db
       .select({ orgRole: schema.orgMemberships.orgRole, status: schema.orgMemberships.status })
       .from(schema.orgMemberships)

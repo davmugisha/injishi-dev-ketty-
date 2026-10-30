@@ -13,6 +13,7 @@ import {
   type OversightGrant,
   type PsfDecisionsPage,
   type PsfDecisionsQuery,
+  type PsfKpi,
   type PsfMembershipFamily,
   type PsfOfficerScope,
   type PsfOwnerGroup,
@@ -170,7 +171,7 @@ export class PsfReportService {
       this.repo.bookingMonths(scope, chartFromDay(chartFrom), toDay),
       this.repo.topBusinesses(scope, query.from, toDay),
     ]);
-    const kpi = (k: keyof Omit<typeof current, 'decisionDays'>) => ({ value: current[k], previous: previous[k] });
+    const kpi = (k: keyof Omit<typeof current, 'decisionDays'>): PsfKpi => ({ value: current[k], previous: previous[k] });
     const families = new Map(byFamily.map((f) => [f.key, f]));
     return {
       regionLabel: label,

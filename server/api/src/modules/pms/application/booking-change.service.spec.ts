@@ -1,9 +1,13 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, type Mock, vi } from 'vitest';
 
 import { ConflictException, UnprocessableEntityException } from '@nestjs/common';
+import type { ReservationChangeAsk } from '@injishi/contracts';
 
 import { everyBranch } from '../../../shared/auth/branch-scope.fixture';
+import type { ChangeableBooking } from '../infrastructure/booking-change.repository';
 import { BookingChangeService } from './booking-change.service';
+
+type Mocks = Record<string, Mock>;
 
 /** A Kigali day this many days from today, so the dates stay bookable whenever the test runs. */
 const day = (n: number): string =>
@@ -13,7 +17,7 @@ const WS = { workspaceId: 'ws-1', branchScope: everyBranch('prop-1') } as never;
 const SINGLE = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
 /** BK-VU99-JGY8 at Gisele's hotel: a Single room, two adults, 1 to 3 November, prepaid 120,000. */
-const booking = (over: Record<string, unknown> = {}) => ({
+const booking = (over: Record<string, unknown> = {}): ChangeableBooking => ({
   id: 'bk-1',
   reference: 'BK-VU99-JGY8',
   workspaceId: 'ws-1',
@@ -35,7 +39,9 @@ const booking = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-function build(over: { booking?: Record<string, unknown>; available?: boolean; momoOff?: boolean } = {}) {
+function build(
+  over: { booking?: Record<string, unknown>; available?: boolean; momoOff?: boolean } = {},
+): { service: BookingChangeService; changes: Mocks; attempts: Mocks; notifications: Mocks } {
   const changes = {
     find: vi.fn().mockResolvedValue(booking(over.booking)),
     available: vi.fn().mockResolvedValue(over.available ?? true),
@@ -73,7 +79,7 @@ function build(over: { booking?: Record<string, unknown>; available?: boolean; m
   return { service, changes, attempts, notifications };
 }
 
-const ask = (over: Record<string, unknown> = {}) => ({
+const ask = (over: Record<string, unknown> = {}): ReservationChangeAsk => ({
   checkIn: day(10),
   checkOut: day(12),
   roomTypeId: SINGLE,

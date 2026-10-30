@@ -10,7 +10,7 @@ import {
   type PsfStanding,
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, lt, or, sql, type SQL } from 'drizzle-orm';
 import { alias, type AnyPgColumn } from 'drizzle-orm/pg-core';
 
 import {
@@ -59,6 +59,34 @@ export type PsfTierRow = typeof psfMembershipTiers.$inferSelect;
 export type PsfMembershipRow = typeof psfMemberships.$inferSelect;
 export type PsfClusterRow = typeof psfClusters.$inferSelect;
 export type PsfAssociationRow = typeof psfAssociations.$inferSelect;
+export type PsfClaimRow = typeof psfMembershipClaims.$inferSelect;
+type PsfMemberListRow = typeof psfMemberList.$inferSelect;
+
+/** A claim in an officer's list, with what PSF's own list says about the number. */
+export interface PsfClaimListRow
+  extends Pick<PsfClaimRow, 'id' | 'orgId' | 'membershipNumber' | 'status' | 'claimedAt' | 'decidedAt' | 'decisionNote' | 'matchedBy'> {
+  legalName: string;
+  businessCode: string | null;
+  tin: string | null;
+  districtName: string | null;
+  claimedByName: string | null;
+  decidedByName: string | null;
+  listedName: string | null;
+  listedTin: string | null;
+  listedTier: string | null;
+  listedExpires: string | null;
+  listedNumber: string | null;
+}
+
+/** One claim with its business's district, for the scope check. */
+export type PsfClaimInScope = Pick<PsfClaimRow, 'id' | 'orgId' | 'membershipNumber' | 'status'> & { districtId: number | null };
+
+/** An open claim PSF's list confirms, with the list's tier and dates. */
+export type PsfListedClaim = Pick<PsfMemberListRow, 'tierCode' | 'startsOn' | 'expiresOn' | 'uploadedByUserId'> & {
+  claimId: string;
+  orgId: string;
+  membershipNumber: string;
+};
 
 /**
  * The districts an officer may see: null for the whole country, else the ids
@@ -535,7 +563,10 @@ export class PsfMembershipRepository {
   }
 
   /** Claims in a region, newest first, with what PSF's own list says about each number. */
-  async claims(scope: PsfScope, status: 'claimed' | 'confirmed' | 'rejected' | undefined) {
+  async claims(
+    scope: PsfScope,
+    status: PsfClaimRow['status'] | undefined,
+  ): Promise<{ rows: PsfClaimListRow[]; counts: { status: PsfClaimRow['status']; n: number }[] }> {
     const claimer = alias(users, 'claimer');
     const decider = alias(users, 'decider');
     const rows = await this.db
@@ -579,7 +610,7 @@ export class PsfMembershipRepository {
   }
 
   /** One claim with its business's district, for the scope check before a decision. */
-  async claim(id: string) {
+  async claim(id: string): Promise<PsfClaimInScope | null> {
     const [row] = await this.db
       .select({
         id: psfMembershipClaims.id,
@@ -634,7 +665,7 @@ export class PsfMembershipRepository {
   }
 
   /** Open claims PSF's list now confirms: number and TIN match, and the row has a tier and dates. */
-  async claimsTheListConfirms() {
+  async claimsTheListConfirms(): Promise<PsfListedClaim[]> {
     return this.db
       .select({
         claimId: psfMembershipClaims.id,
@@ -1303,41 +1334,42 @@ export class PsfMembershipRepository {
         : filter.sort === 'amount'
           ? [sql`${psfMembershipApplications.declaredFeeRwf} DESC NULLS LAST`, desc(sortAt)]
           : [desc(sortAt), desc(psfMembershipApplications.id)];
-    const base = () =>
-      this.db
-        .select({
-          applicationId: psfMembershipApplications.id,
-          orgId: orgs.id,
-          businessName: orgs.legalName,
-          businessCode: orgs.businessCode,
-          domain: orgs.domain,
-          districtName: districts.name,
-          // The name a business typed, when PSF's list did not have its association.
-          associationName: sql<string | null>`coalesce(${orgs.psfAssociationOther}, ${psfAssociations.nameEn})`,
-          subsectorName: SUBSECTOR_NAME,
-          clusterName: psfClusters.nameEn,
-          ownerGroups: orgs.ownerGroups,
-          requestedTierName: psfMembershipTiers.nameEn,
-          declaredFeeRwf: psfMembershipApplications.declaredFeeRwf,
-          paidAmountRwf: psfMembershipApplications.paidAmountRwf,
-          submittedAt: psfMembershipApplications.createdAt,
-          queuedAt: psfMembershipApplications.queuedAt,
-          sortAt: sortAt.mapWith((v: string | Date) => new Date(v)),
-          registrationStatus: orgs.registrationStatus,
-          officerHasStake: this.stakeSql(officerUserId).mapWith(Boolean),
-          districtId: orgs.districtId,
-          docId: psfMembershipApplications.docId,
-          branchesPending: branchesPendingIn(scope).mapWith(Number),
-        })
-        .from(psfMembershipApplications)
-        .innerJoin(orgs, eq(orgs.id, psfMembershipApplications.orgId))
-        .innerJoin(psfMembershipTiers, eq(psfMembershipTiers.code, psfMembershipApplications.requestedTierCode))
-        .leftJoin(districts, eq(districts.id, orgs.districtId))
-        .leftJoin(psfAssociations, eq(psfAssociations.code, orgs.psfAssociationCode))
-        .leftJoin(psfClusters, eq(psfClusters.code, psfAssociations.clusterCode))
-        .leftJoin(psfSubsectors, eq(psfSubsectors.id, orgs.psfSubsectorId))
-        .where(where);
-    const rows = await base().orderBy(...order).limit(limit + 1).offset(offset);
+    const rows = await this.db
+      .select({
+        applicationId: psfMembershipApplications.id,
+        orgId: orgs.id,
+        businessName: orgs.legalName,
+        businessCode: orgs.businessCode,
+        domain: orgs.domain,
+        districtName: districts.name,
+        // The name a business typed, when PSF's list did not have its association.
+        associationName: sql<string | null>`coalesce(${orgs.psfAssociationOther}, ${psfAssociations.nameEn})`,
+        subsectorName: SUBSECTOR_NAME,
+        clusterName: psfClusters.nameEn,
+        ownerGroups: orgs.ownerGroups,
+        requestedTierName: psfMembershipTiers.nameEn,
+        declaredFeeRwf: psfMembershipApplications.declaredFeeRwf,
+        paidAmountRwf: psfMembershipApplications.paidAmountRwf,
+        submittedAt: psfMembershipApplications.createdAt,
+        queuedAt: psfMembershipApplications.queuedAt,
+        sortAt: sortAt.mapWith((v: string | Date) => new Date(v)),
+        registrationStatus: orgs.registrationStatus,
+        officerHasStake: this.stakeSql(officerUserId).mapWith(Boolean),
+        districtId: orgs.districtId,
+        docId: psfMembershipApplications.docId,
+        branchesPending: branchesPendingIn(scope).mapWith(Number),
+      })
+      .from(psfMembershipApplications)
+      .innerJoin(orgs, eq(orgs.id, psfMembershipApplications.orgId))
+      .innerJoin(psfMembershipTiers, eq(psfMembershipTiers.code, psfMembershipApplications.requestedTierCode))
+      .leftJoin(districts, eq(districts.id, orgs.districtId))
+      .leftJoin(psfAssociations, eq(psfAssociations.code, orgs.psfAssociationCode))
+      .leftJoin(psfClusters, eq(psfClusters.code, psfAssociations.clusterCode))
+      .leftJoin(psfSubsectors, eq(psfSubsectors.id, orgs.psfSubsectorId))
+      .where(where)
+      .orderBy(...order)
+      .limit(limit + 1)
+      .offset(offset);
     const [counted] = await this.db
       .select({ n: sql<number>`count(*)::int` })
       .from(psfMembershipApplications)

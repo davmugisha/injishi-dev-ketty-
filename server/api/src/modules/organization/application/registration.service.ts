@@ -328,7 +328,7 @@ export class RegistrationService {
   private async assertPsfNumber(raw: string | null): Promise<void> {
     if (raw === null) return;
     const path = ['business', 'psfMembershipNumber'];
-    const fail = (message: string) => {
+    const fail = (message: string): never => {
       throw new UnprocessableEntityException({ message: 'Validation failed', issues: [{ code: 'custom', path, message }] });
     };
     if (!looksLikePsfNumber(raw)) fail('Type your full PSF membership number, as it is printed on your certificate.');

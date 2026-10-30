@@ -1,7 +1,7 @@
 import { describe, expect, it, type Mock, vi } from 'vitest';
 
 import { BadRequestException, UnprocessableEntityException } from '@nestjs/common';
-import type { CreateRegistrationRequest } from '@injishi/contracts';
+import type { CreateRegistrationRequest, OversightGrant } from '@injishi/contracts';
 
 import type { OrganizationRepository } from '../infrastructure/organization.repository';
 import type { RraTinAdapter, TinCheckOutcome } from '../infrastructure/rra-tin.adapter';
@@ -426,7 +426,7 @@ describe("RegistrationService.review, a PSF District Manager's one step (0119)",
   const ORG = '11111111-1111-4111-8111-111111111111';
   const MANAGER = '22222222-2222-4222-8222-222222222222';
   const KICUKIRO = 23;
-  const grant = (districtId: number) => ({
+  const grant = (districtId: number): OversightGrant => ({
     assignmentId: '33333333-3333-4333-8333-333333333333',
     oversightRole: 'psf_membership_officer' as const,
     governmentBodyCode: 'PSF',
@@ -439,7 +439,7 @@ describe("RegistrationService.review, a PSF District Manager's one step (0119)",
     villageId: null,
   });
 
-  function reviewing(opts: { unchecked?: number; awaitingClaim?: boolean } = {}) {
+  function reviewing(opts: { unchecked?: number; awaitingClaim?: boolean } = {}): { svc: RegistrationService; recordReviewAndAdvance: Mock; approved: Mock } {
     const recordReviewAndAdvance = vi.fn(async () => true);
     const approved = vi.fn(async () => undefined);
     const orgs = {

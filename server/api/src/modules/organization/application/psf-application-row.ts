@@ -7,6 +7,7 @@ import type {
   PsfIdDocument,
   PsfMembership,
   PsfSubmittedCapacity,
+  PsfSubsector,
   PsfTier,
 } from '@injishi/contracts';
 
@@ -188,7 +189,7 @@ export function toSubsectorView(row: {
   sortOrder: number;
   active: boolean;
   associationCodes: string[];
-}) {
+}): PsfSubsector {
   return {
     id: row.id,
     clusterCode: row.clusterCode,

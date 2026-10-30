@@ -98,6 +98,7 @@ import {
   OpenPsfApplicationExists,
   PsfMembershipRepository,
   type PsfAssociationRow,
+  type PsfClaimInScope,
   type PsfOfficerApplicationRow,
   type PsfOrgFacts,
   type PsfScope,
@@ -163,7 +164,7 @@ export class PsfMembershipService {
       this.repo.claims(scope, query.status),
       this.repo.memberListSummary(),
     ]);
-    const count = (s: string) => counts.find((c) => c.status === s)?.n ?? 0;
+    const count = (s: string): number => counts.find((c) => c.status === s)?.n ?? 0;
     return {
       items: rows.map((r) => ({
         id: r.id,
@@ -196,7 +197,7 @@ export class PsfMembershipService {
   }
 
   /** The claim, if it is open and in the officer's region; refused otherwise. */
-  private async openClaimInScope(grants: OversightGrant[], id: string) {
+  private async openClaimInScope(grants: OversightGrant[], id: string): Promise<PsfClaimInScope> {
     const claim = await this.repo.claim(id);
     if (!claim || !covers(await this.scopeOf(grants), claim.districtId)) {
       throw new NotFoundException('That claim is not in your region.');
@@ -476,7 +477,7 @@ export class PsfMembershipService {
     const tier = await this.repo.tier(input.tierCode);
     if (!tier || !tier.active) throw new NotFoundException('That membership band is not offered any more.');
     if (input.amountRwf !== null) {
-      const rwf = (n: number | null) => `RWF ${(n ?? 0).toLocaleString('en-US')}`;
+      const rwf = (n: number | null): string => `RWF ${(n ?? 0).toLocaleString('en-US')}`;
       const low = tier.annualFeeMinRwf;
       const high = tier.annualFeeMaxRwf;
       const outside =
@@ -504,6 +505,7 @@ export class PsfMembershipService {
   /** Active fields for the public and registration membership forms. */
   async formFieldsPublic(): Promise<PsfFormFieldsPublic> {
     const rows = await this.repo.formFields(true);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- the public form does not say which fields are active: all of them are
     return { fields: rows.map(toFormFieldView).map(({ active: _a, ...f }) => f) };
   }
 
@@ -1267,7 +1269,7 @@ export class PsfMembershipService {
 
   private async historyOf(orgId: string): Promise<PsfBusinessHistory> {
     const h = await this.repo.businessHistory(orgId);
-    const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
+    const iso = (d: Date | null | undefined): string | null => (d ? d.toISOString() : null);
     const payments: PsfBusinessHistory['payments'] = [];
     if (h.registrationFee?.paidAt) {
       payments.push({ kind: 'registration_fee', amountRwf: h.registrationFee.amountRwf, at: iso(h.registrationFee.paidAt), status: 'paid', reference: null, applicationDocId: null });

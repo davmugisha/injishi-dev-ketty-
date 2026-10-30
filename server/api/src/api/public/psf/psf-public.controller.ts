@@ -161,6 +161,7 @@ export class PsfPublicController {
   @SkipThrottle({ 'psf-form': true, 'psf-logo': true })
   payRegistration(
     @Param('docId', docIdPipe) docId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- validated, so a malformed number is refused; the service reads the phone from the application
     @Body(new ZodValidationPipe(PsfTrackPayRequest)) _body: PsfTrackPayRequest,
   ): Promise<PsfTrackPayResult> {
     return this.psf.payRegistration(docId);
@@ -171,6 +172,7 @@ export class PsfPublicController {
   @SkipThrottle({ 'psf-form': true, 'psf-logo': true })
   pay(
     @Param('docId', docIdPipe) docId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- validated, so a malformed number is refused; the service reads the phone from the application
     @Body(new ZodValidationPipe(PsfTrackPayRequest)) _body: PsfTrackPayRequest,
   ): Promise<PsfTrackPayResult> {
     return this.psf.payMembership(docId);

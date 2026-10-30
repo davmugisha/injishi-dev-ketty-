@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, type Mock, vi } from 'vitest';
 
 import { BadRequestException } from '@nestjs/common';
 
@@ -23,7 +23,7 @@ function workspace(): ScopedWorkspace {
   } as unknown as ScopedWorkspace;
 }
 
-function service(villageSector: number | null) {
+function service(villageSector: number | null): { svc: InventoryService; repo: Record<string, Mock> } {
   const repo = {
     findProperty: vi.fn(async () => ({ id: PROPERTY, workspaceId: WORKSPACE, orgId: 'org', sectorId: SECTOR })),
     sectorForVillage: vi.fn(async () => villageSector),

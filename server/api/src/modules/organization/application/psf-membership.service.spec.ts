@@ -12,6 +12,7 @@ import type { ConfigService } from '@nestjs/config';
 import {
   PaymentUnavailableError,
   type PaymentPort,
+  type PaymentReceipt,
 } from '../../payments/domain/payment-port';
 import type { ProfileService } from '../../user/application/profile.service';
 import type { PsfMembershipMailer } from '../infrastructure/psf-membership.mailer';
@@ -23,6 +24,8 @@ import {
 import { buildPsfApplicationRow } from './psf-application-row';
 import type { PsfReportRepository } from '../infrastructure/psf-report.repository';
 import { PsfMembershipService } from './psf-membership.service';
+
+type ClaimsHarness = { service: PsfMembershipService; repo: Record<string, Mock>; mail: Record<string, Mock> };
 
 /**
  * PSF membership's rules (ADR-056, widened by the PSF path), against a stand in
@@ -173,7 +176,7 @@ function setup(env: Record<string, string> = {}): {
     expiring: vi.fn().mockResolvedValue(undefined),
     expired: vi.fn().mockResolvedValue(undefined),
   };
-  const receipt = (over = {}) => ({
+  const receipt = (over: Partial<PaymentReceipt> = {}): PaymentReceipt => ({
     adapterRef: 'mock_ref_1',
     mode: 'mock',
     replayed: false,
@@ -543,7 +546,7 @@ describe('membership claims (0121): a typed number is a claim until PSF confirms
   };
   const OFFICER = 'b2c3d4e5-0000-4000-8000-000000000001';
 
-  function claimsService(over: Record<string, unknown> = {}) {
+  function claimsService(over: Record<string, unknown> = {}): ClaimsHarness {
     const repo = {
       districtsByProvince: vi.fn().mockResolvedValue(new Map()),
       claim: vi.fn().mockResolvedValue({ id: 'c1', orgId: 'o1', membershipNumber: 'PSF-123-456', status: 'claimed', districtId: GASABO }),

@@ -345,7 +345,7 @@ export class AdminAccountsService {
     return row;
   }
 
-  private async requireMember(tx: Tx, orgId: string, userId: string) {
+  private async requireMember(tx: Tx, orgId: string, userId: string): Promise<{ id: string; orgRole: OrgRole }> {
     const [row] = await tx
       .select({ id: orgMemberships.id, orgRole: orgMemberships.orgRole })
       .from(orgMemberships)

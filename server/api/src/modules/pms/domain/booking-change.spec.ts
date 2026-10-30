@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type ChangeSubject, type ChangeTarget, changeProblems, paidRoomOf, priceChange } from './booking-change';
+import { type ChangeAsk, type ChangeSubject, type ChangeTarget, changeProblems, paidRoomOf, priceChange } from './booking-change';
 
 /** Gisele's hotel: a Single room, priced per room at 60,000 a night, 50,000 for one guest. */
 const SINGLE: ChangeTarget = {
@@ -27,7 +27,7 @@ const BOOKING: ChangeSubject = {
   paidRoomRwf: null,
   refundRwf: null,
 };
-const ask = (over: Partial<{ checkIn: string; checkOut: string; roomTypeId: string; adults: number; children: number }>) => ({
+const ask = (over: Partial<{ checkIn: string; checkOut: string; roomTypeId: string; adults: number; children: number }>): ChangeAsk => ({
   checkIn: BOOKING.checkIn,
   checkOut: BOOKING.checkOut,
   roomTypeId: BOOKING.roomTypeId,

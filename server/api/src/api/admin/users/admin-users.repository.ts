@@ -196,23 +196,16 @@ export class AdminUsersRepository {
     limit: number,
     offset: number,
   ): Promise<AdminUserBaseRow[]> {
-    return this.baseQuery()
-      .where(this.userFilter(query))
-      // `id` breaks the tie, so two accounts created in the same transaction
-      // cannot swap places between page 1 and page 2 and hide one of
-      // themselves from a staffer paging through.
-      .orderBy(desc(users.createdAt), users.id)
-      .limit(limit)
-      .offset(offset);
+    return this.baseRows(this.userFilter(query), limit, offset);
   }
 
   /** One account's directory row, or none: the person page (`GET /admin/users/:userId`). */
   async userById(userId: string): Promise<AdminUserBaseRow | null> {
-    const [row] = await this.baseQuery().where(eq(users.id, userId)).limit(1);
+    const [row] = await this.baseRows(eq(users.id, userId), 1);
     return row ?? null;
   }
 
-  private baseQuery() {
+  private baseRows(where: SQL | undefined, limit: number, offset = 0): Promise<AdminUserBaseRow[]> {
     return this.db
       .select({
         id: users.id,
@@ -248,7 +241,13 @@ export class AdminUsersRepository {
         adminUsers,
         and(eq(adminUsers.userId, users.id), isNull(adminUsers.revokedAt)),
       )
-      .$dynamic();
+      .where(where)
+      // `id` breaks the tie, so two accounts created in the same transaction
+      // cannot swap places between page 1 and page 2 and hide one of
+      // themselves from a staffer paging through.
+      .orderBy(desc(users.createdAt), users.id)
+      .limit(limit)
+      .offset(offset);
   }
 
   /** Active global roles for the people on this page. */

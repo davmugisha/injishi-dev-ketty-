@@ -370,7 +370,7 @@ export class PsfReportRepository {
     feesRwf: number;
   }[]> {
     const s = scopeSql(scope);
-    const k = (col: SQL) => sql`to_char(${col} AT TIME ZONE 'Africa/Kigali', 'YYYY-MM')`;
+    const k = (col: SQL): SQL => sql`to_char(${col} AT TIME ZONE 'Africa/Kigali', 'YYYY-MM')`;
     const reg = await this.many<{ m: string; c: number }>(sql`
       SELECT ${k(sql`o.created_at`)} AS m, count(*)::int AS c FROM orgs o
        WHERE ${ON_REGISTER} AND ${s} AND o.created_at >= ${from} AND o.created_at < ${to} GROUP BY 1`);
@@ -390,7 +390,7 @@ export class PsfReportRepository {
     const cursor = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1));
     const end = new Date(to.getTime() - 1);
     // `from` is midnight Kigali, a little before UTC midnight: read its Kigali month.
-    const kigaliMonth = (d: Date) => new Date(d.getTime() + 2 * 3600 * 1000).toISOString().slice(0, 7);
+    const kigaliMonth = (d: Date): string => new Date(d.getTime() + 2 * 3600 * 1000).toISOString().slice(0, 7);
     const first = kigaliMonth(from);
     const last = kigaliMonth(end);
     cursor.setUTCFullYear(Number(first.slice(0, 4)), Number(first.slice(5, 7)) - 1, 1);
@@ -400,9 +400,18 @@ export class PsfReportRepository {
       if (key >= last) break;
       cursor.setUTCMonth(cursor.getUTCMonth() + 1);
     }
-    for (const r of reg) months.get(r.m) && (months.get(r.m)!.registered = n(r.c));
-    for (const r of applied) months.get(r.m) && (months.get(r.m)!.applied = n(r.c));
-    for (const r of approved) months.get(r.m) && (months.get(r.m)!.approved = n(r.c));
+    for (const r of reg) {
+      const m = months.get(r.m);
+      if (m) m.registered = n(r.c);
+    }
+    for (const r of applied) {
+      const m = months.get(r.m);
+      if (m) m.applied = n(r.c);
+    }
+    for (const r of approved) {
+      const m = months.get(r.m);
+      if (m) m.approved = n(r.c);
+    }
     for (const r of paid) {
       const m = months.get(r.m);
       if (m) {
