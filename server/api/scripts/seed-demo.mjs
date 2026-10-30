@@ -50,6 +50,7 @@ import { computeBreakdown } from '@injishi/contracts';
 import pg from 'pg';
 
 import { rentalsRebuilt, skipRentalsNote } from './rentals-rebuilt.mjs';
+import { businessKindFor } from './business-kind.mjs';
 import { assertSampleDatabase } from './sample-database.mjs';
 import { syntheticCoordFor } from './synthetic-coords.mjs';
 import { apiEnvFile } from './env-file.mjs';
@@ -929,13 +930,14 @@ async function seedPerson(c, p) {
 async function seedOrg(c, o) {
   await c.query(
     `INSERT INTO orgs (id, legal_name, domain, rdb_entity_group, accommodation_class,
-                       residence_class, tin, upi, registration_status, district_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (id) DO NOTHING`,
+                       residence_class, tin, upi, registration_status, district_id, business_kind)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (id) DO NOTHING`,
     [
       o.id, o.legalName, o.domain, o.entityGroup,
       o.accommodationClass ?? null, o.residenceClass ?? null,
       o.tin ?? null, o.upi ?? null,
       o.registrationStatus, await districtId(c, o.district),
+      businessKindFor({ domain: o.domain, accommodationClass: o.accommodationClass }),
     ],
   );
 }

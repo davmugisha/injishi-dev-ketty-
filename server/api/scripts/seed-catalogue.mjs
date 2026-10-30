@@ -53,6 +53,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
+import { businessKindFor } from './business-kind.mjs';
 import { assertSampleDatabase } from './sample-database.mjs';
 import { apiEnvFile } from './env-file.mjs';
 
@@ -251,8 +252,8 @@ async function main() {
       await client.query(
         `insert into orgs (id, legal_name, domain, rdb_entity_group, accommodation_class,
                            chamber_of_tourism_member, tin, registration_status,
-                           district_id, address_text)
-         values ($1, $2, 'hospitality', 'accommodation', $3, false, $4, 'active', $5, $6)
+                           district_id, address_text, business_kind)
+         values ($1, $2, 'hospitality', 'accommodation', $3, false, $4, 'active', $5, $6, $7)
          on conflict (id) do nothing`,
         [
           orgId,
@@ -261,6 +262,7 @@ async function main() {
           reservedTin(row.slug),
           districtId,
           row.addressLines ? row.addressLines.join(', ') : null,
+          businessKindFor({ domain: 'hospitality', accommodationClass: accommodationClass(row.kind) }),
         ],
       );
 

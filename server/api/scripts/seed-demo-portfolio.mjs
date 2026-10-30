@@ -67,6 +67,7 @@ import {
 } from './contract-filings.mjs';
 import { rentHistory } from './rent-history.mjs';
 import { filingsTable, rentalsRebuilt, skipRentalsNote } from './rentals-rebuilt.mjs';
+import { businessKindFor } from './business-kind.mjs';
 import { assertSampleDatabase } from './sample-database.mjs';
 import { apiEnvFile } from './env-file.mjs';
 
@@ -768,7 +769,8 @@ async function seedPipeline(c) {
 
     await insert(c, 'orgs', {
       id: orgId, legal_name: b.name, domain: 'hospitality', rdb_entity_group: 'accommodation',
-      accommodation_class: b.cls, tin: b.tin, psf_member: b.psfMember ?? true,
+      accommodation_class: b.cls, business_kind: businessKindFor({ domain: 'hospitality', accommodationClass: b.cls }),
+      tin: b.tin, psf_member: b.psfMember ?? true,
       registration_status: status, district_id: place.district_id, sector_id: place.sector_id,
       address_text: b.street, created_at: created, updated_at: lastMove,
       contract_version: CONTRACT_VERSION, contract_accepted_at: accepted, contract_accepted_by_user_id: owner.id,
