@@ -1435,16 +1435,20 @@ export function ProgressRadial({
 export function PeriodMenu({
   value,
   onChange,
+  compact = false,
   className,
 }: {
   value: DashboardPeriod;
   onChange: (period: DashboardPeriod) => void;
+  /** Icon and choice only ("Last 6 months"), for a crowded header. */
+  compact?: boolean;
   className?: string;
 }) {
   return (
     <FilterMenu
       label="Period"
       name="Period"
+      compact={compact}
       icon="Calendar"
       options={DASHBOARD_PERIODS}
       value={value}

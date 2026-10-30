@@ -193,9 +193,9 @@ export function LandlordHomeView({
         title={firstName ? `Welcome back, ${firstName}` : "Welcome back"}
         actions={
           <>
-            {money ? <PeriodMenu value={period} onChange={setPeriod} /> : null}
+            {money ? <PeriodMenu value={period} onChange={setPeriod} compact /> : null}
             {canLease ? (
-              <ActionLink href={`${LEASES}/new`} icon="FileText">
+              <ActionLink href={`${LEASES}/new`} icon="FileText" className="hidden sm:inline-flex">
                 New lease
               </ActionLink>
             ) : null}

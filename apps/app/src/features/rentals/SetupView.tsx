@@ -1,35 +1,16 @@
 "use client";
 
-import { RENTALS_SETUP_STEP_LABEL, type RentalsSetupStep, type RentalsSetupView } from "@injishi/contracts";
-import { PageContent, PageHeader, SectionCard } from "@injishi/ui";
+import type { RentalsSetupView } from "@injishi/contracts";
+import { PageContent } from "@injishi/ui";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { SetupChecklist } from "./SetupChecklist";
 
-const WHY: Record<RentalsSetupStep, string> = {
-  location: "Contracts name it, and guest reports reach the village leader.",
-  units: "Each lease is for one unit.",
-  getting_paid: "Rent paid through Injishi is sent here.",
-  lease_defaults: "Every new lease starts from these.",
-  signatory: "The name on every contract you sign.",
-};
-
-/** Setup: the steps on the left, what each is for on the right. */
+/** Setup: the first-run steps, each with its next action. It sits under Home's To do tab. */
 export function SetupView({ setup }: { setup: RentalsSetupView }) {
   return (
     <PageContent>
-      <PageHeader title="Setup" />
-      <div className="grid min-w-0 gap-5 lg:grid-cols-3">
-        <SetupChecklist setup={setup} title="Steps" className="lg:col-span-2" />
-        <SectionCard title="Why each step">
-          <ul className="flex flex-col gap-3">
-            {setup.steps.map((s) => (
-              <li key={s.step} className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium">{RENTALS_SETUP_STEP_LABEL[s.step]}</span>
-                <span className="text-sm text-muted">{WHY[s.step]}</span>
-              </li>
-            ))}
-          </ul>
-        </SectionCard>
-      </div>
+      <AreaHeader />
+      <SetupChecklist setup={setup} title="Setup" className="max-w-3xl" />
     </PageContent>
   );
 }
