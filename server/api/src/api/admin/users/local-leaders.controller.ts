@@ -8,6 +8,7 @@ import {
   OversightAppointmentQuery,
 } from '@injishi/contracts';
 
+import { RequireFreshStepUp } from '../../../shared/auth/require-fresh-step-up.decorator';
 import { RequireStaffPermission } from '../../../shared/auth/require-staff-permission.decorator';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import { StaffGuard } from '../../../shared/auth/staff.guard';
@@ -57,6 +58,8 @@ export class AdminLocalLeadersController {
   @Post()
   @HttpCode(201)
   @RequireStaffPermission('admin.user.role.grant')
+  // Appointing hands out authority: the step-up must be recent (2026-11-02).
+  @RequireFreshStepUp()
   appoint(
     @Body(new ZodValidationPipe(AppointOfficerRequest)) body: AppointOfficerRequest,
     @CurrentUser() user: SessionUser,
