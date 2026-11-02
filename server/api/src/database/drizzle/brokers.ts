@@ -12,12 +12,15 @@
  *   - the 5,000 RWF registration fee, paid by mobile money before the broker
  *     row exists (`broker_registration_payments`);
  *   - ratings of a broker by the landlord and the tenant of a lease they
- *     brought (`broker_ratings`), one per lease and side.
+ *     brought (`broker_ratings`), one per lease and side;
+ *   - a broker's commission deals with hotels (`broker_hotel_deals`, 0124).
  *
  * Statuses are enums built from `@injishi/contracts`. Money is whole francs;
  * plan periods are Kigali calendar days.
  */
 import {
+  BrokerDealKind,
+  BrokerDealStatus,
   BrokerFeeMethod,
   BrokerPayMethod,
   BrokerPaymentKind,
@@ -44,6 +47,7 @@ import { users } from './auth';
 import { timestamps } from './columns';
 import { adapterModeEnum } from './enums';
 import { provinces } from './geography';
+import { orgs } from './org';
 import { brokers, leases } from './residence';
 
 export const brokerPlanCodeEnum = pgEnum('broker_plan_code', BrokerPlanCode.options);
@@ -216,5 +220,62 @@ export const brokerRatings = pgTable(
     unique('broker_ratings_lease_role_uk').on(t.leaseId, t.raterRole),
     index('broker_ratings_broker_idx').on(t.brokerId, t.createdAt),
     check('broker_ratings_stars_ck', sql`${t.stars} BETWEEN 1 AND 5`),
+  ],
+);
+
+export const brokerDealKindEnum = pgEnum('broker_deal_kind', BrokerDealKind.options);
+export const brokerDealStatusEnum = pgEnum('broker_deal_status', BrokerDealStatus.options);
+
+/**
+ * A broker's commission deal with a hotel (0124, 2026-11-02): the broker brings
+ * bookings, the hotel pays a commission on the stays they become, and Injishi
+ * takes 15% of it. A percent of each booking (`percent_bp`, basis points, so
+ * 7.5% is 750) or one sum for a booking of at least `min_rooms` rooms
+ * (`amount_rwf`). The broker proposes; the hotel's owner accepts or declines;
+ * either side ends a running deal. One proposed or running deal per pair.
+ */
+export const brokerHotelDeals = pgTable(
+  'broker_hotel_deals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    brokerId: uuid('broker_id')
+      .notNull()
+      .references(() => brokers.id),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id),
+    kind: brokerDealKindEnum('kind').notNull(),
+    percentBp: integer('percent_bp'),
+    amountRwf: integer('amount_rwf'),
+    minRooms: integer('min_rooms'),
+    startsOn: date('starts_on'),
+    endsOn: date('ends_on'),
+    note: text('note'),
+    status: brokerDealStatusEnum('status').notNull().default('proposed'),
+    proposedByUserId: uuid('proposed_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    decidedByUserId: uuid('decided_by_user_id').references(() => users.id),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decisionNote: text('decision_note'),
+    closedByUserId: uuid('closed_by_user_id').references(() => users.id),
+    closedBy: text('closed_by'),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    closeNote: text('close_note'),
+    ...timestamps,
+  },
+  (t) => [
+    index('broker_hotel_deals_broker_idx').on(t.brokerId, t.createdAt),
+    index('broker_hotel_deals_org_idx').on(t.orgId, t.createdAt),
+    uniqueIndex('broker_hotel_deals_one_live_uk')
+      .on(t.brokerId, t.orgId)
+      .where(sql`${t.status} IN ('proposed', 'active')`),
+    check(
+      'broker_hotel_deals_terms_ck',
+      sql`(${t.kind} = 'percent' AND ${t.percentBp} BETWEEN 100 AND 3000 AND ${t.percentBp} % 50 = 0 AND ${t.amountRwf} IS NULL AND ${t.minRooms} IS NULL)
+        OR (${t.kind} = 'bulk_fixed' AND ${t.percentBp} IS NULL AND ${t.amountRwf} BETWEEN 1000 AND 50000000 AND ${t.minRooms} BETWEEN 2 AND 500)`,
+    ),
+    check('broker_hotel_deals_dates_ck', sql`${t.startsOn} IS NULL OR ${t.endsOn} IS NULL OR ${t.endsOn} > ${t.startsOn}`),
+    check('broker_hotel_deals_closed_by_ck', sql`${t.closedBy} IS NULL OR ${t.closedBy} IN ('broker', 'hotel')`),
   ],
 );

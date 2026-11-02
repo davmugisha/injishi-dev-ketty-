@@ -3,7 +3,12 @@ import {
   BrokerHomesQuery,
   BrokerPlanChangeRequest,
   BrokerPlanCheckoutRequest,
+  EndBrokerDealRequest,
+  ProposeBrokerDealRequest,
   StartPlacementRequest,
+  type BrokerDeal,
+  type BrokerDealList,
+  type BrokerHotels,
   type BrokerEarnings,
   type BrokerHome,
   type BrokerHomes,
@@ -19,9 +24,10 @@ import {
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 
+import { BrokerDealsService } from '../../../modules/brokers/application/broker-deals.service';
 import { BrokerHomesService } from '../../../modules/brokers/application/broker-homes.service';
 import { BrokerPlansService } from '../../../modules/brokers/application/broker-plans.service';
-import { SessionGuard } from '../../../shared/auth/session.guard';
+import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import { CurrentWorkspace, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
 import { IdempotencyKey } from '../../../shared/http/idempotency-key';
 import { UserThrottlerGuard } from '../../../shared/http/user-throttler.guard';
@@ -45,6 +51,7 @@ export class OpsBrokerController {
   constructor(
     private readonly homes: BrokerHomesService,
     private readonly plans: BrokerPlansService,
+    private readonly deals: BrokerDealsService,
   ) {}
 
   @Get('summary')
@@ -146,5 +153,55 @@ export class OpsBrokerController {
     @CurrentWorkspace() workspace: WorkspaceAccess,
   ): Promise<BrokerPlanOverview> {
     return this.plans.setHomeDistrict(workspace, body);
+  }
+
+  // --- Hotels (0124): commission deals with hotels inside the plan's area ------------------------
+
+  @Get('hotels')
+  hotels(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerHotels> {
+    return this.deals.hotels(workspace);
+  }
+
+  @Get('deals')
+  brokerDeals(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerDealList> {
+    return this.deals.brokerDeals(workspace);
+  }
+
+  /** Propose commission terms to a hotel. One proposed or running deal per hotel at a time. */
+  @Post('hotels/:orgId/deals')
+  @HttpCode(200)
+  @UseGuards(UserThrottlerGuard)
+  @Throttle({ money: { limit: 20, ttl: 60_000 } })
+  proposeDeal(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Body(new ZodValidationPipe(ProposeBrokerDealRequest)) body: ProposeBrokerDealRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentUser() user: SessionUser,
+  ): Promise<BrokerDeal> {
+    return this.deals.propose(workspace, orgId, body, user.id);
+  }
+
+  /** Take back a proposal the hotel has not answered. */
+  @Post('deals/:id/withdraw')
+  @HttpCode(200)
+  withdrawDeal(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(EndBrokerDealRequest)) body: EndBrokerDealRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentUser() user: SessionUser,
+  ): Promise<BrokerDeal> {
+    return this.deals.withdraw(workspace, id, body, user.id);
+  }
+
+  /** End a running deal from the broker's side. */
+  @Post('deals/:id/end')
+  @HttpCode(200)
+  endDeal(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(EndBrokerDealRequest)) body: EndBrokerDealRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentUser() user: SessionUser,
+  ): Promise<BrokerDeal> {
+    return this.deals.endByBroker(workspace, id, body, user.id);
   }
 }

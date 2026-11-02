@@ -24,6 +24,7 @@ export const sampleCollectionsByBoard: Record<string, number> = {
   AuditLog: 3,
   AvailabilityCalendar: 7,
   BrokerEarnings: 0,
+  BrokerHotels: 0,
   BrokerPlacements: 0,
   BrokerWork: 0,
   BusinessSwitcher: 0,

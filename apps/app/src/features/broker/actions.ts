@@ -7,6 +7,7 @@
  * outside the plan.
  */
 import {
+  type BrokerDeal,
   type BrokerHome,
   BrokerHomeDistrictRequest,
   type BrokerPlacement,
@@ -15,6 +16,8 @@ import {
   type BrokerPlanOverview,
   type BrokerPlanPayment,
   type BrokerReveal,
+  EndBrokerDealRequest,
+  ProposeBrokerDealRequest,
   StartPlacementRequest,
 } from "@injishi/contracts";
 import { revalidatePath } from "next/cache";
@@ -104,5 +107,36 @@ export async function setHomeDistrict(districtId: number): Promise<ActionResult<
   if (!parsed.ok) return invalid(parsed.error);
   return changed(
     await runBroker((s) => s.api.put<BrokerPlanOverview>("/api/v1/ops/broker/home-district", parsed.data, ws(s))),
+  );
+}
+
+// --- Hotel deals (0124) ---------------------------------------------------------------------------
+
+const NO_HOTEL = "That hotel is not open to you for a deal any more.";
+const NO_DEAL = "That deal is not there any more.";
+
+/** Propose commission terms to a hotel inside the plan's area. */
+export async function proposeDeal(orgId: string, input: unknown): Promise<ActionResult<BrokerDeal>> {
+  if (!UUID.test(orgId)) return { ok: false, error: NO_HOTEL };
+  const parsed = parse(ProposeBrokerDealRequest, input);
+  if (!parsed.ok) return invalid(parsed.error);
+  return changed(
+    await runBroker(
+      (s) => s.api.post<BrokerDeal>(`/api/v1/ops/broker/hotels/${orgId}/deals`, parsed.data, ws(s)),
+      NO_HOTEL,
+    ),
+  );
+}
+
+/** Take back a proposal the hotel has not answered, or end a running deal. */
+export async function closeDeal(id: string, move: "withdraw" | "end", note: string): Promise<ActionResult<BrokerDeal>> {
+  if (!UUID.test(id)) return { ok: false, error: NO_DEAL };
+  const parsed = parse(EndBrokerDealRequest, { note: note.trim() || null });
+  if (!parsed.ok) return invalid(parsed.error);
+  return changed(
+    await runBroker(
+      (s) => s.api.post<BrokerDeal>(`/api/v1/ops/broker/deals/${id}/${move}`, parsed.data, ws(s)),
+      NO_DEAL,
+    ),
   );
 }

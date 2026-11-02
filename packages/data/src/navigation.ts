@@ -755,6 +755,7 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
         // { id: "account", label: "Account", icon: "Person", board: "Account" },
         { id: "homes", label: "Homes", icon: "House", board: "BrokerWork" },
         { id: "placements", label: "Placements", icon: "Persons", board: "BrokerPlacements" },
+        { id: "hotels", label: "Hotels", icon: "Briefcase", board: "BrokerHotels" },
         { id: "messages", label: "Messages", icon: "Comments", board: "BrokerMessages" },
         // Earnings and reviews are one page now (2026-10-27); /broker/reviews opens it at the reviews.
         { id: "earnings", label: "Earnings & reviews", icon: "Wallet", board: "BrokerEarnings" },

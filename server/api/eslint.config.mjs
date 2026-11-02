@@ -69,6 +69,14 @@ export default tseslint.config(
             'OpsBrokerController.change',
             'OpsBrokerController.cancel',
             'OpsBrokerController.homeDistrict',
+            // The hotel deals (0124, 2026-11-02), for the same reason: the service refuses
+            // anything that is not an active broker's own workspace, and a hotel outside the
+            // plan or a deal that is not theirs is not found.
+            'OpsBrokerController.hotels',
+            'OpsBrokerController.brokerDeals',
+            'OpsBrokerController.proposeDeal',
+            'OpsBrokerController.withdrawDeal',
+            'OpsBrokerController.endDeal',
             // `/api/v1/ops/broker/messages` (2026-10-26), for the same reason:
             // `PlacementMessagesService` refuses a workspace that is not a
             // broker's own (403) and a placement that is not theirs (404).

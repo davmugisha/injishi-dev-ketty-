@@ -134,6 +134,7 @@ import {
   OpsRoomAssignmentsController,
 } from './ops/reservations.controller';
 import { OpsBrokerController } from './ops/broker.controller';
+import { OpsBrokerDealsController } from './ops/broker-deals.controller';
 import { BrokersModule } from '../../modules/brokers/brokers.module';
 import { MeTenancyBrokerController } from './me/tenancy-broker.controller';
 import { OpsLeaseBrokersController } from './ops/rentals/lease-brokers.controller';
@@ -417,6 +418,7 @@ import { TrainingPublicModule } from './training/training.module';
     // earnings, reviews and plan; the landlord's side of a lease's broker;
     // the tenant's rating; the registration fee.
     OpsBrokerController,
+    OpsBrokerDealsController,
     OpsLeaseBrokersController,
     MeTenancyBrokerController,
     RegistrationBrokerFeeController,

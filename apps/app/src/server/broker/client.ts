@@ -4,10 +4,12 @@
  * broker's plan, or one its landlord did not switch on, is not found (404), and reads back as null.
  */
 import type {
+  BrokerDealList,
   BrokerEarnings,
   BrokerHome,
   BrokerHomes,
   BrokerHomesQuery,
+  BrokerHotels,
   BrokerPlacementList,
   BrokerPlanOverview,
   BrokerPlanPayment,
@@ -58,6 +60,10 @@ export async function orMissing<T>(read: Promise<T>): Promise<T | null> {
 const q = (v: number | string | undefined): string | undefined => (v === undefined || v === "" ? undefined : String(v));
 
 export const brokerSummary = cache(() => get<BrokerSummary>("/api/v1/ops/broker/summary"));
+/** The hotels inside the plan's area, each with this broker's proposed or running deal (0124). */
+export const brokerHotels = cache(() => get<BrokerHotels>("/api/v1/ops/broker/hotels"));
+/** Every deal this broker has proposed, newest first, whatever became of it. */
+export const brokerDeals = cache(() => get<BrokerDealList>("/api/v1/ops/broker/deals"));
 export const brokerHomes = cache((query: BrokerHomesQuery) =>
   get<BrokerHomes>("/api/v1/ops/broker/homes", {
     district: q(query.district),

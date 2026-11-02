@@ -39,9 +39,10 @@ describe("the owner's sidebar is their own business", () => {
     const groups = businessNavGroups(ws("active", OWNER), { foodVenue: false, left: 0, published: true });
     expect(labels(groups)).toEqual([
       [null, ["Front desk", "Reservations", "Room rack", "Housekeeping", "Messages"]],
-      ["Business", ["Your listing", "Getting paid", "Team"]],
+      ["Business", ["Your listing", "Getting paid", "Brokers", "Team"]],
     ]);
     expect(groups[1]?.items[1]?.href).toBe("/w/ws-1/getting-paid");
+    expect(groups[1]?.items[2]?.href).toBe("/w/ws-1/brokers");
   });
 
   test("a venue is listed, not booked: no desk, reservations, housekeeping or payouts", () => {
@@ -58,5 +59,13 @@ describe("the owner's sidebar is their own business", () => {
       (g) => g.items.map((i) => i.id),
     );
     expect(items).not.toContain("team");
+  });
+
+  test("broker deals are the payouts' holder's: without payout.manage there is no Brokers", () => {
+    const manager = OWNER.filter((p) => p !== "payout.manage");
+    const items = businessNavGroups(ws("active", manager), { foodVenue: false, left: 0, published: true }).flatMap(
+      (g) => g.items.map((i) => i.id),
+    );
+    expect(items).not.toContain("brokers");
   });
 });

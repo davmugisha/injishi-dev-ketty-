@@ -28,6 +28,7 @@ export * from "./inbox";
 export * from "./ops";
 export * from "./broker";
 export * from "./broker-plans";
+export * from "./broker-deals";
 export * from "./ordering";
 export * from "./outlets";
 export * from "./property-detail";
