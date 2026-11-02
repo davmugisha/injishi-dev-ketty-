@@ -10,14 +10,15 @@ import {
  * The registration's steps and sections, decided in one place (ADR-075 A1, the
  * owner's five steps, O-3).
  *
- * FIVE STEPS FOR EVERY KIND: You · Business · Documents · Review · Pay (AC-3).
- * You is the person and only the person: the ID, a selfie, a phone and a home
- * address. Business is the business and only the business: the TIN (a
- * residence: its property and UPI), who is registering it and, for the owner,
- * whether RRA lists their ID among its directors (which is why You comes
- * first: that check needs the ID), the owner on the helper path, the location,
- * and the branches and PSF. A kind that did not arrive is asked before either
- * ("What kind of business?"). Review shows
+ * FIVE STEPS FOR EVERY KIND: Business · You · Documents · Review · Pay (AC-3).
+ * Business comes first (the owner's call, 2026-11-02): the TIN is the first
+ * thing asked. Business is the business and only the business: the TIN (a
+ * residence: its property and UPI), who is registering it, the owner on the
+ * helper path, the location, and the branches and PSF. You is the person and
+ * only the person: the ID, a selfie, a phone and a home address. Whether RRA
+ * lists the owner's ID among the TIN's directors needs the ID, so it is asked
+ * again once the ID is on file and answered on You. A kind that did not
+ * arrive is asked before either ("What kind of business?"). Review shows
  * the answers and the fee with no agreement and no signature: the agreement
  * moved to after approval (O-10). The first Pay press creates the registration
  * (D-l). The six step wizard this replaces (ADR-071) is superseded whole.
@@ -53,8 +54,8 @@ export function pathFor(role: RegistrantRole | null, capacity: RegistrantCapacit
   return capacity === "on_behalf_of" ? "helper" : "owner";
 }
 
-/** Every path walks the same five steps, in this order (AC-3): the person, then the business. */
-export const STEP_ORDER: readonly StepId[] = ["you", "business", "documents", "review", "pay"];
+/** Every path walks the same five steps, in this order (AC-3): the business, then the person. */
+export const STEP_ORDER: readonly StepId[] = ["business", "you", "documents", "review", "pay"];
 
 export function stepOrder(): StepId[] {
   return [...STEP_ORDER];
@@ -140,15 +141,15 @@ export function openableThrough(order: readonly StepId[], complete: (id: StepId)
 // Drafts (ADR-075 S9): where a person begins, and where a draft reopens
 // ---------------------------------------------------------------------------
 
-/** Where a person opening `/register` begins: always You. A kind not yet known is asked before it. */
+/** Where a person opening `/register` begins: always Business. A kind not yet known is asked before it. */
 export function openingStep(): StepId {
-  return "you";
+  return "business";
 }
 
 /**
  * Where a saved draft reopens (AC-9): the step that was open, with the checks
  * it finished kept (the server writes them, D-m). A draft saved before ADR-075
- * knows no step and reopens on You. The wizard still opens no step past
+ * knows no step and reopens on Business. The wizard still opens no step past
  * the first one whose answers are not complete (`openableThrough`): an answer
  * the draft cannot keep, such as the owner's National ID, is asked there.
  */

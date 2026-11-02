@@ -577,7 +577,7 @@ export default function RegisterWizard({
     setChoosingKind(true);
     setFormError("");
     setScreen("steps");
-    setStep(youDone ? "business" : "you");
+    setStep("business");
   };
 
   // --- Business: the TIN ---------------------------------------------------------
@@ -1307,14 +1307,13 @@ export default function RegisterWizard({
     ? [{ title: "Registering", value: `${kindLabel} · ${summary.legalName}`, step: null }]
     : landlord
       ? [
-          { title: "You", value: youRow, step: "you" },
           { title: "Business type", value: kindLabel, step: "business" },
           { title: "The property", value: `${business.legalName.trim()} · UPI ${business.upi.trim()}`, step: "business" },
           { title: "Location", value: locLine ?? "Not chosen", step: "business" },
+          { title: "You", value: youRow, step: "you" },
           { title: "Documents", value: docsText, step: "documents" },
         ]
       : [
-          { title: "You", value: youRow, step: "you" },
           { title: "Business type", value: kindLabel, step: "business" },
           {
             title: "The business",
@@ -1342,6 +1341,7 @@ export default function RegisterWizard({
             step: "business",
           },
           { title: "PSF", value: psfText, step: "business" },
+          { title: "You", value: youRow, step: "you" },
           { title: "Documents", value: docsText, step: "documents" },
         ];
 
@@ -1582,6 +1582,27 @@ export default function RegisterWizard({
               />
             ) : null}
           </>
+        ) : null}
+
+        {/* Business came first, so RRA could not yet say whether this ID is one of the TIN's directors. It is
+            asked again once the ID is on file (`onIdentity`), and a No is said here, with the way on. */}
+        {step === "you" && !pickingKind && summary === null && capacity === "owner" && isDirector === false ? (
+          <Callout tone="warning" icon={<CircleAlert size={16} aria-hidden />} title="You're not listed as a director" role="alert">
+            <p>
+              RRA does not list your ID among the directors for TIN {formatTin(tin)}. Register it for the owner
+              instead: you name them, and they claim it with their own ID once Injishi approves it.
+            </p>
+            <div className="mt-3">
+              <Button
+                onClick={() => {
+                  prepareForOwner();
+                  goTo("business");
+                }}
+              >
+                Register it for the owner instead
+              </Button>
+            </div>
+          </Callout>
         ) : null}
 
         {step === "you" && !pickingKind ? sectionList(youSections) : null}

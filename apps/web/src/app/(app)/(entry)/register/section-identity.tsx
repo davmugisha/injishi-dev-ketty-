@@ -37,8 +37,9 @@ import { Field, Offline } from "./wizard-ui";
  * - The identity on file, "Checked" only after a machine check passed,
  *   otherwise "PSF will check your ID" (AC-6).
  *
- * Nothing about the business is asked or said here: whether RRA ties this ID
- * to the business is answered on the Business step (`SectionTin`).
+ * Nothing about the business is asked or said here. Business comes first, so
+ * what RRA says about this ID is asked again once it is on file (the wizard's
+ * `onIdentity`), and the wizard says it above this section.
  *
  * WHAT AN ID DOES NOT SHOW IS STILL ASKED, because the API refuses to create a
  * registration for an account without it: a phone, and the home address. A
@@ -87,16 +88,28 @@ export function SectionIdentity({
   const [typedErrors, setTypedErrors] = useState<Record<string, string>>({});
   const [typedProblem, setTypedProblem] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Typed details on file, opened to be typed again. A checked ID is never typed over (the API refuses it),
+  // and a name NIDA's register gave is not the person's to retype.
+  const [changing, setChanging] = useState(false);
 
   if (!identity) {
     return <p className="text-sm text-muted-foreground">Reading what is on file…</p>;
   }
 
+  const mayRetype = onFile !== null && !onFile.checked && !onFile.generated && onFile.source !== "registry";
+
   // --- On file: who, and what is still owed.
-  if (onFile) {
+  if (onFile && !(changing && mayRetype)) {
     return (
       <>
         <IdentityCard person={onFile} />
+        {mayRetype && scan ? (
+          <div>
+            <Button variant="ghost" size="sm" onClick={() => setChanging(true)}>
+              Change these details
+            </Button>
+          </div>
+        ) : null}
         {profileComplete ? (
           <OnFile onEdit={onEditProfile} />
         ) : needsExtras ? (
@@ -112,7 +125,7 @@ export function SectionIdentity({
   }
 
   // --- The details as printed: no checker here, or the tries ran out.
-  if (scan && scan.mayContinue && (typing || scan.outcome === "manual_needed")) {
+  if (scan && (changing || (scan.mayContinue && (typing || scan.outcome === "manual_needed")))) {
     const typedType = scan.documentType;
     const confirmTyped = async () => {
       setTypedProblem(null);
@@ -137,12 +150,15 @@ export function SectionIdentity({
         return;
       }
       setTypedErrors({});
+      setChanging(false);
       onIdentity(res.data);
     };
     return (
       <>
         <p className="text-sm">
-          {scan.outcome === "manual_needed"
+          {changing
+            ? "Type your details again, exactly as they are printed on your ID. PSF checks them against your photos."
+            : scan.outcome === "manual_needed"
             ? "Your photos are saved. Now type your details as they are printed on your ID, and PSF checks them against the photos."
             : "Type your details as they are printed on your ID. PSF checks them against your photos before approving."}
         </p>
@@ -166,7 +182,11 @@ export function SectionIdentity({
             Confirm
           </Button>
           {online ? null : <Offline id="register-typed-offline">You're offline. Connect to save your ID details.</Offline>}
-          {scan.outcome === "machine_failed" ? (
+          {changing ? (
+            <Button variant="ghost" onClick={() => setChanging(false)}>
+              Cancel
+            </Button>
+          ) : scan.outcome === "machine_failed" ? (
             <Button variant="ghost" onClick={() => setTyping(false)}>
               Scan again
             </Button>
