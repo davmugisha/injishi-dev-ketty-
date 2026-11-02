@@ -7,6 +7,8 @@ import {
   type LeaderRole,
   RWANDA_CODE,
   guestNights,
+  guestPlaceKindLabel,
+  guestPlaceTypeOf,
   guestStayOn,
 } from '@injishi/contracts';
 
@@ -100,6 +102,13 @@ export function presentLeaderGuest(
       name: row.hostName || (row.hostKind === 'tenant' ? 'The tenant' : row.hostKind === 'hotel' ? 'The property' : 'The landlord'),
       phone: row.hostPhone,
     },
+    place: {
+      type: guestPlaceTypeOf(row.hostKind, row.businessKind),
+      kindLabel: guestPlaceKindLabel(row.hostKind, row.businessKind),
+      name: row.propertyName,
+      room: row.hostKind === 'hotel' ? (row.roomLabel ?? null) : row.unitLabel,
+    },
+    checkedInAt: row.checkedInAt?.toISOString() ?? null,
     home: {
       propertyName: row.propertyName,
       unitLabel: row.unitLabel,

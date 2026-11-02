@@ -23,6 +23,13 @@ function stamp(query: { from?: string; to?: string; tab?: string }): string {
   return query.from && query.to ? `${query.from}_${query.to}` : (query.tab ?? 'guests');
 }
 
+const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/** A download: its type, its name, never cached. */
+function send(reply: FileReply, body: Buffer | string, type: string, name: string): void {
+  reply.header('content-type', type).header('content-disposition', `attachment; filename="${name}"`).header('cache-control', 'no-store').send(body);
+}
+
 /**
  * The local leader's console → /api/v1/oversight/guests (P5, blueprint 2.5).
  *
@@ -63,6 +70,27 @@ export class OversightGuestsController {
     return this.console.summary(user.id, grants, query);
   }
 
+  /** The list as Excel: a summary sheet, then the guests in the reader's columns (the main download). */
+  @Get('export.xlsx')
+  async exportXlsx(
+    @Query(new ZodValidationPipe(LeaderGuestQuery)) query: LeaderGuestQuery,
+    @CurrentUser() user: SessionUser,
+    @CurrentOversight() grants: OversightGrant[],
+    @Res({ passthrough: true }) reply: FileReply,
+  ): Promise<void> {
+    send(reply, await this.console.xlsx(user.id, grants, query), XLSX, `guests-${stamp(query)}.xlsx`);
+  }
+
+  @Get('export.pdf')
+  async exportPdf(
+    @Query(new ZodValidationPipe(LeaderGuestQuery)) query: LeaderGuestQuery,
+    @CurrentUser() user: SessionUser,
+    @CurrentOversight() grants: OversightGrant[],
+    @Res({ passthrough: true }) reply: FileReply,
+  ): Promise<void> {
+    send(reply, await this.console.pdf(user.id, grants, query), 'application/pdf', `guests-${stamp(query)}.pdf`);
+  }
+
   @Get('export.csv')
   async export(
     @Query(new ZodValidationPipe(LeaderGuestQuery)) query: LeaderGuestQuery,
@@ -70,12 +98,7 @@ export class OversightGuestsController {
     @CurrentOversight() grants: OversightGrant[],
     @Res({ passthrough: true }) reply: FileReply,
   ): Promise<void> {
-    const body = await this.console.csv(user.id, grants, query);
-    reply
-      .header('content-type', 'text/csv; charset=utf-8')
-      .header('content-disposition', `attachment; filename="guests-${stamp(query)}.csv"`)
-      .header('cache-control', 'no-store')
-      .send(body);
+    send(reply, await this.console.csv(user.id, grants, query), 'text/csv; charset=utf-8', `guests-${stamp(query)}.csv`);
   }
 
   @Get('reports')
@@ -87,6 +110,16 @@ export class OversightGuestsController {
     return this.reports.report(user.id, grants, query);
   }
 
+  @Get('reports.xlsx')
+  async reportXlsx(
+    @Query(new ZodValidationPipe(GuestReportQuery)) query: GuestReportQuery,
+    @CurrentUser() user: SessionUser,
+    @CurrentOversight() grants: OversightGrant[],
+    @Res({ passthrough: true }) reply: FileReply,
+  ): Promise<void> {
+    send(reply, await this.reports.xlsx(user.id, grants, query), XLSX, `guest-report-${stamp(query)}.xlsx`);
+  }
+
   @Get('reports.csv')
   async reportCsv(
     @Query(new ZodValidationPipe(GuestReportQuery)) query: GuestReportQuery,
@@ -94,12 +127,7 @@ export class OversightGuestsController {
     @CurrentOversight() grants: OversightGrant[],
     @Res({ passthrough: true }) reply: FileReply,
   ): Promise<void> {
-    const body = await this.reports.csv(user.id, grants, query);
-    reply
-      .header('content-type', 'text/csv; charset=utf-8')
-      .header('content-disposition', `attachment; filename="guest-report-${stamp(query)}.csv"`)
-      .header('cache-control', 'no-store')
-      .send(body);
+    send(reply, await this.reports.csv(user.id, grants, query), 'text/csv; charset=utf-8', `guest-report-${stamp(query)}.csv`);
   }
 
   @Get('reports.pdf')
@@ -109,12 +137,7 @@ export class OversightGuestsController {
     @CurrentOversight() grants: OversightGrant[],
     @Res({ passthrough: true }) reply: FileReply,
   ): Promise<void> {
-    const body = await this.reports.pdf(user.id, grants, query);
-    reply
-      .header('content-type', 'application/pdf')
-      .header('content-disposition', `attachment; filename="guest-report-${stamp(query)}.pdf"`)
-      .header('cache-control', 'no-store')
-      .send(body);
+    send(reply, await this.reports.pdf(user.id, grants, query), 'application/pdf', `guest-report-${stamp(query)}.pdf`);
   }
 
   @Get(':id')
