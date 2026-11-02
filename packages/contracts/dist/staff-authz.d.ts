@@ -42,6 +42,11 @@ export declare const STAFF_PERMISSION_LABEL: Readonly<Record<StaffPermission, st
  * Each writes a request row and waits for a different `super_admin`. The
  * database `CHECK` on the request table is the control; this list is what lets
  * a route and a screen know the wait is coming before they start.
+ *
+ * Only `admin.money.override` has that request table. `admin.user.role.grant`
+ * is single signer by owner decision (ADR-053, confirmed 2026-11-02): its
+ * routes demand a step-up under ten minutes old instead
+ * (`STAFF_GRANT_STEP_UP_SECONDS`), and no custom role can carry it.
  */
 export declare const TWO_PERSON_STAFF_PERMISSIONS: readonly StaffPermission[];
 /** Does completing this power need a second `super_admin` to approve it? */
