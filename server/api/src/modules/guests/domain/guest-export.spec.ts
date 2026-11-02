@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import type { LeaderGuest } from '@injishi/contracts';
-import ExcelJS from 'exceljs';
+import { inflateRawSync } from 'node:zlib';
 
-import { writeXlsx } from '../infrastructure/xlsx-workbook';
+import { columnName, excelDay, writeXlsx } from '../infrastructure/xlsx-workbook';
 import { exportOrder, guestSheet, guestSummary, hostWords } from './guest-export';
 import { renderGuestListPdf } from './guest-list-pdf';
 import { csvCell } from './guest-words';
@@ -108,32 +108,27 @@ describe('the guest list as a file', () => {
   it('writes a real .xlsx: phones and IDs as text with no apostrophe, real dates, a bold frozen filtered header', async () => {
     const sheet = guestSheet([guest(), kenyan], 'local');
     const bytes = await writeXlsx({ title: 'Guests in Urugwiro', meta: [['Prepared by', 'Jeanne']], summary: guestSummary([guest(), kenyan], 'local'), sheets: [sheet] });
-    const book = new ExcelJS.Workbook();
-    await book.xlsx.load(bytes as unknown as ArrayBuffer);
-    expect(book.worksheets.map((w) => w.name)).toEqual(['Summary', 'Guests']);
-    expect(book.getWorksheet('Summary')?.getCell('A1').value).toBe('Guests in Urugwiro');
+    const files = unzip(bytes);
+    expect(Object.keys(files)).toEqual(expect.arrayContaining(['[Content_Types].xml', 'xl/workbook.xml', 'xl/styles.xml', 'xl/worksheets/sheet1.xml', 'xl/worksheets/sheet2.xml']));
+    expect(files['xl/workbook.xml']).toContain('<sheet name="Summary" sheetId="1" r:id="rId1"/><sheet name="Guests" sheetId="2" r:id="rId2"/>');
+    expect(files['xl/worksheets/sheet1.xml']).toContain('Guests in Urugwiro');
 
-    const ws = book.getWorksheet('Guests');
-    if (!ws) throw new Error('no Guests sheet');
-    const header = ws.getRow(1);
-    const col = (name: string): number => (header.values as unknown[]).indexOf(name);
-    expect(header.font?.bold).toBe(true);
-    expect(ws.views[0]).toMatchObject({ state: 'frozen', ySplit: 1 });
-    expect(ws.autoFilter).toBeTruthy();
-
-    const phone = ws.getRow(2).getCell(col('Phone'));
-    expect(phone.value).toBe('+250788301452');
-    expect(typeof phone.value).toBe('string');
-    expect(String(phone.value).startsWith("'")).toBe(false);
-    expect(phone.numFmt).toBe('@');
-    expect(ws.getRow(2).getCell(col('ID number')).value).toBe('1199080045672312');
-
-    const arrives = ws.getRow(2).getCell(col('Arrives')).value;
-    expect(arrives).toBeInstanceOf(Date);
-    expect((arrives as Date).toISOString()).toBe('2026-10-30T00:00:00.000Z');
-    // The check in reads as the Kigali clock: 12:30 UTC is 14:30 in Kigali.
-    expect((ws.getRow(3).getCell(col('Checked in')).value as Date).toISOString()).toBe('2026-10-29T14:30:00.000Z');
-    expect(ws.getRow(3).getCell(col('Nights')).value).toBe(3);
+    const ws = files['xl/worksheets/sheet2.xml'] ?? '';
+    const col = (name: string): string => columnName(sheet.columns.findIndex((c) => c.header === name) + 1);
+    // The header: bold on a fill (style 5), frozen below, with a filter over the whole table.
+    expect(ws).toContain('<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>');
+    expect(ws).toContain(`<autoFilter ref="A1:${columnName(sheet.columns.length)}3"/>`);
+    expect(ws).toMatch(/<c r="A1" s="5" t="inlineStr"><is><t xml:space="preserve">Group<\/t>/);
+    expect(files['xl/styles.xml']).toMatch(/<font><b\/>/);
+    // A phone is a text cell (style 1, format @), exactly as typed: no apostrophe, no number.
+    expect(ws).toContain(`<c r="${col('Phone')}2" s="1" t="inlineStr"><is><t xml:space="preserve">+250788301452</t></is></c>`);
+    expect(ws).not.toContain("'+250");
+    expect(ws).toContain(`<c r="${col('ID number')}2" s="1" t="inlineStr"><is><t xml:space="preserve">1199080045672312</t></is></c>`);
+    // Days are date numbers in a date format; the check in is the Kigali clock (12:30 UTC is 14:30).
+    expect(ws).toContain(`<c r="${col('Arrives')}2" s="2"><v>${excelDay('2026-10-30')}</v></c>`);
+    const checkedIn = new RegExp(`<c r="${col('Checked in')}3" s="3"><v>([0-9.]+)</v>`).exec(ws);
+    expect(Number(checkedIn?.[1])).toBeCloseTo((excelDay('2026-10-29') ?? 0) + 14.5 / 24, 6);
+    expect(ws).toContain(`<c r="${col('Nights')}3" s="4"><v>3</v></c>`);
   });
 
   it('keeps a CSV phone readable: no guard on an E.164 number, the guard still on a formula', () => {
@@ -148,3 +143,21 @@ describe('the guest list as a file', () => {
     expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
   });
 });
+
+/** The parts of a zip, as text: enough of the format to read back what `writeXlsx` wrote. */
+function unzip(bytes: Buffer): Record<string, string> {
+  const out: Record<string, string> = {};
+  const end = bytes.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  let at = bytes.readUInt32LE(end + 16);
+  for (let i = 0; i < bytes.readUInt16LE(end + 10); i++) {
+    const size = bytes.readUInt32LE(at + 20);
+    const nameLength = bytes.readUInt16LE(at + 28);
+    const extra = bytes.readUInt16LE(at + 30) + bytes.readUInt16LE(at + 32);
+    const local = bytes.readUInt32LE(at + 42);
+    const name = bytes.subarray(at + 46, at + 46 + nameLength).toString('utf8');
+    const start = local + 30 + bytes.readUInt16LE(local + 26) + bytes.readUInt16LE(local + 28);
+    out[name] = inflateRawSync(bytes.subarray(start, start + size)).toString('utf8');
+    at += 46 + nameLength + extra;
+  }
+  return out;
+}
