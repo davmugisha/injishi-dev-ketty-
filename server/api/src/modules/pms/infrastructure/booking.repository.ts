@@ -1146,7 +1146,8 @@ export class BookingRepository {
       .select({
         id: bookings.id,
         reference: bookings.reference,
-        guestName: accountName,
+        // A broker's guest has no account (0125): the booking carries the name.
+        guestName: sql<string | null>`coalesce(${accountName}, ${bookings.guestName})`,
         guestEmail: users.email,
         checkIn: bookings.checkIn,
         checkOut: bookings.checkOut,
@@ -1199,7 +1200,8 @@ export class BookingRepository {
       .select({
         id: bookings.id,
         reference: bookings.reference,
-        guestName: accountName,
+        // A broker's guest has no account (0125): the booking carries the name.
+        guestName: sql<string | null>`coalesce(${accountName}, ${bookings.guestName})`,
         guestEmail: users.email,
         checkIn: bookings.checkIn,
         checkOut: bookings.checkOut,

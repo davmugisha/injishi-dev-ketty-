@@ -2,9 +2,11 @@ import { Module } from '@nestjs/common';
 
 import { isWorkerProcess } from '../../shared/process/process-role';
 import { MailerModule } from '../mailer/mailer.module';
+import { BookingModule } from '../pms/booking.module';
 import { PaymentsModule } from '../pay/payments.module';
 import { RentalsMailer } from '../rentals/infrastructure/rentals.mailer';
 import { StorageModule } from '../storage/storage.module';
+import { BrokerBookingsService } from './application/broker-bookings.service';
 import { BrokerDealsService } from './application/broker-deals.service';
 import { BrokerHomesService } from './application/broker-homes.service';
 import { BrokerPlansService } from './application/broker-plans.service';
@@ -28,7 +30,7 @@ import { BrokersRepository } from './infrastructure/brokers.repository';
  * the queues are global. The BrokerPlans processor runs in the worker only.
  */
 @Module({
-  imports: [PaymentsModule, StorageModule, MailerModule],
+  imports: [PaymentsModule, StorageModule, MailerModule, BookingModule],
   providers: [
     RentalsMailer,
     BrokersRepository,
@@ -38,8 +40,9 @@ import { BrokersRepository } from './infrastructure/brokers.repository';
     BrokerRegistrationFeeService,
     BrokerDealsRepository,
     BrokerDealsService,
+    BrokerBookingsService,
     ...(isWorkerProcess() ? [BrokerPlansProcessor] : []),
   ],
-  exports: [BrokerPlansService, BrokerHomesService, BrokerRegistrationFeeService, BrokerPlansRepository, BrokerDealsService],
+  exports: [BrokerPlansService, BrokerHomesService, BrokerRegistrationFeeService, BrokerPlansRepository, BrokerDealsService, BrokerBookingsService],
 })
 export class BrokersModule {}

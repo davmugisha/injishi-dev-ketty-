@@ -16,6 +16,8 @@ import { REGISTRATION_FEES } from './domain/registration-fees';
 import { RegistrationService } from '../organization/application/registration.service';
 import { PaymentAttemptRepository } from './infrastructure/payment-attempt.repository';
 import { BookingApprovalService } from './application/booking-approval.service';
+import { BrokerGroupBookingService } from './application/broker-group-booking.service';
+import { BrokerGroupRepository } from './infrastructure/broker-group.repository';
 import { BookingCancellationService } from './application/booking-cancellation.service';
 import { BookingChangeService } from './application/booking-change.service';
 import { StayCompletionService } from './application/stay-completion.service';
@@ -122,6 +124,9 @@ import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
   providers: [
     BookingRepository,
     BookingService,
+    // A broker's groups of rooms under a deal (0125): written at once, or when their one MoMo payment lands.
+    BrokerGroupRepository,
+    BrokerGroupBookingService,
     // What is left to sell, per night. It depends on ListingService for the
     // room type, which is why the visibility rule (active room, published
     // listing) is enforced without this service restating it.
@@ -240,6 +245,8 @@ import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
   ],
   exports: [
     BookingService,
+    // For the brokers module, which resolves the broker and their running deal and hands over (0125).
+    BrokerGroupBookingService,
     // Exported for `AvailabilityController` in `PublicApiModule`.
     AvailabilityService,
     // Exported for `BookingsController`, which serves the guest's poll.

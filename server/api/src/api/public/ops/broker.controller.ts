@@ -3,9 +3,13 @@ import {
   BrokerHomesQuery,
   BrokerPlanChangeRequest,
   BrokerPlanCheckoutRequest,
+  BrokerRoomsQuery,
+  CreateBrokerBookingRequest,
   EndBrokerDealRequest,
   ProposeBrokerDealRequest,
   StartPlacementRequest,
+  type BrokerBookingGroup,
+  type BrokerBookingList,
   type BrokerDeal,
   type BrokerDealList,
   type BrokerHotels,
@@ -16,6 +20,7 @@ import {
   type BrokerPlacementList,
   type BrokerPlanOverview,
   type BrokerPlanPayment,
+  type BrokerRoomOffer,
   type BrokerReveal,
   type BrokerReviews,
   type BrokerSummary,
@@ -24,6 +29,7 @@ import {
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 
+import { BrokerBookingsService } from '../../../modules/brokers/application/broker-bookings.service';
 import { BrokerDealsService } from '../../../modules/brokers/application/broker-deals.service';
 import { BrokerHomesService } from '../../../modules/brokers/application/broker-homes.service';
 import { BrokerPlansService } from '../../../modules/brokers/application/broker-plans.service';
@@ -52,6 +58,7 @@ export class OpsBrokerController {
     private readonly homes: BrokerHomesService,
     private readonly plans: BrokerPlansService,
     private readonly deals: BrokerDealsService,
+    private readonly bookings: BrokerBookingsService,
   ) {}
 
   @Get('summary')
@@ -203,5 +210,41 @@ export class OpsBrokerController {
     @CurrentUser() user: SessionUser,
   ): Promise<BrokerDeal> {
     return this.deals.endByBroker(workspace, id, body, user.id);
+  }
+
+  // --- Bookings (0125): rooms booked for clients under a running deal --------------------------------
+
+  /** The hotel's rooms for these dates, at their rates, with how many are free. Needs a running deal. */
+  @Get('hotels/:orgId/rooms')
+  rooms(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Query(new ZodValidationPipe(BrokerRoomsQuery)) query: BrokerRoomsQuery,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<BrokerRoomOffer> {
+    return this.bookings.rooms(workspace, orgId, query.checkIn, query.checkOut);
+  }
+
+  /** Book one room or many, paid at the hotel or by one MoMo payment for the group. */
+  @Post('hotels/:orgId/bookings')
+  @HttpCode(200)
+  @UseGuards(UserThrottlerGuard)
+  @Throttle({ money: { limit: 10, ttl: 60_000 } })
+  createBooking(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Body(new ZodValidationPipe(CreateBrokerBookingRequest)) body: CreateBrokerBookingRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<BrokerBookingGroup> {
+    return this.bookings.create(workspace, orgId, body);
+  }
+
+  @Get('bookings')
+  brokerBookings(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerBookingList> {
+    return this.bookings.list(workspace);
+  }
+
+  /** One booking; while its MoMo prompt is out, this is the poll. */
+  @Get('bookings/:id')
+  brokerBooking(@Param('id', ParseUUIDPipe) id: string, @CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerBookingGroup> {
+    return this.bookings.get(workspace, id);
   }
 }

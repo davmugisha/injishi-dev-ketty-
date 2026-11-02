@@ -234,6 +234,8 @@ export const paymentAttemptPurposeEnum = pgEnum('payment_attempt_purpose', [
   'psf_membership',
   // The difference a reservation change costs, asked of the guest by MoMo (migration 0120).
   'booking_change',
+  // A broker's group of rooms paid by one MoMo payment (migration 0125).
+  'broker_group',
 ]);
 
 /**

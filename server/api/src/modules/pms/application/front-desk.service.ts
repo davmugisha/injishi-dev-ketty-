@@ -190,9 +190,9 @@ export class FrontDeskService {
       bookingId: booking.id,
       workspaceId: ws.workspaceId,
       guestUserId: booking.guestUserId,
-      // Null: this guest HAS an account, and the account is the better source
-      // of the name. The column is for a walk in, which has none.
-      guestName: null,
+      // Null when this guest HAS an account, which is the better source of the
+      // name. A broker's guest (0125) has none, so the booking's name goes on.
+      guestName: booking.guestUserId ? null : (booking.guestName ?? null),
       roomId: room.id,
       // The planned exit is the booking's own checkout date at the property's
       // checkout hour, on the Kigali clock. Read from the booking rather than

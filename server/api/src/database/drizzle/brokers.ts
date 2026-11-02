@@ -13,15 +13,18 @@
  *     row exists (`broker_registration_payments`);
  *   - ratings of a broker by the landlord and the tenant of a lease they
  *     brought (`broker_ratings`), one per lease and side;
- *   - a broker's commission deals with hotels (`broker_hotel_deals`, 0124).
+ *   - a broker's commission deals with hotels (`broker_hotel_deals`, 0124);
+ *   - a broker's groups of rooms booked under a deal (`broker_booking_groups`, 0125).
  *
  * Statuses are enums built from `@injishi/contracts`. Money is whole francs;
  * plan periods are Kigali calendar days.
  */
 import {
+  BrokerBookingPayment,
   BrokerDealKind,
   BrokerDealStatus,
   BrokerFeeMethod,
+  BrokerGroupStatus,
   BrokerPayMethod,
   BrokerPaymentKind,
   BrokerPaymentStatus,
@@ -35,6 +38,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -47,7 +51,7 @@ import { users } from './auth';
 import { timestamps } from './columns';
 import { adapterModeEnum } from './enums';
 import { provinces } from './geography';
-import { orgs } from './org';
+import { orgs, workspaces } from './org';
 import { brokers, leases } from './residence';
 
 export const brokerPlanCodeEnum = pgEnum('broker_plan_code', BrokerPlanCode.options);
@@ -277,5 +281,54 @@ export const brokerHotelDeals = pgTable(
     ),
     check('broker_hotel_deals_dates_ck', sql`${t.startsOn} IS NULL OR ${t.endsOn} IS NULL OR ${t.endsOn} > ${t.startsOn}`),
     check('broker_hotel_deals_closed_by_ck', sql`${t.closedBy} IS NULL OR ${t.closedBy} IN ('broker', 'hotel')`),
+  ],
+);
+
+export const brokerBookingPaymentEnum = pgEnum('broker_booking_payment', BrokerBookingPayment.options);
+export const brokerGroupStatusEnum = pgEnum('broker_group_status', BrokerGroupStatus.options);
+
+/**
+ * A broker's booking at a hotel (0125): one or many rooms under a running deal, each room its own booking
+ * (`bookings.broker_group_id`), written together. `rooms` keeps what was asked and its price, so a group
+ * still waiting for its MoMo payment, or one that failed, says what it was for. Paid at the hotel, the
+ * bookings are written at once; paid by MoMo, only when the payment lands.
+ */
+export const brokerBookingGroups = pgTable(
+  'broker_booking_groups',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    reference: text('reference').notNull(),
+    brokerId: uuid('broker_id')
+      .notNull()
+      .references(() => brokers.id),
+    dealId: uuid('deal_id')
+      .notNull()
+      .references(() => brokerHotelDeals.id),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    checkIn: date('check_in').notNull(),
+    checkOut: date('check_out').notNull(),
+    payment: brokerBookingPaymentEnum('payment').notNull(),
+    status: brokerGroupStatusEnum('status').notNull(),
+    totalRwf: integer('total_rwf').notNull(),
+    contactPhone: text('contact_phone').notNull(),
+    note: text('note'),
+    rooms: jsonb('rooms').notNull(),
+    failureReason: text('failure_reason'),
+    createdByUserId: uuid('created_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [
+    unique('broker_booking_groups_reference_uk').on(t.reference),
+    index('broker_booking_groups_broker_idx').on(t.brokerId, t.createdAt),
+    index('broker_booking_groups_org_idx').on(t.orgId, t.createdAt),
+    check('broker_booking_groups_dates_ck', sql`${t.checkOut} > ${t.checkIn}`),
+    check('broker_booking_groups_total_ck', sql`${t.totalRwf} > 0`),
   ],
 );

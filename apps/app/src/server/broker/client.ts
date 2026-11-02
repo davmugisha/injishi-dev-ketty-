@@ -4,6 +4,8 @@
  * broker's plan, or one its landlord did not switch on, is not found (404), and reads back as null.
  */
 import type {
+  BrokerBookingGroup,
+  BrokerBookingList,
   BrokerDealList,
   BrokerEarnings,
   BrokerHome,
@@ -64,6 +66,10 @@ export const brokerSummary = cache(() => get<BrokerSummary>("/api/v1/ops/broker/
 export const brokerHotels = cache(() => get<BrokerHotels>("/api/v1/ops/broker/hotels"));
 /** Every deal this broker has proposed, newest first, whatever became of it. */
 export const brokerDeals = cache(() => get<BrokerDealList>("/api/v1/ops/broker/deals"));
+/** Every group of rooms this broker booked, newest first (0125). */
+export const brokerBookings = cache(() => get<BrokerBookingList>("/api/v1/ops/broker/bookings"));
+/** One group; while its MoMo prompt is out, reading it asks the provider where it got to. */
+export const brokerBooking = cache((id: string) => get<BrokerBookingGroup>(`/api/v1/ops/broker/bookings/${id}`));
 export const brokerHomes = cache((query: BrokerHomesQuery) =>
   get<BrokerHomes>("/api/v1/ops/broker/homes", {
     district: q(query.district),

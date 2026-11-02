@@ -1,9 +1,15 @@
 import type { MobileMoneyNetwork, PaymentAttemptState } from '@injishi/contracts';
 
 /** Mirrors the Postgres `payment_attempt_purpose` enum. */
-export type PaymentAttemptPurpose = 'booking' | 'service_order' | 'registration_fee' | 'psf_membership' | 'booking_change';
+export type PaymentAttemptPurpose =
+  | 'booking'
+  | 'service_order'
+  | 'registration_fee'
+  | 'psf_membership'
+  | 'booking_change'
+  | 'broker_group';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, isNull, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 
 import { hasFreeUnitEveryNight } from '../domain/sellable-capacity';
 
@@ -43,6 +49,8 @@ export interface PaymentAttemptRow {
   subscriptionInvoiceId: string | null;
   /** Set on a `booking_change` attempt: the reservation change whose difference it pays (0120). */
   bookingChangeId: string | null;
+  /** Set on a `broker_group` attempt: the broker's group of rooms it pays for (0125). */
+  brokerGroupId: string | null;
   /** The stay, on a `booking` attempt only; null on an order's. */
   roomTypeId: string | null;
   checkIn: string | null;
@@ -94,6 +102,7 @@ export type RecordAttemptInput = RecordAttemptCommon &
     | { purpose: 'service_order'; serviceOrderId: string }
     | { purpose: 'registration_fee'; subscriptionInvoiceId: string }
     | { purpose: 'booking_change'; bookingChangeId: string; bookingId: string }
+    | { purpose: 'broker_group'; brokerGroupId: string }
   );
 
 @Injectable()
@@ -124,6 +133,8 @@ export class PaymentAttemptRepository {
                 bookingChangeId: input.bookingChangeId,
                 bookingId: input.bookingId,
               }
+            : input.purpose === 'broker_group'
+              ? { purpose: 'broker_group' as const, brokerGroupId: input.brokerGroupId }
             : {
               purpose: 'booking' as const,
               roomTypeId: input.roomTypeId,
@@ -283,6 +294,37 @@ export class PaymentAttemptRepository {
    * A confirmed change payment whose change could no longer be applied (0120): refunded in full, and
    * the attempt says why. Guarded on `confirmed`, so it happens once.
    */
+  /** A broker group's settled payment that bought nothing (its rooms sold out): refused, and refunded by the caller (0125). */
+  async markBrokerGroupRefused(id: string, failureReason: string): Promise<boolean> {
+    const moved = await this.db
+      .update(paymentAttempts)
+      .set({ state: 'refused', failureReason, updatedAt: new Date() })
+      .where(
+        and(
+          eq(paymentAttempts.id, id),
+          eq(paymentAttempts.state, 'confirmed'),
+          eq(paymentAttempts.purpose, 'broker_group'),
+        ),
+      )
+      .returning({ id: paymentAttempts.id });
+    return moved.length > 0;
+  }
+
+  /** The attempts behind broker groups, newest first per group: what the broker's page shows of each prompt. */
+  async latestForBrokerGroups(groupIds: string[]): Promise<Map<string, PaymentAttemptRow>> {
+    const out = new Map<string, PaymentAttemptRow>();
+    if (groupIds.length === 0) return out;
+    const rows = await this.db
+      .select()
+      .from(paymentAttempts)
+      .where(and(eq(paymentAttempts.purpose, 'broker_group'), inArray(paymentAttempts.brokerGroupId, groupIds)))
+      .orderBy(desc(paymentAttempts.createdAt));
+    for (const row of rows) {
+      if (row.brokerGroupId && !out.has(row.brokerGroupId)) out.set(row.brokerGroupId, shape(row));
+    }
+    return out;
+  }
+
   async markChangeRefused(id: string, failureReason: string): Promise<boolean> {
     const moved = await this.db
       .update(paymentAttempts)
@@ -511,6 +553,7 @@ function shape(row: typeof paymentAttempts.$inferSelect): PaymentAttemptRow {
     serviceOrderId: row.serviceOrderId ?? null,
     subscriptionInvoiceId: row.subscriptionInvoiceId ?? null,
     bookingChangeId: row.bookingChangeId ?? null,
+    brokerGroupId: row.brokerGroupId ?? null,
     roomTypeId: row.roomTypeId ?? null,
     checkIn: row.checkIn ?? null,
     checkOut: row.checkOut ?? null,

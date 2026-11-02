@@ -168,8 +168,8 @@ export class FrontDeskBoardRepository {
   async bookings(workspaceId: string, propertyId: string, today: string): Promise<BoardBookingRow[]> {
     const rows = await this.rows(sql`
       SELECT b.id, b.reference, b.guest_user_id,
-             nullif(btrim(u.name), '') AS guest_name,
-             up.phone_e164 AS guest_phone,
+             coalesce(nullif(btrim(u.name), ''), b.guest_name) AS guest_name,
+             coalesce(up.phone_e164, b.guest_phone) AS guest_phone,
              b.check_in::text AS check_in, b.check_out::text AS check_out,
              b.guest_count, b.adults, b.children,
              b.room_type_id, rt.name AS room_type_name,
@@ -354,7 +354,7 @@ export class FrontDeskBoardRepository {
            ORDER BY s.entry_at DESC
            LIMIT 1) occ ON true
         LEFT JOIN LATERAL (
-          SELECT ra.booking_id, b.reference, nullif(btrim(u.name), '') AS guest_name
+          SELECT ra.booking_id, b.reference, coalesce(nullif(btrim(u.name), ''), b.guest_name) AS guest_name
             FROM room_assignments ra
             JOIN bookings b ON b.id = ra.booking_id
             LEFT JOIN users u ON u.id = b.guest_user_id

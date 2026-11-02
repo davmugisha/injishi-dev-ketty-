@@ -74,6 +74,8 @@ export interface CheckInSubject {
   propertyId: string | null;
   status: string;
   guestUserId: string | null;
+  /** The name on the booking itself: a broker's guest (0125), who has no account. Null otherwise. */
+  guestName?: string | null;
   /** The booking's own reference, written on the prepayment line. */
   reference: string;
   checkIn: string;
@@ -292,6 +294,7 @@ export class FrontDeskRepository {
         propertyId: roomTypes.propertyId,
         status: bookings.status,
         guestUserId: bookings.guestUserId,
+        guestName: bookings.guestName,
         reference: bookings.reference,
         checkIn: bookings.checkIn,
         checkOut: bookings.checkOut,

@@ -876,6 +876,13 @@
       "when": 1793626259101,
       "tag": "0124_broker_hotel_deals",
       "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1793627415875,
+      "tag": "0125_broker_bookings",
+      "breakpoints": true
     }
   ]
 }

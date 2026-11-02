@@ -77,6 +77,11 @@ export default tseslint.config(
             'OpsBrokerController.proposeDeal',
             'OpsBrokerController.withdrawDeal',
             'OpsBrokerController.endDeal',
+            // Bookings under a running deal (0125), for the same reason.
+            'OpsBrokerController.rooms',
+            'OpsBrokerController.createBooking',
+            'OpsBrokerController.brokerBookings',
+            'OpsBrokerController.brokerBooking',
             // `/api/v1/ops/broker/messages` (2026-10-26), for the same reason:
             // `PlacementMessagesService` refuses a workspace that is not a
             // broker's own (403) and a placement that is not theirs (404).

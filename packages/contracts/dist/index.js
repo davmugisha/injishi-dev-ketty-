@@ -45,6 +45,7 @@ __exportStar(require("./ops"), exports);
 __exportStar(require("./broker"), exports);
 __exportStar(require("./broker-plans"), exports);
 __exportStar(require("./broker-deals"), exports);
+__exportStar(require("./broker-bookings"), exports);
 __exportStar(require("./ordering"), exports);
 __exportStar(require("./outlets"), exports);
 __exportStar(require("./property-detail"), exports);

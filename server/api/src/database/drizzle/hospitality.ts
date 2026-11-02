@@ -142,6 +142,16 @@ export const bookings = pgTable(
     noShowByUserId: uuid('no_show_by_user_id').references(() => users.id),
     noShowReason: text('no_show_reason'),
     /**
+     * A broker's booking (0125): the group it was booked in, the broker and the deal it was booked under,
+     * and the guest's own name and phone, because a broker's guest has no Injishi account. Plain uuids
+     * here (the broker tables import this file); the foreign keys are in the migration.
+     */
+    brokerGroupId: uuid('broker_group_id'),
+    brokerId: uuid('broker_id'),
+    brokerDealId: uuid('broker_deal_id'),
+    guestName: text('guest_name'),
+    guestPhone: text('guest_phone'),
+    /**
      * Why the desk cancelled, in the desk's words, when it cancelled at the
      * guest's request (`POST /ops/reservations/:id/cancel`). The refund is not
      * here: `refund_rwf` and `cancelled_by` already say what was decided.

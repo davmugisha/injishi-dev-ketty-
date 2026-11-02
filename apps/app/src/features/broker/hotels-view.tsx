@@ -191,9 +191,19 @@ export function HotelsView({ data, deals }: { data: BrokerHotels; deals: BrokerD
                   Withdraw
                 </ActionButton>
               ) : d.status === "active" ? (
-                <ActionButton size="sm" icon="Xmark" onPress={() => setClosing({ deal: d, move: "end" })}>
-                  End deal
-                </ActionButton>
+                <span className="flex gap-2">
+                  <ActionButton
+                    size="sm"
+                    intent="primary"
+                    icon="Plus"
+                    onPress={() => router.push(`/broker/hotels/${d.hotel.orgId}/book`)}
+                  >
+                    Book rooms
+                  </ActionButton>
+                  <ActionButton size="sm" icon="Xmark" onPress={() => setClosing({ deal: d, move: "end" })}>
+                    End deal
+                  </ActionButton>
+                </span>
               ) : null
             }
             mobile={{

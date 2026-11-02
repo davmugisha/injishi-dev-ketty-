@@ -23,6 +23,7 @@ export const sampleCollectionsByBoard: Record<string, number> = {
   AttendanceKiosk: 1,
   AuditLog: 3,
   AvailabilityCalendar: 7,
+  BrokerBookings: 0,
   BrokerEarnings: 0,
   BrokerHotels: 0,
   BrokerPlacements: 0,

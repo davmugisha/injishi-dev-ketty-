@@ -7,6 +7,7 @@
  * outside the plan.
  */
 import {
+  type BrokerBookingGroup,
   type BrokerDeal,
   type BrokerHome,
   BrokerHomeDistrictRequest,
@@ -16,6 +17,9 @@ import {
   type BrokerPlanOverview,
   type BrokerPlanPayment,
   type BrokerReveal,
+  type BrokerRoomOffer,
+  BrokerRoomsQuery,
+  CreateBrokerBookingRequest,
   EndBrokerDealRequest,
   ProposeBrokerDealRequest,
   StartPlacementRequest,
@@ -138,5 +142,48 @@ export async function closeDeal(id: string, move: "withdraw" | "end", note: stri
       (s) => s.api.post<BrokerDeal>(`/api/v1/ops/broker/deals/${id}/${move}`, parsed.data, ws(s)),
       NO_DEAL,
     ),
+  );
+}
+
+// --- Bookings under a running deal (0125) ---------------------------------------------------------
+
+/** The hotel's rooms for these dates, with their rates and how many are free. */
+export async function loadRooms(
+  orgId: string,
+  checkIn: string,
+  checkOut: string,
+): Promise<ActionResult<BrokerRoomOffer>> {
+  if (!UUID.test(orgId)) return { ok: false, error: NO_HOTEL };
+  const parsed = parse(BrokerRoomsQuery, { checkIn, checkOut });
+  if (!parsed.ok) return invalid(parsed.error);
+  return runBroker(
+    (s) =>
+      s.api.get<BrokerRoomOffer>(`/api/v1/ops/broker/hotels/${orgId}/rooms`, {
+        ...ws(s),
+        query: { checkIn: parsed.data.checkIn, checkOut: parsed.data.checkOut },
+      }),
+    "You have no running deal with that hotel any more.",
+  );
+}
+
+/** Book the rooms: written at once when paid at the hotel; when paid by MoMo, once the phone approves. */
+export async function bookRooms(orgId: string, input: unknown): Promise<ActionResult<BrokerBookingGroup>> {
+  if (!UUID.test(orgId)) return { ok: false, error: NO_HOTEL };
+  const parsed = parse(CreateBrokerBookingRequest, input);
+  if (!parsed.ok) return invalid(parsed.error);
+  return changed(
+    await runBroker(
+      (s) => s.api.post<BrokerBookingGroup>(`/api/v1/ops/broker/hotels/${orgId}/bookings`, parsed.data, ws(s)),
+      "You have no running deal with that hotel any more.",
+    ),
+  );
+}
+
+/** Where a group's MoMo payment got to. */
+export async function pollBooking(id: string): Promise<ActionResult<BrokerBookingGroup>> {
+  if (!UUID.test(id)) return { ok: false, error: "That booking is not there." };
+  return runBroker(
+    (s) => s.api.get<BrokerBookingGroup>(`/api/v1/ops/broker/bookings/${id}`, ws(s)),
+    "That booking is not there.",
   );
 }

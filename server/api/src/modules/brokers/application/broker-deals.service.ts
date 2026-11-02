@@ -149,6 +149,22 @@ export class BrokerDealsService {
     return this.close(row, 'end', 'hotel', body, userId);
   }
 
+  // --- For bookings (0125) ----------------------------------------------------
+
+  /** The broker behind a broker workspace, for the bookings service. */
+  brokerFor(ws: WorkspaceAccess): Promise<BrokerSelfRow> {
+    return this.brokerOf(ws);
+  }
+
+  /** This broker's running deal with a hotel today, or null: the only deal a booking is made under. */
+  async runningDeal(brokerId: string, orgId: string): Promise<BrokerDeal | null> {
+    const today = kigaliToday();
+    const row = (await this.repo.forBroker(brokerId)).find(
+      (r) => r.orgId === orgId && effectiveStatus(r.status, r.endsOn, today) === 'active',
+    );
+    return row ? this.present(row, today) : null;
+  }
+
   // --- Shared -----------------------------------------------------------------
 
   private async close(
