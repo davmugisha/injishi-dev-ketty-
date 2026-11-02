@@ -1,6 +1,6 @@
 import type { ExploreMode, ExplorePlace, ExploreSort } from "@injishi/contracts";
 import { router, useLocalSearchParams } from "expo-router";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ComponentRef, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Keyboard, RefreshControl, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCSSVariable } from "uniwind";
@@ -118,7 +118,7 @@ export function ExploreScreen() {
                     </LoadingView>
                   ) : search.isFetchNextPageError ? (
                     <QueryError error={search.error} onRetry={() => void search.fetchNextPage()} offlineNote={null} />
-                  ) : null
+                  ) : undefined
                 }
               />
             )}
@@ -191,7 +191,7 @@ function SearchField({
   const shown = intent.placeLabel ?? intent.q;
   const [typed, setTyped] = useState(shown);
   const [focused, setFocused] = useState(false);
-  const input = useRef<TextInput>(null);
+  const input = useRef<ComponentRef<typeof TextInput>>(null);
   const places = usePlaces(intent.mode, focused ? typed : "");
   const placeholder = String(useCSSVariable("--color-field-placeholder"));
   const ink = String(useCSSVariable("--color-field-foreground"));
