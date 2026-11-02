@@ -6,6 +6,7 @@ export * from "./code-input.tsx";
 export * from "./code-row.ts";
 export * from "./contact-fields.tsx";
 export * from "./countries.ts";
+export * from "./data-grid.tsx";
 export * from "./date.tsx";
 export * from "./date-pickers.tsx";
 export * from "./device.tsx";
