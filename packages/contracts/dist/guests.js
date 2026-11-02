@@ -1,16 +1,24 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ReportBucket = exports.GuestReportQuery = exports.GUEST_REPORT_MAX_DAYS = exports.LeaderGuestPage = exports.LeaderSummary = exports.LeaderCounts = exports.LeaderFilters = exports.LeaderScope = exports.LeaderGuest = exports.LeaderChainStep = exports.FlagGuestRequest = exports.LeaderGuestQuery = exports.ReportOrigin = exports.LeaderArrivingWhen = exports.LeaderGuestTab = exports.GuestRelationship = exports.GuestCountry = exports.LandlordGuestList = exports.TenantGuestList = exports.HostGuestList = exports.HostGuestQuery = exports.HostGuestTab = exports.GuestBuilding = exports.HostGuest = exports.HostChainStep = exports.LandlordGuestRequest = exports.TenantGuestRequest = exports.GuestOrigin = exports.GuestCountryCode = exports.GuestPhone = exports.OTHER_RELATIONSHIP = exports.GUEST_RELATIONSHIPS = exports.GuestRouteState = exports.GuestStay = exports.GuestRegistrationStatus = exports.GuestHostKind = exports.OVERSIGHT_ROLE_SCOPES = exports.LEADER_ROLE_BODY = exports.LEADER_ROLE_SCOPE = exports.LEADER_ROLE_CHAIN = exports.LEADER_ROLE_STEP = exports.LEADER_ROLE_SHORT = exports.LEADER_ROLE_LABEL = exports.REVIEWER_ROLES = exports.CHAIN_ROLES = exports.LeaderRole = exports.LEADER_ROLES = exports.LEADER_ARRIVING_DAYS = exports.GUEST_RETENTION_MONTHS = exports.RWANDA_CODE = void 0;
-exports.LeaderCoverage = exports.EndAppointmentQuery = exports.AppointOfficerRequest = exports.OversightAppointmentList = exports.WaitingArea = exports.PlaceNames = exports.OversightAppointmentQuery = exports.OversightAppointment = exports.AppointmentKind = exports.GuestReport = void 0;
+exports.ReportOrigin = exports.LeaderArrivingWhen = exports.LeaderGuestTab = exports.GuestRelationship = exports.GuestCountry = exports.LandlordGuestList = exports.TenantGuestList = exports.HostGuestList = exports.HostGuestQuery = exports.HostGuestTab = exports.GuestBuilding = exports.HostGuest = exports.HostChainStep = exports.LandlordGuestRequest = exports.TenantGuestRequest = exports.GuestOrigin = exports.GuestCountryCode = exports.GuestPhone = exports.LeaderAudience = exports.GUEST_LENGTH_NIGHTS = exports.GUEST_LENGTH_LABEL = exports.GuestLength = exports.GUEST_LEAVING_LABEL = exports.GuestLeaving = exports.GUEST_ARRIVED_LABEL = exports.GuestArrived = exports.GUEST_PLACE_TYPE_KINDS = exports.GUEST_PLACE_TYPE_LABEL = exports.GuestPlaceType = exports.GUEST_PLACE_TYPES = exports.OTHER_RELATIONSHIP = exports.GUEST_RELATIONSHIPS = exports.GuestRouteState = exports.GuestStay = exports.GuestRegistrationStatus = exports.GuestHostKind = exports.OVERSIGHT_ROLE_SCOPES = exports.LEADER_ROLE_BODY = exports.LEADER_ROLE_SCOPE = exports.LEADER_ROLE_CHAIN = exports.LEADER_ROLE_STEP = exports.LEADER_ROLE_SHORT = exports.LEADER_ROLE_LABEL = exports.REVIEWER_ROLES = exports.CHAIN_ROLES = exports.LeaderRole = exports.LEADER_ROLES = exports.LEADER_ARRIVING_DAYS = exports.GUEST_RETENTION_MONTHS = exports.RWANDA_CODE = void 0;
+exports.LeaderCoverage = exports.EndAppointmentQuery = exports.AppointOfficerRequest = exports.OversightAppointmentList = exports.WaitingArea = exports.PlaceNames = exports.OversightAppointmentQuery = exports.OversightAppointment = exports.AppointmentKind = exports.GuestReport = exports.REPORT_TIMING_LABEL = exports.ReportTiming = exports.STAY_BAND_LABEL = exports.StayBand = exports.STAY_BANDS = exports.ReportBucket = exports.GuestReportQuery = exports.GUEST_REPORT_MAX_DAYS = exports.LeaderGuestPage = exports.LeaderSummary = exports.LeaderCounts = exports.LeaderFilters = exports.LeaderScope = exports.LeaderGuest = exports.LeaderChainStep = exports.FlagGuestRequest = exports.GUEST_LIST_FILTER_KEYS = exports.LeaderGuestQuery = void 0;
 exports.isLeaderRole = isLeaderRole;
 exports.isChainRole = isChainRole;
 exports.guestChainFor = guestChainFor;
 exports.isFromAbroad = isFromAbroad;
 exports.guestStayOn = guestStayOn;
 exports.guestNights = guestNights;
+exports.guestPlaceTypeOf = guestPlaceTypeOf;
+exports.guestPlaceKindLabel = guestPlaceKindLabel;
+exports.guestArrivedRange = guestArrivedRange;
+exports.guestLengthHolds = guestLengthHolds;
+exports.leaderAudienceOf = leaderAudienceOf;
+exports.guestHostLines = guestHostLines;
 exports.normaliseGuestPhone = normaliseGuestPhone;
 exports.guestIdProblem = guestIdProblem;
 exports.guestIdOf = guestIdOf;
+exports.stayBandOf = stayBandOf;
+exports.reportTimingOf = reportTimingOf;
 exports.appointmentKindOf = appointmentKindOf;
 const zod_1 = require("zod");
 const countries_1 = require("./countries");
@@ -243,6 +251,121 @@ exports.GUEST_RELATIONSHIPS = [
 ];
 /** The relationship that asks for its own words. */
 exports.OTHER_RELATIONSHIP = "other";
+// --- The type of place a guest stays at ---------------------------------------------------
+/**
+ * The type of place, as a leader's filter and column name it: a hotel desk files its guests from the business
+ * (`orgs.business_kind`), a tenant or landlord from a residence. A motel counts as a hotel, a tented camp as
+ * a lodge and a villa as apartments; the exact kind is still shown (`guestPlaceKindLabel`).
+ */
+exports.GUEST_PLACE_TYPES = ["hotel", "lodge", "guest_house", "apartment", "residence", "other"];
+exports.GuestPlaceType = zod_1.z.enum(exports.GUEST_PLACE_TYPES);
+exports.GUEST_PLACE_TYPE_LABEL = {
+    hotel: "Hotel",
+    lodge: "Lodge",
+    guest_house: "Guest house",
+    apartment: "Apartments",
+    residence: "Residence",
+    other: "Other",
+};
+/** The business kinds each type of place covers (a residence is any tenant's or landlord's guest). */
+exports.GUEST_PLACE_TYPE_KINDS = {
+    hotel: ["hotel", "motel"],
+    lodge: ["lodge", "tented_camp"],
+    guest_house: ["guest_house"],
+    apartment: ["apartment", "villa"],
+};
+const PLACE_KIND_LABEL = {
+    hotel: "Hotel",
+    motel: "Motel",
+    lodge: "Lodge",
+    tented_camp: "Tented camp",
+    guest_house: "Guest house",
+    apartment: "Apartments",
+    villa: "Villa",
+};
+/** The type of place from who filed the guest and the business's kind. */
+function guestPlaceTypeOf(hostKind, businessKind) {
+    if (hostKind !== "hotel")
+        return "residence";
+    for (const [type, kinds] of Object.entries(exports.GUEST_PLACE_TYPE_KINDS)) {
+        if (businessKind && kinds.includes(businessKind))
+            return type;
+    }
+    return "other";
+}
+/** The place's own kind in words: "Motel", "Tented camp", "Residence". */
+function guestPlaceKindLabel(hostKind, businessKind) {
+    if (hostKind !== "hotel")
+        return exports.GUEST_PLACE_TYPE_LABEL.residence;
+    return (businessKind && PLACE_KIND_LABEL[businessKind]) || "Hotel or lodging";
+}
+// --- The leader's date and stay filters ----------------------------------------------------
+/** When guests arrived, relative to the Kigali day: a shared link keeps meaning "today". */
+exports.GuestArrived = zod_1.z.enum(["today", "yesterday", "last_7_days", "this_month"]);
+exports.GUEST_ARRIVED_LABEL = {
+    today: "Today",
+    yesterday: "Yesterday",
+    last_7_days: "Last 7 days",
+    this_month: "This month",
+};
+/** The days a preset covers, first and last included. */
+function guestArrivedRange(preset, today) {
+    switch (preset) {
+        case "today":
+            return { from: today, to: today };
+        case "yesterday": {
+            const day = (0, dates_1.addDays)(today, -1);
+            return { from: day, to: day };
+        }
+        case "last_7_days":
+            return { from: (0, dates_1.addDays)(today, -6), to: today };
+        case "this_month":
+            return { from: `${today.slice(0, 7)}-01`, to: today };
+    }
+}
+/** When guests leave: today, or within the next 7 days (today included). */
+exports.GuestLeaving = zod_1.z.enum(["today", "next_7_days"]);
+exports.GUEST_LEAVING_LABEL = {
+    today: "Today",
+    next_7_days: "Next 7 days",
+};
+/** How long the stay is, in nights from arrival to departure. */
+exports.GuestLength = zod_1.z.enum(["under_3", "week", "month"]);
+exports.GUEST_LENGTH_LABEL = {
+    under_3: "Under 3 nights",
+    week: "1 week or more",
+    month: "1 month or more",
+};
+/** The nights each length covers: `min` and `max` included. */
+exports.GUEST_LENGTH_NIGHTS = {
+    under_3: { max: 2 },
+    week: { min: 7 },
+    month: { min: 30 },
+};
+/** Does a stay of so many nights fall in a length? */
+function guestLengthHolds(length, nights) {
+    const { min, max } = exports.GUEST_LENGTH_NIGHTS[length];
+    return (min === undefined || nights >= min) && (max === undefined || nights <= max);
+}
+/**
+ * Who reads a console: local government (every guest, Rwandan or foreign) or DGIE (guests from abroad only).
+ * A person holding posts in both reads as local government, the wider of the two.
+ */
+exports.LeaderAudience = zod_1.z.enum(["local", "dgie"]);
+function leaderAudienceOf(roles) {
+    return roles.length > 0 && roles.every((r) => exports.LEADER_ROLE_CHAIN[r] === "dgie") ? "dgie" : "local";
+}
+/**
+ * Where a guest stays, in two lines for a list or a file: the place (the business, or the landlord's
+ * building), and who hosted them there (the room, the tenant and their unit, or the landlord).
+ */
+function guestHostLines(g) {
+    const room = g.place.room;
+    if (g.host.kind === "hotel")
+        return { place: g.place.name, detail: room ? (/^room\b/i.test(room) ? room : `Room ${room}`) : "" };
+    const who = g.host.kind === "tenant" ? `Tenant ${g.host.name}` : `Landlord ${g.host.name}`;
+    return { place: g.place.name, detail: room ? `${who}, unit ${room}` : who };
+}
 // --- Field rules ------------------------------------------------------------------
 /**
  * A guest's phone in E.164: a Rwandan mobile however it is spaced
@@ -421,19 +544,57 @@ const AreaId = zod_1.z.coerce.number().int().positive();
 exports.LeaderArrivingWhen = zod_1.z.enum(["soon", "later"]);
 /** A guest filter by nationality, in the leader's words: everyone, Rwandans, or guests from other countries. */
 exports.ReportOrigin = zod_1.z.enum(["nationals", "international"]);
-exports.LeaderGuestQuery = zod_1.z.object({
+/**
+ * The guest filters the list, its downloads and the reports share, each read on the server: the type of
+ * place, how long the stay is, and who they are to the host.
+ */
+const sharedGuestFilters = {
+    /** Rwandan guests, or guests of another nationality. */
+    origin: exports.ReportOrigin.optional(),
+    /** One nationality (ISO 3166-1 alpha-2). */
+    nationality: zod_1.z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Pick a country.").optional(),
+    /** One relationship code (`guest_relationships`), or `hotel_guest`. */
+    relationship: zod_1.z.string().trim().min(1).max(40).optional(),
+    placeType: exports.GuestPlaceType.optional(),
+    length: exports.GuestLength.optional(),
+};
+exports.LeaderGuestQuery = zod_1.z
+    .object({
     tab: exports.LeaderGuestTab.default("all"),
     when: exports.LeaderArrivingWhen.default("soon"),
     sectorId: AreaId.optional(),
     cellId: AreaId.optional(),
     villageId: AreaId.optional(),
     q: zod_1.z.string().trim().max(80).optional(),
-    /** Rwandan guests, or guests of another nationality. */
-    origin: exports.ReportOrigin.optional(),
-    /** One nationality (ISO 3166-1 alpha-2). */
-    nationality: zod_1.z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Pick a country.").optional(),
+    ...sharedGuestFilters,
+    /** Arrived today, yesterday, in the last 7 days or this month (Kigali days). */
+    arrived: exports.GuestArrived.optional(),
+    /** Arrived between two days, both included: a custom range, in place of `arrived`. */
+    arrivedFrom: dates_1.CalendarDay.optional(),
+    arrivedTo: dates_1.CalendarDay.optional(),
+    /** In the area on this day: arrived on or before it, leaving on or after it. */
+    presentOn: dates_1.CalendarDay.optional(),
+    leaving: exports.GuestLeaving.optional(),
     page: zod_1.z.coerce.number().int().min(1).max(1000).default(1),
+})
+    .superRefine((v, ctx) => {
+    if (v.arrivedFrom && v.arrivedTo && (0, dates_1.isIsoDate)(v.arrivedFrom) && (0, dates_1.isIsoDate)(v.arrivedTo) && v.arrivedTo < v.arrivedFrom) {
+        ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, path: ["arrivedTo"], message: "The end can't be before the start." });
+    }
 });
+/** The guest filters that narrow a list or report, as an address keeps them: the list's, then the report's. */
+exports.GUEST_LIST_FILTER_KEYS = [
+    "origin",
+    "nationality",
+    "relationship",
+    "placeType",
+    "length",
+    "arrived",
+    "arrivedFrom",
+    "arrivedTo",
+    "presentOn",
+    "leaving",
+];
 exports.FlagGuestRequest = zod_1.z.object({
     note: zod_1.z
         .string({ required_error: "Say what needs a closer look." })
@@ -467,7 +628,21 @@ exports.LeaderGuest = zod_1.z.object({
     departureOn: zod_1.z.string(),
     nights: zod_1.z.number().int(),
     stay: exports.GuestStay,
-    host: zod_1.z.object({ kind: exports.GuestHostKind, name: zod_1.z.string(), phone: zod_1.z.string().nullable() }),
+    host: zod_1.z.object({
+        kind: exports.GuestHostKind,
+        /** The tenant or the landlord who filed the guest; for a hotel, the business. */
+        name: zod_1.z.string(),
+        phone: zod_1.z.string().nullable(),
+    }),
+    /** Where they stay: the type of place, its own kind in words, the business or building, the room or unit. */
+    place: zod_1.z.object({
+        type: exports.GuestPlaceType,
+        kindLabel: zod_1.z.string(),
+        name: zod_1.z.string(),
+        room: zod_1.z.string().nullable(),
+    }),
+    /** When the desk checked the guest in (a hotel stay), or null. */
+    checkedInAt: zod_1.z.string().nullable(),
     home: zod_1.z.object({
         propertyName: zod_1.z.string(),
         unitLabel: zod_1.z.string().nullable(),
@@ -504,6 +679,10 @@ exports.LeaderFilters = zod_1.z.object({
     villages: zod_1.z.array(zod_1.z.object({ id: zod_1.z.number().int(), name: zod_1.z.string(), cellId: zod_1.z.number().int() })),
     /** The nationalities among the guests in the leader's area (in the place chosen), most guests first. */
     nationalities: zod_1.z.array(zod_1.z.object({ code: zod_1.z.string(), name: zod_1.z.string(), count: zod_1.z.number().int() })).default([]),
+    /** The types of place among those guests, most first. */
+    placeTypes: zod_1.z.array(zod_1.z.object({ type: exports.GuestPlaceType, label: zod_1.z.string(), count: zod_1.z.number().int() })).default([]),
+    /** Who those guests are to their hosts, most first. */
+    relationships: zod_1.z.array(zod_1.z.object({ code: zod_1.z.string(), label: zod_1.z.string(), count: zod_1.z.number().int() })).default([]),
 });
 exports.LeaderCounts = zod_1.z.object({
     /** Arriving in the next 7 days. */
@@ -526,6 +705,8 @@ exports.LeaderCounts = zod_1.z.object({
 });
 exports.LeaderSummary = zod_1.z.object({
     leader: zod_1.z.object({ name: zod_1.z.string().nullable(), email: zod_1.z.string() }),
+    /** Local government (every guest) or DGIE (guests from abroad only): what the screens and files show. */
+    audience: exports.LeaderAudience.default("local"),
     scopes: zod_1.z.array(exports.LeaderScope),
     filters: exports.LeaderFilters,
     counts: exports.LeaderCounts,
@@ -548,12 +729,7 @@ exports.GuestReportQuery = zod_1.z
     sectorId: AreaId.optional(),
     cellId: AreaId.optional(),
     villageId: AreaId.optional(),
-    /** By nationality: Rwandan guests, or guests of any other nationality. */
-    origin: exports.ReportOrigin.optional(),
-    /** One nationality (ISO 3166-1 alpha-2). */
-    nationality: zod_1.z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Pick a country.").optional(),
-    /** One relationship code (`guest_relationships`). */
-    relationship: zod_1.z.string().trim().min(1).max(40).optional(),
+    ...sharedGuestFilters,
     /** Only guests a leader flagged. */
     flagged: zod_1.z.enum(["only"]).optional(),
 })
@@ -567,9 +743,44 @@ exports.GuestReportQuery = zod_1.z
     }
 });
 exports.ReportBucket = zod_1.z.enum(["day", "week", "month"]);
+/** How long stays are, in bands a chart reads at a glance. */
+exports.STAY_BANDS = ["same_day", "short", "days", "weeks", "month"];
+exports.StayBand = zod_1.z.enum(exports.STAY_BANDS);
+exports.STAY_BAND_LABEL = {
+    same_day: "Same day",
+    short: "1 to 2 nights",
+    days: "3 to 6 nights",
+    weeks: "1 to 4 weeks",
+    month: "A month or more",
+};
+function stayBandOf(nights) {
+    if (nights <= 0)
+        return "same_day";
+    if (nights <= 2)
+        return "short";
+    if (nights <= 6)
+        return "days";
+    if (nights <= 29)
+        return "weeks";
+    return "month";
+}
+/** When a guest was reported, against their arrival day (Kigali): ahead, on the day, or late. */
+exports.ReportTiming = zod_1.z.enum(["before", "same_day", "after"]);
+exports.REPORT_TIMING_LABEL = {
+    before: "Before arrival",
+    same_day: "On arrival day",
+    after: "After arrival",
+};
+function reportTimingOf(reportedOn, arrivalOn) {
+    if (reportedOn < arrivalOn)
+        return "before";
+    return reportedOn === arrivalOn ? "same_day" : "after";
+}
 exports.GuestReport = zod_1.z.object({
     period: zod_1.z.object({ from: zod_1.z.string(), to: zod_1.z.string() }),
     generatedAt: zod_1.z.string(),
+    /** Local government (every guest) or DGIE (guests from abroad only): which charts and columns it has. */
+    audience: exports.LeaderAudience.default("local"),
     leader: zod_1.z.object({ name: zod_1.z.string().nullable(), email: zod_1.z.string() }),
     scopes: zod_1.z.array(exports.LeaderScope),
     /** The narrowing applied inside the leader's area, in words, or null. */
@@ -589,10 +800,35 @@ exports.GuestReport = zod_1.z.object({
         /** Guests staying today, whatever the period. */
         stayingNow: zod_1.z.number().int(),
         fromAbroad: zod_1.z.number().int(),
+        /** Rwandan guests: registered less those from abroad. */
+        nationals: zod_1.z.number().int().default(0),
+        /** How many nationalities the period's guests hold. */
+        nationalities: zod_1.z.number().int().default(0),
         flagged: zod_1.z.number().int(),
         /** Mean nights per stay, one decimal; null with no guests. */
         averageNights: zod_1.z.number().nullable(),
     }),
+    /**
+     * Guests in the area on each day of the period (arrived on or before it, not yet gone), and how many of
+     * them are from abroad: who was here, not only who arrived.
+     */
+    presentByDay: zod_1.z
+        .array(zod_1.z.object({ day: zod_1.z.string(), label: zod_1.z.string(), total: zod_1.z.number().int(), fromAbroad: zod_1.z.number().int() }))
+        .default([]),
+    /** Arrivals by type of place, with those from abroad and the mean stay there. */
+    byPlaceType: zod_1.z
+        .array(zod_1.z.object({
+        type: exports.GuestPlaceType,
+        label: zod_1.z.string(),
+        count: zod_1.z.number().int(),
+        fromAbroad: zod_1.z.number().int(),
+        averageNights: zod_1.z.number().nullable(),
+    }))
+        .default([]),
+    /** How long the stays are, in bands. */
+    stayBands: zod_1.z.array(zod_1.z.object({ band: exports.StayBand, label: zod_1.z.string(), count: zod_1.z.number().int() })).default([]),
+    /** When the guests were reported against their arrival day. */
+    timing: zod_1.z.array(zod_1.z.object({ timing: exports.ReportTiming, label: zod_1.z.string(), count: zod_1.z.number().int() })).default([]),
     /** The level the area table breaks down by: one below the widest post. */
     areaLevel: zod_1.z.enum(["sector", "cell", "village"]),
     byArea: zod_1.z.array(zod_1.z.object({ id: zod_1.z.number().int(), name: zod_1.z.string(), registered: zod_1.z.number().int(), fromAbroad: zod_1.z.number().int(), flagged: zod_1.z.number().int() })),
@@ -619,8 +855,18 @@ exports.GuestReport = zod_1.z.object({
         waiting: zod_1.z.number().int(),
     }))
         .default([]),
-    /** Homes with the most guests, by address: never a person's name. */
-    topHomes: zod_1.z.array(zod_1.z.object({ address: zod_1.z.string(), unitLabel: zod_1.z.string().nullable(), guests: zod_1.z.number().int() })),
+    /**
+     * Homes and places with the most guests: the business or building by name and type, its address and the
+     * unit, never a person's name.
+     */
+    topHomes: zod_1.z.array(zod_1.z.object({
+        name: zod_1.z.string().default(""),
+        placeLabel: zod_1.z.string().default(""),
+        address: zod_1.z.string(),
+        unitLabel: zod_1.z.string().nullable(),
+        guests: zod_1.z.number().int(),
+        fromAbroad: zod_1.z.number().int().default(0),
+    })),
     /** Records older than the retention period are purged; their counts are folded into the totals. */
     purged: zod_1.z.object({ before: zod_1.z.string(), registered: zod_1.z.number().int(), fromAbroad: zod_1.z.number().int(), flagged: zod_1.z.number().int() }).nullable(),
 });
