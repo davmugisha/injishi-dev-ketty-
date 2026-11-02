@@ -14,13 +14,17 @@
  *   - ratings of a broker by the landlord and the tenant of a lease they
  *     brought (`broker_ratings`), one per lease and side;
  *   - a broker's commission deals with hotels (`broker_hotel_deals`, 0124);
- *   - a broker's groups of rooms booked under a deal (`broker_booking_groups`, 0125).
+ *   - a broker's groups of rooms booked under a deal (`broker_booking_groups`, 0125);
+ *   - the commission those stays earn, what was taken off the hotel's payouts for it, and the MoMo
+ *     number the broker's share goes to (`broker_commissions`, `broker_commission_deductions`,
+ *     `broker_payout_accounts`, 0127).
  *
  * Statuses are enums built from `@injishi/contracts`. Money is whole francs;
  * plan periods are Kigali calendar days.
  */
 import {
   BrokerBookingPayment,
+  BrokerCommissionStatus,
   BrokerDealKind,
   BrokerDealStatus,
   BrokerFeeMethod,
@@ -49,7 +53,9 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { timestamps } from './columns';
-import { adapterModeEnum } from './enums';
+import { adapterModeEnum, momoNetworkEnum } from './enums';
+import { bookings } from './hospitality';
+import { payouts } from './money';
 import { provinces } from './geography';
 import { orgs, workspaces } from './org';
 import { brokers, leases } from './residence';
@@ -330,5 +336,100 @@ export const brokerBookingGroups = pgTable(
     index('broker_booking_groups_org_idx').on(t.orgId, t.createdAt),
     check('broker_booking_groups_dates_ck', sql`${t.checkOut} > ${t.checkIn}`),
     check('broker_booking_groups_total_ck', sql`${t.totalRwf} > 0`),
+  ],
+);
+
+export const brokerCommissionStatusEnum = pgEnum('broker_commission_status', BrokerCommissionStatus.options);
+
+/**
+ * A commission a broker earned (0127): one per booking on a percent deal (its percent of the room price for
+ * the nights stayed), one per group on a bulk deal (its sum, once the group's last room checked out). It is
+ * collected from the hotel's payouts, oldest first (`collected_rwf` grows; `broker_commission_deductions`
+ * says from which); once all of it is, the broker's share is paid out (`payout_id`).
+ */
+export const brokerCommissions = pgTable(
+  'broker_commissions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    brokerId: uuid('broker_id')
+      .notNull()
+      .references(() => brokers.id),
+    dealId: uuid('deal_id')
+      .notNull()
+      .references(() => brokerHotelDeals.id),
+    groupId: uuid('group_id')
+      .notNull()
+      .references(() => brokerBookingGroups.id),
+    /** The booking a percent commission was earned on; null on a bulk one, which is the group's. */
+    bookingId: uuid('booking_id').references(() => bookings.id),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id),
+    kind: brokerDealKindEnum('kind').notNull(),
+    baseRwf: integer('base_rwf'),
+    nightsStayed: integer('nights_stayed'),
+    commissionRwf: integer('commission_rwf').notNull(),
+    injishiRwf: integer('injishi_rwf').notNull(),
+    brokerRwf: integer('broker_rwf').notNull(),
+    collectedRwf: integer('collected_rwf').notNull().default(0),
+    status: brokerCommissionStatusEnum('status').notNull().default('owed'),
+    earnedAt: timestamp('earned_at', { withTimezone: true }).notNull().defaultNow(),
+    collectedAt: timestamp('collected_at', { withTimezone: true }),
+    payoutId: uuid('payout_id').references(() => payouts.id),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('broker_commissions_booking_uk').on(t.bookingId).where(sql`${t.bookingId} IS NOT NULL`),
+    uniqueIndex('broker_commissions_group_bulk_uk').on(t.groupId).where(sql`${t.kind} = 'bulk_fixed'`),
+    index('broker_commissions_org_owed_idx').on(t.orgId, t.earnedAt).where(sql`${t.status} = 'owed'`),
+    index('broker_commissions_broker_idx').on(t.brokerId, t.earnedAt),
+    check('broker_commissions_split_ck', sql`${t.injishiRwf} + ${t.brokerRwf} = ${t.commissionRwf} AND ${t.commissionRwf} > 0`),
+    check('broker_commissions_collected_ck', sql`${t.collectedRwf} BETWEEN 0 AND ${t.commissionRwf}`),
+    check(
+      'broker_commissions_status_ck',
+      sql`(${t.status} = 'collected') = (${t.collectedRwf} = ${t.commissionRwf} AND ${t.collectedAt} IS NOT NULL)`,
+    ),
+    check('broker_commissions_kind_ck', sql`(${t.kind} = 'percent') = (${t.bookingId} IS NOT NULL)`),
+  ],
+);
+
+/** What one stay's check-out gave towards one commission, and the hotel payout it came off (0127). */
+export const brokerCommissionDeductions = pgTable(
+  'broker_commission_deductions',
+  {
+    commissionId: uuid('commission_id')
+      .notNull()
+      .references(() => brokerCommissions.id),
+    /** The stay whose check-out paid it. */
+    bookingId: uuid('booking_id')
+      .notNull()
+      .references(() => bookings.id),
+    /** The hotel payout it came off; null when the whole of that stay's money went to commission. */
+    payoutId: uuid('payout_id').references(() => payouts.id),
+    amountRwf: integer('amount_rwf').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('broker_commission_deductions_pk').on(t.commissionId, t.bookingId),
+    index('broker_commission_deductions_payout_idx').on(t.payoutId),
+    check('broker_commission_deductions_amount_ck', sql`${t.amountRwf} > 0`),
+  ],
+);
+
+/** The MoMo number a broker's share of commissions is paid to (0127). One per broker. */
+export const brokerPayoutAccounts = pgTable(
+  'broker_payout_accounts',
+  {
+    brokerId: uuid('broker_id')
+      .primaryKey()
+      .references(() => brokers.id),
+    accountName: text('account_name').notNull(),
+    momoNetwork: momoNetworkEnum('momo_network').notNull(),
+    momoPhone: text('momo_phone').notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    check('broker_payout_accounts_phone_ck', sql`${t.momoPhone} ~ '^[+]250(72|73|78|79)[0-9]{7}$'`),
+    check('broker_payout_accounts_name_ck', sql`length(btrim(${t.accountName})) > 0`),
   ],
 );

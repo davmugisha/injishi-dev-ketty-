@@ -1,7 +1,8 @@
-import type { BrokerDealList } from "@injishi/contracts";
+import type { BrokerCommissionList, BrokerDealList } from "@injishi/contracts";
 import { EmptyBlock, PageContent, PageHeader } from "@injishi/ui";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { CommissionTable } from "@/features/broker/commission-table";
 import { BrokerDealsView } from "@/features/owner/broker-deals-view";
 import { currentAccount } from "@/lib/session";
 import { can, hostScope, orNull } from "@/server/rentals/client";
@@ -19,9 +20,12 @@ export default async function BrokersPage({ params }: { params: Promise<{ worksp
   const scope = await hostScope(workspaceId);
   if (!scope) notFound();
   const allowed = can(scope, "payout.manage");
-  const data = allowed
-    ? await orNull(scope.api.get<BrokerDealList>("/api/v1/ops/broker-deals", { workspaceId }))
-    : null;
+  const [data, commissions] = allowed
+    ? await Promise.all([
+        orNull(scope.api.get<BrokerDealList>("/api/v1/ops/broker-deals", { workspaceId })),
+        orNull(scope.api.get<BrokerCommissionList>("/api/v1/ops/broker-deals/commissions", { workspaceId })),
+      ])
+    : [null, null];
   return (
     <PageContent>
       <PageHeader
@@ -31,7 +35,19 @@ export default async function BrokersPage({ params }: { params: Promise<{ worksp
       />
       <div className="flex max-w-[960px] flex-col gap-5">
         {data ? (
-          <BrokerDealsView workspaceId={workspaceId} data={data} />
+          <>
+            <BrokerDealsView workspaceId={workspaceId} data={data} />
+            {commissions ? (
+              <section className="flex flex-col gap-3">
+                <h2 className="text-lg font-semibold">Commissions</h2>
+                <p className="text-sm text-muted">
+                  Earned when a guest a broker booked checks out, on the nights they stayed. It comes off your next
+                  payouts, oldest first.
+                </p>
+                <CommissionTable data={commissions} side="hotel" />
+              </section>
+            ) : null}
+          </>
         ) : (
           <EmptyBlock
             icon="Briefcase"

@@ -12,6 +12,7 @@ import {
   workspaces,
 } from '../../../database/drizzle/schema';
 import { destinationOf } from '../../rentals/domain/payout-accounts';
+import { brokerCommissions } from './broker-commission.repository';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 
 /** The escrows that are the stay's money and are paid to the host: a caution deposit never is. */
@@ -39,7 +40,9 @@ export interface CompletedStay {
  * the business has none; the payouts pass (`PayoutsService.sweep`) sends a
  * queued one and releases a held one once an account is added.
  *
- * Injishi takes no commission, so the payout is the whole escrow.
+ * Injishi takes no commission of its own. A stay a broker booked (0127) earns
+ * its broker's commission here, and what the hotel owes its brokers, oldest
+ * first, comes off this payout: the hotel is paid the rest.
  */
 @Injectable()
 export class StayCompletionRepository {
@@ -54,6 +57,10 @@ export class StayCompletionRepository {
         .where(and(eq(bookings.id, bookingId), eq(bookings.status, 'confirmed'), isNull(bookings.completedAt)))
         .returning({ id: bookings.id, reference: bookings.reference, workspaceId: bookings.workspaceId });
       if (!booking) return null;
+
+      // A broker's stay earns its commission now, paid at the hotel or not (0127). What the hotel owes is
+      // collected below, from this payout or a later one.
+      await brokerCommissions.earn(tx, bookingId, now);
 
       // Every escrow the booking holds: its own, and any difference a guest paid by MoMo for a desk
       // change (0120). The booking's own comes first; a change's credit is refunded against it.
@@ -135,6 +142,13 @@ export class StayCompletionRepository {
             .limit(1)
         : [];
 
+      // What the hotel owes its brokers comes off first, this stay's own commission included (0127).
+      const collected = org
+        ? await brokerCommissions.collect(tx, org.orgId, bookingId, amountRwf, now)
+        : { remainingRwf: amountRwf, deductedRwf: 0 };
+      const netRwf = collected.remainingRwf;
+      if (netRwf <= 0) return { bookingId, reference: booking.reference, payout: null, changeCredit };
+
       const status = account ? ('queued' as const) : ('held' as const);
       const destinationMasked = account ? destinationOf(account) : null;
       const [payout] = await tx
@@ -144,7 +158,7 @@ export class StayCompletionRepository {
           payeeType: 'host',
           source: 'booking',
           status,
-          amountRwf,
+          amountRwf: netRwf,
           idempotencyKey: `${booking.workspaceId}:payout:booking:${bookingId}`,
           payoutAccountId: account?.id ?? null,
           destination: account ? (account.kind === 'bank' ? 'bank' : account.kind === 'momo' ? 'momo' : 'momo_pay') : null,
@@ -152,15 +166,19 @@ export class StayCompletionRepository {
           payeeName: org?.legalName ?? null,
           failureReason: account ? null : NO_PAYOUT_ACCOUNT_REASON,
           scheduledReleaseAt: now,
-          note: `Booking ${booking.reference}`,
+          note:
+            collected.deductedRwf > 0
+              ? `Booking ${booking.reference}, less RWF ${collected.deductedRwf.toLocaleString('en-US')} broker commission`
+              : `Booking ${booking.reference}`,
         })
         .onConflictDoNothing({ target: payouts.idempotencyKey })
         .returning({ id: payouts.id });
+      if (payout && collected.deductedRwf > 0) await brokerCommissions.attach(tx, bookingId, payout.id);
 
       return {
         bookingId,
         reference: booking.reference,
-        payout: payout ? { id: payout.id, amountRwf, status, destinationMasked } : null,
+        payout: payout ? { id: payout.id, amountRwf: netRwf, status, destinationMasked } : null,
         changeCredit,
       };
     });

@@ -5,11 +5,14 @@ import {
   BrokerPlanCheckoutRequest,
   BrokerRoomsQuery,
   CreateBrokerBookingRequest,
+  SetBrokerPayoutAccountRequest,
   EndBrokerDealRequest,
   ProposeBrokerDealRequest,
   StartPlacementRequest,
   type BrokerBookingGroup,
   type BrokerBookingList,
+  type BrokerCommissionList,
+  type BrokerPayoutAccount,
   type BrokerDeal,
   type BrokerDealList,
   type BrokerHotels,
@@ -31,6 +34,7 @@ import { Throttle } from '@nestjs/throttler';
 
 import { BrokerBookingsService } from '../../../modules/brokers/application/broker-bookings.service';
 import { BrokerDealsService } from '../../../modules/brokers/application/broker-deals.service';
+import { BrokerPayoutsService } from '../../../modules/brokers/application/broker-payouts.service';
 import { BrokerHomesService } from '../../../modules/brokers/application/broker-homes.service';
 import { BrokerPlansService } from '../../../modules/brokers/application/broker-plans.service';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
@@ -59,6 +63,7 @@ export class OpsBrokerController {
     private readonly plans: BrokerPlansService,
     private readonly deals: BrokerDealsService,
     private readonly bookings: BrokerBookingsService,
+    private readonly brokerPayouts: BrokerPayoutsService,
   ) {}
 
   @Get('summary')
@@ -246,5 +251,28 @@ export class OpsBrokerController {
   @Get('bookings/:id')
   brokerBooking(@Param('id', ParseUUIDPipe) id: string, @CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerBookingGroup> {
     return this.bookings.get(workspace, id);
+  }
+
+  // --- Commission (0127): earned on hotel stays, paid to the broker's MoMo number ----------------------
+
+  @Get('commissions')
+  commissions(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerCommissionList> {
+    return this.brokerPayouts.brokerCommissions(workspace);
+  }
+
+  @Get('payout-account')
+  payoutAccount(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerPayoutAccount | null> {
+    return this.brokerPayouts.account(workspace);
+  }
+
+  /** Where the broker's share is paid. A share that waited for a number is sent to it at once. */
+  @Put('payout-account')
+  @UseGuards(UserThrottlerGuard)
+  @Throttle({ money: { limit: 10, ttl: 60_000 } })
+  setPayoutAccount(
+    @Body(new ZodValidationPipe(SetBrokerPayoutAccountRequest)) body: SetBrokerPayoutAccountRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<BrokerPayoutAccount> {
+    return this.brokerPayouts.setAccount(workspace, body);
   }
 }

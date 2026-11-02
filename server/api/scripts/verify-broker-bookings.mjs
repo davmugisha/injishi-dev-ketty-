@@ -11,7 +11,10 @@
 //     the broker, deal and group on each, the guest's own name, and the hotel's reservations show it;
 //   - paid by MoMo, one prompt for the group; nothing is booked until it lands, then every room is booked
 //     with its own escrow share, and the shares add up to the one payment;
-//   - a broker never reads another broker's booking.
+//   - a broker never reads another broker's booking;
+//   - at check-out (0127): a pay-at-hotel stay earns 10% of the nights stayed and leaves it owed; a prepaid
+//     stay's payout is its escrow less every commission the hotel owes, oldest first; a fully collected
+//     commission pays the broker 85%, held until they add a MoMo number and paid when they do.
 //
 // It WRITES deals and bookings, so it runs against a SAMPLE database only (refused otherwise), with the API
 // serving that database up, in demo mode (the fixed code):
@@ -108,6 +111,13 @@ async function main() {
     // A clean slate for this pair, so the run can be repeated.
     const brokerRow = (await db.query(`select b.id from brokers b join users u on u.id = b.user_id where u.email = $1`, [BROKER])).rows[0];
     if (!brokerRow) throw new Error(`${BROKER} has no broker row; seed the sample world first.`);
+    // Phase 3: the commissions, what came off the hotel's payouts for them, and every payout of these stays.
+    await db.query(`delete from broker_commission_deductions where commission_id in (select id from broker_commissions where broker_id = $1)`, [brokerRow.id]);
+    await db.query(`update broker_commissions set payout_id = null where broker_id = $1`, [brokerRow.id]);
+    await db.query(`delete from payouts where source = 'broker_commission' and idempotency_key in (select 'broker-commission:' || id from broker_commissions where broker_id = $1)`, [brokerRow.id]);
+    await db.query(`delete from broker_commissions where broker_id = $1`, [brokerRow.id]);
+    await db.query(`delete from payouts where idempotency_key in (select workspace_id || ':payout:booking:' || id from bookings where broker_id = $1)`, [brokerRow.id]);
+    await db.query(`delete from broker_payout_accounts where broker_id = $1`, [brokerRow.id]);
     const stays = `select id from guest_stays where booking_id in (select id from bookings where broker_id = $1)`;
     const folios = `select id from folios where guest_stay_id in (${stays})`;
     // What a check-in files alongside the stay: the guest register (0114), the stay's ID, its tasks and thread.
@@ -271,11 +281,109 @@ async function main() {
     )).rows[0].n);
     check('…with no online prepayment credited on the bill', deposit === 0);
 
+    console.log('\nCommission (phase 3)');
+    const ericStay = stay;
+    const ericOut = await as(OWNER, 'POST', `/api/v1/ops/stays/${ericStay?.id}/checkout`, hotelWs, {});
+    check('the pay-at-hotel guest checks out', ericOut.status === 200 || ericOut.status === 201, `${ericOut.status} ${ericOut.message}`);
+    const ericBooking = (await db.query(`select locked_nightly_rate_rwf from bookings where id = $1`, [tonightBooking])).rows[0];
+    const ericC = (await db.query(`select * from broker_commissions where booking_id = $1`, [tonightBooking])).rows[0];
+    const ericExpected = Math.round(Number(ericBooking?.locked_nightly_rate_rwf) * 1 * 0.1);
+    check('…earns 10% of the room for the one night stayed', ericC && ericC.kind === 'percent' && Number(ericC.nights_stayed) === 1 && Number(ericC.commission_rwf) === ericExpected, JSON.stringify(ericC && { n: ericC.nights_stayed, c: ericC.commission_rwf, e: ericExpected }));
+    check('…split 85 / 15', ericC && Number(ericC.injishi_rwf) === Math.round(ericExpected * 0.15) && Number(ericC.broker_rwf) + Number(ericC.injishi_rwf) === ericExpected);
+    check('…and it is owed: no escrow to take it from', ericC?.status === 'owed' && Number(ericC.collected_rwf) === 0);
+    const owedView = await as(OWNER, 'GET', '/api/v1/ops/broker-deals/commissions', hotelWs);
+    check('the hotel sees what it owes', owedView.json?.totals?.owedRwf === ericExpected, `${owedView.status} ${JSON.stringify(owedView.json?.totals)}`);
+
+    const prepaid = await as(BROKER, 'POST', `/api/v1/ops/broker/hotels/${HOTEL}/bookings`, brokerWs, {
+      checkIn: day(0),
+      checkOut: day(1),
+      rooms: [room('Grace Mukamana')],
+      contactPhone: '+250 788 000 111',
+      payment: { method: 'momo', instrument: { kind: 'mobile_money', network: 'mtn_momo', msisdn: '788123456' }, attemptToken: crypto.randomUUID() },
+    });
+    let g3 = prepaid.json;
+    for (let i = 0; i < 20 && g3?.status === 'awaiting_payment'; i++) {
+      await sleep(1500);
+      g3 = (await as(BROKER, 'GET', `/api/v1/ops/broker/bookings/${prepaid.json?.id}`, brokerWs)).json;
+    }
+    const graceBooking = g3?.rooms?.[0]?.booking?.id;
+    check('a prepaid room for tonight is booked', g3?.status === 'booked' && Boolean(graceBooking), `${prepaid.status} ${g3?.status}`);
+    const graceRoom = (await db.query(
+      `select r.id from rooms r where r.room_type_id = $1 and r.status = 'available'
+          and not exists (select 1 from guest_stays s where s.room_id = r.id and s.lifecycle = 'open')
+        order by r.label limit 1`,
+      [type.id],
+    )).rows[0]?.id;
+    const graceIn = await as(OWNER, 'POST', `/api/v1/ops/stays/${graceBooking}/checkin`, hotelWs, { roomId: graceRoom });
+    const graceStay = (await db.query(`select id from guest_stays where booking_id = $1`, [graceBooking])).rows[0];
+    const graceOut = await as(OWNER, 'POST', `/api/v1/ops/stays/${graceStay?.id}/checkout`, hotelWs, {});
+    check('the prepaid guest checks in and out', [200, 201].includes(graceIn.status) && [200, 201].includes(graceOut.status), `${graceIn.status} ${graceOut.status} ${graceOut.message}`);
+    const escrow = Number((await db.query(`select sum(amount_rwf)::int n from escrows where booking_id = $1`, [graceBooking])).rows[0].n);
+    const graceC = (await db.query(`select * from broker_commissions where booking_id = $1`, [graceBooking])).rows[0];
+    const hostPayout = (await db.query(`select amount_rwf, note from payouts where idempotency_key like $1`, [`%:payout:booking:${graceBooking}`])).rows[0];
+    const owedBoth = ericExpected + Number(graceC?.commission_rwf ?? 0);
+    check('the hotel’s payout is the escrow less both commissions, oldest first', hostPayout && Number(hostPayout.amount_rwf) === escrow - owedBoth, JSON.stringify({ escrow, owedBoth, payout: hostPayout?.amount_rwf }));
+    check('…and says why it is smaller', String(hostPayout?.note).includes('broker commission'));
+    const collected = (await db.query(`select status::text, collected_rwf, commission_rwf from broker_commissions where broker_id = $1 order by earned_at`, [brokerRow.id])).rows;
+    check('both commissions are now collected in full', collected.length === 2 && collected.every((c) => c.status === 'collected' && Number(c.collected_rwf) === Number(c.commission_rwf)));
+    const deductions = Number((await db.query(`select coalesce(sum(amount_rwf), 0)::int n from broker_commission_deductions d join broker_commissions c on c.id = d.commission_id where c.broker_id = $1`, [brokerRow.id])).rows[0].n);
+    check('…and the deductions add up to them', deductions === owedBoth);
+    const held = (await db.query(`select status::text, amount_rwf from payouts where source = 'broker_commission' and idempotency_key in (select 'broker-commission:' || id from broker_commissions where broker_id = $1)`, [brokerRow.id])).rows;
+    check('the broker’s 85% waits for a MoMo number', held.length === 2 && held.every((h) => h.status === 'held'), JSON.stringify(held));
+    const setNumber = await as(BROKER, 'PUT', '/api/v1/ops/broker/payout-account', brokerWs, { accountName: 'Test Broker', phone: '078 812 3456' });
+    check('the broker adds their MoMo number', setNumber.status === 200 && String(setNumber.json?.phoneMasked).includes('456'), `${setNumber.status} ${setNumber.message}`);
+    const shares = (await db.query(`select status::text, amount_rwf from payouts where source = 'broker_commission' and idempotency_key in (select 'broker-commission:' || id from broker_commissions where broker_id = $1)`, [brokerRow.id])).rows;
+    check('…and both shares are paid to it', shares.length === 2 && shares.every((h) => h.status === 'paid'), JSON.stringify(shares));
+    const brokerView = await as(BROKER, 'GET', '/api/v1/ops/broker/commissions', brokerWs);
+    check('the broker sees what was paid', brokerView.json?.totals?.paidToBrokerRwf === shares.reduce((s, h) => s + Number(h.amount_rwf), 0) && brokerView.json?.totals?.owedRwf === 0, JSON.stringify(brokerView.json?.totals));
+    const hotelView = await as(OWNER, 'GET', '/api/v1/ops/broker-deals/commissions', hotelWs);
+    check('the hotel owes nothing now', hotelView.json?.totals?.owedRwf === 0 && hotelView.json?.totals?.collectedRwf === owedBoth);
+
+    console.log('\nBulk deal (phase 3)');
+    const ended = await as(BROKER, 'POST', `/api/v1/ops/broker/deals/${proposed.json?.id}/end`, brokerWs, {});
+    const bulk = await as(BROKER, 'POST', `/api/v1/ops/broker/hotels/${HOTEL}/deals`, brokerWs, {
+      terms: { kind: 'bulk_fixed', amountRwf: 50000, minRooms: 2 },
+    });
+    const bulkOk = await as(OWNER, 'POST', `/api/v1/ops/broker-deals/${bulk.json?.id}/decision`, hotelWs, { decision: 'accept' });
+    check('the percent deal ends and a bulk deal (RWF 50,000 for 2+ rooms) runs', ended.json?.status === 'ended' && bulkOk.json?.status === 'active', `${ended.status} ${bulk.status} ${bulkOk.status}`);
+    const tonightTypes = (await as(BROKER, 'GET', `/api/v1/ops/broker/hotels/${HOTEL}/rooms?checkIn=${day(0)}&checkOut=${day(1)}`, brokerWs)).json?.roomTypes ?? [];
+    const pairType = tonightTypes.find((t) => t.freeRooms >= 2);
+    const pair = pairType
+      ? await as(BROKER, 'POST', `/api/v1/ops/broker/hotels/${HOTEL}/bookings`, brokerWs, {
+          checkIn: day(0),
+          checkOut: day(1),
+          rooms: [
+            { roomTypeId: pairType.id, guestName: 'Patrick Niyonzima', guestPhone: null, adults: 1, children: 0 },
+            { roomTypeId: pairType.id, guestName: 'Solange Umutoni', guestPhone: null, adults: 1, children: 0 },
+          ],
+          contactPhone: '+250 788 000 111',
+          payment: { method: 'at_hotel' },
+        })
+      : { status: 0, json: null, message: 'no room type with 2 free tonight' };
+    check('two rooms are booked under it for tonight', pair.json?.status === 'booked', `${pair.status} ${pair.message}`);
+    const pairBookings = (pair.json?.rooms ?? []).map((r) => r.booking?.id);
+    const pairRooms = (await db.query(
+      `select r.id from rooms r where r.room_type_id = $1 and r.status = 'available'
+          and not exists (select 1 from guest_stays s where s.room_id = r.id and s.lifecycle = 'open')
+        order by r.label limit 2`,
+      [pairType?.id],
+    )).rows.map((r) => r.id);
+    for (const [i, b] of pairBookings.entries()) await as(OWNER, 'POST', `/api/v1/ops/stays/${b}/checkin`, hotelWs, { roomId: pairRooms[i] });
+    const pairStays = (await db.query(`select id, booking_id from guest_stays where booking_id = any($1::uuid[])`, [pairBookings])).rows;
+    const stayOf = (b) => pairStays.find((x) => x.booking_id === b)?.id;
+    await as(OWNER, 'POST', `/api/v1/ops/stays/${stayOf(pairBookings[0])}/checkout`, hotelWs, {});
+    const afterFirst = Number((await db.query(`select count(*)::int n from broker_commissions where group_id = $1`, [pair.json?.id])).rows[0].n);
+    check('nothing is earned while a room of the group is still staying', pairStays.length === 2 && afterFirst === 0, `${pairStays.length} ${afterFirst}`);
+    await as(OWNER, 'POST', `/api/v1/ops/stays/${stayOf(pairBookings[1])}/checkout`, hotelWs, {});
+    const bulkC = (await db.query(`select kind::text, booking_id, commission_rwf, injishi_rwf, broker_rwf, status::text from broker_commissions where group_id = $1`, [pair.json?.id])).rows;
+    check('the last check-out earns the whole sum, once, on the group', bulkC.length === 1 && bulkC[0].kind === 'bulk_fixed' && bulkC[0].booking_id === null && Number(bulkC[0].commission_rwf) === 50000, JSON.stringify(bulkC));
+    check('…split 42,500 / 7,500, owed by the hotel', Number(bulkC[0]?.broker_rwf) === 42500 && Number(bulkC[0]?.injishi_rwf) === 7500 && bulkC[0]?.status === 'owed');
+
     console.log('\nPrivacy');
     const peek = await as(OTHER_BROKER, 'GET', `/api/v1/ops/broker/bookings/${g1?.id}`, otherWs);
     check('another broker cannot read this broker’s booking (404)', peek.status === 404, `${peek.status}`);
     const mine = await as(BROKER, 'GET', '/api/v1/ops/broker/bookings', brokerWs);
-    check('the broker’s list has all three groups', mine.json?.groups?.length === 3, `${mine.json?.groups?.length}`);
+    check('the broker’s list has all five groups', mine.json?.groups?.length === 5, `${mine.json?.groups?.length}`);
   } finally {
     await db.end();
   }

@@ -8,6 +8,7 @@ import { RentalsMailer } from '../rentals/infrastructure/rentals.mailer';
 import { StorageModule } from '../storage/storage.module';
 import { BrokerBookingsService } from './application/broker-bookings.service';
 import { BrokerDealsService } from './application/broker-deals.service';
+import { BrokerPayoutsService } from './application/broker-payouts.service';
 import { BrokerHomesService } from './application/broker-homes.service';
 import { BrokerPlansService } from './application/broker-plans.service';
 import { BrokerRegistrationFeeService } from './application/broker-registration-fee.service';
@@ -41,8 +42,9 @@ import { BrokersRepository } from './infrastructure/brokers.repository';
     BrokerDealsRepository,
     BrokerDealsService,
     BrokerBookingsService,
+    BrokerPayoutsService,
     ...(isWorkerProcess() ? [BrokerPlansProcessor] : []),
   ],
-  exports: [BrokerPlansService, BrokerHomesService, BrokerRegistrationFeeService, BrokerPlansRepository, BrokerDealsService, BrokerBookingsService],
+  exports: [BrokerPlansService, BrokerHomesService, BrokerRegistrationFeeService, BrokerPlansRepository, BrokerDealsService, BrokerBookingsService, BrokerPayoutsService],
 })
 export class BrokersModule {}

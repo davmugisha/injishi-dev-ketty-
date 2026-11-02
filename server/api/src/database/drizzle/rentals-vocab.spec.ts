@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  BrokerBookingPayment,
+  BrokerCommissionStatus,
+  BrokerDealKind,
+  BrokerDealStatus,
   BrokerFeeKind,
   BrokerFeeMethod,
+  BrokerGroupStatus,
   BrokerPayMethod,
   BrokerPaymentKind,
   BrokerPaymentStatus,
@@ -87,8 +92,13 @@ import {
   rentalUnitStateEnum,
   signerRoleEnum,
   taxDeclarationStatusEnum,
+  brokerBookingPaymentEnum,
+  brokerCommissionStatusEnum,
+  brokerDealKindEnum,
+  brokerDealStatusEnum,
   brokerFeeKindEnum,
   brokerFeeMethodEnum,
+  brokerGroupStatusEnum,
   brokerPayMethodEnum,
   brokerPaymentKindEnum,
   brokerPaymentStatusEnum,
@@ -163,6 +173,12 @@ const PAIRS: ReadonlyArray<readonly [string, { enumName: string; enumValues: rea
   ['broker_payment_status', brokerPaymentStatusEnum, BrokerPaymentStatus],
   ['broker_payment_kind', brokerPaymentKindEnum, BrokerPaymentKind],
   ['broker_fee_method', brokerFeeMethodEnum, BrokerFeeMethod],
+  // Brokers and hotels (2026-11-02): deals (0124), bookings (0125), commission (0127).
+  ['broker_deal_kind', brokerDealKindEnum, BrokerDealKind],
+  ['broker_deal_status', brokerDealStatusEnum, BrokerDealStatus],
+  ['broker_booking_payment', brokerBookingPaymentEnum, BrokerBookingPayment],
+  ['broker_group_status', brokerGroupStatusEnum, BrokerGroupStatus],
+  ['broker_commission_status', brokerCommissionStatusEnum, BrokerCommissionStatus],
 ];
 
 describe('rentals database enums match the contracts vocabulary', () => {

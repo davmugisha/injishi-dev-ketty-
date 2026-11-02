@@ -1,6 +1,7 @@
 import {
   DecideBrokerDealRequest,
   EndBrokerDealRequest,
+  type BrokerCommissionList,
   type BrokerDeal,
   type BrokerDealList,
   type WorkspaceAccess,
@@ -8,6 +9,7 @@ import {
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
 
 import { BrokerDealsService } from '../../../modules/brokers/application/broker-deals.service';
+import { BrokerPayoutsService } from '../../../modules/brokers/application/broker-payouts.service';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import { CurrentWorkspace, RequirePermission, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
@@ -22,12 +24,22 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 @Controller({ path: 'ops/broker-deals', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
 export class OpsBrokerDealsController {
-  constructor(private readonly deals: BrokerDealsService) {}
+  constructor(
+    private readonly deals: BrokerDealsService,
+    private readonly payouts: BrokerPayoutsService,
+  ) {}
 
   @Get()
   @RequirePermission('payout.manage')
   list(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerDealList> {
     return this.deals.hotelDeals(workspace);
+  }
+
+  /** What the hotel owes its brokers in commission, and what came off its payouts (0127). */
+  @Get('commissions')
+  @RequirePermission('payout.manage')
+  commissions(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerCommissionList> {
+    return this.payouts.hotelCommissions(workspace);
   }
 
   /** Accept or decline a broker's proposal. */

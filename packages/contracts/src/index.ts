@@ -30,6 +30,7 @@ export * from "./broker";
 export * from "./broker-plans";
 export * from "./broker-deals";
 export * from "./broker-bookings";
+export * from "./broker-commissions";
 export * from "./ordering";
 export * from "./outlets";
 export * from "./property-detail";

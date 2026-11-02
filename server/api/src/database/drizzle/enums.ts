@@ -820,6 +820,8 @@ export const payoutDestinationEnum = pgEnum('payout_destination', [
 
 export const payoutSourceEnum = pgEnum('payout_source', [
   'booking',
+  // A broker's 85% of a hotel commission, once collected from the hotel (migration 0127).
+  'broker_commission',
   'rent',
   'placement_fee',
   // Rentals (migration 0073).

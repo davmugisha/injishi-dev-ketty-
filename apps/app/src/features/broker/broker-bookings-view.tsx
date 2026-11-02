@@ -1,6 +1,12 @@
 "use client";
 
-import type { BrokerBookingGroup, BrokerBookingList, BrokerGroupStatus } from "@injishi/contracts";
+import type {
+  BrokerBookingGroup,
+  BrokerBookingList,
+  BrokerCommissionList,
+  BrokerGroupStatus,
+  BrokerPayoutAccount,
+} from "@injishi/contracts";
 import {
   ActionButton,
   type DataColumn,
@@ -18,6 +24,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { pollBooking } from "./actions";
+import { CommissionTable, PayoutNumberCard } from "./commission-table";
 
 const STATUS: Record<BrokerGroupStatus, { tone: StatusTone; label: string }> = {
   awaiting_payment: { tone: "warning", label: "Waiting for payment" },
@@ -34,7 +41,15 @@ const dates = (g: BrokerBookingGroup) =>
   `${formatDay(g.checkIn, "short")} – ${formatDay(g.checkOut, "short")} · ${g.nights} ${g.nights === 1 ? "night" : "nights"}`;
 
 /** Every group of rooms the broker booked (0125), newest first. */
-export function BrokerBookingsView({ data }: { data: BrokerBookingList }) {
+export function BrokerBookingsView({
+  data,
+  commissions,
+  account,
+}: {
+  data: BrokerBookingList;
+  commissions: BrokerCommissionList;
+  account: BrokerPayoutAccount | null;
+}) {
   const router = useRouter();
   const booked = data.groups.filter((g) => g.status === "booked");
   const columns: DataColumn<BrokerBookingGroup>[] = [
@@ -127,6 +142,10 @@ export function BrokerBookingsView({ data }: { data: BrokerBookingList }) {
           />
         }
       />
+      <SectionCard title="Commission">
+        <CommissionTable data={commissions} side="broker" />
+      </SectionCard>
+      <PayoutNumberCard account={account} />
     </PageContent>
   );
 }
@@ -192,9 +211,9 @@ export function BrokerBookingView({ group: initial }: { group: BrokerBookingGrou
         {group.commission.note ? <p className="text-sm text-muted">{group.commission.note}</p> : null}
         <SectionCard title={`${group.rooms.length} ${group.rooms.length === 1 ? "room" : "rooms"}`}>
           <ul className="flex flex-col divide-y divide-border">
-            {group.rooms.map((r, i) => (
+            {group.rooms.map((r) => (
               <li
-                key={`${r.roomTypeId}-${i}`}
+                key={r.booking?.id ?? `${r.roomTypeId}-${r.guestName}`}
                 className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm"
               >
                 <span className="flex min-w-0 flex-col">

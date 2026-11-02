@@ -11,6 +11,7 @@ import {
   type BrokerDeal,
   type BrokerHome,
   BrokerHomeDistrictRequest,
+  type BrokerPayoutAccount,
   type BrokerPlacement,
   BrokerPlanChangeRequest,
   BrokerPlanCheckoutRequest,
@@ -22,6 +23,7 @@ import {
   CreateBrokerBookingRequest,
   EndBrokerDealRequest,
   ProposeBrokerDealRequest,
+  SetBrokerPayoutAccountRequest,
   StartPlacementRequest,
 } from "@injishi/contracts";
 import { revalidatePath } from "next/cache";
@@ -185,5 +187,14 @@ export async function pollBooking(id: string): Promise<ActionResult<BrokerBookin
   return runBroker(
     (s) => s.api.get<BrokerBookingGroup>(`/api/v1/ops/broker/bookings/${id}`, ws(s)),
     "That booking is not there.",
+  );
+}
+
+/** Where the broker's share of hotel commissions is paid; a share that waited for a number goes out at once. */
+export async function setPayoutNumber(input: unknown): Promise<ActionResult<BrokerPayoutAccount>> {
+  const parsed = parse(SetBrokerPayoutAccountRequest, input);
+  if (!parsed.ok) return invalid(parsed.error);
+  return changed(
+    await runBroker((s) => s.api.put<BrokerPayoutAccount>("/api/v1/ops/broker/payout-account", parsed.data, ws(s))),
   );
 }

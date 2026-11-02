@@ -82,6 +82,10 @@ export default tseslint.config(
             'OpsBrokerController.createBooking',
             'OpsBrokerController.brokerBookings',
             'OpsBrokerController.brokerBooking',
+            // Commission and the payout number (0127), for the same reason.
+            'OpsBrokerController.commissions',
+            'OpsBrokerController.payoutAccount',
+            'OpsBrokerController.setPayoutAccount',
             // `/api/v1/ops/broker/messages` (2026-10-26), for the same reason:
             // `PlacementMessagesService` refuses a workspace that is not a
             // broker's own (403) and a placement that is not theirs (404).
