@@ -53,7 +53,7 @@ const STANDINGS: { id: RegisterView; label: string }[] = [
   { id: "renewal_due", label: "Renewal due" },
   { id: "payment_due", label: "Awaiting payment" },
   { id: "applied", label: "Waiting for approval" },
-  { id: "claimed", label: "Claimed" },
+  { id: "claimed", label: "Card holders" },
   { id: "awaiting_payment", label: "Approved, to pay" },
   { id: "lapsed", label: "Lapsed" },
   { id: "declined", label: "Declined" },
@@ -403,7 +403,7 @@ export function PsfRegisterView({
                 payments
                   ? "Every application sent in your region is paid."
                   : filters.view === "claimed"
-                    ? "No business in this region has a card waiting on PSF. A claim you confirm in Membership claims makes it a member."
+                    ? "No business in this region has a card waiting on PSF. A card you confirm in Card holders makes it a member."
                     : narrowed
                       ? "Change the filters, or Clear all."
                       : "None in this region yet."

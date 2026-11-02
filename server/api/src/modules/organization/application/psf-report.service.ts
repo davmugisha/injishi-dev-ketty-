@@ -183,6 +183,8 @@ export class PsfReportService {
         approved: kpi('approved'),
         declined: kpi('declined'),
         newMembers: kpi('newMembers'),
+        renewed: kpi('renewed'),
+        cardHolders: kpi('cardHolders'),
         membershipFeesRwf: kpi('membershipFeesRwf'),
         medianDecisionDays: { value: round1(median(current.decisionDays)), previous: round1(median(previous.decisionDays)) },
       },

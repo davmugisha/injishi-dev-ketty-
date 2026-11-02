@@ -15,11 +15,13 @@ import {
   type RegistrationMail,
 } from './registration-mail';
 
-/** The business's PSF membership page, inside the operator zone on web's origin. */
-export function psfMembershipLink(webUrl: string, workspaceId: string | null): string {
-  return workspaceId
-    ? new URL(`/w/${workspaceId}/psf-membership`, webUrl).toString()
-    : new URL('/start', webUrl).toString();
+/**
+ * Where an owner with an account follows its PSF membership when it has no docID to track (2026-11-02):
+ * Compliance in the app, which shows its PSF standing. The old `/w/<id>/psf-membership` on web opened
+ * nothing: web has no such page, and it fell through to the person's home.
+ */
+export function psfMembershipLink(appUrl: string): string {
+  return new URL('/compliance', appUrl).toString();
 }
 
 /** The public tracking page an applicant with no account follows (2026-10-19). */
@@ -27,9 +29,11 @@ export function psfTrackLink(webUrl: string, docId: string): string {
   return new URL(`/psf/track/${encodeURIComponent(docId)}`, webUrl).toString();
 }
 
-/** The PSF District Manager's queue. */
-export function psfQueueLink(webUrl: string): string {
-  return new URL('/oversight/membership/queue', webUrl).toString();
+/** A membership's card (2026-11-02): the page the certificate's QR code opens, by membership number. */
+export function psfCardLink(webUrl: string, membershipNumber: string): string {
+  const url = new URL('/psf/card', webUrl);
+  url.searchParams.set('number', membershipNumber);
+  return url.toString();
 }
 
 /** One application in the PSF console (2026-11-02), where the officer decides it. The app, not web. */

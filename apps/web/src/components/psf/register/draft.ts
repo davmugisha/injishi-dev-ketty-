@@ -108,6 +108,13 @@ export interface PsfDraft {
   family: PsfMembershipFamily | "";
   tierCode: string;
   amount: string;
+  /**
+   * A holder of an old PSF card joining the new module (2026-11-02): no fee now, the level on its card,
+   * and the card itself, uploaded under the ID check. PSF gives a new number and the certificate.
+   */
+  cardHolder: boolean;
+  cardObjectKey: string;
+  cardName: string;
 
   payer: string;
   agree: boolean;
@@ -151,6 +158,9 @@ export const EMPTY_DRAFT: PsfDraft = {
   family: "",
   tierCode: "",
   amount: "",
+  cardHolder: false,
+  cardObjectKey: "",
+  cardName: "",
   payer: "",
   agree: false,
 };
@@ -297,8 +307,10 @@ function validateBusinessAll(d: PsfDraft): Errors {
  */
 export function validateMembership(d: PsfDraft, tiers: PsfTier[], fees: PsfFeesView | null): Errors {
   const tier = tiers.find((t) => t.code === d.tierCode);
-  if (!d.family) return { "membership.family": "Pick a membership." };
-  if (!tier) return { "membership.tierCode": "Pick the band you can afford." };
+  if (!d.family) return { "membership.family": d.cardHolder ? "Pick the level printed on your card." : "Pick a membership." };
+  if (!tier) return { "membership.tierCode": d.cardHolder ? "Pick the band printed on your card." : "Pick the band you can afford." };
+  // A card holder pays nothing now: its card, not an amount (2026-11-02).
+  if (d.cardHolder) return d.cardObjectKey ? {} : { "membership.cardObjectKey": "Add a photo or scan of your PSF card." };
   if (!fees) return { "membership.declaredFeeRwf": "Loading PSF's price for your district. Try again in a moment." };
   const band = fees.fees.find((f) => f.tierCode === tier.code);
   const price = band?.amountRwf ?? null;
@@ -318,7 +330,7 @@ export function validateMembership(d: PsfDraft, tiers: PsfTier[], fees: PsfFeesV
 export function validateReview(d: PsfDraft): Errors {
   const errors: Errors = {};
   const momo = MomoPhone.safeParse(d.payer);
-  if (!momo.success) errors.payerPhoneE164 = momo.error.issues[0]?.message ?? "Give a mobile money number.";
+  if (!d.cardHolder && !momo.success) errors.payerPhoneE164 = momo.error.issues[0]?.message ?? "Give a mobile money number.";
   if (!d.agree) errors.consent = "Tick the box to agree to share this with PSF.";
   return errors;
 }
@@ -327,17 +339,20 @@ export function toRequest(d: PsfDraft): PsfPublicSubmitRequest {
   return {
     checkToken: d.applicant?.checkToken ?? "",
     business: businessFrom(d) as PsfPublicSubmitRequest["business"],
-    membership: {
-      tierCode: d.tierCode,
-      declaredFeeRwf: d.amount.trim() === "" ? undefined : Number(d.amount.replace(/[^\d]/g, "")),
-    },
+    membership: d.cardHolder
+      ? { tierCode: d.tierCode, intake: "card_holder", cardObjectKey: d.cardObjectKey }
+      : {
+          tierCode: d.tierCode,
+          declaredFeeRwf: d.amount.trim() === "" ? undefined : Number(d.amount.replace(/[^\d]/g, "")),
+          intake: "new",
+        },
     contact: {
       role: d.role,
       gender: (d.gender || "female") as "male" | "female",
       phoneE164: d.phone,
       email: blank(d.email),
     },
-    payerPhoneE164: d.payer,
+    ...(d.cardHolder ? {} : { payerPhoneE164: d.payer }),
     consent: true,
   };
 }

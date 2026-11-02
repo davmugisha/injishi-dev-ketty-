@@ -180,6 +180,7 @@ export function PsfRegister() {
           feePaid={done.feePaid}
           feeProblem={done.feeProblem}
           districtName={draft.placeNames.district}
+          cardHolder={draft.cardHolder}
         />
       </div>
     );
@@ -205,7 +206,7 @@ export function PsfRegister() {
           {/* Mobile: a bar. Desktop: the rail. */}
           <div className="mt-6 lg:hidden">
             <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold">{STEPS[index]!.title}</span>
+              <span className="font-semibold">{step === "review" && draft.cardHolder ? "Check and send" : STEPS[index]!.title}</span>
               <span className="text-muted-foreground">
                 Step {index + 1} of {STEPS.length}
               </span>
@@ -259,7 +260,7 @@ export function PsfRegister() {
             ) : step === "place" ? (
               <StepPlace draft={draft} onChange={change} errors={errors} />
             ) : step === "membership" ? (
-              <StepMembership draft={draft} onChange={change} errors={errors} tiers={tiers} fees={fees} districtName={draft.placeNames.district} />
+              <StepMembership draft={draft} onChange={change} errors={errors} tiers={tiers} fees={fees} districtName={draft.placeNames.district} checkToken={draft.applicant?.checkToken ?? null} />
             ) : (
               <StepReview draft={draft} onChange={change} errors={errors} tiers={tiers} catalogue={catalogue} goTo={go} />
             )}
@@ -278,7 +279,11 @@ export function PsfRegister() {
               ) : null}
               <span className="grow" />
               <Button variant="primary" size="lg" onClick={() => void next()} pending={busy} disabled={busy || (step === "you" && !draft.applicant)}>
-                {step === "review" ? `Pay ${total ? rwf(total) : "and send"}${total ? " and send" : ""}` : "Continue"}
+                {step === "review"
+                  ? draft.cardHolder
+                    ? "Send to PSF"
+                    : `Pay ${total ? rwf(total) : "and send"}${total ? " and send" : ""}`
+                  : "Continue"}
                 {step === "review" ? null : <ArrowRight size={16} aria-hidden />}
               </Button>
             </div>

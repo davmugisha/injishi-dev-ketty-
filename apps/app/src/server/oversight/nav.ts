@@ -14,11 +14,11 @@ import { leaderSummary } from "./guests";
 
 /** The seats this person holds, or an empty list when the API refuses. */
 /**
- * Whether this person builds a PSF team (2026-11-02): a PSF manager posted for a province (or the whole
- * country). A District Manager or DBO does not, and does not see the Team screen.
+ * Whether this person builds a PSF team (2026-11-02): a Province or National Manager appoints District
+ * Managers, a District Manager its BDEs. A BDE does not, and does not see the Team screen.
  */
 export async function appointsPsfTeam(): Promise<boolean> {
-  return (await officerConsoles()).some((c) => c.oversightRole === "psf_membership_officer" && c.scopeLevel !== "district");
+  return (await officerConsoles()).some((c) => c.oversightRole === "psf_membership_officer");
 }
 
 /**

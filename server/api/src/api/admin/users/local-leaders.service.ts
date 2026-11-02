@@ -333,7 +333,8 @@ export class LocalLeadersService {
           appUrl: this.notifier.appUrl,
           roleLabel: appointment.roleLabel,
           area: appointment.area,
-          next: leader ? '/officer/guests' : '/officer',
+          // A PSF manager lands on the PSF console (2026-11-02), as the team's own appointments do.
+          next: leader ? '/officer/guests' : appointment.role === 'psf_membership_officer' ? '/psf' : '/officer',
         }),
         'appointment',
       );

@@ -175,7 +175,7 @@ export class PsfMembershipController {
  */
 @Controller({ path: 'oversight/psf-applications', version: '1' })
 @UseGuards(SessionGuard, OversightGuard)
-// District Business Officers read here (2026-11-02); every write below names the District Manager's role alone.
+// BDEs read here (2026-11-02); every write below names the District Manager's role alone.
 @RequireOversight('psf_membership_officer', 'psf_business_officer')
 export class OversightPsfController {
   constructor(
@@ -291,7 +291,7 @@ export class OversightPsfController {
  */
 @Controller({ path: 'oversight/psf', version: '1' })
 @UseGuards(SessionGuard, OversightGuard)
-// District Business Officers read here (2026-11-02); every write below names the District Manager's role alone.
+// BDEs read here (2026-11-02); every write below names the District Manager's role alone.
 @RequireOversight('psf_membership_officer', 'psf_business_officer')
 export class OversightPsfRegisterController {
   constructor(
@@ -400,9 +400,9 @@ export class OversightPsfRegisterController {
 }
 
 /**
- * The PSF team (2026-11-02): who the District Managers and District Business
- * Officers are in the caller's districts. A Province Manager (or the National
- * Manager) appoints and ends them; everyone else on the console reads.
+ * The PSF team (2026-11-02): the District Managers and BDEs (Business
+ * Development & Empowerment) in the caller's districts. A Province Manager (or
+ * the National Manager) appoints District Managers; a District Manager its BDEs.
  */
 @Controller({ path: 'oversight/psf/team', version: '1' })
 @UseGuards(SessionGuard, OversightGuard)

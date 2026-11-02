@@ -72,6 +72,7 @@ export interface PsfClaimListRow
   legalName: string;
   businessCode: string | null;
   tin: string | null;
+  districtId: number | null;
   districtName: string | null;
   claimedByName: string | null;
   decidedByName: string | null;
@@ -303,6 +304,8 @@ export interface PsfQueueRow {
   applicationId: string;
   /** Null when it came through the public PSF form, with nobody signed in. */
   submittedByUserId: string | null;
+  /** New, or a card holder joining the new module (0131). */
+  intake: 'new' | 'card_holder';
   orgId: string;
   businessName: string;
   businessCode: string | null;
@@ -641,6 +644,7 @@ export class PsfMembershipRepository {
         legalName: orgs.legalName,
         businessCode: orgs.businessCode,
         tin: orgs.tin,
+        districtId: orgs.districtId,
         districtName: districts.name,
         membershipNumber: psfMembershipClaims.membershipNumber,
         status: psfMembershipClaims.status,
@@ -725,6 +729,51 @@ export class PsfMembershipRepository {
       .innerJoin(psfMembershipTiers, eq(psfMembershipTiers.code, psfMemberships.tierCode))
       .leftJoin(districts, eq(districts.id, orgs.districtId))
       .where(and(eq(psfMemberships.orgId, orgId), isNull(psfMemberships.endedAt)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  /** The docID of the business's latest PSF application (2026-11-02), for its mails' links; null with none. */
+  async latestDocId(orgId: string): Promise<string | null> {
+    const [row] = await this.db
+      .select({ docId: psfMembershipApplications.docId })
+      .from(psfMembershipApplications)
+      .where(and(eq(psfMembershipApplications.orgId, orgId), sql`${psfMembershipApplications.status} <> 'withdrawn'`))
+      .orderBy(desc(psfMembershipApplications.createdAt))
+      .limit(1);
+    return row?.docId ?? null;
+  }
+
+  /** The latest membership carrying a number, for its card (2026-11-02); ended ones included, to say lapsed. */
+  async memberCardByNumber(membershipNumber: string): Promise<{
+    legalName: string;
+    businessCode: string | null;
+    districtName: string | null;
+    membershipNumber: string;
+    startsOn: string | null;
+    expiresOn: string | null;
+    endedAt: Date | null;
+    tierFamily: PsfMembershipFamily;
+    tierName: string;
+  } | null> {
+    const [row] = await this.db
+      .select({
+        legalName: orgs.legalName,
+        businessCode: orgs.businessCode,
+        districtName: districts.name,
+        membershipNumber: psfMemberships.membershipNumber,
+        startsOn: psfMemberships.startsOn,
+        expiresOn: psfMemberships.expiresOn,
+        endedAt: psfMemberships.endedAt,
+        tierFamily: psfMembershipTiers.family,
+        tierName: psfMembershipTiers.nameEn,
+      })
+      .from(psfMemberships)
+      .innerJoin(orgs, eq(orgs.id, psfMemberships.orgId))
+      .innerJoin(psfMembershipTiers, eq(psfMembershipTiers.code, psfMemberships.tierCode))
+      .leftJoin(districts, eq(districts.id, orgs.districtId))
+      .where(and(sql`upper(${psfMemberships.membershipNumber}) = upper(${membershipNumber})`, sql`${psfMemberships.source} <> 'self_declared'`))
+      .orderBy(sql`${psfMemberships.endedAt} IS NULL DESC`, desc(psfMemberships.createdAt))
       .limit(1);
     return row ?? null;
   }
@@ -1443,6 +1492,7 @@ export class PsfMembershipRepository {
       .select({
         applicationId: psfMembershipApplications.id,
         submittedByUserId: psfMembershipApplications.submittedByUserId,
+        intake: psfMembershipApplications.intake,
         orgId: orgs.id,
         businessName: orgs.legalName,
         businessCode: orgs.businessCode,
@@ -1839,6 +1889,60 @@ export class PsfMembershipRepository {
       });
       await tx.update(orgs).set({ psfMember: true, updatedAt: now }).where(eq(orgs.id, moved.orgId));
       return { orgId: moved.orgId, amountRwf: moved.amountRwf, tierCode: moved.tierCode };
+    });
+  }
+
+  /**
+   * A card holder confirmed (2026-11-02): a member at once, under its new number and the year on its
+   * card, with no fee taken now. Guarded on `submitted`, so a race decides once.
+   */
+  async approveCardHolder(input: {
+    applicationId: string;
+    officerUserId: string;
+    bodyCode: string;
+    membershipNumber: string;
+    note: string | null;
+    startsOn: string;
+    expiresOn: string;
+  }): Promise<{ orgId: string; tierCode: string } | null> {
+    return this.db.transaction(async (tx) => {
+      const now = new Date();
+      const [moved] = await tx
+        .update(psfMembershipApplications)
+        .set({
+          status: 'member',
+          decidedAt: now,
+          decidedByUserId: input.officerUserId,
+          decisionBodyCode: input.bodyCode,
+          decisionNote: input.note,
+          approvedMembershipNumber: input.membershipNumber,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(psfMembershipApplications.id, input.applicationId),
+            eq(psfMembershipApplications.status, 'submitted'),
+            eq(psfMembershipApplications.intake, 'card_holder'),
+          ),
+        )
+        .returning({ orgId: psfMembershipApplications.orgId, tierCode: psfMembershipApplications.requestedTierCode });
+      if (!moved) return null;
+      await tx
+        .update(psfMemberships)
+        .set({ endedAt: now, updatedAt: now })
+        .where(and(eq(psfMemberships.orgId, moved.orgId), isNull(psfMemberships.endedAt)));
+      await tx.insert(psfMemberships).values({
+        orgId: moved.orgId,
+        source: 'psf_record',
+        applicationId: input.applicationId,
+        tierCode: moved.tierCode,
+        membershipNumber: input.membershipNumber,
+        startsOn: input.startsOn,
+        expiresOn: input.expiresOn,
+        recordedByUserId: input.officerUserId,
+      });
+      await tx.update(orgs).set({ psfMember: true, updatedAt: now }).where(eq(orgs.id, moved.orgId));
+      return moved;
     });
   }
 

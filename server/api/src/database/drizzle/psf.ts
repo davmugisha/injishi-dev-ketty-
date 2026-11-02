@@ -162,6 +162,9 @@ export const psfMembershipApplications = pgTable(
     // What the business said it would pay a year, inside its band. Null only
     // for a tier PSF prices itself, whose amount the officer names.
     declaredFeeRwf: amount('declared_fee_rwf'),
+    // How the business came in (0131): a new application, or a holder of an old PSF card joining the
+    // new module (no fee now, a new number, the year on its card).
+    intake: text('intake').$type<'new' | 'card_holder'>().notNull().default('new'),
 
     // Member profile, as filed.
     companyName: text('company_name').notNull(),

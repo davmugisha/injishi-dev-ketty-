@@ -64,8 +64,8 @@ export function PsfClaimsView({
     <PageContent>
       <PageHeader
         eyebrow={`${scope.title} · ${scope.label}`}
-        title="Membership claims"
-        description="Businesses that said at registration they are already PSF members, with the number they typed. They show as members only once PSF confirms the number."
+        title="Card holders"
+        description="Businesses that registered on Injishi with an old PSF card, no number or certificate in the new module. Check the card, then give a new number and the year it shows: they become members with a certificate."
       />
 
       <KpiStrip
@@ -152,7 +152,8 @@ function ClaimCard({
   const [startsOn, setStartsOn] = useState(dates.start);
   const [expiresOn, setExpiresOn] = useState(c.listed?.expiresOn ?? dates.end);
   const [reason, setReason] = useState("");
-  const [typedNumber, setTypedNumber] = useState("");
+  // Every card holder gets a NEW number in the new module (2026-11-02): the district's next, suggested.
+  const [typedNumber, setTypedNumber] = useState(c.suggestedMembershipNumber ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -186,11 +187,11 @@ function ClaimCard({
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl bg-default/60 px-3 py-2.5">
         <span className="flex flex-col">
-          <span className="text-[11px] text-muted">Number they typed</span>
+          <span className="text-[11px] text-muted">Old card number</span>
           {c.membershipNumber ? (
             <span className="font-mono text-[15px] font-semibold tabular">{c.membershipNumber}</span>
           ) : (
-            <span className="text-[13px] text-muted">Not given: read it off the card</span>
+            <span className="text-[13px] text-muted">Not given</span>
           )}
         </span>
         <span className="flex flex-col">
@@ -253,24 +254,22 @@ function ClaimCard({
           onSubmit={(e) => {
             e.preventDefault();
             void act(
-              confirmClaimAction(c.id, { tierCode: tier, startsOn, expiresOn, ...(c.membershipNumber ? {} : { membershipNumber: typedNumber }) }),
+              confirmClaimAction(c.id, { tierCode: tier, startsOn, expiresOn, membershipNumber: typedNumber }),
             );
           }}
         >
-          <p className="m-0 text-[13px] text-muted">The tier and dates as PSF's records give them.</p>
-          {/* A claim sent with the card only (2026-11-02): the number is read off the card here. */}
-          {c.membershipNumber ? null : (
-            <label className="flex flex-col gap-1 text-sm font-medium sm:max-w-sm">
-              Membership number, from the card
-              <input
-                className={SELECT}
-                value={typedNumber}
-                onChange={(e) => setTypedNumber(e.target.value)}
-                placeholder="PSF/GAS/2026/0001"
-                required
-              />
-            </label>
-          )}
+          <p className="m-0 text-[13px] text-muted">A new number in the new module, and the level and year the card shows.</p>
+          <label className="flex flex-col gap-1 text-sm font-medium sm:max-w-sm">
+            New membership number
+            <input
+              className={SELECT}
+              value={typedNumber}
+              onChange={(e) => setTypedNumber(e.target.value)}
+              placeholder="PSF/GAS/2026/0001"
+              required
+            />
+            {c.suggestedMembershipNumber ? <span className="text-xs font-normal text-muted">The district&apos;s next number. Every card holder gets a new one.</span> : null}
+          </label>
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="flex flex-col gap-1 text-sm font-medium">
               Tier
@@ -292,7 +291,7 @@ function ClaimCard({
             </TextField>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" type="submit" isDisabled={busy || !tier || expiresOn <= startsOn}>
+            <Button size="sm" type="submit" isDisabled={busy || !tier || !typedNumber.trim() || expiresOn <= startsOn}>
               {busy ? "Confirming…" : "Confirm membership"}
             </Button>
             <Button size="sm" variant="ghost" onPress={() => setMode("view")}>

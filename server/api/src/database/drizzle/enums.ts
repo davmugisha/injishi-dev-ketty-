@@ -410,7 +410,7 @@ export const oversightRoleEnum = pgEnum('oversight_role', [
   // The chains settled as village, cell, district for both bodies: DGIE's village and cell officers.
   'dgie_village',
   'dgie_cell',
-  // A PSF District Business Officer (0128): reads one district's PSF console, decides nothing.
+  // A PSF BDE (Business Development & Empowerment) (0128): reads one district's PSF console, decides nothing.
   // Appointed by the district's PSF Province Manager.
   'psf_business_officer',
 ]);

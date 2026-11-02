@@ -749,6 +749,9 @@ export const oversightAssignments = pgTable(
     cellId: integer('cell_id').references(() => cells.id),
     villageId: integer('village_id').references(() => villages.id),
     assignedByUserId: uuid('assigned_by_user_id').references(() => users.id),
+    // The appointed person's ID (0131), typed by whoever appointed a PSF District Manager or BDE.
+    idDocumentType: text('id_document_type').$type<'national_id' | 'passport'>(),
+    idDocumentNumber: text('id_document_number'),
     grantedAt: timestamp('granted_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

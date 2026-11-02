@@ -103,7 +103,7 @@ const STAGE_FOR_ROLE: Readonly<
   dgie_national: null,
   dgie_village: null,
   dgie_cell: null,
-  // A PSF District Business Officer reads the PSF console only (2026-11-02).
+  // A PSF BDE (Business Development & Empowerment) reads the PSF console only (2026-11-02).
   psf_business_officer: null,
   // A PSF District Manager decides the first gate in one step (0119): their
   // Reviewed approves the business. Membership keeps its own queue (ADR-056).

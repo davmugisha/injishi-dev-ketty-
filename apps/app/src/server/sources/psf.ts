@@ -35,6 +35,8 @@ export interface PsfQueueItem {
   applicationId: string;
   /** Where it was sent from (2026-11-02): the public PSF form, or Injishi's business registration. */
   origin: "psf_form" | "registration";
+  /** New, or a card holder joining the new module (2026-11-02). */
+  intake: "new" | "card_holder";
   orgId: string;
   businessName: string;
   businessCode: string | null;
@@ -85,6 +87,8 @@ export interface PsfOfficerApplication {
   id: string;
   /** Where it was sent from (2026-11-02): the public PSF form, or Injishi's business registration. */
   origin: "psf_form" | "registration";
+  /** New, or a card holder joining the new module (2026-11-02): confirmed with a new number and its card's year. */
+  intake: "new" | "card_holder";
   status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
   requestedTierName: string;
   declaredFeeRwf: number | null;
@@ -165,7 +169,7 @@ export function readPsfScope(ctx: SourceContext): Promise<PsfScope> {
 /** GET /api/v1/oversight/psf/team: the contract's own shape. */
 export type PsfTeamView = import("@injishi/contracts").PsfTeamView;
 
-/** The District Managers and DBOs in the officer's districts, and where they may appoint. */
+/** The District Managers and BDEs in the officer's districts, and where they may appoint. */
 export function readPsfTeam(ctx: SourceContext): Promise<PsfTeamView> {
   return ctx.api.get<PsfTeamView>("/api/v1/oversight/psf/team");
 }

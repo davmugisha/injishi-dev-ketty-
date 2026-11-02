@@ -554,7 +554,7 @@ async function personaFor(
   const oversight = context ? context.oversight.map((g) => g.oversightRole) : await oversightRoles(cookie);
   // A PSF District Manager's desk is the PSF console: membership, registration review and the overview.
   if (oversight.includes("psf_membership_officer")) return personas.psf;
-  // A District Business Officer (2026-11-02): the PSF console, read only.
+  // A BDE, Business Development & Empowerment (2026-11-02): the PSF console, read only for now.
   if (oversight.includes("psf_business_officer")) return personas.psfdbo;
   if (oversight.length > 0) return personas.officer;
   return personas.guest;

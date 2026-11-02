@@ -151,6 +151,21 @@ export function StepReview({
       </section>
 
       <section className="flex flex-col gap-5 rounded-card border border-border bg-card p-5 sm:p-6">
+        {draft.cardHolder ? (
+          // A card holder (2026-11-02): nothing to pay, its card for PSF to check.
+          <div className="flex items-center gap-4">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-brand/15 text-accent-text">
+              <Info size={20} aria-hidden />
+            </span>
+            <div className="flex-1">
+              <p className="font-semibold">Nothing to pay now</p>
+              <p className="text-sm text-muted-foreground">
+                You hold a PSF card{draft.cardName ? ` (${draft.cardName})` : ""}. PSF checks it, then gives you a new membership number and your certificate.
+              </p>
+            </div>
+          </div>
+        ) : (
+        <>
         <div className="flex items-center gap-4">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-brand/15 text-accent-text">
             <Wallet size={20} aria-hidden />
@@ -187,15 +202,19 @@ export function StepReview({
         >
           <PhoneInput id="psf-payer" value={draft.payer} onChange={(v) => onChange({ payer: v })} invalid={Boolean(errors.payerPhoneE164)} />
         </Field>
+        </>
+        )}
         <div>
           <Checkbox isSelected={draft.agree} onChange={(on: boolean) => onChange({ agree: on })} className="items-start gap-3" controlClassName="mt-0.5">
             <span className="text-sm">{PSF_PUBLIC_CONSENT}</span>
           </Checkbox>
           {errors.consent ? <p className="mt-1 text-sm text-destructive">{errors.consent}</p> : null}
         </div>
-        <Notice tone="info">
-          This is a demo: payment is recorded here, and no prompt goes to your phone yet.
-        </Notice>
+        {draft.cardHolder ? null : (
+          <Notice tone="info">
+            This is a demo: payment is recorded here, and no prompt goes to your phone yet.
+          </Notice>
+        )}
       </section>
     </div>
   );

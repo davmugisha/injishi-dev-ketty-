@@ -1,4 +1,4 @@
-import { PSF_FAMILY_LABEL } from '@injishi/contracts';
+import { PSF_FAMILY_LABEL, type PsfMemberCard } from '@injishi/contracts';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { StorageService } from '../../storage/application/storage.service';
@@ -32,10 +32,32 @@ export class PsfCertificatesService {
       expiresOn: f.expiresOn ?? '',
       docId: f.docId,
       issuedBy: f.districtName ? `PSF ${f.districtName} district office` : 'PSF',
-      trackUrl: f.docId ? this.mail.trackLink(f.docId) : this.mail.trackLink('').replace(/\/$/, ''),
+      // The QR opens the member's card (2026-11-02), which anyone may check.
+      trackUrl: this.mail.cardLink(f.membershipNumber),
       businessLogo: await this.logo(f.logoObjectKey),
     });
     return { filename: psfCertificateFilename(f.membershipNumber), content };
+  }
+
+  /** The card a certificate's QR code opens: by number, the latest membership that carries it. */
+  async card(membershipNumber: string): Promise<PsfMemberCard> {
+    const f = await this.repo.memberCardByNumber(membershipNumber.trim());
+    if (!f) return { status: 'not_found', card: null };
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Kigali' }).format(new Date());
+    const valid = f.endedAt === null && (f.expiresOn === null || f.expiresOn >= today);
+    return {
+      status: valid ? 'valid' : 'lapsed',
+      card: {
+        businessName: f.legalName,
+        businessCode: f.businessCode,
+        districtName: f.districtName,
+        levelName: PSF_FAMILY_LABEL[f.tierFamily],
+        tierName: f.tierName,
+        membershipNumber: f.membershipNumber,
+        startsOn: f.startsOn,
+        expiresOn: f.expiresOn,
+      },
+    };
   }
 
   /** The PDF alone, or null when it cannot be made: a mail goes without it rather than not at all. */

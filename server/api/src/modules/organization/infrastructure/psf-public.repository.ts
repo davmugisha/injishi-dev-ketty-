@@ -5,6 +5,7 @@ import { and, asc, eq, gt, isNull, sql } from 'drizzle-orm';
 import {
   districts,
   orgRegistrationEvents,
+  orgCertificates,
   orgs,
   provinces,
   psfAssociations,
@@ -12,7 +13,6 @@ import {
   psfIdentityChecks,
   psfMembershipApplications,
   psfMembershipTiers,
-  psfMemberships,
   psfSubsectors,
   sectors,
   subscriptionInvoices,
@@ -26,6 +26,8 @@ export interface PsfTrackRow {
   applicationId: string;
   orgId: string;
   docId: string;
+  /** New, or a card holder joining the new module (0131). */
+  intake: 'new' | 'card_holder';
   /** The business's logo (2026-10-23), when it gave one. */
   logoObjectKey: string | null;
   status: 'submitted' | 'approved' | 'member' | 'declined' | 'withdrawn';
@@ -154,6 +156,12 @@ export class PsfPublicRepository {
     return rows.length;
   }
 
+  /** Whether a business already filed this card (2026-11-02): one upload is one business's card. */
+  async cardInUse(objectKey: string): Promise<boolean> {
+    const [row] = await this.db.select({ id: orgCertificates.id }).from(orgCertificates).where(eq(orgCertificates.objectKey, objectKey)).limit(1);
+    return Boolean(row);
+  }
+
   // --- The application, by docID ---------------------------------------------
 
   async byDocId(docId: string): Promise<PsfTrackRow | null> {
@@ -162,6 +170,7 @@ export class PsfPublicRepository {
         applicationId: psfMembershipApplications.id,
         orgId: orgs.id,
         docId: psfMembershipApplications.docId,
+        intake: psfMembershipApplications.intake,
         status: psfMembershipApplications.status,
         createdAt: psfMembershipApplications.createdAt,
         queuedAt: psfMembershipApplications.queuedAt,

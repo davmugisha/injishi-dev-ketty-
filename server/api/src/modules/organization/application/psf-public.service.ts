@@ -27,6 +27,7 @@ import {
   type PsfTrackStage,
   type PsfTrackView,
   type PsfVerifiedApplicant,
+  type PsfCardUploadResult,
   type PsfLogoUploadResult,
 } from '@injishi/contracts';
 import {
@@ -237,9 +238,15 @@ export class PsfPublicService {
     const { business, membership, contact } = input;
 
     // Everything that can refuse is read before anything is written.
-    const tier = await this.bandOrRefuse(business.address.districtId, membership.tierCode, membership.declaredFeeRwf, ['membership']);
-    // Refused above when missing.
-    const declared = membership.declaredFeeRwf as number;
+    // A card holder (2026-11-02) pays nothing now: its level is checked, never an amount, and its card is
+    // one the card upload stored and nobody else has filed.
+    const cardHolder = membership.intake === 'card_holder';
+    const tier = cardHolder
+      ? await this.cardHolderTier(membership.tierCode)
+      : await this.bandOrRefuse(business.address.districtId, membership.tierCode, membership.declaredFeeRwf, ['membership']);
+    // Refused above when missing, for a new application.
+    const declared = cardHolder ? 0 : (membership.declaredFeeRwf as number);
+    if (cardHolder) await this.cardOrRefuse(membership.cardObjectKey);
     const association = await this.psf.associationForRegistration(business.associationCode);
     if (business.subsectorId) {
       await this.psf.subsectorForRegistration(business.subsectorId, association.clusterCode, business.address.districtId);
@@ -285,7 +292,8 @@ export class PsfPublicService {
       tier,
       form: {
         requestedTierCode: tier.code,
-        declaredFeeRwf: declared,
+        // A card holder declares no fee: nothing is paid now (2026-11-02).
+        declaredFeeRwf: cardHolder ? undefined : declared,
         companyName: business.legalName,
         streetAddress: business.address.street,
         website: business.website,
@@ -309,6 +317,7 @@ export class PsfPublicService {
       },
       consentGivenAt: new Date(),
       consentVersion: PSF_CONSENT_VERSION,
+      intake: cardHolder ? 'card_holder' : 'new',
     });
 
     let created;
@@ -328,6 +337,7 @@ export class PsfPublicService {
         registrationKind: business.registrationKind,
         registrationNumber: business.registrationKind === 'tin' || business.registrationKind === 'none' ? null : registrationNumber,
         logoObjectKey: business.logoObjectKey ?? null,
+        cardObjectKey: cardHolder ? (membership.cardObjectKey ?? null) : null,
         application: row,
         branches: business.branches.map((b) => ({
           districtId: b.address.districtId,
@@ -343,7 +353,10 @@ export class PsfPublicService {
       throw error;
     }
 
-    const charged = await this.chargeAtSubmit(created.orgId, created.applicationId, declared, contact.phoneE164);
+    // A card holder goes straight to PSF: nothing to pay, its card for the District Manager to check.
+    const charged = cardHolder
+      ? await this.fileCardHolder(created.orgId, created.applicationId)
+      : await this.chargeAtSubmit(created.orgId, created.applicationId, declared, contact.phoneE164);
     const facts = await this.psfRepo.orgFacts(created.orgId);
     return {
       docId: created.docId,
@@ -352,6 +365,42 @@ export class PsfPublicService {
       feePaid: charged.paid,
       feeProblem: charged.problem,
     };
+  }
+
+  /** A card holder's level: one PSF offers. Its year and price are on its card, not checked here. */
+  private async cardHolderTier(tierCode: string): Promise<NonNullable<Awaited<ReturnType<PsfMembershipRepository['tier']>>>> {
+    const tier = await this.psfRepo.tier(tierCode);
+    if (!tier || !tier.active) throw fieldError(['membership', 'tierCode'], 'Pick the level printed on your card.');
+    return tier;
+  }
+
+  /** The card a card holder sends: stored by the card upload, and filed by no other business. */
+  private async cardOrRefuse(objectKey: string | undefined): Promise<void> {
+    const card = objectKey && isObjectKey(objectKey) ? await this.storage.describe(objectKey) : null;
+    if (!card || card.kind !== 'certificate' || (await this.repo.cardInUse(objectKey as string))) {
+      throw fieldError(['membership', 'cardObjectKey'], 'Upload your PSF card again, then send the form.');
+    }
+  }
+
+  /** A card holder's business moves to PSF at once, with no payment: its code, the TIN check, the queue. */
+  private async fileCardHolder(orgId: string, applicationId: string): Promise<{ paid: boolean; problem: string | null }> {
+    if (await this.orgs.settlePublicPsfPayment(orgId)) {
+      await this.registration.runTinCheck(orgId);
+      const app = await this.psfRepo.applicationById(applicationId);
+      const facts = await this.psfRepo.orgFacts(orgId);
+      if (app && facts) await this.psf.afterFiled(orgId, app.requestedTierName, facts.registrationStatus);
+    }
+    return { paid: true, problem: null };
+  }
+
+  /** A card holder's old PSF card (2026-11-02), under the form's ID check, like the logo. */
+  async uploadCard(checkToken: string | undefined, file: { body: Buffer; mime: string; filename: string }): Promise<PsfCardUploadResult> {
+    const check = checkToken ? await this.repo.checkByToken(hash(checkToken)) : null;
+    if (!check || !check.person) {
+      throw new GoneException('Your ID check has expired. Check your National ID again, then add your card.');
+    }
+    const stored = await this.storage.putCertificate({ ...file, uploadedByUserId: null });
+    return { objectKey: stored.objectKey, sizeBytes: stored.sizeBytes, filename: stored.filename };
   }
 
   /**
@@ -465,7 +514,8 @@ export class PsfPublicService {
       expiresOn: m.expiresOn ?? '',
       docId: view.docId,
       issuedBy: view.reviewingOffice,
-      trackUrl: this.mail.trackLink(view.docId),
+      // The QR opens the member's card (2026-11-02), which anyone may check.
+      trackUrl: this.mail.cardLink(m.number),
       businessLogo: await this.logoForCertificate(docId),
     });
     return { filename: `PSF-certificate-${m.number.replace(/[^A-Za-z0-9-]+/g, '-')}.pdf`, content };
@@ -868,6 +918,7 @@ export class PsfPublicService {
     const email = row.applicantEmail ?? (row.email || null);
     return {
       docId: row.docId,
+      intake: row.intake,
       stage,
       submittedAt: row.createdAt.toISOString(),
       waitingDays: stage === 'under_review' && reviewFrom ? wholeDaysBetween(reviewFrom, now) : null,

@@ -3510,7 +3510,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
   PsfClaims: {
     board: "PsfClaims",
     title: "PSF · membership claims",
-    pageTitle: "PSF · Membership claims",
+    pageTitle: "PSF · Card holders",
     route: "/psf/claims",
     href: "/psf/claims",
     surface: "workspace",

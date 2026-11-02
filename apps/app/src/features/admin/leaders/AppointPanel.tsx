@@ -52,8 +52,8 @@ export const ROLE_CHOICES: { id: OversightRole; label: string; description: stri
     id: "psf_membership_officer",
     label: "PSF Province Manager",
     // 2026-11-02: Injishi appoints PSF's Province Managers only; each appoints its districts' District
-    // Managers and DBOs from the PSF console's Team screen.
-    description: "Oversees PSF membership in one province, and appoints its District Managers and DBOs",
+    // Managers from the PSF console's Team screen; each District Manager appoints its BDEs.
+    description: "Oversees PSF membership in one province, and appoints its District Managers",
   },
 ];
 

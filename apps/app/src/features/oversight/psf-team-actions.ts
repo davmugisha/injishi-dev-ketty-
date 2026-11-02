@@ -24,12 +24,12 @@ async function run(act: () => Promise<PsfTeamView>): Promise<PsfTeamResult> {
   }
 }
 
-/** A Province Manager appoints a District Manager or DBO in one of its districts. */
+/** A Province Manager appoints a District Manager, or a District Manager a BDE, in its own area. */
 export async function appointPsfTeamAction(body: AppointPsfTeamRequest): Promise<PsfTeamResult> {
   return run(async () => (await requestContext()).api.post<PsfTeamView>("/api/v1/oversight/psf/team", body));
 }
 
-/** A Province Manager ends one, with a reason. */
+/** Whoever may appoint the post ends it, with a reason. */
 export async function endPsfTeamAction(assignmentId: string, reason: string): Promise<PsfTeamResult> {
   if (!UUID.test(assignmentId)) return { ok: false, error: "That appointment could not be found." };
   return run(async () =>

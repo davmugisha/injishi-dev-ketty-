@@ -502,6 +502,8 @@ export class OrganizationRepository {
     registrationNumber: string | null;
     /** Its logo (2026-10-23), already checked to be an unused `org_logo` object. */
     logoObjectKey: string | null;
+    /** A card holder's old PSF card (2026-11-02), filed as the business's `psf_certificate`. */
+    cardObjectKey?: string | null;
     application: Omit<NewPsfApplication, 'orgId'>;
     /** The other places it trades from, each for its own district's officer. */
     branches: readonly NewPsfBranch[];
@@ -542,6 +544,9 @@ export class OrganizationRepository {
       });
       const application = await insertPsfApplication(tx, { ...input.application, orgId: org.id });
       await insertPsfBranches(tx, application.id, org.id, input.branches);
+      if (input.cardObjectKey) {
+        await tx.insert(orgCertificates).values({ orgId: org.id, kind: 'psf_certificate', objectKey: input.cardObjectKey });
+      }
       return { orgId: org.id, applicationId: application.id, docId: input.application.docId };
     });
   }

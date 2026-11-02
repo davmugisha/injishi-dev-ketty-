@@ -167,7 +167,7 @@ export function StepBranchesPsf({
           <div className="grid gap-3 sm:grid-cols-2">
             {(
               [
-                [true, "yes", "Yes"],
+                [true, "yes", "Yes, we hold a PSF card"],
                 [false, "no", "No"],
               ] as const
             ).map(([member, value, label]) => (
@@ -194,8 +194,8 @@ export function StepBranchesPsf({
         {business.psfMember === true ? (
           <div className="max-w-form">
             <Field
-              label="PSF membership number (optional)"
-              hint="If you know it, as it is on your PSF card. Without it, PSF reads it off the card you send below. Until PSF confirms, your business shows as claimed, not a member."
+              label="Number on your old card (optional)"
+              hint="If your card has one. PSF checks the card you send below, then gives you a new membership number and your certificate. Until then your business shows as a card holder, not a member."
               error={
                 errors["business.psfMembershipNumber"] ??
                 (business.psfMembershipNumber.trim().length > 3 && !looksLikePsfNumber(business.psfMembershipNumber)
@@ -302,7 +302,7 @@ function MembershipCard({ card, onChange }: { card: DocumentDraft | null; onChan
 
   return (
     <div className="mt-5">
-      <Field label="Your PSF membership card" hint="A photo or scan of the card, front side. PSF checks your membership against it." required error={problem ?? undefined}>
+      <Field label="Your PSF card" hint="A photo or scan of the card, front side. PSF checks your membership against it." required error={problem ?? undefined}>
         {card ? (
           <div className="flex flex-wrap items-center gap-4 rounded-card border border-border bg-card p-3">
             {preview ? (

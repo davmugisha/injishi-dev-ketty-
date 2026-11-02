@@ -117,7 +117,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
   // An officer's or leader's header names their own seat, not the persona's sample one.
   const shown = persona.id === "officer" || persona.id === "psf" || persona.id === "psfdbo" ? await officerPersona(persona) : persona;
   nav = withOversightNav(nav, persona);
-  // Team is the Province Manager's screen (2026-11-02): a District Manager or DBO does not see it.
+  // Team is the managers' screen (2026-11-02): a BDE does not see it.
   if ((persona.id === "psf" || persona.id === "psfdbo") && !(await appointsPsfTeam())) {
     nav = nav.map((g) => ({ ...g, items: g.items.filter((i) => i.board !== "PsfTeam") })).filter((g) => g.items.length > 0);
   }

@@ -35,7 +35,7 @@ import {
  * decides it (`decidesHere`); a province or national manager reads it for reporting. Each branch is
  * admitted or declined by the District Manager of the branch's own district (`branch.canDecide`).
  */
-export function PsfApplicationView({ initial }: { initial: PsfOfficerApplication }) {
+export function PsfApplicationView({ initial, card = null }: { initial: PsfOfficerApplication; card?: { url: string; mime: string | null } | null }) {
   const [app, setApp] = useState(initial);
   const f = app.form;
   const place = [f.streetAddress, app.districtName].filter(Boolean).join(", ");
@@ -51,7 +51,7 @@ export function PsfApplicationView({ initial }: { initial: PsfOfficerApplication
       <PageHeader
         eyebrow={[app.docId, app.profile.businessCode, app.districtName].filter(Boolean).join(" · ")}
         title={app.businessName}
-        description={`${app.requestedTierName} · sent ${dayMonthYear(app.queuedAt ?? app.submittedAt)} from ${
+        description={`${app.intake === "card_holder" ? "Card holder · " : ""}${app.requestedTierName} · sent ${dayMonthYear(app.queuedAt ?? app.submittedAt)} from ${
           app.origin === "psf_form" ? "the PSF form" : "Injishi registration"
         }${
           app.status === "submitted" ? ` · waiting ${app.waitingDays} day${app.waitingDays === 1 ? "" : "s"}` : ""
@@ -133,6 +133,24 @@ export function PsfApplicationView({ initial }: { initial: PsfOfficerApplication
         </div>
 
         <div className="lg:sticky lg:top-24 lg:order-2">
+          {app.intake === "card_holder" ? (
+            <Alert status="accent">
+              <Alert.Content>
+                <Alert.Title>Card holder</Alert.Title>
+                <Alert.Description>
+                  A member under PSF&apos;s old cards, joining the new module: no fee now. Check the card, then give a new membership
+                  number and the year the card shows. They get their certificate at once.{" "}
+                  {card ? (
+                    <a href={card.url} target="_blank" rel="noreferrer" className="font-medium text-accent hover:underline">
+                      Open the card
+                    </a>
+                  ) : (
+                    "The card could not be opened just now."
+                  )}
+                </Alert.Description>
+              </Alert.Content>
+            </Alert>
+          ) : null}
           <DecisionPanel app={app} onDecided={setApp} />
         </div>
       </div>
@@ -143,6 +161,10 @@ export function PsfApplicationView({ initial }: { initial: PsfOfficerApplication
 function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecided: (a: PsfOfficerApplication) => void }) {
   const [mode, setMode] = useState<"approve" | "decline">("approve");
   const [number, setNumber] = useState(app.suggestedMembershipNumber ?? "");
+  // A card holder's year, read off its card (2026-11-02).
+  const cardHolder = app.intake === "card_holder";
+  const [startsOn, setStartsOn] = useState("");
+  const [expiresOn, setExpiresOn] = useState("");
   const [reason, setReason] = useState<PsfDeclineReason>("details_incomplete");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -195,18 +217,29 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
   const decide = async () => {
     setBusy(true);
     setError(null);
-    const res = mode === "approve" ? await approvePsfAction(app.id, number) : await declinePsfAction(app.id, reason, note);
+    const res =
+      mode === "approve"
+        ? await approvePsfAction(app.id, number, cardHolder ? { startsOn, expiresOn } : undefined)
+        : await declinePsfAction(app.id, reason, note);
     setBusy(false);
     if (!res.ok) return setError(res.error);
     onDecided(res.value);
-    toast.success(mode === "approve" ? `${app.businessName} is approved.` : `${app.businessName} was declined.`);
+    toast.success(
+      mode === "approve"
+        ? cardHolder
+          ? `${app.businessName} is a member, with its new number and certificate.`
+          : `${app.businessName} is approved.`
+        : `${app.businessName} was declined.`,
+    );
   };
 
   return (
     <Card>
       <Card.Header>
         <Card.Title>Your decision</Card.Title>
-        <Card.Description>{paid !== null ? `Paid ${rwf(paid)} when sent. Nothing is refunded.` : "Not paid yet."}</Card.Description>
+        <Card.Description>
+          {cardHolder ? "A card holder: nothing to pay now." : paid !== null ? `Paid ${rwf(paid)} when sent. Nothing is refunded.` : "Not paid yet."}
+        </Card.Description>
       </Card.Header>
       <Card.Content className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-2">
@@ -219,11 +252,29 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
         </div>
 
         {mode === "approve" ? (
-          <TextField fullWidth value={number} onChange={setNumber} className="gap-1">
-            <Label htmlFor="psf-number">PSF membership number</Label>
-            <Input id="psf-number" className="tabular" />
-            {app.suggestedMembershipNumber ? <Description>The next number for this district. Change it if PSF gave another.</Description> : null}
-          </TextField>
+          <>
+            <TextField fullWidth value={number} onChange={setNumber} className="gap-1">
+              <Label htmlFor="psf-number">{cardHolder ? "New PSF membership number" : "PSF membership number"}</Label>
+              <Input id="psf-number" className="tabular" />
+              {app.suggestedMembershipNumber ? (
+                <Description>
+                  {cardHolder ? "Every card holder gets a new number. This is the district's next." : "The next number for this district. Change it if PSF gave another."}
+                </Description>
+              ) : null}
+            </TextField>
+            {cardHolder ? (
+              <div className="grid grid-cols-2 gap-2">
+                <TextField fullWidth value={startsOn} onChange={setStartsOn} className="gap-1">
+                  <Label htmlFor="psf-card-from">Valid from, on the card</Label>
+                  <Input id="psf-card-from" type="date" />
+                </TextField>
+                <TextField fullWidth value={expiresOn} onChange={setExpiresOn} className="gap-1">
+                  <Label htmlFor="psf-card-until">Valid until, on the card</Label>
+                  <Input id="psf-card-until" type="date" />
+                </TextField>
+              </div>
+            ) : null}
+          </>
         ) : (
           <>
             <div className="flex flex-col gap-1">
@@ -258,10 +309,13 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
           fullWidth
           variant={mode === "approve" ? "primary" : "danger"}
           isPending={busy}
-          isDisabled={busy || (mode === "approve" ? !number.trim() : reason === "other" && !note.trim())}
+          isDisabled={
+            busy ||
+            (mode === "approve" ? !number.trim() || (cardHolder && (!startsOn || !expiresOn || expiresOn <= startsOn)) : reason === "other" && !note.trim())
+          }
           onPress={() => void decide()}
         >
-          {mode === "approve" ? (paid !== null ? "Approve and make a member" : "Approve") : "Decline application"}
+          {mode === "approve" ? (cardHolder ? "Confirm and make a member" : paid !== null ? "Approve and make a member" : "Approve") : "Decline application"}
         </Button>
       </Card.Content>
     </Card>

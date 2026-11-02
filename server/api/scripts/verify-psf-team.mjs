@@ -2,13 +2,14 @@
 // Verify the PSF team (2026-11-02, migration 0128) against a running demo API
 // (the fixed code 123456):
 //
-//   T1. Injishi's admin may not appoint a District Manager or a DBO, and does
+//   T1. Injishi's admin may not appoint a District Manager or a BDE, and does
 //       appoint a Province Manager (Kigali).
-//   T2. The Province Manager reads its team, appoints a DBO in Gasabo, and is
-//       refused a district outside Kigali.
-//   T3. The DBO reads Gasabo's businesses and fees, is refused the team, and is
+//   T2. The Province Manager appoints a District Manager in Gasabo (with an ID),
+//       is refused a district outside Kigali, and may not appoint a BDE.
+//   T3. The District Manager appoints a BDE in Gasabo (2026-11-02, with an ID).
+//   T4. The BDE reads Gasabo's businesses and fees, is refused the team, and is
 //       refused every write: a fee, a claim, a decision, an appointment.
-//   T4. The Province Manager ends the DBO's appointment with a reason; the DBO
+//   T5. The District Manager ends the BDE's appointment with a reason; the BDE
 //       is then refused the console.
 //
 // Each run appoints two new people (`verify.*@example.test`); ended
@@ -85,7 +86,8 @@ async function signIn(email) {
 const V = '/api/v1';
 const RUN = new Date().toISOString().slice(5, 19).replace(/[-T:]/g, '');
 const PROVINCE_EMAIL = `verify.province.${RUN}@example.test`;
-const DBO_EMAIL = `verify.dbo.${RUN}@example.test`;
+const DBO_EMAIL = `verify.bde.${RUN}@example.test`;
+const DM_EMAIL = `verify.dm.${RUN}@example.test`;
 const post = (role, scopeLevel, place) => ({
   email: PROVINCE_EMAIL,
   name: 'Verify Province Manager',
@@ -103,30 +105,43 @@ try {
   const asDm = await call(admin, 'POST', `${V}/admin/local-leaders`, post('psf_membership_officer', 'district', { provinceId: KIGALI, districtId: GASABO }));
   check('admin may not appoint a District Manager', asDm.status === 422, brief(asDm));
   const asDbo = await call(admin, 'POST', `${V}/admin/local-leaders`, post('psf_business_officer', 'district', { provinceId: KIGALI, districtId: GASABO }));
-  check('admin may not appoint a DBO', asDbo.status === 422 || asDbo.status === 400, brief(asDbo));
+  check('admin may not appoint a BDE', asDbo.status === 422 || asDbo.status === 400, brief(asDbo));
   const province = await call(admin, 'POST', `${V}/admin/local-leaders`, post('psf_membership_officer', 'province', { provinceId: KIGALI }));
   check('admin appoints a Province Manager for Kigali', province.status === 201, brief(province));
 
-  console.log('T2. The Province Manager builds its team');
+  console.log('T2. The Province Manager appoints a District Manager');
   const pm = await signIn(PROVINCE_EMAIL);
-  const team = await call(pm, 'GET', `${V}/oversight/psf/team`);
+  const ID = { documentType: 'national_id', documentNumber: '1199980012345678' };
+  const pmTeam = await call(pm, 'GET', `${V}/oversight/psf/team`);
   check(
-    'it may appoint, in Kigali’s districts only',
-    team.status === 200 && team.json?.canAppoint === true && team.json.districts.some((d) => d.id === GASABO) && !team.json.districts.some((d) => d.id === NYANZA),
-    brief(team),
+    'it appoints District Managers, in Kigali’s districts only',
+    pmTeam.status === 200 && pmTeam.json?.appointRoles?.join() === 'district_manager' && pmTeam.json.districts.some((d) => d.id === GASABO) && !pmTeam.json.districts.some((d) => d.id === NYANZA),
+    brief(pmTeam),
   );
-  const outside = await call(pm, 'POST', `${V}/oversight/psf/team`, { email: DBO_EMAIL, name: 'Verify DBO', role: 'business_officer', districtId: NYANZA, reason: 'Verify the PSF team' });
+  const outside = await call(pm, 'POST', `${V}/oversight/psf/team`, { email: DM_EMAIL, name: 'Verify DM', role: 'district_manager', idDocument: ID, districtId: NYANZA, reason: 'Verify the PSF team' });
   check('it is refused a district outside its province', outside.status === 403, brief(outside));
-  const added = await call(pm, 'POST', `${V}/oversight/psf/team`, { email: DBO_EMAIL, name: 'Verify DBO', role: 'business_officer', districtId: GASABO, reason: 'Verify the PSF team' });
-  const dboRow = added.json?.members?.find((m) => m.email === DBO_EMAIL);
-  check('it appoints a DBO in Gasabo', (added.status === 200 || added.status === 201) && dboRow?.role === 'business_officer' && dboRow.districtId === GASABO, brief(added));
-  const again = await call(pm, 'POST', `${V}/oversight/psf/team`, { email: DBO_EMAIL, name: 'Verify DBO', role: 'district_manager', districtId: GASABO, reason: 'Verify the PSF team' });
-  check('one PSF post per person per district', again.status === 409, brief(again));
+  const pmBde = await call(pm, 'POST', `${V}/oversight/psf/team`, { email: DBO_EMAIL, name: 'Verify BDE', role: 'business_officer', idDocument: ID, districtId: GASABO, reason: 'Verify the PSF team' });
+  check('it may not appoint a BDE', pmBde.status === 403, brief(pmBde));
+  const noId = await call(pm, 'POST', `${V}/oversight/psf/team`, { email: DM_EMAIL, name: 'Verify DM', role: 'district_manager', districtId: GASABO, reason: 'Verify the PSF team' });
+  check('an appointment needs an ID', noId.status === 400 || noId.status === 422, brief(noId));
+  const dmAdded = await call(pm, 'POST', `${V}/oversight/psf/team`, { email: DM_EMAIL, name: 'Verify DM', role: 'district_manager', idDocument: ID, districtId: GASABO, reason: 'Verify the PSF team' });
+  const dmRow = dmAdded.json?.members?.find((m) => m.email === DM_EMAIL);
+  check('it appoints a District Manager in Gasabo, ID on record', dmRow?.role === 'district_manager' && /ending 5678$/.test(dmRow.idDocumentLine ?? ''), brief(dmAdded));
 
-  console.log('T3. The DBO reads and changes nothing');
+  console.log('T3. The District Manager appoints a BDE');
+  const dm = await signIn(DM_EMAIL);
+  const dmTeam = await call(dm, 'GET', `${V}/oversight/psf/team`);
+  check('it appoints BDEs only', dmTeam.status === 200 && dmTeam.json?.appointRoles?.join() === 'business_officer', brief(dmTeam));
+  const added = await call(dm, 'POST', `${V}/oversight/psf/team`, { email: DBO_EMAIL, name: 'Verify BDE', role: 'business_officer', idDocument: ID, districtId: GASABO, reason: 'Verify the PSF team' });
+  const dboRow = added.json?.members?.find((m) => m.email === DBO_EMAIL);
+  check('it appoints a BDE in Gasabo', (added.status === 200 || added.status === 201) && dboRow?.role === 'business_officer' && dboRow.districtId === GASABO, brief(added));
+  const dmAsDm = await call(dm, 'POST', `${V}/oversight/psf/team`, { email: DBO_EMAIL, name: 'Verify BDE', role: 'district_manager', idDocument: ID, districtId: GASABO, reason: 'Verify the PSF team' });
+  check('it may not appoint a District Manager', dmAsDm.status === 403, brief(dmAsDm));
+
+  console.log('T4. The BDE reads and changes nothing');
   const dbo = await signIn(DBO_EMAIL);
   const scope = await call(dbo, 'GET', `${V}/oversight/psf/scope`);
-  check('the DBO opens the console for Gasabo', scope.status === 200 && JSON.stringify(scope.json).includes('Gasabo'), brief(scope));
+  check('the BDE opens the console for Gasabo', scope.status === 200 && JSON.stringify(scope.json).includes('Gasabo'), brief(scope));
   const businesses = await call(dbo, 'GET', `${V}/oversight/psf/businesses`);
   check('it reads Gasabo’s businesses', businesses.status === 200 && Array.isArray(businesses.json?.items), brief(businesses));
   const fees = await call(dbo, 'GET', `${V}/oversight/psf/fees`);
@@ -141,16 +156,16 @@ try {
   check('it is refused an application decision', approve.status === 403, brief(approve));
   const dboTeam = await call(dbo, 'GET', `${V}/oversight/psf/team`);
   check('it does not see the team', dboTeam.status === 403, brief(dboTeam));
-  const dboAppoints = await call(dbo, 'POST', `${V}/oversight/psf/team`, { email: `x.${RUN}@example.test`, name: 'Nobody', role: 'business_officer', districtId: GASABO, reason: 'Should be refused' });
+  const dboAppoints = await call(dbo, 'POST', `${V}/oversight/psf/team`, { email: `x.${RUN}@example.test`, name: 'Nobody', role: 'business_officer', idDocument: ID, districtId: GASABO, reason: 'Should be refused' });
   check('it is refused appointing anyone', dboAppoints.status === 403, brief(dboAppoints));
 
-  console.log('T4. The Province Manager ends the DBO');
-  const noReason = await call(pm, 'DELETE', `${V}/oversight/psf/team/${dboRow?.assignmentId}`);
+  console.log('T5. The District Manager ends the BDE');
+  const noReason = await call(dm, 'DELETE', `${V}/oversight/psf/team/${dboRow?.assignmentId}`);
   check('ending needs a reason', noReason.status === 400 || noReason.status === 422, brief(noReason));
-  const ended = await call(pm, 'DELETE', `${V}/oversight/psf/team/${dboRow?.assignmentId}?reason=${encodeURIComponent('Verify: post ended')}`);
-  check('it ends the DBO’s appointment', ended.status === 200 && !ended.json?.members?.some((m) => m.assignmentId === dboRow?.assignmentId), brief(ended));
+  const ended = await call(dm, 'DELETE', `${V}/oversight/psf/team/${dboRow?.assignmentId}?reason=${encodeURIComponent('Verify: post ended')}`);
+  check('it ends the BDE’s appointment', ended.status === 200 && !ended.json?.members?.some((m) => m.assignmentId === dboRow?.assignmentId), brief(ended));
   const after = await call(dbo, 'GET', `${V}/oversight/psf/businesses`);
-  check('the DBO is then refused the console', after.status === 403, brief(after));
+  check('the BDE is then refused the console', after.status === 403, brief(after));
 } catch (error) {
   fail += 1;
   failures.push(String(error?.message ?? error));

@@ -1,7 +1,7 @@
 import type { OversightGrant } from '@injishi/contracts';
 import type { ConfigService } from '@nestjs/config';
 import { NotFoundException } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 
 import type { PaymentPort } from '../../pay/domain/payment-port';
 import type { ProfileService } from '../../user/application/profile.service';
@@ -24,13 +24,23 @@ const DM: OversightGrant = {
   villageId: null,
 };
 
-const due = (orgId: string, lastRemindedAt: string | null) => ({
+interface DueRow {
+  orgId: string;
+  districtId: number;
+  paymentDue: { amountRwf: number; since: string; docId: string; contactName: string; phoneE164: string; email: null; lastRemindedAt: string | null };
+}
+
+const due = (orgId: string, lastRemindedAt: string | null): DueRow => ({
   orgId,
   districtId: 102,
   paymentDue: { amountRwf: 30_000, since: '2026-11-01T10:00:00Z', docId: 'PSF-AAAA-BBBB', contactName: 'A', phoneE164: '+250788123456', email: null, lastRemindedAt },
 });
 
-function harness(rows: ReturnType<typeof due>[]) {
+function harness(rows: DueRow[]): {
+  service: PsfMembershipService;
+  repo: { registerPage: Mock; recordPaymentReminder: Mock; districtsByProvince: Mock };
+  mail: { paymentReminder: Mock };
+} {
   const repo = {
     registerPage: vi.fn().mockResolvedValue({ rows, more: false, total: rows.length }),
     recordPaymentReminder: vi.fn().mockResolvedValue(undefined),
@@ -70,10 +80,10 @@ describe('PSF payment reminders (2026-11-02)', () => {
     await expect(service.sendPaymentReminders('officer', [DM], 'org-9')).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('a District Business Officer reminds nobody', async () => {
+  it('a BDE reminds nobody', async () => {
     const { service, repo } = harness([due('org-1', null)]);
     await service.sendPaymentReminders('dbo', [{ ...DM, oversightRole: 'psf_business_officer' }]);
-    // The edit scope of a DBO is no district at all.
+    // The edit scope of a BDE is no district at all.
     expect(repo.registerPage).toHaveBeenCalledWith([], { payment: 'due', orgId: undefined }, undefined, 500);
   });
 });

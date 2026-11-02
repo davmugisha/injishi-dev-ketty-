@@ -110,6 +110,8 @@ function csvFor(id: PsfReportId, r: PsfReport): CsvSection[] {
             ["Approved", k.approved.value, k.approved.previous],
             ["Declined", k.declined.value, k.declined.previous],
             ["New members", k.newMembers.value, k.newMembers.previous],
+            ["Renewed", k.renewed.value, k.renewed.previous],
+            ["Card holders brought in", k.cardHolders.value, k.cardHolders.previous],
             ["Membership fees (RWF)", k.membershipFeesRwf.value, k.membershipFeesRwf.previous],
             ["Median days to decide", k.medianDecisionDays.value ?? "", k.medianDecisionDays.previous ?? ""],
           ],
@@ -230,7 +232,7 @@ function csvFor(id: PsfReportId, r: PsfReport): CsvSection[] {
           rows: [
             ["Membership applications", r.now.waiting],
             ["Businesses to approve", r.registrations.waitingReview],
-            ["Membership claims to confirm", r.now.claimsWaiting],
+            ["Card holders to confirm", r.now.claimsWaiting],
             ["Renewals due in 30 days", r.now.expiringIn30Days],
           ],
         },
@@ -469,7 +471,7 @@ function Overview({ r }: { r: PsfReport }) {
           },
           {
             id: "claims",
-            label: "Membership claims",
+            label: "Card holders to confirm",
             value: n.claimsWaiting,
             format: "count",
             icon: "CircleCheck",
@@ -571,6 +573,15 @@ function Membership({ r }: { r: PsfReport }) {
             trend: trend(k.membershipFeesRwf),
           },
           waitKpi("days", k.medianDecisionDays.value, "from applying"),
+        ]}
+      />
+      {/* How members came in (2026-11-02): new, renewed, and old card holders brought into the new module. */}
+      <KpiStrip
+        label="How members came in"
+        items={[
+          { id: "in-new", label: "New members", value: k.newMembers.value, format: "count", icon: "PersonPlus", trend: trend(k.newMembers) },
+          { id: "in-renewed", label: "Renewed", value: k.renewed.value, format: "count", icon: "ArrowRotateRight", trend: trend(k.renewed) },
+          { id: "in-cards", label: "Card holders brought in", value: k.cardHolders.value, format: "count", icon: "CreditCard", trend: trend(k.cardHolders) },
         ]}
       />
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">

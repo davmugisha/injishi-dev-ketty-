@@ -133,8 +133,9 @@ export declare const PSF_OUT_OF_SCOPE_MESSAGE = "This business is outside the re
  * A PSF membership officer may be posted for the whole country, a province or
  * one district, and sees exactly the businesses of that region. Injishi's admin
  * posts only the Province Managers (2026-11-02); each Province
- * Manager posts its districts' District Managers and District Business Officers
- * from the PSF console's Team screen, so neither is offered to admin here.
+ * Manager posts its districts' District Managers, and a District Manager its
+ * district's BDEs, from the PSF console's Team screen, so neither is offered to
+ * admin here.
  */
 export declare const OVERSIGHT_ROLE_POSTING: Readonly<Partial<Record<OversightRole, {
     governmentBodyCode: string;
@@ -2761,8 +2762,18 @@ export type PsfBranchDecisionRequest = z.infer<typeof PsfBranchDecisionRequest>;
 export declare const PsfApplicationOrigin: z.ZodEnum<["psf_form", "registration"]>;
 export type PsfApplicationOrigin = z.infer<typeof PsfApplicationOrigin>;
 export declare const PSF_APPLICATION_ORIGIN_LABEL: Readonly<Record<PsfApplicationOrigin, string>>;
+/**
+ * How a business came in (2026-11-02, 0131): a new application, or a holder of an old PSF card, with
+ * no number or certificate in the new module, joining it. A card holder pays nothing now, is given a
+ * new number, and keeps the year on its card.
+ */
+export declare const PsfApplicationIntake: z.ZodEnum<["new", "card_holder"]>;
+export type PsfApplicationIntake = z.infer<typeof PsfApplicationIntake>;
+export declare const PSF_APPLICATION_INTAKE_LABEL: Readonly<Record<PsfApplicationIntake, string>>;
 export declare const PsfQueueItem: z.ZodObject<{
     applicationId: z.ZodString;
+    /** New, or a card holder joining the new module (2026-11-02). */
+    intake: z.ZodDefault<z.ZodEnum<["new", "card_holder"]>>;
     /** Where it was sent from: the public PSF form, or Injishi's business registration. */
     origin: z.ZodDefault<z.ZodEnum<["psf_form", "registration"]>>;
     orgId: z.ZodString;
@@ -2818,6 +2829,7 @@ export declare const PsfQueueItem: z.ZodObject<{
     associationName: string | null;
     canDecide: boolean;
     applicationId: string;
+    intake: "new" | "card_holder";
     origin: "registration" | "psf_form";
     businessName: string;
     waitingDays: number;
@@ -2846,6 +2858,7 @@ export declare const PsfQueueItem: z.ZodObject<{
     docId: string | null;
     clusterName?: string | null | undefined;
     subsectorName?: string | null | undefined;
+    intake?: "new" | "card_holder" | undefined;
     origin?: "registration" | "psf_form" | undefined;
     paidRwf?: number | null | undefined;
     headOfficeInScope?: boolean | undefined;
@@ -2856,6 +2869,8 @@ export type PsfQueueItem = z.infer<typeof PsfQueueItem>;
 export declare const PsfQueuePage: z.ZodObject<{
     items: z.ZodArray<z.ZodObject<{
         applicationId: z.ZodString;
+        /** New, or a card holder joining the new module (2026-11-02). */
+        intake: z.ZodDefault<z.ZodEnum<["new", "card_holder"]>>;
         /** Where it was sent from: the public PSF form, or Injishi's business registration. */
         origin: z.ZodDefault<z.ZodEnum<["psf_form", "registration"]>>;
         orgId: z.ZodString;
@@ -2911,6 +2926,7 @@ export declare const PsfQueuePage: z.ZodObject<{
         associationName: string | null;
         canDecide: boolean;
         applicationId: string;
+        intake: "new" | "card_holder";
         origin: "registration" | "psf_form";
         businessName: string;
         waitingDays: number;
@@ -2939,6 +2955,7 @@ export declare const PsfQueuePage: z.ZodObject<{
         docId: string | null;
         clusterName?: string | null | undefined;
         subsectorName?: string | null | undefined;
+        intake?: "new" | "card_holder" | undefined;
         origin?: "registration" | "psf_form" | undefined;
         paidRwf?: number | null | undefined;
         headOfficeInScope?: boolean | undefined;
@@ -2966,6 +2983,7 @@ export declare const PsfQueuePage: z.ZodObject<{
         associationName: string | null;
         canDecide: boolean;
         applicationId: string;
+        intake: "new" | "card_holder";
         origin: "registration" | "psf_form";
         businessName: string;
         waitingDays: number;
@@ -2998,6 +3016,7 @@ export declare const PsfQueuePage: z.ZodObject<{
         docId: string | null;
         clusterName?: string | null | undefined;
         subsectorName?: string | null | undefined;
+        intake?: "new" | "card_holder" | undefined;
         origin?: "registration" | "psf_form" | undefined;
         paidRwf?: number | null | undefined;
         headOfficeInScope?: boolean | undefined;
@@ -3129,6 +3148,8 @@ export declare const PsfOfficerApplication: z.ZodObject<{
     }>;
 } & {
     orgId: z.ZodString;
+    /** New, or a card holder joining the new module (2026-11-02): confirmed with dates, no fee. */
+    intake: z.ZodDefault<z.ZodEnum<["new", "card_holder"]>>;
     /** Where it was sent from: the public PSF form, or Injishi's business registration. */
     origin: z.ZodDefault<z.ZodEnum<["psf_form", "registration"]>>;
     businessName: z.ZodString;
@@ -3284,6 +3305,7 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         associationName: string | null;
     };
     canDecide: boolean;
+    intake: "new" | "card_holder";
     origin: "registration" | "psf_form";
     businessName: string;
     waitingDays: number;
@@ -3370,6 +3392,7 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         note: string | null;
         canDecide: boolean;
     }[] | undefined;
+    intake?: "new" | "card_holder" | undefined;
     origin?: "registration" | "psf_form" | undefined;
     headOfficeInScope?: boolean | undefined;
     decidesHere?: boolean | undefined;
@@ -3386,12 +3409,19 @@ export declare const PsfApproveRequest: z.ZodObject<{
     membershipNumber: z.ZodString;
     feeRwf: z.ZodOptional<z.ZodEffects<z.ZodNumber, number, number>>;
     note: z.ZodOptional<z.ZodString>;
+    /** A card holder's year, as its card shows it (2026-11-02). Required for a card holder, unused otherwise. */
+    startsOn: z.ZodOptional<z.ZodString>;
+    expiresOn: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     membershipNumber: string;
+    expiresOn?: string | undefined;
+    startsOn?: string | undefined;
     note?: string | undefined;
     feeRwf?: number | undefined;
 }, {
     membershipNumber: string;
+    expiresOn?: string | undefined;
+    startsOn?: string | undefined;
     note?: string | undefined;
     feeRwf?: number | undefined;
 }>;
@@ -4506,8 +4536,10 @@ export declare const PsfMembershipClaim: z.ZodObject<{
     businessCode: z.ZodNullable<z.ZodString>;
     tin: z.ZodNullable<z.ZodString>;
     districtName: z.ZodNullable<z.ZodString>;
-    /** Null when the business sent its card without the number (2026-11-02). */
+    /** The OLD number it typed from its card, when it did; null when it sent the card alone (2026-11-02). */
     membershipNumber: z.ZodNullable<z.ZodString>;
+    /** The next number in its district's run (2026-11-02): every card holder gets a new one. */
+    suggestedMembershipNumber: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     status: z.ZodEnum<["claimed", "confirmed", "rejected"]>;
     claimedAt: z.ZodString;
     claimedByName: z.ZodNullable<z.ZodString>;
@@ -4546,6 +4578,7 @@ export declare const PsfMembershipClaim: z.ZodObject<{
     businessCode: string | null;
     membershipNumber: string | null;
     decisionNote: string | null;
+    suggestedMembershipNumber: string | null;
     claimedAt: string;
     claimedByName: string | null;
     decidedByName: string | null;
@@ -4579,6 +4612,7 @@ export declare const PsfMembershipClaim: z.ZodObject<{
         tierCode: string | null;
         tinMatches: boolean;
     } | null;
+    suggestedMembershipNumber?: string | null | undefined;
 }>;
 export type PsfMembershipClaim = z.infer<typeof PsfMembershipClaim>;
 export declare const PsfClaimsQuery: z.ZodObject<{
@@ -4597,8 +4631,10 @@ export declare const PsfClaimsPage: z.ZodObject<{
         businessCode: z.ZodNullable<z.ZodString>;
         tin: z.ZodNullable<z.ZodString>;
         districtName: z.ZodNullable<z.ZodString>;
-        /** Null when the business sent its card without the number (2026-11-02). */
+        /** The OLD number it typed from its card, when it did; null when it sent the card alone (2026-11-02). */
         membershipNumber: z.ZodNullable<z.ZodString>;
+        /** The next number in its district's run (2026-11-02): every card holder gets a new one. */
+        suggestedMembershipNumber: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         status: z.ZodEnum<["claimed", "confirmed", "rejected"]>;
         claimedAt: z.ZodString;
         claimedByName: z.ZodNullable<z.ZodString>;
@@ -4637,6 +4673,7 @@ export declare const PsfClaimsPage: z.ZodObject<{
         businessCode: string | null;
         membershipNumber: string | null;
         decisionNote: string | null;
+        suggestedMembershipNumber: string | null;
         claimedAt: string;
         claimedByName: string | null;
         decidedByName: string | null;
@@ -4670,6 +4707,7 @@ export declare const PsfClaimsPage: z.ZodObject<{
             tierCode: string | null;
             tinMatches: boolean;
         } | null;
+        suggestedMembershipNumber?: string | null | undefined;
     }>, "many">;
     counts: z.ZodObject<{
         claimed: z.ZodNumber;
@@ -4706,6 +4744,7 @@ export declare const PsfClaimsPage: z.ZodObject<{
         businessCode: string | null;
         membershipNumber: string | null;
         decisionNote: string | null;
+        suggestedMembershipNumber: string | null;
         claimedAt: string;
         claimedByName: string | null;
         decidedByName: string | null;
@@ -4750,6 +4789,7 @@ export declare const PsfClaimsPage: z.ZodObject<{
             tierCode: string | null;
             tinMatches: boolean;
         } | null;
+        suggestedMembershipNumber?: string | null | undefined;
     }[];
     counts: {
         rejected: number;
@@ -4768,31 +4808,34 @@ export declare const ConfirmPsfClaimRequest: z.ZodEffects<z.ZodObject<{
     startsOn: z.ZodString;
     expiresOn: z.ZodString;
     note: z.ZodOptional<z.ZodString>;
-    /** Required when the claim came with the card only (2026-11-02): the number, read off the card. */
-    membershipNumber: z.ZodOptional<z.ZodString>;
+    /**
+     * The NEW number PSF gives the card holder in the new module (2026-11-02, the owner's decision):
+     * every card holder gets one, whatever its old card shows. The dialog suggests the district's next.
+     */
+    membershipNumber: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     expiresOn: string;
     tierCode: string;
+    membershipNumber: string;
     startsOn: string;
-    membershipNumber?: string | undefined;
     note?: string | undefined;
 }, {
     expiresOn: string;
     tierCode: string;
+    membershipNumber: string;
     startsOn: string;
-    membershipNumber?: string | undefined;
     note?: string | undefined;
 }>, {
     expiresOn: string;
     tierCode: string;
+    membershipNumber: string;
     startsOn: string;
-    membershipNumber?: string | undefined;
     note?: string | undefined;
 }, {
     expiresOn: string;
     tierCode: string;
+    membershipNumber: string;
     startsOn: string;
-    membershipNumber?: string | undefined;
     note?: string | undefined;
 }>;
 export type ConfirmPsfClaimRequest = z.infer<typeof ConfirmPsfClaimRequest>;

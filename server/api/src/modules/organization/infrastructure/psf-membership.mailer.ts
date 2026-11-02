@@ -20,6 +20,7 @@ import {
   psfMembershipLink,
   psfOfficerQueueMail,
   psfApplicationLink,
+  psfCardLink,
   psfTrackLink,
 } from '../domain/psf-mail';
 import { SMS_PORT, type SmsPort } from '../../sms/domain/sms-port';
@@ -228,7 +229,10 @@ export class PsfMembershipMailer {
         isPsfApplicant({ userId: o.userId, domain: facts.domain, orgRole: 'owner', obo: facts.obo }),
       );
       if (recipients.length > 0) {
-        const link = psfMembershipLink(this.webUrl, await this.repo.workspaceIdFor(orgId));
+        // Its tracking page when it has a docID (paying, renewing and the certificate live there), else
+        // Compliance in the app (2026-11-02): the old web link opened nothing.
+        const docId = await this.repo.latestDocId(orgId);
+        const link = docId ? psfTrackLink(this.webUrl, docId) : psfMembershipLink(this.appUrl);
         for (const r of recipients) {
           await this.deliver(r.email, build({ name: r.name }, facts.legalName, link), what, orgId, attachments);
         }
@@ -256,6 +260,11 @@ export class PsfMembershipMailer {
         }
       }
     });
+  }
+
+  /** The member's card, which the certificate's QR code opens (2026-11-02). */
+  cardLink(membershipNumber: string): string {
+    return psfCardLink(this.webUrl, membershipNumber);
   }
 
   /** The tracking page for a docID, as every PSF mail and text links it. */

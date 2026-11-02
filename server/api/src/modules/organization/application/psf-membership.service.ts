@@ -172,8 +172,17 @@ export class PsfMembershipService {
       this.repo.memberListSummary(),
     ]);
     const count = (s: string): number => counts.find((c) => c.status === s)?.n ?? 0;
+    // Every card holder gets a NEW number (2026-11-02): the next in its district's run, once per district.
+    const year = Number(kigaliToday().slice(0, 4));
+    const next = new Map<number, string>();
+    for (const r of rows) {
+      if (r.status !== 'claimed' || r.districtId === null || next.has(r.districtId)) continue;
+      const letters = districtLetters(r.districtId, r.districtName);
+      next.set(r.districtId, formatPsfMembershipNumber(letters, year, (await this.report.lastMembershipNumber(letters, year)) + 1));
+    }
     return {
       items: rows.map((r) => ({
+        suggestedMembershipNumber: r.status === 'claimed' && r.districtId !== null ? (next.get(r.districtId) ?? null) : null,
         id: r.id,
         orgId: r.orgId,
         legalName: r.legalName,
@@ -219,15 +228,13 @@ export class PsfMembershipService {
     if (!(await this.repo.tierCodes()).includes(body.tierCode)) {
       throw new BadRequestException('That tier is not one of PSF\'s.');
     }
-    // A claim sent with the card only (2026-11-02): the officer types the number from the card.
-    const membershipNumber = claim.membershipNumber ?? (body.membershipNumber ? normalizePsfNumber(body.membershipNumber) : null);
-    const numberIssue = (message: string) =>
+    // Every card holder gets a NEW number in the new module (2026-11-02, the owner's decision), whatever its
+    // old card shows: the officer gives it, the dialog suggesting the district's next.
+    const membershipNumber = body.membershipNumber.trim();
+    const numberIssue = (message: string): UnprocessableEntityException =>
       new UnprocessableEntityException({ message: 'Validation failed', issues: [{ code: 'custom', path: ['membershipNumber'], message }] });
-    if (!membershipNumber) throw numberIssue('Type the membership number from the card.');
-    if (!claim.membershipNumber) {
-      if (!looksLikePsfNumber(membershipNumber)) throw numberIssue('Type the full membership number, as it is printed on the card.');
-      if (await this.numberHeldByAnotherBusiness(membershipNumber)) throw numberIssue('That number is another business’s PSF membership.');
-    }
+    if (!membershipNumber) throw numberIssue('Give the new membership number.');
+    if (await this.numberHeldByAnotherBusiness(membershipNumber)) throw numberIssue('That number is another business’s PSF membership.');
     await this.repo.confirmClaim({
       claimId: claim.id,
       orgId: claim.orgId,
@@ -449,7 +456,7 @@ export class PsfMembershipService {
     const scope = await this.scopeOf(grants);
     const districtId = area.district ?? (scope !== null && scope.length === 1 ? scope[0]! : null);
     if (districtId !== null && scope !== null && !scope.includes(districtId)) throw new ForbiddenException(PSF_OUT_OF_SCOPE_MESSAGE);
-    // A District Business Officer reads the prices, and sets none (2026-11-02).
+    // A BDE reads the prices, and sets none (2026-11-02).
     const editScope = await this.editScopeOf(grants);
     const [tiers, rows, districtName] = await Promise.all([
       this.repo.tiers(true),
@@ -1185,7 +1192,7 @@ export class PsfMembershipService {
 
   /**
    * The districts these grants READ: null for the country (`districtScopeOf`).
-   * A District Business Officer's posting counts here (2026-11-02): it reads
+   * A BDE's posting counts here (2026-11-02): it reads
    * its district like a District Manager does.
    */
   private async scopeOf(grants: OversightGrant[]): Promise<PsfScope> {
@@ -1198,7 +1205,7 @@ export class PsfMembershipService {
 
   /**
    * The districts these grants may CHANGE (fees, subtypes, form fields, claims,
-   * decisions): the District Manager's postings alone. A DBO's changes nothing.
+   * decisions): the District Manager's postings alone. A BDE's changes nothing.
    */
   private editScopeOf(grants: OversightGrant[]): Promise<PsfScope> {
     return this.scopeOf(grants.filter((g) => g.oversightRole === 'psf_membership_officer'));
@@ -1242,6 +1249,7 @@ export class PsfMembershipService {
       items: page.rows.map((r) => ({
         applicationId: r.applicationId,
         origin: r.submittedByUserId ? ('registration' as const) : ('psf_form' as const),
+        intake: r.intake,
         orgId: r.orgId,
         businessName: r.businessName,
         businessCode: r.businessCode,
@@ -1399,6 +1407,7 @@ export class PsfMembershipService {
       ...toPsfApplicationView(row),
       // Nobody signed in: the public PSF form. A registrant: Injishi's business registration (2026-11-02).
       origin: row.submittedByUserId ? 'registration' : 'psf_form',
+      intake: row.intake,
       orgId: row.orgId,
       businessName: row.businessName,
       districtName: row.districtName,
@@ -1537,6 +1546,8 @@ export class PsfMembershipService {
     input: PsfApproveRequest,
   ): Promise<PsfOfficerApplication> {
     const row = await this.decidable(officerUserId, grants, applicationId);
+    // A card holder (2026-11-02): a member at once, a new number and its card's year, no fee now.
+    if (row.intake === 'card_holder') return this.approveCardHolder(officerUserId, grants, row, input);
     // PSF approves only a business that has paid (2026-10-20): a paid
     // application becomes a member at once, and its fee goes on to PSF.
     if (row.paidAt) return this.approvePaid(officerUserId, grants, row, input);
@@ -1583,6 +1594,35 @@ export class PsfMembershipService {
         issues: [{ code: 'custom', path: ['membershipNumber'], message: 'That membership number is already given to another business.' }],
       });
     }
+  }
+
+  private async approveCardHolder(
+    officerUserId: string,
+    grants: OversightGrant[],
+    row: PsfOfficerApplicationRow,
+    input: PsfApproveRequest,
+  ): Promise<PsfOfficerApplication> {
+    const issue = (path: string, message: string): UnprocessableEntityException =>
+      new UnprocessableEntityException({ message: 'Validation failed', issues: [{ code: 'custom', path: [path], message }] });
+    if (!input.startsOn) throw issue('startsOn', 'Give the date the card says the membership started.');
+    if (!input.expiresOn) throw issue('expiresOn', 'Give the date the card says the membership ends.');
+    if (input.expiresOn <= input.startsOn) throw issue('expiresOn', 'The membership ends after it starts.');
+    await this.assertNumberFree(input.membershipNumber, row.id);
+    const done = await this.repo.approveCardHolder({
+      applicationId: row.id,
+      officerUserId,
+      bodyCode: this.bodyOf(grants),
+      membershipNumber: input.membershipNumber,
+      note: input.note ?? null,
+      startsOn: input.startsOn,
+      expiresOn: input.expiresOn,
+    });
+    if (!done) throw new ConflictException(PSF_NOT_OPEN_MESSAGE);
+    // The news goes with the certificate, as for a claim PSF confirms.
+    const certificate = await this.certificates?.pdfOrNull(done.orgId);
+    if (certificate) await this.mail.claimConfirmed(done.orgId, input.membershipNumber, input.expiresOn, certificate);
+    else await this.mail.claimConfirmed(done.orgId, input.membershipNumber, input.expiresOn);
+    return this.decidedView(row.id, done.orgId, decidingDistricts(grants));
   }
 
   private async approvePaid(
@@ -1648,6 +1688,7 @@ export class PsfMembershipService {
     return {
       ...toPsfApplicationView(app),
       origin: app.submittedByUserId ? 'registration' : 'psf_form',
+      intake: app.intake,
       orgId,
       businessName: facts.legalName,
       districtName: facts.districtName,
@@ -1814,7 +1855,7 @@ function decidingDistricts(grants: OversightGrant[]): number[] {
     .map((g) => g.districtId as number);
 }
 
-/** The two postings that open the PSF console: a manager's, and a District Business Officer's (2026-11-02). */
+/** The two postings that open the PSF console: a manager's, and a BDE's (2026-11-02). */
 export function isPsfConsoleRole(role: OversightGrant['oversightRole']): boolean {
   return role === 'psf_membership_officer' || role === 'psf_business_officer';
 }

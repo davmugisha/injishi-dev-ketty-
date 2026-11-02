@@ -23,7 +23,7 @@ const FILTERS: { id: AdminPsfFilter; label: string }[] = [
   { id: "renewal_due", label: "Renewal due" },
   { id: "lapsed", label: "Lapsed" },
   { id: "applied", label: "Waiting for approval" },
-  { id: "claimed", label: "Claimed" },
+  { id: "claimed", label: "Card holders" },
   { id: "declined", label: "Declined" },
 ];
 

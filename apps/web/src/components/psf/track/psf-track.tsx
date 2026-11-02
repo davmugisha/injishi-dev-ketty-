@@ -242,7 +242,13 @@ export function PsfTrack({ docId }: { docId: string }) {
                 ].join(" ")}
               />
               <span className={["text-xs font-medium", done || failedHere ? "text-foreground" : "text-muted-foreground"].join(" ")}>
-                {failedHere ? (view.stage === "declined" ? "Declined" : "Withdrawn") : m.label}
+                {failedHere
+                  ? view.stage === "declined"
+                    ? "Declined"
+                    : "Withdrawn"
+                  : m.key === "paid" && view.intake === "card_holder"
+                    ? "Card sent"
+                    : m.label}
               </span>
             </li>
           );
@@ -429,12 +435,16 @@ function StageCard({ view, onChanged }: { view: PsfTrackView; onChanged: (v: Psf
             <div>
               <h2 className="text-xl font-semibold">With the {view.reviewingOffice}</h2>
               <p className="mt-1.5 text-muted-foreground">
-                A PSF District Manager is reviewing your application
+                {view.intake === "card_holder" ? "A PSF District Manager is checking your PSF card" : "A PSF District Manager is reviewing your application"}
                 {view.waitingDays !== null ? `, waiting ${view.waitingDays === 0 ? "since today" : `${view.waitingDays} day${view.waitingDays === 1 ? "" : "s"}`}` : ""}. Most are decided within a week. We text you the moment they decide.
               </p>
               <p className="mt-3 inline-flex items-start gap-2 text-sm text-muted-foreground">
                 <Wallet size={14} aria-hidden className="mt-0.5 shrink-0 text-accent-text" />
-                <span>Your membership fee is paid. Approved, you are a member that day.</span>
+                <span>
+                  {view.intake === "card_holder"
+                    ? "A card holder: nothing to pay now. Confirmed, you get a new membership number and your certificate that day."
+                    : "Your membership fee is paid. Approved, you are a member that day."}
+                </span>
               </p>
             </div>
           </div>

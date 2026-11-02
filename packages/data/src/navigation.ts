@@ -813,7 +813,7 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
       label: "To do",
       items: [
         { id: "apps", label: "Membership applications", icon: "FileText", board: "PsfConsole" },
-        { id: "claims", label: "Membership claims", icon: "CircleCheck", board: "PsfClaims" },
+        { id: "claims", label: "Card holders", icon: "CircleCheck", board: "PsfClaims" },
         { id: "registrations", label: "Business approvals", icon: "ShieldCheck", board: "OfficerHome" },
       ],
     },
@@ -843,7 +843,7 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
       ],
     },
   ],
-  // A PSF District Business Officer (2026-11-02): the same portal, read only. No claims to decide and
+  // A PSF BDE, Business Development & Empowerment (2026-11-02): the same portal, read only. No claims to decide and
   // no business approvals, which are the District Manager's.
   psfdbo: [
     {

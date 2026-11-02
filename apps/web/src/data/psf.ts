@@ -1,5 +1,6 @@
 import {
   PSF_CHECK_TOKEN_HEADER,
+  PsfCardUploadResult,
   PsfLogoUploadResult,
   PsfMemberLookupConfirmed,
   PsfMemberLookupResult,
@@ -131,6 +132,32 @@ export async function uploadPsfLogo(checkToken: string, file: File): Promise<Api
       return { status: "refused", message: body?.message ?? "That logo could not be uploaded.", httpStatus: res.status };
     }
     const parsed = PsfLogoUploadResult.safeParse(await res.json());
+    return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+  } catch {
+    return { status: "failed" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** A card holder's old PSF card (2026-11-02), under the form's ID check, like the logo. */
+export async function uploadPsfCard(checkToken: string, file: File): Promise<ApiResult<PsfCardUploadResult>> {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60_000);
+  try {
+    const res = await fetch(`${API_URL}/api/v1/psf/card-upload`, {
+      method: "POST",
+      body: form,
+      headers: { [PSF_CHECK_TOKEN_HEADER]: checkToken },
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as { message?: string } | null;
+      return { status: "refused", message: body?.message ?? "That card could not be uploaded.", httpStatus: res.status };
+    }
+    const parsed = PsfCardUploadResult.safeParse(await res.json());
     return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
   } catch {
     return { status: "failed" };
