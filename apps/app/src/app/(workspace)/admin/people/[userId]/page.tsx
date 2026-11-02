@@ -2,29 +2,55 @@ import { screens } from "@injishi/data";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PersonView } from "@/features/admin/people/PersonView";
-import { currentAccount, requirePersona } from "@/lib/session";
-import { ApiError } from "@/server/api";
-import { staffAccess } from "@/server/admin/leaders";
-import { person } from "@/server/admin/people";
 import { Refused } from "@/features/admin/people/Refused";
+import { currentAccount, requirePersona } from "@/lib/session";
+import { staffAccess } from "@/server/admin/leaders";
+import { activity, person, roleCatalog, signIns } from "@/server/admin/people";
+import { ApiError } from "@/server/api";
 
 export const metadata: Metadata = { title: screens.AdminPeople.pageTitle };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** One person and every authority they hold (2026-10-29), with the controls this staffer's role allows. */
+/** A read this staffer may not make is left out of the page rather than failing it. */
+async function optional<T>(allowed: boolean, read: () => Promise<T>): Promise<T | null> {
+  if (!allowed) return null;
+  try {
+    return await read();
+  } catch (error) {
+    if (error instanceof ApiError && error.forbidden) return null;
+    throw error;
+  }
+}
+
+/** One person and every authority they hold, with the controls and tabs this staffer's role allows. */
 export default async function AdminPersonPage({ params }: { params: Promise<{ userId: string }> }) {
   await requirePersona("AdminPeople");
   const { userId } = await params;
   if (!UUID.test(userId)) notFound();
   try {
     const [detail, access, account] = await Promise.all([person(userId), staffAccess(), currentAccount()]);
-    const can = {
-      staff: access.permissions.includes("admin.user.role.grant"),
-      members: access.permissions.includes("admin.business.member.manage"),
-      seats: access.permissions.includes("admin.user.role.grant"),
-    };
-    return <PersonView person={detail} can={can} isSelf={account?.user.id === detail.id} />;
+    const has = (p: string) => access.permissions.includes(p);
+    const [catalog, history, trail] = await Promise.all([
+      optional(has("admin.role.view"), roleCatalog),
+      optional(has("admin.user.view"), () => signIns(userId)),
+      optional(has("admin.audit.read"), () => activity(userId)),
+    ]);
+    return (
+      <PersonView
+        person={detail}
+        can={{
+          grant: has("admin.user.role.grant"),
+          members: has("admin.business.member.manage"),
+          suspend: has("admin.user.suspend"),
+          sessions: has("admin.user.session.revoke"),
+        }}
+        isSelf={account?.user.id === detail.id}
+        customRoles={catalog?.custom ?? []}
+        signIns={history}
+        activity={trail}
+      />
+    );
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) notFound();
     if (error instanceof ApiError && error.forbidden) return <Refused code={error.code} />;
