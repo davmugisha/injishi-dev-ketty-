@@ -1,9 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.NO_STAFF_ACCESS = exports.StaffAccess = exports.StaffTwoFactor = exports.TWO_PERSON_STAFF_PERMISSIONS = exports.STAFF_PERMISSION_LABEL = exports.StaffPermission = void 0;
+exports.NO_STAFF_ACCESS = exports.StaffAccess = exports.StaffTwoFactor = exports.STAFF_STEP_UP_STALE = exports.STAFF_GRANT_STEP_UP_SECONDS = exports.STAFF_PERMISSION_DESCRIPTION = exports.STAFF_PERMISSION_AREA = exports.STAFF_PERMISSION_AREA_LABEL = exports.StaffPermissionArea = exports.RESERVED_STAFF_PERMISSIONS = exports.TWO_PERSON_STAFF_PERMISSIONS = exports.STAFF_PERMISSION_LABEL = exports.StaffPermission = void 0;
 exports.staffPermissionsForRoles = staffPermissionsForRoles;
 exports.staffAllows = staffAllows;
 exports.needsSecondSigner = needsSecondSigner;
+exports.isReservedStaffPermission = isReservedStaffPermission;
+exports.staffPermissionsInArea = staffPermissionsInArea;
+exports.builtInRolePermissions = builtInRolePermissions;
+exports.staffPermissionsForGrants = staffPermissionsForGrants;
+exports.permissionsBeyond = permissionsBeyond;
 exports.staffRequiresStepUp = staffRequiresStepUp;
 exports.staffStepUpOwed = staffStepUpOwed;
 const zod_1 = require("zod");
@@ -48,6 +53,10 @@ exports.StaffPermission = zod_1.z.enum([
     "admin.user.role.grant",
     "admin.user.session.revoke",
     "admin.user.impersonate",
+    /** Suspend an account so it cannot sign in, and lift the suspension (2026-11-02). */
+    "admin.user.suspend",
+    /** See the staff roles, who holds each, and the permissions matrix (2026-11-02). Read only. */
+    "admin.role.view",
     /** Add a person to a business, change their role there, or remove them. */
     "admin.business.member.manage",
     // Brokers.
@@ -133,6 +142,10 @@ const STAFF_ROLE_PERMISSIONS = {
         "admin.business.reinstate",
         "admin.user.view",
         "admin.user.session.revoke",
+        // Ops can stop a compromised or abusive account from signing in; a
+        // staff account is suspended only by a super admin (the API's rule).
+        "admin.user.suspend",
+        "admin.role.view",
         // Ops fixes who works where; ownership changes still need a written reason.
         "admin.business.member.manage",
         "admin.broker.view",
@@ -148,6 +161,7 @@ const STAFF_ROLE_PERMISSIONS = {
     compliance: new Set([
         ...OBSERVE,
         "admin.business.view",
+        "admin.role.view",
         "admin.compliance.view",
         "admin.dsr.action",
         "admin.audit.read",
@@ -225,6 +239,8 @@ exports.STAFF_PERMISSION_LABEL = {
     "admin.user.session.revoke": "end a user's sessions",
     "admin.business.member.manage": "add, change or remove a person in a business",
     "admin.user.impersonate": "act on behalf of a user",
+    "admin.user.suspend": "suspend or reactivate an account",
+    "admin.role.view": "view staff roles and permissions",
     "admin.broker.view": "view brokers",
     "admin.broker.approve": "approve a broker",
     "admin.finance.view": "view money",
@@ -267,6 +283,187 @@ exports.TWO_PERSON_STAFF_PERMISSIONS = [
 function needsSecondSigner(permission) {
     return exports.TWO_PERSON_STAFF_PERMISSIONS.includes(permission);
 }
+// ---------------------------------------------------------------------------
+// Custom staff roles (2026-11-02)
+// ---------------------------------------------------------------------------
+/**
+ * A custom role is a NAMED BUNDLE OF THE PERMISSIONS ABOVE, made by a super
+ * admin from the console. It never adds a power: the list it chooses from is
+ * `StaffPermission.options`, which is code, and every route still asks for one
+ * of those by name through `@RequireStaffPermission`. A permission stored on a
+ * custom role that the code no longer defines is dropped when access is
+ * resolved (`staffPermissionsForGrants`), so a stale row can never be a power.
+ *
+ * The five built-in roles stay in code (`STAFF_ROLE_PERMISSIONS`) and are shown
+ * read only: they cannot be edited, archived or deleted.
+ */
+/**
+ * Permissions that may never be put in a custom role (owner decision,
+ * 2026-11-02). They hand out authority, act as somebody else, move money
+ * without the usual checks, or change how the whole platform runs, so they stay
+ * with `super_admin` alone. The database refuses them too
+ * (`staff_custom_role_permissions_not_reserved`).
+ */
+exports.RESERVED_STAFF_PERMISSIONS = [
+    "admin.user.role.grant",
+    "admin.user.impersonate",
+    "admin.money.override",
+    "admin.config.edit",
+    "admin.environment.manage",
+];
+/** May this permission go into a custom role? */
+function isReservedStaffPermission(permission) {
+    return exports.RESERVED_STAFF_PERMISSIONS.includes(permission);
+}
+/** The areas a role editor and the matrix group permissions under, in display order. */
+exports.StaffPermissionArea = zod_1.z.enum([
+    "observe",
+    "businesses",
+    "people",
+    "brokers",
+    "money",
+    "compliance",
+    "platform",
+    "training",
+]);
+exports.STAFF_PERMISSION_AREA_LABEL = {
+    observe: "Overview",
+    businesses: "Businesses",
+    people: "People and roles",
+    brokers: "Brokers",
+    money: "Money",
+    compliance: "Compliance and audit",
+    platform: "Platform",
+    training: "Training",
+};
+/** Which area each permission sits in. Typed by `StaffPermission`, so a new one must be placed. */
+exports.STAFF_PERMISSION_AREA = {
+    "admin.overview.view": "observe",
+    "admin.analytics.view": "observe",
+    "admin.system.view": "observe",
+    "admin.business.view": "businesses",
+    "admin.business.review": "businesses",
+    "admin.business.suspend": "businesses",
+    "admin.business.reinstate": "businesses",
+    "admin.business.member.manage": "businesses",
+    "admin.user.view": "people",
+    "admin.user.role.grant": "people",
+    "admin.user.session.revoke": "people",
+    "admin.user.impersonate": "people",
+    "admin.user.suspend": "people",
+    "admin.role.view": "people",
+    "admin.broker.view": "brokers",
+    "admin.broker.approve": "brokers",
+    "admin.finance.view": "money",
+    "admin.fee.edit": "money",
+    "admin.payout.release": "money",
+    "admin.money.override": "money",
+    "admin.compliance.view": "compliance",
+    "admin.dsr.action": "compliance",
+    "admin.audit.read": "compliance",
+    "admin.config.view": "platform",
+    "admin.config.edit": "platform",
+    "admin.environment.view": "platform",
+    "admin.environment.manage": "platform",
+    "admin.announcement.view": "platform",
+    "admin.announcement.publish": "platform",
+    "admin.moderation.view": "platform",
+    "admin.moderation.act": "platform",
+    "admin.localization.view": "platform",
+    "admin.localization.edit": "platform",
+    "training.view": "training",
+    "training.session.manage": "training",
+    "training.attendance.mark": "training",
+    "training.certificate.revoke": "training",
+    "training.course.manage": "training",
+    "training.venue.manage": "training",
+    "training.session.publish": "training",
+};
+/** One plain sentence per permission, for the role editor and the matrix. */
+exports.STAFF_PERMISSION_DESCRIPTION = {
+    "admin.overview.view": "Open the admin home with today's numbers.",
+    "admin.analytics.view": "See bookings, revenue and growth charts.",
+    "admin.system.view": "See whether the platform's services are healthy.",
+    "admin.business.view": "Open any business and its registration.",
+    "admin.business.review": "Check a registration and send it on or back.",
+    "admin.business.suspend": "Stop a business from trading on Injishi.",
+    "admin.business.reinstate": "Let a suspended business trade again.",
+    "admin.business.member.manage": "Add a person to a business, change their role there, or take them out.",
+    "admin.user.view": "Search every account and open a person.",
+    "admin.user.role.grant": "Create accounts, give staff roles and appoint officers.",
+    "admin.user.session.revoke": "Sign a person out everywhere.",
+    "admin.user.impersonate": "See Injishi as a particular person sees it.",
+    "admin.user.suspend": "Stop an account from signing in, and let it back in.",
+    "admin.role.view": "See the staff roles, who holds each one, and what each allows.",
+    "admin.broker.view": "See brokers and their applications.",
+    "admin.broker.approve": "Approve or turn down a broker.",
+    "admin.finance.view": "See payments, payouts and the ledger.",
+    "admin.fee.edit": "Change the fees Injishi charges.",
+    "admin.payout.release": "Release money that is owed to a business.",
+    "admin.money.override": "Correct a money movement by hand.",
+    "admin.compliance.view": "See data requests and compliance records.",
+    "admin.dsr.action": "Act on a person's request to see or delete their data.",
+    "admin.audit.read": "Read who did what, and why.",
+    "admin.config.view": "See platform settings and rules.",
+    "admin.config.edit": "Change platform settings and rules.",
+    "admin.environment.view": "See environments and connected services.",
+    "admin.environment.manage": "Switch environments and connected services.",
+    "admin.announcement.view": "See announcements to users.",
+    "admin.announcement.publish": "Publish an announcement to users.",
+    "admin.moderation.view": "See reported content and support cases.",
+    "admin.moderation.act": "Hide content and close support cases.",
+    "admin.localization.view": "See translations.",
+    "admin.localization.edit": "Edit translations.",
+    "training.view": "See training courses, sessions and rosters.",
+    "training.session.manage": "Draft and edit a training session.",
+    "training.attendance.mark": "Mark who attended a session.",
+    "training.certificate.revoke": "Withdraw a certificate issued in error.",
+    "training.course.manage": "Create and publish a course.",
+    "training.venue.manage": "Set where training may happen.",
+    "training.session.publish": "Open a session for registration.",
+};
+/** The permissions in an area, in canonical order. */
+function staffPermissionsInArea(area) {
+    return ALL_STAFF.filter((p) => exports.STAFF_PERMISSION_AREA[p] === area);
+}
+/** The permissions a built-in role holds, in canonical order. For the matrix. */
+function builtInRolePermissions(role) {
+    return staffPermissionsForRoles([role]);
+}
+/**
+ * Every permission a staffer holds from their built-in roles AND their custom
+ * roles, as a stable sorted list.
+ *
+ * Custom role permissions arrive as stored strings. Anything the code does not
+ * define, and anything reserved, is dropped here rather than trusted: the
+ * database is a record of what was chosen, the code is what a power IS.
+ */
+function staffPermissionsForGrants(roles, customPermissions) {
+    const held = new Set(staffPermissionsForRoles(roles));
+    for (const raw of customPermissions) {
+        const parsed = exports.StaffPermission.safeParse(raw);
+        if (parsed.success && !isReservedStaffPermission(parsed.data))
+            held.add(parsed.data);
+    }
+    return ALL_STAFF.filter((p) => held.has(p));
+}
+/**
+ * The permissions in `wanted` that `held` does not cover. Empty means the
+ * actor may hand all of them out: nobody grants a power they do not hold.
+ */
+function permissionsBeyond(held, wanted) {
+    return wanted.filter((p) => !held.includes(p));
+}
+/**
+ * How recent the emailed step-up must be for a grant (owner decision,
+ * 2026-11-02): ten minutes. The console already demands the code once per
+ * session; a grant asks again when the last code is older than this, so the
+ * person granting is shown to hold the mailbox at the moment of granting.
+ * Role grants stay single signer (ADR-053); this is the control in its place.
+ */
+exports.STAFF_GRANT_STEP_UP_SECONDS = 600;
+/** The refusal code a grant route answers when the step-up is too old. */
+exports.STAFF_STEP_UP_STALE = "step_up_stale";
 // ---------------------------------------------------------------------------
 // The wire shape
 // ---------------------------------------------------------------------------
@@ -317,6 +514,11 @@ exports.StaffAccess = zod_1.z.object({
     roles: primitives_1.StaffRole.array(),
     /** The union of those roles' powers, already resolved. Empty for non-staff. */
     permissions: exports.StaffPermission.array(),
+    /**
+     * The custom roles held (2026-11-02), by id and name. Optional so an older
+     * API stays parseable; their powers are already in `permissions`.
+     */
+    customRoles: zod_1.z.array(zod_1.z.object({ id: zod_1.z.string().uuid(), name: zod_1.z.string() })).optional(),
     /**
      * The step-up, as `GET /api/v1/me/staff` reports it, so the console can send
      * a staffer to the code screen BEFORE it renders rather than after a page's
