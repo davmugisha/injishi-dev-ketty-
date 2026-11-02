@@ -486,7 +486,9 @@ export function PhoneSheet({
   description?: string;
   children: ReactNode;
 }) {
-  if (!isOpen) return null;
+  // Mounted while closed on purpose: heroui-native snaps the sheet up when `isOpen` turns true, so a
+  // sheet first mounted already open stays parked below the screen. heroui-native keeps a closed
+  // sheet out of the paint itself.
   return (
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
       <BottomSheet.Portal>
