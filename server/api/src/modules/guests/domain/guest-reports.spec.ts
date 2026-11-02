@@ -19,6 +19,10 @@ function row(over: Partial<ReportRow> = {}): ReportRow {
   return {
     arrivalOn: '2026-10-05',
     departureOn: '2026-10-08',
+    reportedOn: '2026-10-04',
+    placeType: 'residence',
+    placeLabel: 'Residence',
+    propertyName: 'Amani Residences',
     nationality: 'RW',
     nationalityName: 'Rwanda',
     fromAbroad: false,
@@ -104,8 +108,8 @@ describe('guest reports: figures', () => {
     const rows = [row(), row(), row({ unitId: 'u2', unitLabel: 'A-02' }), ...Array.from({ length: 12 }, (_, i) => row({ propertyId: `p${i + 2}`, unitId: null, unitLabel: null, homeAddress: `Street ${i}` }))];
     const homes = topHomes(rows);
     expect(homes).toHaveLength(TOP_HOMES);
-    expect(homes[0]).toEqual({ address: 'KG 7 Ave, Urugwiro village', unitLabel: 'A-01', guests: 2 });
-    expect(Object.keys(homes[0]!)).toEqual(['address', 'unitLabel', 'guests']);
+    expect(homes[0]).toEqual({ name: 'Amani Residences', placeLabel: 'Residence', address: 'KG 7 Ave, Urugwiro village', unitLabel: 'A-01', guests: 2, fromAbroad: 0 });
+    expect(Object.keys(homes[0]!)).toEqual(['name', 'placeLabel', 'address', 'unitLabel', 'guests', 'fromAbroad']);
   });
 
   it('totals the period, keeps staying-now as given and adds the purged counts', () => {
@@ -117,7 +121,7 @@ describe('guest reports: figures', () => {
       areaLevel: 'village',
       purged: { before: '2025-10-24', registered: 5, fromAbroad: 2, flagged: 1 },
     });
-    expect(figures.totals).toEqual({ registered: 3 + 5, stayingNow: 7, fromAbroad: 1 + 2, flagged: 1 + 1, averageNights: 3 });
+    expect(figures.totals).toEqual({ registered: 3 + 5, stayingNow: 7, fromAbroad: 1 + 2, nationals: 8 - 3, nationalities: 2, flagged: 1 + 1, averageNights: 3 });
     expect(figures.arrivals.points).toHaveLength(31);
     expect(figures.purged).toEqual({ before: '2025-10-24', registered: 5, fromAbroad: 2, flagged: 1 });
     expect(reportFigures({ rows: [], from: '2026-10-01', to: '2026-10-31', stayingNow: 0, areaLevel: 'sector', purged: { before: 'x', registered: 0, fromAbroad: 0, flagged: 0 } }).purged).toBeNull();
