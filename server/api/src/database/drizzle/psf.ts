@@ -369,7 +369,8 @@ export const psfMembershipClaims = pgTable(
     orgId: uuid('org_id')
       .notNull()
       .references(() => orgs.id, { onDelete: 'cascade' }),
-    membershipNumber: text('membership_number').notNull(),
+    // Null when the member sent its card without the number (0130); the confirming officer types it.
+    membershipNumber: text('membership_number'),
     status: text('status').$type<'claimed' | 'confirmed' | 'rejected'>().notNull().default('claimed'),
     claimedByUserId: uuid('claimed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
     claimedAt: timestamp('claimed_at', { withTimezone: true }).notNull().defaultNow(),
@@ -509,3 +510,53 @@ export const psfMembershipFormFields = pgTable(
 );
 
 export type PsfMembershipFormFieldRow = typeof psfMembershipFormFields.$inferSelect;
+
+/**
+ * PSF membership renewals (2026-11-02, migration 0126): the next year paid on
+ * the tracking page. A paid renewal renews at once, with no officer; the year
+ * runs on from the old end date, or from the payment for a lapsed membership,
+ * and the band may change. Early renewal extends the current membership row; a
+ * lapsed one gets a new row under the same number. One row per attempt.
+ */
+export const psfMembershipRenewals = pgTable(
+  'psf_membership_renewals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    membershipId: uuid('membership_id')
+      .notNull()
+      .references(() => psfMemberships.id),
+    applicationId: uuid('application_id').references(() => psfMembershipApplications.id),
+    membershipNumber: text('membership_number').notNull(),
+    tierCode: text('tier_code')
+      .notNull()
+      .references(() => psfMembershipTiers.code),
+    amountRwf: amount('amount_rwf').notNull(),
+    payerPhoneE164: text('payer_phone_e164').notNull(),
+    status: text('status').$type<'pending' | 'paid' | 'failed'>().notNull().default('pending'),
+    startsOn: date('starts_on').notNull(),
+    expiresOn: date('expires_on').notNull(),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    paymentRef: text('payment_ref'),
+    paymentMode: adapterModeEnum('payment_mode'),
+    failure: text('failure'),
+    resultMembershipId: uuid('result_membership_id').references(() => psfMemberships.id),
+    remittedAt: timestamp('remitted_at', { withTimezone: true }),
+    remittanceRef: text('remittance_ref'),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('psf_membership_renewals_one_pending_uk')
+      .on(t.orgId)
+      .where(sql`${t.status} = 'pending'`),
+    index('psf_membership_renewals_org_idx').on(t.orgId, t.createdAt),
+    index('psf_membership_renewals_paid_idx')
+      .on(t.paidAt)
+      .where(sql`${t.status} = 'paid'`),
+    check('psf_membership_renewals_status_ck', sql`${t.status} IN ('pending', 'paid', 'failed')`),
+    check('psf_membership_renewals_amount_ck', sql`${t.amountRwf} > 0`),
+    check('psf_membership_renewals_period_ck', sql`${t.expiresOn} > ${t.startsOn}`),
+  ],
+);

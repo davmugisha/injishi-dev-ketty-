@@ -70,6 +70,12 @@ export interface MoneyCommand {
   currency: 'RWF';
   /** Money is scoped per workspace (F-S08 §6). */
   workspaceId: string;
+  /**
+   * Set when the money has no workspace: a business on the public PSF path
+   * (2026-11-02). `workspaceId` then carries the business's id, for the key and
+   * the provider, and the ledger row names the business (`org_id`) instead.
+   */
+  withoutWorkspace?: boolean;
   /** Free text carried to the provider and into the ledger memo. */
   memo?: string;
 }

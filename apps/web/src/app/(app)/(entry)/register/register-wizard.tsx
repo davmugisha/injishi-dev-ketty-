@@ -799,10 +799,13 @@ export default function RegisterWizard({
   const psfReady =
     path === "landlord" ||
     (business.psfMember === true
-      ? !business.psfMembershipNumber.trim() || looksLikePsfNumber(business.psfMembershipNumber)
-      : business.psfMember !== false) ||
-    business.psfApply !== true ||
-    PsfApplicationInput.safeParse(psfCandidate(psf, documentOnFile !== null)).success;
+      ? // A member sends its card (2026-11-02), and its number if it knows it: PSF reads the number off
+        // the card otherwise.
+        (!business.psfMembershipNumber.trim() || looksLikePsfNumber(business.psfMembershipNumber)) &&
+        docs.some((d) => d.kind === "psf_certificate")
+      : business.psfMember === false
+        ? business.psfApply !== true || PsfApplicationInput.safeParse(psfCandidate(psf, true)).success
+        : true);
   // The rows Documents asks for, by the kind the org will carry (ADR-075 S5).
   const documentKind: BusinessKind | null = kind && kind !== "broker" ? registrationForKind(kind).businessKind : null;
   const docsState = documentsReady(documentKind, docs);
@@ -840,7 +843,8 @@ export default function RegisterWizard({
       role,
       capacity,
       ...(sendPersonal ? { personal: personalCandidate(personal, identityOnFile !== null) } : {}),
-      business: businessCandidate(business, role, kind, legalName, docs, branches, psf, documentOnFile !== null),
+      // The PSF application names the ID checked on You (2026-11-02): asked once, never again on Business.
+      business: businessCandidate(business, role, kind, legalName, docs, branches, psf, true),
       ...(capacity === "on_behalf_of"
         ? {
             intendedOwner: {
@@ -871,7 +875,15 @@ export default function RegisterWizard({
     setFormError("");
     const i = order.indexOf(step);
     if (step === "business" && !psfReady) {
-      const parsed = PsfApplicationInput.safeParse(psfCandidate(psf, documentOnFile !== null));
+      if (business.psfMember === true) {
+        setFormError(
+          business.psfMembershipNumber.trim() && !looksLikePsfNumber(business.psfMembershipNumber)
+            ? "That does not look like a PSF membership number. Type it in full, as on your card, or leave it empty."
+            : "Add a photo or scan of your PSF membership card.",
+        );
+        return;
+      }
+      const parsed = PsfApplicationInput.safeParse(psfCandidate(psf, true));
       if (!parsed.success) setErrors(prefix("psf", issuesToErrors(parsed.error.issues)));
       setFormError("Some of the PSF application needs fixing.");
       return;
@@ -1384,6 +1396,16 @@ export default function RegisterWizard({
       primary = { ...primary, disabled: true, why: "Say what kind of place it is to continue." };
     } else if (!businessDone) {
       primary = { ...primary, disabled: true, why: "Finish the sections above to continue." };
+    } else if (!psfReady && business.psfMember === true) {
+      // Said on the footer too (2026-11-02): a member's missing card left a live Continue with no reason beside it.
+      primary = {
+        ...primary,
+        disabled: true,
+        why:
+          business.psfMembershipNumber.trim() && !looksLikePsfNumber(business.psfMembershipNumber)
+            ? "Fix the PSF membership number, or leave it empty, to continue."
+            : "Add your PSF membership card to continue.",
+      };
     }
   } else if (step === "you" && !youDone) {
     primary = { ...primary, disabled: true, why: "Finish the sections above to continue." };
@@ -1577,7 +1599,9 @@ export default function RegisterWizard({
                   setTiersFailed(false);
                   setTierRetry((n) => n + 1);
                 }}
-                documentLine={documentOnFile}
+                documentLine={documentOnFile ?? "The ID you check on the next step, You. Nothing to type here."}
+                card={docs.find((d) => d.kind === "psf_certificate") ?? null}
+                onCardChange={(card) => setDocs((d) => [...d.filter((x) => x.kind !== "psf_certificate"), ...(card ? [card] : [])])}
                 errors={errors}
               />
             ) : null}

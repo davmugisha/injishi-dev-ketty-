@@ -124,8 +124,10 @@ export class MoneyQueueService {
     if (FINAL.has(row.status)) throw new ConflictException(`This payment is ${row.status}; there is nothing left to ask the bank.`);
 
     if (row.direction === 'collection') {
-      if (!row.workspaceId) throw new ConflictException('This payment names no workspace.');
-      await this.port.fetchTransaction(row.workspaceId, row.providerReference ?? row.reference);
+      // A business with no workspace (the public PSF path) is named by its org instead.
+      const scope = row.workspaceId ?? row.orgId;
+      if (!scope) throw new ConflictException('This payment names no workspace.');
+      await this.port.fetchTransaction(scope, row.providerReference ?? row.reference);
     } else {
       await this.dispatcher.pullOne(row.id);
     }

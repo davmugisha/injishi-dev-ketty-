@@ -8,7 +8,7 @@ import { openToRealPeople } from "@/lib/real-screens";
 import { currentAccount } from "@/lib/session";
 import { brokerNav } from "@/server/broker/nav";
 import { businessNav } from "@/server/business/nav";
-import { officerNav, officerPersona } from "@/server/oversight/nav";
+import { appointsPsfTeam, officerNav, officerPersona, psfWaitingByBoard, withWaitingCounts } from "@/server/oversight/nav";
 import { landlordScope } from "@/server/rentals/client";
 import { landlordNav } from "@/server/rentals/nav";
 import { tenantNav } from "@/server/tenant/nav";
@@ -48,7 +48,7 @@ function withoutSampleCounts(groups: NavGroup[]): NavGroup[] {
 function withOversightNav(nav: NavGroup[], persona: { id: string; access?: readonly string[] }): NavGroup[] {
   const access = persona.access;
   // The PSF console's own sidebar already lists these.
-  if (!access?.length || persona.id === "psf") return nav;
+  if (!access?.length || persona.id === "psf" || persona.id === "psfdbo") return nav;
   const allowed = new Set(access);
   const extras: NavGroup[] = [];
   if (allowed.has("PsfConsole") || allowed.has("PsfReport")) {
@@ -82,8 +82,8 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
       ? await landlordNav()
       : persona.id === "officer"
         ? await officerNav()
-        : persona.id === "psf" && personaByEmail(account.user.email)?.id !== "psf"
-          ? realScreensOnly(navigationFor("psf"))
+        : (persona.id === "psf" || persona.id === "psfdbo") && personaByEmail(account.user.email)?.id !== persona.id
+          ? realScreensOnly(navigationFor(persona.id))
           : persona.id === "tenant"
             ? await tenantNav()
             : persona.id === "broker"
@@ -115,8 +115,14 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
       ? { prefix: "/home", nav: await tenantNav() }
       : null;
   // An officer's or leader's header names their own seat, not the persona's sample one.
-  const shown = persona.id === "officer" || persona.id === "psf" ? await officerPersona(persona) : persona;
+  const shown = persona.id === "officer" || persona.id === "psf" || persona.id === "psfdbo" ? await officerPersona(persona) : persona;
   nav = withOversightNav(nav, persona);
+  // Team is the Province Manager's screen (2026-11-02): a District Manager or DBO does not see it.
+  if ((persona.id === "psf" || persona.id === "psfdbo") && !(await appointsPsfTeam())) {
+    nav = nav.map((g) => ({ ...g, items: g.items.filter((i) => i.board !== "PsfTeam") })).filter((g) => g.items.length > 0);
+  }
+  // What waits on a PSF officer, counted beside each queue (2026-11-02).
+  if (persona.id === "psf" || persona.id === "psfdbo") nav = withWaitingCounts(nav, await psfWaitingByBoard());
   return (
     <WorkspaceShell persona={shown} nav={nav} altNav={altNav} demo={personaByEmail(account.user.email)?.id === persona.id}>
       {children}

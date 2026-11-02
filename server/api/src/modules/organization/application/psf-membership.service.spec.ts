@@ -23,6 +23,7 @@ import {
 } from '../infrastructure/psf-membership.repository';
 import { buildPsfApplicationRow } from './psf-application-row';
 import type { PsfReportRepository } from '../infrastructure/psf-report.repository';
+import type { PsfRenewalRepository } from '../infrastructure/psf-renewal.repository';
 import { PsfMembershipService } from './psf-membership.service';
 
 type ClaimsHarness = { service: PsfMembershipService; repo: Record<string, Mock>; mail: Record<string, Mock> };
@@ -189,6 +190,8 @@ function setup(env: Record<string, string> = {}): {
   const payments = {
     chargeOneTimeFee: vi.fn().mockResolvedValue(receipt()),
     payout: vi.fn().mockResolvedValue(receipt({ adapterRef: 'mock_payout_1' })),
+    // The gateway asked again about a pending prompt: still pending unless a test says otherwise.
+    fetchTransaction: vi.fn().mockResolvedValue(null),
   };
   const service = new PsfMembershipService(
     repo as unknown as PsfMembershipRepository,
@@ -197,6 +200,7 @@ function setup(env: Record<string, string> = {}): {
     payments as unknown as PaymentPort,
     { get: (key: string) => env[key] } as unknown as ConfigService,
     { lastMembershipNumber: vi.fn().mockResolvedValue(0), membershipNumberTaken: vi.fn().mockResolvedValue(false) } as unknown as PsfReportRepository,
+    { paidOf: vi.fn().mockResolvedValue([]) } as unknown as PsfRenewalRepository,
   );
   // A decided application is read back for the officer; its detail is not under test here.
   vi
@@ -439,6 +443,17 @@ describe('PsfMembershipService · paying (the PSF path)', () => {
     expect(repo.recordPayment).not.toHaveBeenCalled();
   });
 
+  it('Check payment settles a prompt the person has since approved (2026-11-02)', async () => {
+    const { repo, payments, service } = setup();
+    repo.applicationById.mockResolvedValue(APPROVED);
+    const settled = await payments.chargeOneTimeFee();
+    payments.chargeOneTimeFee.mockResolvedValue({ ...settled, settlement: 'pending' });
+    payments.fetchTransaction.mockResolvedValue(settled);
+    await service.pay(ORG, 'u-owner', APP, PHONE);
+    expect(payments.fetchTransaction).toHaveBeenCalledWith(expect.any(String), settled.adapterRef);
+    expect(repo.recordPayment).toHaveBeenCalledTimes(1);
+  });
+
   it('an unreachable provider is a 503 that says nothing was taken', async () => {
     const { repo, payments, service } = setup();
     repo.applicationById.mockResolvedValue(APPROVED);
@@ -565,6 +580,7 @@ describe('membership claims (0121): a typed number is a claim until PSF confirms
       {} as unknown as PaymentPort,
       { get: () => undefined } as unknown as ConfigService,
       {} as unknown as PsfReportRepository,
+      {} as unknown as PsfRenewalRepository,
     );
     return { service, repo, mail };
   }

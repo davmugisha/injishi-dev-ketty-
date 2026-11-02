@@ -494,7 +494,9 @@ function withOversightBoards(shell: Persona, oversight: string[]): Persona {
   const extra =
     oversight.includes("psf_membership_officer")
       ? (personas.psf.access ?? [])
-      : (["OfficerHome", "OfficerCase", "DelegatedReports"] as const);
+      : oversight.includes("psf_business_officer")
+        ? (personas.psfdbo.access ?? [])
+        : (["OfficerHome", "OfficerCase", "DelegatedReports"] as const);
   const access = [...new Set([...(shell.access ?? []), ...extra])];
   return access.length === (shell.access?.length ?? 0) ? shell : { ...shell, access: [...access] };
 }
@@ -552,6 +554,8 @@ async function personaFor(
   const oversight = context ? context.oversight.map((g) => g.oversightRole) : await oversightRoles(cookie);
   // A PSF District Manager's desk is the PSF console: membership, registration review and the overview.
   if (oversight.includes("psf_membership_officer")) return personas.psf;
+  // A District Business Officer (2026-11-02): the PSF console, read only.
+  if (oversight.includes("psf_business_officer")) return personas.psfdbo;
   if (oversight.length > 0) return personas.officer;
   return personas.guest;
 }

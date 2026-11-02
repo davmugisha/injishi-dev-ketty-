@@ -791,6 +791,7 @@ export declare const LandlordPlacementList: z.ZodObject<{
     paidRwf: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     paidRwf: number;
+    owedRwf: number;
     placements: {
         status: "initiated" | "converted" | "abandoned" | "unavailable";
         broker: {
@@ -841,9 +842,9 @@ export declare const LandlordPlacementList: z.ZodObject<{
             };
         } | null;
     }[];
-    owedRwf: number;
 }, {
     paidRwf: number;
+    owedRwf: number;
     placements: {
         status: "initiated" | "converted" | "abandoned" | "unavailable";
         broker: {
@@ -894,7 +895,6 @@ export declare const LandlordPlacementList: z.ZodObject<{
             };
         } | null;
     }[];
-    owedRwf: number;
 }>;
 export type LandlordPlacementList = z.infer<typeof LandlordPlacementList>;
 /** A broker the landlord can name on a lease (`GET /ops/rentals/brokers?q=`). */

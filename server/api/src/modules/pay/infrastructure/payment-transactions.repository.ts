@@ -31,6 +31,8 @@ export interface TransactionRow {
   direction: 'collection' | 'disbursement' | 'adjustment';
   operation: string;
   workspaceId: string | null;
+  /** The business, when the payment has no workspace (the public PSF path). */
+  orgId?: string | null;
   amountRwf: number;
   feeRwf: number;
   status: TransactionStatus;
@@ -60,7 +62,8 @@ export class PaymentTransactionsRepository {
   async recordCollection(input: {
     idempotencyKey: string;
     reference: string;
-    workspaceId: string;
+    workspaceId: string | null;
+    orgId?: string | null;
     provider: string;
     adapterMode: 'mock' | 'live';
     operation: 'escrow_capture' | 'one_time_fee' | 'recurring_charge';
@@ -75,6 +78,7 @@ export class PaymentTransactionsRepository {
         idempotencyKey: input.idempotencyKey,
         reference: input.reference,
         workspaceId: input.workspaceId,
+        orgId: input.orgId ?? null,
         provider: input.provider,
         adapterMode: input.adapterMode,
         direction: 'collection',
@@ -749,6 +753,7 @@ function shape(row: typeof paymentTransactions.$inferSelect): TransactionRow {
     direction: row.direction,
     operation: row.operation,
     workspaceId: row.workspaceId ?? null,
+    orgId: row.orgId ?? null,
     amountRwf: row.amountRwf,
     feeRwf: row.feeRwf,
     status: row.status,

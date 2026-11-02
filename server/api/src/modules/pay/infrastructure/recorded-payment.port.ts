@@ -246,7 +246,8 @@ export class RecordedPaymentPort implements PaymentPort {
     const { row, created } = await this.record.recordCollection({
       idempotencyKey: key,
       reference: referenceFor(key),
-      workspaceId: command.workspaceId,
+      workspaceId: command.withoutWorkspace ? null : command.workspaceId,
+      orgId: command.withoutWorkspace ? command.workspaceId : null,
       provider: this.seam.provider,
       adapterMode: this.inner.mode,
       operation: command.kind,

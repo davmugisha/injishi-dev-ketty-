@@ -1,6 +1,8 @@
 import {
   PSF_CHECK_TOKEN_HEADER,
   PsfLogoUploadResult,
+  PsfMemberLookupConfirmed,
+  PsfMemberLookupResult,
   PsfCatalogue,
   PsfIdentityLookupResult,
   PsfPublicSubmitResult,
@@ -12,6 +14,7 @@ import {
   type PsfIdentityConfirmRequest,
   type PsfIdentityLookupRequest,
   type PsfPublicSubmitRequest,
+  type PsfRenewRequest,
 } from "@injishi/contracts";
 import { API_URL, apiFetchParsed, type ApiResult } from "@/lib/api";
 
@@ -66,6 +69,25 @@ export function payPsfMembership(docId: string, phoneE164: string): Promise<ApiR
   return apiFetchParsed(PsfTrackPayResult, `/api/v1/psf/track/${encodeURIComponent(docId)}/pay`, {
     method: "POST",
     body: { phoneE164 },
+    timeoutMs: 30_000,
+  });
+}
+
+/** Tracking by membership number (2026-11-02): a code goes to the phone on file. */
+export function lookupPsfMember(membershipNumber: string): Promise<ApiResult<PsfMemberLookupResult>> {
+  return apiFetchParsed(PsfMemberLookupResult, "/api/v1/psf/member-lookup", { method: "POST", body: { membershipNumber } });
+}
+
+/** The code read back answers the docID, which opens the tracking page. */
+export function confirmPsfMember(lookupToken: string, code: string): Promise<ApiResult<PsfMemberLookupConfirmed>> {
+  return apiFetchParsed(PsfMemberLookupConfirmed, "/api/v1/psf/member-lookup/confirm", { method: "POST", body: { lookupToken, code } });
+}
+
+/** Renew a membership (2026-11-02): the band, the amount within it, and the phone to prompt. */
+export function renewPsfMembership(docId: string, body: PsfRenewRequest): Promise<ApiResult<PsfTrackPayResult>> {
+  return apiFetchParsed(PsfTrackPayResult, `/api/v1/psf/track/${encodeURIComponent(docId)}/renew`, {
+    method: "POST",
+    body,
     timeoutMs: 30_000,
   });
 }

@@ -25,7 +25,7 @@ import {
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { PsfReportRepository } from '../infrastructure/psf-report.repository';
-import { PsfMembershipService } from './psf-membership.service';
+import { PsfMembershipService, isPsfConsoleRole } from './psf-membership.service';
 
 const DECISIONS_PAGE_SIZE = 30;
 const DAY_MS = 86_400_000;
@@ -87,7 +87,7 @@ export class PsfReportService {
 
   /** What the officer covers, and the places the switcher offers. */
   async scope(grants: OversightGrant[]): Promise<PsfOfficerScope> {
-    const own = grants.filter((g) => g.oversightRole === 'psf_membership_officer');
+    const own = grants.filter((g) => isPsfConsoleRole(g.oversightRole));
     const scope = await this.psf.scopeFor(grants);
     const places = await this.repo.geography();
     const level = own.some((g) => g.scopeLevel === 'country')

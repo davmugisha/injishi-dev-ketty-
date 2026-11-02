@@ -123,11 +123,14 @@ export function handOverMail(input: { appUrl: string; role: LeaderRole; area: st
 export function appointmentMail(input: { appUrl: string; roleLabel: string; area: string; next: string }): GuestMail {
   const url = new URL('/sign-in', input.appUrl);
   url.searchParams.set('next', input.next);
+  // "Village leader" reads as "village leader" mid-sentence; a title led by an
+  // acronym ("PSF Province Manager", "DGIE district officer") keeps its capitals.
+  const role = /^[A-Z]{2,}\b/.test(input.roleLabel) ? input.roleLabel : input.roleLabel.toLowerCase();
   return mail(
-    `You are now the ${input.roleLabel.toLowerCase()} for ${input.area} on Injishi`,
+    `You are now the ${role} for ${input.area} on Injishi`,
     'You have a new post on Injishi',
     [
-      `Injishi appointed you ${input.roleLabel.toLowerCase()} for ${input.area}.`,
+      `Injishi appointed you ${role} for ${input.area}.`,
       'Sign in with this email address. We send you a code each time, so there is no password to remember.',
     ],
     { label: 'Sign in', url: url.toString() },

@@ -172,8 +172,8 @@ export const PSF_COMPANY_TYPE_LABEL: Readonly<Record<PsfCompanyType, string>> = 
     sole_trader: "Sole trader",
 };
 export const PSF_OWNERSHIP_LABEL: Readonly<Record<PsfOwnership, string>> = {
-    foreign_100: "100% foreign owned",
     rwandan_100: "100% Rwandan owned",
+    foreign_100: "100% foreign owned",
     franchise: "Franchise",
     joint_venture: "Joint venture",
     foreign_representative: "Representative of a foreign company",
@@ -240,7 +240,10 @@ export const PSF_OUT_OF_SCOPE_MESSAGE = "This business is outside the region you
  * path refuses with 422 a grant that breaks its role's entry.
  *
  * A PSF membership officer may be posted for the whole country, a province or
- * one district, and sees exactly the businesses of that region.
+ * one district, and sees exactly the businesses of that region. Injishi's admin
+ * posts only the Province Managers (2026-11-02); each Province
+ * Manager posts its districts' District Managers and District Business Officers
+ * from the PSF console's Team screen, so neither is offered to admin here.
  */
 export const OVERSIGHT_ROLE_POSTING: Readonly<Partial<Record<OversightRole, {
     governmentBodyCode: string;
@@ -249,8 +252,13 @@ export const OVERSIGHT_ROLE_POSTING: Readonly<Partial<Record<OversightRole, {
 }>>> = {
     psf_membership_officer: {
         governmentBodyCode: "PSF",
-        scopeLevels: ["country", "province", "district"],
-        message: "A PSF District Manager is appointed at PSF.",
+        scopeLevels: ["province"],
+        message: "Injishi appoints PSF's Province Managers, at PSF. A Province Manager appoints its District Managers from the PSF console.",
+    },
+    psf_business_officer: {
+        governmentBodyCode: "PSF",
+        scopeLevels: [],
+        message: "A District Business Officer is appointed by the PSF Province Manager of that district, from the PSF console.",
     },
 };
 // ---------------------------------------------------------------------------
@@ -671,8 +679,20 @@ export const PsfBranchDecisionRequest = z
     }
 });
 export type PsfBranchDecisionRequest = z.infer<typeof PsfBranchDecisionRequest>;
+/**
+ * Where an application was sent from (2026-11-02): the public PSF form (no account, tracked by docID),
+ * or Injishi's business registration, which files one when the business chooses to apply.
+ */
+export const PsfApplicationOrigin = z.enum(["psf_form", "registration"]);
+export type PsfApplicationOrigin = z.infer<typeof PsfApplicationOrigin>;
+export const PSF_APPLICATION_ORIGIN_LABEL: Readonly<Record<PsfApplicationOrigin, string>> = {
+    psf_form: "PSF form",
+    registration: "Injishi registration",
+};
 export const PsfQueueItem = z.object({
     applicationId: Uuid,
+    /** Where it was sent from: the public PSF form, or Injishi's business registration. */
+    origin: PsfApplicationOrigin.default("registration"),
     orgId: Uuid,
     businessName: z.string(),
     businessCode: z.string().nullable(),
@@ -723,6 +743,8 @@ export const PsfQueueQuery = OversightDecisionQuery;
 export type PsfQueueQuery = z.infer<typeof PsfQueueQuery>;
 export const PsfOfficerApplication = PsfApplication.extend({
     orgId: Uuid,
+    /** Where it was sent from: the public PSF form, or Injishi's business registration. */
+    origin: PsfApplicationOrigin.default("registration"),
     businessName: z.string(),
     districtName: z.string().nullable(),
     registrationStatus: OrgRegistrationStatus,
@@ -789,7 +811,7 @@ export type PsfStanding = z.infer<typeof PsfStanding>;
 export const PSF_STANDING_LABEL: Readonly<Record<PsfStanding, string>> = {
     not_applied: "Not applied",
     claimed: "Claimed, waiting for PSF",
-    applied: "Applied",
+    applied: "Waiting for approval",
     awaiting_payment: "Approved, to pay",
     member: "Member",
     lapsed: "Lapsed",
@@ -813,6 +835,13 @@ export const PsfBusinessesQuery = z.object({
     association: optionalText(60),
     tier: optionalText(60),
     standing: PsfStanding.optional(),
+    /** `due`: a current membership inside its renewal window, 60 days before it ends, or past it (2026-11-02). */
+    renewal: z.enum(["due"]).optional(),
+    /**
+     * `due`: an application sent and not paid (2026-11-02): the public form's payment at submit that did not go
+     * through, or an approval still to pay. Such a business is not on the register otherwise.
+     */
+    payment: z.enum(["due"]).optional(),
     group: PsfOwnerGroup.optional(),
     tin: z.enum(["with", "without"]).optional(),
     kind: PsfBusinessKind.optional(),
@@ -852,8 +881,31 @@ export const PsfBusinessRow = z.object({
      * its head office, and its decision, are another district's.
      */
     headOfficeInScope: z.boolean().default(true),
+    /** The unpaid application, when one is waiting for its payment (2026-11-02): what is owed and who to reach. */
+    paymentDue: z
+        .object({
+        amountRwf: RwfAmount.nullable(),
+        since: z.string(),
+        docId: z.string().nullable(),
+        contactName: z.string(),
+        phoneE164: z.string().nullable(),
+        email: z.string().nullable(),
+        /** The last payment reminder an officer sent; one a day at most. */
+        lastRemindedAt: z.string().nullable(),
+    })
+        .nullable()
+        .default(null),
 });
 export type PsfBusinessRow = z.infer<typeof PsfBusinessRow>;
+/** `POST /oversight/psf/payment-reminders`: remind one business, or every one waiting in the region. */
+export const PsfPaymentReminderRequest = z.object({ orgId: Uuid.optional() });
+export type PsfPaymentReminderRequest = z.infer<typeof PsfPaymentReminderRequest>;
+export const PsfPaymentReminderResult = z.object({
+    sent: z.number().int(),
+    /** Reminded within the last day already, so not again. */
+    skipped: z.number().int(),
+});
+export type PsfPaymentReminderResult = z.infer<typeof PsfPaymentReminderResult>;
 /** One branch on a business's page, wherever it is: every officer who opens the business sees them all. */
 export const PsfBusinessBranch = z.object({
     id: Uuid,
@@ -888,8 +940,14 @@ export const PsfRegisterSummary = z.object({
     total: z.number().int(),
     members: z.number().int(),
     waiting: z.number().int(),
-    /** Fees paid this calendar year through Injishi, in RWF. */
+    /** Fees paid this calendar year through Injishi, in RWF: new memberships and renewals. */
     paidThisYearRwf: z.number().int(),
+    /** Members inside their renewal window, 60 days before the end date (2026-11-02). */
+    renewalDue: z.number().int().default(0),
+    /** Renewals paid this calendar year. */
+    renewedThisYear: z.number().int().default(0),
+    /** Applications sent and not paid (2026-11-02). */
+    awaitingPayment: z.number().int().default(0),
     byCluster: z.array(PsfCount),
     byStanding: z.array(PsfCount),
     byGroup: z.array(PsfCount),
@@ -1067,7 +1125,8 @@ export const PsfMembershipClaim = z.object({
     businessCode: z.string().nullable(),
     tin: z.string().nullable(),
     districtName: z.string().nullable(),
-    membershipNumber: z.string(),
+    /** Null when the business sent its card without the number (2026-11-02). */
+    membershipNumber: z.string().nullable(),
     status: PsfClaimStatus,
     claimedAt: z.string(),
     claimedByName: z.string().nullable(),
@@ -1098,7 +1157,14 @@ export type PsfClaimsPage = z.infer<typeof PsfClaimsPage>;
 const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use yyyy-mm-dd.");
 /** Confirm a claim: the tier and the dates PSF's records give. */
 export const ConfirmPsfClaimRequest = z
-    .object({ tierCode: z.string().min(1), startsOn: isoDay, expiresOn: isoDay, note: z.string().trim().max(500).optional() })
+    .object({
+    tierCode: z.string().min(1),
+    startsOn: isoDay,
+    expiresOn: isoDay,
+    note: z.string().trim().max(500).optional(),
+    /** Required when the claim came with the card only (2026-11-02): the number, read off the card. */
+    membershipNumber: z.string().trim().max(40).optional(),
+})
     .refine((v) => v.expiresOn > v.startsOn, { path: ["expiresOn"], message: "The membership ends after it starts." });
 export type ConfirmPsfClaimRequest = z.infer<typeof ConfirmPsfClaimRequest>;
 /** Reject a claim, with the reason the business is told. */

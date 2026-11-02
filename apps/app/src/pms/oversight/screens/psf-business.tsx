@@ -41,6 +41,7 @@ export function PsfBusinessPage({ orgId }: { orgId: string }) {
 const PAYMENT_LABEL: Record<PsfBusinessHistory["payments"][number]["kind"], string> = {
   registration_fee: "Registration fee",
   membership_fee: "Membership fee",
+  membership_renewal: "Membership renewal",
 };
 
 function Body({ orgId }: { orgId: string }) {

@@ -106,7 +106,8 @@ export function PsfQueueView({ scope, page, q }: { scope: PsfScope; page: PsfQue
                                 ) : null}
                               </span>
                               <span className="text-[12px] leading-4 text-muted tabular">
-                                {[item.docId, item.businessCode].filter(Boolean).join(" · ")} · sent {dayMonth(item.queuedAt ?? item.submittedAt)}
+                                {[item.docId, item.businessCode].filter(Boolean).join(" · ")} · sent {dayMonth(item.queuedAt ?? item.submittedAt)} from{" "}
+                                {item.origin === "psf_form" ? "the PSF form" : "Injishi registration"}
                               </span>
                             </span>
                           </span>

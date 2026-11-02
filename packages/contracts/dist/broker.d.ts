@@ -1530,9 +1530,9 @@ export declare const BrokerSummary: z.ZodObject<{
             plan: "country" | "province" | "district";
         } | null;
     };
+    owedRwf: number;
     ratingAverage: number | null;
     ratingCount: number;
-    owedRwf: number;
     homesInScope: number;
     openPlacements: number;
 }, {
@@ -1551,9 +1551,9 @@ export declare const BrokerSummary: z.ZodObject<{
             plan: "country" | "province" | "district";
         } | null;
     };
+    owedRwf: number;
     ratingAverage: number | null;
     ratingCount: number;
-    owedRwf: number;
     homesInScope: number;
     openPlacements: number;
 }>;

@@ -127,18 +127,18 @@ export declare const EmploymentContractBasic: z.ZodObject<{
     status: "active" | "scheduled" | "ended";
     id: string;
     startsOn: string;
+    endsOn: string | null;
     employeeId: string;
     contractType: "permanent" | "fixed_term" | "casual";
-    endsOn: string | null;
     wageBasis: "monthly" | "daily" | "hourly";
     view: "basic";
 }, {
     status: "active" | "scheduled" | "ended";
     id: string;
     startsOn: string;
+    endsOn: string | null;
     employeeId: string;
     contractType: "permanent" | "fixed_term" | "casual";
-    endsOn: string | null;
     wageBasis: "monthly" | "daily" | "hourly";
     view: "basic";
 }>;
@@ -162,9 +162,9 @@ export declare const EmploymentContractFull: z.ZodObject<{
     status: "active" | "scheduled" | "ended";
     id: string;
     startsOn: string;
+    endsOn: string | null;
     employeeId: string;
     contractType: "permanent" | "fixed_term" | "casual";
-    endsOn: string | null;
     wageBasis: "monthly" | "daily" | "hourly";
     view: "full";
     wageRwf: number;
@@ -173,9 +173,9 @@ export declare const EmploymentContractFull: z.ZodObject<{
     status: "active" | "scheduled" | "ended";
     id: string;
     startsOn: string;
+    endsOn: string | null;
     employeeId: string;
     contractType: "permanent" | "fixed_term" | "casual";
-    endsOn: string | null;
     wageBasis: "monthly" | "daily" | "hourly";
     view: "full";
     wageRwf: number;
@@ -197,18 +197,18 @@ export declare const EmploymentContract: z.ZodDiscriminatedUnion<"view", [z.ZodO
     status: "active" | "scheduled" | "ended";
     id: string;
     startsOn: string;
+    endsOn: string | null;
     employeeId: string;
     contractType: "permanent" | "fixed_term" | "casual";
-    endsOn: string | null;
     wageBasis: "monthly" | "daily" | "hourly";
     view: "basic";
 }, {
     status: "active" | "scheduled" | "ended";
     id: string;
     startsOn: string;
+    endsOn: string | null;
     employeeId: string;
     contractType: "permanent" | "fixed_term" | "casual";
-    endsOn: string | null;
     wageBasis: "monthly" | "daily" | "hourly";
     view: "basic";
 }>, z.ZodObject<{
@@ -229,9 +229,9 @@ export declare const EmploymentContract: z.ZodDiscriminatedUnion<"view", [z.ZodO
     status: "active" | "scheduled" | "ended";
     id: string;
     startsOn: string;
+    endsOn: string | null;
     employeeId: string;
     contractType: "permanent" | "fixed_term" | "casual";
-    endsOn: string | null;
     wageBasis: "monthly" | "daily" | "hourly";
     view: "full";
     wageRwf: number;
@@ -240,9 +240,9 @@ export declare const EmploymentContract: z.ZodDiscriminatedUnion<"view", [z.ZodO
     status: "active" | "scheduled" | "ended";
     id: string;
     startsOn: string;
+    endsOn: string | null;
     employeeId: string;
     contractType: "permanent" | "fixed_term" | "casual";
-    endsOn: string | null;
     wageBasis: "monthly" | "daily" | "hourly";
     view: "full";
     wageRwf: number;
@@ -316,18 +316,18 @@ export declare const EmployeeBasic: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "basic";
     }, {
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "basic";
     }>>;
@@ -368,9 +368,9 @@ export declare const EmployeeBasic: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "basic";
     } | null;
@@ -411,9 +411,9 @@ export declare const EmployeeBasic: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "basic";
     } | null;
@@ -575,9 +575,9 @@ export declare const EmployeeFull: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -586,9 +586,9 @@ export declare const EmployeeFull: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -643,9 +643,9 @@ export declare const EmployeeFull: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -711,9 +711,9 @@ export declare const EmployeeFull: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -798,18 +798,18 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "basic";
     }, {
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "basic";
     }>>;
@@ -850,9 +850,9 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "basic";
     } | null;
@@ -893,9 +893,9 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "basic";
     } | null;
@@ -1016,9 +1016,9 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -1027,9 +1027,9 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -1084,9 +1084,9 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -1152,9 +1152,9 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -1256,18 +1256,18 @@ export declare const EmployeeFile: z.ZodObject<{
             status: "active" | "scheduled" | "ended";
             id: string;
             startsOn: string;
+            endsOn: string | null;
             employeeId: string;
             contractType: "permanent" | "fixed_term" | "casual";
-            endsOn: string | null;
             wageBasis: "monthly" | "daily" | "hourly";
             view: "basic";
         }, {
             status: "active" | "scheduled" | "ended";
             id: string;
             startsOn: string;
+            endsOn: string | null;
             employeeId: string;
             contractType: "permanent" | "fixed_term" | "casual";
-            endsOn: string | null;
             wageBasis: "monthly" | "daily" | "hourly";
             view: "basic";
         }>>;
@@ -1308,9 +1308,9 @@ export declare const EmployeeFile: z.ZodObject<{
             status: "active" | "scheduled" | "ended";
             id: string;
             startsOn: string;
+            endsOn: string | null;
             employeeId: string;
             contractType: "permanent" | "fixed_term" | "casual";
-            endsOn: string | null;
             wageBasis: "monthly" | "daily" | "hourly";
             view: "basic";
         } | null;
@@ -1351,9 +1351,9 @@ export declare const EmployeeFile: z.ZodObject<{
             status: "active" | "scheduled" | "ended";
             id: string;
             startsOn: string;
+            endsOn: string | null;
             employeeId: string;
             contractType: "permanent" | "fixed_term" | "casual";
-            endsOn: string | null;
             wageBasis: "monthly" | "daily" | "hourly";
             view: "basic";
         } | null;
@@ -1474,9 +1474,9 @@ export declare const EmployeeFile: z.ZodObject<{
             status: "active" | "scheduled" | "ended";
             id: string;
             startsOn: string;
+            endsOn: string | null;
             employeeId: string;
             contractType: "permanent" | "fixed_term" | "casual";
-            endsOn: string | null;
             wageBasis: "monthly" | "daily" | "hourly";
             view: "full";
             wageRwf: number;
@@ -1485,9 +1485,9 @@ export declare const EmployeeFile: z.ZodObject<{
             status: "active" | "scheduled" | "ended";
             id: string;
             startsOn: string;
+            endsOn: string | null;
             employeeId: string;
             contractType: "permanent" | "fixed_term" | "casual";
-            endsOn: string | null;
             wageBasis: "monthly" | "daily" | "hourly";
             view: "full";
             wageRwf: number;
@@ -1542,9 +1542,9 @@ export declare const EmployeeFile: z.ZodObject<{
             status: "active" | "scheduled" | "ended";
             id: string;
             startsOn: string;
+            endsOn: string | null;
             employeeId: string;
             contractType: "permanent" | "fixed_term" | "casual";
-            endsOn: string | null;
             wageBasis: "monthly" | "daily" | "hourly";
             view: "full";
             wageRwf: number;
@@ -1610,9 +1610,9 @@ export declare const EmployeeFile: z.ZodObject<{
             status: "active" | "scheduled" | "ended";
             id: string;
             startsOn: string;
+            endsOn: string | null;
             employeeId: string;
             contractType: "permanent" | "fixed_term" | "casual";
-            endsOn: string | null;
             wageBasis: "monthly" | "daily" | "hourly";
             view: "full";
             wageRwf: number;
@@ -1645,18 +1645,18 @@ export declare const EmployeeFile: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "basic";
     }, {
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "basic";
     }>, z.ZodObject<{
@@ -1677,9 +1677,9 @@ export declare const EmployeeFile: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -1688,9 +1688,9 @@ export declare const EmployeeFile: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -1747,9 +1747,9 @@ export declare const EmployeeFile: z.ZodObject<{
             status: "active" | "scheduled" | "ended";
             id: string;
             startsOn: string;
+            endsOn: string | null;
             employeeId: string;
             contractType: "permanent" | "fixed_term" | "casual";
-            endsOn: string | null;
             wageBasis: "monthly" | "daily" | "hourly";
             view: "basic";
         } | null;
@@ -1802,9 +1802,9 @@ export declare const EmployeeFile: z.ZodObject<{
             status: "active" | "scheduled" | "ended";
             id: string;
             startsOn: string;
+            endsOn: string | null;
             employeeId: string;
             contractType: "permanent" | "fixed_term" | "casual";
-            endsOn: string | null;
             wageBasis: "monthly" | "daily" | "hourly";
             view: "full";
             wageRwf: number;
@@ -1831,18 +1831,18 @@ export declare const EmployeeFile: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "basic";
     } | {
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -1886,9 +1886,9 @@ export declare const EmployeeFile: z.ZodObject<{
             status: "active" | "scheduled" | "ended";
             id: string;
             startsOn: string;
+            endsOn: string | null;
             employeeId: string;
             contractType: "permanent" | "fixed_term" | "casual";
-            endsOn: string | null;
             wageBasis: "monthly" | "daily" | "hourly";
             view: "basic";
         } | null;
@@ -1941,9 +1941,9 @@ export declare const EmployeeFile: z.ZodObject<{
             status: "active" | "scheduled" | "ended";
             id: string;
             startsOn: string;
+            endsOn: string | null;
             employeeId: string;
             contractType: "permanent" | "fixed_term" | "casual";
-            endsOn: string | null;
             wageBasis: "monthly" | "daily" | "hourly";
             view: "full";
             wageRwf: number;
@@ -1970,18 +1970,18 @@ export declare const EmployeeFile: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "basic";
     } | {
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -2297,9 +2297,9 @@ export declare const CreateContractResponse: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -2308,9 +2308,9 @@ export declare const CreateContractResponse: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -2334,9 +2334,9 @@ export declare const CreateContractResponse: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -2345,9 +2345,9 @@ export declare const CreateContractResponse: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -2358,9 +2358,9 @@ export declare const CreateContractResponse: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -2370,9 +2370,9 @@ export declare const CreateContractResponse: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -2383,9 +2383,9 @@ export declare const CreateContractResponse: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -2395,9 +2395,9 @@ export declare const CreateContractResponse: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         id: string;
         startsOn: string;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageBasis: "monthly" | "daily" | "hourly";
         view: "full";
         wageRwf: number;
@@ -4367,8 +4367,8 @@ export declare const CreateLeaveRequestRequest: z.ZodObject<{
     employeeId: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     startsOn: string;
-    employeeId: string;
     endsOn: string;
+    employeeId: string;
     leaveTypeId: string;
     reason?: string | null | undefined;
     startHalf?: "full" | "second_half" | undefined;
@@ -4376,8 +4376,8 @@ export declare const CreateLeaveRequestRequest: z.ZodObject<{
     attachmentKey?: string | null | undefined;
 }, {
     startsOn: string;
-    employeeId: string;
     endsOn: string;
+    employeeId: string;
     leaveTypeId: string;
     reason?: string | null | undefined;
     startHalf?: "full" | "second_half" | undefined;

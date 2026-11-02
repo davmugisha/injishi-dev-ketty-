@@ -110,15 +110,15 @@ export declare const FoundItem: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         rule: string;
         note: string;
-        proposedByName: string | null;
         proposedAt: string;
+        proposedByName: string | null;
         approvedByName: string | null;
         approvedAt: string | null;
     }, {
         rule: string;
         note: string;
-        proposedByName: string | null;
         proposedAt: string;
+        proposedByName: string | null;
         approvedByName: string | null;
         approvedAt: string | null;
     }>>;
@@ -190,8 +190,8 @@ export declare const FoundItem: z.ZodObject<{
     disposal: {
         rule: string;
         note: string;
-        proposedByName: string | null;
         proposedAt: string;
+        proposedByName: string | null;
         approvedByName: string | null;
         approvedAt: string | null;
     } | null;
@@ -240,8 +240,8 @@ export declare const FoundItem: z.ZodObject<{
     disposal: {
         rule: string;
         note: string;
-        proposedByName: string | null;
         proposedAt: string;
+        proposedByName: string | null;
         approvedByName: string | null;
         approvedAt: string | null;
     } | null;
@@ -331,15 +331,15 @@ export declare const FoundItemList: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             rule: string;
             note: string;
-            proposedByName: string | null;
             proposedAt: string;
+            proposedByName: string | null;
             approvedByName: string | null;
             approvedAt: string | null;
         }, {
             rule: string;
             note: string;
-            proposedByName: string | null;
             proposedAt: string;
+            proposedByName: string | null;
             approvedByName: string | null;
             approvedAt: string | null;
         }>>;
@@ -411,8 +411,8 @@ export declare const FoundItemList: z.ZodObject<{
         disposal: {
             rule: string;
             note: string;
-            proposedByName: string | null;
             proposedAt: string;
+            proposedByName: string | null;
             approvedByName: string | null;
             approvedAt: string | null;
         } | null;
@@ -461,8 +461,8 @@ export declare const FoundItemList: z.ZodObject<{
         disposal: {
             rule: string;
             note: string;
-            proposedByName: string | null;
             proposedAt: string;
+            proposedByName: string | null;
             approvedByName: string | null;
             approvedAt: string | null;
         } | null;
@@ -526,8 +526,8 @@ export declare const FoundItemList: z.ZodObject<{
         disposal: {
             rule: string;
             note: string;
-            proposedByName: string | null;
             proposedAt: string;
+            proposedByName: string | null;
             approvedByName: string | null;
             approvedAt: string | null;
         } | null;
@@ -583,8 +583,8 @@ export declare const FoundItemList: z.ZodObject<{
         disposal: {
             rule: string;
             note: string;
-            proposedByName: string | null;
             proposedAt: string;
+            proposedByName: string | null;
             approvedByName: string | null;
             approvedAt: string | null;
         } | null;

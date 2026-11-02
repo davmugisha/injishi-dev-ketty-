@@ -288,9 +288,9 @@ export declare const ContractTerms: z.ZodObject<{
     decidedAt: string;
     startsOn: string;
     decidedByName: string | null;
+    endsOn: string | null;
     employeeId: string;
     contractType: "permanent" | "fixed_term" | "casual";
-    endsOn: string | null;
     wageRwf: number;
     endReason: string | null;
     contractId: string;
@@ -302,9 +302,9 @@ export declare const ContractTerms: z.ZodObject<{
     decidedAt: string;
     startsOn: string;
     decidedByName: string | null;
+    endsOn: string | null;
     employeeId: string;
     contractType: "permanent" | "fixed_term" | "casual";
-    endsOn: string | null;
     wageRwf: number;
     endReason: string | null;
     contractId: string;
@@ -356,9 +356,9 @@ export declare const HrCompensation: z.ZodObject<{
         decidedAt: string;
         startsOn: string;
         decidedByName: string | null;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageRwf: number;
         endReason: string | null;
         contractId: string;
@@ -370,9 +370,9 @@ export declare const HrCompensation: z.ZodObject<{
         decidedAt: string;
         startsOn: string;
         decidedByName: string | null;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageRwf: number;
         endReason: string | null;
         contractId: string;
@@ -405,9 +405,9 @@ export declare const HrCompensation: z.ZodObject<{
         decidedAt: string;
         startsOn: string;
         decidedByName: string | null;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageRwf: number;
         endReason: string | null;
         contractId: string;
@@ -427,9 +427,9 @@ export declare const HrCompensation: z.ZodObject<{
         decidedAt: string;
         startsOn: string;
         decidedByName: string | null;
+        endsOn: string | null;
         employeeId: string;
         contractType: "permanent" | "fixed_term" | "casual";
-        endsOn: string | null;
         wageRwf: number;
         endReason: string | null;
         contractId: string;

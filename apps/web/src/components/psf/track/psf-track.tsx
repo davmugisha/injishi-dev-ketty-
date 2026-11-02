@@ -15,6 +15,7 @@ import {
   Crown,
   FileText,
   Hash,
+  History,
   MapPin,
   Medal,
   Printer,
@@ -30,12 +31,24 @@ import {
   PSF_OWNER_GROUP_SHORT,
   PSF_TRACK_STAGE_LABEL,
   type PsfPaymentLine,
+  type PsfTierFee,
+  type PsfTier,
   type PsfTrackStage,
   type PsfTrackView,
 } from "@injishi/contracts";
 import { Button } from "@injishi/web-ui";
 
-import { emailPsfCertificate, fetchPsfTrack, payPsfMembership, payPsfRegistration, psfCertificateUrl, psfLogoSrc } from "@/data/psf";
+import {
+  emailPsfCertificate,
+  fetchPsfFees,
+  fetchPsfTiers,
+  fetchPsfTrack,
+  payPsfMembership,
+  payPsfRegistration,
+  psfCertificateUrl,
+  psfLogoSrc,
+  renewPsfMembership,
+} from "@/data/psf";
 import { apiResultMessage, retryWhileFailed } from "@/lib/api";
 
 import { QrCode } from "@/components/shared/qr-code";
@@ -83,6 +96,7 @@ function reachedOf(stage: PsfTrackStage): number {
 const PAYMENT_LABEL: Record<PsfPaymentLine["kind"], string> = {
   registration_fee: "Registration fee",
   membership_fee: "Membership, first year",
+  membership_renewal: "Membership renewal",
 };
 
 const TONE: Record<PsfTrackStage, { icon: LucideIcon; ring: string; chip: string }> = {
@@ -293,6 +307,7 @@ export function PsfTrack({ docId }: { docId: string }) {
             </dl>
           </section>
           <Payments view={view} />
+          {view.renewals.length > 0 ? <Renewals view={view} /> : null}
           {view.business.branches.length > 0 ? <Branches view={view} /> : null}
           <section className="rounded-card border border-border bg-card p-5">
             <h2 className="text-sm font-semibold">Contact on file</h2>
@@ -440,7 +455,12 @@ function StageCard({ view, onChanged }: { view: PsfTrackView; onChanged: (v: Psf
       );
     case "member":
     case "lapsed":
-      return <Certificate view={view} />;
+      return (
+        <div className="flex flex-col gap-6">
+          <MembershipStatus view={view} onChanged={onChanged} />
+          <Certificate view={view} />
+        </div>
+      );
     case "declined":
       return (
         <section className="rounded-card border border-destructive/30 bg-destructive/5 p-6 sm:p-8">
@@ -499,6 +519,9 @@ function PayPanel({
   const phone = `+250${local}`;
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "danger" | "info"; text: string } | null>(null);
+  // A prompt sent and not yet approved (2026-11-02): the button becomes the Check payment the message
+  // names. Pressing it asks again under the same charge, so it never charges twice.
+  const [waiting, setWaiting] = useState(false);
   const submit = async () => {
     if (!/^\+2507\d{8}$/.test(phone)) {
       setMessage({ tone: "danger", text: "Give a Rwandan mobile money number, like +250788123456." });
@@ -510,6 +533,7 @@ function PayPanel({
     setBusy(false);
     if (res.status !== "ok") return setMessage({ tone: "danger", text: apiResultMessage(res) });
     if (res.data.status === "paid") return onPaid(res.data.view);
+    setWaiting(res.data.status === "pending");
     setMessage({ tone: res.data.status === "pending" ? "info" : "danger", text: res.data.message ?? "The payment did not go through." });
     onPaid(res.data.view);
   };
@@ -550,11 +574,14 @@ function PayPanel({
               placeholder="78 812 3456"
               className="h-11 min-w-0 flex-1 bg-transparent font-mono tracking-wider outline-none"
               value={local.replace(/(\d{2})(\d{3})(\d{0,4})/, (_, a, b, c) => [a, b, c].filter(Boolean).join(" "))}
-              onChange={(e) => setLocal(e.target.value.replace(/\D/g, "").replace(/^0/, "").slice(0, 9))}
+              onChange={(e) => {
+                setLocal(e.target.value.replace(/\D/g, "").replace(/^0/, "").slice(0, 9));
+                setWaiting(false);
+              }}
             />
           </span>
           <Button variant="primary" size="lg" onClick={() => void submit()} pending={busy} disabled={busy}>
-            <Wallet size={16} aria-hidden /> {cta}
+            <Wallet size={16} aria-hidden /> {waiting ? "Check payment" : cta}
           </Button>
           <p className="text-xs text-muted-foreground">MTN MoMo or Airtel Money. The whole fee goes to PSF.</p>
         </div>
@@ -564,6 +591,316 @@ function PayPanel({
           {message.text}
         </p>
       ) : null}
+    </section>
+  );
+}
+
+/** Today in Kigali, and whole days from it to a yyyy-mm-dd date. */
+function daysUntil(isoDate: string): number {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Kigali" }).format(new Date());
+  return Math.round((Date.parse(`${isoDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
+}
+
+/**
+ * Where the membership stands, and renewing it (2026-11-02). Renewal opens 60
+ * days before the end date and runs on from it; a lapsed membership renews
+ * from the day it is paid, under the same number. Paid is renewed: no
+ * officer decides it.
+ */
+function MembershipStatus({ view, onChanged }: { view: PsfTrackView; onChanged: (v: PsfTrackView) => void }) {
+  const m = view.membership;
+  const renewal = view.renewal;
+  // Said here, not in the panel: a paid renewal closes the window, and the panel with it.
+  const [renewed, setRenewed] = useState<string | null>(null);
+  if (!m?.expiresOn) return null;
+  const lapsed = view.stage === "lapsed";
+  const left = daysUntil(m.expiresOn);
+  const soon = !lapsed && left <= 60;
+  const headline = lapsed
+    ? `Ended on ${day(m.expiresOn)}`
+    : left === 0
+      ? "Ends today"
+      : soon
+        ? `Ends in ${left} day${left === 1 ? "" : "s"}, on ${day(m.expiresOn)}`
+        : `Active until ${day(m.expiresOn)}`;
+  return (
+    <section id="renew" className={["no-print scroll-mt-24 rounded-card border bg-card p-6 sm:p-8", lapsed || soon ? "border-warning/40" : "border-border"].join(" ")}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Membership {m.number}</p>
+          <h2 className="mt-1 text-xl font-semibold">{headline}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {m.tierName}
+            {m.feeRwf ? ` · ${rwf(m.feeRwf)} a year` : ""}
+          </p>
+        </div>
+        <span
+          className={[
+            "inline-flex items-center gap-1.5 self-start rounded-full px-3 py-1 text-xs font-semibold",
+            lapsed || soon ? "bg-warning/15 text-foreground" : "bg-accent-brand/15 text-accent-text",
+          ].join(" ")}
+        >
+          {lapsed ? <AlertCircle size={14} aria-hidden /> : <CheckCircle2 size={14} aria-hidden />}
+          {lapsed ? "Lapsed" : soon ? "Renewal due" : "Active"}
+        </span>
+      </div>
+      {renewed ? (
+        <p role="status" className="mt-5 flex items-start gap-2 rounded-card bg-accent-brand/15 p-3 text-sm text-accent-text">
+          <CheckCircle2 size={15} aria-hidden className="mt-0.5 shrink-0" />
+          <span>{renewed}</span>
+        </p>
+      ) : null}
+      {!renewal ? null : renewal.open ? (
+        <RenewPanel view={view} onChanged={onChanged} onRenewed={setRenewed} />
+      ) : (
+        <p className="mt-5 flex items-start gap-2 rounded-card bg-secondary/60 p-3 text-sm text-muted-foreground">
+          <Clock3 size={15} aria-hidden className="mt-0.5 shrink-0" />
+          <span>
+            You can renew from {day(renewal.opensOn)}, 60 days before it ends. Renewing early loses nothing: the new year starts the day this one
+            ends. We remind you 30 days before.
+          </span>
+        </p>
+      )}
+    </section>
+  );
+}
+
+type RenewBand = PsfTierFee & { name: string; family: PsfTier["family"]; amountRwf: number };
+
+/** A band's yearly range, as the band list and the level cards print it. */
+const bandRange = (from: number, to: number | null) => (to !== null ? `${rwf(from)} to ${rwf(to)}` : `${rwf(from)} and up`);
+
+function RenewPanel({
+  view,
+  onChanged,
+  onRenewed,
+}: {
+  view: PsfTrackView;
+  onChanged: (v: PsfTrackView) => void;
+  onRenewed: (note: string) => void;
+}) {
+  const renewal = view.renewal!;
+  const pending = renewal.pending;
+  const districtId = view.business.districtId;
+  const [bands, setBands] = useState<RenewBand[] | null>(null);
+  // A prompt waiting opens on its own band and amount, so Check payment is one press (2026-11-02).
+  const [tierCode, setTierCode] = useState(pending?.tierCode || renewal.tierCode || "");
+  const [amount, setAmount] = useState(pending ? String(pending.amountRwf) : "");
+  const [local, setLocal] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ tone: "danger" | "info"; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!districtId) return;
+    void Promise.all([retryWhileFailed(fetchPsfTiers), retryWhileFailed(() => fetchPsfFees(districtId))]).then(([t, f]) => {
+      if (t.status !== "ok" || f.status !== "ok") return setBands([]);
+      const tiers = new Map<string, PsfTier>(t.data.map((x) => [x.code, x]));
+      setBands(
+        f.data.fees
+          .filter((x): x is PsfTierFee & { amountRwf: number } => x.amountRwf !== null && tiers.has(x.tierCode))
+          .map((x) => ({ ...x, name: tiers.get(x.tierCode)!.nameEn, family: tiers.get(x.tierCode)!.family }))
+          .sort((a, b) => a.amountRwf - b.amountRwf),
+      );
+    });
+  }, [districtId]);
+
+  // The levels PSF names (Indatwa, Indashyikirwa, Golden Circle), cheapest first, each with its bands.
+  const levels = (bands ?? []).reduce<{ family: RenewBand["family"]; bands: RenewBand[] }[]>((acc, b) => {
+    const level = acc.find((l) => l.family === b.family);
+    if (level) level.bands.push(b);
+    else acc.push({ family: b.family, bands: [b] });
+    return acc;
+  }, []);
+  const band = bands?.find((b) => b.tierCode === tierCode) ?? null;
+  const level = levels.find((l) => l.family === band?.family) ?? null;
+  const currentFamily = bands?.find((b) => b.tierCode === renewal.tierCode)?.family ?? null;
+  // The band's price unless the business typed another amount inside it.
+  const due = amount.trim() === "" ? (band?.amountRwf ?? 0) : Number(amount.replace(/\D/g, ""));
+  const phone = `+250${local}`;
+  // Check payment is the waiting prompt asked about again: the same band and amount, and no new number.
+  const checking = pending !== null && tierCode === pending.tierCode && due === pending.amountRwf && local === "";
+
+  const pickBand = (code: string) => {
+    setTierCode(code);
+    setAmount("");
+    setMessage(null);
+  };
+
+  const submit = async () => {
+    if (!band) return setMessage({ tone: "danger", text: "Pick the membership level for the new year." });
+    if (due < band.amountRwf || (band.ceilingRwf !== null && due > band.ceilingRwf)) {
+      return setMessage({
+        tone: "danger",
+        text: band.ceilingRwf !== null ? `This band is ${rwf(band.amountRwf)} to ${rwf(band.ceilingRwf)} a year.` : `This band starts at ${rwf(band.amountRwf)} a year.`,
+      });
+    }
+    if (!checking && !/^\+2507\d{8}$/.test(phone)) return setMessage({ tone: "danger", text: "Give a Rwandan mobile money number, like +250788123456." });
+    setBusy(true);
+    setMessage(null);
+    const res = await renewPsfMembership(view.docId, { tierCode: band.tierCode, declaredFeeRwf: due, ...(checking ? {} : { phoneE164: phone }) });
+    setBusy(false);
+    if (res.status !== "ok") return setMessage({ tone: "danger", text: apiResultMessage(res) });
+    if (res.data.status === "paid") {
+      const next = res.data.view.membership;
+      onRenewed(`Renewed. You are a member until ${day(next?.expiresOn)}. We sent the receipt to your phone${view.contact.emailMasked ? " and email" : ""}.`);
+    } else {
+      // A prompt sent: the number is now the waiting prompt's, and the button its Check payment.
+      if (res.data.status === "pending") setLocal("");
+      setMessage({ tone: res.data.status === "pending" ? "info" : "danger", text: res.data.message ?? "The payment did not go through." });
+    }
+    onChanged(res.data.view);
+  };
+
+  return (
+    <div className="mt-6 grid grid-cols-1 gap-6 border-t border-border pt-6 xl:grid-cols-[1fr_18rem]">
+      <div className="flex flex-col gap-5">
+        <div>
+          <h3 className="text-base font-semibold">Renew for {day(renewal.startsOn)} to {day(renewal.expiresOn)}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Same membership number. Paid is renewed: there is nothing for PSF to approve. You may change level if your business has grown or shrunk.
+          </p>
+        </div>
+        {!districtId ? (
+          <p className="text-sm text-destructive">This business has no district on file, so PSF has no price for it. Contact PSF.</p>
+        ) : !bands ? (
+          <div className="h-32 animate-pulse rounded-card bg-secondary" />
+        ) : (
+          <>
+            {/* First the level, then, where a level has several, the yearly fee band inside it (2026-11-02). */}
+            <fieldset className="flex flex-col gap-2">
+              <legend className="mb-2 text-sm font-medium">1. Your level</legend>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {levels.map((l) => {
+                  const on = l.family === level?.family;
+                  const first = l.bands[0]!;
+                  const last = l.bands[l.bands.length - 1]!;
+                  return (
+                    <label
+                      key={l.family}
+                      className={[
+                        "flex cursor-pointer items-start gap-3 rounded-card p-3 ring-1 transition-colors",
+                        on ? "bg-accent-brand/10 ring-accent-brand" : "ring-border hover:bg-secondary/60",
+                      ].join(" ")}
+                    >
+                      <input
+                        type="radio"
+                        name="psf-renew-level"
+                        className="mt-1 accent-[var(--accent-brand)]"
+                        checked={on}
+                        onChange={() => pickBand((l.bands.find((b) => b.tierCode === renewal.tierCode) ?? first).tierCode)}
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold">
+                          {PSF_FAMILY_LABEL[l.family]}
+                          {l.family === currentFamily ? <span className="ml-1.5 text-xs font-normal text-muted-foreground">(now)</span> : null}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">{bandRange(first.amountRwf, last.ceilingRwf)} a year</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+            {level && level.bands.length > 1 ? (
+              <fieldset className="flex flex-col gap-2">
+                <legend className="mb-2 text-sm font-medium">2. What you pay a year, within {PSF_FAMILY_LABEL[level.family]}</legend>
+                <div className="flex flex-wrap gap-2">
+                  {level.bands.map((b) => {
+                    const on = b.tierCode === tierCode;
+                    return (
+                      <label
+                        key={b.tierCode}
+                        className={[
+                          "inline-flex cursor-pointer items-center gap-2 rounded-full px-3.5 py-2 text-sm ring-1 transition-colors",
+                          on ? "bg-accent-brand/10 font-semibold ring-accent-brand" : "ring-border hover:bg-secondary/60",
+                        ].join(" ")}
+                      >
+                        <input type="radio" name="psf-renew-band" className="sr-only" checked={on} onChange={() => pickBand(b.tierCode)} />
+                        <span className="tabular-nums">{bandRange(b.amountRwf, b.ceilingRwf)}</span>
+                        {b.tierCode === renewal.tierCode ? <span className="text-xs font-normal text-muted-foreground">(now)</span> : null}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            ) : null}
+          </>
+        )}
+      </div>
+      <div className="flex flex-col gap-3 self-start rounded-card bg-card p-4 ring-1 ring-border">
+        <label className="text-sm font-medium" htmlFor="psf-renew-amount">
+          A year
+        </label>
+        <span className="flex items-center gap-2 rounded border border-input bg-background px-3 focus-within:ring-2 focus-within:ring-ring">
+          <span className="text-sm font-medium text-muted-foreground">RWF</span>
+          <input
+            id="psf-renew-amount"
+            inputMode="numeric"
+            className="h-11 min-w-0 flex-1 bg-transparent font-mono tabular-nums outline-none"
+            placeholder={band ? band.amountRwf.toLocaleString("en-US") : ""}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value.replace(/[^\d,]/g, ""))}
+          />
+        </span>
+        <label className="text-sm font-medium" htmlFor="psf-renew-phone">
+          Mobile money number
+        </label>
+        <span className="flex items-center gap-2 rounded border border-input bg-background px-3 focus-within:ring-2 focus-within:ring-ring">
+          <span className="text-sm font-medium text-muted-foreground">+250</span>
+          <input
+            id="psf-renew-phone"
+            inputMode="tel"
+            autoComplete="tel-national"
+            placeholder={checking && pending?.phoneMasked ? pending.phoneMasked.replace(/^\+250\s?/, "") : "78 812 3456"}
+            className="h-11 min-w-0 flex-1 bg-transparent font-mono tracking-wider outline-none"
+            value={local.replace(/(\d{2})(\d{3})(\d{0,4})/, (_, a, b, c) => [a, b, c].filter(Boolean).join(" "))}
+            onChange={(e) => setLocal(e.target.value.replace(/\D/g, "").replace(/^0/, "").slice(0, 9))}
+          />
+        </span>
+        <Button variant="primary" size="lg" onClick={() => void submit()} pending={busy} disabled={busy || !band}>
+          <Wallet size={16} aria-hidden /> {checking ? "Check payment" : `Pay ${rwf(due)} and renew`}
+        </Button>
+        <p className="text-xs text-muted-foreground">MTN MoMo or Airtel Money. The whole fee goes to PSF.</p>
+      </div>
+      {message ?? pending ? (
+        <p
+          role="alert"
+          className={[
+            "rounded-card p-3 text-sm xl:col-span-2",
+            message?.tone === "danger" ? "bg-destructive/10 text-destructive" : "bg-secondary",
+          ].join(" ")}
+        >
+          {message
+            ? message.text
+            : checking
+              ? `A prompt for ${rwf(pending!.amountRwf)} (${pending!.tierName}) is waiting on ${pending!.phoneMasked ?? "your phone"}. Approve it, then press Check payment.`
+              : `A prompt for ${rwf(pending!.amountRwf)} (${pending!.tierName}) is still waiting on your phone. Paying for this choice replaces it.`}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Every renewal paid on this membership, newest first. */
+function Renewals({ view }: { view: PsfTrackView }) {
+  return (
+    <section className="rounded-card border border-border bg-card p-5">
+      <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+        <History size={14} aria-hidden /> Renewals
+      </h2>
+      <ul className="mt-3 flex list-none flex-col divide-y divide-border p-0 text-sm">
+        {view.renewals.map((r) => (
+          <li key={`${r.paidAt}-${r.startsOn}`} className="flex flex-col gap-0.5 py-2.5">
+            <span className="flex items-baseline justify-between gap-3">
+              <span className="font-medium">{day(r.startsOn)} to {day(r.expiresOn)}</span>
+              <span className="tabular-nums">{rwf(r.amountRwf)}</span>
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {r.tierName} · paid {day(r.paidAt)}
+            </span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -621,7 +958,7 @@ function Certificate({ view }: { view: PsfTrackView }) {
               <CertFact k="Valid until" v={day(m?.expiresOn)} />
             </dl>
             {lapsed ? (
-              <p className="mt-6 rounded-full bg-warning/15 px-4 py-1.5 text-sm font-semibold">This membership has ended. Apply again to renew it.</p>
+              <p className="mt-6 rounded-full bg-warning/15 px-4 py-1.5 text-sm font-semibold">This membership has ended. Renew it above to carry on.</p>
             ) : null}
           </div>
 
@@ -661,11 +998,6 @@ function Certificate({ view }: { view: PsfTrackView }) {
         <Button variant="outline" onClick={() => window.print()}>
           <Printer size={16} aria-hidden /> Print
         </Button>
-        {lapsed ? (
-          <Button asChild variant="primary">
-            <Link href="/psf/register">Renew membership</Link>
-          </Button>
-        ) : null}
       </div>
     </section>
   );

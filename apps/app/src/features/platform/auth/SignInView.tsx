@@ -249,7 +249,8 @@ export function SignInView({
             </>
           )}
 
-          {demo ? (
+          {/* Only with someone to list: a demo database without its seeds has nobody to offer. */}
+          {demo && (personas.length > 0 || roster.length > 0) ? (
             <Card className="w-full gap-3 p-4" aria-labelledby="demo-h">
               <div className="flex items-center justify-between gap-3">
                 <h2 id="demo-h" className="text-[15px] font-semibold">

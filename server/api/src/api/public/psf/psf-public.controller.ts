@@ -14,6 +14,11 @@ import {
   PsfPublicSubmitRequest,
   PsfReportQuery,
   PsfTrackPayRequest,
+  PsfRenewRequest,
+  PsfMemberLookupRequest,
+  PsfMemberLookupConfirm,
+  type PsfMemberLookupResult,
+  type PsfMemberLookupConfirmed,
   PSF_CHECK_TOKEN_HEADER,
   type OversightGrant,
   type PsfFormFieldsOfficerView,
@@ -70,6 +75,22 @@ export class PsfPublicController {
   @SkipThrottle({ 'psf-track': true, 'psf-logo': true })
   lookup(@Body(new ZodValidationPipe(PsfIdentityLookupRequest)) body: PsfIdentityLookupRequest): Promise<PsfIdentityLookupResult> {
     return this.psf.lookup(body);
+  }
+
+  /** Tracking by membership number (2026-11-02): a code goes to the phone on file. */
+  @Post('member-lookup')
+  @HttpCode(200)
+  @SkipThrottle({ 'psf-track': true, 'psf-logo': true })
+  memberLookup(@Body(new ZodValidationPipe(PsfMemberLookupRequest)) body: PsfMemberLookupRequest): Promise<PsfMemberLookupResult> {
+    return this.psf.memberLookup(body);
+  }
+
+  /** The code read back answers the docID, which opens the tracking page. */
+  @Post('member-lookup/confirm')
+  @HttpCode(200)
+  @SkipThrottle({ 'psf-track': true, 'psf-logo': true })
+  memberLookupConfirm(@Body(new ZodValidationPipe(PsfMemberLookupConfirm)) body: PsfMemberLookupConfirm): PsfMemberLookupConfirmed {
+    return this.psf.memberLookupConfirm(body);
   }
 
   @Post('identity/confirm')
@@ -177,6 +198,17 @@ export class PsfPublicController {
   ): Promise<PsfTrackPayResult> {
     return this.psf.payMembership(docId);
   }
+
+  /** Renew a membership (2026-11-02): the band, the amount within it, and the phone to prompt. */
+  @Post('track/:docId/renew')
+  @HttpCode(200)
+  @SkipThrottle({ 'psf-form': true, 'psf-logo': true })
+  renew(
+    @Param('docId', docIdPipe) docId: string,
+    @Body(new ZodValidationPipe(PsfRenewRequest)) body: PsfRenewRequest,
+  ): Promise<PsfTrackPayResult> {
+    return this.psf.renew(docId, body);
+  }
 }
 
 /**
@@ -186,7 +218,8 @@ export class PsfPublicController {
  */
 @Controller({ path: 'oversight/psf', version: '1' })
 @UseGuards(SessionGuard, OversightGuard)
-@RequireOversight('psf_membership_officer')
+// District Business Officers read here (2026-11-02); every write below names the District Manager's role alone.
+@RequireOversight('psf_membership_officer', 'psf_business_officer')
 export class OversightPsfConsoleController {
   constructor(
     private readonly reports: PsfReportService,
@@ -203,6 +236,7 @@ export class OversightPsfConsoleController {
   }
 
   @Post('subsectors')
+  @RequireOversight('psf_membership_officer')
   @HttpCode(201)
   createSubsector(
     @CurrentUser() user: SessionUser,
@@ -213,6 +247,7 @@ export class OversightPsfConsoleController {
   }
 
   @Patch('subsectors/:id')
+  @RequireOversight('psf_membership_officer')
   updateSubsector(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: SessionUser,
@@ -233,6 +268,7 @@ export class OversightPsfConsoleController {
 
   /** Set a band's price for a district (or nationally), or clear it. */
   @Put('fees')
+  @RequireOversight('psf_membership_officer')
   setFee(
     @CurrentUser() user: SessionUser,
     @CurrentOversight() grants: OversightGrant[],
@@ -278,6 +314,7 @@ export class OversightPsfConsoleController {
   }
 
   @Post('form-fields')
+  @RequireOversight('psf_membership_officer')
   @HttpCode(201)
   createFormField(
     @CurrentOversight() grants: OversightGrant[],
@@ -287,6 +324,7 @@ export class OversightPsfConsoleController {
   }
 
   @Patch('form-fields/:id')
+  @RequireOversight('psf_membership_officer')
   updateFormField(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentOversight() grants: OversightGrant[],

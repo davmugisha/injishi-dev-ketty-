@@ -1,11 +1,12 @@
 import { PSF_NO_INSTRUMENT_MESSAGE, psfInstrument } from './psf-instrument';
-import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 
 import {
   PSF_CONSENT_VERSION,
   PSF_DECLINE_REASON_LABEL,
   PSF_FAMILY_LABEL,
   maskEmail,
+  normalizePsfNumber,
   maskPhone,
   provinceDisplayName,
   splitPsfName,
@@ -13,8 +14,14 @@ import {
   type PsfIdentityConfirmRequest,
   type PsfIdentityLookupRequest,
   type PsfIdentityLookupResult,
+  type PsfMemberLookupConfirm,
+  type PsfMemberLookupConfirmed,
+  type PsfMemberLookupRequest,
+  type PsfMemberLookupResult,
   type PsfPublicSubmitRequest,
   type PsfPublicSubmitResult,
+  type PsfRenewRequest,
+  type PsfRenewalState,
   type PsfTrackEvent,
   type PsfTrackPayResult,
   type PsfTrackStage,
@@ -35,12 +42,15 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 
+import { ConfigService } from '@nestjs/config';
+
 import { SMS_PORT, type SmsPort } from '../../sms/domain/sms-port';
 import {
   PAYMENT_PORT,
   PaymentDeclinedError,
   PaymentUnavailableError,
   type PaymentPort,
+  type PaymentReceipt,
 } from '../../pay/domain/payment-port';
 import { StorageService } from '../../storage/application/storage.service';
 import { isObjectKey } from '../../storage/domain/object-key';
@@ -53,6 +63,8 @@ import { renderPsfCertificate } from '../infrastructure/psf-certificate.renderer
 import { PsfMembershipMailer } from '../infrastructure/psf-membership.mailer';
 import { PsfMembershipRepository } from '../infrastructure/psf-membership.repository';
 import { PsfPublicRepository, type PsfTrackRow } from '../infrastructure/psf-public.repository';
+import { PsfRenewalRepository } from '../infrastructure/psf-renewal.repository';
+import { kigaliDateOf, psfRenewalTerms } from '../domain/psf-renewal-rules';
 import { buildPsfApplicationRow } from './psf-application-row';
 import { PsfMembershipService } from './psf-membership.service';
 import { RegistrationService } from './registration.service';
@@ -103,6 +115,8 @@ export class PsfPublicService {
     @Inject(PAYMENT_PORT) private readonly payments: PaymentPort,
     private readonly mail: PsfMembershipMailer,
     private readonly storage: StorageService,
+    private readonly renewals: PsfRenewalRepository,
+    private readonly config: ConfigService,
   ) {}
 
   // --- 1. Who is applying ------------------------------------------------------
@@ -148,7 +162,10 @@ export class PsfPublicService {
       this.log.warn(`PSF identity code could not be sent: ${(error as Error).message}`);
       return { status: 'unavailable', message: 'We could not send the code just now. Try again in a few minutes.' };
     }
-    return { status: 'code_sent', checkId, sentTo: maskPhone(phone), expiresInSeconds: CODE_TTL_SECONDS, demoCode: demo };
+    // Shown on screen when no text really goes (2026-11-02): the demo's fixed code, or, while SMS is the
+    // mock (a sample database only, which prints the code to the log anyway), the code just made.
+    const shown = demo ?? (this.sms.mode === 'mock' ? code : null);
+    return { status: 'code_sent', checkId, sentTo: maskPhone(phone), expiresInSeconds: CODE_TTL_SECONDS, demoCode: shown };
   }
 
   async confirm(input: PsfIdentityConfirmRequest): Promise<PsfVerifiedApplicant> {
@@ -220,31 +237,9 @@ export class PsfPublicService {
     const { business, membership, contact } = input;
 
     // Everything that can refuse is read before anything is written.
-    const tier = await this.psfRepo.tier(membership.tierCode);
-    if (!tier || !tier.active) throw fieldError(['membership', 'tierCode'], 'That membership is not offered any more. Pick another.');
-    // PSF sets the band's price in the business's district (2026-10-20); the
-    // business pays at least that, and less than the next band's price
-    // (2026-10-23). An amount outside the band is refused rather than charged.
-    const band = (await this.psf.feesIn(business.address.districtId)).fees.find((f) => f.tierCode === tier.code);
-    const price = band?.amountRwf ?? null;
-    if (price === null) {
-      throw fieldError(['membership', 'tierCode'], 'PSF has not set a price for this membership in your district yet. Pick another.');
-    }
-    const ceiling = band?.ceilingRwf ?? null;
-    const declared = membership.declaredFeeRwf;
-    const rwf = (n: number): string => `RWF ${n.toLocaleString('en-US')}`;
-    if (declared === undefined || declared < price) {
-      throw fieldError(
-        ['membership', 'declaredFeeRwf'],
-        `This band starts at ${rwf(price)} a year in your district. Pay at least that, or pick a lower band.`,
-      );
-    }
-    if (ceiling !== null && declared > ceiling) {
-      throw fieldError(
-        ['membership', 'declaredFeeRwf'],
-        `This band goes up to ${rwf(ceiling)} a year. For more, pick the next band.`,
-      );
-    }
+    const tier = await this.bandOrRefuse(business.address.districtId, membership.tierCode, membership.declaredFeeRwf, ['membership']);
+    // Refused above when missing.
+    const declared = membership.declaredFeeRwf as number;
     const association = await this.psf.associationForRegistration(business.associationCode);
     if (business.subsectorId) {
       await this.psf.subsectorForRegistration(business.subsectorId, association.clusterCode, business.address.districtId);
@@ -391,6 +386,7 @@ export class PsfPublicService {
         amountRwf: membershipFeeRwf,
         currency: 'RWF',
         workspaceId: orgId,
+        withoutWorkspace: true,
         memo: 'PSF membership fee',
       });
     } catch (error) {
@@ -400,6 +396,7 @@ export class PsfPublicService {
       }
       throw error;
     }
+    receipt = await this.settleIfApproved(orgId, receipt);
     if (receipt.settlement === 'pending') {
       return { paid: false, problem: 'Approve the payment on your phone, then press Check payment.' };
     }
@@ -566,6 +563,219 @@ export class PsfPublicService {
     return { status: 'paid', message: null, view: await this.track(docId) };
   }
 
+  // --- 3b. Tracking by membership number (2026-11-02) ---------------------------
+
+  /**
+   * A membership number is printed on the certificate, so it alone opens nothing: a code goes by text to
+   * the phone the application gave, and the lookup token carries the docID, the code's fingerprint and an
+   * expiry, signed with the server's secret. Nothing is kept, so a code is good until it expires.
+   */
+  async memberLookup(input: PsfMemberLookupRequest): Promise<PsfMemberLookupResult> {
+    const found = await this.renewals.trackingByMembershipNumber(normalizePsfNumber(input.membershipNumber));
+    if (!found) {
+      return { status: 'not_found', message: 'No PSF membership on Injishi has that number. Check it on the certificate, or track with your docID.' };
+    }
+    if (!found.phoneE164) {
+      return { status: 'no_phone', message: 'There is no phone on this application to send a code to. Track it with your docID instead.' };
+    }
+    const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    try {
+      await this.sms.send({
+        toE164: found.phoneE164,
+        body: `${code} is your PSF tracking code. It lasts ${CODE_TTL_SECONDS / 60} minutes. Never share it.`,
+      });
+    } catch (error) {
+      this.log.warn(`PSF tracking code could not be sent: ${(error as Error).message}`);
+      return { status: 'unavailable', message: 'We could not send the code just now. Try again in a few minutes, or track with your docID.' };
+    }
+    const payload = Buffer.from(JSON.stringify({ d: found.docId, h: hash(code), e: Date.now() + CODE_TTL_SECONDS * 1000 })).toString('base64url');
+    return {
+      status: 'code_sent',
+      lookupToken: `${payload}.${this.sign(payload)}`,
+      sentTo: maskPhone(found.phoneE164),
+      expiresInSeconds: CODE_TTL_SECONDS,
+      // Shown on screen only while no text really goes (SMS is the mock, on a sample database).
+      demoCode: this.sms.mode === 'mock' ? code : null,
+    };
+  }
+
+  memberLookupConfirm(input: PsfMemberLookupConfirm): PsfMemberLookupConfirmed {
+    const [payload = '', signature = ''] = input.lookupToken.split('.');
+    const expected = this.sign(payload);
+    if (signature.length !== expected.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+      throw new GoneException('That code has expired. Ask for a new one.');
+    }
+    const body = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { d: string; h: string; e: number };
+    if (body.e <= Date.now()) throw new GoneException('That code has expired. Ask for a new one.');
+    if (!digestsMatch(body.h, hash(input.code.trim()))) {
+      throw new BadRequestException({ message: 'Validation failed', issues: [{ code: 'custom', path: ['code'], message: 'That code is not right. Check the text and try again.' }] });
+    }
+    return { docId: body.d };
+  }
+
+  private sign(payload: string): string {
+    return createHmac('sha256', `psf-track:${this.config.getOrThrow<string>('BETTER_AUTH_SECRET')}`).update(payload).digest('base64url');
+  }
+
+  // --- 4. Renewing (2026-11-02) ------------------------------------------------
+
+  /**
+   * Pay the next year. A paid renewal renews at once, with no officer: the year
+   * runs on from the old end date, or from today once lapsed, and the band may
+   * change at the district's current price. Never throws for a payment that did
+   * not go through; a prompt still waiting is charged again under the same key,
+   * so pressing again can only ever find the one charge.
+   */
+  async renew(docId: string, input: PsfRenewRequest): Promise<PsfTrackPayResult> {
+    const row = await this.rowOrNotFound(docId);
+    const latest = await this.renewals.latestMembership(row.orgId);
+    if (row.status !== 'member' || !latest || !latest.expiresOn || latest.source === 'self_declared') {
+      throw new ConflictException('There is no PSF membership to renew on this application yet.');
+    }
+    if (row.districtId === null) throw new ConflictException('This business has no district, so PSF has no price for it.');
+    const terms = psfRenewalTerms({ expiresOn: latest.expiresOn, ended: latest.endedAt !== null, today: kigaliDateOf(new Date()) });
+    if (!terms.open) throw new ConflictException(terms.reason);
+    const tier = await this.bandOrRefuse(row.districtId, input.tierCode, input.declaredFeeRwf, []);
+
+    // The same band, amount and phone again is the same prompt; anything else is a new one. No phone is
+    // Check payment (2026-11-02): the prompt already waiting for this band and amount, on its own phone.
+    const waiting = await this.renewals.pending(row.orgId);
+    const sameRequest =
+      waiting !== null &&
+      waiting.membershipId === latest.id &&
+      waiting.tierCode === tier.code &&
+      waiting.amountRwf === input.declaredFeeRwf &&
+      waiting.startsOn === terms.startsOn;
+    const phoneE164 = input.phoneE164 ?? (sameRequest ? waiting.payerPhoneE164 : null);
+    const instrument = psfInstrument(phoneE164);
+    if (!instrument || !phoneE164) return { status: 'declined', message: PSF_NO_INSTRUMENT_MESSAGE, view: await this.track(docId) };
+    const renewal =
+      sameRequest && waiting.payerPhoneE164 === phoneE164
+        ? waiting
+        : await this.renewals.start({
+            orgId: row.orgId,
+            membershipId: latest.id,
+            applicationId: row.applicationId,
+            membershipNumber: latest.membershipNumber,
+            tierCode: tier.code,
+            amountRwf: input.declaredFeeRwf,
+            payerPhoneE164: phoneE164,
+            startsOn: terms.startsOn,
+            expiresOn: terms.expiresOn,
+          });
+
+    let receipt;
+    try {
+      receipt = await this.payments.chargeOneTimeFee({
+        kind: 'one_time_fee',
+        purpose: 'psf_membership',
+        feeCode: 'psf_membership',
+        instrument,
+        idempotencyKey: `${row.orgId}:psf-renewal:${renewal.id}`,
+        amountRwf: renewal.amountRwf,
+        currency: 'RWF',
+        workspaceId: row.orgId,
+        withoutWorkspace: true,
+        memo: 'PSF membership renewal',
+      });
+    } catch (error) {
+      if (error instanceof PaymentDeclinedError) {
+        const message = `Mobile money declined the payment: ${error.reason}`;
+        await this.renewals.fail(renewal.id, message);
+        return { status: 'declined', message, view: await this.track(docId) };
+      }
+      if (error instanceof PaymentUnavailableError) {
+        const message = 'We could not reach mobile money, and nothing was taken. Try again in a moment.';
+        await this.renewals.fail(renewal.id, message);
+        return { status: 'declined', message, view: await this.track(docId) };
+      }
+      throw error;
+    }
+    receipt = await this.settleIfApproved(row.orgId, receipt);
+    if (receipt.settlement === 'pending') {
+      return { status: 'pending', message: 'Approve the payment on your phone, then press Check payment.', view: await this.track(docId) };
+    }
+    const paid = await this.renewals.applyPaid({
+      renewalId: renewal.id,
+      paidAt: receipt.occurredAt,
+      paymentRef: receipt.adapterRef,
+      paymentMode: receipt.mode,
+    });
+    // Only the call that applied it remits and tells, so a race stays silent.
+    if (paid) {
+      await this.psf.remitRenewal(paid.id, row.orgId, paid.amountRwf, (ref) => this.renewals.recordRemittance(paid.id, ref));
+      await this.mail.renewed(row.orgId, {
+        membershipNumber: paid.membershipNumber,
+        tierName: tier.nameEn,
+        amountRwf: paid.amountRwf,
+        startsOn: paid.startsOn,
+        expiresOn: paid.expiresOn,
+        paymentReference: receipt.adapterRef,
+      });
+    }
+    return { status: 'paid', message: null, view: await this.track(docId) };
+  }
+
+  /**
+   * A prompt that came back pending is asked about again at the gateway, as a
+   * broker's fee is: a business with no workspace is not in the money queue's
+   * sweep by workspace, so pressing Check payment must be able to settle it.
+   */
+  private async settleIfApproved(orgId: string, receipt: PaymentReceipt): Promise<PaymentReceipt> {
+    if (receipt.settlement !== 'pending') return receipt;
+    const asked = await this.payments.fetchTransaction(orgId, receipt.adapterRef).catch(() => null);
+    return asked?.settlement === 'settled' ? { ...receipt, ...asked, settlement: 'settled' } : receipt;
+  }
+
+  /** Where renewing stands for the tracking page; null before the business was a member. */
+  private renewalState(
+    latest: Awaited<ReturnType<PsfRenewalRepository['latestMembership']>>,
+    pending: Awaited<ReturnType<PsfRenewalRepository['pending']>>,
+  ): PsfRenewalState | null {
+    if (!latest || !latest.expiresOn || latest.source === 'self_declared') return null;
+    const terms = psfRenewalTerms({ expiresOn: latest.expiresOn, ended: latest.endedAt !== null, today: kigaliDateOf(new Date()) });
+    return {
+      ...terms,
+      tierCode: latest.tierCode,
+      pending: pending
+        ? { tierCode: pending.tierCode, tierName: pending.tierName, amountRwf: pending.amountRwf, phoneMasked: maskPhone(pending.payerPhoneE164) }
+        : null,
+    };
+  }
+
+  /**
+   * The band and the amount, held to PSF's prices in the district (2026-10-20):
+   * at least the band's price, and under the next band's (2026-10-23). An
+   * amount outside the band is refused rather than charged. `at` prefixes the
+   * field paths of a refusal.
+   */
+  private async bandOrRefuse(
+    districtId: number,
+    tierCode: string,
+    declared: number | undefined,
+    at: string[],
+  ): Promise<NonNullable<Awaited<ReturnType<PsfMembershipRepository['tier']>>>> {
+    const tier = await this.psfRepo.tier(tierCode);
+    if (!tier || !tier.active) throw fieldError([...at, 'tierCode'], 'That membership is not offered any more. Pick another.');
+    const band = (await this.psf.feesIn(districtId)).fees.find((f) => f.tierCode === tier.code);
+    const price = band?.amountRwf ?? null;
+    if (price === null) {
+      throw fieldError([...at, 'tierCode'], 'PSF has not set a price for this membership in your district yet. Pick another.');
+    }
+    const ceiling = band?.ceilingRwf ?? null;
+    const rwf = (n: number): string => `RWF ${n.toLocaleString('en-US')}`;
+    if (declared === undefined || declared < price) {
+      throw fieldError(
+        [...at, 'declaredFeeRwf'],
+        `This band starts at ${rwf(price)} a year in your district. Pay at least that, or pick a lower band.`,
+      );
+    }
+    if (ceiling !== null && declared > ceiling) {
+      throw fieldError([...at, 'declaredFeeRwf'], `This band goes up to ${rwf(ceiling)} a year. For more, pick the next band.`);
+    }
+    return tier;
+  }
+
   // --- The view --------------------------------------------------------------
 
   private stageOf(row: PsfTrackRow, membershipEnded: boolean): PsfTrackStage {
@@ -579,13 +789,18 @@ export class PsfPublicService {
   }
 
   private async view(row: PsfTrackRow): Promise<PsfTrackView> {
-    const [membership, fee, events, branches] = await Promise.all([
-      row.status === 'member' ? this.repo.membershipFor(row.applicationId) : Promise.resolve(null),
+    // The newest membership of the business, so a renewal after a lapse (a new
+    // row under the same number) is what shows.
+    const [latest, fee, events, branches, paidRenewals, pendingRenewal] = await Promise.all([
+      row.status === 'member' ? this.renewals.latestMembership(row.orgId) : Promise.resolve(null),
       // Only on an application from before the fee was dropped (2026-10-23).
       this.repo.registrationFee(row.orgId),
       this.repo.registrationEvents(row.orgId),
       this.psfRepo.branchesOf(row.applicationId),
+      row.status === 'member' ? this.renewals.paidOf(row.orgId) : Promise.resolve([]),
+      row.status === 'member' ? this.renewals.pending(row.orgId) : Promise.resolve(null),
     ]);
+    const membership = latest && latest.source !== 'self_declared' ? latest : null;
     const stage = this.stageOf(row, Boolean(membership?.endedAt));
     const now = new Date();
     const reviewFrom = row.queuedAt ?? events.find((e) => e.to === 'active')?.at ?? null;
@@ -636,12 +851,18 @@ export class PsfPublicService {
       timeline.push({ kind: 'expired', at: membership.endedAt.toISOString(), title: 'Membership ended', detail: membership.membershipNumber });
     }
     if (row.withdrawnAt) timeline.push({ kind: 'withdrawn', at: row.withdrawnAt.toISOString(), title: 'Withdrawn', detail: null });
+    for (const r of paidRenewals) {
+      if (r.paidAt) timeline.push({ kind: 'renewed', at: r.paidAt.toISOString(), title: 'Membership renewed', detail: `${r.tierName}, ${r.startsOn} to ${r.expiresOn}` });
+    }
     timeline.sort((a, b) => a.at.localeCompare(b.at));
 
     const payments: PsfTrackView['payments'] = [];
     if (fee?.paidAt) payments.push({ kind: 'registration_fee', amountRwf: fee.amountRwf, at: fee.paidAt.toISOString(), status: 'paid', reference: null });
     if (row.paidAt && row.paidAmountRwf !== null) {
       payments.push({ kind: 'membership_fee', amountRwf: row.paidAmountRwf, at: row.paidAt.toISOString(), status: 'paid', reference: row.paymentRef });
+    }
+    for (const r of [...paidRenewals].reverse()) {
+      payments.push({ kind: 'membership_renewal', amountRwf: r.amountRwf, at: r.paidAt?.toISOString() ?? null, status: 'paid', reference: r.paymentRef });
     }
     const phone = row.applicantPhoneE164 ?? row.phoneE164;
     const email = row.applicantEmail ?? (row.email || null);
@@ -661,6 +882,7 @@ export class PsfPublicService {
         associationName: row.associationName,
         ownerGroups: row.ownerGroups,
         registrationKind: row.registrationKind,
+        districtId: row.districtId,
         logoUrl: row.logoObjectKey ? `/api/v1/psf/track/${encodeURIComponent(row.docId)}/logo` : null,
         branches: branches.map((b) => ({ districtName: b.districtName, sectorName: b.sectorName, status: b.status, note: b.decisionNote })),
       },
@@ -694,7 +916,8 @@ export class PsfPublicService {
       membership: membership
         ? {
             number: membership.membershipNumber,
-            tierName: row.tierName,
+            tierName: membership.tierName ?? row.tierName,
+            tierCode: membership.tierCode,
             family: row.tierFamily,
             feeRwf: membership.annualFeeRwf,
             startsOn: membership.startsOn,
@@ -712,6 +935,16 @@ export class PsfPublicService {
       payments,
       // There is no registration fee (2026-10-23): what is due is the membership fee.
       dueRwf: stage === 'fee_due' ? (row.paidAt ? 0 : (row.declaredFeeRwf ?? 0)) : null,
+      renewal: row.status === 'member' ? this.renewalState(membership, pendingRenewal) : null,
+      renewals: paidRenewals.map((r) => ({
+        paidAt: (r.paidAt ?? r.createdAt).toISOString(),
+        membershipNumber: r.membershipNumber,
+        tierName: r.tierName,
+        amountRwf: r.amountRwf,
+        startsOn: r.startsOn,
+        expiresOn: r.expiresOn,
+        reference: r.paymentRef,
+      })),
     };
   }
 }

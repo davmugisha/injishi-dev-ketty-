@@ -93,8 +93,8 @@ export declare const OutletParty: z.ZodObject<{
     tin: string | null;
     legalName: string;
     orgId: string | null;
-    contactEmail: string | null;
     contactName: string | null;
+    contactEmail: string | null;
     contactPhone: string | null;
     isOwnOrg: boolean;
 }, {
@@ -103,8 +103,8 @@ export declare const OutletParty: z.ZodObject<{
     tin: string | null;
     legalName: string;
     orgId: string | null;
-    contactEmail: string | null;
     contactName: string | null;
+    contactEmail: string | null;
     contactPhone: string | null;
     isOwnOrg: boolean;
 }>;
@@ -128,8 +128,8 @@ export declare const OutletPartyList: z.ZodObject<{
         tin: string | null;
         legalName: string;
         orgId: string | null;
-        contactEmail: string | null;
         contactName: string | null;
+        contactEmail: string | null;
         contactPhone: string | null;
         isOwnOrg: boolean;
     }, {
@@ -138,8 +138,8 @@ export declare const OutletPartyList: z.ZodObject<{
         tin: string | null;
         legalName: string;
         orgId: string | null;
-        contactEmail: string | null;
         contactName: string | null;
+        contactEmail: string | null;
         contactPhone: string | null;
         isOwnOrg: boolean;
     }>, "many">;
@@ -150,8 +150,8 @@ export declare const OutletPartyList: z.ZodObject<{
         tin: string | null;
         legalName: string;
         orgId: string | null;
-        contactEmail: string | null;
         contactName: string | null;
+        contactEmail: string | null;
         contactPhone: string | null;
         isOwnOrg: boolean;
     }[];
@@ -162,8 +162,8 @@ export declare const OutletPartyList: z.ZodObject<{
         tin: string | null;
         legalName: string;
         orgId: string | null;
-        contactEmail: string | null;
         contactName: string | null;
+        contactEmail: string | null;
         contactPhone: string | null;
         isOwnOrg: boolean;
     }[];
@@ -181,15 +181,15 @@ export declare const CreateOutletPartyRequest: z.ZodObject<{
     legalName: string;
     tin?: string | undefined;
     orgId?: string | undefined;
-    contactEmail?: string | undefined;
     contactName?: string | undefined;
+    contactEmail?: string | undefined;
     contactPhone?: string | undefined;
 }, {
     legalName: string;
     tin?: string | undefined;
     orgId?: string | undefined;
-    contactEmail?: string | undefined;
     contactName?: string | undefined;
+    contactEmail?: string | undefined;
     contactPhone?: string | undefined;
 }>;
 export type CreateOutletPartyRequest = z.infer<typeof CreateOutletPartyRequest>;
@@ -206,32 +206,32 @@ export declare const UpdateOutletPartyRequest: z.ZodEffects<z.ZodObject<{
     tin?: string | undefined;
     legalName?: string | undefined;
     orgId?: string | undefined;
-    contactEmail?: string | undefined;
     contactName?: string | undefined;
+    contactEmail?: string | undefined;
     contactPhone?: string | undefined;
 }, {
     status?: "active" | "archived" | undefined;
     tin?: string | undefined;
     legalName?: string | undefined;
     orgId?: string | undefined;
-    contactEmail?: string | undefined;
     contactName?: string | undefined;
+    contactEmail?: string | undefined;
     contactPhone?: string | undefined;
 }>, {
     status?: "active" | "archived" | undefined;
     tin?: string | undefined;
     legalName?: string | undefined;
     orgId?: string | undefined;
-    contactEmail?: string | undefined;
     contactName?: string | undefined;
+    contactEmail?: string | undefined;
     contactPhone?: string | undefined;
 }, {
     status?: "active" | "archived" | undefined;
     tin?: string | undefined;
     legalName?: string | undefined;
     orgId?: string | undefined;
-    contactEmail?: string | undefined;
     contactName?: string | undefined;
+    contactEmail?: string | undefined;
     contactPhone?: string | undefined;
 }>;
 export type UpdateOutletPartyRequest = z.infer<typeof UpdateOutletPartyRequest>;

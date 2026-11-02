@@ -4,7 +4,7 @@
  * reviewer gets the review queues. Hiding an item is presentation only: the API still decides. No count
  * is typed in: the guests count is the API's.
  */
-import { isLeaderRole, LEADER_ROLE_SHORT, OVERSIGHT_ROLE_LABEL, type OversightConsoleGrant } from "@injishi/contracts";
+import { isLeaderRole, LEADER_ROLE_SHORT, OVERSIGHT_ROLE_LABEL, type OversightConsoleGrant, type PsfReport } from "@injishi/contracts";
 import { type NavGroup, navigationFor, type Persona } from "@injishi/data";
 import { cache } from "react";
 import { sampleCollectionsByBoard } from "@/lib/coverage.generated";
@@ -13,6 +13,41 @@ import { ApiError } from "../api";
 import { leaderSummary } from "./guests";
 
 /** The seats this person holds, or an empty list when the API refuses. */
+/**
+ * Whether this person builds a PSF team (2026-11-02): a PSF manager posted for a province (or the whole
+ * country). A District Manager or DBO does not, and does not see the Team screen.
+ */
+export async function appointsPsfTeam(): Promise<boolean> {
+  return (await officerConsoles()).some((c) => c.oversightRole === "psf_membership_officer" && c.scopeLevel !== "district");
+}
+
+/**
+ * What waits on the PSF console right now (2026-11-02), by screen: applications in the queue, cards to
+ * confirm, registrations to review. Shown as counts in the sidebar so the next thing to do is plain.
+ * Empty when the report cannot be read: the sidebar then shows no counts, never wrong ones.
+ */
+export async function psfWaitingByBoard(): Promise<Record<string, number>> {
+  const api = await currentApi();
+  try {
+    const r = await api.get<PsfReport>("/api/v1/oversight/psf/report");
+    return { PsfConsole: r.now.waiting, PsfClaims: r.now.claimsWaiting, OfficerHome: r.registrations.waitingReview };
+  } catch (error) {
+    if (error instanceof ApiError) return {};
+    throw error;
+  }
+}
+
+/** The sidebar with each screen's waiting count as its chip. */
+export function withWaitingCounts(groups: NavGroup[], counts: Record<string, number>): NavGroup[] {
+  return groups.map((g) => ({
+    ...g,
+    items: g.items.map((i) => {
+      const n = i.href ? 0 : (counts[i.board] ?? 0);
+      return n > 0 ? { ...i, chip: String(n) } : i;
+    }),
+  }));
+}
+
 export const officerConsoles = cache(async (): Promise<OversightConsoleGrant[]> => {
   const api = await currentApi();
   try {
@@ -73,9 +108,15 @@ export async function officerPersona(persona: Persona): Promise<Persona> {
   const first = consoles.find((c) => c.console === "guests") ?? consoles[0];
   if (!first || !persona.workspace) return persona;
   const [place, ...rest] = first.scopeLabel.split(", ");
+  // A PSF manager is named by the level they are posted at (2026-11-02): Province and National Managers
+  // appoint the District Managers below them.
   const role = isLeaderRole(first.oversightRole)
     ? LEADER_ROLE_SHORT[first.oversightRole]
-    : OVERSIGHT_ROLE_LABEL[first.oversightRole];
+    : first.oversightRole === "psf_membership_officer" && first.scopeLevel !== "district"
+      ? first.scopeLevel === "country"
+        ? "PSF National Manager"
+        : "PSF Province Manager"
+      : OVERSIGHT_ROLE_LABEL[first.oversightRole];
   const others = consoles.length > 1 ? ` and ${consoles.length - 1} more` : "";
   const name = place ?? first.scopeLabel;
   return {

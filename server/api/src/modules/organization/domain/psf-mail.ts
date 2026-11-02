@@ -32,6 +32,11 @@ export function psfQueueLink(webUrl: string): string {
   return new URL('/oversight/membership/queue', webUrl).toString();
 }
 
+/** One application in the PSF console (2026-11-02), where the officer decides it. The app, not web. */
+export function psfApplicationLink(appUrl: string, applicationId: string): string {
+  return new URL(`/psf/${encodeURIComponent(applicationId)}`, appUrl).toString();
+}
+
 export function psfApplicationReceivedMail(input: {
   to: Addressee;
   legalName: string;
@@ -59,6 +64,8 @@ export function psfOfficerQueueMail(input: {
   legalName: string;
   districtName: string | null;
   tierName: string;
+  /** Where it was sent from (2026-11-02): the public PSF form, or Injishi's business registration. */
+  origin: 'psf_form' | 'registration';
   link: string;
 }): RegistrationMail {
   return compose({
@@ -70,8 +77,9 @@ export function psfOfficerQueueMail(input: {
       ['Business', input.legalName],
       ['District', input.districtName ?? 'Not recorded'],
       ['Tier asked for', input.tierName],
+      ['Sent from', input.origin === 'psf_form' ? 'The PSF form (no Injishi account)' : 'Injishi business registration'],
     ],
-    cta: { label: 'Open the membership queue', href: input.link },
+    cta: { label: 'Open the application', href: input.link },
   });
 }
 
@@ -172,7 +180,7 @@ export function psfExpiringMail(input: {
     greeting: greeting(input.to),
     paragraphs: [
       `Membership ${input.membershipNumber} ends on ${input.expiresOn}.`,
-      'To stay a member, apply again before then.',
+      'To stay a member, renew before then. Renewing early loses nothing: the new year starts the day this one ends.',
     ],
     cta: { label: 'Renew your membership', href: input.link },
   });
@@ -190,9 +198,53 @@ export function psfExpiredMail(input: {
     greeting: greeting(input.to),
     paragraphs: [
       `Membership ${input.membershipNumber} has reached its end date, so ${input.legalName} is no longer shown as a PSF member.`,
-      'You can apply again at any time.',
+      'You can renew at any time: the new year starts on the day you pay, under the same membership number.',
     ],
-    cta: { label: 'Apply again', href: input.link },
+    cta: { label: 'Renew membership', href: input.link },
+  });
+}
+
+/** An officer's reminder (2026-11-02): the application is saved, and PSF reviews it once it is paid. */
+export function psfPaymentReminderMail(input: { to: Addressee; legalName: string; amountRwf: number | null; link: string }): RegistrationMail {
+  return compose({
+    subject: `Your PSF application for ${input.legalName} is waiting for its payment`,
+    heading: 'One step left: the payment',
+    greeting: greeting(input.to),
+    paragraphs: [
+      `Your application to join PSF for ${input.legalName} is saved, but the payment did not go through. PSF reviews only paid applications.`,
+      'Open your application, pay by mobile money, and it goes straight to your district’s PSF office.',
+    ],
+    details: input.amountRwf ? [['To pay', money(input.amountRwf)]] : [],
+    cta: { label: 'Pay and send to PSF', href: input.link },
+  });
+}
+
+/** A renewal was paid (2026-11-02): the membership carries on, with no officer's decision. */
+export function psfRenewedMail(input: {
+  to: Addressee;
+  legalName: string;
+  membershipNumber: string;
+  tierName: string;
+  amountRwf: number;
+  startsOn: string;
+  expiresOn: string;
+  paymentReference: string;
+  link: string;
+}): RegistrationMail {
+  return compose({
+    subject: `Your PSF membership for ${input.legalName} is renewed until ${input.expiresOn}`,
+    heading: 'Your PSF membership is renewed',
+    greeting: greeting(input.to),
+    paragraphs: [`Thank you. ${input.legalName} stays a PSF member, under the same membership number.`],
+    details: [
+      ['Membership number', input.membershipNumber],
+      ['Tier', input.tierName],
+      ['Paid', money(input.amountRwf)],
+      ['Payment reference', input.paymentReference],
+      ['Valid', `${input.startsOn} to ${input.expiresOn}`],
+    ],
+    after: ['The fee goes to PSF. Injishi keeps none of it.'],
+    cta: { label: 'See your membership', href: input.link },
   });
 }
 

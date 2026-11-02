@@ -21,6 +21,8 @@ import {
   StatusChip,
 } from "@injishi/ui";
 import NextLink from "next/link";
+import { API_BASE } from "@/pms/data/api";
+import { WEB_URL } from "@/lib/return-to";
 import type { PsfScope } from "@/server/sources/psf";
 import { FactGrid } from "./shared";
 
@@ -77,6 +79,9 @@ export function PsfBusinessView({
   const place = [p.sectorName, p.districtName].filter(Boolean).join(", ");
   const rooms = p.listings.reduce((n, l) => n + l.rooms, 0);
   const m = membership?.business ?? null;
+  // The application the membership stands on, else the newest: its docID is the business's key to tracking.
+  const docId =
+    membership?.history.applications.find((a) => a.status === "member")?.docId ?? membership?.history.applications[0]?.docId ?? null;
 
   return (
     <PageContent>
@@ -306,9 +311,51 @@ export function PsfBusinessView({
                     { label: "Standing", value: STANDING[m.standing]?.label ?? m.standing },
                     { label: "Tier", value: m.tierName ?? "None yet" },
                     { label: "Membership number", value: m.membershipNumber ?? "None yet" },
+                    {
+                      // The docID opens the business's tracking page: renewal and the certificate live there (2026-11-02).
+                      label: "docID",
+                      value: docId ? (
+                        <a href={`${WEB_URL}/psf/track/${docId}`} target="_blank" rel="noreferrer" className="font-mono font-semibold text-accent hover:underline">
+                          {docId}
+                        </a>
+                      ) : (
+                        "None yet"
+                      ),
+                    },
+                    {
+                      label: "Valid until",
+                      value: m.standing === "member" && m.expiresOn ? formatDay(m.expiresOn) : m.standing === "lapsed" ? "Lapsed" : "—",
+                    },
                     { label: "Paid to PSF", value: formatMoney(m.paidRwf) },
                   ]}
                 />
+                {/* The certificate (2026-11-02), whichever way it became a member: a card PSF confirmed included. */}
+                {m.standing === "member" ? (
+                  <a
+                    href={`${API_BASE}/api/v1/oversight/psf/businesses/${p.orgId}/certificate`}
+                    className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-accent hover:underline"
+                  >
+                    Download the membership certificate
+                  </a>
+                ) : null}
+                {/* Renewals (2026-11-02): paid on the tracking page, renewed at once, no decision here. */}
+                {membership?.renewals.length ? (
+                  <div className="flex flex-col gap-1.5 border-t border-separator pt-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted">Renewals</p>
+                    <ul className="flex flex-col gap-1.5">
+                      {membership.renewals.map((r) => (
+                        <li key={`${r.paidAt}-${r.startsOn}`} className="flex flex-col gap-0.5 text-sm">
+                          <span>
+                            {formatDay(r.startsOn)} to {formatDay(r.expiresOn)}
+                          </span>
+                          <span className="tabular text-xs text-muted">
+                            {r.tierName} · {formatMoney(r.amountRwf)} · paid {formatDay(r.paidAt)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
                 {membership?.history.applications.length ? (
                   <ul className="flex flex-col gap-1.5 border-t border-separator pt-3">
                     {membership.history.applications.map((a) => (

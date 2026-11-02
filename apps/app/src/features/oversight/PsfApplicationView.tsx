@@ -51,7 +51,9 @@ export function PsfApplicationView({ initial }: { initial: PsfOfficerApplication
       <PageHeader
         eyebrow={[app.docId, app.profile.businessCode, app.districtName].filter(Boolean).join(" · ")}
         title={app.businessName}
-        description={`${app.requestedTierName} · sent ${dayMonthYear(app.queuedAt ?? app.submittedAt)}${
+        description={`${app.requestedTierName} · sent ${dayMonthYear(app.queuedAt ?? app.submittedAt)} from ${
+          app.origin === "psf_form" ? "the PSF form" : "Injishi registration"
+        }${
           app.status === "submitted" ? ` · waiting ${app.waitingDays} day${app.waitingDays === 1 ? "" : "s"}` : ""
         }`}
       />

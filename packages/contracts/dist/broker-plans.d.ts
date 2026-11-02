@@ -72,7 +72,7 @@ export declare const BrokerPlanPayment: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "pending" | "failed" | "paid";
     id: string;
-    kind: "start" | "renewal";
+    kind: "renewal" | "start";
     amountRwf: number;
     failureReason: string | null;
     paidAt: string | null;
@@ -86,7 +86,7 @@ export declare const BrokerPlanPayment: z.ZodObject<{
 }, {
     status: "pending" | "failed" | "paid";
     id: string;
-    kind: "start" | "renewal";
+    kind: "renewal" | "start";
     amountRwf: number;
     failureReason: string | null;
     paidAt: string | null;
@@ -213,7 +213,7 @@ export declare const BrokerPlanOverview: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "failed" | "paid";
         id: string;
-        kind: "start" | "renewal";
+        kind: "renewal" | "start";
         amountRwf: number;
         failureReason: string | null;
         paidAt: string | null;
@@ -227,7 +227,7 @@ export declare const BrokerPlanOverview: z.ZodObject<{
     }, {
         status: "pending" | "failed" | "paid";
         id: string;
-        kind: "start" | "renewal";
+        kind: "renewal" | "start";
         amountRwf: number;
         failureReason: string | null;
         paidAt: string | null;
@@ -258,7 +258,7 @@ export declare const BrokerPlanOverview: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "failed" | "paid";
         id: string;
-        kind: "start" | "renewal";
+        kind: "renewal" | "start";
         amountRwf: number;
         failureReason: string | null;
         paidAt: string | null;
@@ -272,7 +272,7 @@ export declare const BrokerPlanOverview: z.ZodObject<{
     }, {
         status: "pending" | "failed" | "paid";
         id: string;
-        kind: "start" | "renewal";
+        kind: "renewal" | "start";
         amountRwf: number;
         failureReason: string | null;
         paidAt: string | null;
@@ -302,7 +302,7 @@ export declare const BrokerPlanOverview: z.ZodObject<{
     pending: {
         status: "pending" | "failed" | "paid";
         id: string;
-        kind: "start" | "renewal";
+        kind: "renewal" | "start";
         amountRwf: number;
         failureReason: string | null;
         paidAt: string | null;
@@ -330,7 +330,7 @@ export declare const BrokerPlanOverview: z.ZodObject<{
     payments: {
         status: "pending" | "failed" | "paid";
         id: string;
-        kind: "start" | "renewal";
+        kind: "renewal" | "start";
         amountRwf: number;
         failureReason: string | null;
         paidAt: string | null;
@@ -369,7 +369,7 @@ export declare const BrokerPlanOverview: z.ZodObject<{
     pending: {
         status: "pending" | "failed" | "paid";
         id: string;
-        kind: "start" | "renewal";
+        kind: "renewal" | "start";
         amountRwf: number;
         failureReason: string | null;
         paidAt: string | null;
@@ -397,7 +397,7 @@ export declare const BrokerPlanOverview: z.ZodObject<{
     payments: {
         status: "pending" | "failed" | "paid";
         id: string;
-        kind: "start" | "renewal";
+        kind: "renewal" | "start";
         amountRwf: number;
         failureReason: string | null;
         paidAt: string | null;

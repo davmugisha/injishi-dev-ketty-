@@ -28,10 +28,11 @@ import {
 /** The select value for "Other" (the kind typed in) and "Not on the list: I will type it". */
 export const TYPE_IT = "__type_it__";
 
-export type StepKey = "you" | "business" | "membership" | "review";
+export type StepKey = "business" | "place" | "you" | "membership" | "review";
 export const STEPS: { key: StepKey; title: string; sub: string }[] = [
+  { key: "business", title: "Your business", sub: "Its TIN, name and sector" },
+  { key: "place", title: "Where it trades", sub: "Address, branches, trade" },
   { key: "you", title: "You", sub: "Your National ID, checked once" },
-  { key: "business", title: "Your business", sub: "What it does and where it is" },
   { key: "membership", title: "Membership", sub: "The level you can afford" },
   { key: "review", title: "Check and pay", sub: "One payment, by mobile money" },
 ];
@@ -251,7 +252,26 @@ export function validateYou(d: PsfDraft): Errors {
   return errors;
 }
 
+/**
+ * The business's fields that the second step, Where it trades, asks for
+ * (2026-11-02): its address, its branches and its trade. Everything else under
+ * `business.` is the first step's.
+ */
+export function isPlaceField(path: string): boolean {
+  return /^business\.(address|branches|trade)/.test(path);
+}
+
+/** Your business: registration, name and sector. */
 export function validateBusiness(d: PsfDraft): Errors {
+  return Object.fromEntries(Object.entries(validateBusinessAll(d)).filter(([k]) => !isPlaceField(k)));
+}
+
+/** Where it trades: address, branches and trade. */
+export function validatePlace(d: PsfDraft): Errors {
+  return Object.fromEntries(Object.entries(validateBusinessAll(d)).filter(([k]) => isPlaceField(k)));
+}
+
+function validateBusinessAll(d: PsfDraft): Errors {
   const errors: Errors = {};
   if (!d.clusterCode) errors["business.clusterCode"] = "Pick the sector your business works in.";
   if (d.clusterCode && !d.subsectorId) errors["business.subsectorId"] = "Pick the kind of business, or type it.";
@@ -325,6 +345,9 @@ export function toRequest(d: PsfDraft): PsfPublicSubmitRequest {
 /** Which step a field the server refused lives on, so the form can go back to it. */
 export function stepOfPath(path: string): StepKey {
   if (path.startsWith("membership")) return "membership";
+  // The logo is asked for on the last step, after the ID check it uploads under.
+  if (path === "business.logoObjectKey") return "review";
+  if (isPlaceField(path)) return "place";
   if (path.startsWith("business")) return "business";
   if (path.startsWith("contact") || path.startsWith("checkToken")) return "you";
   return "review";

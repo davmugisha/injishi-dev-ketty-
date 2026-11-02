@@ -26,6 +26,8 @@ import {
 import NextLink from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useId } from "react";
+import { ExportMenu } from "@/components/ExportMenu";
+import type { ExportTable } from "@/lib/table-export";
 import type { PsfReport, PsfScope } from "@/server/sources/psf";
 
 import { PSF_REPORTS, type PsfReportId } from "./psf-reports";
@@ -82,38 +84,12 @@ function tierSlices(r: PsfReport) {
   return untiered > 0 ? [...slices, { key: "none", label: "No tier", count: untiered }] : slices;
 }
 
-// ── CSV and print ─────────────────────────────────────────────────────────────────────────────────
+// ── Export and print ──────────────────────────────────────────────────────────────────────────────
 
 interface CsvSection {
   title: string;
   columns: string[];
   rows: (string | number)[][];
-}
-
-const cell = (v: string | number) => {
-  const s = String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
-
-/** One file a spreadsheet opens: each section a titled table, a blank line between them. */
-function downloadCsv(name: string, heading: string[], sections: CsvSection[]) {
-  const lines = [
-    ...heading.map(cell),
-    "",
-    ...sections.flatMap((s) => [
-      cell(s.title),
-      s.columns.map(cell).join(","),
-      ...s.rows.map((r) => r.map(cell).join(",")),
-      "",
-    ]),
-  ];
-  const blob = new Blob([`﻿${lines.join("\n")}`], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 function csvFor(id: PsfReportId, r: PsfReport): CsvSection[] {
@@ -1099,12 +1075,13 @@ export function PsfReportsView({
   const meta = PSF_REPORTS.find((r) => r.id === id) ?? PSF_REPORTS[0];
   const period = periodFromRange(report.from, report.to, today);
   const span = `${formatDay(report.from)} to ${formatDay(report.to)}`;
-  const download = () =>
-    downloadCsv(
-      `psf-${id}-${report.from}-to-${report.to}.csv`,
-      [`PSF · ${meta.title}`, `${report.regionLabel}, ${span}`, `${scope.title}`],
-      csvFor(id, report),
-    );
+  // Every part of the report, as CSV, Excel, PDF or Word (2026-11-02).
+  const exportRows = async (): Promise<ExportTable> => ({
+    filename: `psf-${id}-${report.from}-to-${report.to}`,
+    title: `PSF · ${meta.title}`,
+    subtitle: `${report.regionLabel}, ${span} · ${scope.title}`,
+    sections: csvFor(id, report).map((sec) => ({ title: sec.title, heading: sec.columns, rows: sec.rows })),
+  });
   return (
     <div data-print-root="">
       <PageContent>
@@ -1114,11 +1091,9 @@ export function PsfReportsView({
           description={`${meta.blurb} ${span}.`}
           actions={
             <div className="flex flex-wrap items-center gap-2 print:hidden">
-              <ActionButton icon="ArrowDownToLine" onPress={download}>
-                CSV
-              </ActionButton>
+              <ExportMenu load={exportRows} />
               <ActionButton icon="Printer" intent="primary" onPress={() => window.print()}>
-                Print or save as PDF
+                Print
               </ActionButton>
             </div>
           }

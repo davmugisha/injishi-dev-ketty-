@@ -9,8 +9,8 @@ const LINKS = [
 
 /**
  * The footer of the PSF pages (the `(partner)` chrome, 2026-10-23): PSF's mark,
- * its name, and the same few destinations as the header, in the quiet one-row
- * form of the waitlist footer. No Injishi wordmark and no `MobileTabBar`: every
+ * its name, a small "Powered by Hangaa Softwares" line, and the same few
+ * destinations as the header, in the quiet one-row form of the waitlist footer. No Injishi wordmark and no `MobileTabBar`: every
  * tab it carries is a site destination.
  */
 export function PsfFooter() {
@@ -34,9 +34,13 @@ export function PsfFooter() {
 
         <div className="flex items-center gap-3">
           <img src="/assets/partners/psf.png" alt="" className="h-7 w-auto" />
-          <p className="text-sm text-muted-foreground">
-            Private Sector Federation, Rwanda <span aria-hidden>·</span> Powered by MemberDesk
-          </p>
+          <div>
+            <p className="text-sm text-muted-foreground">
+              Private Sector Federation, Rwanda <span aria-hidden>·</span> PSF Membership Hub (PMH)
+            </p>
+            {/* Who built it, small and quiet under PSF's own line. */}
+            <p className="mt-0.5 text-xs text-muted-foreground">Powered by Hangaa Softwares</p>
+          </div>
         </div>
       </div>
     </footer>

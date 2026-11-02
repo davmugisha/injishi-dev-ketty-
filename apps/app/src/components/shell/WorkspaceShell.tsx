@@ -82,7 +82,7 @@ function NavMenu({
  */
 const LIVE_PERSONAS = new Set<string>(["landlord", "tenant", "broker", "officer", "ops"]);
 /** Personas whose screens must never draw sample data: a fixture-backed screen says it is not ready. */
-const REAL_DATA_ONLY = new Set<string>(["officer", "ops", "psf"]);
+const REAL_DATA_ONLY = new Set<string>(["officer", "ops", "psf", "psfdbo"]);
 const LIVE_SECTIONS = new Set<string>(["rentals", "tenant"]);
 
 const SIDEBAR_KEY = "injishi.sidebar";

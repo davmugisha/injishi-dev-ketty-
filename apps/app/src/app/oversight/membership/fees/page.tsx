@@ -1,12 +1,6 @@
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { PsfFees } from "@/pms/oversight/screens/psf-fees";
-
-/** Suspense, because the console reads its place from the url (`useSearchParams`). */
+/** Old membership-console URL → WorkspaceShell portal. */
 export default function Page() {
-  return (
-    <Suspense>
-      <PsfFees />
-    </Suspense>
-  );
+  redirect("/psf/fees");
 }

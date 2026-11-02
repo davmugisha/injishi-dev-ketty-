@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PsfApplicationPrefill = exports.PsfApplication = exports.PsfPayment = exports.PsfFiledForm = exports.PsfMembership = exports.CreatePsfAssociationRequest = exports.UpsertPsfAssociationRequest = exports.CreatePsfClusterRequest = exports.UpsertPsfClusterRequest = exports.PsfCatalogue = exports.PsfCluster = exports.PsfSubsector = exports.PsfAssociation = exports.UpdatePsfTierRequest = exports.CreatePsfTierRequest = exports.PsfTier = exports.OVERSIGHT_ROLE_POSTING = exports.PSF_OUT_OF_SCOPE_MESSAGE = exports.PSF_NOT_FOR_RESIDENCE_MESSAGE = exports.PSF_DISTRICT_DECIDES_MESSAGE = exports.PSF_OWN_BUSINESS_MESSAGE = exports.PSF_NOT_PAYABLE_MESSAGE = exports.PSF_NOT_OPEN_MESSAGE = exports.PSF_OPEN_APPLICATION_MESSAGE = exports.PSF_FEE_NOTICE = exports.REGISTRATION_TYPE_SHORT = exports.ENTERPRISE_REGISTRATION_KIND_LABEL = exports.PSF_OWNER_GROUP_SHORT = exports.PSF_OWNER_GROUP_LABEL = exports.PSF_CONTACT_ROLE_LABEL = exports.PSF_TRADE_DIRECTION_LABEL = exports.PSF_OWNERSHIP_LABEL = exports.PSF_COMPANY_TYPE_LABEL = exports.PSF_MEMBERSHIP_SOURCE_LABEL = exports.PSF_DECLINE_REASON_LABEL = exports.PSF_APPLICATION_STAGE_LABEL = exports.PSF_APPLICATION_STATUS_LABEL = exports.PSF_OFFERED_FAMILIES = exports.PSF_FAMILY_BLURB = exports.PSF_FAMILY_LABEL = exports.PSF_DOMAINS = exports.PSF_QUEUE_REGISTRATION_STATES = exports.PsfApplicationStage = exports.PsfMembershipSource = exports.PsfDeclineReason = exports.PsfSubmittedCapacity = exports.PSF_OPEN_APPLICATION_STATUSES = exports.PsfApplicationStatus = exports.PsfPriceKind = exports.PsfMembershipFamily = void 0;
-exports.PsfMemberListResult = exports.UploadPsfMemberListRequest = exports.PsfMemberListRow = exports.RejectPsfClaimRequest = exports.ConfirmPsfClaimRequest = exports.PsfClaimsPage = exports.PsfClaimsQuery = exports.PsfMembershipClaim = exports.PsfClaimStatus = exports.PsfFormAnswers = exports.UpdatePsfFormFieldRequest = exports.CreatePsfFormFieldRequest = exports.PsfFormFieldsOfficerView = exports.PsfFormFieldsPublic = exports.PsfFormField = exports.PsfFormFieldOption = exports.PsfFormFieldKey = exports.PsfFormFieldType = exports.UpdatePsfSubsectorRequest = exports.CreatePsfSubsectorRequest = exports.PsfSubsectorsView = exports.PsfRegisterSummary = exports.PsfCount = exports.PsfBusinessesPage = exports.PsfBusinessBranch = exports.PsfBusinessRow = exports.PsfBusinessesQuery = exports.PsfBusinessKind = exports.PSF_STANDING_LABEL = exports.PsfStanding = exports.PsfDeclineRequest = exports.PsfApproveRequest = exports.PsfOfficerApplication = exports.PsfQueueQuery = exports.PsfQueuePage = exports.PsfQueueItem = exports.PsfBranchDecisionRequest = exports.PsfApplicationBranch = exports.PSF_BRANCH_STATUS_LABEL = exports.PsfBranchStatus = exports.PayPsfMembershipRequest = exports.CreatePsfApplicationRequest = exports.AdminOrgPsf = exports.AdminPsfApplication = exports.PsfMembershipOverview = exports.PsfBusinessProfile = void 0;
+exports.PsfMemberListResult = exports.UploadPsfMemberListRequest = exports.PsfMemberListRow = exports.RejectPsfClaimRequest = exports.ConfirmPsfClaimRequest = exports.PsfClaimsPage = exports.PsfClaimsQuery = exports.PsfMembershipClaim = exports.PsfClaimStatus = exports.PsfFormAnswers = exports.UpdatePsfFormFieldRequest = exports.CreatePsfFormFieldRequest = exports.PsfFormFieldsOfficerView = exports.PsfFormFieldsPublic = exports.PsfFormField = exports.PsfFormFieldOption = exports.PsfFormFieldKey = exports.PsfFormFieldType = exports.UpdatePsfSubsectorRequest = exports.CreatePsfSubsectorRequest = exports.PsfSubsectorsView = exports.PsfRegisterSummary = exports.PsfCount = exports.PsfBusinessesPage = exports.PsfBusinessBranch = exports.PsfPaymentReminderResult = exports.PsfPaymentReminderRequest = exports.PsfBusinessRow = exports.PsfBusinessesQuery = exports.PsfBusinessKind = exports.PSF_STANDING_LABEL = exports.PsfStanding = exports.PsfDeclineRequest = exports.PsfApproveRequest = exports.PsfOfficerApplication = exports.PsfQueueQuery = exports.PsfQueuePage = exports.PsfQueueItem = exports.PSF_APPLICATION_ORIGIN_LABEL = exports.PsfApplicationOrigin = exports.PsfBranchDecisionRequest = exports.PsfApplicationBranch = exports.PSF_BRANCH_STATUS_LABEL = exports.PsfBranchStatus = exports.PayPsfMembershipRequest = exports.CreatePsfApplicationRequest = exports.AdminOrgPsf = exports.AdminPsfApplication = exports.PsfMembershipOverview = exports.PsfBusinessProfile = void 0;
 exports.isInPsfQueueState = isInPsfQueueState;
 exports.isPsfApplicant = isPsfApplicant;
 exports.psfTierAcceptsFee = psfTierAcceptsFee;
@@ -167,8 +167,8 @@ exports.PSF_COMPANY_TYPE_LABEL = {
     sole_trader: "Sole trader",
 };
 exports.PSF_OWNERSHIP_LABEL = {
-    foreign_100: "100% foreign owned",
     rwandan_100: "100% Rwandan owned",
+    foreign_100: "100% foreign owned",
     franchise: "Franchise",
     joint_venture: "Joint venture",
     foreign_representative: "Representative of a foreign company",
@@ -235,13 +235,21 @@ exports.PSF_OUT_OF_SCOPE_MESSAGE = "This business is outside the region you cove
  * path refuses with 422 a grant that breaks its role's entry.
  *
  * A PSF membership officer may be posted for the whole country, a province or
- * one district, and sees exactly the businesses of that region.
+ * one district, and sees exactly the businesses of that region. Injishi's admin
+ * posts only the Province Managers (2026-11-02); each Province
+ * Manager posts its districts' District Managers and District Business Officers
+ * from the PSF console's Team screen, so neither is offered to admin here.
  */
 exports.OVERSIGHT_ROLE_POSTING = {
     psf_membership_officer: {
         governmentBodyCode: "PSF",
-        scopeLevels: ["country", "province", "district"],
-        message: "A PSF District Manager is appointed at PSF.",
+        scopeLevels: ["province"],
+        message: "Injishi appoints PSF's Province Managers, at PSF. A Province Manager appoints its District Managers from the PSF console.",
+    },
+    psf_business_officer: {
+        governmentBodyCode: "PSF",
+        scopeLevels: [],
+        message: "A District Business Officer is appointed by the PSF Province Manager of that district, from the PSF console.",
     },
 };
 // ---------------------------------------------------------------------------
@@ -625,8 +633,19 @@ exports.PsfBranchDecisionRequest = zod_1.z
         ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, path: ["note"], message: "Say why, so the business knows what to fix." });
     }
 });
+/**
+ * Where an application was sent from (2026-11-02): the public PSF form (no account, tracked by docID),
+ * or Injishi's business registration, which files one when the business chooses to apply.
+ */
+exports.PsfApplicationOrigin = zod_1.z.enum(["psf_form", "registration"]);
+exports.PSF_APPLICATION_ORIGIN_LABEL = {
+    psf_form: "PSF form",
+    registration: "Injishi registration",
+};
 exports.PsfQueueItem = zod_1.z.object({
     applicationId: primitives_1.Uuid,
+    /** Where it was sent from: the public PSF form, or Injishi's business registration. */
+    origin: exports.PsfApplicationOrigin.default("registration"),
     orgId: primitives_1.Uuid,
     businessName: zod_1.z.string(),
     businessCode: zod_1.z.string().nullable(),
@@ -674,6 +693,8 @@ exports.PsfQueuePage = zod_1.z.object({
 exports.PsfQueueQuery = registration_1.OversightDecisionQuery;
 exports.PsfOfficerApplication = exports.PsfApplication.extend({
     orgId: primitives_1.Uuid,
+    /** Where it was sent from: the public PSF form, or Injishi's business registration. */
+    origin: exports.PsfApplicationOrigin.default("registration"),
     businessName: zod_1.z.string(),
     districtName: zod_1.z.string().nullable(),
     registrationStatus: primitives_1.OrgRegistrationStatus,
@@ -736,7 +757,7 @@ exports.PsfStanding = zod_1.z.enum(["not_applied", "claimed", "applied", "awaiti
 exports.PSF_STANDING_LABEL = {
     not_applied: "Not applied",
     claimed: "Claimed, waiting for PSF",
-    applied: "Applied",
+    applied: "Waiting for approval",
     awaiting_payment: "Approved, to pay",
     member: "Member",
     lapsed: "Lapsed",
@@ -759,6 +780,13 @@ exports.PsfBusinessesQuery = zod_1.z.object({
     association: optionalText(60),
     tier: optionalText(60),
     standing: exports.PsfStanding.optional(),
+    /** `due`: a current membership inside its renewal window, 60 days before it ends, or past it (2026-11-02). */
+    renewal: zod_1.z.enum(["due"]).optional(),
+    /**
+     * `due`: an application sent and not paid (2026-11-02): the public form's payment at submit that did not go
+     * through, or an approval still to pay. Such a business is not on the register otherwise.
+     */
+    payment: zod_1.z.enum(["due"]).optional(),
     group: registration_1.PsfOwnerGroup.optional(),
     tin: zod_1.z.enum(["with", "without"]).optional(),
     kind: exports.PsfBusinessKind.optional(),
@@ -797,6 +825,27 @@ exports.PsfBusinessRow = zod_1.z.object({
      * its head office, and its decision, are another district's.
      */
     headOfficeInScope: zod_1.z.boolean().default(true),
+    /** The unpaid application, when one is waiting for its payment (2026-11-02): what is owed and who to reach. */
+    paymentDue: zod_1.z
+        .object({
+        amountRwf: primitives_1.RwfAmount.nullable(),
+        since: zod_1.z.string(),
+        docId: zod_1.z.string().nullable(),
+        contactName: zod_1.z.string(),
+        phoneE164: zod_1.z.string().nullable(),
+        email: zod_1.z.string().nullable(),
+        /** The last payment reminder an officer sent; one a day at most. */
+        lastRemindedAt: zod_1.z.string().nullable(),
+    })
+        .nullable()
+        .default(null),
+});
+/** `POST /oversight/psf/payment-reminders`: remind one business, or every one waiting in the region. */
+exports.PsfPaymentReminderRequest = zod_1.z.object({ orgId: primitives_1.Uuid.optional() });
+exports.PsfPaymentReminderResult = zod_1.z.object({
+    sent: zod_1.z.number().int(),
+    /** Reminded within the last day already, so not again. */
+    skipped: zod_1.z.number().int(),
 });
 /** One branch on a business's page, wherever it is: every officer who opens the business sees them all. */
 exports.PsfBusinessBranch = zod_1.z.object({
@@ -829,8 +878,14 @@ exports.PsfRegisterSummary = zod_1.z.object({
     total: zod_1.z.number().int(),
     members: zod_1.z.number().int(),
     waiting: zod_1.z.number().int(),
-    /** Fees paid this calendar year through Injishi, in RWF. */
+    /** Fees paid this calendar year through Injishi, in RWF: new memberships and renewals. */
     paidThisYearRwf: zod_1.z.number().int(),
+    /** Members inside their renewal window, 60 days before the end date (2026-11-02). */
+    renewalDue: zod_1.z.number().int().default(0),
+    /** Renewals paid this calendar year. */
+    renewedThisYear: zod_1.z.number().int().default(0),
+    /** Applications sent and not paid (2026-11-02). */
+    awaitingPayment: zod_1.z.number().int().default(0),
     byCluster: zod_1.z.array(exports.PsfCount),
     byStanding: zod_1.z.array(exports.PsfCount),
     byGroup: zod_1.z.array(exports.PsfCount),
@@ -989,7 +1044,8 @@ exports.PsfMembershipClaim = zod_1.z.object({
     businessCode: zod_1.z.string().nullable(),
     tin: zod_1.z.string().nullable(),
     districtName: zod_1.z.string().nullable(),
-    membershipNumber: zod_1.z.string(),
+    /** Null when the business sent its card without the number (2026-11-02). */
+    membershipNumber: zod_1.z.string().nullable(),
     status: exports.PsfClaimStatus,
     claimedAt: zod_1.z.string(),
     claimedByName: zod_1.z.string().nullable(),
@@ -1017,7 +1073,14 @@ exports.PsfClaimsPage = zod_1.z.object({
 const isoDay = zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use yyyy-mm-dd.");
 /** Confirm a claim: the tier and the dates PSF's records give. */
 exports.ConfirmPsfClaimRequest = zod_1.z
-    .object({ tierCode: zod_1.z.string().min(1), startsOn: isoDay, expiresOn: isoDay, note: zod_1.z.string().trim().max(500).optional() })
+    .object({
+    tierCode: zod_1.z.string().min(1),
+    startsOn: isoDay,
+    expiresOn: isoDay,
+    note: zod_1.z.string().trim().max(500).optional(),
+    /** Required when the claim came with the card only (2026-11-02): the number, read off the card. */
+    membershipNumber: zod_1.z.string().trim().max(40).optional(),
+})
     .refine((v) => v.expiresOn > v.startsOn, { path: ["expiresOn"], message: "The membership ends after it starts." });
 /** Reject a claim, with the reason the business is told. */
 exports.RejectPsfClaimRequest = zod_1.z.object({ reason: zod_1.z.string().trim().min(3, "Say why, for the business.").max(500) });

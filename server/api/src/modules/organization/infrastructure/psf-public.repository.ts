@@ -212,28 +212,6 @@ export class PsfPublicRepository {
     return row ?? null;
   }
 
-  /** The membership an application became, when it became one. */
-  async membershipFor(applicationId: string): Promise<{
-    membershipNumber: string;
-    annualFeeRwf: number | null;
-    startsOn: string | null;
-    expiresOn: string | null;
-    endedAt: Date | null;
-  } | null> {
-    const [row] = await this.db
-      .select({
-        membershipNumber: psfMemberships.membershipNumber,
-        annualFeeRwf: psfMemberships.annualFeeRwf,
-        startsOn: psfMemberships.startsOn,
-        expiresOn: psfMemberships.expiresOn,
-        endedAt: psfMemberships.endedAt,
-      })
-      .from(psfMemberships)
-      .where(eq(psfMemberships.applicationId, applicationId))
-      .limit(1);
-    return row ?? null;
-  }
-
   /** When the business's registration fee was paid, and how much it was. */
   async registrationFee(orgId: string): Promise<{ amountRwf: number; status: string; paidAt: Date | null } | null> {
     const [invoice] = await this.db

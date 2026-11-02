@@ -348,10 +348,11 @@ export class OrganizationRepository {
         await insertPsfApplication(tx, { ...input.psfApplication, orgId: org.id });
       }
       // A typed number is a claim until PSF confirms it (0121); PSF's own list may confirm it here.
-      if (input.psfMembershipNumber) {
+      // A member who sent its card without the number still files a claim (2026-11-02).
+      if (input.psfMembershipNumber || input.psfMember) {
         await fileMembershipClaim(tx, {
           orgId: org.id,
-          membershipNumber: input.psfMembershipNumber,
+          membershipNumber: input.psfMembershipNumber ?? null,
           tin: input.tin ?? null,
           claimedByUserId: input.ownerUserId,
         });
