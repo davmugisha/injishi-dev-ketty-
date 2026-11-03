@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { type RoomPriceBasis } from "./booking";
 import { type StoredAccommodationClass } from "./rdb";
 /**
  * Explore: the guest's public search over stays and homes (mobile spec 0005, feature 23).
@@ -17,9 +18,19 @@ export type ExploreMode = z.infer<typeof ExploreMode>;
 /** Top rated (weighted by review count), or by the price the card shows. */
 export declare const ExploreSort: z.ZodEnum<["top_rated", "price_asc", "price_desc"]>;
 export type ExploreSort = z.infer<typeof ExploreSort>;
-/** What a price covers: the whole party a night, one person a night (no party yet), or a home a month. */
-export declare const ExplorePriceBasis: z.ZodEnum<["party_night", "person_night", "month"]>;
+/**
+ * What a price covers (mobile spec 0005, D-j): the party a night ("a night for 2"); with no party
+ * yet, a room or a whole place a night ("a night", a room priced `per_unit`) or one person a night
+ * ("a person, a night", `per_person`); or a home a month.
+ */
+export declare const ExplorePriceBasis: z.ZodEnum<["party_night", "unit_night", "person_night", "month"]>;
 export type ExplorePriceBasis = z.infer<typeof ExplorePriceBasis>;
+/**
+ * The basis a stay's price is shown on before a party is set, from how its room is counted
+ * (`chargedGuests`): a room priced per room or a whole place is its own price a night, a room priced
+ * per person is one person's. A menu item (`per_item`) is never a stay and never reaches explore.
+ */
+export declare function noPartyPriceBasis(roomBasis: RoomPriceBasis | null | undefined): "unit_night" | "person_night";
 /** The chips a guest filters stays by, drawn from the business's registered class (D-i). */
 export declare const ExploreType: z.ZodEnum<["hotel", "lodge", "guest_house", "tented_camp", "apartment", "villa", "stay", "home"]>;
 export type ExploreType = z.infer<typeof ExploreType>;
@@ -115,7 +126,7 @@ export declare const ExploreCard: z.ZodObject<{
     reviewCount: z.ZodNumber;
     /** The figure the card shows, on `priceBasis`. Null when nothing is priced ("Price on request"). */
     priceRwf: z.ZodNullable<z.ZodNumber>;
-    priceBasis: z.ZodEnum<["party_night", "person_night", "month"]>;
+    priceBasis: z.ZodEnum<["party_night", "unit_night", "person_night", "month"]>;
     /** Stays: how the room the price comes from is booked. Null for homes. */
     bookingMode: z.ZodNullable<z.ZodEnum<["instant_book", "request_to_book"]>>;
     /** A request room: how long the host has to answer, from the booking domain's own window. */
@@ -155,7 +166,7 @@ export declare const ExploreCard: z.ZodObject<{
     name: string;
     id: string;
     bookingMode: "instant_book" | "request_to_book" | null;
-    priceBasis: "month" | "party_night" | "person_night";
+    priceBasis: "month" | "party_night" | "unit_night" | "person_night";
     slug: string;
     districtName: string | null;
     mode: "stays" | "homes";
@@ -183,7 +194,7 @@ export declare const ExploreCard: z.ZodObject<{
     name: string;
     id: string;
     bookingMode: "instant_book" | "request_to_book" | null;
-    priceBasis: "month" | "party_night" | "person_night";
+    priceBasis: "month" | "party_night" | "unit_night" | "person_night";
     slug: string;
     districtName: string | null;
     mode: "stays" | "homes";
@@ -225,7 +236,7 @@ export declare const ExploreSearchResult: z.ZodObject<{
         reviewCount: z.ZodNumber;
         /** The figure the card shows, on `priceBasis`. Null when nothing is priced ("Price on request"). */
         priceRwf: z.ZodNullable<z.ZodNumber>;
-        priceBasis: z.ZodEnum<["party_night", "person_night", "month"]>;
+        priceBasis: z.ZodEnum<["party_night", "unit_night", "person_night", "month"]>;
         /** Stays: how the room the price comes from is booked. Null for homes. */
         bookingMode: z.ZodNullable<z.ZodEnum<["instant_book", "request_to_book"]>>;
         /** A request room: how long the host has to answer, from the booking domain's own window. */
@@ -265,7 +276,7 @@ export declare const ExploreSearchResult: z.ZodObject<{
         name: string;
         id: string;
         bookingMode: "instant_book" | "request_to_book" | null;
-        priceBasis: "month" | "party_night" | "person_night";
+        priceBasis: "month" | "party_night" | "unit_night" | "person_night";
         slug: string;
         districtName: string | null;
         mode: "stays" | "homes";
@@ -293,7 +304,7 @@ export declare const ExploreSearchResult: z.ZodObject<{
         name: string;
         id: string;
         bookingMode: "instant_book" | "request_to_book" | null;
-        priceBasis: "month" | "party_night" | "person_night";
+        priceBasis: "month" | "party_night" | "unit_night" | "person_night";
         slug: string;
         districtName: string | null;
         mode: "stays" | "homes";
@@ -329,7 +340,7 @@ export declare const ExploreSearchResult: z.ZodObject<{
         name: string;
         id: string;
         bookingMode: "instant_book" | "request_to_book" | null;
-        priceBasis: "month" | "party_night" | "person_night";
+        priceBasis: "month" | "party_night" | "unit_night" | "person_night";
         slug: string;
         districtName: string | null;
         mode: "stays" | "homes";
@@ -361,7 +372,7 @@ export declare const ExploreSearchResult: z.ZodObject<{
         name: string;
         id: string;
         bookingMode: "instant_book" | "request_to_book" | null;
-        priceBasis: "month" | "party_night" | "person_night";
+        priceBasis: "month" | "party_night" | "unit_night" | "person_night";
         slug: string;
         districtName: string | null;
         mode: "stays" | "homes";
@@ -473,15 +484,22 @@ export declare const ExplorePlaces: z.ZodObject<{
     }[];
 }>;
 export type ExplorePlaces = z.infer<typeof ExplorePlaces>;
-/** A room type on a stay's page, priced on the same basis as the card. */
+/**
+ * A room type on a stay's page, priced by the card's rule for that one room (D-j): its own basis,
+ * so a hotel room reads "a night" and a room priced per person "a person, a night".
+ */
 export declare const ExploreRoom: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodString;
-    /** How many people it sleeps; null when the host has not said. */
+    /**
+     * How many people it sleeps: `DEFAULT_CAPACITY` (4) when the host has not said, the figure the
+     * booking refuses a larger party by. Nullable only for older answers.
+     */
     sleeps: z.ZodNullable<z.ZodNumber>;
     roomCount: z.ZodNumber;
+    /** Null, with a null basis, when the room has no price yet ("Price on request"). */
     priceRwf: z.ZodNullable<z.ZodNumber>;
-    priceBasis: z.ZodEnum<["party_night", "person_night", "month"]>;
+    priceBasis: z.ZodNullable<z.ZodEnum<["party_night", "unit_night", "person_night", "month"]>>;
     bookingMode: z.ZodNullable<z.ZodEnum<["instant_book", "request_to_book"]>>;
     approvalWindowHours: z.ZodNullable<z.ZodNumber>;
     cancellationTier: z.ZodNullable<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
@@ -497,7 +515,7 @@ export declare const ExploreRoom: z.ZodObject<{
     bookingMode: "instant_book" | "request_to_book" | null;
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
     nonrefundableEligible: boolean;
-    priceBasis: "month" | "party_night" | "person_night";
+    priceBasis: "month" | "party_night" | "unit_night" | "person_night" | null;
     minStay: number | null;
     freeUnits: number | null;
     priceRwf: number | null;
@@ -510,7 +528,7 @@ export declare const ExploreRoom: z.ZodObject<{
     bookingMode: "instant_book" | "request_to_book" | null;
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
     nonrefundableEligible: boolean;
-    priceBasis: "month" | "party_night" | "person_night";
+    priceBasis: "month" | "party_night" | "unit_night" | "person_night" | null;
     minStay: number | null;
     freeUnits: number | null;
     priceRwf: number | null;
@@ -601,7 +619,7 @@ export declare const ExplorePage: z.ZodObject<{
         reviewCount: z.ZodNumber;
         /** The figure the card shows, on `priceBasis`. Null when nothing is priced ("Price on request"). */
         priceRwf: z.ZodNullable<z.ZodNumber>;
-        priceBasis: z.ZodEnum<["party_night", "person_night", "month"]>;
+        priceBasis: z.ZodEnum<["party_night", "unit_night", "person_night", "month"]>;
         /** Stays: how the room the price comes from is booked. Null for homes. */
         bookingMode: z.ZodNullable<z.ZodEnum<["instant_book", "request_to_book"]>>;
         /** A request room: how long the host has to answer, from the booking domain's own window. */
@@ -641,7 +659,7 @@ export declare const ExplorePage: z.ZodObject<{
         name: string;
         id: string;
         bookingMode: "instant_book" | "request_to_book" | null;
-        priceBasis: "month" | "party_night" | "person_night";
+        priceBasis: "month" | "party_night" | "unit_night" | "person_night";
         slug: string;
         districtName: string | null;
         mode: "stays" | "homes";
@@ -669,7 +687,7 @@ export declare const ExplorePage: z.ZodObject<{
         name: string;
         id: string;
         bookingMode: "instant_book" | "request_to_book" | null;
-        priceBasis: "month" | "party_night" | "person_night";
+        priceBasis: "month" | "party_night" | "unit_night" | "person_night";
         slug: string;
         districtName: string | null;
         mode: "stays" | "homes";
@@ -741,15 +759,19 @@ export declare const ExplorePage: z.ZodObject<{
         code: string;
         label: string;
     }>, "many">;
-    /** Stays: every active room type, cheapest first. Null for homes. */
+    /** Stays: every active room type a guest can book (never a `per_item` menu item), cheapest first, ties by id. Null for homes. */
     rooms: z.ZodNullable<z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         name: z.ZodString;
-        /** How many people it sleeps; null when the host has not said. */
+        /**
+         * How many people it sleeps: `DEFAULT_CAPACITY` (4) when the host has not said, the figure the
+         * booking refuses a larger party by. Nullable only for older answers.
+         */
         sleeps: z.ZodNullable<z.ZodNumber>;
         roomCount: z.ZodNumber;
+        /** Null, with a null basis, when the room has no price yet ("Price on request"). */
         priceRwf: z.ZodNullable<z.ZodNumber>;
-        priceBasis: z.ZodEnum<["party_night", "person_night", "month"]>;
+        priceBasis: z.ZodNullable<z.ZodEnum<["party_night", "unit_night", "person_night", "month"]>>;
         bookingMode: z.ZodNullable<z.ZodEnum<["instant_book", "request_to_book"]>>;
         approvalWindowHours: z.ZodNullable<z.ZodNumber>;
         cancellationTier: z.ZodNullable<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
@@ -765,7 +787,7 @@ export declare const ExplorePage: z.ZodObject<{
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
-        priceBasis: "month" | "party_night" | "person_night";
+        priceBasis: "month" | "party_night" | "unit_night" | "person_night" | null;
         minStay: number | null;
         freeUnits: number | null;
         priceRwf: number | null;
@@ -778,7 +800,7 @@ export declare const ExplorePage: z.ZodObject<{
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
-        priceBasis: "month" | "party_night" | "person_night";
+        priceBasis: "month" | "party_night" | "unit_night" | "person_night" | null;
         minStay: number | null;
         freeUnits: number | null;
         priceRwf: number | null;
@@ -849,7 +871,7 @@ export declare const ExplorePage: z.ZodObject<{
         }[];
         availableFrom: string | null;
     }>, "many">>;
-    /** Stays: rooms over every active room type, for "Hotel · 42 rooms". */
+    /** Stays: rooms over every active room type a guest can book, for "Hotel · 42 rooms". */
     roomCount: z.ZodNumber;
     business: z.ZodObject<{
         legalName: z.ZodString;
@@ -886,7 +908,7 @@ export declare const ExplorePage: z.ZodObject<{
         name: string;
         id: string;
         bookingMode: "instant_book" | "request_to_book" | null;
-        priceBasis: "month" | "party_night" | "person_night";
+        priceBasis: "month" | "party_night" | "unit_night" | "person_night";
         slug: string;
         districtName: string | null;
         mode: "stays" | "homes";
@@ -918,7 +940,7 @@ export declare const ExplorePage: z.ZodObject<{
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
-        priceBasis: "month" | "party_night" | "person_night";
+        priceBasis: "month" | "party_night" | "unit_night" | "person_night" | null;
         minStay: number | null;
         freeUnits: number | null;
         priceRwf: number | null;
@@ -975,7 +997,7 @@ export declare const ExplorePage: z.ZodObject<{
         name: string;
         id: string;
         bookingMode: "instant_book" | "request_to_book" | null;
-        priceBasis: "month" | "party_night" | "person_night";
+        priceBasis: "month" | "party_night" | "unit_night" | "person_night";
         slug: string;
         districtName: string | null;
         mode: "stays" | "homes";
@@ -1007,7 +1029,7 @@ export declare const ExplorePage: z.ZodObject<{
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
-        priceBasis: "month" | "party_night" | "person_night";
+        priceBasis: "month" | "party_night" | "unit_night" | "person_night" | null;
         minStay: number | null;
         freeUnits: number | null;
         priceRwf: number | null;

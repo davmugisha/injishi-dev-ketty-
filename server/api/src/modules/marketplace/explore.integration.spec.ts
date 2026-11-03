@@ -44,7 +44,7 @@ maybe('explore against Postgres (EXPLORE_IT_DATABASE_URL)', () => {
   let place: { districtId: number; sectorId: number };
   let tinSeq = 0;
 
-  const query = (input: Record<string, unknown>) => ExploreSearchQuery.parse({ q: tag, ...input });
+  const query = (input: Record<string, unknown>): ExploreSearchQuery => ExploreSearchQuery.parse({ q: tag, ...input });
 
   /** A business with one property, published unless told otherwise, and one room type. */
   async function stay(
@@ -60,6 +60,12 @@ maybe('explore against Postgres (EXPLORE_IT_DATABASE_URL)', () => {
       longitude?: number | null;
       privacy?: boolean;
       bar?: boolean;
+      /** How the one room type is counted (`room_types.price_basis`); the column's default otherwise. */
+      basis?: 'per_person' | 'per_unit';
+      singleGuestPrice?: number | null;
+      capacity?: number | null;
+      /** Menu items (`per_item`, unbooked) to add beside the room, or alone with `bar`. */
+      menu?: number[];
     } = {},
   ): Promise<{ propertyId: string; workspaceId: string; roomTypeId: string | null; slug: string | null }> {
     tinSeq += 1;
@@ -108,19 +114,59 @@ maybe('explore against Postgres (EXPLORE_IT_DATABASE_URL)', () => {
           workspaceId: workspace!.id,
           name: 'Standard',
           domain: 'hospitality',
-          capacity: 2,
+          capacity: opts.capacity === undefined ? 2 : opts.capacity,
           roomCount: 1,
           basePriceRwf: opts.price === undefined ? 50_000 : opts.price,
           bookingMode: 'instant_book',
+          ...(opts.basis ? { priceBasis: opts.basis } : {}),
+          ...(opts.singleGuestPrice !== undefined ? { singleGuestPriceRwf: opts.singleGuestPrice } : {}),
         })
         .returning();
       roomTypeId = rt!.id;
     }
+    for (const [i, price] of (opts.menu ?? []).entries()) {
+      // How migration 0117 left a venue's offerings: priced each, never booked.
+      await db.insert(schema.roomTypes).values({
+        propertyId: property!.id,
+        workspaceId: workspace!.id,
+        name: `Menu item ${i + 1}`,
+        domain: 'hospitality',
+        roomCount: 5,
+        basePriceRwf: price,
+        priceBasis: 'per_item',
+        bookingMode: null,
+      });
+    }
     return { propertyId: property!.id, workspaceId: workspace!.id, roomTypeId, slug };
   }
 
+  /** One more room type on a stay, for a property with several. */
+  async function addRoom(
+    target: { propertyId: string; workspaceId: string },
+    values: { name: string; price: number | null; basis?: 'per_person' | 'per_unit'; capacity?: number | null; mode?: 'instant_book' | 'request_to_book' },
+  ): Promise<string> {
+    const [rt] = await db
+      .insert(schema.roomTypes)
+      .values({
+        propertyId: target.propertyId,
+        workspaceId: target.workspaceId,
+        name: values.name,
+        domain: 'hospitality',
+        capacity: values.capacity === undefined ? 2 : values.capacity,
+        roomCount: 2,
+        basePriceRwf: values.price,
+        bookingMode: values.mode ?? 'instant_book',
+        priceBasis: values.basis ?? 'per_unit',
+      })
+      .returning();
+    return rt!.id;
+  }
+
   /** A public review of a stay's room type, through a closed guest stay on a room of it. */
-  async function review(target: { propertyId: string; workspaceId: string; roomTypeId: string | null }, rating: number) {
+  async function review(
+    target: { propertyId: string; workspaceId: string; roomTypeId: string | null },
+    rating: number,
+  ): Promise<void> {
     const [room] = await db
       .insert(schema.rooms)
       .values({ roomTypeId: target.roomTypeId!, propertyId: target.propertyId, workspaceId: target.workspaceId })
@@ -194,6 +240,51 @@ maybe('explore against Postgres (EXPLORE_IT_DATABASE_URL)', () => {
     for (const hidden of [suspended, archived]) {
       await expect(explore.page(hidden.slug!)).rejects.toMatchObject({ status: 404 });
     }
+  });
+
+  it('words a stay by its room\'s basis before a party is set, never "a person, a night" for a room (D-j, AC-33)', async () => {
+    const basis = `${tag}b`;
+    const hotel = await stay(`${basis} Hotel`, { price: 140_000, basis: 'per_unit', singleGuestPrice: 90_000 });
+    await stay(`${basis} Villa`, { price: 450_000, basis: 'per_unit', capacity: 8 });
+    await stay(`${basis} Hostel`, { price: 25_000, basis: 'per_person' });
+    const cards = (await explore.search(query({ q: basis, sort: 'price_asc' }))).results;
+    expect(cards.map((c) => [c.name, c.priceRwf, c.priceBasis])).toEqual([
+      [`${basis} Hostel`, 25_000, 'person_night'],
+      [`${basis} Hotel`, 140_000, 'unit_night'],
+      [`${basis} Villa`, 450_000, 'unit_night'],
+    ]);
+    // The page's room carries the same figure and basis as the card it priced.
+    const page = await explore.page(hotel.slug!);
+    expect(page.card).toMatchObject({ priceRwf: 140_000, priceBasis: 'unit_night' });
+    expect(page.rooms).toEqual([expect.objectContaining({ priceRwf: 140_000, priceBasis: 'unit_night', sleeps: 2 })]);
+  });
+
+  it('never counts a menu item: a bar is no stay, and a cheaper item never prices a hotel (AC-34)', async () => {
+    const menu = `${tag}m`;
+    await stay(`${menu} Bar`, { bar: true, menu: [3_000, 5_000] });
+    const mixed = await stay(`${menu} Hotel`, { price: 80_000, basis: 'per_unit', menu: [2_000] });
+    const cards = (await explore.search(query({ q: menu }))).results;
+    expect(cards.map((c) => [c.name, c.priceRwf, c.priceBasis])).toEqual([[`${menu} Hotel`, 80_000, 'unit_night']]);
+    const places = await explore.places({ q: menu, mode: 'stays' });
+    expect(places.places.filter((p) => p.kind === 'property').map((p) => p.label)).toEqual([`${menu} Hotel`]);
+    const page = await explore.page(mixed.slug!);
+    expect(page.rooms?.map((r) => r.name)).toEqual(['Standard']);
+    expect(page.roomCount).toBe(1);
+  });
+
+  it('prices from the cheapest priced room, ties to the lower id, a room with no capacity sleeping 4', async () => {
+    const ties = `${tag}t`;
+    const target = await stay(`${ties} Lodge`, { price: null, capacity: null });
+    const a = await addRoom(target, { name: 'Garden', price: 60_000, mode: 'request_to_book' });
+    const b = await addRoom(target, { name: 'Lake', price: 60_000, mode: 'instant_book' });
+    const [low] = [a, b].sort();
+    const card = (await explore.search(query({ q: ties }))).results[0]!;
+    expect(card.priceRwf).toBe(60_000);
+    expect(card.bookingMode).toBe(low === a ? 'request_to_book' : 'instant_book');
+    const page = await explore.page(target.slug!);
+    expect(page.rooms?.map((r) => r.id)).toEqual([...[a, b].sort(), target.roomTypeId]);
+    // The unpriced room keeps no basis and reads "Price on request"; with no capacity it sleeps 4.
+    expect(page.rooms?.at(-1)).toMatchObject({ priceRwf: null, priceBasis: null, sleeps: 4 });
   });
 
   it('pages without repeating or losing a row, equal scores and a review between pages (AC-4, D-as)', async () => {

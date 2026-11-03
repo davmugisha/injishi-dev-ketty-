@@ -1,4 +1,5 @@
 import {
+  DEFAULT_CAPACITY,
   EXPLORE_SHARE_ORIGIN,
   EXPLORE_TYPE_LABEL,
   type ExploreCard,
@@ -11,6 +12,7 @@ import {
   type ExploreSearchQuery,
   type ExploreSearchResult,
   exploreTypeOf,
+  noPartyPriceBasis,
 } from '@injishi/contracts';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
@@ -133,10 +135,12 @@ export class ExploreService {
           ? rooms.map((r) => ({
               id: r.id,
               name: r.name,
-              sleeps: r.capacity,
+              // A room with no stated capacity sleeps what the booking lets it (review 3.7).
+              sleeps: r.capacity ?? DEFAULT_CAPACITY,
               roomCount: r.roomCount,
               priceRwf: r.priceRwf,
-              priceBasis: 'person_night' as const,
+              // No party until the sheet sets one (milestone 3): the room's own basis (D-j).
+              priceBasis: r.priceRwf === null ? null : noPartyPriceBasis(r.priceBasis),
               bookingMode: r.bookingMode,
               approvalWindowHours: r.bookingMode === 'request_to_book' ? APPROVAL_WINDOW_HOURS : null,
               cancellationTier: r.cancellationTier,
@@ -207,8 +211,9 @@ export function toCard(row: ExploreRow, mode: ExploreMode, photos: ExplorePhotoR
     rating: row.rating,
     reviewCount: row.reviewCount,
     priceRwf: row.priceRwf,
-    // No party until the sheet sets one (milestone 3): a person, a night.
-    priceBasis: stays ? 'person_night' : 'month',
+    // No party until the sheet sets one (milestone 3): the priced room's own basis, so a hotel room
+    // priced per room reads "a night" and never "a person, a night" (D-j, AC-33).
+    priceBasis: stays ? noPartyPriceBasis(row.priceBasis) : 'month',
     bookingMode: stays ? row.bookingMode : null,
     approvalWindowHours: stays && row.bookingMode === 'request_to_book' ? APPROVAL_WINDOW_HOURS : null,
     roomsLeft: null,

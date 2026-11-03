@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BookingMode, CancellationTier, IsoDate } from "./booking";
+import { BookingMode, CancellationTier, IsoDate, type RoomPriceBasis } from "./booking";
 import { RwfAmount, Uuid } from "./primitives";
 import { AccommodationClass, RetiredAccommodationClass, type StoredAccommodationClass } from "./rdb";
 
@@ -23,9 +23,22 @@ export type ExploreMode = z.infer<typeof ExploreMode>;
 export const ExploreSort = z.enum(["top_rated", "price_asc", "price_desc"]);
 export type ExploreSort = z.infer<typeof ExploreSort>;
 
-/** What a price covers: the whole party a night, one person a night (no party yet), or a home a month. */
-export const ExplorePriceBasis = z.enum(["party_night", "person_night", "month"]);
+/**
+ * What a price covers (mobile spec 0005, D-j): the party a night ("a night for 2"); with no party
+ * yet, a room or a whole place a night ("a night", a room priced `per_unit`) or one person a night
+ * ("a person, a night", `per_person`); or a home a month.
+ */
+export const ExplorePriceBasis = z.enum(["party_night", "unit_night", "person_night", "month"]);
 export type ExplorePriceBasis = z.infer<typeof ExplorePriceBasis>;
+
+/**
+ * The basis a stay's price is shown on before a party is set, from how its room is counted
+ * (`chargedGuests`): a room priced per room or a whole place is its own price a night, a room priced
+ * per person is one person's. A menu item (`per_item`) is never a stay and never reaches explore.
+ */
+export function noPartyPriceBasis(roomBasis: RoomPriceBasis | null | undefined): "unit_night" | "person_night" {
+  return roomBasis === "per_unit" ? "unit_night" : "person_night";
+}
 
 /** The chips a guest filters stays by, drawn from the business's registered class (D-i). */
 export const ExploreType = z.enum(["hotel", "lodge", "guest_house", "tented_camp", "apartment", "villa", "stay", "home"]);
@@ -205,15 +218,22 @@ export type ExplorePlace = z.infer<typeof ExplorePlace>;
 export const ExplorePlaces = z.object({ places: z.array(ExplorePlace).max(8) });
 export type ExplorePlaces = z.infer<typeof ExplorePlaces>;
 
-/** A room type on a stay's page, priced on the same basis as the card. */
+/**
+ * A room type on a stay's page, priced by the card's rule for that one room (D-j): its own basis,
+ * so a hotel room reads "a night" and a room priced per person "a person, a night".
+ */
 export const ExploreRoom = z.object({
   id: Uuid,
   name: z.string().min(1),
-  /** How many people it sleeps; null when the host has not said. */
+  /**
+   * How many people it sleeps: `DEFAULT_CAPACITY` (4) when the host has not said, the figure the
+   * booking refuses a larger party by. Nullable only for older answers.
+   */
   sleeps: z.number().int().positive().nullable(),
   roomCount: z.number().int().nonnegative(),
+  /** Null, with a null basis, when the room has no price yet ("Price on request"). */
   priceRwf: RwfAmount.nullable(),
-  priceBasis: ExplorePriceBasis,
+  priceBasis: ExplorePriceBasis.nullable(),
   bookingMode: BookingMode.nullable(),
   approvalWindowHours: z.number().int().positive().nullable(),
   cancellationTier: CancellationTier.nullable(),
@@ -256,11 +276,11 @@ export const ExplorePage = z.object({
   facts: z.array(z.object({ code: z.string(), label: z.string() })).max(EXPLORE_MAX_FACTS),
   /** Every amenity it lists, labelled. */
   facilities: z.array(z.object({ code: z.string(), label: z.string() })),
-  /** Stays: every active room type, cheapest first. Null for homes. */
+  /** Stays: every active room type a guest can book (never a `per_item` menu item), cheapest first, ties by id. Null for homes. */
   rooms: z.array(ExploreRoom).nullable(),
   /** Homes: every listed unit, cheapest first. Null for stays. */
   units: z.array(ExploreUnit).nullable(),
-  /** Stays: rooms over every active room type, for "Hotel · 42 rooms". */
+  /** Stays: rooms over every active room type a guest can book, for "Hotel · 42 rooms". */
   roomCount: z.number().int().nonnegative(),
   business: z.object({
     legalName: z.string(),

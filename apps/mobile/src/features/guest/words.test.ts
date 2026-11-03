@@ -32,8 +32,14 @@ describe("priceWords", () => {
     assert.equal(priceWords(450000, "month"), "RWF 450,000 a month");
   });
 
-  test("an unpriced property asks", () => {
+  test("a room priced per room reads a night, never a person, a night (D-j, AC-33)", () => {
+    assert.equal(priceWords(140000, "unit_night"), "RWF 140,000 a night");
+    assert.equal(priceWords(90000, "party_night", 1), "RWF 90,000 a night for 1");
+  });
+
+  test("an unpriced property or room asks", () => {
     assert.equal(priceWords(null, "person_night"), "Price on request");
+    assert.equal(priceWords(140000, null), "Price on request");
   });
 });
 

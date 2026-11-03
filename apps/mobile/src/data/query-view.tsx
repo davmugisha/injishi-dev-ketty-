@@ -8,6 +8,7 @@ import { View } from "react-native";
 import { ErrorView, Icon, Text } from "@/components/ui";
 import { kigaliTime } from "@/lib/kigali";
 import { ApiError } from "./fetch";
+import { queryState } from "./query-state";
 import { NotWiredError } from "./source";
 
 type AnyQuery = Pick<
@@ -32,11 +33,39 @@ export type QueryViewProps<T> = {
 const OUTBOX_NOTE = "Anything you do is still saved on this phone and sent later.";
 
 export function QueryView<T>({ query, data, loading, outOfDate, offlineNote, children }: QueryViewProps<T>) {
-  if (data !== undefined) return <>{children(data)}</>;
-  if (query.data !== undefined && outOfDate) return <>{query.fetchStatus === "fetching" ? loading : outOfDate}</>;
-  if (query.error)
-    return <QueryError error={query.error} onRetry={() => void query.refetch()} offlineNote={offlineNote} />;
-  return <>{loading}</>;
+  const state = queryState({
+    hasData: data !== undefined,
+    hasCopy: query.data !== undefined,
+    canShowOutOfDate: Boolean(outOfDate),
+    fetchStatus: query.fetchStatus,
+    hasError: Boolean(query.error),
+  });
+  const retry = () => void query.refetch();
+  switch (state) {
+    case "data":
+      return <>{children(data as T)}</>;
+    case "outOfDate":
+      return <>{outOfDate}</>;
+    case "error":
+      return <QueryError error={query.error} onRetry={retry} offlineNote={offlineNote} />;
+    case "offline":
+      return <CantConnect onRetry={retry} offlineNote={offlineNote} />;
+    case "loading":
+      return <>{loading}</>;
+  }
+}
+
+/** No answer from the API: the phone has no signal, or Injishi did not reply. */
+function CantConnect({ onRetry, offlineNote = OUTBOX_NOTE }: { onRetry: () => void; offlineNote?: string | null }) {
+  return (
+    <ErrorView
+      icon="CloudSlash"
+      title="Can't connect"
+      body="Injishi didn't answer. Check your signal, then try again."
+      onRetry={onRetry}
+      footnote={offlineNote ?? undefined}
+    />
+  );
 }
 
 /**
@@ -67,15 +96,7 @@ export function QueryError({
     );
   }
   if (error instanceof ApiError && error.kind === "failed" && !error.parse) {
-    return (
-      <ErrorView
-        icon="CloudSlash"
-        title="Can't connect"
-        body="Injishi didn't answer. Check your signal, then try again."
-        onRetry={onRetry}
-        footnote={offlineNote ?? undefined}
-      />
-    );
+    return <CantConnect onRetry={onRetry} offlineNote={offlineNote} />;
   }
   const message = error instanceof ApiError ? error.serverMessage : null;
   return (
