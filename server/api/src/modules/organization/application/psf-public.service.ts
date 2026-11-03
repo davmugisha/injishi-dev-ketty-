@@ -6,6 +6,7 @@ import {
   PSF_DECLINE_REASON_LABEL,
   PSF_FAMILY_LABEL,
   maskEmail,
+  normalizeBusinessCode,
   normalizePsfNumber,
   maskPhone,
   provinceDisplayName,
@@ -621,9 +622,16 @@ export class PsfPublicService {
    * expiry, signed with the server's secret. Nothing is kept, so a code is good until it expires.
    */
   async memberLookup(input: PsfMemberLookupRequest): Promise<PsfMemberLookupResult> {
-    const found = await this.renewals.trackingByMembershipNumber(normalizePsfNumber(input.membershipNumber));
+    // A membership number, or the business's code (2026-11-02): both are printed, so either sends a code.
+    const businessCode = normalizeBusinessCode(input.membershipNumber);
+    const found =
+      (await this.renewals.trackingByMembershipNumber(normalizePsfNumber(input.membershipNumber))) ??
+      (businessCode ? await this.renewals.trackingByBusinessCode(businessCode) : null);
     if (!found) {
-      return { status: 'not_found', message: 'No PSF membership on Injishi has that number. Check it on the certificate, or track with your docID.' };
+      return {
+        status: 'not_found',
+        message: 'No business on Injishi has that membership number or business code. Check it on the certificate, or track with your docID.',
+      };
     }
     if (!found.phoneE164) {
       return { status: 'no_phone', message: 'There is no phone on this application to send a code to. Track it with your docID instead.' };

@@ -132,24 +132,34 @@ export function PsfApplicationView({ initial, card = null }: { initial: PsfOffic
           </Card>
         </div>
 
-        <div className="lg:sticky lg:top-24 lg:order-2">
+        <div className="flex flex-col gap-4 lg:sticky lg:top-24 lg:order-2">
+          {/* A card holder's old PSF card (2026-11-02), shown beside the decision: read the dates off it. */}
           {app.intake === "card_holder" ? (
-            <Alert status="accent">
-              <Alert.Content>
-                <Alert.Title>Card holder</Alert.Title>
-                <Alert.Description>
-                  A member under PSF&apos;s old cards, joining the new module: no fee now. Check the card, then give a new membership
-                  number and the year the card shows. They get their certificate at once.{" "}
-                  {card ? (
-                    <a href={card.url} target="_blank" rel="noreferrer" className="font-medium text-accent hover:underline">
-                      Open the card
+            <Card>
+              <Card.Header>
+                <Card.Title>The PSF card they sent</Card.Title>
+                <Card.Description>A card holder joining the new module: no fee now. Check it, then give a new number and the year it shows.</Card.Description>
+              </Card.Header>
+              <Card.Content className="flex flex-col gap-2">
+                {card ? (
+                  <>
+                    {card.mime === "application/pdf" ? (
+                      <iframe src={card.url} title="The PSF card" className="h-72 w-full rounded-lg border border-separator bg-default" />
+                    ) : (
+                      <a href={card.url} target="_blank" rel="noreferrer" title="Open the card full size">
+                        {/* A short-lived link to the stored card. */}
+                        <img src={card.url} alt="The PSF card the business sent" className="max-h-80 w-full rounded-lg border border-separator bg-default object-contain" />
+                      </a>
+                    )}
+                    <a href={card.url} target="_blank" rel="noreferrer" className="text-[13px] font-medium text-accent hover:underline">
+                      Open it full size
                     </a>
-                  ) : (
-                    "The card could not be opened just now."
-                  )}
-                </Alert.Description>
-              </Alert.Content>
-            </Alert>
+                  </>
+                ) : (
+                  <p className="text-[13px] text-muted">The card could not be opened just now. Reload the page to try again.</p>
+                )}
+              </Card.Content>
+            </Card>
           ) : null}
           <DecisionPanel app={app} onDecided={setApp} />
         </div>
@@ -161,10 +171,14 @@ export function PsfApplicationView({ initial, card = null }: { initial: PsfOffic
 function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecided: (a: PsfOfficerApplication) => void }) {
   const [mode, setMode] = useState<"approve" | "decline">("approve");
   const [number, setNumber] = useState(app.suggestedMembershipNumber ?? "");
-  // A card holder's year, read off its card (2026-11-02).
+  // A card holder's year, read off its card (2026-11-02): one date, the end it shows, from today to a
+  // year ahead. The year runs back from it.
   const cardHolder = app.intake === "card_holder";
-  const [startsOn, setStartsOn] = useState("");
   const [expiresOn, setExpiresOn] = useState("");
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Kigali" }).format(new Date());
+  const yearAhead = shiftYears(today, 1);
+  const cardEndOk = expiresOn >= today && expiresOn <= yearAhead;
+  const startsOn = cardEndOk ? shiftDays(shiftYears(expiresOn, -1), 1) : "";
   const [reason, setReason] = useState<PsfDeclineReason>("details_incomplete");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -219,7 +233,7 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
     setError(null);
     const res =
       mode === "approve"
-        ? await approvePsfAction(app.id, number, cardHolder ? { startsOn, expiresOn } : undefined)
+        ? await approvePsfAction(app.id, number, cardHolder ? { expiresOn } : undefined)
         : await declinePsfAction(app.id, reason, note);
     setBusy(false);
     if (!res.ok) return setError(res.error);
@@ -263,16 +277,17 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
               ) : null}
             </TextField>
             {cardHolder ? (
-              <div className="grid grid-cols-2 gap-2">
-                <TextField fullWidth value={startsOn} onChange={setStartsOn} className="gap-1">
-                  <Label htmlFor="psf-card-from">Valid from, on the card</Label>
-                  <Input id="psf-card-from" type="date" />
-                </TextField>
-                <TextField fullWidth value={expiresOn} onChange={setExpiresOn} className="gap-1">
-                  <Label htmlFor="psf-card-until">Valid until, on the card</Label>
-                  <Input id="psf-card-until" type="date" />
-                </TextField>
-              </div>
+              <TextField fullWidth value={expiresOn} onChange={setExpiresOn} className="gap-1">
+                <Label htmlFor="psf-card-until">Valid until, as the card shows</Label>
+                <Input id="psf-card-until" type="date" min={today} max={yearAhead} />
+                <Description>
+                  {expiresOn && !cardEndOk
+                    ? `Pick a date from today to ${dayMonthYear(yearAhead)}. A card that ended before today has lapsed: it joins as a new member.`
+                    : cardEndOk
+                      ? `A member from ${dayMonthYear(startsOn)} to ${dayMonthYear(expiresOn)}.`
+                      : `From today to ${dayMonthYear(yearAhead)}. Their year runs back from it.`}
+                </Description>
+              </TextField>
             ) : null}
           </>
         ) : (
@@ -311,7 +326,7 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
           isPending={busy}
           isDisabled={
             busy ||
-            (mode === "approve" ? !number.trim() || (cardHolder && (!startsOn || !expiresOn || expiresOn <= startsOn)) : reason === "other" && !note.trim())
+            (mode === "approve" ? !number.trim() || (cardHolder && !cardEndOk) : reason === "other" && !note.trim())
           }
           onPress={() => void decide()}
         >
@@ -421,4 +436,17 @@ function BranchRow({
       {error ? <p className="pl-6 text-[13px] text-danger">{error}</p> : null}
     </div>
   );
+}
+
+/** A yyyy-mm-dd day moved by whole years; 29 February falls back to the 28th. */
+function shiftYears(day: string, years: number): string {
+  const [y, m, d] = day.split("-").map(Number) as [number, number, number];
+  const last = new Date(Date.UTC(y + years, m, 0)).getUTCDate();
+  return `${y + years}-${String(m).padStart(2, "0")}-${String(Math.min(d, last)).padStart(2, "0")}`;
+}
+
+/** A yyyy-mm-dd day moved by whole days. */
+function shiftDays(day: string, days: number): string {
+  const [y, m, d] = day.split("-").map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }

@@ -24,7 +24,7 @@ export default function PsfTrackLookupPage() {
           <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Track your application</h1>
           <p className="mt-3 text-muted-foreground">
             Type your docID to see where your application stands, pay or renew your membership, and print your certificate. Already a
-            member? Type the membership number on your certificate, and we text a code to the phone on file.
+            member? Type the membership number on your certificate, or your business code, and we text a code to the phone on file.
           </p>
         </div>
         <div className="rounded-card border border-border bg-card p-5 shadow-sm sm:p-6">

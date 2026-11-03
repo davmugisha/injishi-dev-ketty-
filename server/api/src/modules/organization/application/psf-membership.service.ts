@@ -1604,9 +1604,16 @@ export class PsfMembershipService {
   ): Promise<PsfOfficerApplication> {
     const issue = (path: string, message: string): UnprocessableEntityException =>
       new UnprocessableEntityException({ message: 'Validation failed', issues: [{ code: 'custom', path: [path], message }] });
-    if (!input.startsOn) throw issue('startsOn', 'Give the date the card says the membership started.');
+    // One date, the end the card shows (2026-11-02): from today to a year ahead. The year runs back from
+    // it, so the start is the day after the same date a year before, unless the officer gives one.
     if (!input.expiresOn) throw issue('expiresOn', 'Give the date the card says the membership ends.');
-    if (input.expiresOn <= input.startsOn) throw issue('expiresOn', 'The membership ends after it starts.');
+    const today = kigaliToday();
+    const yearAhead = addYears(today, 1);
+    if (input.expiresOn < today || input.expiresOn > yearAhead) {
+      throw issue('expiresOn', 'The end date on the card is from today to a year from now. An older card is lapsed: it joins as a new member.');
+    }
+    const startsOn = input.startsOn ?? addDays(addYears(input.expiresOn, -1), 1);
+    if (input.expiresOn <= startsOn) throw issue('expiresOn', 'The membership ends after it starts.');
     await this.assertNumberFree(input.membershipNumber, row.id);
     const done = await this.repo.approveCardHolder({
       applicationId: row.id,
@@ -1614,7 +1621,7 @@ export class PsfMembershipService {
       bodyCode: this.bodyOf(grants),
       membershipNumber: input.membershipNumber,
       note: input.note ?? null,
-      startsOn: input.startsOn,
+      startsOn,
       expiresOn: input.expiresOn,
     });
     if (!done) throw new ConflictException(PSF_NOT_OPEN_MESSAGE);
@@ -1932,3 +1939,10 @@ function toFormFieldView(row: {
 function isUniqueViolation(error: unknown): boolean {
   const e = error as { code?: string; cause?: { code?: string } } | undefined;
   return e?.code === '23505' || e?.cause?.code === '23505';}
+
+/** A yyyy-mm-dd day moved by whole years; 29 February falls back to the 28th. */
+function addYears(day: string, years: number): string {
+  const [y, m, d] = day.split('-').map(Number) as [number, number, number];
+  const last = new Date(Date.UTC(y + years, m, 0)).getUTCDate();
+  return `${y + years}-${String(m).padStart(2, '0')}-${String(Math.min(d, last)).padStart(2, '0')}`;
+}

@@ -68,14 +68,44 @@ export function districtLetters(districtId: number, districtName: string | null)
     const fromName = (districtName ?? "").replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase();
     return fromName.padEnd(3, "X");
 }
-/** The digits a code carries at least: `KIC0001`, and `KIC10000` past 9999. */
+/** The digits an OLD code carries at least: `KIC0001`, and `KIC10000` past 9999. */
 export const BUSINESS_CODE_DIGITS = 4;
-/** A district's letters and its nth business, as the code is written. */
+/** The old format (until 2026-11-02): a district's letters and its nth business. Codes issued so far keep it. */
 export function formatBusinessCode(letters: string, n: number): string {
     return `${letters}${String(n).padStart(BUSINESS_CODE_DIGITS, "0")}`;
 }
-/** A code as people type it, or null when it is not one: `kic 0001` → `KIC0001`. */
+/**
+ * THE CODE FROM 2026-11-02 (the owner's decision): `GIS-4K7Q-92`. The district's
+ * letters, four random characters, and two check characters. About a million
+ * codes a district, never handed out in order (so nobody counts a district's
+ * businesses by them), and a mistyped character or two swapped ones are caught
+ * by the check. The characters leave out 0/O and 1/I, which people misread.
+ */
+export const BUSINESS_CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+const CHECK_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+/** The two check characters of a district's letters and a four-character body. */
+export function businessCodeCheck(letters: string, body: string): string {
+    // A weighted sum, mod a prime under 32²: each place weighs differently, so a swap changes the sum.
+    let sum = 0;
+    [...`${letters}${body}`].forEach((c, i) => {
+        sum += (CHECK_CHARS.indexOf(c) + 1) * (2 * i + 3);
+    });
+    const n = sum % 1021;
+    return `${BUSINESS_CODE_ALPHABET[Math.floor(n / 32)]}${BUSINESS_CODE_ALPHABET[n % 32]}`;
+}
+/** A new code for a district, from four random bytes (the server passes `crypto.randomBytes`). */
+export function newBusinessCode(letters: string, random: (n: number) => Uint8Array): string {
+    const body = [...random(4)].map((b) => BUSINESS_CODE_ALPHABET[b % 32]).join("");
+    return `${letters}-${body}-${businessCodeCheck(letters, body)}`;
+}
+/**
+ * A code as people type it, in either format, or null when it is not one:
+ * `kic 0001` → `KIC0001`, `gis4k7q92` → `GIS-4K7Q-92` (its check must hold).
+ */
 export function normalizeBusinessCode(raw: string): string | null {
     const compact = raw.replace(/[\s-]/g, "").toUpperCase();
-    return /^[A-Z]{3}\d{4,}$/.test(compact) ? compact : null;
+    if (/^[A-Z]{3}\d{4,}$/.test(compact)) return compact;
+    const m = /^([A-Z]{3})([2-9A-HJ-NP-Z]{4})([2-9A-HJ-NP-Z]{2})$/.exec(compact);
+    if (m && businessCodeCheck(m[1]!, m[2]!) === m[3]) return `${m[1]}-${m[2]}-${m[3]}`;
+    return null;
 }

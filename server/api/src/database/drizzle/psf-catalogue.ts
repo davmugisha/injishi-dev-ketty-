@@ -8,10 +8,9 @@
  *   is an edit here, never a migration. The fifth cluster, Specialized, is not
  *   a row: it is `orgs.owner_groups`, a marker on a business of any sector.
  *
- * - `business_code_counters` numbers businesses per district for their codes
- *   (`KIC0001`). One row per district, bumped in the same transaction that
- *   settles a registration fee, so two businesses settling at once in the same
- *   district can never draw the same number.
+ * - `business_code_counters` numbered businesses per district for their OLD
+ *   codes (`KIC0001`). No longer bumped (2026-11-02): new codes are random,
+ *   `GIS-4K7Q-92` (`newBusinessCode`). Kept as the record of the old run.
  *
  * Its own module because `orgs` references the associations, and this file
  * imports nothing from `org.ts`: no import cycle between the two.

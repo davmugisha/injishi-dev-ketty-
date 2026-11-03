@@ -1,4 +1,4 @@
-import { PSF_FAMILY_LABEL, type PsfMemberCard } from '@injishi/contracts';
+import { PSF_FAMILY_LABEL, normalizeBusinessCode, type PsfMemberCard } from '@injishi/contracts';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { StorageService } from '../../storage/application/storage.service';
@@ -41,7 +41,7 @@ export class PsfCertificatesService {
 
   /** The card a certificate's QR code opens: by number, the latest membership that carries it. */
   async card(membershipNumber: string): Promise<PsfMemberCard> {
-    const f = await this.repo.memberCardByNumber(membershipNumber.trim());
+    const f = await this.repo.memberCardByNumber(membershipNumber.trim(), normalizeBusinessCode(membershipNumber));
     if (!f) return { status: 'not_found', card: null };
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Kigali' }).format(new Date());
     const valid = f.endedAt === null && (f.expiresOn === null || f.expiresOn >= today);

@@ -83,12 +83,13 @@ export type SectionId =
 
 /**
  * Business's sections, in order: what the business is and who registers it, on the helper path whose it
- * is, where it is, and whether it is a franchise (S3).
+ * is, and where it is. The franchise question (S3, "fr") is not asked for now (2026-11-03, the owner:
+ * it confused people); its section stays in the code, to come back.
  */
 export function businessSections(path: RegisterPath): SectionId[] {
   if (path === "landlord") return ["upi", "loc"];
-  if (path === "helper") return ["tin", "intended", "cls", "loc", "fr"];
-  return ["tin", "cls", "loc", "fr"];
+  if (path === "helper") return ["tin", "intended", "cls", "loc"];
+  return ["tin", "cls", "loc"];
 }
 
 /** You's one section, on every path: the person's identity. */

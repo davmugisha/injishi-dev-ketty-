@@ -117,7 +117,8 @@ exports.PsfIdentityLookupResult = zod_1.z.discriminatedUnion("status", [
  * docID, which opens the tracking page as before. The docID alone keeps working.
  */
 exports.PsfMemberLookupRequest = zod_1.z.object({
-    membershipNumber: zod_1.z.string().trim().min(4, "Type the membership number as it is on the certificate.").max(40),
+    /** A membership number, or the business's code (2026-11-02): both are printed on the certificate. */
+    membershipNumber: zod_1.z.string().trim().min(4, "Type the membership number or the business code, as on the certificate.").max(40),
 });
 exports.PsfMemberLookupResult = zod_1.z.discriminatedUnion("status", [
     zod_1.z.object({

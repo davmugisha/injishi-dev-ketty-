@@ -101,7 +101,8 @@ export type PsfIdentityLookupResult = z.infer<typeof PsfIdentityLookupResult>;
  * docID, which opens the tracking page as before. The docID alone keeps working.
  */
 export const PsfMemberLookupRequest = z.object({
-    membershipNumber: z.string().trim().min(4, "Type the membership number as it is on the certificate.").max(40),
+    /** A membership number, or the business's code (2026-11-02): both are printed on the certificate. */
+    membershipNumber: z.string().trim().min(4, "Type the membership number or the business code, as on the certificate.").max(40),
 });
 export type PsfMemberLookupRequest = z.infer<typeof PsfMemberLookupRequest>;
 export const PsfMemberLookupResult = z.discriminatedUnion("status", [

@@ -1298,7 +1298,8 @@ export default function RegisterWizard({
   };
 
   // Overview rows, in the artboard's order.
-  const franchisee = business.franchiseRole === "franchisee";
+  // No franchise agreement is asked for while the question is off (2026-11-03).
+  const franchisee = bizSections.includes("fr") && business.franchiseRole === "franchisee";
   const docLabel = (d: DocumentDraft) =>
     documentRows(documentKind, { franchisee }).find((r) => r.kind === d.kind)?.label ?? d.filename;
   const docsText = docs.length
@@ -1344,7 +1345,6 @@ export default function RegisterWizard({
               ]
             : []),
           { title: "Location", value: locLine ?? "Not chosen", step: "business" },
-          { title: "Franchise", value: franchiseLine(business), step: "business" },
           {
             title: "Branches",
             value: branches.length
@@ -1916,7 +1916,8 @@ function businessCandidate(
     psfMember: member,
     ...(member && number ? { psfMembershipNumber: number } : {}),
     ...(d.psfMember === false && d.psfApply === true ? { psfApplication: psfCandidate(psf, documentOnFile) } : {}),
-    ...(franchiseCandidate(d) ? { franchise: franchiseCandidate(d) } : {}),
+    // The franchise question is not asked for now (2026-11-03): an answer left in an older saved draft is
+    // not sent either. `franchiseCandidate(d)` goes back here when the section does.
     address,
     certificates,
     branches: branches.map((b) => ({ name: b.name.trim(), address: addressFromDraft(b.address) })),

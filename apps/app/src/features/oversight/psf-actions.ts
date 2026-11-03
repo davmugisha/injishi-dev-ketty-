@@ -28,7 +28,7 @@ async function run(act: () => Promise<PsfOfficerApplication>): Promise<PsfAction
 export async function approvePsfAction(
   id: string,
   membershipNumber: string,
-  card?: { startsOn: string; expiresOn: string },
+  card?: { startsOn?: string; expiresOn: string },
 ): Promise<PsfActionResult> {
   return run(async () => psf.approvePsf(await requestContext(), id, membershipNumber, card));
 }

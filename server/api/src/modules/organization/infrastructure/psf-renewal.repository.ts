@@ -46,6 +46,21 @@ export class PsfRenewalRepository {
     return app ? { docId: app.docId, phoneE164: app.phone } : null;
   }
 
+  /** A business by its code (2026-11-02), old `GIS0005` or new `GIS-4K7Q-92`: its newest application's docID and phone. */
+  async trackingByBusinessCode(businessCode: string): Promise<{ docId: string; phoneE164: string | null } | null> {
+    const [app] = await this.db
+      .select({
+        docId: psfMembershipApplications.docId,
+        phone: sql<string | null>`coalesce(${psfMembershipApplications.applicantPhoneE164}, ${psfMembershipApplications.phoneE164})`,
+      })
+      .from(psfMembershipApplications)
+      .innerJoin(orgs, eq(orgs.id, psfMembershipApplications.orgId))
+      .where(eq(orgs.businessCode, businessCode))
+      .orderBy(desc(psfMembershipApplications.createdAt))
+      .limit(1);
+    return app ? { docId: app.docId, phoneE164: app.phone } : null;
+  }
+
   /** The business's newest membership, current or ended. */
   async latestMembership(orgId: string): Promise<PsfLatestMembership | null> {
     const [row] = await this.db

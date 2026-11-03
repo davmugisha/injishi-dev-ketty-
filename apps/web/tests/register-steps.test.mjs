@@ -48,10 +48,11 @@ describe("the steps", () => {
 
 describe("the sections of Business and You show in order", () => {
   test("which sections each step has, per path", () => {
-    assert.deepEqual(sectionOrder("owner", "business"), ["tin", "cls", "loc", "fr"]);
+    // No franchise question for now (2026-11-03).
+    assert.deepEqual(sectionOrder("owner", "business"), ["tin", "cls", "loc"]);
     // You is the person alone, on every path; the owner a helper names is the business's.
     assert.deepEqual(sectionOrder("owner", "you"), ["id"]);
-    assert.deepEqual(sectionOrder("helper", "business"), ["tin", "intended", "cls", "loc", "fr"]);
+    assert.deepEqual(sectionOrder("helper", "business"), ["tin", "intended", "cls", "loc"]);
     assert.deepEqual(sectionOrder("helper", "you"), ["id"]);
     assert.deepEqual(sectionOrder("landlord", "business"), ["upi", "loc"]);
     assert.deepEqual(sectionOrder("landlord", "you"), ["id"]);

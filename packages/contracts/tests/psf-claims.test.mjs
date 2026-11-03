@@ -22,5 +22,6 @@ test("a number is kept the way PSF prints it", () => {
 });
 
 test("a claim has a standing of its own, not member", () => {
-  assert.equal(PSF_STANDING_LABEL.claimed, "Claimed, waiting for PSF");
+  // A card holder (2026-11-02): an old PSF card, waiting for PSF to confirm it.
+  assert.equal(PSF_STANDING_LABEL.claimed, "Card holder, waiting for PSF");
 });

@@ -36,7 +36,7 @@ export function approvePsf(
   ctx: SourceContext,
   id: string,
   membershipNumber: string,
-  card?: { startsOn: string; expiresOn: string },
+  card?: { startsOn?: string; expiresOn: string },
 ): Promise<PsfOfficerApplication> {
   const number = membershipNumber.trim();
   if (!number) throw new PsfRefusal("Give the PSF membership number.");

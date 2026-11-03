@@ -503,6 +503,11 @@ const ON_REGISTER_SQL = sql`${orgs.domain}::text IN ('enterprise', 'hospitality'
 const ON_REGISTER_OR_UNPAID_SQL = sql`${orgs.domain}::text IN ('enterprise', 'hospitality')
   AND ${orgs.registrationStatus} <> 'rejected'`;
 
+/** A search pattern without the dashes and spaces people type inside a code, for the code's compact form. */
+function compactLike(like: string): string {
+  return like.replace(/[\s-]/g, '');
+}
+
 /**
  * The business on the outer row, named in full. Inside a correlated subquery an
  * interpolated `${orgs.id}` is NOT safe: Drizzle leaves column names unqualified
@@ -745,7 +750,7 @@ export class PsfMembershipRepository {
   }
 
   /** The latest membership carrying a number, for its card (2026-11-02); ended ones included, to say lapsed. */
-  async memberCardByNumber(membershipNumber: string): Promise<{
+  async memberCardByNumber(membershipNumber: string, businessCode: string | null = null): Promise<{
     legalName: string;
     businessCode: string | null;
     districtName: string | null;
@@ -772,7 +777,15 @@ export class PsfMembershipRepository {
       .innerJoin(orgs, eq(orgs.id, psfMemberships.orgId))
       .innerJoin(psfMembershipTiers, eq(psfMembershipTiers.code, psfMemberships.tierCode))
       .leftJoin(districts, eq(districts.id, orgs.districtId))
-      .where(and(sql`upper(${psfMemberships.membershipNumber}) = upper(${membershipNumber})`, sql`${psfMemberships.source} <> 'self_declared'`))
+      // By its number, or by the business's code (2026-11-02): both are printed on the certificate.
+      .where(
+        and(
+          businessCode
+            ? or(sql`upper(${psfMemberships.membershipNumber}) = upper(${membershipNumber})`, eq(orgs.businessCode, businessCode))
+            : sql`upper(${psfMemberships.membershipNumber}) = upper(${membershipNumber})`,
+          sql`${psfMemberships.source} <> 'self_declared'`,
+        ),
+      )
       .orderBy(sql`${psfMemberships.endedAt} IS NULL DESC`, desc(psfMemberships.createdAt))
       .limit(1);
     return row ?? null;
@@ -1478,6 +1491,8 @@ export class PsfMembershipRepository {
         ? or(
             sql`${orgs.legalName} ILIKE ${like}`,
             sql`${orgs.businessCode} ILIKE ${like}`,
+            // A code typed without its dashes (2026-11-02): `gis4k7q92` finds `GIS-4K7Q-92`.
+            sql`replace(${orgs.businessCode}, '-', '') ILIKE ${compactLike(like)}`,
             sql`${psfMembershipApplications.docId} ILIKE ${like}`,
           )
         : undefined,
@@ -1931,10 +1946,11 @@ export class PsfMembershipRepository {
         .update(psfMemberships)
         .set({ endedAt: now, updatedAt: now })
         .where(and(eq(psfMemberships.orgId, moved.orgId), isNull(psfMemberships.endedAt)));
+      // PSF's own record of a member (`psf_record`): the shape check keeps its application id empty, so
+      // the membership stands on the card PSF checked; the application still says member, with the number.
       await tx.insert(psfMemberships).values({
         orgId: moved.orgId,
         source: 'psf_record',
-        applicationId: input.applicationId,
         tierCode: moved.tierCode,
         membershipNumber: input.membershipNumber,
         startsOn: input.startsOn,
@@ -2080,6 +2096,8 @@ export class PsfMembershipRepository {
         ? or(
             sql`${orgs.legalName} ILIKE ${like}`,
             sql`${orgs.businessCode} ILIKE ${like}`,
+            // A code typed without its dashes (2026-11-02): `gis4k7q92` finds `GIS-4K7Q-92`.
+            sql`replace(${orgs.businessCode}, '-', '') ILIKE ${compactLike(like)}`,
             sql`${orgs.tin} ILIKE ${like}`,
           )
         : undefined,

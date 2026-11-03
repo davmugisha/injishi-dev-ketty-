@@ -35,6 +35,25 @@ export default async function PsfCardPage({ searchParams }: { searchParams: Prom
           <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Membership card</h1>
         </div>
 
+        {/* Scanned from a certificate, or typed (2026-11-02): a membership number or the business's code. */}
+        <form method="get" action="/psf/card" className="flex items-center gap-2 rounded-full border border-border bg-card p-1.5 pl-4 shadow-sm">
+          <label htmlFor="psf-card-number" className="sr-only">
+            Membership number or business code
+          </label>
+          <input
+            id="psf-card-number"
+            name="number"
+            defaultValue={number ?? ""}
+            placeholder="Membership number or business code"
+            autoComplete="off"
+            spellCheck={false}
+            className="min-w-0 flex-1 bg-transparent font-mono text-base outline-none placeholder:font-sans placeholder:text-muted-foreground"
+          />
+          <button type="submit" className="shrink-0 rounded-full bg-accent-brand px-4 py-2 text-sm font-semibold text-accent-brand-foreground hover:opacity-90">
+            Check
+          </button>
+        </form>
+
         {card ? (
           <section className="relative overflow-hidden rounded-card border border-accent-brand/40 bg-card p-6 shadow-sm sm:p-8">
             <div className="flex items-start justify-between gap-4">
@@ -82,7 +101,9 @@ export default async function PsfCardPage({ searchParams }: { searchParams: Prom
           </section>
         ) : (
           <section className="rounded-card border border-border bg-card p-6 sm:p-8">
-            <p className="font-semibold">{number ? "No PSF membership on Injishi has this number." : "Scan the QR code on a PSF certificate to see its card."}</p>
+            <p className="font-semibold">
+              {number ? "No PSF membership on Injishi has this number or business code." : "Scan the QR code on a PSF certificate, or type its membership number or business code."}
+            </p>
             <p className="mt-2 text-sm text-muted-foreground">
               {res && res.status !== "ok" ? "We could not check it just now. Try again in a moment." : "Check the number on the certificate, or ask the business for its certificate."}
             </p>

@@ -1,6 +1,8 @@
+import { randomBytes } from 'node:crypto';
+
 import {
   districtLetters,
-  formatBusinessCode,
+  newBusinessCode,
   type BusinessKind,
   type Domain,
   type EnterpriseRegistrationKind,
@@ -23,7 +25,6 @@ import {
 import { storedObjects } from '../../../database/drizzle/hospitality';
 import {
   auditEvents,
-  businessCodeCounters,
   districts,
   oboRegistrations,
   orgCertificates,
@@ -1670,17 +1671,15 @@ export class OrganizationRepository {
 }
 
 /**
- * Give a business its code: its district's letters and the next number there
- * (`DISTRICT_LETTERS` in `@injishi/contracts`). Inside the caller's transaction.
+ * Give a business its code (2026-11-02): its district's letters, four random
+ * characters and two check characters, `GIS-4K7Q-92` (`newBusinessCode` in
+ * `@injishi/contracts`). Inside the caller's transaction.
  *
- * The counter is bumped with one upsert, which takes the district's counter
- * row lock, so two businesses settling at once in the same district queue on
- * it and draw consecutive numbers rather than the same one. A business that
- * already has a code keeps it (the code never changes), and one with no
- * district gets none rather than a made up one.
- *
- * A number already taken (a code set by hand, a counter restored from an old
- * backup) is skipped rather than failing the payment that drew it.
+ * Random rather than counted, so a district's businesses cannot be counted or
+ * walked by code, and about a million fit in each district. A business that
+ * already has a code keeps it (the code never changes, an old `GIS0005`
+ * included), and one with no district gets none rather than a made up one. A
+ * code already taken is drawn again; the unique index has the last word.
  */
 async function issueBusinessCode(
   tx: Parameters<Parameters<Database['transaction']>[0]>[0],
@@ -1696,21 +1695,12 @@ async function issueBusinessCode(
   if (org.code || org.districtId === null) return org.code;
 
   const letters = districtLetters(org.districtId, org.districtName);
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const [counter] = await tx
-      .insert(businessCodeCounters)
-      .values({ districtId: org.districtId, lastNumber: 1 })
-      .onConflictDoUpdate({
-        target: businessCodeCounters.districtId,
-        set: { lastNumber: sql`${businessCodeCounters.lastNumber} + 1`, updatedAt: new Date() },
-      })
-      .returning({ n: businessCodeCounters.lastNumber });
-    if (!counter) throw new Error('Business code counter returned no row.');
-    const code = formatBusinessCode(letters, counter.n);
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const code = newBusinessCode(letters, (n) => randomBytes(n));
     const [taken] = await tx.select({ id: orgs.id }).from(orgs).where(eq(orgs.businessCode, code)).limit(1);
     if (taken) continue;
     await tx.update(orgs).set({ businessCode: code }).where(eq(orgs.id, orgId));
     return code;
   }
-  throw new Error(`No free business code in district ${org.districtId} after five tries.`);
+  throw new Error(`No free business code in district ${org.districtId} after eight tries.`);
 }

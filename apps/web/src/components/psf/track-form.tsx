@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Search } from "lucide-react";
-import { looksLikePsfNumber, normalizePsfDocId } from "@injishi/contracts";
+import { looksLikePsfNumber, normalizeBusinessCode, normalizePsfDocId } from "@injishi/contracts";
 
 import { apiResultMessage } from "@/lib/api";
 import { confirmPsfMember, fetchPsfTrack, lookupPsfMember } from "@/data/psf";
@@ -20,6 +20,10 @@ import { confirmPsfMember, fetchPsfTrack, lookupPsfMember } from "@/data/psf";
  */
 function formatAsTyped(raw: string): string {
   if (/[/\s]/.test(raw)) return raw.toUpperCase();
+  // A business code (2026-11-02), `GIS-4K7Q-92` or an old `GIS0005`: three letters other than PSF, then a
+  // dash or a digit. Left as typed, never made into a docID.
+  const up = raw.toUpperCase();
+  if (!up.startsWith("PSF") && (/^[A-Z]{3}[-\d]/.test(up) || normalizeBusinessCode(up))) return up;
   let s = raw.toUpperCase().replace(/[^0-9A-Z]/g, "");
   if (s.startsWith("PSF")) s = s.slice(3);
   s = s.slice(0, 8);
@@ -49,6 +53,8 @@ export function TrackForm({ autoFocus = false, initial = "" }: { autoFocus?: boo
     setError(null);
     setBusy(true);
     try {
+      // The business's code: a code goes by text to the phone on file, as for a membership number.
+      if (!value.toUpperCase().startsWith("PSF") && normalizeBusinessCode(value)) return await byNumber(value);
       const id = normalizePsfDocId(value);
       if (id) {
         // A membership number can share a docID's shape (PSF-0412-2019): a docID nobody has is tried as one.
@@ -57,7 +63,7 @@ export function TrackForm({ autoFocus = false, initial = "" }: { autoFocus?: boo
         return await byNumber(value);
       }
       if (looksLikePsfNumber(value)) return await byNumber(value);
-      setError("Type your docID (like PSF-7K3M-Q9XD) or the membership number on your certificate (like PSF/GAS/2026/0001).");
+      setError("Type your docID (like PSF-7K3M-Q9XD), the membership number on your certificate (like PSF/GAS/2026/0001), or your business code (like GIS-4K7Q-92).");
     } finally {
       setBusy(false);
     }
@@ -126,7 +132,7 @@ export function TrackForm({ autoFocus = false, initial = "" }: { autoFocus?: boo
   return (
     <form onSubmit={(e) => void submit(e)} className="w-full" noValidate>
       <label htmlFor="psf-track-input" className="text-sm font-semibold text-page-fg">
-        Track with your docID or membership number
+        Track with your docID, membership number or business code
       </label>
       <div
         className={[
@@ -140,7 +146,7 @@ export function TrackForm({ autoFocus = false, initial = "" }: { autoFocus?: boo
           id="psf-track-input"
           value={value}
           onChange={(e) => setValue(formatAsTyped(e.target.value))}
-          placeholder="PSF-XXXX-XXXX or PSF/GAS/2026/0001"
+          placeholder="docID, membership number or business code"
           autoFocus={autoFocus}
           autoComplete="off"
           spellCheck={false}

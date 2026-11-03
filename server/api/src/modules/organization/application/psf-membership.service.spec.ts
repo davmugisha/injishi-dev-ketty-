@@ -352,6 +352,23 @@ describe('PsfMembershipService · deciding (AC-11 to AC-14, the PSF path)', () =
     expect(mail.claimConfirmed).toHaveBeenCalledWith(ORG, 'PSF/KIC/2026/0007', '2027-04-30');
   });
 
+  it('a card holder is confirmed with one date, the end on its card, within a year from today', async () => {
+    vi.useFakeTimers({ now: new Date('2026-11-03T08:00:00Z'), toFake: ['Date'] });
+    try {
+      const { repo, service } = setup();
+      repo.officerApplication.mockResolvedValue({ id: APP, orgId: ORG, districtId: 103, status: 'submitted', officerHasStake: false, intake: 'card_holder', requestedTierName: 'Indatwa' });
+      repo.approveCardHolder = vi.fn().mockResolvedValue({ orgId: ORG, tierCode: TIER.code });
+      // More than a year ahead, or already past: refused.
+      await expect(service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/KIC/2026/0008', expiresOn: '2027-11-04' })).rejects.toBeInstanceOf(UnprocessableEntityException);
+      await expect(service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/KIC/2026/0008', expiresOn: '2026-11-02' })).rejects.toBeInstanceOf(UnprocessableEntityException);
+      // The year runs back from the end date.
+      await service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/KIC/2026/0008', expiresOn: '2026-11-11' });
+      expect(repo.approveCardHolder).toHaveBeenCalledWith(expect.objectContaining({ startsOn: '2025-11-12', expiresOn: '2026-11-11' }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('an officer with a stake is refused 403 and nothing is written', async () => {
     const { repo, service } = setup();
     repo.officerApplication.mockResolvedValue({ id: APP, orgId: ORG, districtId: 103, status: 'submitted', officerHasStake: true });

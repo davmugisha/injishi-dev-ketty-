@@ -87,6 +87,7 @@ export type PsfIdentityLookupResult = z.infer<typeof PsfIdentityLookupResult>;
  * docID, which opens the tracking page as before. The docID alone keeps working.
  */
 export declare const PsfMemberLookupRequest: z.ZodObject<{
+    /** A membership number, or the business's code (2026-11-02): both are printed on the certificate. */
     membershipNumber: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     membershipNumber: string;
