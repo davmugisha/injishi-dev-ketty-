@@ -181,6 +181,11 @@ export function toMeData(account: Pick<Account, "name" | "email">): MeData {
   };
 }
 
+/**
+ * A property's rooms or homes. Each stay room is priced on its own basis (D-j): a room priced per room
+ * reads "a night", one priced per person "a person, a night"; a room with no basis has no price yet
+ * and reads "Price on request".
+ */
 function roomsOf(page: ExplorePage): StayRoom[] {
   if (page.card.mode === "stays") {
     return (page.rooms ?? []).map((r) => ({
@@ -193,8 +198,8 @@ function roomsOf(page: ExplorePage): StayRoom[] {
       ]
         .filter(Boolean)
         .join(" · "),
-      priceRwf: r.priceRwf,
-      priceNote: basisWords(r.priceBasis),
+      priceRwf: r.priceBasis === null ? null : r.priceRwf,
+      priceNote: r.priceBasis === null ? "" : basisWords(r.priceBasis),
       left: r.freeUnits !== null && r.freeUnits <= 4 ? r.freeUnits : null,
       photo: null,
     }));

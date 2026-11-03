@@ -15,11 +15,17 @@ export function rwf(amount: number): string {
   return `${amount < 0 ? "-" : ""}RWF ${digits}`;
 }
 
-/** What a price covers, after the figure: "a person, a night", "a night for 2", "a month". */
+/**
+ * What a price covers, after the figure (D-j): "a night for 2" with a party; with none, "a night" for
+ * a room priced per room or a whole place and "a person, a night" for a room priced per person; "a
+ * month" for a home.
+ */
 export function basisWords(basis: ExplorePriceBasis, billableGuests?: number): string {
   switch (basis) {
     case "person_night":
       return "a person, a night";
+    case "unit_night":
+      return "a night";
     case "party_night":
       return billableGuests ? `a night for ${billableGuests}` : "a night";
     case "month":
@@ -27,9 +33,11 @@ export function basisWords(basis: ExplorePriceBasis, billableGuests?: number): s
   }
 }
 
-/** A price line, or "Price on request" when nothing is priced. */
-export function priceWords(priceRwf: number | null, basis: ExplorePriceBasis, billableGuests?: number): string {
-  return priceRwf === null ? "Price on request" : `${rwf(priceRwf)} ${basisWords(basis, billableGuests)}`;
+/** A price line, or "Price on request" when nothing is priced (no figure, or a room with no basis). */
+export function priceWords(priceRwf: number | null, basis: ExplorePriceBasis | null, billableGuests?: number): string {
+  return priceRwf === null || basis === null
+    ? "Price on request"
+    : `${rwf(priceRwf)} ${basisWords(basis, billableGuests)}`;
 }
 
 /** How a stay is booked, as the card's badge says it (AC-6, AC-15). */

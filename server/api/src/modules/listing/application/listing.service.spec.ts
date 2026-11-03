@@ -248,6 +248,13 @@ describe('ListingService, what counts as bookable', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('refuses a menu item (per_item) with the same 404, so no quote or checkout prices one', async () => {
+    const record = roomRecord('hospitality');
+    record.roomType.priceBasis = 'per_item';
+    const service = build(vi.fn().mockResolvedValue(record));
+    await expect(service.getBookableRoom(record.roomType.id)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('still answers a hospitality room type, so the guard refuses only residence', async () => {
     const service = build(vi.fn().mockResolvedValue(roomRecord('hospitality')));
     const room = await service.getBookableRoom('55555555-5555-4555-8555-555555555555');

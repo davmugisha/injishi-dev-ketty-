@@ -1,4 +1,4 @@
-import type { ExploreMode, ExploreSort } from '@injishi/contracts';
+import type { ExploreMode, ExploreSort, RoomPriceBasis } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { type SQL, sql } from 'drizzle-orm';
 
@@ -14,6 +14,14 @@ import type { ExploreArea, ExploreKey } from '../domain/explore-query';
  */
 const PUBLIC_REVIEW = sql`r.side = 'guest_to_host' AND r.moderation_state = 'visible'
   AND r.published_at IS NOT NULL AND r.published_at <= now() AND r.overall_rating IS NOT NULL`;
+
+/**
+ * A room type a guest can book, read through the alias `rt` (mobile spec 0005, AC-34): active, in a
+ * hospitality business, and a stay. A menu item (`per_item`, a bar's or coffee shop's offering since
+ * migration 0117) is listed by its business but never counts here: it never makes a property a stay,
+ * prices a card, or shows as a room. The SQL twin of `isStayPriceBasis`.
+ */
+const STAY_ROOM = sql`rt.status = 'active' AND rt.domain = 'hospitality' AND rt.price_basis <> 'per_item'`;
 
 /** `a, b, c` as uuid parameters, for an IN list. */
 const uuidList = (ids: string[]): SQL => sql.join(ids.map((id) => sql`${id}::uuid`), sql`, `);
@@ -54,6 +62,8 @@ export interface ExploreRow {
   longitude: number | null;
   locationPrivacy: boolean;
   priceRwf: number | null;
+  /** Stays: how the room the price comes from is counted (`room_types.price_basis`); null for homes. */
+  priceBasis: RoomPriceBasis | null;
   bookingMode: 'instant_book' | 'request_to_book' | null;
   /** Mean of the public reviews, unrounded; null when there are none. */
   mean: number | null;
@@ -102,6 +112,7 @@ export interface ExploreRoomRow {
   capacity: number | null;
   roomCount: number;
   priceRwf: number | null;
+  priceBasis: RoomPriceBasis;
   bookingMode: 'instant_book' | 'request_to_book' | null;
   cancellationTier: 'flexible' | 'moderate' | 'limited' | 'firm' | 'strict_extended_stay' | null;
   nonrefundableEligible: boolean;
@@ -122,8 +133,9 @@ export interface ExploreUnitRow {
 /**
  * Explore's reads (mobile spec 0005, feature 23): which properties a guest may find, sorted, paged and
  * priced on the server, over the canonical public rule (`PUBLICLY_VISIBLE`: a published listing of an
- * active business) plus a public address and not archived. Stays also need an active room type (which
- * keeps out bars and cafes), homes a listed unit. No marketplace profile row is required: a business
+ * active business) plus a public address and not archived. Stays also need a room type a guest can
+ * book (`STAY_ROOM`, which keeps out bars and cafes and their menus), homes a listed unit. No
+ * marketplace profile row is required: a business
  * that published its listing is found, whether or not anyone wrote it a profile (D-e).
  *
  * `PUBLICLY_VISIBLE` names `listings` and `orgs` themselves, so every query here joins them
@@ -138,8 +150,7 @@ export class ExploreRepository {
     const inMode =
       mode === 'stays'
         ? sql`orgs.domain = 'hospitality' AND EXISTS (
-            SELECT 1 FROM room_types rt
-             WHERE rt.property_id = properties.id AND rt.status = 'active' AND rt.domain = 'hospitality')`
+            SELECT 1 FROM room_types rt WHERE rt.property_id = properties.id AND ${STAY_ROOM})`
         : sql`orgs.domain = 'residence' AND EXISTS (
             SELECT 1 FROM rental_units u
              WHERE u.property_id = properties.id AND u.listed AND u.state = 'active')`;
@@ -179,28 +190,38 @@ export class ExploreRepository {
    * Each visible property's price, booking mode and public rating, and its weighted score (D-l):
    * `(v × R + 5 × C) / (v + 5)`, so a property with no reviews scores exactly the platform mean `C`
    * and a new business is not buried. Rounded to nine places, so the cursor round trips exactly.
+   *
+   * A stay's price, basis and booking mode all come from ONE room (D-j, D-ao): its cheapest priced
+   * room a guest can book, ties to the lower id. A room with no price never prices the card; a stay
+   * whose rooms are all unpriced reads "Price on request" (null), its first room giving the rest.
    */
   private scored(input: Pick<ExploreSearchInput, 'mode' | 'area' | 'mean'>): SQL {
     const priced =
       input.mode === 'stays'
-        ? sql`(SELECT min(rt.base_price_rwf) FROM room_types rt
-                WHERE rt.property_id = v.id AND rt.status = 'active' AND rt.domain = 'hospitality') AS price,
-              (SELECT rt.booking_mode::text FROM room_types rt
-                WHERE rt.property_id = v.id AND rt.status = 'active' AND rt.domain = 'hospitality'
-                ORDER BY rt.base_price_rwf NULLS LAST, rt.id LIMIT 1) AS booking_mode,
-              NULL::text AS available_from, NULL::int AS unit_count`
+        ? sql`pr.price, pr.price_basis, pr.booking_mode, NULL::text AS available_from, NULL::int AS unit_count`
         : sql`(SELECT min(u.asking_rent_rwf) FROM rental_units u
                 WHERE u.property_id = v.id AND u.listed AND u.state = 'active') AS price,
-              NULL::text AS booking_mode,
+              NULL::text AS price_basis, NULL::text AS booking_mode,
               (SELECT CASE WHEN bool_or(u.available_from IS NULL) THEN NULL ELSE min(u.available_from)::text END
                  FROM rental_units u WHERE u.property_id = v.id AND u.listed AND u.state = 'active') AS available_from,
               (SELECT count(*)::int FROM rental_units u
                 WHERE u.property_id = v.id AND u.listed AND u.state = 'active') AS unit_count`;
+    const pricedRoom =
+      input.mode === 'stays'
+        ? sql`LEFT JOIN LATERAL (
+            SELECT rt.base_price_rwf AS price, rt.price_basis::text AS price_basis, rt.booking_mode::text AS booking_mode
+              FROM room_types rt
+             WHERE rt.property_id = v.id AND ${STAY_ROOM}
+             ORDER BY rt.base_price_rwf NULLS LAST, rt.id
+             LIMIT 1
+          ) pr ON true`
+        : sql``;
     return sql`
       WITH visible AS (${this.visible(input.mode, input.area)}),
       priced AS (
         SELECT v.*, ${priced}, rv.mean, coalesce(rv.n, 0) AS review_count
           FROM visible v
+          ${pricedRoom}
           LEFT JOIN LATERAL (
             SELECT avg(r.overall_rating)::numeric AS mean, count(*)::int AS n
               FROM reviews r
@@ -383,20 +404,25 @@ export class ExploreRepository {
     return null;
   }
 
-  /** A stay's active hospitality room types, cheapest first. */
+  /**
+   * A stay's room types a guest can book (never a menu item), cheapest first, ties by id: the same
+   * order that picks the card's room, so the first priced row is the room the card's price is.
+   */
   async rooms(propertyId: string): Promise<ExploreRoomRow[]> {
     const result = await this.db.execute<Record<string, unknown>>(sql`
-      SELECT rt.id, rt.name, rt.capacity, rt.room_count, rt.base_price_rwf, rt.booking_mode::text AS booking_mode,
-             rt.cancellation_tier::text AS cancellation_tier, rt.nonrefundable_eligible, rt.min_stay
+      SELECT rt.id, rt.name, rt.capacity, rt.room_count, rt.base_price_rwf, rt.price_basis::text AS price_basis,
+             rt.booking_mode::text AS booking_mode, rt.cancellation_tier::text AS cancellation_tier,
+             rt.nonrefundable_eligible, rt.min_stay
         FROM room_types rt
-       WHERE rt.property_id = ${propertyId}::uuid AND rt.status = 'active' AND rt.domain = 'hospitality'
-       ORDER BY rt.base_price_rwf NULLS LAST, lower(rt.name), rt.id`);
+       WHERE rt.property_id = ${propertyId}::uuid AND ${STAY_ROOM}
+       ORDER BY rt.base_price_rwf NULLS LAST, rt.id`);
     return result.rows.map((r) => ({
       id: String(r.id),
       name: String(r.name),
       capacity: toNumber(r.capacity),
       roomCount: Number(r.room_count),
       priceRwf: toNumber(r.base_price_rwf),
+      priceBasis: r.price_basis as RoomPriceBasis,
       bookingMode: (r.booking_mode as ExploreRoomRow['bookingMode']) ?? null,
       cancellationTier: (r.cancellation_tier as ExploreRoomRow['cancellationTier']) ?? null,
       nonrefundableEligible: r.nonrefundable_eligible === true,
@@ -487,6 +513,7 @@ function toRow(r: Record<string, unknown>): ExploreRow {
     longitude: toNumber(r.longitude),
     locationPrivacy: r.location_privacy === true,
     priceRwf: toNumber(r.price),
+    priceBasis: (r.price_basis as RoomPriceBasis | null) ?? null,
     bookingMode: (r.booking_mode as ExploreRow['bookingMode']) ?? null,
     mean: toNumber(r.mean),
     rating: toNumber(r.rating),
