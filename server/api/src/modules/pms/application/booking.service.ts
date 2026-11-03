@@ -52,7 +52,6 @@ import {
 import {
   DEFAULT_CAPACITY,
   MAX_HORIZON_DAYS,
-  MAX_NIGHTS,
   approvalExpiresAt,
   computeBreakdown,
   daysFromToday,

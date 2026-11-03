@@ -3,7 +3,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import { sessions, users } from '../../../database/drizzle/auth';
+import { users } from '../../../database/drizzle/auth';
+import { sessions } from '../../../database/drizzle/auth-sessions';
 import {
   auditEvents,
   orgMembershipBranches,

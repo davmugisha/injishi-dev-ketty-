@@ -129,6 +129,7 @@ function zip(files: { name: string; body: string }[], type: string): Blob {
 
 const xml = (v: string): string =>
   v
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: XML 1.0 forbids these characters in a sheet's text, so matching them is the point.
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

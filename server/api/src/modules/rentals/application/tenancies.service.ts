@@ -12,6 +12,7 @@ import {
 } from '@injishi/contracts';
 
 import { UnitMediaStorage } from '../../storage/application/unit-media-storage';
+import type { TenancyRef } from '../domain/tenancy-ref';
 import { UnitMediaRepository } from '../infrastructure/unit-media.repository';
 import { LeasesRepository, type LeaseRecord, type VersionRow } from '../infrastructure/leases.repository';
 import { RentalsContextRepository } from '../infrastructure/rentals-context.repository';
@@ -21,13 +22,7 @@ import { LeaseBrokersService } from './lease-brokers.service';
 import { LeaseContractService } from './lease-contract.service';
 import { presentVersion } from './rentals-presenters';
 
-/** A lease the caller holds as its tenant, as the tenancy guard resolved it. */
-export interface TenancyRef {
-  leaseId: string;
-  tenantId: string;
-  userId: string;
-  workspaceId: string;
-}
+export type { TenancyRef } from '../domain/tenancy-ref';
 
 /** What anyone but the lease's own tenant is told, for a draft as for a lease that does not exist. */
 export const TENANCY_NOT_FOUND = "We couldn't find this lease on your account.";

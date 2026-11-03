@@ -73,8 +73,9 @@ export function periodRange(period: DashboardPeriod, today: string): PeriodRange
     return {
       period,
       unit: "day",
-      from: buckets[0]!.from,
-      to: buckets.at(-1)!.to,
+      // The first and last day buckets, read from what built them.
+      from: `${key}-01`,
+      to: `${key}-${pad(daysIn(y, m))}`,
       buckets,
       words: LONG.format(at(today)),
     };
@@ -96,7 +97,7 @@ export function periodRange(period: DashboardPeriod, today: string): PeriodRange
   }
   const buckets: PeriodBucket[] = [];
   for (let i = first; i <= last; i++) buckets.push(monthBucket(i));
-  return { period, unit: "month", from: buckets[0]!.from, to: buckets.at(-1)!.to, buckets, words };
+  return { period, unit: "month", from: monthBucket(first).from, to: monthBucket(last).to, buckets, words };
 }
 
 /** Sum amounts into the period's buckets by each item's day; items outside the period are left out. */

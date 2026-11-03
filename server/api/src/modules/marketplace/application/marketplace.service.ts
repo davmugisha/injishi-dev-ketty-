@@ -6,7 +6,6 @@ import {
   countryName,
   EBM_VAT_RATE_PERCENT,
   isKnownCountry,
-  MAX_NIGHTS,
   NON_REFUNDABLE_DISCOUNT,
   type MarketQuote,
   type MarketQuoteQuery,

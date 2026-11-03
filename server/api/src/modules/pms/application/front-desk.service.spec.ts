@@ -7,6 +7,7 @@ import type { WalkInRequest } from '@injishi/contracts';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import { localToday } from '../domain/pricing';
 import type { FolioRepository } from '../infrastructure/folio.repository';
 import type {
   FrontDeskRepository,
@@ -233,12 +234,15 @@ describe('FrontDeskService.walkIn', () => {
     await service.walkIn(ws, walkIn({ plannedExitAt: inThreeDays.toISOString() }));
     await service.walkIn(ws, walkIn());
 
-    const today = new Date().toISOString().slice(0, 10);
+    // Kigali days, as the service counts them. The UTC date read here made this
+    // fail every night from 22:00 to midnight UTC, when Kigali is already on
+    // tomorrow.
+    const today = localToday();
     const tomorrow = new Date(`${today}T00:00:00Z`);
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
     expect(holdQueries[0]).toEqual({
       from: today,
-      to: inThreeDays.toISOString().slice(0, 10),
+      to: localToday(inThreeDays),
     });
     expect(holdQueries[1]).toEqual({
       from: today,

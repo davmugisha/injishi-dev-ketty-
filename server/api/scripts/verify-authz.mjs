@@ -30,6 +30,7 @@ import {
   OrgRole,
   Permission,
   can,
+  canSetUpDuringReview,
   isOperational,
   permissionsForWorkspace,
   violatesSeparationOfDuties,
@@ -80,6 +81,21 @@ const HR_SET = [
   'people.view',
   'roster.manage',
 ];
+
+/**
+ * The bar and restaurant floor (POS spec, phase 1, `f4f91303`). Each is a
+ * station's powers and nothing else, so these are written out too: a waiter
+ * who can take payment, or a cashier who can read the books, is a leak.
+ * `stock_controller` holds nothing until the inventory phase brings its
+ * permissions; it signs in and that is all.
+ */
+const FLOOR_SETS = {
+  cashier: ['pos.checkout', 'pos.discount', 'pos.sell', 'register.operate', 'table.manage'],
+  waiter: ['pos.sell', 'table.manage'],
+  bartender: ['kitchen.work', 'pos.sell', 'table.manage'],
+  kitchen: ['kitchen.work'],
+  stock_controller: [],
+};
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -178,11 +194,24 @@ async function main() {
     // ---------------------------------------------------------------------
     // The model itself, before any row is read. These hold on every database.
     // ---------------------------------------------------------------------
-    console.log('\n=== The six org roles, from @injishi/contracts alone ===');
+    // Six until the POS roles (`f4f91303`, 2026-10-25) appended the floor's five.
+    console.log('\n=== The eleven org roles, from @injishi/contracts alone ===');
     check(
-      'the roles, in the order the enum and the migration keep (ADR-069 D-a)',
+      'the roles, in the order the enum and the migration keep (ADR-069 D-a, POS phase 1)',
       OrgRole.options,
-      ['owner', 'manager', 'receptionist', 'finance', 'hr', 'housekeeper'],
+      [
+        'owner',
+        'manager',
+        'receptionist',
+        'finance',
+        'hr',
+        'housekeeper',
+        'cashier',
+        'waiter',
+        'bartender',
+        'kitchen',
+        'stock_controller',
+      ],
     );
     const forRole = (role) =>
       permissionsForWorkspace({ kind: 'business', orgRole: role, registrationStatus: 'active' });
@@ -232,12 +261,23 @@ async function main() {
       [can('finance', 'message.send'), can('hr', 'message.send')],
       [false, false],
     );
-    // The database holds the same six, in the same order (migration 0063).
+    console.log('\n=== The floor: a station each, and nothing beside it (POS phase 1) ===');
+    for (const [role, expected] of Object.entries(FLOOR_SETS)) {
+      check(`${role} holds exactly its ${expected.length}`, [...forRole(role)].sort(), expected);
+    }
+    check(
+      'no floor role reads money or manages the team',
+      Object.keys(FLOOR_SETS).filter((r) => can(r, 'money.view') || can(r, 'team.manage')),
+      [],
+    );
+
+    // The database holds the same eleven, in the same order (migrations 0063
+    // and the POS roles').
     const { rows: enumRows } = await c.query(
       'SELECT unnest(enum_range(NULL::org_role))::text AS role',
     );
     check(
-      'the org_role enum in this database is the same six, in order',
+      'the org_role enum in this database is the same eleven, in order',
       enumRows.map((r) => r.role),
       [...OrgRole.options],
     );
@@ -259,7 +299,9 @@ async function main() {
     const EXPECTED = [
       ['host@injishi.com', 'owner', OWNER_ALL, 'hospitality'],
       ['manager@injishi.com', 'manager', MANAGER_ALL, 'hospitality'],
-      ['reception@injishi.com', 'receptionist', 11, 'hospitality'],
+      // The same 12 as `receptionist holds 12` above; it said 11 until the
+      // rentals blueprint's guest.register reached the model but not this row.
+      ['reception@injishi.com', 'receptionist', 12, 'hospitality'],
       ['housekeeper@injishi.com', 'housekeeper', 2, 'hospitality'],
       ['landlord@injishi.com', 'owner', OWNER_ALL, 'residence'],
       ['resident-manager@injishi.com', 'manager', MANAGER_ALL, 'residence'],
@@ -293,9 +335,14 @@ async function main() {
     } else {
       check('the business is NOT active', isOperational(pending.registrationStatus), false);
       check('its stage is submitted', pending.registrationStatus, 'submitted');
-      // The whole rule: the role is held, the powers are not.
+      // The whole rule: the role is held, the powers are not. Since `0c1dbfb1`
+      // a business in review (`SETUP_DURING_REVIEW_STATUSES`) may build its
+      // listing, so the one power it holds is `listing.manage`: no money, no
+      // staff, and no publish, which still waits for `active`. This said ZERO
+      // until then, and a set that grows past this one is the leak.
       check('the owner role is held', pending.orgRole, 'owner');
-      check('and it resolves to ZERO permissions', pending.permissions.length, 0);
+      check('submitted is a stage the listing may be set up in', canSetUpDuringReview(pending.registrationStatus), true);
+      check('and it resolves to listing.manage ALONE', pending.permissions, ['listing.manage']);
       // Listed at every stage on purpose — the registrant opens it to watch
       // the pipeline. A gate that hid the workspace would hide the progress.
       check('the workspace is still LISTED', pending.kind, 'business');

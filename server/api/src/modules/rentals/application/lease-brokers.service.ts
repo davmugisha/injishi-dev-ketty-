@@ -17,7 +17,7 @@ import { assertBuildingInScope, assertResidence } from '../domain/residence';
 import { LeaseBrokersRepository, type LeaseBrokerRow, type PlacementRow } from '../infrastructure/lease-brokers.repository';
 import { LeasesRepository, type LeaseRow } from '../infrastructure/leases.repository';
 import { LeaseEventsWriter, RentalsAuditWriter, type DbOrTx } from '../infrastructure/rentals-writers';
-import type { TenancyRef } from './tenancies.service';
+import type { TenancyRef } from '../domain/tenancy-ref';
 
 /** A tenancy that started: the broker who brought it may be rated. */
 const RATEABLE = new Set(['active', 'ending', 'ended']);

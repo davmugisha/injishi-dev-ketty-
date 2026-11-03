@@ -314,13 +314,13 @@ function CardHolderPanel({
           {preview ? (
             <a href={preview.url} target="_blank" rel="noreferrer" title="Open the card in full" className="shrink-0">
               {preview.pdf ? (
-                <span className="flex h-20 w-28 items-center justify-center rounded-md bg-secondary text-muted-foreground ring-1 ring-border">
+                <span className="flex h-20 w-28 items-center justify-center rounded-card bg-secondary text-muted-foreground ring-1 ring-border">
                   <FileText size={28} aria-hidden />
                 </span>
               ) : (
                 // A local object URL of the picked file: next/image has nothing to optimise here.
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={preview.url} alt="Your PSF card" className="h-20 w-28 rounded-md object-cover ring-1 ring-border" />
+                <img src={preview.url} alt="Your PSF card" className="h-20 w-28 rounded-card object-cover ring-1 ring-border" />
               )}
             </a>
           ) : null}

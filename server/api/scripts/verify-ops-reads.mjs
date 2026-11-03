@@ -164,16 +164,25 @@ await expectReads(housekeeper, {
 /*
  * The registration gate, on reads.
  *
- * The owner of a business still in the pipeline holds the owner role and an
- * EMPTY permission set. The workspace is still listed — the pipeline is
- * rendered from the grant — but no operator list is readable from it.
+ * The owner of a business still in the pipeline holds the owner role and, in
+ * review (`submitted` to `field_verified`), `listing.manage` alone: since
+ * `0c1dbfb1` a host builds the listing while the documents are read, and
+ * publishing still waits for `active`. The workspace is still listed — the
+ * pipeline is rendered from the grant — and the only lists readable from it
+ * are the ones setting up a listing reads: its properties, its rate plans and
+ * its rooms. Every other operator list is refused. This expected NOTHING
+ * readable until that change, and a read beyond these three is the leak.
  */
-console.log('\npending@injishi.com — a business in the registration pipeline reads nothing');
+console.log('\npending@injishi.com — a business in review reads only what setting up its listing needs');
 const pending = await sessionFor('pending@injishi.com');
 if (!pending.workspaceId) {
   check('pending@injishi.com holds a business workspace', 'none', 'one');
 } else {
-  await expectReads(pending, {});
+  await expectReads(pending, {
+    '/inventory/rate-plans': OK,
+    '/inventory/properties?workspaceId=WORKSPACE': OK,
+    '/ops/rooms': OK,
+  });
 }
 
 /*

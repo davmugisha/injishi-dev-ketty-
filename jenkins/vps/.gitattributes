@@ -1,0 +1,4 @@
+# injishi-ci-gate.sh is installed on the VPS and run by bash. A Windows checkout
+# with core.autocrlf would otherwise hand it CRLF endings, and bash reads the \r
+# as part of every command.
+*.sh text eol=lf
