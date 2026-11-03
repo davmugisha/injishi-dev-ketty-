@@ -1,284 +1,160 @@
-import type { ExploreMode, ExplorePlace, ExploreSort } from "@injishi/contracts";
-import { router, useLocalSearchParams } from "expo-router";
-import { type ComponentRef, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Keyboard, RefreshControl, ScrollView, TextInput, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useCSSVariable } from "uniwind";
-import { Chip, EmptyView, Icon, IconButton, LoadingView, PressArea, Row, RowIcon, Text } from "@/components/ui";
-import { roleText } from "@/components/ui/text";
-import { AsOf, QueryError, QueryView } from "@/data/query-view";
-import { ExploreCardBones, ExploreCardView } from "./explore-card";
-import { EMPTY_INTENT, type ExploreIntent, intentFrom, intentParams, isNarrowed } from "./intent";
-import { useExploreSearch, usePlaces } from "./queries";
-import { countWords } from "./words";
+import { rnSpace } from "@injishi/design-tokens";
+import { router } from "expo-router";
+import { useState } from "react";
+import { FlatList, type ListRenderItem, Platform, View } from "react-native";
+import { Banner, Button, EmptyView, FilterChips, IconButton, Screen, SearchBar, Spinner, Text } from "@/components/ui";
+import { QueryView } from "@/data/query-view";
+import { href } from "@/proto/screens";
+import { type ExploreMore, useExploreList } from "./data";
+import { useExploreIntent } from "./explore-intent";
+import { ExploreBones, StayCardView } from "./explore-parts";
+import { type ExploreIntent, intentParams } from "./intent";
+import type { ExploreData, StayCard } from "./types";
+import { searchSheetParams } from "./where-field";
 
-const SORTS: { value: ExploreSort; label: string }[] = [
-  { value: "top_rated", label: "Top rated" },
-  { value: "price_asc", label: "Price, low to high" },
-  { value: "price_desc", label: "Price, high to low" },
-];
+/** The prototype's filter chips: a kind of stay, or what it offers. */
+const FILTERS = [
+  { value: "all", label: "All stays" },
+  { value: "hotel", label: "Hotel" },
+  { value: "lodge", label: "Lodge" },
+  { value: "tented_camp", label: "Tented camp" },
+  { value: "lakeView", label: "Lake view", icon: "Sun" },
+  { value: "breakfast", label: "Breakfast" },
+] as const;
 
-const MODES: { value: ExploreMode; label: string }[] = [
-  { value: "stays", label: "Stays" },
-  { value: "homes", label: "Homes" },
-];
+type Filter = (typeof FILTERS)[number]["value"];
 
-const PLACE_ICON = { district: "MapPin", sector: "MapPin", property: "House" } as const;
+function matches(stay: StayCard, filter: Filter): boolean {
+  return filter === "all" || stay.type === filter || stay.tags.includes(filter);
+}
 
-/** The field's words: the `body` role, growing with the phone's font size like every other text. */
-const FIELD_TEXT = roleText("body");
+/** The list's own scrolling, as the kit's `Screen` scrolls a body: padded at the foot, growing to fill. */
+const LIST_CONTENT = { paddingBottom: rnSpace[5], flexGrow: 1 } as const;
+
+/** How near the end (in screens) the next page is asked for, as the list before this port did. */
+const END_THRESHOLD = 0.6;
+
+const renderStay: ListRenderItem<StayCard> = ({ item }) => (
+  <View className="px-4">
+    <StayCardView stay={item} />
+  </View>
+);
+
+/** 24 between two cards, the prototype's gap. */
+function CardGap() {
+  return <View className="h-6" />;
+}
 
 /**
- * Explore (mobile spec 0005, feature 23, prototype `guest-04-explore`): search stays and homes across
- * Rwanda by place or name, sorted and paged on the server, for anyone, signed in or not. The search
- * lives in the route's params (the search intent), so back and sign in keep it. Dates, party, filters
- * and the map join in milestone 3.
+ * Explore (prototype `guest-explore`): stays across Rwanda from the app, verified businesses only.
+ * The search pill opens dates and guests (and, there, where); chips narrow the kind of stay; each card
+ * shows how it books before it is opened, and its heart saves it. Map shows the same stays as price
+ * pins. In api mode the next page loads as the list nears its end.
  */
 export function ExploreScreen() {
-  const params = useLocalSearchParams();
-  const intent = useMemo(() => intentFrom(params), [params]);
-  const search = useExploreSearch(intent);
-  const insets = useSafeAreaInsets();
-
-  const setIntent = (next: ExploreIntent) => {
-    const carried = intentParams(next);
-    // Every key is named, so a cleared one leaves the route rather than lingering in it.
-    router.setParams({
-      mode: carried.mode,
-      q: carried.q,
-      place: carried.place,
-      placeLabel: carried.placeLabel,
-      sort: carried.sort,
-    });
-  };
-
-  const results = useMemo(() => search.data?.pages.flatMap((p) => p.results), [search.data]);
-  const total = search.data?.pages[0]?.total;
-  const [refreshing, setRefreshing] = useState(false);
-  const refresh = async () => {
-    setRefreshing(true);
-    await search.refetch();
-    setRefreshing(false);
-  };
-
+  const [intent] = useExploreIntent();
+  const list = useExploreList(intent);
   return (
-    <View className="flex-1 bg-background">
-      <View className="flex-1" style={{ paddingTop: insets.top + 8 }}>
-        <SearchField intent={intent} onChange={setIntent}>
-          <QueryView
-            query={search}
-            data={results}
-            offlineNote={null}
-            loading={
-              <LoadingView label="Loading stays" className="px-4 pt-2">
-                <ExploreCardBones />
-                <ExploreCardBones />
-                <ExploreCardBones />
-              </LoadingView>
-            }
-          >
-            {(cards) => (
-              <FlatList
-                data={cards}
-                keyExtractor={(c) => c.id}
-                renderItem={({ item }) => <ExploreCardView card={item} />}
-                contentContainerClassName="gap-6 px-4 pb-8"
-                keyboardShouldPersistTaps="handled"
-                onEndReachedThreshold={0.6}
-                onEndReached={() => {
-                  if (search.hasNextPage && !search.isFetchingNextPage && !search.isFetchNextPageError) {
-                    void search.fetchNextPage();
-                  }
-                }}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />}
-                ListHeaderComponent={
-                  <View className="gap-1">
-                    <Choices intent={intent} onChange={setIntent} />
-                    <View className="px-1 pt-1">
-                      {total !== undefined ? (
-                        <Text role="callout" tone="muted" accessibilityLiveRegion="polite">
-                          <Text role="headline">{countWords(total, intent.mode)}</Text> · verified businesses only
-                        </Text>
-                      ) : null}
-                      <AsOf query={search} />
-                    </View>
-                  </View>
-                }
-                ListEmptyComponent={
-                  <NoResults
-                    intent={intent}
-                    onClear={() => setIntent({ ...EMPTY_INTENT, mode: intent.mode, sort: intent.sort })}
-                    onRetry={() => void search.refetch()}
-                  />
-                }
-                ListFooterComponent={
-                  search.isFetchingNextPage ? (
-                    <LoadingView label="Loading more stays">
-                      <ExploreCardBones />
-                    </LoadingView>
-                  ) : search.isFetchNextPageError ? (
-                    <QueryError error={search.error} onRetry={() => void search.fetchNextPage()} offlineNote={null} />
-                  ) : undefined
-                }
-              />
-            )}
-          </QueryView>
-        </SearchField>
-      </View>
-    </View>
+    // Once there are stays the list scrolls itself, so it hears its end; the skeleton and an error
+    // scroll in the screen's own body.
+    <Screen scroll={list.data === undefined}>
+      <QueryView query={list.query} data={list.data} offlineNote={null} loading={<ExploreBones />}>
+        {(data) => <ExploreBody data={data} intent={intent} more={list.more} />}
+      </QueryView>
+    </Screen>
   );
 }
 
-/** Stays or homes, and the order, as chips under the search (AC-6). */
-function Choices({ intent, onChange }: { intent: ExploreIntent; onChange: (next: ExploreIntent) => void }) {
+function ExploreBody({ data, intent, more }: { data: ExploreData; intent: ExploreIntent; more: ExploreMore }) {
+  const [filter, setFilter] = useState<Filter>("all");
+  const shown = data.stays.filter((stay) => matches(stay, filter));
+  const count = filter === "all" ? data.total : shown.length;
+  // The dates and guests sheet, setting the search rather than a stay's dates; it starts from this one.
+  const openSearch = () => router.push(href("guest-dates", searchSheetParams(intent, data)));
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="items-center gap-2">
-      {MODES.map((m) => (
-        <Chip
-          key={m.value}
-          label={m.label}
-          selected={intent.mode === m.value}
-          onPress={() => onChange({ ...intent, mode: m.value })}
-        />
-      ))}
-      <View className="mx-1 h-6 w-px bg-separator" />
-      {SORTS.map((s) => (
-        <Chip
-          key={s.value}
-          label={s.label}
-          selected={intent.sort === s.value}
-          onPress={() => onChange({ ...intent, sort: s.value })}
-        />
-      ))}
-    </ScrollView>
-  );
-}
-
-/** A search with no match says so and offers to clear it (AC-8); with none narrowed, nothing is live yet. */
-function NoResults({ intent, onClear, onRetry }: { intent: ExploreIntent; onClear: () => void; onRetry: () => void }) {
-  const noun = intent.mode === "homes" ? "homes" : "stays";
-  return isNarrowed(intent) ? (
-    <EmptyView
-      icon="Magnifier"
-      title={`No ${noun} match`}
-      body={`Nothing listed matches “${intent.placeLabel ?? intent.q}”. Try another place or name.`}
-      action={{ label: "Clear search", icon: "Xmark", onPress: onClear }}
-    />
-  ) : (
-    <EmptyView
-      icon="House"
-      title={`No ${noun} yet`}
-      body={`${intent.mode === "homes" ? "Homes" : "Stays"} show here the moment a business publishes them.`}
-      action={{ label: "Check again", onPress: onRetry }}
-    />
-  );
-}
-
-/**
- * The place field (AC-5): two letters or more suggest districts, sectors and properties that have
- * something to find; picking one filters by it, and Search on the keyboard filters by the words.
- * While suggestions show, they stand in for the list.
- */
-function SearchField({
-  intent,
-  onChange,
-  children,
-}: {
-  intent: ExploreIntent;
-  onChange: (next: ExploreIntent) => void;
-  children: ReactNode;
-}) {
-  const shown = intent.placeLabel ?? intent.q;
-  const [typed, setTyped] = useState(shown);
-  const [focused, setFocused] = useState(false);
-  const input = useRef<ComponentRef<typeof TextInput>>(null);
-  const places = usePlaces(intent.mode, focused ? typed : "");
-  const placeholder = String(useCSSVariable("--color-field-placeholder"));
-  const ink = String(useCSSVariable("--color-field-foreground"));
-
-  // A new search from outside (back, a cleared search) shows its own words.
-  useEffect(() => {
-    if (!focused) setTyped(shown);
-  }, [shown, focused]);
-
-  const done = () => {
-    setFocused(false);
-    input.current?.blur();
-    Keyboard.dismiss();
-  };
-  const pick = (place: ExplorePlace) => {
-    setTyped(place.label);
-    onChange({ ...intent, place: place.ref, placeLabel: place.label, q: "" });
-    done();
-  };
-  const submit = () => {
-    onChange({ ...intent, place: null, placeLabel: null, q: typed.trim() });
-    done();
-  };
-  const clear = () => {
-    setTyped("");
-    onChange({ ...intent, place: null, placeLabel: null, q: "" });
-  };
-
-  const suggesting = focused && typed.trim().length >= 2;
-  return (
-    <View className="flex-1">
-      <View className="flex-row items-center gap-2 px-4 pb-3">
-        <View className="min-h-12 flex-1 flex-row items-center gap-2 rounded-full border border-field-border bg-field pr-1 pl-4">
-          <Icon name="Magnifier" size={20} tone="muted" />
-          <TextInput
-            ref={input}
-            value={typed}
-            onChangeText={setTyped}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            onSubmitEditing={submit}
-            placeholder="Where to? A town, sector or stay"
-            placeholderTextColor={placeholder}
-            returnKeyType="search"
-            autoCorrect={false}
-            accessibilityLabel="Search by place or name"
-            maxLength={80}
-            maxFontSizeMultiplier={FIELD_TEXT.maxFontSizeMultiplier}
-            className={`flex-1 py-3 ${FIELD_TEXT.className}`}
-            style={[FIELD_TEXT.style, { color: ink }]}
-          />
-          {typed ? <IconButton icon="Xmark" label="Clear search" onPress={clear} /> : null}
-        </View>
-        {focused ? (
-          <PressArea onPress={done} accessibilityLabel="Close search" className="items-center justify-center px-1">
-            <Text role="headline" tone="accent">
-              Cancel
-            </Text>
-          </PressArea>
-        ) : null}
-      </View>
-      {suggesting ? (
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="pb-8">
-          {(places.data?.places ?? []).map((p) => (
-            <Row
-              key={`${p.kind}:${p.id}`}
-              leading={<RowIcon name={PLACE_ICON[p.kind]} tone={p.kind === "property" ? "default" : "accent"} />}
-              title={p.label}
-              subtitle={p.sub}
-              onPress={() => pick(p)}
+    <FlatList
+      data={shown}
+      keyExtractor={(stay) => stay.slug}
+      renderItem={renderStay}
+      ItemSeparatorComponent={CardGap}
+      ListHeaderComponent={
+        <>
+          <View className="px-4 pt-2">
+            <SearchBar
+              title={data.search.title}
+              subtitle={data.search.subtitle}
+              onPress={openSearch}
+              trailing={<IconButton icon="Sliders" label="Dates and guests" variant="surface" onPress={openSearch} />}
             />
-          ))}
-          {places.data && places.data.places.length === 0 ? (
-            <Text role="callout" tone="muted" className="px-4 py-3">
-              No place or stay by that name yet. Search for the words anyway.
+          </View>
+          <FilterChips label="Kind of stay" options={FILTERS} value={filter} onChange={setFilter} className="mt-1" />
+          <View className="flex-row items-center justify-between gap-3 px-4 pt-1">
+            <Text role="callout" tone="muted" className="shrink" accessibilityLiveRegion="polite">
+              <Text role="callout" strong>
+                {count === 1 ? "1 stay" : `${count} stays`}
+              </Text>{" "}
+              · verified businesses only
             </Text>
-          ) : null}
-          <Row
-            leading={<RowIcon name="Magnifier" />}
-            title={`Search for “${typed.trim()}”`}
-            subtitle="Names, sectors and districts"
-            onPress={submit}
+            <Button
+              size="sm"
+              variant="outline"
+              icon="MapPin"
+              onPress={() => router.push(href("guest-explore-map", intentParams(intent)))}
+              accessibilityLabel="Show these stays on a map"
+            >
+              Map
+            </Button>
+          </View>
+          {shown.length > 0 ? <View className="h-3" /> : null}
+        </>
+      }
+      ListEmptyComponent={
+        data.stays.length > 0 ? (
+          <EmptyView
+            icon="Magnifier"
+            title="No stays match"
+            body="Nothing in this search matches that filter yet. Try another kind of stay."
+            action={{ label: "Show all stays", onPress: () => setFilter("all") }}
           />
-        </ScrollView>
-      ) : (
-        <View className="flex-1">{children}</View>
-      )}
+        ) : (
+          <EmptyView
+            icon="House"
+            title="No stays here yet"
+            body="Stays show here the moment a verified business publishes them. Try another place or other dates."
+            action={{ label: "Change the search", icon: "Magnifier", onPress: openSearch }}
+            secondary={{ label: "Start over", onPress: () => router.replace(href("guest-explore")) }}
+          />
+        )
+      }
+      ListFooterComponent={more.loading || more.error ? <MoreFooter more={more} /> : undefined}
+      onEndReached={more.load}
+      onEndReachedThreshold={END_THRESHOLD}
+      className="flex-1"
+      contentContainerStyle={LIST_CONTENT}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+    />
+  );
+}
+
+/** The list's foot while the next page loads, or when it did not: a spinner, or a banner to try again. */
+function MoreFooter({ more }: { more: ExploreMore }) {
+  if (more.error) {
+    return (
+      <View className="px-4 pt-6">
+        <Banner
+          tone="danger"
+          icon="CloudSlash"
+          title="More stays didn't load"
+          body="Check your signal, then tap to try again."
+          onPress={more.retry}
+        />
+      </View>
+    );
+  }
+  return (
+    <View className="items-center pt-6">
+      <Spinner label="Loading more stays" />
     </View>
   );
 }
