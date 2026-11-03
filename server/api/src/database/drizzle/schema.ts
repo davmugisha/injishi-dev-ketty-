@@ -43,6 +43,8 @@ export * from './geography';
 // Before org: `orgs` references the associations, and this imports no org table.
 export * from './psf-catalogue';
 export * from './org';
+// A session names a workspace, so it sits after org, and auth imports no org table.
+export * from './auth-sessions';
 export * from './inventory';
 export * from './hospitality';
 // The front desk's booking channel enum (interface real-data, frontdesk leaf).

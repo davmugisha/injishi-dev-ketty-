@@ -4,13 +4,6 @@
   "//when": "Update this in the commit that REMOVES a cycle, never to make a failing run pass.",
   "cycles": [
     "../../../packages/auth/dist/phone.d.ts > ../../../packages/auth/dist/server.d.ts",
-    "database/drizzle/auth.ts > database/drizzle/org.ts",
-    "database/drizzle/auth.ts > database/drizzle/org.ts > database/drizzle/hospitality.ts",
-    "database/drizzle/auth.ts > database/drizzle/org.ts > database/drizzle/hospitality.ts > database/drizzle/inventory.ts",
-    "database/drizzle/auth.ts > database/drizzle/org.ts > database/drizzle/hospitality.ts > database/drizzle/inventory.ts > database/drizzle/operations.ts",
-    "database/drizzle/auth.ts > database/drizzle/org.ts > database/drizzle/hospitality.ts > database/drizzle/inventory.ts > database/drizzle/operations.ts > database/drizzle/messaging.ts",
-    "database/drizzle/auth.ts > database/drizzle/org.ts > database/drizzle/hospitality.ts > database/drizzle/inventory.ts > database/drizzle/operations.ts > database/drizzle/messaging.ts > database/drizzle/residence.ts",
-    "database/drizzle/auth.ts > database/drizzle/org.ts > database/drizzle/hospitality.ts > database/drizzle/inventory.ts > database/drizzle/operations.ts > database/drizzle/money.ts",
     "database/drizzle/hospitality.ts > database/drizzle/inventory.ts",
     "database/drizzle/hospitality.ts > database/drizzle/inventory.ts > database/drizzle/operations.ts",
     "database/drizzle/hospitality.ts > database/drizzle/inventory.ts > database/drizzle/operations.ts > database/drizzle/messaging.ts",

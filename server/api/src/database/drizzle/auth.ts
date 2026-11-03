@@ -6,6 +6,10 @@
  * one it replaced; only the import lines are new. `schema.ts` re-exports this
  * module, so `drizzle.config.ts`, every migration and every importer still see
  * one schema at one path.
+ *
+ * `sessions` and `two_factor_challenges` live in `auth-sessions.ts`: a session
+ * names a workspace, and this file imports nothing from `org.ts`, so that every
+ * table `org.ts` references may reference `users` without an import cycle.
  */
 import { sql } from 'drizzle-orm';
 import {
@@ -17,11 +21,9 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
-  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { timestamps } from './columns';
 import { otpChannelEnum, phoneLinkStageEnum } from './enums';
-import { workspaces } from './org';
 
 export const users = pgTable(
   'users',
@@ -147,68 +149,6 @@ export const signInEvents = pgTable('sign_in_events', {
   userAgent: text('user_agent'),
   occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
 });
-
-export const sessions = pgTable('sessions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  token: text('token').notNull().unique(),
-  // persists the workspace switcher (resolves O-3); FK added lazily.
-  activeWorkspaceId: uuid('active_workspace_id').references(
-    (): AnyPgColumn => workspaces.id,
-    { onDelete: 'set null' },
-  ),
-  ipAddress: text('ip_address'),
-  userAgent: text('user_agent'),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-  /**
-   * When THIS session passed the emailed step-up, or null while it has not.
-   * Per session on purpose: a new device signs in and must ask for a fresh
-   * code before any operator or officer route answers (F-S02).
-   * `WorkspaceGuard` and `OversightGuard` read it.
-   */
-  twoFactorVerifiedAt: timestamp('two_factor_verified_at', {
-    withTimezone: true,
-  }),
-  ...timestamps,
-});
-
-
-
-
-/**
- * The step-up code currently outstanding for a session (F-S02).
- *
- * KEYED BY SESSION, not by person, and unique on it: a code emailed to a phone
- * cannot be typed into a laptop that never asked for one, and a resend replaces
- * the row so the newest code is the only one that works.
- *
- * `codeHash` is SHA-256 of the six digits, never the digits, so a read of this
- * table is not a working step-up for every pending session. The row is deleted
- * the moment it is spent, expired, or exhausted.
- */
-export const twoFactorChallenges = pgTable(
-  'two_factor_challenges',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    sessionId: uuid('session_id')
-      .notNull()
-      .references(() => sessions.id, { onDelete: 'cascade' }),
-    codeHash: text('code_hash').notNull(),
-    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-    /** Wrong guesses so far. The code dies at OTP_MAX_ATTEMPTS. */
-    attempts: integer('attempts').notNull().default(0),
-    ...timestamps,
-  },
-  (t) => [
-    uniqueIndex('two_factor_challenges_session_uk').on(t.sessionId),
-    index('two_factor_challenges_user_id_idx').on(t.userId),
-  ],
-);
 
 
 export const accounts = pgTable(

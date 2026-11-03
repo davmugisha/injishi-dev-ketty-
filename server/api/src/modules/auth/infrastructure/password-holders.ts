@@ -1,6 +1,7 @@
 import { and, eq, gt, or, sql } from 'drizzle-orm';
 
-import { accounts, sessions, users } from '../../../database/drizzle/auth';
+import { accounts, users } from '../../../database/drizzle/auth';
+import { sessions } from '../../../database/drizzle/auth-sessions';
 import { leaseInvitations, tenants } from '../../../database/drizzle/residence';
 import type { Database } from '../../../shared/database/database.module';
 
