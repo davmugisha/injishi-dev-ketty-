@@ -17,6 +17,7 @@ const STEPS = [
   "lint",
   "test",
   "bundle Android and iOS",
+  "the bundles carry no sample data",
   "android/ and ios/ are generated, not committed",
   "fingerprint.config.js loads with D-ab's values",
   "fingerprint verdict",
@@ -41,13 +42,13 @@ const sandbox = (scenario = {}) => {
   box.scenario(scenario);
   return box;
 };
-const headings = (output) => [...output.matchAll(/── check:ci \d+\/11: (.+)/g)].map((m) => m[1].trim());
+const headings = (output) => [...output.matchAll(/── check:ci \d+\/12: (.+)/g)].map((m) => m[1].trim());
 const checkCi = (box) => box.run("check-ci.mjs");
 
 describe("check:ci", { concurrency: true }, () => {
   after(removeSandboxes);
 
-  test("AC-12: runs the eleven steps in order and ends with every step passed", () => {
+  test("AC-12: runs the twelve steps in order and ends with every step passed", () => {
     const { status, output } = checkCi(sandbox());
     assert.equal(status, 0, output);
     assert.deepEqual(headings(output), STEPS);
@@ -67,6 +68,7 @@ describe("check:ci", { concurrency: true }, () => {
         ["run", "lint"],
         ["run", "test"],
         ["exec", "expo", "export", "--platform", "android", "--platform", "ios", "--output-dir", "dist"],
+        ["exec", "node", "scripts/sample-data-check.mjs", "dist"],
       ],
     );
   });
@@ -87,19 +89,19 @@ describe("check:ci", { concurrency: true }, () => {
     box.write("apps/mobile/.expo/types/router.d.ts", "type Routes = `/staff`;\n");
     const { status, output } = checkCi(box);
     assert.equal(status, 1);
-    assert.match(output, /failed at step 2\/11[\s\S]*wrote no \.expo\/types\/router\.d\.ts/);
+    assert.match(output, /failed at step 2\/12[\s\S]*wrote no \.expo\/types\/router\.d\.ts/);
   });
 
   test("AC-13: fails step 2 when the declarations name none of the app's routes", () => {
     const { status, output } = checkCi(sandbox({ routerTypes: "type Routes = `/elsewhere`;\n" }));
     assert.equal(status, 1);
-    assert.match(output, /failed at step 2\/11[\s\S]*names none of the routes in src\/app/);
+    assert.match(output, /failed at step 2\/12[\s\S]*names none of the routes in src\/app/);
   });
 
   test("AC-12: stops at the first failing step and runs nothing after it", () => {
     const { status, output, calls } = checkCi(sandbox({ failStep: "typecheck" }));
     assert.equal(status, 1);
-    assert.match(output, /failed at step 5\/11 \(typecheck\)/);
+    assert.match(output, /failed at step 5\/12 \(typecheck\)/);
     assert.deepEqual(headings(output), STEPS.slice(0, 5));
     assert.ok(!calls.some((c) => c.args.includes("lint")));
   });
@@ -111,7 +113,7 @@ describe("check:ci", { concurrency: true }, () => {
     box.git("commit", "-q", "-m", "native folder");
     const { status, output } = checkCi(box);
     assert.equal(status, 1);
-    assert.match(output, /failed at step 9\/11[\s\S]*android\/x/);
+    assert.match(output, /failed at step 10\/12[\s\S]*android\/x/);
   });
 
   test("AC-12: fails step 10 when fingerprint.config.js throws on load", () => {
@@ -119,7 +121,7 @@ describe("check:ci", { concurrency: true }, () => {
     box.write("apps/mobile/fingerprint.config.js", `require("./does-not-exist");\n`);
     const { status, output } = checkCi(box);
     assert.equal(status, 1);
-    assert.match(output, /failed at step 10\/11[\s\S]*fingerprint\.config\.js does not load/);
+    assert.match(output, /failed at step 11\/12[\s\S]*fingerprint\.config\.js does not load/);
   });
 
   test("AC-9, AC-12: fails step 10 when sourceSkips loses a value, naming it", () => {

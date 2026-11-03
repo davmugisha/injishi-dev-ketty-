@@ -1,17 +1,17 @@
-import { Slot, usePathname } from "expo-router";
-import { View } from "react-native";
-import { TabBar } from "@/components/phone";
-import { GUEST_TABS, guestTabOf } from "@/features/guest/tabs";
+import { AppTabs, type TabSpec } from "@/components/tab-bar";
+import { useGuestTabBadges } from "@/features/guest/tab-badges";
+import type { TabFolder } from "@/proto/screens";
 
-/** The guest's five tabs (mobile spec 0005, D-c): Home, Explore, Trips, Inbox and Me. */
+/** The guest app's tab bar, in the prototype's order (`TABS.guest`); each tab is its own Stack. */
+const TABS: readonly TabSpec<TabFolder<"guest">>[] = [
+  { folder: "(home)", label: "Home", icon: "House" },
+  { folder: "explore", label: "Explore", icon: "Magnifier" },
+  { folder: "trips", label: "Trips", icon: "Suitcase" },
+  { folder: "inbox", label: "Inbox", icon: "Comments" },
+  { folder: "me", label: "Me", icon: "Person" },
+];
+
 export default function GuestTabsLayout() {
-  const pathname = usePathname();
-  return (
-    <View className="flex-1 bg-background">
-      <View className="flex-1">
-        <Slot />
-      </View>
-      <TabBar label="Guest app" tabs={GUEST_TABS} current={guestTabOf(pathname)} />
-    </View>
-  );
+  const badges = useGuestTabBadges();
+  return <AppTabs app="guest" tabs={TABS} badges={badges} />;
 }

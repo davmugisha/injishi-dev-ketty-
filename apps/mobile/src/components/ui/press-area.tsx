@@ -4,6 +4,7 @@ import { type ReactNode, useState } from "react";
 import {
   type AccessibilityRole,
   type AccessibilityState,
+  type AccessibilityValue,
   Platform,
   type StyleProp,
   View,
@@ -31,13 +32,21 @@ export const pressScaleAnimation = {
 
 export type PressAreaProps = {
   onPress: () => void;
-  /** `scale` for buttons, cards and tiles; `native` for rows. */
-  feedback?: "scale" | "native";
+  onLongPress?: () => void;
+  /**
+   * `scale` for buttons, cards and tiles; `native` for rows; `none` for a control that shows its
+   * own state change (a switch, a segment, a key), which still shows the pressed colour under
+   * Reduce Motion.
+   */
+  feedback?: "scale" | "native" | "none";
   children: ReactNode;
   isDisabled?: boolean;
   accessibilityLabel?: string;
+  accessibilityHint?: string;
   accessibilityRole?: AccessibilityRole;
   accessibilityState?: AccessibilityState;
+  accessibilityValue?: AccessibilityValue;
+  testID?: string;
   className?: string;
   style?: StyleProp<ViewStyle>;
 };
@@ -52,12 +61,16 @@ export type PressAreaProps = {
  */
 export function PressArea({
   onPress,
+  onLongPress,
   feedback = "scale",
   children,
   isDisabled = false,
   accessibilityLabel,
+  accessibilityHint,
   accessibilityRole = "button",
   accessibilityState,
+  accessibilityValue,
+  testID,
   className,
   style,
 }: PressAreaProps) {
@@ -67,12 +80,16 @@ export function PressArea({
   return (
     <PressableFeedback
       onPress={onPress}
+      onLongPress={onLongPress}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
       isDisabled={isDisabled}
       accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
       accessibilityRole={accessibilityRole}
       accessibilityState={{ disabled: isDisabled, ...accessibilityState }}
+      accessibilityValue={accessibilityValue}
+      testID={testID}
       animation={feedback === "scale" ? pressScaleAnimation : false}
       className={className}
       style={[{ minHeight: metrics.touch, minWidth: metrics.touch }, style]}
