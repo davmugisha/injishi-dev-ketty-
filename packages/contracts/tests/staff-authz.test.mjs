@@ -31,6 +31,14 @@ const {
   staffPermissionsForRoles,
   staffRequiresStepUp,
   staffStepUpOwed,
+  RESERVED_STAFF_PERMISSIONS,
+  STAFF_PERMISSION_AREA,
+  STAFF_PERMISSION_DESCRIPTION,
+  StaffPermissionArea,
+  isReservedStaffPermission,
+  permissionsBeyond,
+  staffPermissionsForGrants,
+  staffPermissionsInArea,
 } = require("../dist/index.js");
 
 const OBSERVE = ["admin.overview.view", "admin.analytics.view", "admin.system.view"];
@@ -41,10 +49,11 @@ describe("the five staff roles", () => {
    * permission being dropped and misses one being SWAPPED, and a swap is what
    * actually moves a boundary.
    */
-  test("the matrix holds thirty eight permissions", () => {
-    // Thirty-one platform powers (ADR-053, and managing a business's members,
-    // 2026-10-29) and seven `training.*` powers (ADR-049).
-    assert.equal(StaffPermission.options.length, 38);
+  test("the matrix holds forty permissions", () => {
+    // Thirty-three platform powers (ADR-053, managing a business's members
+    // 2026-10-29, suspending an account and reading the roles 2026-11-02) and
+    // seven `training.*` powers (ADR-049).
+    assert.equal(StaffPermission.options.length, 40);
   });
 
   test("trainer holds four training powers and no platform power (ADR-049)", () => {
@@ -69,6 +78,8 @@ describe("the five staff roles", () => {
       "admin.business.reinstate",
       "admin.user.view",
       "admin.user.session.revoke",
+      "admin.user.suspend",
+      "admin.role.view",
       "admin.business.member.manage",
       "admin.broker.view",
       "admin.broker.approve",
@@ -80,13 +91,14 @@ describe("the five staff roles", () => {
       "admin.localization.view",
       "admin.localization.edit",
     ]);
-    assert.equal(staffPermissionsForRoles(["ops"]).length, 19);
+    assert.equal(staffPermissionsForRoles(["ops"]).length, 21);
   });
 
   test("compliance reads, and acts only inside compliance", () => {
     assert.deepEqual(staffPermissionsForRoles(["compliance"]), [
       ...OBSERVE,
       "admin.business.view",
+      "admin.role.view",
       "admin.compliance.view",
       "admin.dsr.action",
       "admin.audit.read",
@@ -94,7 +106,7 @@ describe("the five staff roles", () => {
       "admin.moderation.view",
       "admin.localization.view",
     ]);
-    assert.equal(staffPermissionsForRoles(["compliance"]).length, 10);
+    assert.equal(staffPermissionsForRoles(["compliance"]).length, 11);
   });
 
   test("finance sees money, prices the catalog and reads configuration", () => {
@@ -291,5 +303,58 @@ describe("the unenforced permissions", () => {
 
   test("unit.manage is enforced now, by the residence routes it was written for", () => {
     assert.ok(inUse.has("unit.manage"));
+  });
+});
+
+describe("custom staff roles (2026-11-02)", () => {
+  test("the reserved five are exactly the owner's list, and super_admin keeps them", () => {
+    assert.deepEqual([...RESERVED_STAFF_PERMISSIONS].sort(), [
+      "admin.config.edit",
+      "admin.environment.manage",
+      "admin.money.override",
+      "admin.user.impersonate",
+      "admin.user.role.grant",
+    ]);
+    for (const p of RESERVED_STAFF_PERMISSIONS) {
+      assert.ok(isReservedStaffPermission(p), p);
+      assert.ok(staffPermissionsForRoles(["super_admin"]).includes(p), p);
+    }
+  });
+
+  test("a custom role adds what it bundles to the built-in roles, in canonical order", () => {
+    const held = staffPermissionsForGrants(["finance"], ["admin.audit.read", "admin.finance.view"]);
+    assert.deepEqual(held, StaffPermission.options.filter((p) => staffPermissionsForRoles(["finance"]).includes(p) || p === "admin.audit.read"));
+  });
+
+  test("a stored permission the code does not define is dropped, never trusted", () => {
+    assert.deepEqual(staffPermissionsForGrants([], ["admin.everything", "admin.audit.read"]), ["admin.audit.read"]);
+  });
+
+  test("a reserved permission on a custom role is dropped even if stored", () => {
+    assert.deepEqual(staffPermissionsForGrants([], ["admin.user.role.grant", "admin.money.override"]), []);
+  });
+
+  test("nobody hands out what they do not hold", () => {
+    const ops = staffPermissionsForRoles(["ops"]);
+    assert.deepEqual(permissionsBeyond(ops, ["admin.user.view", "admin.fee.edit"]), ["admin.fee.edit"]);
+    assert.deepEqual(permissionsBeyond(staffPermissionsForRoles(["super_admin"]), StaffPermission.options), []);
+  });
+
+  test("every permission sits in one area and has a description", () => {
+    assert.deepEqual(Object.keys(STAFF_PERMISSION_AREA).sort(), [...StaffPermission.options].sort());
+    assert.deepEqual(Object.keys(STAFF_PERMISSION_DESCRIPTION).sort(), [...StaffPermission.options].sort());
+    const placed = StaffPermissionArea.options.flatMap((a) => staffPermissionsInArea(a));
+    assert.equal(placed.length, StaffPermission.options.length);
+  });
+
+  test("ops may suspend and read roles; compliance reads roles; finance and trainer do neither", () => {
+    assert.ok(staffPermissionsForRoles(["ops"]).includes("admin.user.suspend"));
+    assert.ok(staffPermissionsForRoles(["ops"]).includes("admin.role.view"));
+    assert.ok(staffPermissionsForRoles(["compliance"]).includes("admin.role.view"));
+    assert.ok(!staffPermissionsForRoles(["compliance"]).includes("admin.user.suspend"));
+    for (const role of ["finance", "trainer"]) {
+      assert.ok(!staffPermissionsForRoles([role]).includes("admin.role.view"), role);
+      assert.ok(!staffPermissionsForRoles([role]).includes("admin.user.suspend"), role);
+    }
   });
 });

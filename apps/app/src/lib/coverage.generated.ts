@@ -14,7 +14,7 @@ export const sampleCollectionsByBoard: Record<string, number> = {
   AdminLeaders: 0,
   AdminMoney: 4,
   AdminPeople: 0,
-  AdminPsf: 0,
+  AdminRoles: 0,
   AdminRules: 6,
   AdminSupport: 6,
   Approvals: 2,
