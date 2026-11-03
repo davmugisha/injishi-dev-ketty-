@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { cn } from "@injishi/utils";
 
 import BaseChrome from "@/components/app/base-chrome";
 import { HeroRouter } from "@/components/heroui/router";
@@ -8,7 +7,7 @@ import { AnalyticsScript } from "@/components/shared/analytics-script";
 // Build-time Tailwind for this whole layer. One import, one group (ADR-021).
 import "../_injishi-app.css";
 import { pwaMetadata, pwaViewport } from "@/lib/pwa-metadata";
-import { figtree, instrumentSans } from "@/lib/fonts";
+import { outfit } from "@/lib/fonts";
 import { WEB_URL } from "@/lib/web-url";
 
 /**
@@ -40,8 +39,8 @@ import { WEB_URL } from "@/lib/web-url";
  * `@source "./(app)"`, which recurses into both nested groups, so every class in
  * this layer compiles from that one glob. `<BaseChrome/>` is the signed-in theme
  * mechanism (`ThemeBoot`, a pre-paint script reading `injishi-theme`), which is
- * deliberately NOT the public layer's `ThemeProvider`. The two brand faces
- * arrive through `next/font/local`, which is ADR-017's two-sheet ceiling: not
+ * deliberately NOT the public layer's `ThemeProvider`. The brand face
+ * arrives through `next/font/local`, which is ADR-017's two-sheet ceiling: not
  * one stylesheet link element is left anywhere under `src/app`. Written out
  * rather than shown as a tag on purpose — `tests/stylesheet-precedence.test.mjs`
  * scans this file as TEXT, so a specimen tag in a comment fails the guard.
@@ -68,7 +67,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
-      className={cn(figtree.variable, instrumentSans.variable)}
+      className={outfit.variable}
       suppressHydrationWarning
     >
       <body className="antialiased">

@@ -1,16 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Figtree, Instrument_Sans } from "next/font/google";
+import { Outfit } from "next/font/google";
 import type { ReactNode } from "react";
 import { THEME_MIGRATION } from "@/lib/theme";
 import { Providers } from "./providers";
 import "./globals.css";
 
-const figtree = Figtree({ subsets: ["latin", "latin-ext"], variable: "--font-figtree", display: "swap" });
-const instrumentSans = Instrument_Sans({
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-instrument-sans",
-  display: "swap",
-});
+// Outfit for body and headings, as the saved design system "Injishi.hs" sets
+// them (ADR-068, synced 2026-11-03). `@injishi/ui/styles/injishi.css` reads it
+// as --font-outfit.
+const outfit = Outfit({ subsets: ["latin", "latin-ext"], variable: "--font-outfit", display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: "Injishi", template: "%s · Injishi" },
@@ -19,7 +17,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#e8f3f0",
+  // The light canvas of the design system (`--background`, DESIGN.md #EDF1EE).
+  themeColor: "#EDF1EE",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -27,8 +26,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html
       lang="en"
       data-theme="mouve-light"
-      data-vibrant-palette="true"
-      className={`${figtree.variable} ${instrumentSans.variable}`}
+      className={outfit.variable}
       suppressHydrationWarning
     >
       <body className="min-h-dvh bg-background font-sans text-foreground antialiased">

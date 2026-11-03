@@ -61,20 +61,19 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Two families, mounted by next/font/local (src/lib/fonts.ts) as CSS
-   * variables on the <html> element: Figtree for body, Instrument Sans for
-   * headings, as the Injishi design system sets them (ADR-068, re-synced
-   * 2026-10-26; Inter carried both before). `--font-heading` is the design
-   * system's own name for the heading role. `--font-display` is this layer's
-   * older name for the same role, kept so every `font-display` call site and
-   * the heading rule below move with it; it is the heading face, never a
-   * third family. Both are written out rather than one reading the other:
-   * Tailwind emits only the theme variables something uses, so a
-   * `var(--font-heading)` here could point at a variable that was never
-   * emitted. */
-  --font-sans: var(--font-figtree, "Figtree"), ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-instrument-sans, "Instrument Sans"), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-instrument-sans, "Instrument Sans"), ui-sans-serif, system-ui, sans-serif;
+  /* One family, mounted by next/font/local (src/lib/fonts.ts) as a CSS
+   * variable on the <html> element: Outfit for body and headings, as the
+   * design system "Injishi.hs" sets them (ADR-068, synced 2026-11-03; Figtree
+   * and Instrument Sans before). `--font-heading` is the design system's own
+   * name for the heading role. `--font-display` is this layer's older name
+   * for the same role, kept so every `font-display` call site and the heading
+   * rule below move with it; it is the heading face, never another family.
+   * All three are written out rather than one reading another: Tailwind emits
+   * only the theme variables something uses, so a `var(--font-heading)` here
+   * could point at a variable that was never emitted. */
+  --font-sans: var(--font-outfit, "Outfit"), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-outfit, "Outfit"), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-outfit, "Outfit"), ui-sans-serif, system-ui, sans-serif;
 
   /* `text-accent-ink`, the accent as ink on a plate that never goes dark,
    * comes from `@injishi/design-tokens/heroui.css` (the fixed `accentInk`

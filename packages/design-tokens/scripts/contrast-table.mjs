@@ -45,7 +45,9 @@ const BOUNDARY_GROUNDS = ['background', 'surface'];
 const SOFT = {
   web: {
     light: { accent: [15, 70, 30], danger: [15, 70, 40], warning: [15, 80, 70], success: [15, 80, 60] },
-    dark: { accent: [12, 80, 30], danger: [15, 80, 30], warning: [12, 80, 30], success: [12, 80, 30] },
+    // accent 15, not the library's 12: the save overrides the dark tint
+    // (`herouiMixes.dark.accentSoft`), so 15% is what the web paints.
+    dark: { accent: [15, 80, 30], danger: [15, 80, 30], warning: [12, 80, 30], success: [12, 80, 30] },
   },
   native: {
     light: { accent: [15, 92, 8], danger: [15, 92, 8], warning: [15, 92, 8], success: [15, 92, 8], info: [15, 92, 8] },

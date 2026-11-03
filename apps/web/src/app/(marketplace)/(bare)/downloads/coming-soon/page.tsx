@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import { redirect } from "next/navigation";
 import { cn } from "@injishi/utils";
 import { liveLinkFor } from "@/lib/download-links";
+import { figtree, instrumentSans } from "@/lib/fonts";
 import styles from "./coming-soon.module.css";
 
 /**
@@ -22,7 +23,8 @@ import styles from "./coming-soon.module.css";
 // other page downloads them. Each file is cut down to the glyphs of "Coming
 // soon" (C, o, m, i, n, g, s and the space), under 5 KB, OFL 1.1 with its
 // licence beside it in `public/shared/fonts/coming-soon/`. Figtree and
-// Instrument Sans, the other four frames, come from the root layout.
+// Instrument Sans, the other four frames, are mounted below from
+// `lib/fonts.ts`: the root layouts load only Outfit since 2026-11-03.
 const instrumentSerif = localFont({
   src: [
     {
@@ -80,6 +82,8 @@ export default async function ComingSoonPage({
   return (
     <div
       className={cn(
+        figtree.variable,
+        instrumentSans.variable,
         instrumentSerif.variable,
         spaceMono.variable,
         bricolageGrotesque.variable,
