@@ -44,7 +44,7 @@ maybe('explore against Postgres (EXPLORE_IT_DATABASE_URL)', () => {
   let place: { districtId: number; sectorId: number };
   let tinSeq = 0;
 
-  const query = (input: Record<string, unknown>) => ExploreSearchQuery.parse({ q: tag, ...input });
+  const query = (input: Record<string, unknown>): ExploreSearchQuery => ExploreSearchQuery.parse({ q: tag, ...input });
 
   /** A business with one property, published unless told otherwise, and one room type. */
   async function stay(
@@ -120,7 +120,7 @@ maybe('explore against Postgres (EXPLORE_IT_DATABASE_URL)', () => {
   }
 
   /** A public review of a stay's room type, through a closed guest stay on a room of it. */
-  async function review(target: { propertyId: string; workspaceId: string; roomTypeId: string | null }, rating: number) {
+  async function review(target: { propertyId: string; workspaceId: string; roomTypeId: string | null }, rating: number): Promise<void> {
     const [room] = await db
       .insert(schema.rooms)
       .values({ roomTypeId: target.roomTypeId!, propertyId: target.propertyId, workspaceId: target.workspaceId })

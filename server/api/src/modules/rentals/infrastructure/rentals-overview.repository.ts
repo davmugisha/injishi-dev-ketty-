@@ -174,7 +174,25 @@ export class RentalsOverviewRepository {
   }
 
   /** Rent and deposit charges due from `from` to `to`, not waived, with who and which unit (the money calendar). */
-  async chargesBetween(workspaceId: string, buildings: BuildingIds, from: string, to: string, today: string) {
+  async chargesBetween(
+    workspaceId: string,
+    buildings: BuildingIds,
+    from: string,
+    to: string,
+    today: string,
+  ): Promise<
+    {
+      id: string;
+      leaseId: string;
+      kind: 'rent' | 'deposit';
+      dueOn: string;
+      amountRwf: number;
+      paidRwf: number;
+      status: 'paid' | 'overdue' | 'open';
+      tenantName: string;
+      unitLabel: string;
+    }[]
+  > {
     const { rows } = await this.db.execute<{
       id: string;
       lease_id: string;
@@ -213,7 +231,12 @@ export class RentalsOverviewRepository {
   }
 
   /** Payments that succeeded from `from` to `to`, by the day the money arrived in Kigali. */
-  async paymentsBetween(workspaceId: string, buildings: BuildingIds, from: string, to: string) {
+  async paymentsBetween(
+    workspaceId: string,
+    buildings: BuildingIds,
+    from: string,
+    to: string,
+  ): Promise<{ id: string; leaseId: string; day: string; amountRwf: number; tenantName: string; unitLabel: string }[]> {
     const { rows } = await this.db.execute<{
       id: string;
       lease_id: string;
@@ -249,7 +272,12 @@ export class RentalsOverviewRepository {
   }
 
   /** Expenses paid from `from` to `to`, summed per day, not voided. */
-  async spentByDay(workspaceId: string, buildings: BuildingIds, from: string, to: string) {
+  async spentByDay(
+    workspaceId: string,
+    buildings: BuildingIds,
+    from: string,
+    to: string,
+  ): Promise<{ day: string; amountRwf: number }[]> {
     const { rows } = await this.db.execute<{ day: string; amount: string | number }>(sql`
       select to_char(e.paid_on, 'YYYY-MM-DD') as day, sum(e.amount_rwf)::bigint as amount
         from expenses e

@@ -192,7 +192,7 @@ export class StaysOverviewRepository {
   }
 
   /** Payments less refunds on guests' bills, per business day, from `from` to `to`. */
-  async payments(workspaceId: string, properties: PropertyIds, from: string, to: string) {
+  async payments(workspaceId: string, properties: PropertyIds, from: string, to: string): Promise<{ day: string; amountRwf: number }[]> {
     const { rows } = await this.db.execute<{ day: string; amount: string | number }>(sql`
       select to_char(fc.business_date, 'YYYY-MM-DD') as day,
              sum(case when fc.charge_type = 'payment' then abs(fc.amount_rwf) else -abs(fc.amount_rwf) end)::bigint as amount

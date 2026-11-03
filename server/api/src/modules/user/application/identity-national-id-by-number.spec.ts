@@ -1,5 +1,5 @@
 import { ConflictException } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 
 import type { Platform } from '../../../shared/config/platform';
 import type { StorageService } from '../../storage/application/storage.service';
@@ -10,7 +10,15 @@ import { IdentityService } from './identity.service';
 
 const NID = '1200570021035187';
 
-function harness(lookup: RegistryLookup, opts: { heldByAnother?: boolean } = {}) {
+function harness(
+  lookup: RegistryLookup,
+  opts: { heldByAnother?: boolean } = {},
+): {
+  service: IdentityService;
+  repo: { find: Mock; heldByAnother: Mock; recordScan: Mock; recordTyped: Mock };
+  register: { mode: string; lookupNationalId: Mock };
+  registry: { mode: string; verify: Mock };
+} {
   const repo = {
     find: vi.fn().mockResolvedValue({ kycStatus: 'none' }),
     heldByAnother: vi.fn().mockResolvedValue(opts.heldByAnother ?? false),
