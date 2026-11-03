@@ -39,7 +39,11 @@
     "domains": { "next": "recommended", "react": "recommended" },
     "rules": {
       "preset": "recommended",
-      "a11y": { "noSvgWithoutTitle": "off", "useSemanticElements": "warn" },
+      "a11y": {
+        "noSvgWithoutTitle": "off",
+        "useSemanticElements": "warn",
+        "noLabelWithoutControl": { "level": "error", "options": { "inputComponents": ["Input", "TextArea"] } }
+      },
       "suspicious": { "noArrayIndexKey": "warn" },
       "style": { "noNonNullAssertion": "warn" },
       "correctness": { "useExhaustiveDependencies": "warn" },
