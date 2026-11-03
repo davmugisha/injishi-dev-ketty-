@@ -98,6 +98,8 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     contactPhone?: string | null | undefined;
     latitude?: number | null | undefined;
     longitude?: number | null | undefined;
+    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
+    houseRules?: string | undefined;
     checkInUntil?: string | null | undefined;
     frontDesk?: "limited" | "none" | "24h" | null | undefined;
     frontDeskOpens?: string | null | undefined;
@@ -113,11 +115,9 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     quietFrom?: string | null | undefined;
     quietUntil?: string | null | undefined;
     internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
-    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
     cribs?: "none" | "free" | "charged" | null | undefined;
     cribPriceRwf?: number | null | undefined;
     locationPrivacy?: boolean | undefined;
-    houseRules?: string | undefined;
 }, {
     name: string;
     sectorId: number;
@@ -131,6 +131,8 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     contactPhone?: string | null | undefined;
     latitude?: number | null | undefined;
     longitude?: number | null | undefined;
+    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
+    houseRules?: string | undefined;
     checkInUntil?: string | null | undefined;
     frontDesk?: "limited" | "none" | "24h" | null | undefined;
     frontDeskOpens?: string | null | undefined;
@@ -146,11 +148,9 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     quietFrom?: string | null | undefined;
     quietUntil?: string | null | undefined;
     internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
-    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
     cribs?: "none" | "free" | "charged" | null | undefined;
     cribPriceRwf?: number | null | undefined;
     locationPrivacy?: boolean | undefined;
-    houseRules?: string | undefined;
 }>;
 export type CreatePropertyRequest = z.infer<typeof CreatePropertyRequest>;
 /**
@@ -215,6 +215,8 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     contactPhone?: string | null | undefined;
     latitude?: number | null | undefined;
     longitude?: number | null | undefined;
+    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
+    houseRules?: string | undefined;
     checkInUntil?: string | null | undefined;
     frontDesk?: "limited" | "none" | "24h" | null | undefined;
     frontDeskOpens?: string | null | undefined;
@@ -230,11 +232,9 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     quietFrom?: string | null | undefined;
     quietUntil?: string | null | undefined;
     internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
-    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
     cribs?: "none" | "free" | "charged" | null | undefined;
     cribPriceRwf?: number | null | undefined;
     locationPrivacy?: boolean | undefined;
-    houseRules?: string | undefined;
 }, {
     workspaceId: string;
     name?: string | undefined;
@@ -249,6 +249,8 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     contactPhone?: string | null | undefined;
     latitude?: number | null | undefined;
     longitude?: number | null | undefined;
+    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
+    houseRules?: string | undefined;
     checkInUntil?: string | null | undefined;
     frontDesk?: "limited" | "none" | "24h" | null | undefined;
     frontDeskOpens?: string | null | undefined;
@@ -264,11 +266,9 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     quietFrom?: string | null | undefined;
     quietUntil?: string | null | undefined;
     internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
-    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
     cribs?: "none" | "free" | "charged" | null | undefined;
     cribPriceRwf?: number | null | undefined;
     locationPrivacy?: boolean | undefined;
-    houseRules?: string | undefined;
 }>;
 export type UpdatePropertyRequest = z.infer<typeof UpdatePropertyRequest>;
 /**
@@ -510,17 +510,17 @@ export declare const PropertyPhoto: z.ZodObject<{
     id: string;
     objectKey: string;
     url: string;
+    caption: string | null;
     position: number;
     isCover: boolean;
-    caption: string | null;
     roomTypeId?: string | null | undefined;
 }, {
     id: string;
     objectKey: string;
     url: string;
+    caption: string | null;
     position: number;
     isCover: boolean;
-    caption: string | null;
     roomTypeId?: string | null | undefined;
 }>;
 export type PropertyPhoto = z.infer<typeof PropertyPhoto>;
@@ -621,17 +621,17 @@ export declare const OperatorProperty: z.ZodObject<{
         id: string;
         objectKey: string;
         url: string;
+        caption: string | null;
         position: number;
         isCover: boolean;
-        caption: string | null;
         roomTypeId?: string | null | undefined;
     }, {
         id: string;
         objectKey: string;
         url: string;
+        caption: string | null;
         position: number;
         isCover: boolean;
-        caption: string | null;
         roomTypeId?: string | null | undefined;
     }>, "many">;
     /**
@@ -781,13 +781,16 @@ export declare const OperatorProperty: z.ZodObject<{
         id: string;
         objectKey: string;
         url: string;
+        caption: string | null;
         position: number;
         isCover: boolean;
-        caption: string | null;
         roomTypeId?: string | null | undefined;
     }[];
     latitude: number | null;
     longitude: number | null;
+    parking: "street" | "none" | "free_on_site" | "paid_on_site" | null;
+    houseRules: string | null;
+    timezone: string;
     checkInUntil: string | null;
     frontDesk: "limited" | "none" | "24h" | null;
     frontDeskOpens: string | null;
@@ -803,15 +806,12 @@ export declare const OperatorProperty: z.ZodObject<{
     quietFrom: string | null;
     quietUntil: string | null;
     internet: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null;
-    parking: "street" | "none" | "free_on_site" | "paid_on_site" | null;
     cribs: "none" | "free" | "charged" | null;
     cribPriceRwf: number | null;
     locationPrivacy: boolean;
-    houseRules: string | null;
     listingStatus: "draft" | "published";
     sellableRoomCount: number;
     branchCode: string | null;
-    timezone: string;
 }, {
     name: string;
     id: string;
@@ -865,19 +865,20 @@ export declare const OperatorProperty: z.ZodObject<{
         id: string;
         objectKey: string;
         url: string;
+        caption: string | null;
         position: number;
         isCover: boolean;
-        caption: string | null;
         roomTypeId?: string | null | undefined;
     }[];
-    locationPrivacy: boolean;
     houseRules: string | null;
+    timezone: string;
+    locationPrivacy: boolean;
     listingStatus: "draft" | "published";
     sellableRoomCount: number;
     branchCode: string | null;
-    timezone: string;
     latitude?: number | null | undefined;
     longitude?: number | null | undefined;
+    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
     checkInUntil?: string | null | undefined;
     frontDesk?: "limited" | "none" | "24h" | null | undefined;
     frontDeskOpens?: string | null | undefined;
@@ -893,7 +894,6 @@ export declare const OperatorProperty: z.ZodObject<{
     quietFrom?: string | null | undefined;
     quietUntil?: string | null | undefined;
     internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
-    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
     cribs?: "none" | "free" | "charged" | null | undefined;
     cribPriceRwf?: number | null | undefined;
 }>;
@@ -1685,16 +1685,16 @@ export declare const AttachPropertyPhotoRequest: z.ZodObject<{
     objectKey: string;
     workspaceId: string;
     roomTypeId?: string | undefined;
+    caption?: string | undefined;
     position?: number | undefined;
     isCover?: boolean | undefined;
-    caption?: string | undefined;
 }, {
     objectKey: string;
     workspaceId: string;
     roomTypeId?: string | undefined;
+    caption?: string | undefined;
     position?: number | undefined;
     isCover?: boolean | undefined;
-    caption?: string | undefined;
 }>;
 export type AttachPropertyPhotoRequest = z.infer<typeof AttachPropertyPhotoRequest>;
 /**
@@ -1715,29 +1715,29 @@ export declare const ReorderPropertyPhotosRequest: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         position: number;
-        isCover?: boolean | undefined;
         caption?: string | null | undefined;
+        isCover?: boolean | undefined;
     }, {
         id: string;
         position: number;
-        isCover?: boolean | undefined;
         caption?: string | null | undefined;
+        isCover?: boolean | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     workspaceId: string;
     photos: {
         id: string;
         position: number;
-        isCover?: boolean | undefined;
         caption?: string | null | undefined;
+        isCover?: boolean | undefined;
     }[];
 }, {
     workspaceId: string;
     photos: {
         id: string;
         position: number;
-        isCover?: boolean | undefined;
         caption?: string | null | undefined;
+        isCover?: boolean | undefined;
     }[];
 }>;
 export type ReorderPropertyPhotosRequest = z.infer<typeof ReorderPropertyPhotosRequest>;
@@ -1757,17 +1757,17 @@ export declare const PropertyPhotoList: z.ZodObject<{
         id: string;
         objectKey: string;
         url: string;
+        caption: string | null;
         position: number;
         isCover: boolean;
-        caption: string | null;
         roomTypeId?: string | null | undefined;
     }, {
         id: string;
         objectKey: string;
         url: string;
+        caption: string | null;
         position: number;
         isCover: boolean;
-        caption: string | null;
         roomTypeId?: string | null | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -1775,9 +1775,9 @@ export declare const PropertyPhotoList: z.ZodObject<{
         id: string;
         objectKey: string;
         url: string;
+        caption: string | null;
         position: number;
         isCover: boolean;
-        caption: string | null;
         roomTypeId?: string | null | undefined;
     }[];
 }, {
@@ -1785,9 +1785,9 @@ export declare const PropertyPhotoList: z.ZodObject<{
         id: string;
         objectKey: string;
         url: string;
+        caption: string | null;
         position: number;
         isCover: boolean;
-        caption: string | null;
         roomTypeId?: string | null | undefined;
     }[];
 }>;

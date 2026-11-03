@@ -263,9 +263,9 @@ export declare const MarketRoomCard: z.ZodObject<{
     maxChildren: number | null;
     priceRwf: number | null;
     sizeSqm: number | null;
+    approvalWindowHours: number | null;
     sleeps: number | null;
     propertySlug: string;
-    approvalWindowHours: number | null;
     stockPhoto: string;
     bed: string;
     highlight: string;
@@ -280,9 +280,9 @@ export declare const MarketRoomCard: z.ZodObject<{
     maxChildren: number | null;
     priceRwf: number | null;
     sizeSqm: number | null;
+    approvalWindowHours: number | null;
     sleeps: number | null;
     propertySlug: string;
-    approvalWindowHours: number | null;
     stockPhoto: string;
     bed: string;
     highlight: string;
@@ -322,9 +322,9 @@ export declare const MarketRooms: z.ZodObject<{
         maxChildren: number | null;
         priceRwf: number | null;
         sizeSqm: number | null;
+        approvalWindowHours: number | null;
         sleeps: number | null;
         propertySlug: string;
-        approvalWindowHours: number | null;
         stockPhoto: string;
         bed: string;
         highlight: string;
@@ -339,9 +339,9 @@ export declare const MarketRooms: z.ZodObject<{
         maxChildren: number | null;
         priceRwf: number | null;
         sizeSqm: number | null;
+        approvalWindowHours: number | null;
         sleeps: number | null;
         propertySlug: string;
-        approvalWindowHours: number | null;
         stockPhoto: string;
         bed: string;
         highlight: string;
@@ -358,9 +358,9 @@ export declare const MarketRooms: z.ZodObject<{
         maxChildren: number | null;
         priceRwf: number | null;
         sizeSqm: number | null;
+        approvalWindowHours: number | null;
         sleeps: number | null;
         propertySlug: string;
-        approvalWindowHours: number | null;
         stockPhoto: string;
         bed: string;
         highlight: string;
@@ -377,9 +377,9 @@ export declare const MarketRooms: z.ZodObject<{
         maxChildren: number | null;
         priceRwf: number | null;
         sizeSqm: number | null;
+        approvalWindowHours: number | null;
         sleeps: number | null;
         propertySlug: string;
-        approvalWindowHours: number | null;
         stockPhoto: string;
         bed: string;
         highlight: string;
@@ -480,12 +480,12 @@ export declare const MarketQuote: z.ZodObject<{
         guests?: number | undefined;
     };
     legalName: string;
+    approvalWindowHours: number | null;
     propertySlug: string | null;
     refunds: {
         percent: number;
         until: string | null;
     }[];
-    approvalWindowHours: number | null;
     roomName: string;
     vatRatePercent: number;
 }, {
@@ -507,12 +507,12 @@ export declare const MarketQuote: z.ZodObject<{
         guests?: number | undefined;
     };
     legalName: string;
+    approvalWindowHours: number | null;
     propertySlug: string | null;
     refunds: {
         percent: number;
         until: string | null;
     }[];
-    approvalWindowHours: number | null;
     roomName: string;
     vatRatePercent: number;
 }>;
@@ -764,9 +764,9 @@ export declare const MarketPropertyPage: z.ZodObject<{
         maxChildren: number | null;
         priceRwf: number | null;
         sizeSqm: number | null;
+        approvalWindowHours: number | null;
         sleeps: number | null;
         propertySlug: string;
-        approvalWindowHours: number | null;
         stockPhoto: string;
         bed: string;
         highlight: string;
@@ -781,9 +781,9 @@ export declare const MarketPropertyPage: z.ZodObject<{
         maxChildren: number | null;
         priceRwf: number | null;
         sizeSqm: number | null;
+        approvalWindowHours: number | null;
         sleeps: number | null;
         propertySlug: string;
-        approvalWindowHours: number | null;
         stockPhoto: string;
         bed: string;
         highlight: string;
@@ -836,9 +836,9 @@ export declare const MarketPropertyPage: z.ZodObject<{
         maxChildren: number | null;
         priceRwf: number | null;
         sizeSqm: number | null;
+        approvalWindowHours: number | null;
         sleeps: number | null;
         propertySlug: string;
-        approvalWindowHours: number | null;
         stockPhoto: string;
         bed: string;
         highlight: string;
@@ -915,9 +915,9 @@ export declare const MarketPropertyPage: z.ZodObject<{
         maxChildren: number | null;
         priceRwf: number | null;
         sizeSqm: number | null;
+        approvalWindowHours: number | null;
         sleeps: number | null;
         propertySlug: string;
-        approvalWindowHours: number | null;
         stockPhoto: string;
         bed: string;
         highlight: string;
@@ -975,8 +975,8 @@ export declare const SavedPlace: z.ZodObject<{
     available: boolean;
     propertyId: string;
     availableFrom: string | null;
-    savedAt: string;
     where: string;
+    savedAt: string;
     stockPhoto: string | null;
     savedPriceRwf: number | null;
 }, {
@@ -989,8 +989,8 @@ export declare const SavedPlace: z.ZodObject<{
     available: boolean;
     propertyId: string;
     availableFrom: string | null;
-    savedAt: string;
     where: string;
+    savedAt: string;
     stockPhoto: string | null;
     savedPriceRwf: number | null;
 }>;
@@ -1024,8 +1024,8 @@ export declare const MySaved: z.ZodObject<{
         available: boolean;
         propertyId: string;
         availableFrom: string | null;
-        savedAt: string;
         where: string;
+        savedAt: string;
         stockPhoto: string | null;
         savedPriceRwf: number | null;
     }, {
@@ -1038,8 +1038,8 @@ export declare const MySaved: z.ZodObject<{
         available: boolean;
         propertyId: string;
         availableFrom: string | null;
-        savedAt: string;
         where: string;
+        savedAt: string;
         stockPhoto: string | null;
         savedPriceRwf: number | null;
     }>, "many">;
@@ -1054,8 +1054,8 @@ export declare const MySaved: z.ZodObject<{
         available: boolean;
         propertyId: string;
         availableFrom: string | null;
-        savedAt: string;
         where: string;
+        savedAt: string;
         stockPhoto: string | null;
         savedPriceRwf: number | null;
     }[];
@@ -1070,8 +1070,8 @@ export declare const MySaved: z.ZodObject<{
         available: boolean;
         propertyId: string;
         availableFrom: string | null;
-        savedAt: string;
         where: string;
+        savedAt: string;
         stockPhoto: string | null;
         savedPriceRwf: number | null;
     }[];
@@ -1112,8 +1112,8 @@ export declare const GuestCollection: z.ZodObject<{
         available: boolean;
         propertyId: string;
         availableFrom: string | null;
-        savedAt: string;
         where: string;
+        savedAt: string;
         stockPhoto: string | null;
         savedPriceRwf: number | null;
     }, {
@@ -1126,8 +1126,8 @@ export declare const GuestCollection: z.ZodObject<{
         available: boolean;
         propertyId: string;
         availableFrom: string | null;
-        savedAt: string;
         where: string;
+        savedAt: string;
         stockPhoto: string | null;
         savedPriceRwf: number | null;
     }>, "many">;
@@ -1144,8 +1144,8 @@ export declare const GuestCollection: z.ZodObject<{
         available: boolean;
         propertyId: string;
         availableFrom: string | null;
-        savedAt: string;
         where: string;
+        savedAt: string;
         stockPhoto: string | null;
         savedPriceRwf: number | null;
     }[];
@@ -1165,8 +1165,8 @@ export declare const GuestCollection: z.ZodObject<{
         available: boolean;
         propertyId: string;
         availableFrom: string | null;
-        savedAt: string;
         where: string;
+        savedAt: string;
         stockPhoto: string | null;
         savedPriceRwf: number | null;
     }[];
@@ -1210,8 +1210,8 @@ export declare const MyCollections: z.ZodObject<{
             available: boolean;
             propertyId: string;
             availableFrom: string | null;
-            savedAt: string;
             where: string;
+            savedAt: string;
             stockPhoto: string | null;
             savedPriceRwf: number | null;
         }, {
@@ -1224,8 +1224,8 @@ export declare const MyCollections: z.ZodObject<{
             available: boolean;
             propertyId: string;
             availableFrom: string | null;
-            savedAt: string;
             where: string;
+            savedAt: string;
             stockPhoto: string | null;
             savedPriceRwf: number | null;
         }>, "many">;
@@ -1242,8 +1242,8 @@ export declare const MyCollections: z.ZodObject<{
             available: boolean;
             propertyId: string;
             availableFrom: string | null;
-            savedAt: string;
             where: string;
+            savedAt: string;
             stockPhoto: string | null;
             savedPriceRwf: number | null;
         }[];
@@ -1263,8 +1263,8 @@ export declare const MyCollections: z.ZodObject<{
             available: boolean;
             propertyId: string;
             availableFrom: string | null;
-            savedAt: string;
             where: string;
+            savedAt: string;
             stockPhoto: string | null;
             savedPriceRwf: number | null;
         }[];
@@ -1286,8 +1286,8 @@ export declare const MyCollections: z.ZodObject<{
             available: boolean;
             propertyId: string;
             availableFrom: string | null;
-            savedAt: string;
             where: string;
+            savedAt: string;
             stockPhoto: string | null;
             savedPriceRwf: number | null;
         }[];
@@ -1309,8 +1309,8 @@ export declare const MyCollections: z.ZodObject<{
             available: boolean;
             propertyId: string;
             availableFrom: string | null;
-            savedAt: string;
             where: string;
+            savedAt: string;
             stockPhoto: string | null;
             savedPriceRwf: number | null;
         }[];

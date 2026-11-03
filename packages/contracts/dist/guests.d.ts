@@ -586,20 +586,20 @@ export declare const GuestBuilding: z.ZodObject<{
     name: string;
     id: string;
     address: string | null;
-    located: boolean;
     units: {
         id: string;
         label: string;
     }[];
+    located: boolean;
 }, {
     name: string;
     id: string;
     address: string | null;
-    located: boolean;
     units: {
         id: string;
         label: string;
     }[];
+    located: boolean;
 }>;
 export type GuestBuilding = z.infer<typeof GuestBuilding>;
 export declare const HostGuestTab: z.ZodEnum<["arriving", "staying", "left", "cancelled"]>;
@@ -1248,20 +1248,20 @@ export declare const LandlordGuestList: z.ZodObject<{
         name: string;
         id: string;
         address: string | null;
-        located: boolean;
         units: {
             id: string;
             label: string;
         }[];
+        located: boolean;
     }, {
         name: string;
         id: string;
         address: string | null;
-        located: boolean;
         units: {
             id: string;
             label: string;
         }[];
+        located: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     guests: {
@@ -1308,11 +1308,11 @@ export declare const LandlordGuestList: z.ZodObject<{
         name: string;
         id: string;
         address: string | null;
-        located: boolean;
         units: {
             id: string;
             label: string;
         }[];
+        located: boolean;
     }[];
 }, {
     guests: {
@@ -1359,11 +1359,11 @@ export declare const LandlordGuestList: z.ZodObject<{
         name: string;
         id: string;
         address: string | null;
-        located: boolean;
         units: {
             id: string;
             label: string;
         }[];
+        located: boolean;
     }[];
 }>;
 export type LandlordGuestList = z.infer<typeof LandlordGuestList>;
@@ -1721,6 +1721,12 @@ export declare const LeaderGuest: z.ZodObject<{
         villageName: string | null;
         cellName: string | null;
     };
+    place: {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        name: string;
+        room: string | null;
+        kindLabel: string;
+    };
     idKind: "national_id" | "passport" | null;
     nationalityName: string;
     fromAbroad: boolean;
@@ -1741,12 +1747,6 @@ export declare const LeaderGuest: z.ZodObject<{
         } | null;
     }[];
     flagged: boolean;
-    place: {
-        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
-        name: string;
-        room: string | null;
-        kindLabel: string;
-    };
     checkedInAt: string | null;
     seenByMe: boolean;
     changedAt: string | null;
@@ -1777,6 +1777,12 @@ export declare const LeaderGuest: z.ZodObject<{
         villageName: string | null;
         cellName: string | null;
     };
+    place: {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        name: string;
+        room: string | null;
+        kindLabel: string;
+    };
     idKind: "national_id" | "passport" | null;
     nationalityName: string;
     fromAbroad: boolean;
@@ -1797,12 +1803,6 @@ export declare const LeaderGuest: z.ZodObject<{
         } | null;
     }[];
     flagged: boolean;
-    place: {
-        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
-        name: string;
-        room: string | null;
-        kindLabel: string;
-    };
     checkedInAt: string | null;
     seenByMe: boolean;
     changedAt: string | null;
@@ -2718,6 +2718,12 @@ export declare const LeaderGuestPage: z.ZodObject<{
             villageName: string | null;
             cellName: string | null;
         };
+        place: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            name: string;
+            room: string | null;
+            kindLabel: string;
+        };
         idKind: "national_id" | "passport" | null;
         nationalityName: string;
         fromAbroad: boolean;
@@ -2738,12 +2744,6 @@ export declare const LeaderGuestPage: z.ZodObject<{
             } | null;
         }[];
         flagged: boolean;
-        place: {
-            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
-            name: string;
-            room: string | null;
-            kindLabel: string;
-        };
         checkedInAt: string | null;
         seenByMe: boolean;
         changedAt: string | null;
@@ -2774,6 +2774,12 @@ export declare const LeaderGuestPage: z.ZodObject<{
             villageName: string | null;
             cellName: string | null;
         };
+        place: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            name: string;
+            room: string | null;
+            kindLabel: string;
+        };
         idKind: "national_id" | "passport" | null;
         nationalityName: string;
         fromAbroad: boolean;
@@ -2794,12 +2800,6 @@ export declare const LeaderGuestPage: z.ZodObject<{
             } | null;
         }[];
         flagged: boolean;
-        place: {
-            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
-            name: string;
-            room: string | null;
-            kindLabel: string;
-        };
         checkedInAt: string | null;
         seenByMe: boolean;
         changedAt: string | null;
@@ -2835,6 +2835,12 @@ export declare const LeaderGuestPage: z.ZodObject<{
             villageName: string | null;
             cellName: string | null;
         };
+        place: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            name: string;
+            room: string | null;
+            kindLabel: string;
+        };
         idKind: "national_id" | "passport" | null;
         nationalityName: string;
         fromAbroad: boolean;
@@ -2855,12 +2861,6 @@ export declare const LeaderGuestPage: z.ZodObject<{
             } | null;
         }[];
         flagged: boolean;
-        place: {
-            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
-            name: string;
-            room: string | null;
-            kindLabel: string;
-        };
         checkedInAt: string | null;
         seenByMe: boolean;
         changedAt: string | null;
@@ -2953,6 +2953,12 @@ export declare const LeaderGuestPage: z.ZodObject<{
             villageName: string | null;
             cellName: string | null;
         };
+        place: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            name: string;
+            room: string | null;
+            kindLabel: string;
+        };
         idKind: "national_id" | "passport" | null;
         nationalityName: string;
         fromAbroad: boolean;
@@ -2973,12 +2979,6 @@ export declare const LeaderGuestPage: z.ZodObject<{
             } | null;
         }[];
         flagged: boolean;
-        place: {
-            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
-            name: string;
-            room: string | null;
-            kindLabel: string;
-        };
         checkedInAt: string | null;
         seenByMe: boolean;
         changedAt: string | null;

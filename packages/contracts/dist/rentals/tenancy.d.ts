@@ -601,7 +601,6 @@ export declare const TenancyDetail: z.ZodObject<{
         otherTerms: string | null;
     };
     cancelReason: string | null;
-    cancelledAt: string | null;
     place: {
         province: string | null;
         district: string | null;
@@ -613,6 +612,7 @@ export declare const TenancyDetail: z.ZodObject<{
         unitLabel: string;
         blockCode: string | null;
     };
+    cancelledAt: string | null;
     endedOn: string | null;
     currentVersion: {
         id: string;
@@ -684,7 +684,6 @@ export declare const TenancyDetail: z.ZodObject<{
         otherTerms: string | null;
     };
     cancelReason: string | null;
-    cancelledAt: string | null;
     place: {
         province: string | null;
         district: string | null;
@@ -696,6 +695,7 @@ export declare const TenancyDetail: z.ZodObject<{
         unitLabel: string;
         blockCode: string | null;
     };
+    cancelledAt: string | null;
     endedOn: string | null;
     currentVersion: {
         id: string;
