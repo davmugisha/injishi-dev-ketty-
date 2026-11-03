@@ -66,6 +66,8 @@ export * from "./lost-found";
 // The front desk's day in one read, and the no-show command (interface real-data, frontdesk leaf).
 export * from "./front-desk";
 export * from "./marketplace";
+// The guest's public search over stays and homes (mobile spec 0005).
+export * from "./explore";
 // The residence screens of the new interface (real-data 1.3.1).
 export * from "./interface-residence";
 export * from "./staff-phone";

@@ -27,6 +27,7 @@ import {
   type Database,
 } from '../../../shared/database/database.module';
 import { buildFacilities } from '../domain/facilities';
+import { blurLocation } from '../domain/location-blur';
 
 /** 0117: what a room is and who may sleep there, as every public room type read selects it. */
 const ROOM_FACT_COLUMNS = {
@@ -114,9 +115,12 @@ const operatorParty = alias(outletParties, 'operator_party');
  * to publish again, punishing a business for a suspension that was lifted.
  *
  * A module constant rather than a method, because it is the same two column
- * comparisons on every call.
+ * comparisons on every call. Exported for explore (mobile spec 0005, D-e), so the
+ * guest's search and `/properties` read one rule and cannot drift. It names the
+ * `listings` and `orgs` tables themselves, so a query embedding it joins them
+ * unaliased.
  */
-const PUBLICLY_VISIBLE = and(
+export const PUBLICLY_VISIBLE = and(
   eq(listings.status, 'published'),
   eq(orgs.registrationStatus, 'active'),
 );
@@ -194,6 +198,14 @@ export class ListingRepository {
 
     if (!row) return null;
 
+    // A flagged property is an area on every public read (mobile spec 0005,
+    // AC-24): the cell centre leaves, never its own spot.
+    const location = blurLocation(
+      row.latitude === null ? null : Number(row.latitude),
+      row.longitude === null ? null : Number(row.longitude),
+      row.locationPrivacy,
+    );
+
     const [types, photoIds, facilities] = await Promise.all([
       this.findRoomTypes(propertyId),
       this.findPhotoIds(propertyId),
@@ -206,9 +218,8 @@ export class ListingRepository {
       name: row.name,
       description: row.description,
       districtName: row.districtName ?? null,
-      // numeric columns come back as strings from pg; normalise to number|null.
-      latitude: row.latitude === null ? null : Number(row.latitude),
-      longitude: row.longitude === null ? null : Number(row.longitude),
+      latitude: location.latitude,
+      longitude: location.longitude,
       locationPrivacy: row.locationPrivacy,
       checkInTime: row.checkInTime ?? null,
       checkOutTime: row.checkOutTime ?? null,
@@ -359,6 +370,7 @@ export class ListingRepository {
         districtName: districts.name,
         latitude: properties.latitude,
         longitude: properties.longitude,
+        locationPrivacy: properties.locationPrivacy,
         fromNightlyRateRwf: sql<number | null>`min(${roomTypes.basePriceRwf}) filter (where ${roomTypes.status} = 'active' and ${roomTypes.domain} = 'hospitality')`,
         fromPriceBasis: sql<'per_person' | 'per_unit' | 'per_item'>`case
           when bool_and(${roomTypes.priceBasis} = 'per_item') filter (where ${roomTypes.status} = 'active') then 'per_item'
@@ -398,23 +410,31 @@ export class ListingRepository {
       }
     }
 
-    return rows.map((row) => ({
-      id: row.id,
-      slug: row.slug as string,
-      name: row.name,
-      description: row.description ?? null,
-      districtName: row.districtName ?? null,
-      // numeric columns come back as strings from pg; normalise to number|null.
-      latitude: row.latitude === null ? null : Number(row.latitude),
-      longitude: row.longitude === null ? null : Number(row.longitude),
-      photoIds: photoIdsByProperty.get(row.id) ?? [],
-      // Aggregates over bigint come back as strings from pg.
-      fromNightlyRateRwf: row.fromNightlyRateRwf === null ? null : Number(row.fromNightlyRateRwf),
-      fromPriceBasis: row.fromPriceBasis,
-      businessKind: row.businessKind ?? null,
-      maxGuests: row.maxGuests === null ? null : Number(row.maxGuests),
-      roomTypeCount: Number(row.roomTypeCount),
-    }));
+    return rows.map((row) => {
+      // numeric columns come back as strings from pg; normalise to number|null,
+      // then blur a flagged property to its cell (mobile spec 0005, AC-24).
+      const location = blurLocation(
+        row.latitude === null ? null : Number(row.latitude),
+        row.longitude === null ? null : Number(row.longitude),
+        row.locationPrivacy,
+      );
+      return {
+        id: row.id,
+        slug: row.slug as string,
+        name: row.name,
+        description: row.description ?? null,
+        districtName: row.districtName ?? null,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        photoIds: photoIdsByProperty.get(row.id) ?? [],
+        // Aggregates over bigint come back as strings from pg.
+        fromNightlyRateRwf: row.fromNightlyRateRwf === null ? null : Number(row.fromNightlyRateRwf),
+        fromPriceBasis: row.fromPriceBasis,
+        businessKind: row.businessKind ?? null,
+        maxGuests: row.maxGuests === null ? null : Number(row.maxGuests),
+        roomTypeCount: Number(row.roomTypeCount),
+      };
+    });
   }
 
   /**
