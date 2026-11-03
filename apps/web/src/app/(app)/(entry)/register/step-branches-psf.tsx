@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { looksLikePsfNumber, MAX_REGISTRATION_BRANCHES, type PsfTier } from "@injishi/contracts";
+import { looksLikePsfNumber, MAX_REGISTRATION_BRANCHES, type PsfCatalogue, type PsfTier } from "@injishi/contracts";
 import { Button } from "@injishi/web-ui";
 import { FileCheck, FileText, GitBranch, Plus, Trash2, Upload } from "lucide-react";
 
@@ -42,6 +42,8 @@ export function StepBranchesPsf({
   tiersFailed,
   onRetryTiers,
   documentLine,
+  catalogue,
+  askGender,
   card,
   onCardChange,
   errors,
@@ -60,6 +62,10 @@ export function StepBranchesPsf({
   tiersFailed: boolean;
   onRetryTiers: () => void;
   documentLine: string | null;
+  /** PSF's sectors and associations, for the application (2026-11-03); null while they load. */
+  catalogue: PsfCatalogue | null;
+  /** You holds no male or female answer: the application asks gender (2026-11-03). */
+  askGender: boolean;
   /** The PSF membership card a member sends with its claim (2026-11-02), filed with its documents. */
   card: DocumentDraft | null;
   onCardChange: (next: DocumentDraft | null) => void;
@@ -237,7 +243,7 @@ export function StepBranchesPsf({
         ) : null}
 
         {business.psfMember === false && business.psfApply === true ? (
-          <PsfApplication draft={psf} onChange={onPsfChange} tiers={tiers} tiersFailed={tiersFailed} onRetryTiers={onRetryTiers} documentLine={documentLine} errors={errors} />
+          <PsfApplication draft={psf} onChange={onPsfChange} tiers={tiers} tiersFailed={tiersFailed} onRetryTiers={onRetryTiers} documentLine={documentLine} catalogue={catalogue} askGender={askGender} errors={errors} />
         ) : null}
         {business.psfMember === false && business.psfApply === false ? (
           <p className="text-xs text-muted-foreground">PSF never holds up your registration.</p>

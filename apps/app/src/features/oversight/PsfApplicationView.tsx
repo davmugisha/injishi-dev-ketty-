@@ -171,14 +171,26 @@ export function PsfApplicationView({ initial, card = null }: { initial: PsfOffic
 function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecided: (a: PsfOfficerApplication) => void }) {
   const [mode, setMode] = useState<"approve" | "decline">("approve");
   const [number, setNumber] = useState(app.suggestedMembershipNumber ?? "");
-  // A card holder's year, read off its card (2026-11-02): one date, the end it shows, from today to a
-  // year ahead. The year runs back from it.
+  // A card holder's year, read off its card (2026-11-03): both dates, always exactly a year apart. Pick
+  // either and the other follows. It may not have ended already: an older card has lapsed.
   const cardHolder = app.intake === "card_holder";
+  const [startsOn, setStartsOn] = useState("");
   const [expiresOn, setExpiresOn] = useState("");
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Kigali" }).format(new Date());
   const yearAhead = shiftYears(today, 1);
-  const cardEndOk = expiresOn >= today && expiresOn <= yearAhead;
-  const startsOn = cardEndOk ? shiftDays(shiftYears(expiresOn, -1), 1) : "";
+  const earliestStart = shiftDays(shiftYears(today, -1), 1);
+  const endOf = (start: string) => shiftDays(shiftYears(start, 1), -1);
+  const startOf = (end: string) => shiftDays(shiftYears(end, -1), 1);
+  const isDay = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+  const pickStart = (v: string) => {
+    setStartsOn(v);
+    if (isDay(v)) setExpiresOn(endOf(v));
+  };
+  const pickEnd = (v: string) => {
+    setExpiresOn(v);
+    if (isDay(v)) setStartsOn(startOf(v));
+  };
+  const cardEndOk = isDay(startsOn) && isDay(expiresOn) && expiresOn === endOf(startsOn) && expiresOn >= today && expiresOn <= yearAhead;
   const [reason, setReason] = useState<PsfDeclineReason>("details_incomplete");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -233,7 +245,7 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
     setError(null);
     const res =
       mode === "approve"
-        ? await approvePsfAction(app.id, number, cardHolder ? { expiresOn } : undefined)
+        ? await approvePsfAction(app.id, number, cardHolder ? { startsOn, expiresOn } : undefined)
         : await declinePsfAction(app.id, reason, note);
     setBusy(false);
     if (!res.ok) return setError(res.error);
@@ -256,15 +268,7 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
         </Card.Description>
       </Card.Header>
       <Card.Content className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-2">
-          <Button variant={mode === "approve" ? "primary" : "secondary"} onPress={() => setMode("approve")}>
-            <CircleCheck className="size-4" /> Approve
-          </Button>
-          <Button variant={mode === "decline" ? "danger-soft" : "secondary"} onPress={() => setMode("decline")}>
-            <CircleXmark className="size-4" /> Decline
-          </Button>
-        </div>
-
+        {/* One action at a time (2026-11-03): the approve form with its one button, or the decline form. */}
         {mode === "approve" ? (
           <>
             <TextField fullWidth value={number} onChange={setNumber} className="gap-1">
@@ -277,17 +281,25 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
               ) : null}
             </TextField>
             {cardHolder ? (
-              <TextField fullWidth value={expiresOn} onChange={setExpiresOn} className="gap-1">
-                <Label htmlFor="psf-card-until">Valid until, as the card shows</Label>
-                <Input id="psf-card-until" type="date" min={today} max={yearAhead} />
+              <div className="flex flex-col gap-1">
+                <div className="grid grid-cols-2 gap-2">
+                  <TextField fullWidth value={startsOn} onChange={pickStart} className="gap-1">
+                    <Label htmlFor="psf-card-from">Valid from, on the card</Label>
+                    <Input id="psf-card-from" type="date" min={earliestStart} max={today} />
+                  </TextField>
+                  <TextField fullWidth value={expiresOn} onChange={pickEnd} className="gap-1">
+                    <Label htmlFor="psf-card-until">Valid until, on the card</Label>
+                    <Input id="psf-card-until" type="date" min={today} max={yearAhead} />
+                  </TextField>
+                </div>
                 <Description>
-                  {expiresOn && !cardEndOk
-                    ? `Pick a date from today to ${dayMonthYear(yearAhead)}. A card that ended before today has lapsed: it joins as a new member.`
+                  {(startsOn || expiresOn) && !cardEndOk
+                    ? `A card's year ends from today to ${dayMonthYear(yearAhead)}. One that ended before today has lapsed: it joins as a new member.`
                     : cardEndOk
-                      ? `A member from ${dayMonthYear(startsOn)} to ${dayMonthYear(expiresOn)}.`
-                      : `From today to ${dayMonthYear(yearAhead)}. Their year runs back from it.`}
+                      ? `A member for a year: ${dayMonthYear(startsOn)} to ${dayMonthYear(expiresOn)}.`
+                      : "Pick either date: the other is set a year away."}
                 </Description>
-              </TextField>
+              </div>
             ) : null}
           </>
         ) : (
@@ -330,7 +342,28 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
           }
           onPress={() => void decide()}
         >
-          {mode === "approve" ? (cardHolder ? "Confirm and make a member" : paid !== null ? "Approve and make a member" : "Approve") : "Decline application"}
+          {mode === "approve" ? (
+            <>
+              <CircleCheck className="size-4" />
+              {cardHolder ? "Confirm and make a member" : paid !== null ? "Approve and make a member" : "Approve"}
+            </>
+          ) : (
+            <>
+              <CircleXmark className="size-4" /> Decline application
+            </>
+          )}
+        </Button>
+        <Button
+          fullWidth
+          size="sm"
+          variant="ghost"
+          isDisabled={busy}
+          onPress={() => {
+            setError(null);
+            setMode(mode === "approve" ? "decline" : "approve");
+          }}
+        >
+          {mode === "approve" ? "Decline instead" : "Back to approving"}
         </Button>
       </Card.Content>
     </Card>

@@ -391,8 +391,20 @@ exports.PsfApplicationInput = zod_1.z
      * against the tier (`psfTierAcceptsFee`), which only the server reads.
      */
     declaredFeeRwf: primitives_1.RwfAmount.refine((n) => n > 0, "Give the amount you will pay.").optional(),
-    companyName: psfText(200, "Give the name PSF should record."),
-    streetAddress: psfText(200, "Give the business's street address."),
+    /**
+     * Who the business is, and where (2026-11-03): absent from Injishi's registration, which already
+     * names the business and places it, so the server copies them from there.
+     */
+    companyName: psfText(200, "Give the name PSF should record.").optional(),
+    streetAddress: psfText(200, "Give the business's street address.").optional(),
+    /**
+     * Its sector, kind of business and association, as the PSF form asks them (2026-11-03). Absent: a
+     * hotel is filed under PSF's hospitality association.
+     */
+    associationCode: zod_1.z.string().trim().min(1).max(60).optional(),
+    associationOther: zod_1.z.string().trim().min(2, "Name your association.").max(120).optional(),
+    subsectorId: zod_1.z.string().uuid().optional(),
+    subsectorOther: zod_1.z.string().trim().min(2, "Name the kind of business.").max(80).optional(),
     website: zod_1.z
         .string()
         .trim()
@@ -406,16 +418,22 @@ exports.PsfApplicationInput = zod_1.z
     tradeDirection: exports.PsfTradeDirection,
     tradeGoods: zod_1.z.string().trim().min(1).max(300).optional(),
     tradeCountries: zod_1.z.array(exports.CountryCode).max(50).default([]),
-    contactRole: exports.PsfContactRole,
-    firstName: psfText(80, "Give a first name."),
-    lastName: psfText(80, "Give a last name."),
-    gender: exports.PsfGender,
+    /**
+     * The contact person (2026-11-03): each is absent when the person already gave it on You, and the
+     * server copies it from their profile. Gender is asked here only when You holds neither of the two
+     * PSF's form knows.
+     */
+    contactRole: exports.PsfContactRole.optional(),
+    firstName: psfText(80, "Give a first name.").optional(),
+    lastName: psfText(80, "Give a last name.").optional(),
+    gender: exports.PsfGender.optional(),
     phoneE164: zod_1.z
         .string()
         .trim()
         .transform((v) => v.replace(/[\s-]/g, ""))
-        .pipe(zod_1.z.string().regex(/^\+\d{7,15}$/, "Include the country code, like +250788123456.")),
-    email: zod_1.z.string().trim().email("That email address does not look right."),
+        .pipe(zod_1.z.string().regex(/^\+\d{7,15}$/, "Include the country code, like +250788123456."))
+        .optional(),
+    email: zod_1.z.string().trim().email("That email address does not look right.").optional(),
     /** Absent only when `useDocumentOnFile` asks the server for it instead. */
     idDocument: exports.PsfIdDocument.optional(),
     /**
@@ -434,7 +452,8 @@ exports.PsfApplicationInput = zod_1.z
             return false;
         const years = (Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
         return years >= 18 && years <= 120;
-    }, "The person named here must be at least 18."),
+    }, "The person named here must be at least 18.")
+        .optional(),
     /** Must be ticked: an unticked box and a Yes are different acts (AC-5). */
     consent: zod_1.z.literal(true, {
         errorMap: () => ({ message: "Tick the box to agree to share this with PSF." }),

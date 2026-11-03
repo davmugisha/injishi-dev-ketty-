@@ -177,6 +177,10 @@ export interface CreateOrgRow {
    * `enterprise` is registered when its TIN is optional.
    */
   psfAssociationCode: string | null;
+  /** A hotel's own picks when it applies to PSF at registration (2026-11-03); absent otherwise. */
+  psfAssociationOther?: string | null;
+  psfSubsectorId?: string | null;
+  psfSubsectorOther?: string | null;
   ownerGroups: PsfOwnerGroup[];
   registrationKind: EnterpriseRegistrationKind | null;
   registrationNumber: string | null;
@@ -311,6 +315,9 @@ export class OrganizationRepository {
           villageId: input.villageId,
           addressText: input.addressText,
           psfAssociationCode: input.psfAssociationCode,
+          psfAssociationOther: input.psfAssociationOther ?? null,
+          psfSubsectorId: input.psfSubsectorId ?? null,
+          psfSubsectorOther: input.psfSubsectorOther ?? null,
           ownerGroups: input.ownerGroups,
           registrationKind: input.registrationKind,
           registrationNumber: input.registrationNumber,

@@ -361,8 +361,12 @@ describe('PsfMembershipService · deciding (AC-11 to AC-14, the PSF path)', () =
       // More than a year ahead, or already past: refused.
       await expect(service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/KIC/2026/0008', expiresOn: '2027-11-04' })).rejects.toBeInstanceOf(UnprocessableEntityException);
       await expect(service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/KIC/2026/0008', expiresOn: '2026-11-02' })).rejects.toBeInstanceOf(UnprocessableEntityException);
+      // Two dates that are not a year apart: refused.
+      await expect(
+        service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/KIC/2026/0008', startsOn: '2026-01-01', expiresOn: '2026-11-11' }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
       // The year runs back from the end date.
-      await service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/KIC/2026/0008', expiresOn: '2026-11-11' });
+      await service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/KIC/2026/0008', startsOn: '2025-11-12', expiresOn: '2026-11-11' });
       expect(repo.approveCardHolder).toHaveBeenCalledWith(expect.objectContaining({ startsOn: '2025-11-12', expiresOn: '2026-11-11' }));
     } finally {
       vi.useRealTimers();
@@ -542,6 +546,49 @@ describe('PsfMembershipService · the daily sweep (AC-18, AC-9)', () => {
     const { repo, service } = setup();
     await service.sweep('2026-12-15');
     expect(repo.claimExpiryReminders).toHaveBeenCalledWith('2026-12-15', '2027-01-14');
+  });
+});
+
+describe('PsfMembershipService · the form completed from You (2026-11-03)', () => {
+  const business = { legalName: 'Umucyo Garden Guest House', street: 'KG 192 St' };
+  const bare = {
+    requestedTierCode: 'indatwa_100k',
+    declaredFeeRwf: 150000,
+    companyType: 'sole_trader' as const,
+    ownership: 'rwandan_100' as const,
+    businessActivity: 'Accommodation: Guest House',
+    tradeDirection: 'none' as const,
+    tradeCountries: [],
+    idDocument: { documentType: 'national_id' as const, documentNumber: '1198480030001001' },
+    consent: true as const,
+  };
+  const person = { email: 'innocent@example.rw', name: 'Innocent Niyonsaba', phoneE164: '+250788000101', dob: '1984-03-09', gender: 'male', documentType: 'national_id', documentNumber: '1198480030001001' };
+
+  it('takes the name and street from the registration, and the contact person from the profile', async () => {
+    const { repo, service } = setup();
+    repo.personFacts = vi.fn().mockResolvedValue(person);
+    const done = await service.completeForm(bare, 'u-owner', business, ['business', 'psfApplication']);
+    expect(done).toMatchObject({
+      companyName: 'Umucyo Garden Guest House',
+      streetAddress: 'KG 192 St',
+      contactRole: 'owner',
+      firstName: 'Innocent',
+      lastName: 'Niyonsaba',
+      gender: 'male',
+      phoneE164: '+250788000101',
+      email: 'innocent@example.rw',
+      dateOfBirth: '1984-03-09',
+    });
+  });
+
+  it('asks for gender at the field when the profile holds neither of the two PSF knows', async () => {
+    const { repo, service } = setup();
+    repo.personFacts = vi.fn().mockResolvedValue({ ...person, gender: 'prefer_not_to_say' });
+    const refusal = await service.completeForm(bare, 'u-owner', business, ['business', 'psfApplication']).catch((e: unknown) => e);
+    expect(refusal).toBeInstanceOf(UnprocessableEntityException);
+    expect(JSON.stringify((refusal as UnprocessableEntityException).getResponse())).toContain('"business","psfApplication","gender"');
+    // Given on the application, it is used.
+    await expect(service.completeForm({ ...bare, gender: 'female' }, 'u-owner', business, [])).resolves.toMatchObject({ gender: 'female' });
   });
 });
 

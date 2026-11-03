@@ -7,11 +7,13 @@ import {
   PersonalDetails,
   looksLikePsfNumber,
   PsfApplicationInput,
+  isOtherAssociation,
   type BrokerRegistrationSummary,
   type BusinessKind,
   type IdentityStatus,
   type MyProfile,
   type OrgRegistrationStatus,
+  type PsfCatalogue,
   type PsfTier,
   type RegistrantCapacity,
   type MobileMoneyNetwork,
@@ -32,6 +34,7 @@ import { Badge, Button } from "@injishi/web-ui";
 import { openAssistant } from "@/components/assistant/assistant-widget";
 import { fetchMyWorkspaces, type LabelledWorkspace } from "@/data/me";
 import { fetchIdentity } from "@/data/identity";
+import { fetchPsfCatalogue } from "@/data/psf";
 import {
   checkTin,
   clearRegistrationDraft,
@@ -68,7 +71,7 @@ import {
   type TinCheck,
 } from "./business-draft";
 import { FixBusiness, InReview } from "./in-review";
-import { EMPTY_PSF, psfCandidate, type PsfDraft } from "./psf-application";
+import { EMPTY_PSF, PSF_TYPE_IT, psfCandidate, type PsfDraft } from "./psf-application";
 import { RegisterRail, type RailStep } from "./register-rail";
 import { RegisterSection } from "./register-section";
 import { Callout, RegisterShell, StepCard, StepFrame, StepSkeleton, type StepPrimary } from "./register-shell";
@@ -246,6 +249,8 @@ export default function RegisterWizard({
   const [docs, setDocs] = useState<DocumentDraft[]>([]);
   const [psf, setPsf] = useState<PsfDraft>(EMPTY_PSF);
   const [tiers, setTiers] = useState<PsfTier[] | null>(null);
+  /** PSF's sectors, kinds of business and associations, for the PSF application (2026-11-03). */
+  const [catalogue, setCatalogue] = useState<PsfCatalogue | null>(null);
   const [tiersFailed, setTiersFailed] = useState(false);
   const [tierRetry, setTierRetry] = useState(0);
   const [profile, setProfile] = useState<MyProfile | null>(null);
@@ -301,6 +306,9 @@ export default function RegisterWizard({
   const order = stepOrder();
   // Scanned and checked, or typed for PSF to check (ADR-075 S4): either way the server keeps the document.
   const identityOnFile = identity?.onFile ?? null;
+  // PSF's form knows male and female (2026-11-03): asked on the PSF application only when You holds neither.
+  const knownGender = identity?.onFile?.gender ?? (personal.gender || null);
+  const askPsfGender = knownGender !== "male" && knownGender !== "female";
 
   const tin = normalizeTin(business.tin);
   const verdict = tinCheck?.tin === tin ? tinCheck.verdict : null;
@@ -538,6 +546,18 @@ export default function RegisterWizard({
       cancelled = true;
     };
   }, [step, tiers, tiersFailed, tierRetry]);
+
+  // PSF's catalogue, once the application is open (2026-11-03): the sector and association it asks.
+  useEffect(() => {
+    if (step !== "business" || business.psfApply !== true || catalogue !== null) return;
+    let cancelled = false;
+    void fetchPsfCatalogue(business.address.districtId ? Number(business.address.districtId) : undefined).then((res) => {
+      if (!cancelled && res.status === "ok") setCatalogue(res.data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, business.psfApply, business.address.districtId, catalogue]);
 
   const locLine = useAddressLine(business.address);
 
@@ -839,7 +859,7 @@ export default function RegisterWizard({
         (!business.psfMembershipNumber.trim() || looksLikePsfNumber(business.psfMembershipNumber)) &&
         docs.some((d) => d.kind === "psf_certificate")
       : business.psfMember === false
-        ? business.psfApply !== true || PsfApplicationInput.safeParse(psfCandidate(psf, true)).success
+        ? business.psfApply !== true || (PsfApplicationInput.safeParse(psfCandidate(psf, true, askPsfGender)).success && psfBusinessIssue(psf) === null)
         : true);
   // The rows Documents asks for, by the kind the org will carry (ADR-075 S5).
   const documentKind: BusinessKind | null = kind && kind !== "broker" ? registrationForKind(kind).businessKind : null;
@@ -879,7 +899,7 @@ export default function RegisterWizard({
       capacity,
       ...(sendPersonal ? { personal: personalCandidate(personal, identityOnFile !== null) } : {}),
       // The PSF application names the ID checked on You (2026-11-02): asked once, never again on Business.
-      business: businessCandidate(business, role, kind, legalName, docs, branches, psf, true),
+      business: businessCandidate(business, role, kind, legalName, docs, branches, psf, true, askPsfGender),
       ...(capacity === "on_behalf_of"
         ? {
             intendedOwner: {
@@ -918,8 +938,10 @@ export default function RegisterWizard({
         );
         return;
       }
-      const parsed = PsfApplicationInput.safeParse(psfCandidate(psf, true));
+      const parsed = PsfApplicationInput.safeParse(psfCandidate(psf, true, askPsfGender));
       if (!parsed.success) setErrors(prefix("psf", issuesToErrors(parsed.error.issues)));
+      const issue = psfBusinessIssue(psf);
+      if (parsed.success && issue) setErrors({ [`psf.${issue.field}`]: issue.message });
       setFormError("Some of the PSF application needs fixing.");
       return;
     }
@@ -1151,20 +1173,11 @@ export default function RegisterWizard({
 
   /** "Apply now": what the wizard already knows goes into PSF's form. */
   const seedPsf = () => {
-    const verifiedPerson = identity?.onFile ?? null;
-    const names = verifiedPerson ? splitFullName(verifiedPerson.fullName) : personal;
+    // The business part alone (2026-11-03): the name, place and contact person come from the
+    // registration and You at submit. The tier is the person's choice.
     setPsf((p) => ({
       ...p,
-      // The tier is the person's choice: the first in PSF's list is its dearest.
-      companyName: p.companyName || legalName,
-      streetAddress: p.streetAddress || business.address.street.trim() || locLine || "",
       companyType: registry?.companyType ?? p.companyType,
-      firstName: p.firstName || names.firstName,
-      lastName: p.lastName || [names.middleName, names.lastName].filter(Boolean).join(" "),
-      gender: p.gender || (personal.gender === "male" || personal.gender === "female" ? personal.gender : ""),
-      phoneE164: p.phoneE164 || personal.phoneE164 || profile?.phoneE164 || "",
-      email: p.email || user?.email || "",
-      dateOfBirth: p.dateOfBirth || verifiedPerson?.dateOfBirth || personal.dateOfBirth || profile?.dateOfBirth || "",
     }));
   };
 
@@ -1681,6 +1694,8 @@ export default function RegisterWizard({
                   setTierRetry((n) => n + 1);
                 }}
                 documentLine={documentOnFile ?? "The ID you check on the next step, You. Nothing to type here."}
+                catalogue={catalogue}
+                askGender={askPsfGender}
                 card={docs.find((d) => d.kind === "psf_certificate") ?? null}
                 onCardChange={(card) => setDocs((d) => [...d.filter((x) => x.kind !== "psf_certificate"), ...(card ? [card] : [])])}
                 errors={errors}
@@ -1972,6 +1987,7 @@ function businessCandidate(
   branches: BranchDraft[],
   psf: PsfDraft,
   documentOnFile: boolean,
+  askPsfGender = false,
 ): unknown {
   const address = addressFromDraft(d.address);
   const certificates = docs.map((c) => ({
@@ -2002,7 +2018,7 @@ function businessCandidate(
     chamberOfTourismMember: d.chamberOfTourismMember === true,
     psfMember: member,
     ...(member && number ? { psfMembershipNumber: number } : {}),
-    ...(d.psfMember === false && d.psfApply === true ? { psfApplication: psfCandidate(psf, documentOnFile) } : {}),
+    ...(d.psfMember === false && d.psfApply === true ? { psfApplication: psfCandidate(psf, documentOnFile, askPsfGender) } : {}),
     // The franchise question is not asked for now (2026-11-03): an answer left in an older saved draft is
     // not sent either. `franchiseCandidate(d)` goes back here when the section does.
     address,
@@ -2067,4 +2083,17 @@ function prefix(p: string, errors: Record<string, string>): Record<string, strin
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(errors)) out[`${p}.${k}`] = v;
   return out;
+}
+
+/**
+ * What the PSF application's business part still owes beyond its contract (2026-11-03): the sector, the
+ * kind of business and the association, as the /psf form requires them.
+ */
+function psfBusinessIssue(d: PsfDraft): { field: string; message: string } | null {
+  if (!d.clusterCode) return { field: "clusterCode", message: "Pick the business's sector." };
+  if (!d.subsectorId) return { field: "subsectorId", message: "Pick the kind of business, or choose Other and type it." };
+  if (d.subsectorId === PSF_TYPE_IT && d.subsectorOther.trim().length < 2) return { field: "subsectorOther", message: "Name the kind of business." };
+  if (!d.associationCode) return { field: "associationCode", message: "Pick the association the business belongs to." };
+  if (isOtherAssociation(d.associationCode) && d.associationOther.trim().length < 2) return { field: "associationOther", message: "Name your association." };
+  return null;
 }

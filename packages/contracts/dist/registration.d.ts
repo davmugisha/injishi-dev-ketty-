@@ -501,8 +501,20 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
      * against the tier (`psfTierAcceptsFee`), which only the server reads.
      */
     declaredFeeRwf: z.ZodOptional<z.ZodEffects<z.ZodNumber, number, number>>;
-    companyName: z.ZodString;
-    streetAddress: z.ZodString;
+    /**
+     * Who the business is, and where (2026-11-03): absent from Injishi's registration, which already
+     * names the business and places it, so the server copies them from there.
+     */
+    companyName: z.ZodOptional<z.ZodString>;
+    streetAddress: z.ZodOptional<z.ZodString>;
+    /**
+     * Its sector, kind of business and association, as the PSF form asks them (2026-11-03). Absent: a
+     * hotel is filed under PSF's hospitality association.
+     */
+    associationCode: z.ZodOptional<z.ZodString>;
+    associationOther: z.ZodOptional<z.ZodString>;
+    subsectorId: z.ZodOptional<z.ZodString>;
+    subsectorOther: z.ZodOptional<z.ZodString>;
     website: z.ZodOptional<z.ZodString>;
     companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
     ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
@@ -511,12 +523,17 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
     tradeGoods: z.ZodOptional<z.ZodString>;
     tradeCountries: z.ZodDefault<z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">>;
-    contactRole: z.ZodEnum<["owner", "managing_director", "ceo", "chairman"]>;
-    firstName: z.ZodString;
-    lastName: z.ZodString;
-    gender: z.ZodEnum<["male", "female"]>;
-    phoneE164: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
-    email: z.ZodString;
+    /**
+     * The contact person (2026-11-03): each is absent when the person already gave it on You, and the
+     * server copies it from their profile. Gender is asked here only when You holds neither of the two
+     * PSF's form knows.
+     */
+    contactRole: z.ZodOptional<z.ZodEnum<["owner", "managing_director", "ceo", "chairman"]>>;
+    firstName: z.ZodOptional<z.ZodString>;
+    lastName: z.ZodOptional<z.ZodString>;
+    gender: z.ZodOptional<z.ZodEnum<["male", "female"]>>;
+    phoneE164: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
+    email: z.ZodOptional<z.ZodString>;
     /** Absent only when `useDocumentOnFile` asks the server for it instead. */
     idDocument: z.ZodOptional<z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
         documentType: z.ZodLiteral<"national_id">;
@@ -544,30 +561,34 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
      * browser never sees it.
      */
     useDocumentOnFile: z.ZodOptional<z.ZodLiteral<true>>;
-    dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
+    dateOfBirth: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
     /** Must be ticked: an unticked box and a Yes are different acts (AC-5). */
     consent: z.ZodLiteral<true>;
 }, "strip", z.ZodTypeAny, {
-    gender: "female" | "male";
-    dateOfBirth: string;
-    phoneE164: string;
     requestedTierCode: string;
-    companyName: string;
-    streetAddress: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
     ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     tradeCountries: string[];
-    contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-    firstName: string;
-    lastName: string;
-    email: string;
     consent: true;
+    gender?: "female" | "male" | undefined;
+    dateOfBirth?: string | undefined;
+    phoneE164?: string | undefined;
     declaredFeeRwf?: number | undefined;
+    companyName?: string | undefined;
+    streetAddress?: string | undefined;
+    associationCode?: string | undefined;
+    associationOther?: string | undefined;
+    subsectorId?: string | undefined;
+    subsectorOther?: string | undefined;
     website?: string | undefined;
     ownershipOther?: string | undefined;
     tradeGoods?: string | undefined;
+    contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+    firstName?: string | undefined;
+    lastName?: string | undefined;
+    email?: string | undefined;
     idDocument?: {
         documentType: "national_id";
         documentNumber: string;
@@ -577,26 +598,30 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     } | undefined;
     useDocumentOnFile?: true | undefined;
 }, {
-    gender: "female" | "male";
-    dateOfBirth: string;
-    phoneE164: string;
     requestedTierCode: string;
-    companyName: string;
-    streetAddress: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
     ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
-    contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-    firstName: string;
-    lastName: string;
-    email: string;
     consent: true;
+    gender?: "female" | "male" | undefined;
+    dateOfBirth?: string | undefined;
+    phoneE164?: string | undefined;
     declaredFeeRwf?: number | undefined;
+    companyName?: string | undefined;
+    streetAddress?: string | undefined;
+    associationCode?: string | undefined;
+    associationOther?: string | undefined;
+    subsectorId?: string | undefined;
+    subsectorOther?: string | undefined;
     website?: string | undefined;
     ownershipOther?: string | undefined;
     tradeGoods?: string | undefined;
     tradeCountries?: string[] | undefined;
+    contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+    firstName?: string | undefined;
+    lastName?: string | undefined;
+    email?: string | undefined;
     idDocument?: {
         documentType: "national_id";
         documentNumber: string;
@@ -606,26 +631,30 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     } | undefined;
     useDocumentOnFile?: true | undefined;
 }>, {
-    gender: "female" | "male";
-    dateOfBirth: string;
-    phoneE164: string;
     requestedTierCode: string;
-    companyName: string;
-    streetAddress: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
     ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     tradeCountries: string[];
-    contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-    firstName: string;
-    lastName: string;
-    email: string;
     consent: true;
+    gender?: "female" | "male" | undefined;
+    dateOfBirth?: string | undefined;
+    phoneE164?: string | undefined;
     declaredFeeRwf?: number | undefined;
+    companyName?: string | undefined;
+    streetAddress?: string | undefined;
+    associationCode?: string | undefined;
+    associationOther?: string | undefined;
+    subsectorId?: string | undefined;
+    subsectorOther?: string | undefined;
     website?: string | undefined;
     ownershipOther?: string | undefined;
     tradeGoods?: string | undefined;
+    contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+    firstName?: string | undefined;
+    lastName?: string | undefined;
+    email?: string | undefined;
     idDocument?: {
         documentType: "national_id";
         documentNumber: string;
@@ -635,26 +664,30 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     } | undefined;
     useDocumentOnFile?: true | undefined;
 }, {
-    gender: "female" | "male";
-    dateOfBirth: string;
-    phoneE164: string;
     requestedTierCode: string;
-    companyName: string;
-    streetAddress: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
     ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
-    contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-    firstName: string;
-    lastName: string;
-    email: string;
     consent: true;
+    gender?: "female" | "male" | undefined;
+    dateOfBirth?: string | undefined;
+    phoneE164?: string | undefined;
     declaredFeeRwf?: number | undefined;
+    companyName?: string | undefined;
+    streetAddress?: string | undefined;
+    associationCode?: string | undefined;
+    associationOther?: string | undefined;
+    subsectorId?: string | undefined;
+    subsectorOther?: string | undefined;
     website?: string | undefined;
     ownershipOther?: string | undefined;
     tradeGoods?: string | undefined;
     tradeCountries?: string[] | undefined;
+    contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+    firstName?: string | undefined;
+    lastName?: string | undefined;
+    email?: string | undefined;
     idDocument?: {
         documentType: "national_id";
         documentNumber: string;
@@ -821,8 +854,20 @@ export declare const HospitalityBusiness: z.ZodObject<{
          * against the tier (`psfTierAcceptsFee`), which only the server reads.
          */
         declaredFeeRwf: z.ZodOptional<z.ZodEffects<z.ZodNumber, number, number>>;
-        companyName: z.ZodString;
-        streetAddress: z.ZodString;
+        /**
+         * Who the business is, and where (2026-11-03): absent from Injishi's registration, which already
+         * names the business and places it, so the server copies them from there.
+         */
+        companyName: z.ZodOptional<z.ZodString>;
+        streetAddress: z.ZodOptional<z.ZodString>;
+        /**
+         * Its sector, kind of business and association, as the PSF form asks them (2026-11-03). Absent: a
+         * hotel is filed under PSF's hospitality association.
+         */
+        associationCode: z.ZodOptional<z.ZodString>;
+        associationOther: z.ZodOptional<z.ZodString>;
+        subsectorId: z.ZodOptional<z.ZodString>;
+        subsectorOther: z.ZodOptional<z.ZodString>;
         website: z.ZodOptional<z.ZodString>;
         companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
         ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
@@ -831,12 +876,17 @@ export declare const HospitalityBusiness: z.ZodObject<{
         tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
         tradeGoods: z.ZodOptional<z.ZodString>;
         tradeCountries: z.ZodDefault<z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">>;
-        contactRole: z.ZodEnum<["owner", "managing_director", "ceo", "chairman"]>;
-        firstName: z.ZodString;
-        lastName: z.ZodString;
-        gender: z.ZodEnum<["male", "female"]>;
-        phoneE164: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
-        email: z.ZodString;
+        /**
+         * The contact person (2026-11-03): each is absent when the person already gave it on You, and the
+         * server copies it from their profile. Gender is asked here only when You holds neither of the two
+         * PSF's form knows.
+         */
+        contactRole: z.ZodOptional<z.ZodEnum<["owner", "managing_director", "ceo", "chairman"]>>;
+        firstName: z.ZodOptional<z.ZodString>;
+        lastName: z.ZodOptional<z.ZodString>;
+        gender: z.ZodOptional<z.ZodEnum<["male", "female"]>>;
+        phoneE164: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
+        email: z.ZodOptional<z.ZodString>;
         /** Absent only when `useDocumentOnFile` asks the server for it instead. */
         idDocument: z.ZodOptional<z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
             documentType: z.ZodLiteral<"national_id">;
@@ -864,30 +914,34 @@ export declare const HospitalityBusiness: z.ZodObject<{
          * browser never sees it.
          */
         useDocumentOnFile: z.ZodOptional<z.ZodLiteral<true>>;
-        dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
+        dateOfBirth: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
         /** Must be ticked: an unticked box and a Yes are different acts (AC-5). */
         consent: z.ZodLiteral<true>;
     }, "strip", z.ZodTypeAny, {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
         declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -897,26 +951,30 @@ export declare const HospitalityBusiness: z.ZodObject<{
         } | undefined;
         useDocumentOnFile?: true | undefined;
     }, {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
         declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -926,26 +984,30 @@ export declare const HospitalityBusiness: z.ZodObject<{
         } | undefined;
         useDocumentOnFile?: true | undefined;
     }>, {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
         declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -955,26 +1017,30 @@ export declare const HospitalityBusiness: z.ZodObject<{
         } | undefined;
         useDocumentOnFile?: true | undefined;
     }, {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
         declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1122,26 +1188,30 @@ export declare const HospitalityBusiness: z.ZodObject<{
     tourismLicenseNumber?: string | undefined;
     psfMembershipNumber?: string | undefined;
     psfApplication?: {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
         declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1194,26 +1264,30 @@ export declare const HospitalityBusiness: z.ZodObject<{
     psfMember?: boolean | undefined;
     psfMembershipNumber?: string | undefined;
     psfApplication?: {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
         declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1459,6 +1533,7 @@ export declare const EnterpriseBusiness: z.ZodObject<{
         villageId?: number | undefined;
         street?: string | undefined;
     };
+    associationCode: string;
     legalName: string;
     certificates: {
         kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -1470,7 +1545,6 @@ export declare const EnterpriseBusiness: z.ZodObject<{
         expiresOn?: string | undefined;
     }[];
     registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-    associationCode: string;
     ownerGroups: ("women" | "youth" | "pwd")[];
     tin?: string | undefined;
     psfMembershipNumber?: undefined;
@@ -1488,9 +1562,9 @@ export declare const EnterpriseBusiness: z.ZodObject<{
         villageId?: number | undefined;
         street?: string | undefined;
     };
+    associationCode: string;
     legalName: string;
     registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-    associationCode: string;
     tin?: string | undefined;
     certificates?: {
         kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -1601,8 +1675,20 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
          * against the tier (`psfTierAcceptsFee`), which only the server reads.
          */
         declaredFeeRwf: z.ZodOptional<z.ZodEffects<z.ZodNumber, number, number>>;
-        companyName: z.ZodString;
-        streetAddress: z.ZodString;
+        /**
+         * Who the business is, and where (2026-11-03): absent from Injishi's registration, which already
+         * names the business and places it, so the server copies them from there.
+         */
+        companyName: z.ZodOptional<z.ZodString>;
+        streetAddress: z.ZodOptional<z.ZodString>;
+        /**
+         * Its sector, kind of business and association, as the PSF form asks them (2026-11-03). Absent: a
+         * hotel is filed under PSF's hospitality association.
+         */
+        associationCode: z.ZodOptional<z.ZodString>;
+        associationOther: z.ZodOptional<z.ZodString>;
+        subsectorId: z.ZodOptional<z.ZodString>;
+        subsectorOther: z.ZodOptional<z.ZodString>;
         website: z.ZodOptional<z.ZodString>;
         companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
         ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
@@ -1611,12 +1697,17 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
         tradeGoods: z.ZodOptional<z.ZodString>;
         tradeCountries: z.ZodDefault<z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">>;
-        contactRole: z.ZodEnum<["owner", "managing_director", "ceo", "chairman"]>;
-        firstName: z.ZodString;
-        lastName: z.ZodString;
-        gender: z.ZodEnum<["male", "female"]>;
-        phoneE164: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
-        email: z.ZodString;
+        /**
+         * The contact person (2026-11-03): each is absent when the person already gave it on You, and the
+         * server copies it from their profile. Gender is asked here only when You holds neither of the two
+         * PSF's form knows.
+         */
+        contactRole: z.ZodOptional<z.ZodEnum<["owner", "managing_director", "ceo", "chairman"]>>;
+        firstName: z.ZodOptional<z.ZodString>;
+        lastName: z.ZodOptional<z.ZodString>;
+        gender: z.ZodOptional<z.ZodEnum<["male", "female"]>>;
+        phoneE164: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
+        email: z.ZodOptional<z.ZodString>;
         /** Absent only when `useDocumentOnFile` asks the server for it instead. */
         idDocument: z.ZodOptional<z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
             documentType: z.ZodLiteral<"national_id">;
@@ -1644,30 +1735,34 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
          * browser never sees it.
          */
         useDocumentOnFile: z.ZodOptional<z.ZodLiteral<true>>;
-        dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
+        dateOfBirth: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
         /** Must be ticked: an unticked box and a Yes are different acts (AC-5). */
         consent: z.ZodLiteral<true>;
     }, "strip", z.ZodTypeAny, {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
         declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1677,26 +1772,30 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         } | undefined;
         useDocumentOnFile?: true | undefined;
     }, {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
         declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1706,26 +1805,30 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         } | undefined;
         useDocumentOnFile?: true | undefined;
     }>, {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
         declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1735,26 +1838,30 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         } | undefined;
         useDocumentOnFile?: true | undefined;
     }, {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
         declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1902,26 +2009,30 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     tourismLicenseNumber?: string | undefined;
     psfMembershipNumber?: string | undefined;
     psfApplication?: {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
         declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1974,26 +2085,30 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     psfMember?: boolean | undefined;
     psfMembershipNumber?: string | undefined;
     psfApplication?: {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
         declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -2228,6 +2343,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         villageId?: number | undefined;
         street?: string | undefined;
     };
+    associationCode: string;
     legalName: string;
     certificates: {
         kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -2239,7 +2355,6 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         expiresOn?: string | undefined;
     }[];
     registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-    associationCode: string;
     ownerGroups: ("women" | "youth" | "pwd")[];
     tin?: string | undefined;
     psfMembershipNumber?: undefined;
@@ -2257,9 +2372,9 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         villageId?: number | undefined;
         street?: string | undefined;
     };
+    associationCode: string;
     legalName: string;
     registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-    associationCode: string;
     tin?: string | undefined;
     certificates?: {
         kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -2329,26 +2444,30 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     tourismLicenseNumber?: string | undefined;
     psfMembershipNumber?: string | undefined;
     psfApplication?: {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
         declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -2397,6 +2516,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         villageId?: number | undefined;
         street?: string | undefined;
     };
+    associationCode: string;
     legalName: string;
     certificates: {
         kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -2408,7 +2528,6 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         expiresOn?: string | undefined;
     }[];
     registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-    associationCode: string;
     ownerGroups: ("women" | "youth" | "pwd")[];
     tin?: string | undefined;
     psfMembershipNumber?: undefined;
@@ -2457,26 +2576,30 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     psfMember?: boolean | undefined;
     psfMembershipNumber?: string | undefined;
     psfApplication?: {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
         declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -2537,9 +2660,9 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         villageId?: number | undefined;
         street?: string | undefined;
     };
+    associationCode: string;
     legalName: string;
     registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-    associationCode: string;
     tin?: string | undefined;
     certificates?: {
         kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -2813,8 +2936,20 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
              * against the tier (`psfTierAcceptsFee`), which only the server reads.
              */
             declaredFeeRwf: z.ZodOptional<z.ZodEffects<z.ZodNumber, number, number>>;
-            companyName: z.ZodString;
-            streetAddress: z.ZodString;
+            /**
+             * Who the business is, and where (2026-11-03): absent from Injishi's registration, which already
+             * names the business and places it, so the server copies them from there.
+             */
+            companyName: z.ZodOptional<z.ZodString>;
+            streetAddress: z.ZodOptional<z.ZodString>;
+            /**
+             * Its sector, kind of business and association, as the PSF form asks them (2026-11-03). Absent: a
+             * hotel is filed under PSF's hospitality association.
+             */
+            associationCode: z.ZodOptional<z.ZodString>;
+            associationOther: z.ZodOptional<z.ZodString>;
+            subsectorId: z.ZodOptional<z.ZodString>;
+            subsectorOther: z.ZodOptional<z.ZodString>;
             website: z.ZodOptional<z.ZodString>;
             companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
             ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
@@ -2823,12 +2958,17 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
             tradeGoods: z.ZodOptional<z.ZodString>;
             tradeCountries: z.ZodDefault<z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">>;
-            contactRole: z.ZodEnum<["owner", "managing_director", "ceo", "chairman"]>;
-            firstName: z.ZodString;
-            lastName: z.ZodString;
-            gender: z.ZodEnum<["male", "female"]>;
-            phoneE164: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
-            email: z.ZodString;
+            /**
+             * The contact person (2026-11-03): each is absent when the person already gave it on You, and the
+             * server copies it from their profile. Gender is asked here only when You holds neither of the two
+             * PSF's form knows.
+             */
+            contactRole: z.ZodOptional<z.ZodEnum<["owner", "managing_director", "ceo", "chairman"]>>;
+            firstName: z.ZodOptional<z.ZodString>;
+            lastName: z.ZodOptional<z.ZodString>;
+            gender: z.ZodOptional<z.ZodEnum<["male", "female"]>>;
+            phoneE164: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
+            email: z.ZodOptional<z.ZodString>;
             /** Absent only when `useDocumentOnFile` asks the server for it instead. */
             idDocument: z.ZodOptional<z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
                 documentType: z.ZodLiteral<"national_id">;
@@ -2856,30 +2996,34 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
              * browser never sees it.
              */
             useDocumentOnFile: z.ZodOptional<z.ZodLiteral<true>>;
-            dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
+            dateOfBirth: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
             /** Must be ticked: an unticked box and a Yes are different acts (AC-5). */
             consent: z.ZodLiteral<true>;
         }, "strip", z.ZodTypeAny, {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
             ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
             declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -2889,26 +3033,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             } | undefined;
             useDocumentOnFile?: true | undefined;
         }, {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
             ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
             declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -2918,26 +3066,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             } | undefined;
             useDocumentOnFile?: true | undefined;
         }>, {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
             ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
             declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -2947,26 +3099,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             } | undefined;
             useDocumentOnFile?: true | undefined;
         }, {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
             ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
             declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -3114,26 +3270,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         tourismLicenseNumber?: string | undefined;
         psfMembershipNumber?: string | undefined;
         psfApplication?: {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
             ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
             declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -3186,26 +3346,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfMember?: boolean | undefined;
         psfMembershipNumber?: string | undefined;
         psfApplication?: {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
             ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
             declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -3440,6 +3604,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
+        associationCode: string;
         legalName: string;
         certificates: {
             kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -3451,7 +3616,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[];
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-        associationCode: string;
         ownerGroups: ("women" | "youth" | "pwd")[];
         tin?: string | undefined;
         psfMembershipNumber?: undefined;
@@ -3469,9 +3633,9 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
+        associationCode: string;
         legalName: string;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-        associationCode: string;
         tin?: string | undefined;
         certificates?: {
             kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -3541,26 +3705,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         tourismLicenseNumber?: string | undefined;
         psfMembershipNumber?: string | undefined;
         psfApplication?: {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
             ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
             declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -3609,6 +3777,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
+        associationCode: string;
         legalName: string;
         certificates: {
             kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -3620,7 +3789,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[];
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-        associationCode: string;
         ownerGroups: ("women" | "youth" | "pwd")[];
         tin?: string | undefined;
         psfMembershipNumber?: undefined;
@@ -3669,26 +3837,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfMember?: boolean | undefined;
         psfMembershipNumber?: string | undefined;
         psfApplication?: {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
             ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
             declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -3749,9 +3921,9 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
+        associationCode: string;
         legalName: string;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-        associationCode: string;
         tin?: string | undefined;
         certificates?: {
             kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -3837,26 +4009,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         tourismLicenseNumber?: string | undefined;
         psfMembershipNumber?: string | undefined;
         psfApplication?: {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
             ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
             declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -3905,6 +4081,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
+        associationCode: string;
         legalName: string;
         certificates: {
             kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -3916,7 +4093,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[];
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-        associationCode: string;
         ownerGroups: ("women" | "youth" | "pwd")[];
         tin?: string | undefined;
         psfMembershipNumber?: undefined;
@@ -4001,26 +4177,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfMember?: boolean | undefined;
         psfMembershipNumber?: string | undefined;
         psfApplication?: {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
             ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
             declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -4081,9 +4261,9 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
+        associationCode: string;
         legalName: string;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-        associationCode: string;
         tin?: string | undefined;
         certificates?: {
             kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -4189,26 +4369,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         tourismLicenseNumber?: string | undefined;
         psfMembershipNumber?: string | undefined;
         psfApplication?: {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
             ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
             declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -4257,6 +4441,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
+        associationCode: string;
         legalName: string;
         certificates: {
             kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -4268,7 +4453,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[];
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-        associationCode: string;
         ownerGroups: ("women" | "youth" | "pwd")[];
         tin?: string | undefined;
         psfMembershipNumber?: undefined;
@@ -4353,26 +4537,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfMember?: boolean | undefined;
         psfMembershipNumber?: string | undefined;
         psfApplication?: {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
             ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
             declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -4433,9 +4621,9 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
+        associationCode: string;
         legalName: string;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-        associationCode: string;
         tin?: string | undefined;
         certificates?: {
             kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";

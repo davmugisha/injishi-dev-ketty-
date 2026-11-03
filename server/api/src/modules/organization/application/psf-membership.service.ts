@@ -110,6 +110,7 @@ import { PsfRenewalRepository } from '../infrastructure/psf-renewal.repository';
 import { PsfCertificatesService } from './psf-certificates.service';
 import {
   buildPsfApplicationRow,
+  type CompletePsfForm,
   toPsfApplicationView,
   toPsfMembershipView,
   toPsfTierView,
@@ -331,6 +332,47 @@ export class PsfMembershipService {
       });
     }
     return { ...form, idDocument: onFile };
+  }
+
+  /**
+   * The form complete (2026-11-03): Injishi's registration sends the business part alone, so the name
+   * and street come from the registration and the contact person from the person's own profile, the one
+   * You saved. Refused at the field still missing, under `at`, when neither holds it.
+   */
+  async completeForm(
+    form: PsfApplicationInput & { idDocument: PsfIdDocument },
+    userId: string,
+    business: { legalName: string; street: string | null },
+    at: (string | number)[],
+  ): Promise<CompletePsfForm> {
+    const person = await this.repo.personFacts(userId);
+    const names = person?.name ? splitPsfName(person.name) : null;
+    const gender = person?.gender === 'male' || person?.gender === 'female' ? person.gender : undefined;
+    const done = {
+      ...form,
+      companyName: form.companyName ?? business.legalName,
+      streetAddress: form.streetAddress ?? business.street ?? '',
+      contactRole: form.contactRole ?? ('owner' as const),
+      firstName: form.firstName ?? names?.firstName,
+      lastName: form.lastName ?? names?.lastName,
+      gender: form.gender ?? gender,
+      phoneE164: form.phoneE164 ?? person?.phoneE164 ?? undefined,
+      email: form.email ?? person?.email,
+      dateOfBirth: form.dateOfBirth ?? person?.dob ?? undefined,
+    };
+    const missing: [keyof typeof done, string][] = [
+      ['firstName', 'Give your name on You first.'],
+      ['lastName', 'Give your name on You first.'],
+      ['gender', 'Say your gender, as PSF’s form asks it.'],
+      ['phoneE164', 'Give your phone number on You first.'],
+      ['email', 'Give your email address on You first.'],
+      ['dateOfBirth', 'Give your date of birth on You first.'],
+    ];
+    const gap = missing.find(([k]) => !done[k]);
+    if (gap) {
+      throw new UnprocessableEntityException({ message: 'Validation failed', issues: [{ code: 'custom', path: [...at, gap[0]], message: gap[1] }] });
+    }
+    return done as CompletePsfForm;
   }
 
   // --- The applicant ---------------------------------------------------------
@@ -906,7 +948,7 @@ export class PsfMembershipService {
           registrationType: registration.type,
           registrationNumber: registration.number,
           tier,
-          form: await this.withIdDocument(input, userId),
+          form: await this.completeForm(await this.withIdDocument(input, userId), userId, { legalName: facts.legalName, street: facts.addressText }, []),
           consentGivenAt: new Date(),
           consentVersion: PSF_CONSENT_VERSION,
         }),
@@ -1612,8 +1654,12 @@ export class PsfMembershipService {
     if (input.expiresOn < today || input.expiresOn > yearAhead) {
       throw issue('expiresOn', 'The end date on the card is from today to a year from now. An older card is lapsed: it joins as a new member.');
     }
-    const startsOn = input.startsOn ?? addDays(addYears(input.expiresOn, -1), 1);
-    if (input.expiresOn <= startsOn) throw issue('expiresOn', 'The membership ends after it starts.');
+    // Always exactly a year (2026-11-03): a start, when given, is the day after the same date a year before.
+    const yearStart = addDays(addYears(input.expiresOn, -1), 1);
+    if (input.startsOn && input.startsOn !== yearStart) {
+      throw issue('startsOn', `A card holder's year is one year: from ${yearStart} to ${input.expiresOn}.`);
+    }
+    const startsOn = yearStart;
     await this.assertNumberFree(input.membershipNumber, row.id);
     const done = await this.repo.approveCardHolder({
       applicationId: row.id,

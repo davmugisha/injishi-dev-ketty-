@@ -3,17 +3,17 @@
 import {
   PSF_COMPANY_TYPE_LABEL,
   PSF_CONSENT_TEXT,
-  PSF_CONTACT_ROLE_LABEL,
   PSF_FEE_NOTICE,
   PSF_OWNERSHIP_LABEL,
   PSF_TRADE_DIRECTION_LABEL,
   PsfCompanyType,
-  PsfContactRole,
   PsfOwnership,
   PsfTradeDirection,
   countryName,
+  isOtherAssociation,
   psfFeeProblem,
   psfStartingFee,
+  type PsfCatalogue,
   type PsfTier,
 } from "@injishi/contracts";
 import { Badge, Button, Checkbox } from "@injishi/web-ui";
@@ -22,7 +22,6 @@ import { X } from "lucide-react";
 import { formatRwf } from "@/lib/money";
 
 import { COUNTRY_OPTIONS } from "./country-options";
-import { PhoneInput } from "./phone-input";
 import { ChoiceCard, Field, Fieldset, SelectField, TextInput } from "./wizard-ui";
 
 /**
@@ -32,14 +31,12 @@ import { ChoiceCard, Field, Fieldset, SelectField, TextInput } from "./wizard-ui
  * PSF officer approves the business. Injishi takes no payment for PSF
  * (`PSF_FEE_NOTICE`).
  *
- * What the wizard already knows is filled in (the name RRA holds, the company
- * type, the name, birth date and phone), so most of it is read and confirmed
- * rather than typed. This form sits on Business, step one, BEFORE You asks for
- * the ID, so nothing has been checked in this walk yet: the ID it names is one
- * already on file, from an earlier scan or the account (`useDocumentOnFile`),
- * when there is one. With none it asks for a National ID or a passport, the two
- * `PsfIdDocument` takes; an ID recorded on You afterwards replaces the typed
- * one, because the request then names the document on file.
+ * It asks only for the business (2026-11-03, the owner: "all we need is
+ * business information"): the tier, the sector, kind of business and
+ * association as the /psf form asks them, and how the business is owned and
+ * trades. The name and place come from the registration, and the contact
+ * person and the ID from You, which the server copies at submit. Gender is
+ * asked here only when You holds neither of the two PSF's form knows.
  */
 
 export interface PsfDraft {
@@ -56,6 +53,12 @@ export interface PsfDraft {
   tradeDirection: string;
   tradeGoods: string;
   tradeCountries: string[];
+  /** The /psf form's sector, kind of business and association (2026-11-03). */
+  clusterCode: string;
+  subsectorId: string;
+  subsectorOther: string;
+  associationCode: string;
+  associationOther: string;
   contactRole: string;
   firstName: string;
   lastName: string;
@@ -82,6 +85,12 @@ export const EMPTY_PSF: PsfDraft = {
   tradeDirection: "none",
   tradeGoods: "",
   tradeCountries: [],
+  // A hotel starts in Services, filed with the Rwanda Hospitality Association: it may pick another.
+  clusterCode: "services",
+  subsectorId: "",
+  subsectorOther: "",
+  associationCode: "rha",
+  associationOther: "",
   contactRole: "managing_director",
   firstName: "",
   lastName: "",
@@ -100,15 +109,24 @@ function amountOf(raw: string): number | null {
   return /^\d+$/.test(digits) ? Number(digits) : null;
 }
 
-/** The draft in the contract's shape: absent optionals absent, the ID from file when there is one. */
-export function psfCandidate(d: PsfDraft, documentOnFile: boolean): unknown {
+/** "Other" in the kind-of-business list: the business types its own. */
+export const PSF_TYPE_IT = "__type__";
+
+/**
+ * The draft in the contract's shape: the business alone (2026-11-03). The contact person and the ID are
+ * You's, copied by the server; gender travels only when asked here.
+ */
+export function psfCandidate(d: PsfDraft, documentOnFile: boolean, askGender = false): unknown {
   const trading = d.tradeDirection !== "none";
   const amount = amountOf(d.declaredFee);
+  const typedKind = d.subsectorId === PSF_TYPE_IT;
   return {
     requestedTierCode: d.requestedTierCode,
     ...(amount !== null ? { declaredFeeRwf: amount } : {}),
-    companyName: d.companyName,
-    streetAddress: d.streetAddress,
+    ...(d.associationCode ? { associationCode: d.associationCode } : {}),
+    ...(d.associationCode && isOtherAssociation(d.associationCode) && d.associationOther.trim() ? { associationOther: d.associationOther.trim() } : {}),
+    ...(d.subsectorId && !typedKind ? { subsectorId: d.subsectorId } : {}),
+    ...(typedKind && d.subsectorOther.trim() ? { subsectorOther: d.subsectorOther.trim() } : {}),
     ...(d.website.trim() ? { website: d.website.trim() } : {}),
     companyType: d.companyType,
     ownership: d.ownership,
@@ -117,12 +135,7 @@ export function psfCandidate(d: PsfDraft, documentOnFile: boolean): unknown {
     tradeDirection: d.tradeDirection,
     ...(trading ? { tradeGoods: d.tradeGoods } : {}),
     tradeCountries: trading ? d.tradeCountries : [],
-    contactRole: d.contactRole,
-    firstName: d.firstName,
-    lastName: d.lastName,
-    gender: d.gender,
-    phoneE164: d.phoneE164,
-    email: d.email,
+    ...(askGender && d.gender ? { gender: d.gender } : {}),
     ...(documentOnFile
       ? { useDocumentOnFile: true }
       : {
@@ -131,7 +144,6 @@ export function psfCandidate(d: PsfDraft, documentOnFile: boolean): unknown {
               ? { documentType: "passport", documentNumber: d.idNumber }
               : { documentType: "national_id", documentNumber: d.idNumber.replace(/\s+/g, "") },
         }),
-    dateOfBirth: d.dateOfBirth,
     ...(d.consent ? { consent: true } : {}),
   };
 }
@@ -154,17 +166,22 @@ export function PsfApplication({
   tiers,
   tiersFailed,
   onRetryTiers,
-  documentLine,
   errors,
+  catalogue,
+  askGender,
 }: {
   draft: PsfDraft;
   onChange: (next: PsfDraft) => void;
+  /** PSF's sectors, kinds of business and associations; null while they load. */
+  catalogue: PsfCatalogue | null;
+  /** True when You holds no male or female answer: PSF's form needs one of the two. */
+  askGender: boolean;
   /** Null while loading or when the tiers could not be read. */
   tiers: PsfTier[] | null;
   tiersFailed: boolean;
   onRetryTiers: () => void;
-  /** "National ID ending 6789, already checked", or null when no document is on file. */
-  documentLine: string | null;
+  /** Kept for the callers: the ID is You's now (2026-11-03), so nothing of it shows here. */
+  documentLine?: string | null;
   errors: Record<string, string>;
 }) {
   const set = <K extends keyof PsfDraft>(key: K, value: PsfDraft[K]) => onChange({ ...draft, [key]: value });
@@ -174,6 +191,14 @@ export function PsfApplication({
   const amount = amountOf(draft.declaredFee);
   const amountProblem = tier && tier.priceKind !== "set_by_psf" && draft.declaredFee.trim() ? psfFeeProblem(tier, amount) : null;
   const needsDeclared = tier !== null && tier.priceKind !== "set_by_psf";
+  // The sector, kind of business and association, as the /psf form lists them.
+  const cluster = catalogue?.clusters.find((c) => c.code === draft.clusterCode) ?? null;
+  const subsector = cluster?.subsectors.find((x) => x.id === draft.subsectorId) ?? null;
+  const pool = cluster?.associations.filter((a) => !isOtherAssociation(a.code)) ?? [];
+  const linked = subsector ? pool.filter((a) => subsector.associationCodes.includes(a.code)) : [];
+  const listed = linked.length ? linked : pool;
+  const otherCode = cluster?.associations.find((a) => isOtherAssociation(a.code))?.code ?? null;
+  const typingAssociation = Boolean(draft.associationCode) && isOtherAssociation(draft.associationCode);
 
   const pickTier = (code: string) => {
     const next = (tiers ?? []).find((t) => t.code === code) ?? null;
@@ -236,14 +261,66 @@ export function PsfApplication({
         ) : null}
       </div>
 
+      <p className="text-sm font-semibold">Sector and association</p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Sector" hint="PSF groups its members by sector." error={e("clusterCode")}>
+          <SelectField
+            id="psf-cluster"
+            value={draft.clusterCode}
+            placeholder={catalogue === null ? "Loading PSF's sectors…" : "Choose the sector"}
+            disabled={catalogue === null}
+            options={(catalogue?.clusters ?? []).map((c) => ({ value: c.code, label: c.nameEn }))}
+            onChange={(v) => onChange({ ...draft, clusterCode: v, subsectorId: "", subsectorOther: "", associationCode: "", associationOther: "" })}
+          />
+        </Field>
+        {cluster ? (
+          <Field label="Kind of business" hint="Not on the list? Choose Other and type it." error={e("subsectorId")}>
+            <SelectField
+              id="psf-subsector"
+              value={draft.subsectorId}
+              placeholder="Choose the kind of business"
+              options={[...cluster.subsectors.map((x) => ({ value: x.id, label: x.nameEn })), { value: PSF_TYPE_IT, label: "Other" }]}
+              onChange={(v) => {
+                const nextSub = cluster.subsectors.find((x) => x.id === v) ?? null;
+                // A new kind narrows the associations: the old pick stays only while it is still among them.
+                const keep = draft.associationCode && (!nextSub || nextSub.associationCodes.length === 0 || nextSub.associationCodes.includes(draft.associationCode));
+                onChange({ ...draft, subsectorId: v, subsectorOther: v === PSF_TYPE_IT ? draft.subsectorOther : "", ...(keep ? {} : { associationCode: "", associationOther: "" }) });
+              }}
+            />
+          </Field>
+        ) : null}
+        {draft.subsectorId === PSF_TYPE_IT ? (
+          <Field label="What kind of business is it?" error={e("subsectorOther")}>
+            <TextInput className="w-full" value={draft.subsectorOther} onChange={(ev) => set("subsectorOther", ev.target.value)} />
+          </Field>
+        ) : null}
+        {cluster ? (
+          <Field label="Association" hint="Pick yours from PSF's list. Not there? Choose the last line and type it." error={e("associationCode")}>
+            <SelectField
+              id="psf-association"
+              value={typingAssociation ? PSF_TYPE_IT : draft.associationCode}
+              placeholder="Choose your association"
+              options={[
+                ...listed.map((a) => ({ value: a.code, label: a.acronym ? `${a.nameEn} (${a.acronym})` : a.nameEn })),
+                ...(otherCode ? [{ value: PSF_TYPE_IT, label: "Not on the list: I will type it" }] : []),
+              ]}
+              onChange={(v) =>
+                v === PSF_TYPE_IT
+                  ? onChange({ ...draft, associationCode: otherCode ?? "", associationOther: draft.associationOther })
+                  : onChange({ ...draft, associationCode: v, associationOther: "" })
+              }
+            />
+          </Field>
+        ) : null}
+        {typingAssociation ? (
+          <Field label="Name of your association" error={e("associationOther")}>
+            <TextInput className="w-full" value={draft.associationOther} onChange={(ev) => set("associationOther", ev.target.value)} />
+          </Field>
+        ) : null}
+      </div>
+
       <p className="text-sm font-semibold">The business</p>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Name PSF records" error={e("companyName")}>
-          <TextInput className="w-full" value={draft.companyName} onChange={(ev) => set("companyName", ev.target.value)} />
-        </Field>
-        <Field label="Street address" error={e("streetAddress")}>
-          <TextInput className="w-full" value={draft.streetAddress} onChange={(ev) => set("streetAddress", ev.target.value)} />
-        </Field>
         <Field label="Website (optional)" error={e("website")}>
           <TextInput
             className="w-full"
@@ -325,36 +402,8 @@ export function PsfApplication({
         />
       </Field>
 
-      <p className="text-sm font-semibold">The contact person</p>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Role" error={e("contactRole")}>
-          <SelectField
-            value={draft.contactRole}
-            options={opts(PsfContactRole.options, PSF_CONTACT_ROLE_LABEL)}
-            onChange={(v) => set("contactRole", v)}
-          />
-        </Field>
-        <Field label="First name" error={e("firstName")}>
-          <TextInput className="w-full" value={draft.firstName} onChange={(ev) => set("firstName", ev.target.value)} />
-        </Field>
-        <Field label="Last name" error={e("lastName")}>
-          <TextInput className="w-full" value={draft.lastName} onChange={(ev) => set("lastName", ev.target.value)} />
-        </Field>
-        {/* A row of its own: the country picker and the number side by side
-            do not fit half a card. */}
-        <div className="sm:col-span-2">
-          <Field label="Phone" composite error={e("phoneE164")}>
-            <PhoneInput id="psf-phone" value={draft.phoneE164} invalid={Boolean(e("phoneE164"))} onChange={(v) => set("phoneE164", v)} />
-          </Field>
-        </div>
-        <Field label="Email" error={e("email")}>
-          <TextInput className="w-full" type="email" value={draft.email} onChange={(ev) => set("email", ev.target.value)} />
-        </Field>
-        <Field label="Date of birth" error={e("dateOfBirth")}>
-          <TextInput className="w-full tabular-nums" type="date" value={draft.dateOfBirth} onChange={(ev) => set("dateOfBirth", ev.target.value)} />
-        </Field>
-      </div>
-
+      {/* The contact person is You's (2026-11-03): gender alone is asked, when You holds no male or female. */}
+      {askGender ? (
       <Fieldset
         legend="Gender, as PSF's form asks it"
         hint="This goes to PSF only. Your Injishi profile keeps your own answer."
@@ -378,40 +427,9 @@ export function PsfApplication({
           ))}
         </div>
       </Fieldset>
+      ) : null}
 
-      {documentLine ? (
-        <dl className="flex flex-wrap gap-x-4 gap-y-1 rounded-card bg-card px-4 py-3 text-sm">
-          <dt className="text-muted-foreground">ID for PSF</dt>
-          <dd className="font-medium">{documentLine}</dd>
-        </dl>
-      ) : (
-        <div className="grid max-w-form gap-4 sm:grid-cols-2">
-          <Field label="ID for PSF">
-            <SelectField
-              id="psf-id-type"
-              value={draft.idType}
-              options={[
-                { value: "national_id", label: "Rwandan National ID" },
-                { value: "passport", label: "Passport" },
-              ]}
-              onChange={(v) => onChange({ ...draft, idType: v === "passport" ? "passport" : "national_id", idNumber: "" })}
-            />
-          </Field>
-          <Field
-            label={draft.idType === "passport" ? "Passport number" : "National ID number"}
-            hint={draft.idType === "passport" ? "6 to 12 letters or digits" : "16 digits"}
-            error={e("idDocument.documentNumber") ?? e("idDocument")}
-          >
-            <TextInput
-              className="w-full tabular-nums"
-              inputMode={draft.idType === "passport" ? "text" : "numeric"}
-              value={draft.idNumber}
-              onChange={(ev) => set("idNumber", ev.target.value)}
-            />
-          </Field>
-        </div>
-      )}
-
+      {/* The ID is the one checked on You (2026-11-03): nothing asked or shown here. */}
       <Checkbox
         isSelected={draft.consent}
         onChange={(on: boolean) => set("consent", on)}

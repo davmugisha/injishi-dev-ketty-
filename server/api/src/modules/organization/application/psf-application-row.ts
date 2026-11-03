@@ -33,6 +33,15 @@ import type {
  * price edit never rewrites what the business saw when it applied, and the
  * amount the business declared rides beside it.
  */
+/**
+ * The form as a row is filed from (2026-11-03): every field PSF's form holds, the ID resolved. Injishi's
+ * registration sends the business part alone; `PsfMembershipService.completeForm` fills the rest from
+ * the registration and the person's profile.
+ */
+export type CompletePsfForm = PsfApplicationInput & { idDocument: PsfIdDocument } & Required<
+    Pick<PsfApplicationInput, 'companyName' | 'streetAddress' | 'contactRole' | 'firstName' | 'lastName' | 'gender' | 'phoneE164' | 'email' | 'dateOfBirth'>
+  >;
+
 export function buildPsfApplicationRow(input: {
   /** Null from the public form, where nobody signs in. */
   submittedByUserId: string | null;
@@ -44,7 +53,7 @@ export function buildPsfApplicationRow(input: {
   registrationNumber: string | null;
   tier: Pick<PsfTierRow, 'code' | 'priceKind' | 'annualFeeRwf' | 'annualFeeMinRwf' | 'annualFeeMaxRwf'>;
   /** The ID resolved: typed, or copied from the profile by the caller. */
-  form: PsfApplicationInput & { idDocument: PsfIdDocument };
+  form: CompletePsfForm;
   consentGivenAt: Date;
   consentVersion: string;
   /** A card holder joining the new module (2026-11-02), or a new application (the default). */
