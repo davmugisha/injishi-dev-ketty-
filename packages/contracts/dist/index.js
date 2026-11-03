@@ -82,6 +82,8 @@ __exportStar(require("./lost-found"), exports);
 // The front desk's day in one read, and the no-show command (interface real-data, frontdesk leaf).
 __exportStar(require("./front-desk"), exports);
 __exportStar(require("./marketplace"), exports);
+// The guest's public search over stays and homes (mobile spec 0005).
+__exportStar(require("./explore"), exports);
 // The residence screens of the new interface (real-data 1.3.1).
 __exportStar(require("./interface-residence"), exports);
 __exportStar(require("./staff-phone"), exports);

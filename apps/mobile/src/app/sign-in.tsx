@@ -5,7 +5,7 @@ import { Button, Card, Chip, FieldError, Input, Separator, TextField } from "her
 import { useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Text as UiText } from "@/components/ui";
+import { IconButton, Text as UiText } from "@/components/ui";
 import { unsentCount } from "@/data/outbox/store";
 import { lastAccount, requestCode, type SignInOptions, signInAs, signInOptions, signInWithGoogle } from "@/lib/auth";
 import { useSession } from "@/lib/session";
@@ -161,6 +161,12 @@ export default function SignInScreen() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1 bg-background">
+      {/* A way back to where the person was browsing (mobile spec 0005, the guest shell child). */}
+      {router.canGoBack() ? (
+        <View className="absolute left-2 z-10" style={{ top: insets.top + 4 }}>
+          <IconButton icon="ArrowLeft" label="Back" onPress={() => router.back()} />
+        </View>
+      ) : null}
       <ScrollView
         contentContainerClassName="items-center gap-5 px-5 pb-12"
         contentContainerStyle={{ paddingTop: insets.top + 40 }}

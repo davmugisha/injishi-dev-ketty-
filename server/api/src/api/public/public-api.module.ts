@@ -45,6 +45,7 @@ import { TwoFactorController } from './me/two-factor.controller';
 import { PasswordController } from './me/password.controller';
 import { AvailabilityController } from './properties/availability.controller';
 import { MarketplaceController } from './properties/marketplace.controller';
+import { ExploreController } from './explore/explore.controller';
 import {
   MeBusinessesController,
   MeCollectionsController,
@@ -271,6 +272,7 @@ import { TrainingPublicModule } from './training/training.module';
     AvailabilityController,
     // The interface marketplace's cards, rooms and property pages (real-data 1.3.2).
     MarketplaceController,
+    ExploreController,
     BookingsController,
     // The host's approve and decline, behind WorkspaceGuard (ADR-053, AC-A5).
     BookingDecisionsController,

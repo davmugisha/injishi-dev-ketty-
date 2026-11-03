@@ -65,6 +65,7 @@ export * from "./maintenance";
 export * from "./lost-found";
 export * from "./front-desk";
 export * from "./marketplace";
+export * from "./explore";
 export * from "./interface-residence";
 export * from "./staff-phone";
 export * from "./rentals";
