@@ -12,26 +12,56 @@ tracker), not this file.
 
 | Environment in Dokploy | Ships | Compose file | Dokploy appName | Hosts (domain rows) |
 | --- | --- | --- | --- | --- |
-| `production` (the default; Dokploy refuses to rename it) | db, redis, minio, api, worker, **web**, **app** | [`docker-compose.dokploy.yml`](docker-compose.dokploy.yml) | `injishi-production-igxxsu` | `www.`, `api.` and `app.injishi.com` |
-| `Staging` | db, redis, minio, mailpit, api, worker, **app**. No web | [`docker-compose.staging.yml`](docker-compose.staging.yml) | `injishi-staging-crwyau` | `api-staging.` and `app-staging.injishi.com` |
+| `production` (the default; Dokploy refuses to rename it) | db, redis, minio, api, worker, **web**, **app** | [`docker-compose.dokploy.yml`](docker-compose.dokploy.yml) | `injishi-production-igxxsu-k793z7` | `www.`, `api.` and `app.injishi.com` |
+| `Staging` | db, redis, minio, mailpit, mock-apis, api, worker, **web**, **app** | [`docker-compose.staging.yml`](docker-compose.staging.yml) | `injishi-staging-crwyau` | `www-staging.`, `api-staging.` and `app-staging.injishi.com` |
+
+Production was torn down on 2026-10-30 (it held no users or businesses) and
+recreated on 2026-11-03 as a new compose service. Dokploy appends its own
+suffix to an appName and ignores a rename, so the old `injishi-production-igxxsu`
+came back as `injishi-production-igxxsu-k793z7`; the compose project, its
+volumes and the `-p` in its command all carry that name. Staging has served
+web on `www-staging` since the same day.
 
 Hosts a domain row cannot express stay as Traefik labels in the compose file:
-the apex's permanent redirect to `www`, each `storage` host's reads only rule,
-and staging's `mail-staging` inbox. Never give one host both a domain row and a
-label router: two routers for one host is a coin toss.
+the apex's permanent redirect to `www`, production's `storage` reads only rule,
+staging's `storage-staging` signed requests rule and its `mail-staging` inbox.
+Never give one host both a domain row and a label router: two routers for one
+host is a coin toss.
+
+Staging also publishes three host ports for developers' laptops (Postgres
+5433, Redis 6380, Mailpit SMTP 1025); [Developer access to
+staging](#developer-access-to-staging) owns them.
 
 **How a deploy runs.** Each service's source is the GitHub provider
-`hangaasoftwares.app`, repository `hangaasoftwares/injishi`, with auto deploy
-off. Deploy is the **Deploy** button, or `compose.deploy` through the API. Each
-service carries a custom command that builds ONE image at a time and then
+`hangaasoftwares.app`, repository `hangaasoftwares/injishi`. **Both track
+`main` with auto deploy ON** (`autoDeploy: true`, trigger `push`), the
+owner's call of 2026-11-03: every push to `main`, a merged pull request
+included, deploys staging AND production. Nothing gates production on staging
+or on CI any more, and a red `ci` run does not stop a deploy, so read the run
+before you merge. Until then each tracked its own branch: production
+`deploy/production` (2026-11-03, with auto deploy off) and staging
+`deploy/staging` (2026-10-24 to 2026-11-03), and before 2026-10-24 both tracked
+`deploy/dokploy-environments`. The staging-only compose, Postgres scripts and
+env examples that lived on `deploy/staging` are on `main` since the same
+change, so both branches are retired. A push has failed to start a deploy before
+(2026-10-30, nothing within 90 seconds), so check `deployment.allByCompose` and
+deploy by hand (the **Deploy** button or `compose.deploy`) when it does not.
+Each service carries a custom command that builds ONE image at a time and then
 starts the stack, because three Next builds at once do not fit this host's
 memory:
 
 ```text
 compose -p <appName> --env-file ./infra/docker/.env -f <compose file> build api
-  && docker compose ... build web && docker compose ... build app        (staging: no web)
+  && docker compose ... build web && docker compose ... build app
   && docker compose ... up -d --remove-orphans
 ```
+
+Never build both stacks at once: two of these builds side by side do not fit
+either. Dokploy holds this for a push to `main`: its builds concurrency is 1
+(`webServerSettings.buildsConcurrency`, checked 2026-11-03), so the second
+stack's build waits in its deployment queue while the first runs. Keep it at 1.
+A push therefore takes about twice one build, roughly 160 minutes, before both
+stacks run it.
 
 **A deploy that builds is slow here, and quiet.** On 2 vCPU and 3.8 GB, while
 swapping, the first production build took 80 minutes (api 14, web 24, app 41).
@@ -47,14 +77,26 @@ command back.
 them to `infra/docker/.env` in its clone. The names are those of
 [`dokploy.env.example`](dokploy.env.example) and
 [`dokploy-staging.env.example`](dokploy-staging.env.example). Staging's add
-`API_HOST`, `APP_HOST`, `STORAGE_HOST` and `MAIL_HOST` in place of
+`WEB_HOST`, `API_HOST`, `APP_HOST`, `STORAGE_HOST` and `MAIL_HOST` (each defaulting to its `-staging.injishi.com` host) in place of
 `STAGING_DOMAIN`. The values generated at setup are also kept root only in
 `/root/dokploy-setup/` on the host. Never share a secret between the two.
 
 **Staging lives under injishi.com by the owner's choice**, which the next
 section's rule warns against. Production's `.injishi.com` session cookie
-reaches `api-staging` and `app-staging`. Staging cannot verify it, and its own
-API cookie is host only. The staging compose header says so.
+reaches every staging host, and staging cannot verify it. **Since 2026-11-03
+staging's own cookie is on `.injishi.com` too** (`AUTH_COOKIE_DOMAIN`, the
+owner's choice), because a host only cookie on `api-staging` never reached
+`www-staging`, so nobody could test a signed-in web page. Both stacks now
+write the same cookie name on the same domain: signing in to one signs a
+browser out of the other, and production's hosts receive staging tokens they
+cannot verify and treat as signed out. A staging cookie name of its own ends
+both and is a code change. The staging compose header says so.
+
+**`www-staging` asks not to be indexed.** Web's `robots.ts` admits every
+crawler, which is right for production and wrong for a copy of the marketplace
+on a staging host, so the `www-staging` domain row carries the Traefik
+middleware `injishi-staging-noindex@docker` (an `X-Robots-Tag: noindex,
+nofollow` response header, declared by labels on staging's `web`).
 
 **The demo is retired.** The `www-demo.injishi.com` stack, its Dokploy project
 and its nightly `demo-recover` workflow (now disabled) are gone. The
@@ -127,10 +169,11 @@ the API's `GET /api/v1/platform` instead.
 | `admin-demo.injishi.com` | demo | demo `app` | `ADMIN_ALLOWED_IPS`; its root goes to `/admin` |
 | `storage-demo.injishi.com` | demo | demo `minio` | Public, reads only, as production's |
 | `mail-demo.injishi.com` | demo | demo `mailpit` (inbox, port 8025) | `ADMIN_ALLOWED_IPS`. SMTP (1025) is never routed |
-| `app.<STAGING_DOMAIN>` | staging | staging `app` | Behind the same allowlist |
-| `api.<STAGING_DOMAIN>` | staging | staging `api` | |
-| `storage.<STAGING_DOMAIN>` | staging | staging `minio` | IP allowlist, then reads only, as production |
-| `mail.<STAGING_DOMAIN>` | staging | staging `mailpit` (inbox, port 8025) | IP allowlist. The inbox where testers read sign in codes; SMTP (1025) is never routed |
+| `www-staging.injishi.com` | staging | staging `web` (a Dokploy domain row, port 3000) | Public, `X-Robots-Tag: noindex` (`injishi-staging-noindex@docker`). `/sign-in` hands off to `app-staging` |
+| `app-staging.injishi.com` | staging | staging `app` (a Dokploy domain row, port 3002) | Public; a stranger cannot sign in, because every code goes to staging's Mailpit |
+| `api-staging.injishi.com` | staging | staging `api` (a Dokploy domain row, port 8000) | |
+| `storage-staging.injishi.com` | staging | staging `minio` | Signed S3 requests only (a label router) |
+| `mail-staging.injishi.com` | staging | staging `mailpit` (inbox, port 8025) | `MAILPIT_UI_PASSWORD`. The inbox where testers read sign in codes |
 
 The operator app has its own host in every stack (`NEXT_PUBLIC_PMS_URL`). Its
 screens live at its root (`/residence`, `/owner`, `/officer`, `/admin`, ...),
@@ -338,22 +381,27 @@ records the fee as paid without moving money while `PAYMENT_ADAPTER_MODE=off`.
   `mail.` inbox answer only to `STAGING_ALLOWED_IPS`; unset, that is loopback
   only, which closes staging. The staging API stays open like production's,
   because the frontends call it server side through its public address; the
-  session guards are its boundary.
+  session guards are its boundary. **On the Dokploy stack this no longer
+  holds for storage and mail** (2026-10-24): `storage-staging` passes signed S3
+  requests from anywhere and `mail-staging` asks for `MAILPIT_UI_PASSWORD`
+  instead, because developers work from addresses no allowlist knows.
+  `STAGING_ALLOWED_IPS` is read by nothing in that compose file now.
 - **A production process on sample data.** It issues random codes like
   production, on a database seeded with the same recipe as the demo (demo
   roster included). Never a copy of production: production rows are real
   personal data (Law 058/2021).
 - **Every service has a ceiling**, so a test run cannot starve production.
-- **Mail never leaves staging.** The compose file fixes
-  `SMTP_URL=smtp://injishi-mailpit:1025`, so every message the staging API sends
-  is caught by its own `mailpit` and read at `mail.<STAGING_DOMAIN>` behind
-  `STAGING_ALLOWED_IPS`. There is no relay credential to set, leak or spend; never
-  give staging a real relay. Never set `OTP_DEBUG_LOG` here either: a shared
-  host's logs are read by more than one person, a printed code is a working
-  credential, and the inbox is already the way to read one.
+- **Mail never leaves staging.** The compose file fixes `SMTP_URL` to its own
+  `injishi-mailpit:1025` (signed in as `staging-api` since Mailpit asks every
+  sender to), so every message the staging API sends is caught by its own
+  `mailpit` and read at `mail-staging.injishi.com`. There is no relay
+  credential to set, leak or spend; never give staging a real relay. Never set
+  `OTP_DEBUG_LOG` here either: a shared host's logs are read by more than one
+  person, a printed code is a working credential, and the inbox is already the
+  way to read one.
 - **Storage is its own.** Its own `minio`, KMS key, root password and API user,
-  never production's, answering on `storage.<STAGING_DOMAIN>` behind the same
-  allowlist.
+  never production's, answering on `storage-staging.injishi.com` to signed
+  requests only.
 - **Injishi Mock APIs runs beside it** (ADR-077): the `mock-apis` service, built
   on the host from `infra/docker/Dockerfile.mock-apis`, plays GTBank (NIDA and
   the Payment Hub), RRA and Smile ID from seeded registers. The API reaches it
@@ -370,6 +418,70 @@ records the fee as paid without moving money while `PAYMENT_ADAPTER_MODE=off`.
   mock refuses `NODE_ENV=production` unless the compose file says it is a
   sample stack, so neither can reach production by accident. Production and
   the demo do not run it.
+
+## Developer access to staging
+
+Since 2026-10-24 a developer's laptop runs the API from source against
+staging's own Postgres, Redis, MinIO and Mailpit instead of a local Docker
+stack (the owner's request). Only the backing services are reachable this way;
+the deployed `api`, `worker` and `app` are unchanged, and production publishes
+nothing. [`staging-dev.env.example`](staging-dev.env.example) is the laptop's
+`server/api/.env`, with the values left out.
+
+| Service | A laptop reaches it at | Developer login (staging's Dokploy variables) | What it admits |
+| --- | --- | --- | --- |
+| Postgres | `102.202.208.167:5433` (`STAGING_DB_PUBLIC_PORT`) | `injishi_dev` / `STAGING_DB_DEV_PASSWORD` | TLS only, and only that role: the owner `injishi` (a superuser) never answers from outside ([`postgres/staging-pg-hba.conf`](postgres/staging-pg-hba.conf)) |
+| Redis (BullMQ) | `102.202.208.167:6380` (`STAGING_REDIS_PUBLIC_PORT`) | `dev` / `REDIS_DEV_PASSWORD` | A password on every connection; `dev` cannot run FLUSHALL, FLUSHDB, CONFIG, SHUTDOWN, ACL or replication commands. No TLS |
+| MinIO (S3) | `https://storage-staging.injishi.com` | the API's own `STORAGE_S3_ACCESS_KEY` | Signed requests only, through Traefik; never `/minio/` |
+| Mailpit SMTP | `102.202.208.167:1025` (`STAGING_SMTP_PUBLIC_PORT`) | `dev` / `MAILPIT_SMTP_DEV_PASSWORD` | Every sender signs in (530 otherwise). No TLS |
+| Mailpit inbox | `https://mail-staging.injishi.com` | `MAILPIT_UI_USER` / `MAILPIT_UI_PASSWORD` | Basic auth, from anywhere |
+
+What a change here leans on:
+
+- **The developer logins are never the stack's own.** The stack signs in as
+  `injishi`, Redis `default` (`REDIS_PASSWORD`) and Mailpit `staging-api`
+  (`MAILPIT_SMTP_API_PASSWORD`); laptops use the three developer logins above,
+  so withdrawing developer access never touches the deployed processes. Rotate
+  a developer password in Dokploy and redeploy; an empty
+  `STAGING_DB_DEV_PASSWORD` switches `injishi_dev` off. The one shot
+  `db-dev-role` service sets the role on every `up`
+  ([`postgres/staging-dev-role.sh`](postgres/staging-dev-role.sh)).
+- **`injishi_dev` is the owner's privileges, not the owner.** It is granted
+  `injishi` WITH INHERIT TRUE, SET FALSE: every table read and write, and DDL
+  on the owner's tables, but no SET ROLE to the superuser, so no `COPY ...
+  PROGRAM`, no server file reads, no new roles. Its CONNECTION LIMIT is 40 of
+  the 100 connections, so laptops cannot starve the stack's own pools.
+- **Postgres TLS is a self-signed pair** in `PG_TLS_CERT_B64` and
+  `PG_TLS_KEY_B64` (base64 PEM, EC P-256, CN `db-staging.injishi.com`, SAN
+  `102.202.208.167`, valid to 2036), written into the container at start by
+  [`postgres/staging-entrypoint.sh`](postgres/staging-entrypoint.sh), never
+  onto the volume. Without the pair the server starts without TLS, and the
+  rules file then refuses every connection from outside. node-postgres checks
+  a host name only when the host IS a name, so a laptop on the IP uses
+  `sslmode=no-verify`, and `psql` or a GUI client `sslmode=require`. Once
+  `db-staging.injishi.com` resolves here, `sslmode=verify-full&sslrootcert=`
+  the certificate checks the server as well.
+- **A published port keeps the caller's own address** (Docker DNATs it), which
+  is what the rules file rests on: the private ranges in it are this host's
+  containers. Checked 2026-10-24: `inet_client_addr()` read the laptop's
+  public address, and the owner role was refused from it.
+- **Published ports bypass the host's firewall.** ufw is inactive on this host
+  anyway, and Docker inserts its own rules ahead of it; there is no IP
+  allowlist on any of the three ports. To narrow one, put rules in iptables'
+  `DOCKER-USER` chain, never in ufw.
+- **No DNS names of their own yet.** `db-staging`, `redis-staging` and
+  `smtp-staging.injishi.com` do not resolve, so laptops use the IP. Adding them
+  is three A records to `102.202.208.167`, DNS only; nothing here changes.
+- **A laptop is one more writer on staging's data and one more producer on its
+  queues.** It runs `INJISHI_PROCESS=http` only. Staging's own `worker` drains
+  every queue, so a laptop's job runs staging's commit; a worker started on a
+  laptop competes with it for the same jobs. Never apply a branch's migration
+  here: `migrate.mjs` then refuses staging's next deploy
+  (`migration-gaps.mjs`) until somebody repairs the journal by hand.
+- **Laptops do not share staging's session secrets.** The template gives a
+  laptop its own `BETTER_AUTH_SECRET` and `COOKIE_SECRET`, so a laptop session
+  opens nothing on `api-staging`. It shares `HR_PIN_PEPPER`, because PINs are
+  rows in the shared database.
 
 ## Object storage and mail
 
@@ -421,7 +533,7 @@ claim invitation is the first such mail. Each compose file sets it from the same
 host its frontends' `NEXT_PUBLIC_WEB_URL` is built from, so nothing extra goes in
 an env file: production `https://${WEB_HOST:-www.injishi.com}`, demo
 `https://${WEB_HOST:-www-demo.injishi.com}`, staging
-`https://www.${STAGING_DOMAIN}`. It must be an origin with no path. The API
+`https://${WEB_HOST:-www-staging.injishi.com}`. It must be an origin with no path. The API
 refuses to boot under `NODE_ENV=production` without it, exactly as it does
 without `SMTP_URL`.
 
