@@ -33,16 +33,19 @@ Staging also publishes three host ports for developers' laptops (Postgres
 staging](#developer-access-to-staging) owns them.
 
 **How a deploy runs.** Each service's source is the GitHub provider
-`hangaasoftwares.app`, repository `hangaasoftwares/injishi`. **Each tracks its
-own branch**: production `deploy/production` (since 2026-11-03; the deleted
-service tracked `deploy/dokploy-environments`), staging `deploy/staging`
-(since 2026-10-24; both tracked `deploy/dokploy-environments` until then, so a
-staging change could only ship by redeploying production). **Staging has auto
-deploy ON** (`autoDeploy: true`, trigger `push`): a push to `deploy/staging`
-deploys it, although on 2026-10-30 a push started nothing within 90 seconds, so
-check `deployment.allByCompose` and deploy by hand when it does not.
-**Production has auto deploy OFF**: a release is moving `deploy/production` to
-the commit, then the **Deploy** button or `compose.deploy` through the API.
+`hangaasoftwares.app`, repository `hangaasoftwares/injishi`. **Both track
+`main` with auto deploy ON** (`autoDeploy: true`, trigger `push`), the
+owner's call of 2026-11-03: every push to `main`, a merged pull request
+included, deploys staging AND production. Nothing gates production on staging
+or on CI any more, and a red `ci` run does not stop a deploy, so read the run
+before you merge. Until then each tracked its own branch: production
+`deploy/production` (2026-11-03, with auto deploy off) and staging
+`deploy/staging` (2026-10-24 to 2026-11-03), and before 2026-10-24 both tracked
+`deploy/dokploy-environments`. The staging-only compose, Postgres scripts and
+env examples that lived on `deploy/staging` are on `main` since the same
+change, so both branches are retired. A push has failed to start a deploy before
+(2026-10-30, nothing within 90 seconds), so check `deployment.allByCompose` and
+deploy by hand (the **Deploy** button or `compose.deploy`) when it does not.
 Each service carries a custom command that builds ONE image at a time and then
 starts the stack, because three Next builds at once do not fit this host's
 memory:
@@ -53,8 +56,12 @@ compose -p <appName> --env-file ./infra/docker/.env -f <compose file> build api
   && docker compose ... up -d --remove-orphans
 ```
 
-Never deploy both stacks at once: two of these builds side by side do not fit
-either.
+Never build both stacks at once: two of these builds side by side do not fit
+either. Dokploy holds this for a push to `main`: its builds concurrency is 1
+(`webServerSettings.buildsConcurrency`, checked 2026-11-03), so the second
+stack's build waits in its deployment queue while the first runs. Keep it at 1.
+A push therefore takes about twice one build, roughly 160 minutes, before both
+stacks run it.
 
 **A deploy that builds is slow here, and quiet.** On 2 vCPU and 3.8 GB, while
 swapping, the first production build took 80 minutes (api 14, web 24, app 41).

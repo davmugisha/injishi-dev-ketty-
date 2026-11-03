@@ -1,0 +1,71 @@
+/*
+ * HeroUI Native Theme
+ * Paste into global.css after your HeroUI Native imports.
+ * @see https://heroui.com/docs/native/getting-started/theming
+ */
+/*
+ * Note: "mouve" is a web-only design theme.
+ * Native export includes compatible semantic tokens only.
+ */
+
+@import "tailwindcss";
+@import "uniwind";
+@import "heroui-native/styles";
+@import "heroui-native-pro/styles";
+
+@source "./node_modules/heroui-native/lib";
+@source "./node_modules/heroui-native-pro/lib";
+
+@theme {
+  --radius: 0.5rem;
+  --field-radius: 0.5rem;
+  --font-bold: Inter-Bold;
+  --font-medium: Inter-Medium;
+  --font-normal: Inter-Regular;
+  --font-semibold: Inter-SemiBold;
+}
+
+@layer theme {
+@variant light {
+  /* Theme Colors */
+  --background: oklch(95.43% 0.0058 154.55);
+  --muted: oklch(58.00% 0.0140 150.84);
+  --surface: var(--white);
+  --surface-secondary: oklch(95.00% 0.0056 150.84);
+  --surface-tertiary: oklch(93.50% 0.0075 150.84);
+  --overlay: oklch(97.50% 0.0037 150.84);
+  --default: oklch(92.00% 0.0056 150.84);
+  --accent: oklch(73.29% 0.1934 150.84);
+  --accent-foreground: oklch(0.00% 0.0000 0.00);
+  --field-background: oklch(97.00% 0.0028 150.84);
+  --border: oklch(88.00% 0.0070 150.84);
+  --separator: oklch(92.00% 0.0047 150.84);
+  --focus: oklch(73.29% 0.1934 150.84);
+}
+
+@variant dark {
+  /* Theme Colors */
+  --background: oklch(0.00% 0.0000 0.00);
+  --muted: oklch(65.00% 0.0093 150.84);
+  --surface: oklch(0.00% 0.0000 0.00);
+  --surface-secondary: oklch(24.00% 0.0093 150.84);
+  --surface-tertiary: oklch(27.00% 0.0093 150.84);
+  --overlay: oklch(20.00% 0.0093 150.84);
+  --default: oklch(26.00% 0.0093 150.84);
+  --accent: oklch(73.29% 0.1934 150.84);
+  --accent-foreground: oklch(0.00% 0.0000 0.00);
+  --field-background: oklch(22.00% 0.0084 150.84);
+  --segment: oklch(28.00% 0.0117 150.84);
+  --border: oklch(30.00% 0.0093 150.84);
+  --separator: oklch(28.00% 0.0084 150.84);
+  --focus: oklch(73.29% 0.1934 150.84);
+}
+}
+
+@theme inline static {
+  --color-chart-1: oklch(42.00% 0.1400 150.84);
+  --color-chart-2: oklch(50.00% 0.1600 150.84);
+  --color-chart-3: oklch(55.00% 0.1800 150.84);
+  --color-chart-4: oklch(65.00% 0.1400 150.84);
+  --color-chart-5: oklch(75.00% 0.1000 150.84);
+}

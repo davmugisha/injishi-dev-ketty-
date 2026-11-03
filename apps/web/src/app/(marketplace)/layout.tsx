@@ -1,13 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { fixed } from "@injishi/design-tokens";
-import { cn } from "@injishi/utils";
 import { pwaMetadata } from "@/lib/pwa-metadata";
 import { AssistantWidget } from "@/components/assistant/assistant-widget";
 import { AnalyticsScript } from "@/components/shared/analytics-script";
 import { shareMetadata } from "@/lib/share-metadata";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { HeroRouter } from "@/components/heroui/router";
-import { figtree, instrumentSans } from "@/lib/fonts";
+import { outfit } from "@/lib/fonts";
 import "../_injishi-public.css";
 
 /**
@@ -108,7 +107,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
   return (
     <html
       lang="en"
-      className={cn(figtree.variable, instrumentSans.variable)}
+      className={outfit.variable}
       suppressHydrationWarning
     >
       <body className="antialiased">
