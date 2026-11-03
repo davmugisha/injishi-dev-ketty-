@@ -1,11 +1,12 @@
 // Property and unit photographs (mobile spec 0005, cross child contract "Photos"). Every photo on the
-// wire is `{ id, kind, caption, width, height }`; its URL is built here and nowhere else.
+// wire is `{ id, kind, caption, width, height }`; its URL is built here and nowhere else. Api mode
+// only: the sample data draws the prototype's bundled photos.
 
 import type { ExplorePhoto } from "@injishi/contracts";
-import { Image } from "expo-image";
 import { Text as NativeText, View } from "react-native";
 import { roleText } from "@/components/ui/text";
 import { API_URL } from "@/lib/env";
+import type { GuestPhoto } from "./types";
 import { initials } from "./words";
 
 /** `thumb` for cards, `medium` for the page; sized variants arrive in milestone 4, originals until then. */
@@ -21,23 +22,10 @@ export function photoUrl(photo: Pick<ExplorePhoto, "id" | "kind">, _size: PhotoS
     : `${API_URL}/api/v1/properties/photos/${photo.id}`;
 }
 
-/**
- * One photograph filling its box. The disk cache is keyed by the API URL, a best effort given the
- * route's `no-store` (D-ay). Decorative unless `label` is given.
- */
-export function Photo({ photo, size, label }: { photo: ExplorePhoto; size: PhotoSize; label?: string }) {
+/** A photograph as an image source, keyed by its API URL for the disk cache (D-ay). */
+export function photoSource(photo: Pick<ExplorePhoto, "id" | "kind">, size: PhotoSize): GuestPhoto {
   const uri = photoUrl(photo, size);
-  return (
-    <Image
-      source={{ uri, cacheKey: uri }}
-      cachePolicy="disk"
-      contentFit="cover"
-      transition={150}
-      accessible={!!label}
-      accessibilityLabel={label}
-      style={{ width: "100%", height: "100%" }}
-    />
-  );
+  return { uri, cacheKey: uri };
 }
 
 /** The initials on `accent-soft` take its own pair, `accent-soft-foreground`, which `Text` has no tone for. */
@@ -48,12 +36,13 @@ const INITIALS = { small: roleText("title1"), large: roleText("display") } as co
  * picture (the property page child).
  */
 export function PhotoPlaceholder({ name, large = false }: { name: string; large?: boolean }) {
+  const type = INITIALS[large ? "large" : "small"];
   return (
     <View className="flex-1 items-center justify-center bg-accent-soft" accessible={false}>
       <NativeText
-        className={`${INITIALS[large ? "large" : "small"].className} text-accent-soft-foreground`}
-        maxFontSizeMultiplier={INITIALS[large ? "large" : "small"].maxFontSizeMultiplier}
-        style={INITIALS[large ? "large" : "small"].style}
+        className={`${type.className} text-accent-soft-foreground`}
+        maxFontSizeMultiplier={type.maxFontSizeMultiplier}
+        style={type.style}
       >
         {initials(name)}
       </NativeText>

@@ -1,5 +1,6 @@
 import Svg, { Path } from "react-native-svg";
 import { useCSSVariable } from "uniwind";
+import { MUTED_ON_SOLID, useGround } from "./ground";
 import { type IconName, iconGlyphs } from "./icon-glyphs";
 import type { IconSize } from "./metrics";
 import { type TextTone, toneRoles } from "./text";
@@ -10,7 +11,19 @@ export type { IconName } from "./icon-glyphs";
  * Draws a glyph in one palette role, read live from the theme. The kit's own parts call this with
  * the role HeroUI gives their label (a button's, a chip's); screens use `Icon` and a tone.
  */
-export function Glyph({ name, size, role, label }: { name: IconName; size: number; role: string; label?: string }) {
+export function Glyph({
+  name,
+  size,
+  role,
+  label,
+  opacity,
+}: {
+  name: IconName;
+  size: number;
+  role: string;
+  label?: string;
+  opacity?: number;
+}) {
   const color = useCSSVariable(`--color-${role}`);
   const glyph = iconGlyphs[name];
   return (
@@ -22,6 +35,7 @@ export function Glyph({ name, size, role, label }: { name: IconName; size: numbe
       accessibilityLabel={label}
       accessibilityRole={label ? "image" : undefined}
       importantForAccessibility={label ? "yes" : "no-hide-descendants"}
+      opacity={opacity}
     >
       {glyph.paths.map((p) => (
         <Path key={p.d} d={p.d} fill={String(color)} fillRule={"evenodd" in p ? "evenodd" : "nonzero"} />
@@ -34,12 +48,29 @@ export type IconProps = {
   /** One of `icons.json`; any other name fails typecheck (AC-10). */
   name: IconName;
   size?: IconSize;
+  /** Absent (or `default`), the icon takes the ground it sits on, as `Text` does. */
   tone?: TextTone;
   /** Read aloud when set; without it the icon is decoration and a screen reader skips it. */
   label?: string;
 };
 
 /** A Gravity UI icon at one of six sizes, in one of the eight text tones (mobile spec 0002, AC-10). */
-export function Icon({ name, size = 20, tone = "default", label }: IconProps) {
-  return <Glyph name={name} size={size} role={toneRoles[tone]} label={label} />;
+export function Icon({ name, size = 20, tone, label }: IconProps) {
+  const ground = useGround();
+  if (ground && (tone === undefined || tone === "default")) {
+    return <Glyph name={name} size={size} role={ground.role} label={label} />;
+  }
+  // On a solid fill every tone is the fill's pair, as `Text` does; `muted` dims it.
+  if (ground?.solid) {
+    return (
+      <Glyph
+        name={name}
+        size={size}
+        role={ground.role}
+        label={label}
+        opacity={tone === "muted" ? MUTED_ON_SOLID : undefined}
+      />
+    );
+  }
+  return <Glyph name={name} size={size} role={toneRoles[tone ?? "default"]} label={label} />;
 }

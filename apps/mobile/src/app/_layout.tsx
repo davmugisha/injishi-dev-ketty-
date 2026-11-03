@@ -20,6 +20,7 @@ import { DataProvider } from "@/data/data-provider";
 import { SessionProvider } from "@/lib/session";
 import { initStore } from "@/lib/store";
 import { useReduceMotion } from "@/lib/use-reduce-motion";
+import { OVERLAY_OPTIONS } from "@/proto/app-stack";
 
 // The splash (drawn by the native build, on the theme's background) stays up until the fonts are
 // ready, the root background is set and the first screen has laid out (mobile spec 0002, D-w).
@@ -55,7 +56,11 @@ export default function RootLayout() {
             <SessionProvider>
               <DataProvider>
                 <StatusBar style="auto" />
-                <Stack screenOptions={{ headerShown: false, contentStyle: { flex: 1 } }} />
+                <Stack screenOptions={{ headerShown: false, contentStyle: { flex: 1 } }}>
+                  {/* The prototype's root modals draw their own scrim and sheet over the app beneath. */}
+                  <Stack.Screen name="switcher" options={OVERLAY_OPTIONS} />
+                  <Stack.Screen name="test-money" options={OVERLAY_OPTIONS} />
+                </Stack>
               </DataProvider>
             </SessionProvider>
           </ThemeChrome>
