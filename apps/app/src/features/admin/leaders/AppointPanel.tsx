@@ -24,8 +24,9 @@ import {
   SidePanel,
 } from "@injishi/ui";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { loadGuestPlaces } from "../../guests/places";
+import { useStepUp } from "../step-up/step-up-dialog";
 import { appointOfficer } from "./actions";
 
 /** The roles in the order the form offers them: local leaders, then business reviewers, then other officers. */
@@ -43,9 +44,17 @@ export const ROLE_CHOICES: { id: OversightRole; label: string; description: stri
     description: "Guests from abroad in one district",
   },
   { id: "dgie_province", label: OVERSIGHT_ROLE_LABEL.dgie_province, description: "Guests from abroad in one province" },
-  { id: "dgie_national", label: OVERSIGHT_ROLE_LABEL.dgie_national, description: "Guests from abroad, the whole country" },
+  {
+    id: "dgie_national",
+    label: OVERSIGHT_ROLE_LABEL.dgie_national,
+    description: "Guests from abroad, the whole country",
+  },
   { id: "business_field_verifier", label: "Document reviewer", description: "Reviews a business's documents online" },
-  { id: "business_approver", label: "Business approver", description: "Approves businesses whose documents are checked" },
+  {
+    id: "business_approver",
+    label: "Business approver",
+    description: "Approves businesses whose documents are checked",
+  },
   { id: "tax_compliance_officer", label: OVERSIGHT_ROLE_LABEL.tax_compliance_officer, description: "Tax compliance" },
   {
     id: "psf_membership_officer",
@@ -141,7 +150,9 @@ export function AppointPanel({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
-  const [pending, start] = useTransition();
+  // Appointing gives authority, so the API may ask for a fresh code first (2026-11-02).
+  const stepUp = useStepUp();
+  const pending = stepUp.pending;
 
   // Editing a field takes its error away; Appoint checks everything again.
   const clear = (field: string): void => setErrors((e) => (e[field] ? { ...e, [field]: "" } : e));
@@ -188,22 +199,25 @@ export function AppointPanel({
   };
 
   const appoint = () => {
-    start(async () => {
-      const result = await appointOfficer(request());
-      setConfirming(false);
-      if (!result.ok) {
-        const fields: Record<string, string> = {};
-        for (const [k, v] of Object.entries(result.fieldErrors ?? {})) {
-          fields[k.endsWith("Id") || k === "scopeLevel" ? "area" : k] = v;
+    setConfirming(false);
+    stepUp.guard(
+      () => appointOfficer(request()),
+      (result) => {
+        setConfirming(false);
+        if (!result.ok) {
+          const fields: Record<string, string> = {};
+          for (const [k, v] of Object.entries(result.fieldErrors ?? {})) {
+            fields[k.endsWith("Id") || k === "scopeLevel" ? "area" : k] = v;
+          }
+          setErrors(fields);
+          setFormError(Object.keys(fields).length > 0 ? null : result.error);
+          return;
         }
-        setErrors(fields);
-        setFormError(Object.keys(fields).length > 0 ? null : result.error);
-        return;
-      }
-      toast.success(`${result.value.name ?? result.value.email} is now ${result.value.roleLabel.toLowerCase()}`);
-      onClose();
-      router.refresh();
-    });
+        toast.success(`${result.value.name ?? result.value.email} is now ${result.value.roleLabel.toLowerCase()}`);
+        onClose();
+        router.refresh();
+      },
+    );
   };
 
   return (
@@ -357,6 +371,7 @@ export function AppointPanel({
           ? "They get an email to sign in, and the guests in that area reach them from now on, with any that were waiting."
           : "They get an email to sign in, and the businesses in that area reach their queue."}
       </ConfirmDialog>
+      {stepUp.dialog}
     </>
   );
 }

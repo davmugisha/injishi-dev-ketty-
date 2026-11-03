@@ -838,8 +838,20 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
       label: "Reports",
       items: [
         { id: "overview", label: "Overview", icon: "ChartColumn", board: "PsfReport", href: "/psf/report/overview" },
-        { id: "r-membership", label: "Membership", icon: "ChartPie", board: "PsfReport", href: "/psf/report/membership" },
-        { id: "r-approvals", label: "Business approvals", icon: "ChartLine", board: "PsfReport", href: "/psf/report/approvals" },
+        {
+          id: "r-membership",
+          label: "Membership",
+          icon: "ChartPie",
+          board: "PsfReport",
+          href: "/psf/report/membership",
+        },
+        {
+          id: "r-approvals",
+          label: "Business approvals",
+          icon: "ChartLine",
+          board: "PsfReport",
+          href: "/psf/report/approvals",
+        },
         { id: "r-economy", label: "District economy", icon: "Wallet", board: "PsfReport", href: "/psf/report/economy" },
         { id: "r-members", label: "Member register", icon: "Persons", board: "PsfReport", href: "/psf/report/members" },
       ],
@@ -908,9 +920,15 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
         },
         {
           id: "people",
-          label: "Staff & brokers",
+          label: "People",
           icon: "PersonsLock",
           board: "AdminPeople",
+        },
+        {
+          id: "roles",
+          label: "Roles",
+          icon: "ShieldCheck",
+          board: "AdminRoles",
         },
         {
           id: "broker-plans",

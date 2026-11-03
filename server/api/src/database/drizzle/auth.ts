@@ -131,6 +131,23 @@ export const phoneLinkChallenges = pgTable(
 );
 
 
+/**
+ * One row per sign in (migration 0125), written when Better Auth makes a
+ * session. Sessions are deleted when they end; this is what is left to show
+ * when and from where a person signed in.
+ */
+export const signInEvents = pgTable('sign_in_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  sessionId: uuid('session_id'),
+  method: text('method').notNull(),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const sessions = pgTable('sessions', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id')

@@ -66,6 +66,11 @@ import {
  * `TWO_PERSON_STAFF_PERMISSIONS`, with `needsSecondSigner` declared and nothing
  * implementing it. That stays true after this service: the owner chose single
  * signer over building the second signer flow, and ADR-053 records the risk.
+ *
+ * Confirmed again on 2026-11-02, when custom staff roles arrived: role grants
+ * stay single signer, and in place of a second signer every grant route
+ * (`@RequireFreshStepUp`) demands an emailed step-up code proved within the
+ * last ten minutes (`STAFF_GRANT_STEP_UP_SECONDS`). No second-signer table.
  */
 @Injectable()
 export class OversightGrantsService {

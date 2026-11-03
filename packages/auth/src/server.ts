@@ -2,7 +2,7 @@ import { expo } from "@better-auth/expo";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { bearer, emailOTP } from "better-auth/plugins";
-import { isAPIError } from "better-auth/api";
+import { APIError, isAPIError } from "better-auth/api";
 import {
     AUTH_BASE_PATH,
     OTP_EXPIRY_SECONDS,
@@ -169,6 +169,26 @@ export interface CreateAuthConfig {
      * one can still sign in with it, change it and reset it.
      */
     mayHoldPassword?: MayHoldPassword;
+    /**
+     * Whether this user may sign in at all (2026-11-02): false while staff
+     * have suspended the account. Asked before every session is made, so a
+     * suspended person is refused at every sign in route alike. Omit it and
+     * everybody may.
+     */
+    maySignIn?: (userId: string) => Promise<boolean>;
+    /**
+     * Told after a session is made, for the sign in history staff read
+     * (`sign_in_events`). A failure here never fails the sign in.
+     */
+    onSignIn?: (event: SignInEvent) => Promise<void>;
+}
+/** One sign in, as `onSignIn` hears it. `path` is the Better Auth route that made the session. */
+export interface SignInEvent {
+    userId: string;
+    sessionId: string;
+    path: string;
+    ipAddress: string | null;
+    userAgent: string | null;
 }
 /** The part of Better Auth's context logger the error hook writes to. */
 interface ErrorLogger {
@@ -240,6 +260,8 @@ function logAsBetterAuthWould(error: unknown, logger: ErrorLogger | undefined): 
  * mailbox with a code, and ADR-039 AC-11 forbids a phone session from skipping
  * the emailed step-up.
  */
+/** The refusal code a suspended account's sign in answers. */
+export const ACCOUNT_SUSPENDED = "ACCOUNT_SUSPENDED";
 export const STEPPED_UP_PATHS: ReadonlySet<string> = new Set([
     "/sign-in/email-otp",
     "/sign-in/email",
@@ -352,6 +374,12 @@ export function createAuth(config: CreateAuthConfig): AuthInstance {
                     ) => {
                         const path =
                             ctx && typeof ctx.path === "string" ? ctx.path : "";
+                        if (config.maySignIn && !(await config.maySignIn(session.userId))) {
+                            throw new APIError("FORBIDDEN", {
+                                code: ACCOUNT_SUSPENDED,
+                                message: "This account is suspended. Contact Injishi support.",
+                            });
+                        }
                         if (!STEPPED_UP_PATHS.has(path)) {
                             return { data: session };
                         }
@@ -361,6 +389,28 @@ export function createAuth(config: CreateAuthConfig): AuthInstance {
                                 twoFactorVerifiedAt: new Date(),
                             },
                         };
+                    },
+                    after: async (
+                        session: {
+                            id: string;
+                            userId: string;
+                            ipAddress?: string | null;
+                            userAgent?: string | null;
+                        } & Record<string, unknown>,
+                        ctx: { path?: string } | null,
+                    ) => {
+                        if (!config.onSignIn) return;
+                        try {
+                            await config.onSignIn({
+                                userId: session.userId,
+                                sessionId: session.id,
+                                path: ctx && typeof ctx.path === "string" ? ctx.path : "",
+                                ipAddress: session.ipAddress ?? null,
+                                userAgent: session.userAgent ?? null,
+                            });
+                        } catch {
+                            // The history is a record, not a gate.
+                        }
                     },
                 },
             },

@@ -120,6 +120,20 @@ export class TwoFactorService {
     return { verified: session?.verifiedAt != null };
   }
 
+  /**
+   * Did THIS session prove a code within the last `seconds`? For a grant
+   * (`@RequireFreshStepUp`): the once per session step-up is not enough there.
+   */
+  async verifiedWithin(sessionId: string, seconds: number): Promise<boolean> {
+    const [session] = await this.db
+      .select({ verifiedAt: sessions.twoFactorVerifiedAt })
+      .from(sessions)
+      .where(eq(sessions.id, sessionId))
+      .limit(1);
+    const at = session?.verifiedAt;
+    return at != null && Date.now() - at.getTime() <= seconds * 1000;
+  }
+
   async statusFor(userId: string, sessionId: string): Promise<TwoFactorStatus> {
     const [required, state] = await Promise.all([
       this.requiredFor(userId),
