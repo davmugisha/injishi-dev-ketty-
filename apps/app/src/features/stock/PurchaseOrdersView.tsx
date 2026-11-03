@@ -115,7 +115,6 @@ export function PurchaseOrdersView({
       <PageHeader
         eyebrow="Buy › Purchase orders · Isangano main store"
         title="Purchase Orders"
-        description="Approved requisitions become purchase orders. Orders above RWF 1,000,000 need the owner."
         actions={
           <>
             <LinkButton href={screenHref("GoodsReceipt")} variant="secondary">

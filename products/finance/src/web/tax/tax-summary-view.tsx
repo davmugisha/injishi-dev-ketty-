@@ -102,7 +102,6 @@ export function TaxSummaryView({
       <PageHeader
         eyebrow={`${m.name} · ${m.tin} · ${d.periodLabel}`}
         title="Tax Summaries"
-        description="Computed only from issued fiscal documents. Preparing a declaration here does not file it with RRA."
         actions={
           <>
             <Segment aria-label="Merchant" selectedKey={m.id} onSelectionChange={(k) => setMerchantId(String(k))}>

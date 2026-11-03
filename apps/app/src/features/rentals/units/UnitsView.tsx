@@ -16,24 +16,18 @@ import {
   DataTable,
   DateText,
   EmptyBlock,
-  FilterSelect,
-  FilterTabs,
   formatMoney,
-  formatNumber,
   Icon,
   IconAction,
-  KpiStrip,
-  ListToolbar,
   Money,
   PageContent,
-  PageHeader,
   RowActions,
-  SearchBar,
   StatusChip,
   UnitCell,
 } from "@injishi/ui";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { retireUnit } from "../actions";
 import { bedroomsWords, unitStatus } from "../shared";
 import { BlocksPanel } from "./BlocksPanel";
@@ -113,13 +107,6 @@ export function UnitsView({
     if (typing.current) clearTimeout(typing.current);
     typing.current = setTimeout(() => go({ q: value }), 300);
   };
-
-  const priced = all.filter((u) => u.askingRentRwf !== null);
-  const vacantRent = all.filter((u) => unitStatus(u) === "vacant").reduce((sum, u) => sum + (u.askingRentRwf ?? 0), 0);
-  const occupiedCount = list.counts.occupied ?? 0;
-  const unitCount = list.counts.all ?? 0;
-  const average =
-    priced.length > 0 ? Math.round(priced.reduce((s, u) => s + (u.askingRentRwf ?? 0), 0) / priced.length) : 0;
 
   const manyBuildings = properties.length > 1;
   const anyBlock = all.some((u) => u.blockId !== null);
@@ -203,7 +190,6 @@ export function UnitsView({
   // A column every row would leave empty (no blocks yet, nothing vacant since a tenancy) is not shown.
   const shownColumns = columns.filter((c) => (c.id !== "block" || anyBlock) && (c.id !== "vacant" || anyVacantSince));
 
-  const filtered = query.tab !== "all" || query.blockId !== null || query.q !== "";
   const confirmRetire = () => {
     if (!retiring) return;
     const unit = retiring;
@@ -223,8 +209,7 @@ export function UnitsView({
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
-      <PageHeader
-        title="Units"
+      <AreaHeader
         actions={
           <>
             <ActionButton icon="LayoutCells" intent="ghost" onPress={() => setShowBlocks(true)}>
@@ -243,78 +228,6 @@ export function UnitsView({
           </>
         }
       />
-
-      <KpiStrip
-        label="Units at a glance"
-        items={[
-          {
-            id: "occupancy",
-            label: "Occupancy",
-            value: unitCount > 0 ? Math.round((occupiedCount / unitCount) * 1000) / 10 : 0,
-            format: "percent",
-            icon: "ChartLine",
-            progress: unitCount > 0 ? (occupiedCount / unitCount) * 100 : 0,
-            footnote:
-              unitCount === 0
-                ? "No units yet"
-                : `${formatNumber(occupiedCount)} of ${formatNumber(unitCount)} occupied`,
-            href: "?tab=occupied",
-            isCurrent: query.tab === "occupied",
-          },
-          {
-            id: "vacant",
-            label: "Vacant",
-            value: list.counts.vacant ?? 0,
-            format: "count",
-            icon: "FolderHouse",
-            status: (list.counts.vacant ?? 0) > 0 ? "warning" : undefined,
-            footnote:
-              unitCount === 0
-                ? "No units yet"
-                : vacantRent > 0
-                  ? `${formatMoney(vacantRent)} a month unlet`
-                  : (list.counts.vacant ?? 0) > 0
-                    ? "Free to let"
-                    : "All let",
-            href: "?tab=vacant",
-            isCurrent: query.tab === "vacant",
-          },
-          {
-            id: "rent",
-            label: "Average asking rent",
-            value: average,
-            icon: "Wallet",
-            footnote:
-              priced.length === 0
-                ? "No asking rent set yet"
-                : priced.length < all.length
-                  ? `${formatNumber(priced.length)} of ${formatNumber(all.length)} units priced`
-                  : `Across ${formatNumber(priced.length)} ${priced.length === 1 ? "unit" : "units"}`,
-          },
-        ]}
-      />
-
-      <ListToolbar
-        tabs={
-          <FilterTabs
-            label="Units by status"
-            name="Status"
-            tabs={TABS.map((t) => ({ ...t, count: list.counts[t.id] ?? 0 }))}
-            selectedKey={query.tab === "retired" ? "all" : query.tab}
-            onSelectionChange={(key) => go({ tab: key as UnitTab })}
-          />
-        }
-      >
-        <SearchBar label="Search units" value={search} onChange={onSearch} placeholder="Unit, tenant or block" />
-        {blocks.length > 0 ? (
-          <FilterSelect
-            label="Block"
-            options={[{ id: ALL_BLOCKS, label: "All blocks" }, ...blocks.map((b) => ({ id: b.id, label: b.name }))]}
-            value={query.blockId ?? ALL_BLOCKS}
-            onChange={(v) => go({ blockId: v === ALL_BLOCKS ? null : v })}
-          />
-        ) : null}
-      </ListToolbar>
 
       <div className={pending ? "opacity-60 transition-opacity" : "transition-opacity"} aria-busy={pending}>
         <DataTable
@@ -357,38 +270,47 @@ export function UnitsView({
                 .join(" · ") || u.propertyName,
             trailing: (u) => <StatusChip kind="unit" status={unitStatus(u)} />,
           }}
+          search={{ placeholder: "Unit, tenant or block", value: search, onChange: onSearch }}
+          filters={[
+            {
+              id: "status",
+              name: "Status",
+              options: TABS.map((t) => ({ ...t, count: list.counts[t.id] ?? 0 })),
+              value: query.tab === "retired" ? "all" : query.tab,
+              onChange: (key) => go({ tab: key as UnitTab }),
+            },
+            ...(blocks.length > 0
+              ? [
+                  {
+                    id: "block",
+                    name: "Block",
+                    icon: "LayoutCells" as const,
+                    options: [{ id: ALL_BLOCKS, label: "All" }, ...blocks.map((b) => ({ id: b.id, label: b.name }))],
+                    value: query.blockId ?? ALL_BLOCKS,
+                    onChange: (v: string) => go({ blockId: v === ALL_BLOCKS ? null : v }),
+                  },
+                ]
+              : []),
+          ]}
+          onClearFilters={() => {
+            setSearch("");
+            go({ tab: "all", blockId: null, q: "" });
+          }}
+          columnToggle
+          noun={{ one: "unit", many: "units" }}
           empty={
-            filtered ? (
-              <EmptyBlock
-                icon="Magnifier"
-                title="No unit matches"
-                description="Try another tab, block or search."
-                action={
-                  <ActionButton
-                    icon="Xmark"
-                    onPress={() => {
-                      setSearch("");
-                      go({ tab: "all", blockId: null, q: "" });
-                    }}
-                  >
-                    Clear filters
+            <EmptyBlock
+              icon="FolderHouse"
+              title="No units yet"
+              description="Add each unit you rent out, or several at once."
+              action={
+                canManage ? (
+                  <ActionButton icon="Plus" intent="primary" onPress={() => setForm({ kind: "add" })}>
+                    Add unit
                   </ActionButton>
-                }
-              />
-            ) : (
-              <EmptyBlock
-                icon="FolderHouse"
-                title="No units yet"
-                description="Add each unit you rent out, or several at once."
-                action={
-                  canManage ? (
-                    <ActionButton icon="Plus" intent="primary" onPress={() => setForm({ kind: "add" })}>
-                      Add unit
-                    </ActionButton>
-                  ) : undefined
-                }
-              />
-            )
+                ) : undefined
+              }
+            />
           }
         />
       </div>

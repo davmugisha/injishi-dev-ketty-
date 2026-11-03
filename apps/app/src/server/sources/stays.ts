@@ -16,10 +16,13 @@
  * and documents, late-checkout fees, payments in flight (MoMo prompts, unmatched transfers), the
  * company ledger and fiscal receipt list of checkout, guest profiles and the offline desk.
  */
+
+import { TOURISM_TAX_LABEL, tourismTaxIncludedRwf } from "@injishi/contracts";
 import type {
   ChargeDepartment,
   CheckoutCase,
   CheckoutLedgerLine,
+  DeskTender,
   FolioDepartment,
   FolioLine,
   FolioPayment,
@@ -30,7 +33,6 @@ import type {
   ThreadMessage,
   Tone,
 } from "@injishi/data/fixtures/stays";
-import { TOURISM_TAX_LABEL, tourismTaxIncludedRwf } from "@injishi/contracts";
 import { ApiError } from "../api";
 import { clock, dayMonth, kigaliDate, rwf } from "../format";
 import {
@@ -542,7 +544,8 @@ function presentCheckout(
 function roomNightsRwf(folio: ApiFolioDetail): number {
   const nights = new Set(folio.charges.filter((c) => c.sourceRefType === "night_audit").map((c) => c.id));
   const taxOf = (id: string) =>
-    folio.charges.find((t) => t.chargeType === "tax" && t.sourceRefType === "tax" && t.sourceRefId === id)?.amountRwf ?? 0;
+    folio.charges.find((t) => t.chargeType === "tax" && t.sourceRefType === "tax" && t.sourceRefId === id)?.amountRwf ??
+    0;
   let total = 0;
   for (const c of folio.charges) {
     if (nights.has(c.id)) total += c.amountRwf + taxOf(c.id);
@@ -725,8 +728,11 @@ function presentMessages(lines: ApiMessage[], today: string): ThreadMessage[] {
             text: m.body,
             meta: `${clock(m.createdAt)} · ${m.senderName ?? "Front desk"} · guest app`,
             delivery: [],
+            id: m.id,
+            at: m.createdAt,
+            sender: m.senderName,
           }
-        : { t: "guest", text: m.body, meta: `${clock(m.createdAt)} · guest app` },
+        : { t: "guest", text: m.body, meta: `${clock(m.createdAt)} · guest app`, id: m.id, at: m.createdAt },
     );
   }
   return out;
@@ -792,6 +798,27 @@ async function inViewWithFolio(ctx: SourceContext) {
   return { ...view, folio };
 }
 
+const DESK_TENDERS: DeskTender[] = [
+  { id: "cash", label: "Cash", icon: "Wallet", network: "", hint: "Counted at shift close", blocked: false },
+  {
+    id: "mtn",
+    label: "MTN MoMo",
+    icon: "Smartphone",
+    network: "MTN Rwanda",
+    hint: "Not at the desk yet",
+    blocked: true,
+  },
+  {
+    id: "airtel",
+    label: "Airtel Money",
+    icon: "Smartphone",
+    network: "Airtel Rwanda",
+    hint: "Not at the desk yet",
+    blocked: true,
+  },
+  { id: "card", label: "Card", icon: "CreditCard", network: "", hint: "Not available yet", blocked: true },
+];
+
 export const sources = defineSources({
   // The stay record. A stay is opened by its reference or id; the list is the one stay the desk
   // deals with next (the next guest due out). Parity on shape: the prototype's stay ST-8812 is a
@@ -849,6 +876,15 @@ export const sources = defineSources({
         id: d.name as FolioDepartment,
         hint: DEPT_HINT[d.departmentCategory] ?? "Revenue",
       }));
+    },
+  },
+  // How the desk can take money on a bill. Cash is recorded on the bill; a MoMo or Airtel prompt
+  // from the desk has no route yet, and no card provider is signed. Without this list the bill's
+  // "Record cash" pressed into nothing: no tender, so the handler returned before any request.
+  "stays.deskTenders": {
+    parity: "shape",
+    async list(): Promise<DeskTender[]> {
+      return DESK_TENDERS;
     },
   },
   // Checkout opens on the next guest due out; with nobody left today, the next one due.

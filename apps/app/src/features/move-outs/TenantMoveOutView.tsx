@@ -22,13 +22,13 @@ import {
   KeyValueList,
   Money,
   PageContent,
-  PageHeader,
   SectionCard,
   SelectField,
   StatusChip,
 } from "@injishi/ui";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { placeWords } from "../leases/shared";
 import { TextInput } from "../rentals/fields";
 import { disputeDeposit, giveNotice, withdrawNotice } from "./actions";
@@ -65,9 +65,8 @@ export function TenantMoveOutView({ tenancy, view }: { tenancy: TenancyDetail; v
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
-      <PageHeader
+      <AreaHeader
         eyebrow={placeWords(tenancy)}
-        title="Moving out"
         actions={
           <>
             {view.canWithdraw ? (
@@ -121,7 +120,7 @@ export function TenantMoveOutView({ tenancy, view }: { tenancy: TenancyDetail; v
               size="sm"
               icon="Calendar"
               title="No notice needed"
-              description={`Your lease ends on ${formatDay(view.endDate, "long")}, within its ${view.noticeDays} days of notice.`}
+              description={`Your lease ends ${formatDay(view.endDate, "long")}`}
             />
           ) : view.canGiveNotice ? (
             <EmptyBlock
@@ -129,7 +128,7 @@ export function TenantMoveOutView({ tenancy, view }: { tenancy: TenancyDetail; v
               icon="ArrowRightFromSquare"
               title="No notice given"
               // The header holds "Give notice": the page offers it once.
-              description={`Give at least ${view.noticeDays} days of notice before you move out.`}
+              description={`${view.noticeDays} days of notice`}
             />
           ) : (
             <p className="text-sm text-muted">Notice can be given once your tenancy has started.</p>

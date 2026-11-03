@@ -1326,4 +1326,39 @@ export class FolioRepository {
         ),
       );
   }
+
+  /**
+   * What a stay's room nights are charged from, read at check out (any
+   * lifecycle). The nights already charged come back too, so the caller posts
+   * only the ones the night audit has not reached yet: a guest who arrives and
+   * leaves before the audit runs would otherwise leave with the room unbilled.
+   */
+  async roomChargeBasisForStay(stayId: string): Promise<{
+    folioId: string;
+    workspaceId: string;
+    propertyId: string;
+    nightlyRateRwf: number | null;
+    entryAt: Date;
+    chargedNights: string[];
+  } | null> {
+    const [row] = await this.db
+      .select({
+        folioId: folios.id,
+        workspaceId: folios.workspaceId,
+        propertyId: folios.propertyId,
+        nightlyRateRwf: sql<number | null>`coalesce(${guestStays.priceRwf}, ${bookings.lockedNightlyRateRwf})`.mapWith(Number),
+        entryAt: guestStays.entryAt,
+        chargedNights: sql<string[]>`coalesce((
+          SELECT array_agg(fc."business_date"::text) FROM "folio_charges" fc
+           WHERE fc."folio_id" = ${folios.id} AND fc."charge_type" = 'room'
+             AND fc."business_date" IS NOT NULL), '{}')`,
+      })
+      .from(folios)
+      .innerJoin(guestStays, eq(guestStays.id, folios.guestStayId))
+      .leftJoin(bookings, eq(bookings.id, folios.bookingId))
+      .where(and(eq(folios.guestStayId, stayId), eq(folios.status, 'open')))
+      .orderBy(desc(folios.folioSequence))
+      .limit(1);
+    return row ?? null;
+  }
 }

@@ -200,7 +200,6 @@ export function PsfConsoleView({
       <PageHeader
         eyebrow="Private Sector Federation · Chamber of Tourism"
         title="Membership Applications"
-        description="Applications businesses sent through Injishi. The Chamber decides; Injishi records your decision under your name and sends it to the business."
         actions={
           <Button
             variant="secondary"

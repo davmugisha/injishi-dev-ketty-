@@ -43,6 +43,8 @@ export default async function LeaderReportsPage({ searchParams }: { searchParams
     origin: one(sp.origin),
     nationality: one(sp.nationality),
     relationship: one(sp.relationship),
+    placeType: one(sp.placeType),
+    length: one(sp.length),
     flagged: one(sp.flagged),
   });
   const query = parsed.success ? parsed.data : { from: month.start, to: month.end };
@@ -68,7 +70,11 @@ export default async function LeaderReportsPage({ searchParams }: { searchParams
       report={report}
       summary={summary}
       today={today}
-      downloads={{ csv: `/api/oversight/report.csv?${qs}`, pdf: `/api/oversight/report.pdf?${qs}` }}
+      downloads={{
+        xlsx: `/api/oversight/report.xlsx?${qs}`,
+        csv: `/api/oversight/report.csv?${qs}`,
+        pdf: `/api/oversight/report.pdf?${qs}`,
+      }}
     />
   );
 }

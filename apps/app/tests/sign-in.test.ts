@@ -37,6 +37,15 @@ test("a floor role borrowing the waiter's shell lands on its own live screen", (
   );
 });
 
+test("each role lands on its own home: broker on /broker, never the account page", () => {
+  assert.equal(homeAfterSignIn("broker", "broker@injishi.test"), "/broker");
+  assert.equal(homeAfterSignIn("landlord", "amani.landlord@injishi.test"), "/residence");
+  assert.equal(homeAfterSignIn("tenant", "tenant@injishi.test"), "/home");
+  assert.equal(homeAfterSignIn("owner", "guesthouse.owner@injishi.test"), "/owner");
+  assert.equal(homeAfterSignIn("officer", "leader@injishi.test"), "/officer");
+  assert.equal(homeAfterSignIn("ops", "admin@injishi.test"), "/admin");
+});
+
 test("an explicit return target still wins over the home", () => {
   // `next=` paths are this app's screens: one the person may open is honoured as it stands.
   assert.equal(destinationAfterSignIn("guest", "/trips", "alice@example.com"), "/trips");

@@ -256,7 +256,9 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
         villageId,
         mapPoint,
         // A stay says these on their own steps (front desk and contact, check-in and house rules).
-        ...(venue ? { contactPhone: phone, contactEmail: email } : { policies: { directions: directions.trim() || null } }),
+        ...(venue
+          ? { contactPhone: phone, contactEmail: email }
+          : { policies: { directions: directions.trim() || null } }),
       }),
     );
   };
@@ -306,7 +308,9 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
           <div className="flex flex-col gap-1">
             <span className="text-sm font-medium">Pin it on the map</span>
             <MapPinPicker value={mapPoint} onChange={setMapPoint} />
-            <span className="text-xs text-muted">Click where the entrance is, then drag the pin to the gate if it is off.</span>
+            <span className="text-xs text-muted">
+              Click where the entrance is, then drag the pin to the gate if it is off.
+            </span>
           </div>
         )}
         <TextField value={mapPoint} onChange={setMapPoint} fullWidth>
@@ -337,7 +341,10 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
         {venue ? null : (
           <TextField value={directions} onChange={setDirections} fullWidth>
             <Label>How to find it</Label>
-            <TextArea rows={2} placeholder="From the main road, turn left at the church; the gate is the second on the right." />
+            <TextArea
+              rows={2}
+              placeholder="From the main road, turn left at the church; the gate is the second on the right."
+            />
             <Description>Optional. Shown to guests once they have booked.</Description>
           </TextField>
         )}
@@ -406,9 +413,7 @@ function RoomTypeStep({ data }: { data: Open }) {
             >
               <span className="font-medium">{t.name}</span>
               <span className="text-[13px] text-muted tabular">
-                {t.basePriceRwf === null
-                  ? "No price yet"
-                  : `${rwf(t.basePriceRwf)} ${words.pricePeriod}`}
+                {t.basePriceRwf === null ? "No price yet" : `${rwf(t.basePriceRwf)} ${words.pricePeriod}`}
                 {venue
                   ? null
                   : ` · ${t.sellableRoomCount} ${t.sellableRoomCount === 1 ? words.unitSingular : words.unitPlural}`}
@@ -423,7 +428,9 @@ function RoomTypeStep({ data }: { data: Open }) {
             <TextField value={name} onChange={setName} isRequired fullWidth>
               <Label>{venue ? "Item" : typeLabel}</Label>
               <Input
-                placeholder={venue ? "Espresso, lunch set…" : wholeUnit ? `Two-bedroom ${words.unitSingular}` : "Double room"}
+                placeholder={
+                  venue ? "Espresso, lunch set…" : wholeUnit ? `Two-bedroom ${words.unitSingular}` : "Double room"
+                }
               />
             </TextField>
             {venue ? null : (
@@ -433,7 +440,9 @@ function RoomTypeStep({ data }: { data: Open }) {
               </TextField>
             )}
             <TextField value={price} onChange={setPrice} isRequired fullWidth>
-              <Label>{venue ? "Price each (RWF)" : wholeUnit ? "Price per night (RWF)" : "Price per person (RWF)"}</Label>
+              <Label>
+                {venue ? "Price each (RWF)" : wholeUnit ? "Price per night (RWF)" : "Price per person (RWF)"}
+              </Label>
               <Input inputMode="numeric" placeholder={venue ? "2500" : "45000"} className="tabular" />
             </TextField>
             {venue ? null : (
@@ -579,7 +588,9 @@ function PhotoStep({ data, index = 3 }: { data: Open; index?: number }) {
           <TextField value={caption} onChange={setCaption} fullWidth>
             <Label>Caption</Label>
             <Input
-              placeholder={venue ? "Counter, terrace…" : (rooms.find((t) => t.id === shows)?.name ?? "Front of the house")}
+              placeholder={
+                venue ? "Counter, terrace…" : (rooms.find((t) => t.id === shows)?.name ?? "Front of the house")
+              }
             />
           </TextField>
           <Button
@@ -641,9 +652,7 @@ function PublishStep({ data, webUrl, index = 4 }: { data: Open; webUrl: string; 
           <Alert.Content>
             <Alert.Title>Live on the marketplace</Alert.Title>
             <Alert.Description>
-              {venue
-                ? `Customers can find ${p?.name}.`
-                : `Guests can find ${p?.name} and book it.`}
+              {venue ? `Customers can find ${p?.name}.` : `Guests can find ${p?.name} and book it.`}
             </Alert.Description>
           </Alert.Content>
         </Alert>
@@ -696,7 +705,6 @@ const STEP_HOME: Partial<Record<string, { href: string; label: string }>> = {
   photos: { href: "#photo", label: "Above" },
   listing: { href: "#publish", label: "Above" },
   rooms: { href: "/room-rack", label: "Room rack" },
-  outlets: { href: "/outlets", label: "Outlets" },
   staff: { href: "/settings/team", label: "Team" },
 };
 

@@ -8,14 +8,18 @@ import type {
   TicketLine,
 } from "@injishi/data/fixtures/outlets";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { PosView } from "@/features/outlets/PosView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
+import { holdsSampleData } from "@/server/sample-data";
 
 export const metadata: Metadata = { title: screens.POS.pageTitle };
 
 export default async function PosPage() {
   const persona = await requirePersona("POS");
+  // Sample screens: a real business uses the live POS at /pos/floor.
+  if (!(await holdsSampleData())) redirect("/pos/floor");
   const [places, menuItems, categories, lines, drafts, roomCharges] = await Promise.all([
     getCollection<PosPlace>("outlets.places"),
     getCollection<MenuItem>("outlets.menuItems"),

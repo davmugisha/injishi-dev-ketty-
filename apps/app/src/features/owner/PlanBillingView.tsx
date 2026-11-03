@@ -145,7 +145,6 @@ export function PlanBillingView({
       <PageHeader
         eyebrow={`${businessName} · Business`}
         title="Plan and Billing"
-        description="Your Injishi subscription only. Guest invoices and outlet invoices are separate and live in Finance."
         actions={
           <>
             <Button variant="ghost" onPress={() => open("cancel")}>

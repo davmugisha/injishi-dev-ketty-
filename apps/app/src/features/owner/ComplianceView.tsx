@@ -71,7 +71,6 @@ export function ComplianceView({
       <PageHeader
         eyebrow={`${businessName} · Compliance`}
         title="Compliance"
-        description="Licences, memberships and anything sent to an authority. Nothing is marked done without the counterpart’s evidence."
         actions={
           <>
             <Button

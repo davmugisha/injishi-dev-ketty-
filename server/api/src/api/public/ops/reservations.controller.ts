@@ -2,6 +2,10 @@ import {
   AssignRoomRequest,
   type BookingCancellationResult,
   CancelReservationRequest,
+  DeskReservationAsk,
+  type DeskReservationQuote,
+  DeskReservationRequest,
+  type DeskReservationResult,
   MarkNoShowRequest,
   type OperatorReservation,
   type OperatorReservationList,
@@ -28,6 +32,7 @@ import {
 } from '@nestjs/common';
 
 import { BookingChangeService } from '../../../modules/pms/application/booking-change.service';
+import { DeskReservationService } from '../../../modules/pms/application/desk-reservation.service';
 import { OperatorReservationsService } from '../../../modules/pms/application/operator-reservations.service';
 import { RoomAssignmentService } from '../../../modules/pms/application/room-assignment.service';
 import {
@@ -42,6 +47,7 @@ import {
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import { IdempotencyKey } from '../../../shared/http/idempotency-key';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -78,7 +84,38 @@ export class OpsReservationsController {
     private readonly reservations: OperatorReservationsService,
     private readonly assignments: RoomAssignmentService,
     private readonly changes: BookingChangeService,
+    private readonly desk: DeskReservationService,
   ) {}
+
+  /**
+   * What a booking the desk is about to make would cost, the rooms free to hold and why it cannot be
+   * made, if it cannot (0124). Nothing is written. The same permission as answering a request.
+   */
+  @Post('quote')
+  @RequirePermission('reservation.approve')
+  quoteDesk(
+    @Body(new ZodValidationPipe(DeskReservationAsk)) body: DeskReservationAsk,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<DeskReservationQuote> {
+    return this.desk.quote(workspace, body);
+  }
+
+  /**
+   * The desk books a guest for any day from today (0124): a phone call, a WhatsApp, a walk in for later.
+   * Confirmed at once, priced by the stay's rules (or the desk's price, with its reason), the room held
+   * when one is named, and a deposit put on the guest's bill. A money command: the Idempotency-Key makes
+   * a retried press record the deposit once.
+   */
+  @Post()
+  @RequirePermission('reservation.approve')
+  createDesk(
+    @Body(new ZodValidationPipe(DeskReservationRequest)) body: DeskReservationRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+    @IdempotencyKey() key: string,
+  ): Promise<DeskReservationResult> {
+    return this.desk.create(workspace, body, user.id, key);
+  }
 
   /**
    * Every reservation on this desk.

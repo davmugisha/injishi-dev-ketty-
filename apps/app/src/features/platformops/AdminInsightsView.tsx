@@ -29,7 +29,6 @@ export function AdminInsightsView({ data }: { data: AdminInsightsData }) {
       <PageHeader
         eyebrow="Oversight › Insights · Injishi staff only · October 2026 to date"
         title="Platform Insights"
-        description="How the platform is doing across tenants. Figures are aggregated; no guest, resident or employee records are shown here."
         actions={
           <>
             <Select aria-label="Period" value="oct" className="min-w-[180px]">

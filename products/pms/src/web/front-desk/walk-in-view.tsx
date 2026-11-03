@@ -192,7 +192,6 @@ export function WalkInView({
           </>
         }
         title="Walk-in"
-        description="Find a room, quote it, then check the guest in: the stay and its bill open at once."
         actions={
           <>
             <LinkButton href={screenHref("RoomRack")} variant="ghost">
@@ -221,7 +220,7 @@ export function WalkInView({
             value={nights}
             onChange={setNights}
             min={1}
-            max={10}
+            max={90}
             fewer="Fewer nights"
             more="More nights"
           />
@@ -359,8 +358,7 @@ export function WalkInView({
             </div>
             <RegistrationCard value={card} onChange={setCard} />
             <p className="text-xs text-muted" aria-live="polite">
-              Guest profiles are not built yet, so there is nothing to search or match: the stay opens under the name
-              typed above and is linked to no earlier stay. Check the ID when you hand over the key.
+              The stay opens under the name typed above. Check the ID when you hand over the key.
             </p>
           </Card>
         </div>

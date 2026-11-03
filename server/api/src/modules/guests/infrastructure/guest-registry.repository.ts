@@ -76,6 +76,12 @@ export interface RegistrationRow extends Area {
   status: 'submitted' | 'cancelled';
   hostName: string;
   hostPhone: string | null;
+  /** The business's kind (`orgs.business_kind`): hotel, motel, lodge… or residence. */
+  businessKind: string | null;
+  /** The room a hotel guest was checked into, or null. */
+  roomLabel: string | null;
+  /** When the desk checked a hotel guest in, or null. */
+  checkedInAt: Date | null;
   changedAt: Date | null;
   cancelledAt: Date | null;
   createdAt: Date;
@@ -160,6 +166,11 @@ export interface HotelStayFacts {
 export interface ReportRowRaw {
   arrivalOn: string;
   departureOn: string;
+  /** The Kigali day it was filed. */
+  reportedOn: string;
+  hostKind: GuestHostKind;
+  businessKind: string | null;
+  propertyName: string;
   nationality: string;
   nationalityName: string;
   relationship: string;
@@ -243,9 +254,12 @@ const REGISTRATION_SELECT = sql`
          to_char(g.arrival_on, 'YYYY-MM-DD') as "arrivalOn", to_char(g.departure_on, 'YYYY-MM-DD') as "departureOn",
          g.status::text as status,
          case when g.host_kind = 'tenant' then t.full_name
+              when g.host_kind::text = 'hotel' then p.name
               else coalesce(nullif(btrim(lp.signatory_name), ''), o.legal_name) end as "hostName",
          case when g.host_kind = 'tenant' then t.phone
+              when g.host_kind::text = 'hotel' then p.contact_phone
               else coalesce(lp.contact_phone, p.contact_phone, ru.phone_number) end as "hostPhone",
+         o.business_kind::text as "businessKind", rm.label as "roomLabel", gs.entry_at as "checkedInAt",
          g.changed_at as "changedAt", g.cancelled_at as "cancelledAt", g.created_at as "createdAt"
     from guest_registrations g
     join properties p on p.id = g.property_id
@@ -262,11 +276,14 @@ const REGISTRATION_SELECT = sql`
     left join orgs o on o.id = g.org_id
     left join landlord_profiles lp on lp.org_id = g.org_id
     left join users ru on ru.id = g.registered_by_user_id
+    left join guest_stays gs on gs.id = g.guest_stay_id
+    left join rooms rm on rm.id = gs.room_id
     ${AREA_NAMES}`;
 
 function registration(raw: Record<string, unknown>): RegistrationRow {
   return {
     ...(raw as unknown as RegistrationRow),
+    checkedInAt: asDate(raw.checkedInAt),
     changedAt: asDate(raw.changedAt),
     cancelledAt: asDate(raw.cancelledAt),
     createdAt: asDate(raw.createdAt) ?? new Date(0),
@@ -560,6 +577,33 @@ export class GuestRegistryRepository {
    * they had, unseen again; a step that changed (Rwandan to abroad switches
    * the district post) is replaced.
    */
+  /**
+   * Hotel guests whose filed window ends by `today` while they are still in house and planned beyond it:
+   * the window moves on to the next stretch (to the planned departure, at most 90 days). Their ids.
+   */
+  async rollHotelStays(today: string): Promise<string[]> {
+    const result = await this.db.execute(sql`
+      with due as (
+        select g.id, g.departure_on,
+               greatest((coalesce(gs.planned_exit_at, now() + interval '1 day') at time zone 'Africa/Kigali')::date,
+                        g.departure_on + 1) as leaves
+          from guest_registrations g
+          join guest_stays gs on gs.id = g.guest_stay_id
+         where g.host_kind::text = 'hotel' and g.status = 'submitted' and gs.lifecycle = 'open'
+           and g.departure_on <= ${today}::date
+           and (gs.planned_exit_at is null
+                or (gs.planned_exit_at at time zone 'Africa/Kigali')::date > g.departure_on)
+      )
+      update guest_registrations g
+         set arrival_on = d.departure_on,
+             departure_on = least(d.leaves, d.departure_on + 90),
+             changed_at = now(), updated_at = now()
+        from due d
+       where g.id = d.id
+      returning g.id`);
+    return rowsOf<{ id: string }>(result).map((r) => r.id);
+  }
+
   async updateRegistration(
     tx: Tx,
     registrationId: string,
@@ -834,6 +878,8 @@ export class GuestRegistryRepository {
   async reportRows(scope: SQL, narrow: SQL, from: string, to: string): Promise<ReportRowRaw[]> {
     const result = await this.db.execute(sql`
       select to_char(g.arrival_on, 'YYYY-MM-DD') as "arrivalOn", to_char(g.departure_on, 'YYYY-MM-DD') as "departureOn",
+             to_char(g.created_at at time zone 'Africa/Kigali', 'YYYY-MM-DD') as "reportedOn",
+             g.host_kind::text as "hostKind", o.business_kind::text as "businessKind", p.name as "propertyName",
              g.nationality, c.name as "nationalityName", ${RELATIONSHIP_SELECT},
              g.sector_id as "sectorId", s.name as "sectorName", g.cell_id as "cellId", ce.name as "cellName",
              g.village_id as "villageId", v.name as "villageName", d.name as "districtName",
@@ -844,6 +890,7 @@ export class GuestRegistryRepository {
         left join rental_units u on u.id = g.unit_id
         join countries c on c.code = g.nationality
         left join guest_relationships gr on gr.code = g.relationship
+        left join orgs o on o.id = g.org_id
         ${AREA_NAMES}
        where g.status = 'submitted' and ${scope} and ${narrow}
          and g.arrival_on between ${from}::date and ${to}::date
@@ -872,6 +919,45 @@ export class GuestRegistryRepository {
        where g.status = 'submitted' and ${scope} and ${narrow}
          and g.arrival_on <= ${today}::date and g.departure_on >= ${today}::date`);
     return rowsOf<{ n: number }>(result)[0]?.n ?? 0;
+  }
+
+  /**
+   * Guests in the area on each day from `from` to `to` (arrived on or before it, leaving on or after it), and
+   * how many of them are from abroad. One row per day, zero where nobody was there.
+   */
+  async presentByDay(scope: SQL, filter: SQL, from: string, to: string): Promise<{ day: string; total: number; fromAbroad: number }[]> {
+    const result = await this.db.execute(sql`
+      select to_char(d::date, 'YYYY-MM-DD') as day, count(g.id)::int as total,
+             (count(g.id) filter (where g.nationality <> 'RW'))::int as "fromAbroad"
+        from generate_series(${from}::date, ${to}::date, interval '1 day') d
+        left join guest_registrations g
+          on g.status = 'submitted' and ${scope} and ${filter}
+         and g.arrival_on <= d::date and g.departure_on >= d::date
+       group by d order by d`);
+    return rowsOf<{ day: string; total: number; fromAbroad: number }>(result);
+  }
+
+  /** The types of place among the filed guests in scope, most guests first: the list's place filter. */
+  async placeTypesIn(scope: SQL, narrow: SQL): Promise<{ hostKind: GuestHostKind; businessKind: string | null; count: number }[]> {
+    return rowsOf(
+      await this.db.execute(sql`
+        select g.host_kind::text as "hostKind", o.business_kind::text as "businessKind", count(*)::int as count
+          from guest_registrations g left join orgs o on o.id = g.org_id
+         where g.status = 'submitted' and ${scope} and ${narrow}
+         group by 1, 2`),
+    );
+  }
+
+  /** Who the filed guests in scope are to their hosts, most guests first: the list's relationship filter. */
+  async relationshipsIn(scope: SQL, narrow: SQL): Promise<{ code: string; label: string; count: number }[]> {
+    return rowsOf(
+      await this.db.execute(sql`
+        select ${sql.raw(`coalesce(g.relationship, '${HOTEL_GUEST.code}')`)} as code,
+               ${sql.raw(`coalesce(min(gr.label), '${HOTEL_GUEST.label}')`)} as label, count(*)::int as count
+          from guest_registrations g left join guest_relationships gr on gr.code = g.relationship
+         where g.status = 'submitted' and ${scope} and ${narrow}
+         group by 1 order by count(*) desc, 2`),
+    );
   }
 
   /** The purge's counts for arrival months inside the period, in the leader's area. */

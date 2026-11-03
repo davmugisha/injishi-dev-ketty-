@@ -2,8 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, ne, sql, type SQL } from 'drizzle-orm';
 
 import {
+  brokers,
   identityDocuments,
   identityScans,
+  oboRegistrations,
+  orgMemberships,
   registrationDrafts,
   userProfiles,
   users,
@@ -405,6 +408,62 @@ export class IdentityRepository {
             updatedAt: now,
           },
         });
+    });
+  }
+
+  /**
+   * Whether anything on Injishi already stands on this person's identity: a
+   * business they belong to (a registration creates the membership), one they
+   * registered for its owner, or a broker record. While nothing does, the
+   * identity is still only an answer on the draft and may be replaced.
+   */
+  async identityInUse(userId: string): Promise<boolean> {
+    const [member] = await this.db
+      .select({ id: orgMemberships.id })
+      .from(orgMemberships)
+      .where(and(eq(orgMemberships.userId, userId), eq(orgMemberships.status, 'active')))
+      .limit(1);
+    if (member) return true;
+    const [obo] = await this.db
+      .select({ id: oboRegistrations.id })
+      .from(oboRegistrations)
+      .where(eq(oboRegistrations.registrantUserId, userId))
+      .limit(1);
+    if (obo) return true;
+    const [broker] = await this.db
+      .select({ id: brokers.id })
+      .from(brokers)
+      .where(eq(brokers.userId, userId))
+      .limit(1);
+    return Boolean(broker);
+  }
+
+  /**
+   * "Use a different ID": the identity goes back to unverified, its documents
+   * are released (so the number is free for whoever really holds it), and the
+   * profile's birth date and ID mirror are cleared, in one transaction. The
+   * scan rows stay (append only, D-n), and so does the profile's name and phone.
+   */
+  async clear(userId: string): Promise<void> {
+    const now = new Date();
+    await this.db.transaction(async (tx) => {
+      await tx.delete(identityDocuments).where(eq(identityDocuments.identityId, userId));
+      await tx
+        .update(verifiedIdentities)
+        .set({
+          kycStatus: 'unverified',
+          legalFullName: null,
+          dob: null,
+          verifiedMethod: null,
+          verifiedByUserId: null,
+          verifiedAt: null,
+          updatedAt: now,
+        })
+        .where(eq(verifiedIdentities.userId, userId));
+      await tx
+        .update(userProfiles)
+        .set({ nationalId: null, dob: null, updatedAt: now })
+        .where(eq(userProfiles.userId, userId));
     });
   }
 }

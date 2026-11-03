@@ -215,6 +215,85 @@ export function BoundedDatePicker({
   );
 }
 
+// --- BoundedDateRangePicker ------------------------------------------------------------------------
+
+export interface DayRange {
+  start: string;
+  end: string;
+}
+
+/**
+ * A first and a last day (`yyyy-mm-dd`), from a calendar that offers only valid days: `minValue` and
+ * `maxValue` reach the fields and the range calendar (HeroUI 3.2.6 does not hand them down).
+ */
+export function BoundedDateRangePicker({
+  label,
+  value,
+  onChange,
+  minValue,
+  maxValue,
+  isRequired,
+  description,
+  errorMessage,
+  className,
+}: {
+  label: ReactNode;
+  value: DayRange | null;
+  onChange: (range: DayRange | null) => void;
+  minValue?: string | null;
+  maxValue?: string | null;
+  isRequired?: boolean;
+  description?: ReactNode;
+  errorMessage?: string | null;
+  className?: string;
+}) {
+  const min = useDay(minValue);
+  const max = useDay(maxValue);
+  const range = useMemo(
+    () => (value ? { start: parseDate(value.start), end: parseDate(value.end) } : null),
+    [value?.start, value?.end, value],
+  );
+  const problem =
+    errorMessage ||
+    (value ? dayProblem(value.start, { minValue, maxValue }) || dayProblem(value.end, { minValue, maxValue }) : null);
+  return (
+    <DateRangePicker
+      value={range}
+      onChange={(next) => onChange(next ? { start: dayOfValue(next.start), end: dayOfValue(next.end) } : null)}
+      minValue={min}
+      maxValue={max}
+      isRequired={isRequired}
+      isInvalid={problem ? true : undefined}
+      firstDayOfWeek="mon"
+      className={cx("gap-1", className)}
+    >
+      <Label>{label}</Label>
+      <DateField.Group fullWidth>
+        <DateField.Input slot="start">{(segment) => <DateField.Segment segment={segment} />}</DateField.Input>
+        <DateRangePicker.RangeSeparator className="ps-4 pe-2">to</DateRangePicker.RangeSeparator>
+        <DateField.Input slot="end">{(segment) => <DateField.Segment segment={segment} />}</DateField.Input>
+        <DateField.Suffix>
+          <DateRangePicker.Trigger aria-label="Open the calendar">
+            <DateRangePicker.TriggerIndicator />
+          </DateRangePicker.Trigger>
+        </DateField.Suffix>
+      </DateField.Group>
+      {description && !problem ? <Description>{description}</Description> : null}
+      <FieldError>{problem || undefined}</FieldError>
+      <DateRangePicker.Popover>
+        <RangeCalendar
+          aria-label={textLabel(label, "Choose the days")}
+          minValue={min}
+          maxValue={max}
+          firstDayOfWeek="mon"
+        >
+          <CalendarParts range />
+        </RangeCalendar>
+      </DateRangePicker.Popover>
+    </DateRangePicker>
+  );
+}
+
 // --- PeriodPicker ----------------------------------------------------------------------------------
 
 /** "1 to 31 Oct 2026", "1 Aug to 31 Oct 2026", "1 Dec 2025 to 31 Jan 2026". */

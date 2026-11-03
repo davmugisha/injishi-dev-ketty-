@@ -1,7 +1,16 @@
 import { navigation, tabbars } from "./navigation.ts";
 import { type Persona, personas } from "./personas.ts";
 import { BOARDS, screens } from "./screens.ts";
-import type { BoardId, NavGroup, PersonaId, PhoneTab, ScreenEntry, WorkspacePersonaId } from "./types.ts";
+import type {
+  BoardId,
+  NavGroup,
+  NavItem,
+  NavTab,
+  PersonaId,
+  PhoneTab,
+  ScreenEntry,
+  WorkspacePersonaId,
+} from "./types.ts";
 
 export * from "./navigation.ts";
 export * from "./personas.ts";
@@ -61,6 +70,32 @@ export function navHref(board: BoardId, pathname: string): string {
   return out.join("/") || "/";
 }
 
+/** The sidebar item and tab a screen belongs to: the item itself, one of its tabs, or a screen under a tab. */
+export function navPlace(
+  groups: readonly NavGroup[],
+  board: BoardId | undefined,
+): { item: NavItem; tab: NavTab | null } | null {
+  if (!board) return null;
+  for (const g of groups) {
+    for (const item of g.items) {
+      const tab = item.tabs?.find((t) => t.board === board || t.also?.includes(board)) ?? null;
+      if (tab || item.board === board) return { item, tab };
+    }
+  }
+  // Several boards share one route (`/messages` is the hotel's, the landlord's and the broker's): the
+  // path resolves to one of them, so an item of another board on the same route is the place.
+  const route = screens[board]?.route;
+  if (!route) return null;
+  const same = (b: BoardId) => screens[b]?.route === route;
+  for (const g of groups) {
+    for (const item of g.items) {
+      const tab = item.tabs?.find((t) => same(t.board)) ?? null;
+      if (tab || same(item.board)) return { item, tab };
+    }
+  }
+  return null;
+}
+
 /** Screens any signed-in person may open. */
 export const SHARED_BOARDS: readonly BoardId[] = [
   "Account",
@@ -109,7 +144,12 @@ export function canAccess(personaId: PersonaId | null | undefined, board: BoardI
   if (screen.persona === personaId || persona.home === board) return true;
   if (persona.access?.includes(board)) return true;
   if (persona.tryItems.some((t) => t.board === board)) return true;
-  if (navigationFor(personaId).some((g) => g.items.some((i) => i.board === board))) return true;
+  if (
+    navigationFor(personaId).some((g) =>
+      g.items.some((i) => i.board === board || i.tabs?.some((t) => t.board === board || t.also?.includes(board))),
+    )
+  )
+    return true;
   if (tabsFor(persona).some((t) => t.board === board)) return true;
   if (personaId === "owner" && BUSINESS_STAFF.includes(screen.persona)) return true;
   if (personaId === "manager" && MANAGER_SEES.includes(screen.persona)) return true;

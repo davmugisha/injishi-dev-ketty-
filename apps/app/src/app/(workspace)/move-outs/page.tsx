@@ -1,4 +1,4 @@
-import { kigaliToday, MoveOutTab } from "@injishi/contracts";
+import { kigaliToday, MoveOutListTab } from "@injishi/contracts";
 import { screens } from "@injishi/data";
 import type { Metadata } from "next";
 import { MoveOutsView } from "@/features/move-outs/MoveOutsView";
@@ -15,7 +15,7 @@ export default async function MoveOutsPage({ searchParams }: { searchParams: Pro
   const scope = await landlordScope();
   if (!scope) return <NoRentalsBusiness title="Move-outs" />;
   const params = await searchParams;
-  const tab = MoveOutTab.safeParse(params.tab).success ? (params.tab as MoveOutTab) : "to_acknowledge";
+  const tab = MoveOutListTab.safeParse(params.tab).success ? (params.tab as MoveOutListTab) : "all";
   const q = (params.q ?? "").slice(0, 120);
   const list = await moveOutList(tab, q);
   return (

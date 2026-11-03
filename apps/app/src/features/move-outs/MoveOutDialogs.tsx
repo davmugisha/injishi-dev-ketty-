@@ -158,8 +158,8 @@ export function RecordNoticeDialog({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [givenBy, setGivenBy] = useState<"tenant" | "landlord">("tenant");
-  const [channel, setChannel] = useState<RecordedNoticeChannel>("letter");
+  const [givenBy, setGivenBy] = useState<"tenant" | "landlord" | null>(null);
+  const [channel, setChannel] = useState<RecordedNoticeChannel | null>(null);
   const [filedOn, setFiledOn] = useState<string | null>(today);
   const [moveOutOn, setMoveOutOn] = useState<string | null>(null);
   const [reason, setReason] = useState<string | null>(null);
@@ -176,10 +176,12 @@ export function RecordNoticeDialog({
       onSubmit={(e) => {
         e.preventDefault();
         const missing: Record<string, string> = {};
+        if (!givenBy) missing.givenBy = "Say who gave notice.";
+        if (!channel) missing.channel = "Say how it came.";
         if (!filedOn) missing.filedOn = "Pick a date.";
         if (!moveOutOn) missing.moveOutOn = "Pick a date.";
         if (!reason) missing.reasonCode = "Pick a reason.";
-        if (Object.keys(missing).length > 0) {
+        if (Object.keys(missing).length > 0 || !givenBy || !channel) {
           setErrors(missing);
           return;
         }
@@ -206,8 +208,11 @@ export function RecordNoticeDialog({
       <RadioButtonGroup
         aria-label="Who gave notice"
         layout="grid"
-        value={givenBy}
-        onChange={(v) => setGivenBy(v as "tenant" | "landlord")}
+        value={givenBy ?? ""}
+        onChange={(v) => {
+          setGivenBy(v as "tenant" | "landlord");
+          setErrors(({ givenBy: _, ...rest }) => rest);
+        }}
         className="grid-cols-2 gap-2.5"
       >
         {(["tenant", "landlord"] as const).map((g) => (
@@ -221,11 +226,17 @@ export function RecordNoticeDialog({
           </RadioButtonGroup.Item>
         ))}
       </RadioButtonGroup>
+      {errors.givenBy ? <p className="-mt-2 text-xs text-danger">{errors.givenBy}</p> : null}
       <SelectField
         label="How it came"
         options={CHANNELS.map((c) => ({ id: c, label: NOTICE_CHANNEL_LABEL[c] }))}
         value={channel}
-        onChange={(v) => setChannel(v as RecordedNoticeChannel)}
+        onChange={(v) => {
+          setChannel(v as RecordedNoticeChannel);
+          setErrors(({ channel: _, ...rest }) => rest);
+        }}
+        errorMessage={errors.channel || null}
+        isRequired
       />
       <div className="grid gap-4 sm:grid-cols-2">
         <BoundedDatePicker

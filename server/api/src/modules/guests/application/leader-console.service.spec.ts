@@ -8,7 +8,7 @@ import type { SQL } from 'drizzle-orm';
 import type { GuestRegistryRepository, RegistrationRow } from '../infrastructure/guest-registry.repository';
 import { TALLY_COLUMNS, scopeSql, unseenSql } from '../infrastructure/leader-scope';
 import { GuestHousekeepingService, retentionCutoff } from './guest-housekeeping.service';
-import { LeaderConsoleService, narrowSql, tabSql } from './leader-console.service';
+import { LeaderConsoleService, arrivedWindow, guestFilterSql, listFilterWords, narrowSql, tabSql } from './leader-console.service';
 
 const NOW = new Date('2026-10-24T08:00:00Z');
 const REG = '11111111-1111-4111-8111-111111111111';
@@ -80,6 +80,9 @@ function guest(over: Partial<RegistrationRow> = {}): RegistrationRow {
     status: 'submitted',
     hostName: 'Aline Uwera',
     hostPhone: '+250788123456',
+    businessKind: 'residence',
+    roomLabel: null,
+    checkedInAt: null,
     changedAt: null,
     cancelledAt: null,
     createdAt: NOW,
@@ -151,9 +154,63 @@ describe('LeaderConsoleService · scope', () => {
     expect(render(narrowSql({})).sql).toBe('true');
     const soon = render(tabSql({ tab: 'arriving', when: 'soon' }, '2026-10-24').where);
     expect(soon.params).toEqual(['2026-10-24', '2026-10-31']);
+    // Nothing chosen: every guest, only the search narrows it.
+    expect(render(tabSql({ tab: 'all', when: 'soon' }, '2026-10-24').where).params).toEqual([]);
+    expect(render(tabSql({ tab: 'all', when: 'soon', q: 'ana' }, '2026-10-24').where).params).toEqual(['%ana%', '%ana%', '%ana%']);
     const later = render(tabSql({ tab: 'arriving', when: 'later' }, '2026-10-24').where);
     expect(later.sql).toBe('(g.arrival_on > $1::date)');
     expect(render(tabSql({ tab: 'staying', when: 'soon', q: 'grace' }, '2026-10-24').where).params).toEqual(['2026-10-24', '2026-10-24', '%grace%', '%grace%', '%grace%']);
+  });
+});
+
+describe('LeaderConsoleService · the guest filters, on the server', () => {
+  const today = '2026-11-02';
+
+  it('nothing chosen narrows nothing', () => {
+    expect(render(guestFilterSql({}, today)).sql).toBe('true');
+  });
+
+  it('arrived: a preset reads from the Kigali day, a custom range as given', () => {
+    expect(arrivedWindow({ arrived: 'today' }, today)).toEqual({ from: today, to: today });
+    expect(arrivedWindow({ arrived: 'yesterday' }, today)).toEqual({ from: '2026-11-01', to: '2026-11-01' });
+    expect(arrivedWindow({ arrived: 'last_7_days' }, today)).toEqual({ from: '2026-10-27', to: today });
+    expect(arrivedWindow({ arrived: 'this_month' }, today)).toEqual({ from: '2026-11-01', to: today });
+    expect(arrivedWindow({ arrivedFrom: '2026-10-01', arrivedTo: '2026-10-15' }, today)).toEqual({ from: '2026-10-01', to: '2026-10-15' });
+    const q = render(guestFilterSql({ arrived: 'last_7_days' }, today));
+    expect(q.sql).toBe('(g.arrival_on >= $1::date and g.arrival_on <= $2::date)');
+    expect(q.params).toEqual(['2026-10-27', today]);
+  });
+
+  it('present on a day, leaving today or within 7 days', () => {
+    const present = render(guestFilterSql({ presentOn: '2026-10-28' }, today));
+    expect(present.sql).toBe('((g.arrival_on <= $1::date and g.departure_on >= $2::date))');
+    expect(render(guestFilterSql({ leaving: 'today' }, today)).params).toEqual([today]);
+    expect(render(guestFilterSql({ leaving: 'next_7_days' }, today)).params).toEqual([today, '2026-11-09']);
+  });
+
+  it('length of stay in nights', () => {
+    expect(render(guestFilterSql({ length: 'under_3' }, today))).toMatchObject({ sql: '((g.departure_on - g.arrival_on) <= $1)', params: [2] });
+    expect(render(guestFilterSql({ length: 'week' }, today))).toMatchObject({ sql: '((g.departure_on - g.arrival_on) >= $1)', params: [7] });
+    expect(render(guestFilterSql({ length: 'month' }, today)).params).toEqual([30]);
+  });
+
+  it('type of place: a residence is any tenant or landlord, a hotel the business kinds it covers', () => {
+    expect(render(guestFilterSql({ placeType: 'residence' }, today)).sql).toBe("(g.host_kind::text <> 'hotel')");
+    const hotel = render(guestFilterSql({ placeType: 'hotel' }, today));
+    expect(hotel.sql).toContain("g.host_kind::text = 'hotel' and (select po.business_kind::text from orgs po where po.id = g.org_id) in ($1, $2)");
+    expect(hotel.params).toEqual(['hotel', 'motel']);
+    expect(render(guestFilterSql({ placeType: 'other' }, today)).sql).toContain('not in');
+  });
+
+  it('every filter together is one predicate, and says itself in words for a file', () => {
+    const q = render(guestFilterSql({ nationality: 'KE', placeType: 'guest_house', length: 'week', leaving: 'today' }, today));
+    expect(q.params).toEqual(['KE', 'guest_house', 7, today]);
+    const words = listFilterWords(
+      { tab: 'staying', arrived: 'yesterday', placeType: 'lodge', length: 'month', nationality: 'KE', presentOn: '2026-10-30' },
+      today,
+      { nationalities: [{ code: 'KE', name: 'Kenya', count: 1 }], relationships: [] },
+    );
+    expect(words).toEqual(['Staying now', 'Arrived yesterday (2026-11-01)', 'Present on 2026-10-30', '1 month or more', 'Lodge', 'Kenya']);
   });
 });
 

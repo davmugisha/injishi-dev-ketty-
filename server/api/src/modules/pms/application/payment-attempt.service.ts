@@ -918,8 +918,10 @@ export class PaymentAttemptService {
     }
 
     const nights = nightsBetween(checkIn, checkOut);
+    // Priced as the booking was quoted: day prices and the length of stay discount (2026-10-29).
+    const rate = await this.listings.stayRate(roomType, checkIn, checkOut);
     // A room priced per room charges one guest its one guest price, when it has one (0117).
-    const nightlyRateRwf = nightlyRateFor({ ...roomType, nightlyRateRwf: roomType.nightlyRateRwf }, guests);
+    const nightlyRateRwf = nightlyRateFor({ ...roomType, nightlyRateRwf: rate.nightlyRateRwf }, guests);
     // Priced as it was charged: a prompt started before the guest service fee
     // was dropped carried 5% on top (`breakdownAsCharged`), and the booking and
     // its escrow must record what the guest actually paid.

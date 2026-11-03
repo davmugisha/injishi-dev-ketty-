@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MOVE_OUT_APP_PATHS = exports.TenancyMoveOut = exports.DepositList = exports.DepositListItem = exports.MoveOutList = exports.MoveOutRow = exports.DepositView = exports.DepositRefundStatus = exports.MoveOutNoticeView = exports.MoveOutListQuery = exports.MOVE_OUT_TAB_LABEL = exports.MoveOutTab = exports.MOVE_OUT_STAGE_LABEL = exports.MoveOutStage = exports.DisputeDepositRequest = exports.SettleDepositRequest = exports.DepositRefund = exports.DepositDeduction = exports.RecordMoveOutRequest = exports.RecordedNoticeRequest = exports.TenantNoticeRequest = exports.NOTICE_CHANNEL_LABEL = exports.RecordedNoticeChannel = exports.TENANT_MOVE_OUT_REASONS = exports.TERMINATION_FILING_DAYS = exports.NOTICE_NUDGE_AFTER_DAYS = void 0;
+exports.MOVE_OUT_APP_PATHS = exports.TenancyMoveOut = exports.DepositList = exports.DepositListItem = exports.MoveOutList = exports.MoveOutRow = exports.DepositView = exports.DepositRefundStatus = exports.MoveOutNoticeView = exports.MoveOutListQuery = exports.MoveOutListTab = exports.MOVE_OUT_TAB_LABEL = exports.MoveOutTab = exports.MOVE_OUT_STAGE_LABEL = exports.MoveOutStage = exports.DisputeDepositRequest = exports.SettleDepositRequest = exports.DepositRefund = exports.DepositDeduction = exports.RecordMoveOutRequest = exports.RecordedNoticeRequest = exports.TenantNoticeRequest = exports.NOTICE_CHANNEL_LABEL = exports.RecordedNoticeChannel = exports.TENANT_MOVE_OUT_REASONS = exports.TERMINATION_FILING_DAYS = exports.NOTICE_NUDGE_AFTER_DAYS = void 0;
 exports.terminationFilingDueOn = terminationFilingDueOn;
 exports.keptOf = keptOf;
 exports.settlementProblem = settlementProblem;
@@ -219,8 +219,10 @@ function moveOutTabOf(input) {
         return "moving_soon";
     return null;
 }
+/** The list's filter: one tab, or every move-out ("all", the default: nothing is chosen for the landlord). */
+exports.MoveOutListTab = zod_1.z.enum(["all", ...exports.MoveOutTab.options]);
 exports.MoveOutListQuery = zod_1.z.object({
-    tab: exports.MoveOutTab.default("to_acknowledge"),
+    tab: exports.MoveOutListTab.default("all"),
     q: zod_1.z.string().trim().max(120).optional(),
 });
 // --- Views ------------------------------------------------------------------------
@@ -286,7 +288,7 @@ exports.MoveOutRow = zod_1.z.object({
     tab: exports.MoveOutTab,
 });
 exports.MoveOutList = zod_1.z.object({
-    tab: exports.MoveOutTab,
+    tab: exports.MoveOutListTab,
     items: zod_1.z.array(exports.MoveOutRow),
     counts: zod_1.z.record(exports.MoveOutTab, zod_1.z.number().int()),
 });

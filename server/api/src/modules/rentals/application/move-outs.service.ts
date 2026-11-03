@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   MOVE_OUT_REASON_LABEL,
+  MoveOutListTab,
   MoveOutTab,
   RecordedNoticeRequest,
   canTakeNotice,
@@ -456,7 +457,7 @@ export class MoveOutsService {
   /** `GET /ops/move-outs?tab&q`: the rows of one tab and how many each tab holds. */
   async list(ws: ScopedWorkspace, query: MoveOutListQuery): Promise<MoveOutList> {
     const r = assertResidence(ws);
-    const tab = MoveOutTab.parse(query.tab ?? 'to_acknowledge');
+    const tab = MoveOutListTab.parse(query.tab ?? 'all');
     const today = this.today();
     const leases = await this.moveOuts.moveOutLeases(r.workspaceId, buildingFilter(sql`l.property_id`, ws.branchScope), query.q ?? null);
     const ids = leases.map((l) => l.leaseId);
@@ -469,7 +470,7 @@ export class MoveOutsService {
       const rowTab = moveOutTabOf({ leaseStatus: l.status, noticeStatus: notice?.status ?? null, depositOpen: !!deposit && deposit.status !== 'settled' });
       if (!rowTab) continue;
       counts[rowTab] = (counts[rowTab] ?? 0) + 1;
-      if (rowTab !== tab) continue;
+      if (tab !== 'all' && rowTab !== tab) continue;
       const movingOutOn = notice?.moveOutOn ?? l.endDate;
       items.push({
         leaseId: l.leaseId,
@@ -489,10 +490,15 @@ export class MoveOutsService {
         tab: rowTab,
       });
     }
+    // Who is still to move out first, soonest first; then who moved out, latest first.
     items.sort((a, b) =>
-      tab === 'to_acknowledge' || tab === 'moving_soon'
+      !a.endedOn && !b.endedOn
         ? a.movingOutOn.localeCompare(b.movingOutOn)
-        : (b.endedOn ?? '').localeCompare(a.endedOn ?? ''),
+        : !a.endedOn
+          ? -1
+          : !b.endedOn
+            ? 1
+            : (b.endedOn ?? '').localeCompare(a.endedOn ?? ''),
     );
     return { tab, items, counts };
   }

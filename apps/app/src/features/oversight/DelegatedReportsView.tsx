@@ -134,11 +134,7 @@ export function DelegatedReportsView({ data }: { data: DelegatedReportsData }) {
 
   return (
     <PageContent className="text-[14px] leading-5">
-      <PageHeader
-        eyebrow="Rubavu District · Delegated data"
-        title="Delegated Data"
-        description="Datasets shared with Rubavu District under a verified legal basis, each with its purpose, fields and channel. Anything not listed here is not available to you."
-      />
+      <PageHeader eyebrow="Rubavu District · Delegated data" title="Delegated Data" />
 
       <div className="flex flex-wrap items-start gap-4">
         <Card

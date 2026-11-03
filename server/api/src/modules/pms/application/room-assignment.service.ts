@@ -1,3 +1,4 @@
+import { localToday } from '../domain/pricing';
 import type {
   AssignRoomRequest,
   OperatorRoomAssignment,
@@ -184,7 +185,7 @@ export class RoomAssignmentService {
 
   /** The room a booking holds today, read by check in (AC-7). */
   async roomAssignedToday(bookingId: string): Promise<AssignmentRow | null> {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localToday();
     return this.assignments.assignedOn(bookingId, today);
   }
 

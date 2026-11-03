@@ -1,4 +1,11 @@
-import { computeBreakdown, type MoneyBreakdown, type RoomPriceBasis, tourismTaxIncludedRwf } from "@injishi/contracts";
+import {
+  type CancellationTier,
+  cancellationSummary,
+  computeBreakdown,
+  type MoneyBreakdown,
+  type RoomPriceBasis,
+  tourismTaxIncludedRwf,
+} from "@injishi/contracts";
 import { buildMoneyLines, type MoneyLine } from "@injishi/utils/money";
 import { formatPrice } from "@injishi/utils";
 
@@ -62,24 +69,8 @@ export function computeQuote({
   return { ...amounts, lines, tourismTaxRwf };
 }
 
-const CANCELLATION_COPY = {
-  flexible: "Free cancellation up to 24 hours before check-in.",
-  moderate: "Free cancellation up to 5 days before check-in, then 50% refundable.",
-  limited: "50% refund up to 7 days before check-in; non-refundable after.",
-  firm: "50% refund up to 30 days before check-in; non-refundable after.",
-  strict_extended_stay: "Extended-stay terms: 50% refund up to 30 days before check-in.",
-} as const;
-
-export function cancellationCopy(
-  tier: keyof typeof CANCELLATION_COPY | null,
-  nonRefundable = false,
-): string {
-  if (nonRefundable) {
-    return "Non-refundable — full forfeit on cancellation, regardless of tier.";
-  }
-  // No tier on the room type means flexible: it is what the server applies
-  // when the guest cancels (`cancellationOutcome`, `input.tier ?? "flexible"`).
-  // This used to say "Cancellation policy is shown before payment." on the
-  // last step before payment, so a guest paid without seeing any terms.
-  return CANCELLATION_COPY[tier ?? "flexible"];
+/** The room's cancellation terms in one sentence, from the rules the refund is computed with. */
+export function cancellationCopy(tier: CancellationTier | null, nonRefundable = false): string {
+  // No tier on the room type means flexible: it is what the server applies when the guest cancels.
+  return cancellationSummary(tier, nonRefundable);
 }

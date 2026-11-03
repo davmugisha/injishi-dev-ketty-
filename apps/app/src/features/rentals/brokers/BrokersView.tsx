@@ -14,23 +14,19 @@ import {
   DataTable,
   DateText,
   EmptyBlock,
-  FilterTabs,
   formatLocalPhone,
   IconAction,
-  KpiStrip,
-  ListToolbar,
   Money,
   PageContent,
-  PageHeader,
   PersonCell,
   RowActions,
-  SearchBar,
   Stars,
   StatusChip,
   TextLink,
 } from "@injishi/ui";
-import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { leaseHref } from "../../leases/shared";
 import { canMessagePlacement, placementMessageHref } from "../../messages/links";
 
@@ -61,32 +57,10 @@ const dash = (
 /**
  * Brokers on the landlord's side (2026-10-25): each broker who said they have a tenant for one of your
  * units, the lease it became, and the fee the lease records (owed until you mark it paid; paid outside
- * Injishi). The tab and search are kept in the URL.
+ * Injishi). One table with a status filter and a search.
  */
-export function BrokersView({ list, show, q }: { list: LandlordPlacementList; show: BrokersShow; q: string }) {
+export function BrokersView({ list }: { list: LandlordPlacementList }) {
   const router = useRouter();
-  const pathname = usePathname();
-  const [search, setSearch] = useState(q);
-
-  // The tab goes in the URL; the search filters what is here, and rides along when the tab changes.
-  const go = (next: { show: BrokersShow }) => {
-    const params = new URLSearchParams();
-    const s = next.show;
-    const term = search;
-    if (s !== "all") params.set("show", s);
-    if (term.trim()) params.set("q", term.trim());
-    const qs = params.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  };
-
-  const needle = search.trim().toLowerCase();
-  const matches = (p: LandlordPlacementView) =>
-    !needle ||
-    [p.broker.name, p.broker.phone, p.unit?.label, p.tenantName, p.lease?.tenantName, p.lease?.reference]
-      .filter(Boolean)
-      .some((v) => String(v).toLowerCase().includes(needle));
-  const rows = list.placements.filter((p) => inTab(p, show) && matches(p));
-  const open = list.placements.filter((p) => p.status === "initiated").length;
 
   const columns = useMemo<DataColumn<LandlordPlacementView>[]>(
     () => [
@@ -160,38 +134,27 @@ export function BrokersView({ list, show, q }: { list: LandlordPlacementList; sh
 
   return (
     <PageContent>
-      <PageHeader title="Brokers" />
-      <KpiStrip
-        label="Broker fees"
-        items={[
-          {
-            id: "owed",
-            label: "Fees owed",
-            value: list.owedRwf,
-            icon: "Wallet",
-            status: list.owedRwf > 0 ? "warning" : undefined,
-          },
-          { id: "paid", label: "Fees paid", value: list.paidRwf, icon: "CircleCheck" },
-          { id: "open", label: "Open placements", value: open, format: "count", icon: "Persons" },
-        ]}
-      />
-      <ListToolbar
-        tabs={
-          <FilterTabs
-            label="Placements"
-            name="Status"
-            tabs={TABS.map((t) => ({ ...t, count: list.placements.filter((p) => inTab(p, t.id)).length }))}
-            selectedKey={show}
-            onSelectionChange={(key) => go({ show: key as BrokersShow })}
-          />
-        }
-      >
-        <SearchBar label="Search placements" value={search} onChange={setSearch} placeholder="Broker, unit or tenant" />
-      </ListToolbar>
+      <AreaHeader />
       <DataTable
         label="Placements"
-        rows={rows}
+        rows={list.placements}
         rowKey={(p) => p.id}
+        noun={{ one: "placement", many: "placements" }}
+        search={{
+          placeholder: "Broker, unit or tenant",
+          text: (p) =>
+            [p.broker.name, p.broker.phone, p.unit?.label, p.tenantName, p.lease?.tenantName, p.lease?.reference]
+              .filter(Boolean)
+              .join(" "),
+        }}
+        filters={[
+          {
+            id: "status",
+            name: "Status",
+            options: TABS.map((t) => ({ ...t, count: list.placements.filter((p) => inTab(p, t.id)).length })),
+            match: (p, v) => inTab(p, v as BrokersShow),
+          },
+        ]}
         columns={columns}
         defaultSort={{ column: "started", direction: "descending" }}
         onRowAction={(p) => (p.lease ? router.push(leaseHref(p.lease.id)) : undefined)}
@@ -235,18 +198,12 @@ export function BrokersView({ list, show, q }: { list: LandlordPlacementList; sh
         empty={
           <EmptyBlock
             icon="Persons"
-            title={list.placements.length === 0 ? "No brokers yet" : "Nothing matches"}
-            description={
-              list.placements.length === 0
-                ? "Open a unit to brokers from its form. When one has a tenant, it shows here."
-                : "Try another tab or search."
-            }
+            title="No brokers yet"
+            description="Open a unit to brokers from its form."
             action={
-              list.placements.length === 0 ? (
-                <ActionLink href={screenHref("Units")} icon="FolderHouse">
-                  Open units
-                </ActionLink>
-              ) : undefined
+              <ActionLink href={screenHref("Units")} icon="FolderHouse">
+                Open units
+              </ActionLink>
             }
           />
         }

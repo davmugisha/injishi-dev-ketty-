@@ -15,22 +15,17 @@ import {
   DataTable,
   DateText,
   EmptyBlock,
-  FilterTabs,
   formatDay,
   formatMoney,
   IconAction,
-  KpiStrip,
-  ListToolbar,
   Money,
   PageContent,
-  PageHeader,
   RowActions,
-  SectionCard,
   StatusChip,
 } from "@injishi/ui";
 import { useState } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { days, placeWords, receiptHref } from "../leases/shared";
-import { nextRent } from "./format";
 import { PayPanel } from "./PayPanel";
 
 const chargeStatus = (c: LeaseChargeView): string => (c.overdue ? "overdue" : c.status);
@@ -42,49 +37,47 @@ function paidFor(p: TenantPaymentView): string {
   return p.allocations.map((a) => a.label).join(", ");
 }
 
-/** Rent (P3.3): what is owed, every charge, every payment with its receipt, and Pay. */
-export function TenantRentView({
-  tenancy,
-  charges,
-  payments,
-  today,
-}: {
-  tenancy: TenancyDetail;
-  charges: TenantChargeList;
-  payments: TenantPaymentView[];
-  today: string;
-}) {
+/** The Pay button and panel of the Rent tabs: the whole balance, or one charge. */
+function usePay(tenancy: TenancyDetail, charges: TenantChargeList) {
   const [paying, setPaying] = useState(false);
   const [only, setOnly] = useState<LeaseChargeView | null>(null);
   const live = tenancy.status === "active" || tenancy.status === "ending" || tenancy.status === "signed";
   const canPay = charges.maxPaymentRwf > 0 && live;
-  const succeeded = payments.filter((p) => p.status === "succeeded");
-  const paid = succeeded.reduce((s, p) => s + p.amountRwf, 0);
-  const upcoming = nextRent(tenancy.terms, charges.charges, today);
-  const [tab, setTab] = useState<"payments" | "charges">("payments");
-  const open = (url: string) => window.open(url, "_blank", "noopener");
+  const open = (charge: LeaseChargeView | null = null) => {
+    setOnly(charge);
+    setPaying(true);
+  };
+  const button =
+    canPay || charges.pendingPaymentId ? (
+      <ActionButton icon="Wallet" intent="primary" onPress={() => open()}>
+        {charges.pendingPaymentId ? "Payment waiting" : "Pay rent"}
+      </ActionButton>
+    ) : null;
+  const panel = paying ? (
+    <PayPanel
+      leaseId={tenancy.id}
+      charges={charges}
+      phone={tenancy.tenant.phone}
+      waitingId={charges.pendingPaymentId}
+      only={only}
+      onClose={() => setPaying(false)}
+    />
+  ) : null;
+  return { canPay, open, button, panel };
+}
 
-  const chargeColumns: DataColumn<LeaseChargeView>[] = [
-    { id: "what", header: "Charge", isRowHeader: true, cell: (c) => c.label },
-    { id: "due", header: "Due", sortValue: (c) => c.dueOn, cell: (c) => <DateText value={c.dueOn} /> },
-    { id: "amount", header: "Amount", align: "end", cell: (c) => <Money value={c.amountRwf} /> },
-    {
-      id: "owed",
-      header: "Still owed",
-      align: "end",
-      cell: (c) =>
-        c.outstandingRwf > 0 ? <Money value={c.outstandingRwf} /> : <span className="text-muted">RWF 0</span>,
-    },
-    {
-      id: "status",
-      header: "Status",
-      cell: (c) => (
-        <StatusChip kind="charge" status={chargeStatus(c)}>
-          {c.overdue ? `${days(c.daysOverdue)} late` : c.status === "open" ? "To pay" : undefined}
-        </StatusChip>
-      ),
-    },
-  ];
+/** Rent > Payments: every payment with its receipt, in one table. */
+export function TenantPaymentsView({
+  tenancy,
+  charges,
+  payments,
+}: {
+  tenancy: TenancyDetail;
+  charges: TenantChargeList;
+  payments: TenantPaymentView[];
+}) {
+  const pay = usePay(tenancy, charges);
+  const open = (url: string) => window.open(url, "_blank", "noopener");
   const paymentColumns: DataColumn<TenantPaymentView>[] = [
     {
       id: "on",
@@ -120,176 +113,158 @@ export function TenantRentView({
         </span>
       ),
     },
-    { id: "amount", header: "Amount", align: "end", cell: (p) => <Money value={p.amountRwf} /> },
-    { id: "status", header: "Status", cell: (p) => <StatusChip kind="payment" status={p.status} /> },
+    {
+      id: "amount",
+      header: "Amount",
+      align: "end",
+      sortValue: (p) => p.amountRwf,
+      cell: (p) => <Money value={p.amountRwf} />,
+    },
+    {
+      id: "status",
+      header: "Status",
+      sortValue: (p) => p.status,
+      cell: (p) => <StatusChip kind="payment" status={p.status} />,
+    },
   ];
 
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
-      <PageHeader
-        eyebrow={placeWords(tenancy)}
-        title="Rent"
-        actions={
-          canPay || charges.pendingPaymentId ? (
-            <ActionButton
-              icon="Wallet"
-              intent="primary"
-              onPress={() => {
-                setOnly(null);
-                setPaying(true);
-              }}
-            >
-              {charges.pendingPaymentId ? "Payment waiting" : "Pay rent"}
-            </ActionButton>
-          ) : null
-        }
-      />
-      <KpiStrip
-        label="Your rent at a glance"
-        items={[
+      <AreaHeader eyebrow={placeWords(tenancy)} actions={pay.button} />
+      <DataTable
+        label="Payments"
+        noun={{ one: "payment", many: "payments" }}
+        rows={payments}
+        rowKey={(p) => p.id}
+        columns={paymentColumns}
+        defaultSort={{ column: "on", direction: "descending" }}
+        search={{ placeholder: "What it paid for or receipt", text: (p) => `${paidFor(p)} ${p.receiptNumber ?? ""}` }}
+        filters={[
           {
-            id: "owed",
-            label: "Owed now",
-            value: charges.outstandingRwf,
-            icon: "Receipt",
-            status: charges.overdueRwf > 0 ? "danger" : charges.outstandingRwf > 0 ? "warning" : undefined,
-            footnote:
-              charges.overdueRwf > 0
-                ? `${formatMoney(charges.overdueRwf)} overdue`
-                : charges.creditRwf > 0
-                  ? `${formatMoney(charges.creditRwf)} credit`
-                  : "Nothing overdue",
-          },
-          {
-            id: "next",
-            label: "Next rent",
-            value: upcoming?.amountRwf ?? 0,
-            icon: "Calendar",
-            footnote: upcoming ? `Due ${formatDay(upcoming.dueOn, "long")}` : "No month left",
-          },
-          {
-            id: "paid",
-            label: "Paid so far",
-            value: paid,
-            icon: "CircleCheck",
-            footnote: `${succeeded.length} ${succeeded.length === 1 ? "payment" : "payments"}`,
-          },
-          {
-            id: "deposit",
-            label: "Deposit",
-            value: tenancy.terms.depositRwf,
-            icon: "Vault",
-            footnote: tenancy.charges.depositStatus === "held" ? "Held by your landlord" : undefined,
+            id: "status",
+            name: "Status",
+            options: [
+              { id: "all", label: "All" },
+              { id: "succeeded", label: "Paid" },
+              { id: "pending", label: "Waiting" },
+              { id: "failed", label: "Failed" },
+            ],
+            match: (p, v) => (v === "failed" ? p.status !== "succeeded" && p.status !== "pending" : p.status === v),
           },
         ]}
+        rowActions={(p) =>
+          p.status !== "succeeded" ? null : (
+            <RowActions>
+              <IconAction
+                icon="FileArrowDown"
+                label={p.receiptNumber ? `Receipt ${p.receiptNumber}` : "Receipt"}
+                disabledReason={p.receiptReady ? null : "Being made"}
+                onPress={() => open(receiptHref(tenancy.id, p.id))}
+              />
+            </RowActions>
+          )
+        }
+        mobile={{
+          title: (p) => formatMoney(p.amountRwf),
+          description: (p) =>
+            [formatDay(p.paidOn ?? p.createdAt), paidFor(p), p.receiptNumber].filter(Boolean).join(" · "),
+          trailing: (p) => <StatusChip kind="payment" status={p.status} />,
+        }}
+        empty={<EmptyBlock icon="Wallet" title="No payments yet" action={pay.button ?? undefined} />}
       />
-      <SectionCard contentClassName="gap-3">
-        <ListToolbar
-          tabs={
-            <FilterTabs
-              label="Show"
-              name="Show"
-              icon="ListUl"
-              selectedKey={tab}
-              onSelectionChange={(k) => setTab(k === "charges" ? "charges" : "payments")}
-              tabs={[
-                { id: "payments", label: "Payments", count: payments.length },
-                { id: "charges", label: "Charges", count: charges.charges.length },
-              ]}
-            />
-          }
-        />
-        {tab === "charges" ? (
-          <DataTable
-            label="Charges"
-            rows={charges.charges}
-            rowKey={(c) => c.id}
-            columns={chargeColumns}
-            defaultSort={{ column: "due", direction: "descending" }}
-            rowActions={
-              canPay
-                ? (c) =>
-                    c.outstandingRwf > 0 ? (
-                      <RowActions>
-                        <IconAction
-                          icon="Wallet"
-                          label={`Pay ${c.label.toLowerCase()}`}
-                          onPress={() => {
-                            setOnly(c);
-                            setPaying(true);
-                          }}
-                        />
-                      </RowActions>
-                    ) : null
-                : undefined
-            }
-            mobile={{
-              title: (c) => c.label,
-              description: (c) => `Due ${formatDay(c.dueOn)} · ${formatMoney(c.amountRwf)}`,
-              trailing: (c) => <StatusChip kind="charge" status={chargeStatus(c)} />,
-            }}
-            empty={
-              <EmptyBlock
-                size="sm"
-                icon="Receipt"
-                title="Nothing charged yet"
-                description="The first rent is raised a week before it is due."
-              />
-            }
-          />
-        ) : (
-          <DataTable
-            label="Payments"
-            rows={payments}
-            rowKey={(p) => p.id}
-            columns={paymentColumns}
-            defaultSort={{ column: "on", direction: "descending" }}
-            rowActions={(p) =>
-              p.status !== "succeeded" ? null : (
-                <RowActions>
-                  <IconAction
-                    icon="FileArrowDown"
-                    label={p.receiptNumber ? `Receipt ${p.receiptNumber}` : "Receipt"}
-                    disabledReason={p.receiptReady ? null : "Being made"}
-                    onPress={() => open(receiptHref(tenancy.id, p.id))}
-                  />
-                </RowActions>
-              )
-            }
-            mobile={{
-              title: (p) => formatMoney(p.amountRwf),
-              description: (p) =>
-                [formatDay(p.paidOn ?? p.createdAt), paidFor(p), p.receiptNumber].filter(Boolean).join(" · "),
-              trailing: (p) => <StatusChip kind="payment" status={p.status} />,
-            }}
-            empty={
-              <EmptyBlock
-                size="sm"
-                icon="Wallet"
-                title="No payments yet"
-                action={
-                  canPay ? (
-                    <ActionButton icon="Wallet" intent="primary" onPress={() => setPaying(true)}>
-                      Pay rent
-                    </ActionButton>
-                  ) : undefined
-                }
-              />
-            }
-          />
-        )}
-      </SectionCard>
-      {paying ? (
-        <PayPanel
-          leaseId={tenancy.id}
-          charges={charges}
-          phone={tenancy.tenant.phone}
-          waitingId={charges.pendingPaymentId}
-          only={only}
-          onClose={() => setPaying(false)}
-        />
-      ) : null}
+      {pay.panel}
+    </PageContent>
+  );
+}
+
+/** Rent > Charges: every rent and deposit charge with what is still owed; pay one from its row. */
+export function TenantChargesView({ tenancy, charges }: { tenancy: TenancyDetail; charges: TenantChargeList }) {
+  const pay = usePay(tenancy, charges);
+  const chargeColumns: DataColumn<LeaseChargeView>[] = [
+    { id: "what", header: "Charge", isRowHeader: true, cell: (c) => c.label },
+    { id: "due", header: "Due", sortValue: (c) => c.dueOn, cell: (c) => <DateText value={c.dueOn} /> },
+    {
+      id: "amount",
+      header: "Amount",
+      align: "end",
+      sortValue: (c) => c.amountRwf,
+      cell: (c) => <Money value={c.amountRwf} />,
+    },
+    {
+      id: "owed",
+      header: "Still owed",
+      align: "end",
+      cell: (c) =>
+        c.outstandingRwf > 0 ? <Money value={c.outstandingRwf} /> : <span className="text-muted">RWF 0</span>,
+    },
+    {
+      id: "status",
+      header: "Status",
+      cell: (c) => (
+        <StatusChip kind="charge" status={chargeStatus(c)}>
+          {c.overdue ? `${days(c.daysOverdue)} late` : c.status === "open" ? "To pay" : undefined}
+        </StatusChip>
+      ),
+    },
+  ];
+  return (
+    <PageContent>
+      <Toast.Provider placement="bottom" />
+      <AreaHeader eyebrow={placeWords(tenancy)} actions={pay.button} />
+      <DataTable
+        label="Charges"
+        noun={{ one: "charge", many: "charges" }}
+        rows={charges.charges}
+        rowKey={(c) => c.id}
+        columns={chargeColumns}
+        defaultSort={{ column: "due", direction: "descending" }}
+        filters={[
+          {
+            id: "status",
+            name: "Status",
+            options: [
+              { id: "all", label: "All" },
+              { id: "overdue", label: "Overdue" },
+              { id: "open", label: "To pay" },
+              { id: "paid", label: "Paid" },
+            ],
+            match: (c, v) => chargeStatus(c) === v,
+          },
+          {
+            id: "kind",
+            name: "Type",
+            icon: "Tag",
+            options: [
+              { id: "all", label: "All" },
+              { id: "rent", label: "Rent" },
+              { id: "deposit", label: "Deposit" },
+            ],
+            match: (c, v) => c.kind === v,
+          },
+        ]}
+        rowActions={
+          pay.canPay
+            ? (c) =>
+                c.outstandingRwf > 0 ? (
+                  <RowActions>
+                    <IconAction icon="Wallet" label={`Pay ${c.label.toLowerCase()}`} onPress={() => pay.open(c)} />
+                  </RowActions>
+                ) : null
+            : undefined
+        }
+        mobile={{
+          title: (c) => c.label,
+          description: (c) => `Due ${formatDay(c.dueOn)} · ${formatMoney(c.amountRwf)}`,
+          trailing: (c) => (
+            <StatusChip kind="charge" status={chargeStatus(c)}>
+              {c.status === "open" && !c.overdue ? "To pay" : undefined}
+            </StatusChip>
+          ),
+        }}
+        empty={<EmptyBlock icon="Receipt" title="Nothing charged yet" />}
+      />
+      {pay.panel}
     </PageContent>
   );
 }

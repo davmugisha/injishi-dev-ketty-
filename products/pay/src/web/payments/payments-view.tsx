@@ -131,7 +131,6 @@ export function PaymentsView({ data }: { data: PaymentsData }) {
       <PageHeader
         eyebrow="Cashiering · GT Bank adapter · MTN MoMo, Airtel Money, card, bank transfer"
         title="Payments"
-        description="Every payment intent with its provider attempts. Only a payment confirmed by the provider counts as Verified."
         actions={
           <>
             <LinkButton href={screenHref("Reconciliation")} variant="secondary">

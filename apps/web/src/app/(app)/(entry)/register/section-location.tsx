@@ -1,6 +1,6 @@
 "use client";
 
-import { Info } from "lucide-react";
+import { ArrowLeft, Info } from "lucide-react";
 import { Button } from "@injishi/web-ui";
 
 import { AddressPicker, type AddressDraft } from "./address-picker";
@@ -36,6 +36,7 @@ export function SectionLocation({
   errors,
   errorPrefix,
   onSave,
+  onBack = null,
 }: {
   address: AddressDraft;
   onChange: (next: AddressDraft) => void;
@@ -44,8 +45,16 @@ export function SectionLocation({
   errors: Record<string, string>;
   errorPrefix: string;
   onSave: () => void;
+  /** Back: the section before, reopened with its answers. */
+  onBack?: (() => void) | null;
 }) {
   const missing = missingLevels(address);
+  const back = onBack ? (
+    <Button variant="ghost" onClick={onBack}>
+      <ArrowLeft size={16} aria-hidden />
+      Back
+    </Button>
+  ) : null;
   return (
     <>
       <Callout tone="info" icon={<Info size={16} aria-hidden />} title={prefilled ? "Filled in from RRA" : "Where it is"}>
@@ -66,6 +75,7 @@ export function SectionLocation({
         errors={errors}
       />
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {back}
         <Button onClick={onSave} disabled={missing.length > 0} aria-describedby="register-location-why">
           Save location
         </Button>

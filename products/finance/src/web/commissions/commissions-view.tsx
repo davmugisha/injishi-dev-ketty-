@@ -173,7 +173,6 @@ export function CommissionsView({ lines, payouts }: { lines: CommissionLine[]; p
       <PageHeader
         eyebrow="October 2026 · Receivables & ledger"
         title="Commissions & Payouts"
-        description="Finance approves what is owed under each contract. Money moves only through Payments, and only counts as paid when the bank confirms."
         actions={
           <>
             <Button variant="secondary">

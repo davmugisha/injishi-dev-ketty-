@@ -402,6 +402,11 @@ describe('MoveOutsService: the list and the nudge', () => {
     expect(list.items.map((i) => [i.leaseId, i.daysLeft])).toEqual([['a', 18]]);
     const moving = await h.service.list(ws, { tab: 'moving_soon' });
     expect(moving.items[0]).toMatchObject({ leaseId: 'b', movingOutOn: '2026-12-31', daysLeft: 66 });
+    // Nothing chosen: every move-out, the ones still to happen first.
+    const all = await h.service.list(ws, {});
+    expect(all.tab).toBe('all');
+    expect(all.items.map((i) => i.leaseId).slice(0, 2)).toEqual(['a', 'b']);
+    expect(all.items).toHaveLength(4);
   });
 
   it('nudges about a notice waiting 3 days, once', async () => {

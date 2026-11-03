@@ -133,6 +133,7 @@ describe('PaymentAttemptService', () => {
     };
 
     const listings = {
+      stayRate: vi.fn(async (rt: { nightlyRateRwf: number | null }) => ({ nightlyRateRwf: rt.nightlyRateRwf ?? 0, discountPct: 0, closedOn: null, minNights: 1, maxNights: 90 })),
       findBookableRoomType: vi.fn().mockResolvedValue(
         overrides.roomTypeMissing
           ? null
