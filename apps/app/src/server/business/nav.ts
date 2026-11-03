@@ -71,6 +71,16 @@ export function businessNavGroups(
       href: `/w/${workspace.workspaceId}/getting-paid`,
     });
   }
+  // Commission deals with brokers (0125): a deal decides what the hotel is paid, so it is the payouts' holder's.
+  if (approved && !venue && may("payout.manage")) {
+    business.push({
+      id: "brokers",
+      label: "Brokers",
+      icon: "Briefcase",
+      board: "Payments",
+      href: `/w/${workspace.workspaceId}/brokers`,
+    });
+  }
   if (approved && may("team.manage")) business.push({ id: "team", label: "Team", icon: "Gear", board: "TeamRoles" });
   if (business.length > 0) groups.push({ label: "Business", items: business });
   return groups;

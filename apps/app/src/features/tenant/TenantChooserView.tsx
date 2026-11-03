@@ -47,11 +47,7 @@ export function TenantChooserView({
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
-      <PageHeader
-        size="hello"
-        title={firstName ? `Hello, ${firstName}` : "My home"}
-        description="The homes you rent."
-      />
+      <PageHeader size="hello" title={firstName ? `Hello, ${firstName}` : "My home"} />
       {invitations.length > 0 ? (
         <section className="flex flex-col gap-3" aria-labelledby="home-invites">
           <SectionHeader id="home-invites" title="Waiting for you" description="A landlord sent you a lease to sign." />

@@ -28,12 +28,12 @@ export function PsfHeader() {
       {/* PSF's orange, the colour of its logo's square, as a thin strip. */}
       <div aria-hidden className="h-1 bg-(--psf-orange)" />
       <div className="container flex h-16 max-w-page items-center justify-between gap-4">
-        <Link href="/psf" aria-label="PSF MemberDesk, home" className="flex shrink-0 items-center gap-2.5">
+        <Link href="/psf" aria-label="PSF Membership Hub (PMH), home" className="flex shrink-0 items-center gap-2.5">
           <img src="/assets/partners/psf.png" alt="" className="h-9 w-auto" />
-          {/* PSF's name, then the product's: MemberDesk sits under it, in PSF green. */}
+          {/* PSF's name, then the product's: Membership Hub (PMH) sits under it, in PSF green. */}
           <span className="hidden leading-tight sm:block">
             <span className="block text-sm font-semibold text-page-fg">Private Sector Federation</span>
-            <span className="block text-xs font-semibold tracking-wide text-accent-text">MemberDesk</span>
+            <span className="block text-xs font-semibold tracking-wide text-accent-text">Membership Hub (PMH)</span>
           </span>
         </Link>
 

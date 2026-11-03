@@ -53,7 +53,7 @@ test('membership numbers, provinces and masks read the way PSF writes them', () 
   assert.equal(maskEmail('diane@example.rw'), 'd••••@example.rw');
 });
 
-test('the public form needs a street, a country when trading, and the right number for its registration', () => {
+test('the public form needs a country when trading and the right number for its registration; the street is optional', () => {
   const base = {
     legalName: 'Ubumwe Traders',
     registrationKind: 'none',
@@ -66,7 +66,8 @@ test('the public form needs a street, a country when trading, and the right numb
     tradeDirection: 'none',
   };
   assert.ok(PsfPublicBusiness.safeParse(base).success);
-  assert.ok(!PsfPublicBusiness.safeParse({ ...base, address: { ...base.address, street: '' } }).success);
+  // Optional since 2026-11-02: the village places the business, and not every plot has a street.
+  assert.ok(PsfPublicBusiness.safeParse({ ...base, address: { ...base.address, street: '' } }).success);
   assert.ok(!PsfPublicBusiness.safeParse({ ...base, tradeDirection: 'export', tradeGoods: 'Coffee' }).success);
   assert.ok(PsfPublicBusiness.safeParse({ ...base, tradeDirection: 'export', tradeGoods: 'Coffee', tradeCountries: ['BE'] }).success);
   assert.ok(!PsfPublicBusiness.safeParse({ ...base, registrationKind: 'rca' }).success);

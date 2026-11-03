@@ -38,6 +38,8 @@ export function StepYou({
   const [checkId, setCheckId] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState("");
   const [code, setCode] = useState("");
+  /** The API handed the code over: no text really went (a test setup). */
+  const [filledIn, setFilledIn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -61,6 +63,7 @@ export function StepYou({
     setCheckId(res.data.checkId);
     setSentTo(res.data.sentTo);
     setCode(res.data.demoCode ?? "");
+    setFilledIn(Boolean(res.data.demoCode));
     setPhase("code");
   };
 
@@ -158,7 +161,11 @@ export function StepYou({
             </span>
             <div>
               <p className="font-semibold">We sent a code to {sentTo}</p>
-              <p className="text-sm text-muted-foreground">That is the phone the register holds for this ID. Type the 6 digits to prove it is yours.</p>
+              <p className="text-sm text-muted-foreground">
+                {filledIn
+                  ? "Texts are not sent on this test setup, so we filled the code in for you."
+                  : "That is the phone the register holds for this ID. Type the 6 digits to prove it is yours."}
+              </p>
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -185,11 +192,9 @@ export function StepYou({
 
       <section className={person ? "flex flex-col gap-5" : "pointer-events-none flex flex-col gap-5 opacity-50"} aria-disabled={!person}>
         <div className="border-t border-border pt-6">
-          <h3 className="text-base font-semibold">How PSF reaches you</h3>
-          <p className="text-sm text-muted-foreground">
-            We text your docID and every decision to this phone. Email is optional, for a copy.
-          </p>
+          <h3 className="text-base font-semibold">You in the business</h3>
         </div>
+        {/* Two plain selects with no hint, so the boxes sit on one line. */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <Field label="Your role in the business" required error={errors["contact.role"]}>
             <SelectField
@@ -199,7 +204,7 @@ export function StepYou({
               options={Object.entries(PSF_CONTACT_ROLE_LABEL).map(([value, label]) => ({ value, label }))}
             />
           </Field>
-          <Field label="Gender" hint="PSF's form asks for Male or Female." required error={errors["contact.gender"]}>
+          <Field label="Gender" required error={errors["contact.gender"]}>
             <SelectField
               id="psf-gender"
               value={draft.gender}
@@ -211,6 +216,12 @@ export function StepYou({
               ]}
             />
           </Field>
+        </div>
+        <div className="border-t border-border pt-6">
+          <h3 className="text-base font-semibold">How PSF reaches you</h3>
+          <p className="text-sm text-muted-foreground">
+            We text your docID and every decision to this phone. Email is optional, for a copy.
+          </p>
         </div>
         <Field label="Phone" required error={errors["contact.phoneE164"]}>
           <PhoneInput id="psf-phone" value={draft.phone} onChange={(v) => onChange({ phone: v })} invalid={Boolean(errors["contact.phoneE164"])} />

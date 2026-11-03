@@ -81,7 +81,8 @@ export async function requireScreen(board: BoardId): Promise<Persona | null> {
   const screen = screens[board];
   if (screen.persona === null) return persona;
   if (!persona) redirect(`/sign-in?next=${encodeURIComponent(screen.href)}`);
-  if (!canAccess(persona.id, board)) redirect(`/access-denied?from=${board}`);
+  // The persona's own screens, and those of the other roles this person holds (`withHats`).
+  if (!canAccess(persona.id, board) && !persona.access?.includes(board)) redirect(`/access-denied?from=${board}`);
   return persona;
 }
 

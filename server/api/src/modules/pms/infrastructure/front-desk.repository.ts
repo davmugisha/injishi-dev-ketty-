@@ -74,6 +74,8 @@ export interface CheckInSubject {
   propertyId: string | null;
   status: string;
   guestUserId: string | null;
+  /** The name on the booking itself: a broker's guest (0126), who has no account. Null otherwise. */
+  guestName?: string | null;
   /** The booking's own reference, written on the prepayment line. */
   reference: string;
   checkIn: string;
@@ -166,7 +168,7 @@ export class FrontDeskRepository {
       .select({
         roomId: guestStays.roomId,
         stayId: guestStays.id,
-        guestName: sql<string | null>`coalesce(${accountName}, ${guestStays.guestName})`,
+        guestName: sql<string | null>`coalesce(${accountName}, nullif(btrim(${guestStays.guestName}), ''), (SELECT nullif(btrim(si.full_name), '') FROM stay_identities si WHERE si.guest_stay_id = ${guestStays.id}))`,
         entryAt: guestStays.entryAt,
       })
       .from(guestStays)
@@ -292,6 +294,7 @@ export class FrontDeskRepository {
         propertyId: roomTypes.propertyId,
         status: bookings.status,
         guestUserId: bookings.guestUserId,
+        guestName: bookings.guestName,
         reference: bookings.reference,
         checkIn: bookings.checkIn,
         checkOut: bookings.checkOut,
@@ -514,7 +517,7 @@ export class FrontDeskRepository {
         roomId: guestStays.roomId,
         propertyId: rooms.propertyId,
         roomLabel: rooms.label,
-        guestName: sql<string | null>`coalesce(${accountName}, ${guestStays.guestName})`,
+        guestName: sql<string | null>`coalesce(${accountName}, nullif(btrim(${guestStays.guestName}), ''), (SELECT nullif(btrim(si.full_name), '') FROM stay_identities si WHERE si.guest_stay_id = ${guestStays.id}))`,
         lifecycle: guestStays.lifecycle,
         entryAt: guestStays.entryAt,
         plannedExitAt: guestStays.plannedExitAt,

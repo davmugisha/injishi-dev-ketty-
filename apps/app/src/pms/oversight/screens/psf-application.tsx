@@ -416,6 +416,7 @@ export function Fact({ label, value, mono, wide }: { label: string; value: React
 const PAYMENT_LABEL: Record<PsfBusinessHistory["payments"][number]["kind"], string> = {
   registration_fee: "Registration fee",
   membership_fee: "Membership fee",
+  membership_renewal: "Membership renewal",
 };
 
 function Payments({ history, currentDocId }: { history: PsfBusinessHistory | null; currentDocId: string | null }) {

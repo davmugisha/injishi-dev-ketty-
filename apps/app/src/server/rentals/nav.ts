@@ -4,7 +4,7 @@
  * only when there is something to count. Hiding an item is presentation: the API still decides.
  */
 import type { RentalsSummary } from "@injishi/contracts";
-import type { NavGroup, NavItem } from "@injishi/data";
+import type { NavGroup, NavItem, NavTab } from "@injishi/data";
 import { ApiError } from "../api";
 import { landlordUnread, quietUnread } from "../messages";
 import { can, type LandlordScope, landlordScope, rentalsSummary } from "./client";
@@ -29,92 +29,85 @@ export function landlordNavGroups(
   /** Lines from tenants this person has not read, when they answer messages (P3.4). */
   unreadMessages: number | null = null,
 ): NavGroup[] {
-  const top: NavItem[] = [{ id: "home", label: "Home", icon: "House", board: "ResidenceHome" }];
+  const count = (n: number | null | undefined) => (n && n > 0 ? { chip: String(n) } : {});
+  // Few sidebar items (2026-10-30): each area's pages are tabs at the top of its pages.
+  const items: NavItem[] = [];
+
+  const home: NavTab[] = [{ id: "overview", label: "Home", board: "ResidenceHome" }];
+  if (can(scope, "money.view", "lease.manage", "rent.record")) {
+    home.push({ id: "calendar", label: "Calendar", board: "RentalsCalendar" });
+  }
+  if (summary) {
+    const waiting = summary.attention.length;
+    home.push({ id: "todo", label: "To do", board: "RentalsTodo", also: ["RentalsSetup"], ...count(waiting) });
+  }
+  items.push({ id: "home", label: "Home", icon: "House", board: "ResidenceHome", tabs: home });
+
+  const property: NavTab[] = [];
+  if (can(scope, "unit.manage", "lease.manage", "money.view")) {
+    property.push({ id: "units", label: "Units", board: "Units" });
+  }
+  if (can(scope, "lease.manage", "rent.record", "money.view", "deposit.return")) {
+    property.push({
+      id: "leases",
+      label: "Leases",
+      board: "Leases",
+      also: ["LeaseNew", "LeaseRecord"],
+      ...count((summary?.counts.leasesToSign ?? 0) + (summary?.counts.readyToStart ?? 0)),
+    });
+  }
+  if (can(scope, "ticket.advance")) {
+    property.push({ id: "faults", label: "Faults", board: "Faults", ...count(openFaults) });
+  }
+  if (can(scope, "lease.manage", "deposit.return")) {
+    property.push({
+      id: "move-outs",
+      label: "Move-outs",
+      board: "MoveOuts",
+      ...count(summary?.counts.noticesToAcknowledge),
+    });
+  }
+  if (property.length > 0) {
+    items.push({ id: "property", label: "Property", icon: "FolderHouse", board: property[0].board, tabs: property });
+  }
+
+  const money: NavTab[] = [];
+  if (can(scope, "money.view", "rent.record")) money.push({ id: "rent", label: "Rent", board: "RentPayments" });
+  if (can(scope, "money.view", "payout.manage")) money.push({ id: "payouts", label: "Payouts", board: "RentPayouts" });
+  if (can(scope, "money.view", "expense.manage")) money.push({ id: "expenses", label: "Expenses", board: "Expenses" });
+  if (can(scope, "money.view", "tax.manage")) {
+    money.push({ id: "taxes", label: "Taxes", board: "Taxes" });
+    money.push({ id: "filings", label: "RRA filings", board: "TaxFilings", ...count(summary?.counts.filingsDue) });
+  }
+  if (money.length > 0) items.push({ id: "money", label: "Money", icon: "Wallet", board: money[0].board, tabs: money });
+
+  const people: NavTab[] = [];
+  if (can(scope, "lease.manage", "message.send"))
+    people.push({ id: "brokers", label: "Brokers", board: "LandlordBrokers" });
+  if (can(scope, "guest.register")) people.push({ id: "guests", label: "My guests", board: "LandlordGuests" });
+  if (people.length > 0) {
+    items.push({ id: "people", label: "People", icon: "Persons", board: people[0].board, tabs: people });
+  }
+
   if (can(scope, "message.send")) {
-    top.push({
+    items.push({
       id: "messages",
       label: "Messages",
       icon: "Comments",
       board: "LandlordMessages",
-      ...(unreadMessages && unreadMessages > 0 ? { chip: String(unreadMessages) } : {}),
+      ...count(unreadMessages),
     });
   }
-  const groups: NavGroup[] = [{ label: null, items: top }];
-
-  const property: NavItem[] = [];
-  if (can(scope, "unit.manage", "lease.manage", "money.view")) {
-    const vacant = summary?.counts.vacantUnits ?? 0;
-    property.push({
-      id: "units",
-      label: "Units",
-      icon: "FolderHouse",
-      board: "Units",
-      ...(vacant > 0 ? { chip: String(vacant) } : {}),
-    });
-  }
-  if (can(scope, "lease.manage", "rent.record", "money.view", "deposit.return")) {
-    const waiting = (summary?.counts.leasesToSign ?? 0) + (summary?.counts.readyToStart ?? 0);
-    property.push({
-      id: "leases",
-      label: "Leases",
-      icon: "FileText",
-      board: "Leases",
-      ...(waiting > 0 ? { chip: String(waiting) } : {}),
-    });
-  }
-  if (can(scope, "ticket.advance")) {
-    property.push({
-      id: "faults",
-      label: "Faults",
-      icon: "Wrench",
-      board: "Faults",
-      ...(openFaults && openFaults > 0 ? { chip: String(openFaults) } : {}),
-    });
-  }
-  if (can(scope, "lease.manage", "deposit.return")) {
-    const notices = summary?.counts.noticesToAcknowledge ?? 0;
-    property.push({
-      id: "move-outs",
-      label: "Move-outs",
-      icon: "ArrowRightFromSquare",
-      board: "MoveOuts",
-      ...(notices > 0 ? { chip: String(notices) } : {}),
-    });
-  }
-  if (can(scope, "lease.manage", "message.send")) {
-    property.push({ id: "brokers", label: "Brokers", icon: "Persons", board: "LandlordBrokers" });
-  }
-  if (can(scope, "guest.register")) {
-    property.push({ id: "guests", label: "My guests", icon: "PersonPlus", board: "LandlordGuests" });
-  }
-  if (summary && !summary.setup.complete && can(scope, ...RENTALS_READ)) {
-    const left = summary.setup.total - summary.setup.done;
-    property.push({ id: "setup", label: "Setup", icon: "ListCheck", board: "RentalsSetup", chip: String(left) });
-  }
-  if (property.length > 0) groups.push({ label: "Property", items: property });
-
-  const money: NavItem[] = [];
-  if (can(scope, "money.view", "expense.manage")) {
-    money.push({ id: "expenses", label: "Expenses", icon: "Receipt", board: "Expenses" });
-  }
-  if (can(scope, "money.view", "tax.manage")) {
-    const filings = summary?.counts.filingsDue ?? 0;
-    money.push({
-      id: "taxes",
-      label: "Taxes",
-      icon: "Calculator",
-      board: "Taxes",
-      ...(filings > 0 ? { chip: String(filings) } : {}),
-    });
-  }
-  if (money.length > 0) groups.push({ label: "Money", items: money });
-
   // The team is a tab of Settings (`?tab=team`), not an item of its own.
-  const business: NavItem[] = [];
-  if (can(scope, ...RENTALS_READ, "team.manage"))
-    business.push({ id: "settings", label: "Settings", icon: "Gear", board: "RentalsSettings" });
-  if (business.length > 0) groups.push({ label: "Business", items: business });
-  return groups;
+  if (can(scope, ...RENTALS_READ, "team.manage")) {
+    items.push({ id: "settings", label: "Settings", icon: "Gear", board: "RentalsSettings" });
+  }
+  // The sidebar chip of an area: what waits on any of its pages.
+  for (const item of items) {
+    const waiting = (item.tabs ?? []).reduce((t, tab) => t + Number(tab.chip ?? 0), 0);
+    if (item.tabs && waiting > 0) item.chip = String(waiting);
+  }
+  return [{ label: null, items }];
 }
 
 /** The sidebar of the landlord in this request. A summary the API can't give leaves the counts out. */

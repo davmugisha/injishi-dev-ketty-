@@ -1,95 +1,102 @@
-import type { BrokerReviews } from "@injishi/contracts";
-import { EmptyBlock, formatDay, formatNumber, KpiStrip, SectionCard, Stars } from "@injishi/ui";
+"use client";
+
+import type { BrokerReview, BrokerReviews } from "@injishi/contracts";
+import { type DataColumn, DataTable, DateText, EmptyBlock, formatDay, PageContent, Stars } from "@injishi/ui";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
+
+const keyOf = (r: BrokerReview) => `${r.ratedAt}-${r.from}-${r.raterName ?? ""}-${r.stars}`;
+const FROM = { tenant: "Tenant", landlord: "Landlord" } as const;
 
 /**
- * What landlords and tenants said about the broker (2026-10-25), on the earnings page since 2026-10-27:
- * the figures in the same panel as the page's other figures, the spread of stars, and every review,
- * newest first. Each side rates once the tenancy the broker brought has started.
+ * What landlords and tenants said about the broker (2026-10-30): one table, newest first, with filters
+ * for who rated and the stars. The average sits on the overview, not repeated here.
  */
-export function ReviewsSection({ data }: { data: BrokerReviews }) {
-  const max = Math.max(1, ...data.breakdown);
+export function ReviewsView({ data }: { data: BrokerReviews }) {
+  const columns: DataColumn<BrokerReview>[] = [
+    { id: "stars", header: "Stars", sortValue: (r) => r.stars, cell: (r) => <Stars value={r.stars} size="size-3.5" /> },
+    {
+      id: "comment",
+      header: "Comment",
+      isRowHeader: true,
+      cell: (r) =>
+        r.comment ? <span className="text-sm text-pretty">{r.comment}</span> : <span className="text-muted">-</span>,
+    },
+    {
+      id: "from",
+      header: "From",
+      sortValue: (r) => r.raterName ?? r.from,
+      cell: (r) => (
+        <span className="flex flex-col">
+          <span>{r.raterName ?? FROM[r.from]}</span>
+          <span className="text-xs text-muted">{[FROM[r.from], r.propertyName].filter(Boolean).join(" · ")}</span>
+        </span>
+      ),
+    },
+    {
+      id: "date",
+      header: "Date",
+      sortValue: (r) => r.ratedAt,
+      cell: (r) => <DateText value={r.ratedAt.slice(0, 10)} />,
+    },
+  ];
   return (
-    <section id="reviews" aria-labelledby="reviews-title" className="flex scroll-mt-20 flex-col gap-4">
-      <h2 id="reviews-title" className="text-lg font-semibold">
-        Reviews
-      </h2>
-      <KpiStrip
+    <PageContent>
+      <AreaHeader />
+      <DataTable
         label="Reviews"
-        items={[
+        noun={{ one: "review", many: "reviews" }}
+        rows={data.reviews}
+        rowKey={keyOf}
+        columns={columns}
+        defaultSort={{ column: "date", direction: "descending" }}
+        search={{
+          placeholder: "Comment, name or building",
+          text: (r) => `${r.comment ?? ""} ${r.raterName ?? ""} ${r.propertyName ?? ""}`,
+        }}
+        filters={[
           {
-            id: "average",
-            label: "Average rating",
-            value: data.average ?? 0,
-            format: "count",
-            icon: "Star",
-            footnote: data.average === null ? "No ratings yet" : "Out of 5 stars",
-          },
-          {
-            id: "ratings",
-            label: "Ratings",
-            value: data.count,
-            format: "count",
-            icon: "Comments",
-            footnote: "From landlords and tenants",
-          },
-          {
-            id: "placed",
-            label: "Tenancies started",
-            value: data.placedCount,
-            format: "count",
+            id: "from",
+            name: "From",
             icon: "Persons",
-            footnote: "Each one can be rated",
+            options: [
+              { id: "all", label: "All" },
+              { id: "landlord", label: "Landlords" },
+              { id: "tenant", label: "Tenants" },
+            ],
+            match: (r, v) => r.from === v,
+          },
+          {
+            id: "stars",
+            name: "Stars",
+            icon: "Star",
+            options: [
+              { id: "all", label: "All" },
+              ...[5, 4, 3, 2, 1].map((n, i) => ({ id: String(n), label: `${n} stars`, count: data.breakdown[i] ?? 0 })),
+            ],
+            match: (r, v) => r.stars === Number(v),
           },
         ]}
+        mobile={{
+          title: (r) => <Stars value={r.stars} size="size-3.5" />,
+          description: (r) => (
+            <span className="flex flex-col gap-1">
+              {r.comment ? <span className="text-foreground">{r.comment}</span> : null}
+              <span>
+                {[r.raterName ?? FROM[r.from], r.propertyName, formatDay(r.ratedAt.slice(0, 10))]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            </span>
+          ),
+        }}
+        empty={
+          <EmptyBlock
+            icon="Star"
+            title="No reviews yet"
+            description="Landlords and tenants rate you once a tenancy you brought starts."
+          />
+        }
       />
-      <div className="grid items-stretch gap-4 lg:grid-cols-3">
-        <SectionCard title="Stars given">
-          <ul className="flex flex-col gap-2" aria-label="Stars given">
-            {data.breakdown.map((n, i) => {
-              const stars = 5 - i;
-              return (
-                <li key={stars} className="flex items-center gap-2 text-xs">
-                  <span className="w-3 tabular text-muted">{stars}</span>
-                  <span className="h-2 flex-1 overflow-hidden rounded-full bg-default">
-                    <span className="block h-full rounded-full bg-warning" style={{ width: `${(n / max) * 100}%` }} />
-                  </span>
-                  <span className="w-6 text-right tabular text-muted">{formatNumber(n)}</span>
-                </li>
-              );
-            })}
-          </ul>
-        </SectionCard>
-        <SectionCard title="What people said" className="lg:col-span-2">
-          {data.reviews.length === 0 ? (
-            <EmptyBlock
-              size="sm"
-              icon="Star"
-              title="No reviews yet"
-              description="Landlords and tenants rate you once a tenancy you brought has started."
-            />
-          ) : (
-            <ul className="flex flex-col divide-y divide-border">
-              {data.reviews.map((r) => (
-                <li
-                  key={`${r.ratedAt}-${r.from}-${r.raterName ?? ""}`}
-                  className="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0"
-                >
-                  <span className="flex flex-wrap items-center justify-between gap-2">
-                    <Stars value={r.stars} size="size-3.5" />
-                    <span className="text-xs text-muted">{formatDay(r.ratedAt, "short")}</span>
-                  </span>
-                  {r.comment ? <p className="text-sm text-pretty">{r.comment}</p> : null}
-                  <span className="text-xs text-muted">
-                    {r.from === "tenant" ? "Tenant" : "Landlord"}
-                    {r.raterName ? `, ${r.raterName}` : ""}
-                    {r.propertyName ? ` · ${r.propertyName}` : ""}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </SectionCard>
-      </div>
-    </section>
+    </PageContent>
   );
 }

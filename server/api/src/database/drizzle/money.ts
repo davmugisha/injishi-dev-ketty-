@@ -221,8 +221,13 @@ export const paymentTransactions = pgTable(
   'payment_transactions',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    /** Null only for an adjustment, which belongs to Hangaa's account, not a business. */
+    /**
+     * Null for an adjustment, which belongs to Hangaa's account, not a business,
+     * and for a business with no workspace, which `orgId` names instead.
+     */
     workspaceId: uuid('workspace_id').references(() => workspaces.id),
+    /** The business, when it has no workspace: the public PSF path (0127, 2026-11-02). */
+    orgId: uuid('org_id').references(() => orgs.id),
     /** The registry provider key: `gtbank`, or `mock` for the mock adapter. */
     provider: text('provider').notNull(),
     /** Written from the bound adapter, never defaulted (ADR-020 AC-9). */
@@ -308,6 +313,7 @@ export const paymentTransactions = pgTable(
     index('payment_transactions_original_idx').on(t.originalTransactionId),
     index('payment_transactions_booking_idx').on(t.bookingId),
     index('payment_transactions_workspace_idx').on(t.workspaceId),
+    index('payment_transactions_org_idx').on(t.orgId).where(sql`${t.orgId} IS NOT NULL`),
     index('payment_transactions_balance_idx').on(
       t.provider,
       t.adapterMode,
@@ -331,7 +337,7 @@ export const paymentTransactions = pgTable(
     check('payment_transactions_fee_non_negative', sql`${t.feeRwf} >= 0`),
     check(
       'payment_transactions_workspace_shape',
-      sql`${t.workspaceId} IS NOT NULL OR ${t.direction} = 'adjustment'`,
+      sql`${t.workspaceId} IS NOT NULL OR ${t.orgId} IS NOT NULL OR ${t.direction} = 'adjustment'`,
     ),
     // An adjustment is written only once approved, so it never moves again.
     check(

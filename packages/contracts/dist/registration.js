@@ -341,8 +341,8 @@ exports.PsfCompanyType = zod_1.z.enum([
 ]);
 /** PSF's form, "Ownership", as printed. `other` carries a text. */
 exports.PsfOwnership = zod_1.z.enum([
-    "foreign_100",
     "rwandan_100",
+    "foreign_100",
     "franchise",
     "joint_venture",
     "foreign_representative",

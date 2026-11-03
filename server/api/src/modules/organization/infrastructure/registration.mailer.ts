@@ -12,7 +12,7 @@ import {
   fieldVerificationPassedMail,
   officerQueueMail,
   officersCoveringDistrict,
-  oversightQueueLink,
+  oversightCaseLink,
   psfBusinessRegisteredMail,
   registrationApprovedMail,
   registrationLink,
@@ -131,7 +131,7 @@ export class RegistrationMailer {
         legalName: facts.legalName,
         businessCode: facts.businessCode,
         districtName: facts.districtName,
-        link: psfMembershipLink(this.webUrl, facts.workspaceId),
+        link: psfMembershipLink(this.appUrl),
       }),
     );
   }
@@ -222,7 +222,8 @@ export class RegistrationMailer {
           ? await this.orgs.latestFieldVerifierId(orgId)
           : null;
 
-      const link = oversightQueueLink(this.appUrl);
+      // The business itself (2026-11-02): the mail is about one registration, not the whole queue.
+      const link = oversightCaseLink(this.appUrl, orgId);
       let mailed = 0;
       for (const officer of covering) {
         if (officer.userId === verifierId) continue;

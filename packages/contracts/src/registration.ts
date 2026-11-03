@@ -347,8 +347,8 @@ export const PsfCompanyType = z.enum([
 export type PsfCompanyType = z.infer<typeof PsfCompanyType>;
 /** PSF's form, "Ownership", as printed. `other` carries a text. */
 export const PsfOwnership = z.enum([
-    "foreign_100",
     "rwandan_100",
+    "foreign_100",
     "franchise",
     "joint_venture",
     "foreign_representative",

@@ -150,7 +150,6 @@ export function GoodsReceiptView({ data }: { data: GoodsReceiptData }) {
       <PageHeader
         eyebrow={`Buy › Goods receipt › ${receipt.id}`}
         title={`Receive ${receipt.po} · ${receipt.supplier}`}
-        description="Count what arrived, accept or reject each line, then match the supplier's fiscal invoice before it goes to Finance."
         actions={
           <>
             <LinkButton href={screenHref("PurchaseOrders")} variant="secondary">

@@ -10,7 +10,10 @@ import { Pool } from 'pg';
 import * as schema from '../../../database/drizzle/schema';
 import type { GuestNotifier } from '../../../modules/guests/infrastructure/guest-notifier';
 import type { Database } from '../../../shared/database/database.module';
+import { staffPermissionsForRoles, type StaffAccess } from '@injishi/contracts';
+
 import { AdminAccountsService } from './admin-accounts.service';
+import { StaffRolesService } from './staff-roles.service';
 
 type MembershipRow = Pick<typeof schema.orgMemberships.$inferSelect, 'orgRole' | 'status'>;
 
@@ -38,6 +41,8 @@ maybe('admin accounts against Postgres (ACCOUNTS_IT_DATABASE_URL)', () => {
   let ownerId: string;
 
   const reason = 'Integration test';
+  const superAccess: StaffAccess = { isStaff: true, roles: ['super_admin'], permissions: staffPermissionsForRoles(['super_admin']) };
+  const actor = (): { userId: string; access: StaffAccess } => ({ userId: adminId, access: superAccess });
   const conflictCode = async (p: Promise<unknown>): Promise<string | undefined> => {
     try {
       await p;
@@ -65,7 +70,7 @@ maybe('admin accounts against Postgres (ACCOUNTS_IT_DATABASE_URL)', () => {
         return true;
       },
     } as unknown as GuestNotifier;
-    service = new AdminAccountsService(db, notifier);
+    service = new AdminAccountsService(db, notifier, new StaffRolesService(db));
 
     const [admin] = await db.insert(schema.users).values({ email: `it-admin-${tag}@accounts.test`, name: 'Admin' }).returning();
     adminId = admin!.id;
@@ -106,29 +111,29 @@ maybe('admin accounts against Postgres (ACCOUNTS_IT_DATABASE_URL)', () => {
 
   it('creates an account once, and answers the same account for the same address', async () => {
     const email = `it-new-${tag}@accounts.test`;
-    const first = await service.createUser({ email, name: 'Aline Uwase', reason }, adminId);
+    const first = await service.createUser({ email, name: 'Aline Uwase', reason }, actor());
     expect(first.created).toBe(true);
-    const again = await service.createUser({ email: email.toUpperCase().toLowerCase(), name: 'Aline Uwase', reason }, adminId);
+    const again = await service.createUser({ email: email.toUpperCase().toLowerCase(), name: 'Aline Uwase', reason }, actor());
     expect(again).toEqual({ userId: first.userId, created: false });
     expect(sent.filter((m) => m.to === email && m.what === 'account created')).toHaveLength(1);
   });
 
   it('sets staff roles, refuses your own, and keeps the last super admin', async () => {
-    const { userId } = await service.createUser({ email: `it-staff-${tag}@accounts.test`, name: 'Staff Person', reason }, adminId);
-    const set = await service.setStaffRoles(userId, { roles: ['ops', 'finance'], reason }, adminId);
+    const { userId } = await service.createUser({ email: `it-staff-${tag}@accounts.test`, name: 'Staff Person', reason }, actor());
+    const set = await service.setStaffRoles(userId, { roles: ['ops', 'finance'], reason }, actor());
     expect(set.staffRoles).toEqual(['ops', 'finance']);
-    expect(await conflictCode(service.setStaffRoles(adminId, { roles: ['super_admin'], reason }, adminId))).toBe('self_grant');
+    expect(await conflictCode(service.setStaffRoles(adminId, { roles: ['super_admin'], reason }, actor()))).toBe('self_grant');
 
     // The only super admin keeps the role until there is another one.
     const others = await pool.query(`select count(*)::int as n from admin_users where revoked_at is null and 'super_admin' = any(staff_roles)`);
     if (others.rows[0].n === 0) {
-      await service.setStaffRoles(userId, { roles: ['super_admin'], reason }, adminId);
-      expect(await conflictCode(service.setStaffRoles(userId, { roles: ['ops'], reason }, adminId))).toBe('last_super_admin');
+      await service.setStaffRoles(userId, { roles: ['super_admin'], reason }, actor());
+      expect(await conflictCode(service.setStaffRoles(userId, { roles: ['ops'], reason }, actor()))).toBe('last_super_admin');
       // With a second super admin, the first may step down.
       await db.insert(schema.adminUsers).values({ userId: adminId, staffRoles: ['super_admin'] });
     }
 
-    const ended = await service.setStaffRoles(userId, { roles: [], reason }, adminId);
+    const ended = await service.setStaffRoles(userId, { roles: [], reason }, actor());
     expect(ended.staffRoles).toEqual([]);
     const [row] = await db.select().from(schema.adminUsers).where(eq(schema.adminUsers.userId, userId));
     expect(row?.revokedAt).not.toBeNull();

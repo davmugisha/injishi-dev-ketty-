@@ -101,7 +101,6 @@ export function AuditLogView({
       <PageHeader
         eyebrow={`Settings · ${businessName}`}
         title="Audit Log"
-        description="Every change is written in the same step as the change itself: who, what, where and why. Entries cannot be edited or deleted."
         actions={
           <Button variant="secondary" onPress={() => setExportOpen(true)}>
             <ShieldKeyhole className="size-4" />

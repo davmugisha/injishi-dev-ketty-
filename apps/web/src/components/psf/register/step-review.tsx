@@ -8,6 +8,7 @@ import {
   PSF_FAMILY_LABEL,
   PSF_OWNER_GROUP_SHORT,
   PSF_OWNERSHIP_LABEL,
+  PSF_TRADE_DIRECTION_LABEL,
   type PsfCatalogue,
   type PsfTier,
 } from "@injishi/contracts";
@@ -17,6 +18,7 @@ import { PhoneInput } from "@/app/(app)/(entry)/register/phone-input";
 import { Field, Notice } from "@/app/(app)/(entry)/register/wizard-ui";
 
 import { rwf, type Errors, type PsfDraft, type StepKey } from "./draft";
+import { LogoField } from "./logo-field";
 
 /** What the business agrees to share, in the words PSF's consent was written in. */
 export const PSF_PUBLIC_CONSENT =
@@ -56,22 +58,10 @@ export function StepReview({
 
   const groups: { step: StepKey; title: string; rows: [string, string][] }[] = [
     {
-      step: "you",
-      title: "You",
-      rows: [
-        ["Name", draft.applicant?.fullName ?? "—"],
-        ["National ID", draft.applicant?.documentNumberMasked ?? "—"],
-        ["Role", PSF_CONTACT_ROLE_LABEL[draft.role]],
-        ["Phone", draft.phone],
-        ["Email", draft.email || "Not given"],
-      ],
-    },
-    {
       step: "business",
       title: "Your business",
       rows: [
         ["Name", draft.legalName],
-        ["Logo", draft.logoObjectKey ? draft.logoName || "Added" : "None"],
         ["Registration", registration],
         ["Company", `${draft.companyType ? PSF_COMPANY_TYPE_LABEL[draft.companyType] : "—"} · ${draft.ownership === "other" ? draft.ownershipOther : draft.ownership ? PSF_OWNERSHIP_LABEL[draft.ownership] : "—"}`],
         ["Sector", [cluster?.nameEn, draft.associationOther.trim() && association?.code.endsWith("_other") ? `${draft.associationOther.trim()} (not on PSF's list)` : association?.nameEn].filter(Boolean).join(" · ") || "—"],
@@ -83,6 +73,12 @@ export function StepReview({
         ],
         ["Does", draft.businessActivity],
         ["Owned by", draft.ownerGroups.length ? draft.ownerGroups.map((g) => PSF_OWNER_GROUP_SHORT[g]).join(", ") : "Not marked"],
+      ],
+    },
+    {
+      step: "place",
+      title: "Where it trades",
+      rows: [
         ["Where", [draft.street, draft.placeNames.village, draft.placeNames.cell, draft.placeNames.sector, draft.placeNames.district, draft.placeNames.province].filter(Boolean).join(", ")],
         [
           "Branches",
@@ -90,6 +86,18 @@ export function StepReview({
             ? draft.branches.map((b) => [b.street.trim(), b.placeNames.sector, b.placeNames.district].filter(Boolean).join(", ")).join(" · ")
             : "None",
         ],
+        ["Trade", draft.tradeDirection === "none" ? "No export or import" : `${PSF_TRADE_DIRECTION_LABEL[draft.tradeDirection]}: ${draft.tradeGoods}`],
+      ],
+    },
+    {
+      step: "you",
+      title: "You",
+      rows: [
+        ["Name", draft.applicant?.fullName ?? "—"],
+        ["National ID", draft.applicant?.documentNumberMasked ?? "—"],
+        ["Role", PSF_CONTACT_ROLE_LABEL[draft.role]],
+        ["Phone", draft.phone],
+        ["Email", draft.email || "Not given"],
       ],
     },
     {
@@ -131,7 +139,33 @@ export function StepReview({
         ))}
       </div>
 
+      {/* Here rather than with the business: it uploads under the ID check's token, which exists only by now. */}
+      <section className="rounded-card border border-border bg-card p-5 sm:p-6">
+        <LogoField
+          checkToken={draft.applicant?.checkToken ?? null}
+          objectKey={draft.logoObjectKey}
+          name={draft.logoName}
+          error={errors["business.logoObjectKey"]}
+          onChange={onChange}
+        />
+      </section>
+
       <section className="flex flex-col gap-5 rounded-card border border-border bg-card p-5 sm:p-6">
+        {draft.cardHolder ? (
+          // A card holder (2026-11-02): nothing to pay, its card for PSF to check.
+          <div className="flex items-center gap-4">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-brand/15 text-accent-text">
+              <Info size={20} aria-hidden />
+            </span>
+            <div className="flex-1">
+              <p className="font-semibold">Nothing to pay now</p>
+              <p className="text-sm text-muted-foreground">
+                You hold a PSF card{draft.cardName ? ` (${draft.cardName})` : ""}. PSF checks it, then gives you a new membership number and your certificate.
+              </p>
+            </div>
+          </div>
+        ) : (
+        <>
         <div className="flex items-center gap-4">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-brand/15 text-accent-text">
             <Wallet size={20} aria-hidden />
@@ -168,15 +202,19 @@ export function StepReview({
         >
           <PhoneInput id="psf-payer" value={draft.payer} onChange={(v) => onChange({ payer: v })} invalid={Boolean(errors.payerPhoneE164)} />
         </Field>
+        </>
+        )}
         <div>
           <Checkbox isSelected={draft.agree} onChange={(on: boolean) => onChange({ agree: on })} className="items-start gap-3" controlClassName="mt-0.5">
             <span className="text-sm">{PSF_PUBLIC_CONSENT}</span>
           </Checkbox>
           {errors.consent ? <p className="mt-1 text-sm text-destructive">{errors.consent}</p> : null}
         </div>
-        <Notice tone="info">
-          This is a demo: payment is recorded here, and no prompt goes to your phone yet.
-        </Notice>
+        {draft.cardHolder ? null : (
+          <Notice tone="info">
+            This is a demo: payment is recorded here, and no prompt goes to your phone yet.
+          </Notice>
+        )}
       </section>
     </div>
   );

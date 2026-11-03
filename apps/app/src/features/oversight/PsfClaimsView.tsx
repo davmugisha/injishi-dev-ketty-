@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Card, Input, Label, TextArea, TextField } from "@heroui/react";
-import type { PsfClaimsPage, PsfMemberListRow, PsfMembershipClaim } from "@injishi/contracts";
+import type { PsfClaimsPage, PsfMembershipClaim } from "@injishi/contracts";
 import {
   EmptyBlock,
   formatDay,
@@ -18,7 +18,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { PsfScope } from "@/server/sources/psf";
 import { SELECT } from "../shared/setup-ui";
-import { confirmClaimAction, rejectClaimAction, uploadMemberListAction } from "./psf-claims-actions";
+import { confirmClaimAction, rejectClaimAction } from "./psf-claims-actions";
 
 type Status = "claimed" | "confirmed" | "rejected";
 
@@ -51,18 +51,21 @@ export function PsfClaimsView({
   page,
   status,
   tiers,
+  cards,
 }: {
   scope: PsfScope;
   page: PsfClaimsPage;
   status: Status;
   tiers: { code: string; nameEn: string }[];
+  /** The membership card each business sent, by org (2026-11-02). */
+  cards: Record<string, { url: string; mime: string | null }>;
 }) {
   return (
     <PageContent>
       <PageHeader
         eyebrow={`${scope.title} · ${scope.label}`}
-        title="Membership claims"
-        description="Businesses that said at registration they are already PSF members, with the number they typed. They show as members only once PSF confirms the number."
+        title="Card holders"
+        description="Businesses that registered on Injishi with an old PSF card, no number or certificate in the new module. Check the card, then give a new number and the year it shows: they become members with a certificate."
       />
 
       <KpiStrip
@@ -96,19 +99,12 @@ export function PsfClaimsView({
             href: "/psf/claims?status=rejected",
             isCurrent: status === "rejected",
           },
-          {
-            id: "list",
-            label: "PSF member list",
-            value: page.list.rows,
-            format: "count",
-            icon: "FileText",
-            footnote: page.list.uploadedAt ? `Uploaded ${formatDay(page.list.uploadedAt)}` : "Not uploaded yet",
-          },
         ]}
       />
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-3">
-        <section aria-labelledby="claims-h" className="flex min-w-0 flex-col gap-3 lg:col-span-2">
+      {/* PSF's member list upload is set aside for now (2026-11-02): an officer checks each claim. */}
+      <div className="min-w-0">
+        <section aria-labelledby="claims-h" className="flex min-w-0 flex-col gap-3">
           <h2 id="claims-h" className="text-[15px] font-semibold">
             {TABS.find((t) => t.id === status)?.label} claims
           </h2>
@@ -119,7 +115,7 @@ export function PsfClaimsView({
                 title={status === "claimed" ? "No claim is waiting for PSF" : `No ${status} claim yet`}
                 description={
                   status === "claimed"
-                    ? "A business that types a PSF membership number at registration shows here, unless PSF's member list already confirmed it."
+                    ? "A business that says at registration it is already a PSF member shows here, with the number and the card it sent."
                     : undefined
                 }
               />
@@ -128,20 +124,26 @@ export function PsfClaimsView({
             <ul className="m-0 flex list-none flex-col gap-3 p-0">
               {page.items.map((c) => (
                 <li key={c.id}>
-                  <ClaimCard claim={c} tiers={tiers} />
+                  <ClaimCard claim={c} tiers={tiers} card={cards[c.orgId] ?? null} />
                 </li>
               ))}
             </ul>
           )}
         </section>
-
-        <MemberListCard list={page.list} />
       </div>
     </PageContent>
   );
 }
 
-function ClaimCard({ claim: c, tiers }: { claim: PsfMembershipClaim; tiers: { code: string; nameEn: string }[] }) {
+function ClaimCard({
+  claim: c,
+  tiers,
+  card,
+}: {
+  claim: PsfMembershipClaim;
+  tiers: { code: string; nameEn: string }[];
+  card: { url: string; mime: string | null } | null;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<"view" | "confirm" | "reject">("view");
   const dates = yearFromToday();
@@ -150,6 +152,8 @@ function ClaimCard({ claim: c, tiers }: { claim: PsfMembershipClaim; tiers: { co
   const [startsOn, setStartsOn] = useState(dates.start);
   const [expiresOn, setExpiresOn] = useState(c.listed?.expiresOn ?? dates.end);
   const [reason, setReason] = useState("");
+  // Every card holder gets a NEW number in the new module (2026-11-02): the district's next, suggested.
+  const [typedNumber, setTypedNumber] = useState(c.suggestedMembershipNumber ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -183,8 +187,12 @@ function ClaimCard({ claim: c, tiers }: { claim: PsfMembershipClaim; tiers: { co
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl bg-default/60 px-3 py-2.5">
         <span className="flex flex-col">
-          <span className="text-[11px] text-muted">Number they typed</span>
-          <span className="font-mono text-[15px] font-semibold tabular">{c.membershipNumber}</span>
+          <span className="text-[11px] text-muted">Old card number</span>
+          {c.membershipNumber ? (
+            <span className="font-mono text-[15px] font-semibold tabular">{c.membershipNumber}</span>
+          ) : (
+            <span className="text-[13px] text-muted">Not given</span>
+          )}
         </span>
         <span className="flex flex-col">
           <span className="text-[11px] text-muted">Claimed</span>
@@ -192,6 +200,16 @@ function ClaimCard({ claim: c, tiers }: { claim: PsfMembershipClaim; tiers: { co
             {formatDay(c.claimedAt)}
             {c.claimedByName ? ` · ${c.claimedByName}` : ""}
           </span>
+        </span>
+        <span className="flex flex-col">
+          <span className="text-[11px] text-muted">Membership card</span>
+          {card ? (
+            <a href={card.url} target="_blank" rel="noreferrer" className="text-[13px] font-medium text-accent hover:underline">
+              Open the card{card.mime === "application/pdf" ? " (PDF)" : ""}
+            </a>
+          ) : (
+            <span className="text-[13px] text-muted">None sent</span>
+          )}
         </span>
       </div>
 
@@ -210,7 +228,7 @@ function ClaimCard({ claim: c, tiers }: { claim: PsfMembershipClaim; tiers: { co
       ) : c.status === "claimed" ? (
         <p className="m-0 flex items-start gap-2 text-[13px] text-muted">
           <Icon name="CircleInfo" className="mt-0.5 size-4 shrink-0" />
-          This number is not on PSF's member list on Injishi. Check it against PSF's records before confirming.
+          Check the number and the membership card against PSF's records before confirming.
         </p>
       ) : null}
 
@@ -235,10 +253,23 @@ function ClaimCard({ claim: c, tiers }: { claim: PsfMembershipClaim; tiers: { co
           className="flex flex-col gap-3 border-t border-separator pt-3"
           onSubmit={(e) => {
             e.preventDefault();
-            void act(confirmClaimAction(c.id, { tierCode: tier, startsOn, expiresOn }));
+            void act(
+              confirmClaimAction(c.id, { tierCode: tier, startsOn, expiresOn, membershipNumber: typedNumber }),
+            );
           }}
         >
-          <p className="m-0 text-[13px] text-muted">The tier and dates as PSF's records give them.</p>
+          <p className="m-0 text-[13px] text-muted">A new number in the new module, and the level and year the card shows.</p>
+          <label className="flex flex-col gap-1 text-sm font-medium sm:max-w-sm">
+            New membership number
+            <input
+              className={SELECT}
+              value={typedNumber}
+              onChange={(e) => setTypedNumber(e.target.value)}
+              placeholder="PSF/GAS/2026/0001"
+              required
+            />
+            {c.suggestedMembershipNumber ? <span className="text-xs font-normal text-muted">The district&apos;s next number. Every card holder gets a new one.</span> : null}
+          </label>
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="flex flex-col gap-1 text-sm font-medium">
               Tier
@@ -260,7 +291,7 @@ function ClaimCard({ claim: c, tiers }: { claim: PsfMembershipClaim; tiers: { co
             </TextField>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" type="submit" isDisabled={busy || !tier || expiresOn <= startsOn}>
+            <Button size="sm" type="submit" isDisabled={busy || !tier || !typedNumber.trim() || expiresOn <= startsOn}>
               {busy ? "Confirming…" : "Confirm membership"}
             </Button>
             <Button size="sm" variant="ghost" onPress={() => setMode("view")}>
@@ -295,137 +326,3 @@ function ClaimCard({ claim: c, tiers }: { claim: PsfMembershipClaim; tiers: { co
   );
 }
 
-/** One CSV line into its cells, quotes honoured. */
-function cells(line: string): string[] {
-  const out: string[] = [];
-  let cur = "";
-  let quoted = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (quoted) {
-      if (ch === '"' && line[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else if (ch === '"') quoted = false;
-      else cur += ch;
-    } else if (ch === '"') quoted = true;
-    else if (ch === ",") {
-      out.push(cur.trim());
-      cur = "";
-    } else cur += ch;
-  }
-  out.push(cur.trim());
-  return out;
-}
-
-const COLUMN: Record<keyof PsfMemberListRow, string[]> = {
-  membershipNumber: ["membership_number", "membership number", "number", "membership"],
-  legalName: ["legal_name", "legal name", "name", "business"],
-  tin: ["tin"],
-  tierCode: ["tier_code", "tier", "tier code"],
-  startsOn: ["starts_on", "start", "member since", "starts"],
-  expiresOn: ["expires_on", "expiry", "expires", "member until"],
-};
-
-/** PSF's spreadsheet, saved as CSV, into rows; the header names the columns. */
-function parseList(text: string): { rows: PsfMemberListRow[]; problem: string | null } {
-  const lines = text
-    .replace(/^﻿/, "")
-    .split(/\r?\n/)
-    .filter((l) => l.trim());
-  if (lines.length < 2) return { rows: [], problem: "The file has no rows under its header." };
-  const header = cells(lines[0] ?? "").map((h) => h.toLowerCase());
-  const at = (k: keyof PsfMemberListRow) => header.findIndex((h) => COLUMN[k].includes(h));
-  const numberAt = at("membershipNumber");
-  if (numberAt < 0) return { rows: [], problem: "The header needs a membership_number column." };
-  const day = (v: string | undefined) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
-  const rows = lines.slice(1).flatMap((line) => {
-    const c = cells(line);
-    const number = c[numberAt];
-    if (!number) return [];
-    const get = (k: keyof PsfMemberListRow) => (at(k) >= 0 ? c[at(k)] || null : null);
-    return [
-      {
-        membershipNumber: number,
-        legalName: get("legalName"),
-        tin: get("tin"),
-        tierCode: get("tierCode"),
-        startsOn: day(get("startsOn") ?? undefined),
-        expiresOn: day(get("expiresOn") ?? undefined),
-      },
-    ];
-  });
-  return { rows, problem: rows.length ? null : "No row has a membership number." };
-}
-
-function MemberListCard({ list }: { list: PsfClaimsPage["list"] }) {
-  const router = useRouter();
-  const [rows, setRows] = useState<PsfMemberListRow[] | null>(null);
-  const [fileName, setFileName] = useState("");
-  const [problem, setProblem] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<string | null>(null);
-
-  return (
-    <SectionCard
-      title="PSF's member list"
-      description="Upload PSF's own list of members. A claim whose number and TIN match a row is confirmed on the spot, now and at every registration."
-    >
-      <p className="m-0 text-[13px] text-muted">
-        {list.rows
-          ? `${formatNumber(list.rows)} members on the list${list.uploadedAt ? `, last uploaded ${formatDay(list.uploadedAt)}` : ""}.`
-          : "No list uploaded yet."}
-      </p>
-      <label className="flex flex-col gap-1 text-sm font-medium">
-        Spreadsheet saved as CSV
-        <input
-          type="file"
-          accept=".csv,text/csv"
-          className="text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-default file:px-3 file:py-2 file:text-foreground"
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            setDone(null);
-            if (!file) return;
-            setFileName(file.name);
-            const parsed = parseList(await file.text());
-            setRows(parsed.rows);
-            setProblem(parsed.problem);
-          }}
-        />
-        <span className="text-xs font-normal text-muted">
-          Columns: membership_number, legal_name, tin, tier_code, starts_on, expires_on (dates as yyyy-mm-dd).{" "}
-          <a
-            href={`data:text/csv;charset=utf-8,${encodeURIComponent(TEMPLATE)}`}
-            download="psf-member-list-template.csv"
-            className="font-medium text-accent underline-offset-4 hover:underline"
-          >
-            Download a template
-          </a>
-        </span>
-      </label>
-      {problem ? <p className="m-0 text-[13px] text-danger">{problem}</p> : null}
-      {rows && rows.length > 0 ? (
-        <Button
-          isDisabled={busy}
-          onPress={async () => {
-            setBusy(true);
-            const res = await uploadMemberListAction(rows);
-            setBusy(false);
-            if (res.ok) {
-              const v = res.value;
-              setDone(
-                `${formatNumber(v.rows)} rows kept from ${fileName}. ${v.confirmedClaims ? `${v.confirmedClaims} waiting ${v.confirmedClaims === 1 ? "claim" : "claims"} confirmed.` : "No waiting claim matched."}${v.skipped.length ? ` Skipped: ${v.skipped.slice(0, 3).join("; ")}${v.skipped.length > 3 ? "…" : ""}` : ""}`,
-              );
-              setRows(null);
-              router.refresh();
-            } else setProblem(res.error);
-          }}
-        >
-          <Icon name="ArrowUpFromLine" className="size-4" />
-          {busy ? "Uploading…" : `Upload ${formatNumber(rows.length)} rows`}
-        </Button>
-      ) : null}
-      {done ? <p className="m-0 text-[13px] text-success">{done}</p> : null}
-    </SectionCard>
-  );
-}

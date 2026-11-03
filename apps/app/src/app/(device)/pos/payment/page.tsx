@@ -9,9 +9,11 @@ import type {
   Tender,
 } from "@injishi/data/fixtures/outlets";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { type MomoId, PosPaymentView } from "@/features/outlets/PosPaymentView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
+import { holdsSampleData } from "@/server/sample-data";
 
 export const metadata: Metadata = { title: screens.POSPayment.pageTitle };
 
@@ -19,6 +21,8 @@ const MOMO: readonly MomoId[] = ["pending", "verified", "unknown", "failed"];
 
 export default async function PosPaymentPage({ searchParams }: { searchParams: Promise<{ momo?: string }> }) {
   await requirePersona("POSPayment");
+  // Sample screen: a real business uses the live POS at /pos/floor.
+  if (!(await holdsSampleData())) redirect("/pos/floor");
   const { momo: momoParam } = await searchParams;
   const momo = MOMO.find((id) => id === momoParam) ?? "pending";
   const [bills, seats, payments, outcomes, lines, tenders, fiscalStates] = await Promise.all([

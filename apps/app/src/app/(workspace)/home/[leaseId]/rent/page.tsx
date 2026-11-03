@@ -1,14 +1,13 @@
-import { kigaliToday } from "@injishi/contracts";
 import { screens } from "@injishi/data";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { TenantRentView } from "@/features/tenant/TenantRentView";
+import { TenantPaymentsView } from "@/features/tenant/TenantRentView";
 import { requirePersona } from "@/lib/session";
 import { isLeaseId, mineOrNull, tenancyCharges, tenancyDetail, tenancyPayments } from "@/server/tenant/tenancies";
 
 export const metadata: Metadata = { title: screens.TenantRent.pageTitle };
 
-/** The tenant's rent: charges, payments with receipts, and Pay. */
+/** Rent > Payments: every payment with its receipt, and Pay. */
 export default async function TenancyRentPage({ params }: { params: Promise<{ leaseId: string }> }) {
   await requirePersona("TenantRent");
   const { leaseId } = await params;
@@ -19,9 +18,7 @@ export default async function TenancyRentPage({ params }: { params: Promise<{ le
     mineOrNull(tenancyPayments(leaseId)),
   ]);
   if (!tenancy || !charges) notFound();
-  return (
-    <TenantRentView tenancy={tenancy} charges={charges} payments={payments?.payments ?? []} today={kigaliToday()} />
-  );
+  return <TenantPaymentsView tenancy={tenancy} charges={charges} payments={payments?.payments ?? []} />;
 }
 
 export const dynamic = "force-dynamic";

@@ -397,13 +397,17 @@ export type TypedIdentityRequest = z.infer<typeof TypedIdentityRequest>;
  */
 export declare const NationalIdCheckRequest: z.ZodObject<{
     documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
-    selfieKey: z.ZodString;
+    /**
+     * Optional since 2026-11-02 (the owner's decision): without one, NIDA is asked by the number alone,
+     * its details fill the form, and the document reviewer confirms the ID before approving.
+     */
+    selfieKey: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     documentNumber: string;
-    selfieKey: string;
+    selfieKey?: string | undefined;
 }, {
     documentNumber: string;
-    selfieKey: string;
+    selfieKey?: string | undefined;
 }>;
 export type NationalIdCheckRequest = z.infer<typeof NationalIdCheckRequest>;
 //# sourceMappingURL=identity.d.ts.map

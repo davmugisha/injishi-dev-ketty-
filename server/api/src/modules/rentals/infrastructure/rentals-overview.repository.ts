@@ -173,6 +173,96 @@ export class RentalsOverviewRepository {
     return rows.map((r) => ({ month: r.month, amountRwf: Number(r.amount) }));
   }
 
+  /** Rent and deposit charges due from `from` to `to`, not waived, with who and which unit (the money calendar). */
+  async chargesBetween(workspaceId: string, buildings: BuildingIds, from: string, to: string, today: string) {
+    const { rows } = await this.db.execute<{
+      id: string;
+      lease_id: string;
+      kind: 'rent' | 'deposit';
+      due_on: string;
+      amount: string | number;
+      paid: string | number;
+      status: 'open' | 'paid';
+      tenant: string;
+      unit: string;
+    }>(sql`
+      select c.id, c.lease_id, c.kind, to_char(c.due_on, 'YYYY-MM-DD') as due_on, c.amount_rwf as amount,
+             c.paid_rwf as paid, c.status, t.full_name as tenant, u.label as unit
+        from lease_charges c
+        join leases l on l.id = c.lease_id
+        join tenants t on t.id = l.tenant_id
+        join rental_units u on u.id = l.unit_id
+       where l.workspace_id = ${workspaceId}
+         and c.status <> 'waived'
+         and c.due_on between ${from}::date and ${to}::date
+         ${within(sql`l.property_id`, buildings)}
+       order by c.due_on, u.label
+       limit 2000
+    `);
+    return rows.map((r) => ({
+      id: r.id,
+      leaseId: r.lease_id,
+      kind: r.kind,
+      dueOn: r.due_on,
+      amountRwf: Number(r.amount),
+      paidRwf: Number(r.paid),
+      status: r.status === 'paid' ? ('paid' as const) : r.due_on < today ? ('overdue' as const) : ('open' as const),
+      tenantName: r.tenant,
+      unitLabel: r.unit,
+    }));
+  }
+
+  /** Payments that succeeded from `from` to `to`, by the day the money arrived in Kigali. */
+  async paymentsBetween(workspaceId: string, buildings: BuildingIds, from: string, to: string) {
+    const { rows } = await this.db.execute<{
+      id: string;
+      lease_id: string;
+      day: string;
+      amount: string | number;
+      tenant: string;
+      unit: string;
+    }>(sql`
+      select * from (
+        select p.id, p.lease_id,
+               to_char(coalesce(p.received_on, (p.succeeded_at at time zone 'Africa/Kigali')::date), 'YYYY-MM-DD') as day,
+               p.amount_rwf as amount, t.full_name as tenant, u.label as unit
+          from lease_payments p
+          join leases l on l.id = p.lease_id
+          join tenants t on t.id = l.tenant_id
+          join rental_units u on u.id = l.unit_id
+         where p.workspace_id = ${workspaceId}
+           and p.status = 'succeeded'
+           ${within(sql`p.property_id`, buildings)}
+      ) x
+       where x.day between ${from} and ${to}
+       order by x.day
+       limit 2000
+    `);
+    return rows.map((r) => ({
+      id: r.id,
+      leaseId: r.lease_id,
+      day: r.day,
+      amountRwf: Number(r.amount),
+      tenantName: r.tenant,
+      unitLabel: r.unit,
+    }));
+  }
+
+  /** Expenses paid from `from` to `to`, summed per day, not voided. */
+  async spentByDay(workspaceId: string, buildings: BuildingIds, from: string, to: string) {
+    const { rows } = await this.db.execute<{ day: string; amount: string | number }>(sql`
+      select to_char(e.paid_on, 'YYYY-MM-DD') as day, sum(e.amount_rwf)::bigint as amount
+        from expenses e
+       where e.workspace_id = ${workspaceId}
+         and e.voided_at is null
+         and e.paid_on between ${from}::date and ${to}::date
+         ${within(sql`e.property_id`, buildings)}
+       group by 1
+       order by 1
+    `);
+    return rows.map((r) => ({ day: r.day, amountRwf: Number(r.amount) }));
+  }
+
   /** Move out notices nobody acknowledged yet. */
   async noticesToAcknowledge(workspaceId: string, buildings: BuildingIds): Promise<number> {
     const { rows } = await this.db.execute<{ n: number }>(sql`

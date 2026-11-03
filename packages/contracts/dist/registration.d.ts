@@ -443,7 +443,7 @@ export declare function branchNameKey(name: string): string;
 export declare const PsfCompanyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
 export type PsfCompanyType = z.infer<typeof PsfCompanyType>;
 /** PSF's form, "Ownership", as printed. `other` carries a text. */
-export declare const PsfOwnership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+export declare const PsfOwnership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
 export type PsfOwnership = z.infer<typeof PsfOwnership>;
 export declare const PsfTradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
 export type PsfTradeDirection = z.infer<typeof PsfTradeDirection>;
@@ -505,7 +505,7 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     streetAddress: z.ZodString;
     website: z.ZodOptional<z.ZodString>;
     companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
-    ownership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+    ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
     ownershipOther: z.ZodOptional<z.ZodString>;
     businessActivity: z.ZodString;
     tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
@@ -555,7 +555,7 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     companyName: string;
     streetAddress: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-    ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     tradeCountries: string[];
@@ -584,7 +584,7 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     companyName: string;
     streetAddress: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-    ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -613,7 +613,7 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     companyName: string;
     streetAddress: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-    ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     tradeCountries: string[];
@@ -642,7 +642,7 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     companyName: string;
     streetAddress: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-    ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -825,7 +825,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         streetAddress: z.ZodString;
         website: z.ZodOptional<z.ZodString>;
         companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
-        ownership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+        ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
         ownershipOther: z.ZodOptional<z.ZodString>;
         businessActivity: z.ZodString;
         tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
@@ -875,7 +875,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         companyName: string;
         streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
@@ -904,7 +904,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         companyName: string;
         streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -933,7 +933,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         companyName: string;
         streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
@@ -962,7 +962,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         companyName: string;
         streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -1129,7 +1129,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         companyName: string;
         streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
@@ -1201,7 +1201,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         companyName: string;
         streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -1605,7 +1605,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         streetAddress: z.ZodString;
         website: z.ZodOptional<z.ZodString>;
         companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
-        ownership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+        ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
         ownershipOther: z.ZodOptional<z.ZodString>;
         businessActivity: z.ZodString;
         tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
@@ -1655,7 +1655,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         companyName: string;
         streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
@@ -1684,7 +1684,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         companyName: string;
         streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -1713,7 +1713,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         companyName: string;
         streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
@@ -1742,7 +1742,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         companyName: string;
         streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -1909,7 +1909,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         companyName: string;
         streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
@@ -1981,7 +1981,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         companyName: string;
         streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -2336,7 +2336,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         companyName: string;
         streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
@@ -2464,7 +2464,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         companyName: string;
         streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -2817,7 +2817,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             streetAddress: z.ZodString;
             website: z.ZodOptional<z.ZodString>;
             companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
-            ownership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+            ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
             ownershipOther: z.ZodOptional<z.ZodString>;
             businessActivity: z.ZodString;
             tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
@@ -2867,7 +2867,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             companyName: string;
             streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
@@ -2896,7 +2896,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             companyName: string;
             streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -2925,7 +2925,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             companyName: string;
             streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
@@ -2954,7 +2954,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             companyName: string;
             streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -3121,7 +3121,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             companyName: string;
             streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
@@ -3193,7 +3193,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             companyName: string;
             streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -3548,7 +3548,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             companyName: string;
             streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
@@ -3676,7 +3676,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             companyName: string;
             streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -3844,7 +3844,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             companyName: string;
             streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
@@ -4008,7 +4008,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             companyName: string;
             streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -4196,7 +4196,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             companyName: string;
             streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
@@ -4360,7 +4360,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             companyName: string;
             streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -4515,7 +4515,7 @@ export type RegistrationReviewDecision = z.infer<typeof RegistrationReviewDecisi
 export declare const RegistrationReview: z.ZodObject<{
     stage: z.ZodEnum<["tin_verified", "field_verified"]>;
     decision: z.ZodEnum<["passed", "rejected"]>;
-    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell"]>;
+    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell", "psf_business_officer"]>;
     /** The body and title AS OF the decision, never re-resolved (F-S03 §9). */
     governmentBodyCode: z.ZodString;
     governmentTitle: z.ZodNullable<z.ZodString>;
@@ -4525,7 +4525,7 @@ export declare const RegistrationReview: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     stage: "tin_verified" | "field_verified";
     decision: "rejected" | "passed";
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
     governmentBodyCode: string;
     governmentTitle: string | null;
     reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
@@ -4534,7 +4534,7 @@ export declare const RegistrationReview: z.ZodObject<{
 }, {
     stage: "tin_verified" | "field_verified";
     decision: "rejected" | "passed";
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
     governmentBodyCode: string;
     governmentTitle: string | null;
     reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;

@@ -503,6 +503,7 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // permission; the month's figures under the money reads.
   '/ops/rentals/summary': ['owner', 'manager', 'finance'],
   '/ops/rentals/overview': ['owner', 'manager', 'finance'],
+  '/ops/rentals/money': ['owner', 'manager', 'finance'],
   '/ops/properties': ['owner', 'manager', 'finance'],
   '/ops/units/:id/media': ['owner', 'manager', 'finance'],
   // Rent (WP 1.6a): the roll, charges, payments, reminders and the month's

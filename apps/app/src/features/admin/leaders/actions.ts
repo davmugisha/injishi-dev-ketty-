@@ -14,7 +14,7 @@ import { ApiError, ApiUnreachableError } from "@/server/api";
 
 export type AdminActionResult<T> =
   | { ok: true; value: T }
-  | { ok: false; error: string; fieldErrors?: Record<string, string> };
+  | { ok: false; error: string; fieldErrors?: Record<string, string>; stepUp?: true };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -41,6 +41,9 @@ async function run<T>(write: () => Promise<T>): Promise<AdminActionResult<T>> {
       if (body?.code === "two_factor_required") {
         return { ok: false, error: "Enter the code we emailed you first, then try again." };
       }
+      // Appointing gives authority: a step-up older than ten minutes is asked for again (2026-11-02).
+      if (body?.code === "step_up_stale")
+        return { ok: false, error: "Confirm it is you with a new code.", stepUp: true };
       if (error.forbidden) return { ok: false, error: "Your staff role cannot appoint or end appointments." };
       if (Array.isArray(body?.issues) && body.issues.length > 0) {
         const fieldErrors = fieldErrorsOf(body.issues);

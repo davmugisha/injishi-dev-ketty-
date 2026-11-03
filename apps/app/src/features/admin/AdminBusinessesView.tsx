@@ -101,7 +101,6 @@ export function AdminBusinessesView({ persona, data }: { persona: Persona; data:
       <PageHeader
         eyebrow="Tenants › Businesses · 211 registered"
         title="Businesses"
-        description="Lifecycle, KYB review, entitlements and suspension. Entering a workspace always needs a recorded view-as session."
         actions={
           <>
             <SearchField aria-label="Search businesses" value={query} onChange={setQuery} className="w-[240px]">

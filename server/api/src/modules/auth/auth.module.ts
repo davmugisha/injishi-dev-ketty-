@@ -27,6 +27,7 @@ import { isWorkerProcess } from '../../shared/process/process-role';
 import { MailerModule } from '../mailer/mailer.module';
 import { PasswordSetupService } from './application/password-setup.service';
 import { OtpMailer } from './infrastructure/otp-mailer';
+import { AccountGate } from './infrastructure/account-gate';
 import { PasswordHolders } from './infrastructure/password-holders';
 
 /** DI token for the Better Auth instance matching THIS request's surface. */
@@ -200,6 +201,8 @@ export function createAuthRegistry(
   // Passwords are for tenants only (2026-10-23): Better Auth asks this before
   // it writes any password row.
   const holders = new PasswordHolders(db);
+  // Suspension and the sign in history (2026-11-02).
+  const gate = new AccountGate(db);
 
   const build = (surface: AuthSurface): AuthInstance => {
     const oversight = surface === 'oversight';
@@ -264,6 +267,8 @@ export function createAuthRegistry(
       // exactly what production would send.
       sendOtp: mailer.send,
       mayHoldPassword: holders.isTenant,
+      maySignIn: gate.maySignIn,
+      onSignIn: gate.onSignIn,
     });
   };
 

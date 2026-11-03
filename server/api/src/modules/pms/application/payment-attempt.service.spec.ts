@@ -20,6 +20,7 @@ import { SoldOutAfterCaptureError, type BookingService } from './booking.service
 import { PaymentAttemptService } from './payment-attempt.service';
 import type { RegistrationFees } from '../domain/registration-fees';
 import type { BookingChangeRepository } from '../infrastructure/booking-change.repository';
+import type { BrokerGroupRepository } from '../infrastructure/broker-group.repository';
 
 /**
  * The wait between "we asked" and "they paid" (ADR-047 D-j).
@@ -43,6 +44,7 @@ describe('PaymentAttemptService', () => {
     serviceOrderId: null,
     subscriptionInvoiceId: null,
     bookingChangeId: null,
+    brokerGroupId: null,
     roomTypeId: '44444444-4444-4444-4444-444444444444',
     checkIn: '2026-11-02',
     checkOut: '2026-11-05',
@@ -133,6 +135,7 @@ describe('PaymentAttemptService', () => {
     };
 
     const listings = {
+      stayRate: vi.fn(async (rt: { nightlyRateRwf: number | null }) => ({ nightlyRateRwf: rt.nightlyRateRwf ?? 0, discountPct: 0, closedOn: null, minNights: 1, maxNights: 90 })),
       findBookableRoomType: vi.fn().mockResolvedValue(
         overrides.roomTypeMissing
           ? null
@@ -186,6 +189,8 @@ describe('PaymentAttemptService', () => {
       apply: vi.fn().mockResolvedValue(overrides.applyOutcome ?? { kind: 'applied', changeId: 'change-1' }),
     };
 
+    const brokerGroups = { markFailed: vi.fn().mockResolvedValue(true), group: vi.fn(), writeBookings: vi.fn() };
+
     const service = new PaymentAttemptService(
       attempts as unknown as PaymentAttemptRepository,
       listings as unknown as ListingService,
@@ -197,6 +202,7 @@ describe('PaymentAttemptService', () => {
       transactions as unknown as PaymentTransactionsRepository,
       registrations as unknown as RegistrationFees,
       changes as unknown as BookingChangeRepository,
+      brokerGroups as unknown as BrokerGroupRepository,
     );
 
     return { service, attempts, compensations, bookings, orderPayments, payments, transactions, registrations, changes };

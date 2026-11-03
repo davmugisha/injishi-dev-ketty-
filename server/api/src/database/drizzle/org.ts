@@ -352,7 +352,8 @@ export const identityScans = pgTable(
     /** `document_scan` (a photo of the document and a selfie) or `national_id_registry` (a number and a selfie). */
     checkKind: text('check_kind').notNull().default('document_scan'),
     frontObjectKey: text('front_object_key'),
-    selfieObjectKey: text('selfie_object_key').notNull(),
+    // Null for a National ID checked by its number alone (0130), with no selfie taken.
+    selfieObjectKey: text('selfie_object_key'),
     outcome: identityScanOutcomeEnum('outcome').notNull(),
     /** Why a checker refused it; set exactly when the outcome is `machine_failed`. */
     reason: text('reason'),
@@ -748,6 +749,9 @@ export const oversightAssignments = pgTable(
     cellId: integer('cell_id').references(() => cells.id),
     villageId: integer('village_id').references(() => villages.id),
     assignedByUserId: uuid('assigned_by_user_id').references(() => users.id),
+    // The appointed person's ID (0132), typed by whoever appointed a PSF District Manager or BDE.
+    idDocumentType: text('id_document_type').$type<'national_id' | 'passport'>(),
+    idDocumentNumber: text('id_document_number'),
     grantedAt: timestamp('granted_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -788,7 +792,7 @@ export const oversightAssignments = pgTable(
           OR (${t.oversightRole}::text = 'dasso' AND ${t.scopeLevel}::text = 'sector')
           OR (${t.oversightRole}::text IN ('cell_executive', 'dgie_cell') AND ${t.scopeLevel}::text = 'cell')
           OR (${t.oversightRole}::text = 'sector_executive' AND ${t.scopeLevel}::text = 'sector')
-          OR (${t.oversightRole}::text IN ('district_officer', 'district_immigration') AND ${t.scopeLevel}::text = 'district')
+          OR (${t.oversightRole}::text IN ('district_officer', 'district_immigration', 'psf_business_officer') AND ${t.scopeLevel}::text = 'district')
           OR (${t.oversightRole}::text = 'dgie_province' AND ${t.scopeLevel}::text = 'province')
           OR (${t.oversightRole}::text = 'dgie_national' AND ${t.scopeLevel}::text = 'country')
           OR (${t.oversightRole}::text IN ('business_field_verifier', 'business_approver', 'tax_compliance_officer', 'psf_membership_officer')

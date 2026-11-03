@@ -8,9 +8,9 @@ import {
   type IdentityStatus,
 } from "@injishi/contracts";
 import { Button } from "@injishi/web-ui";
-import { TriangleAlert } from "lucide-react";
+import { ArrowLeft, TriangleAlert } from "lucide-react";
 
-import { putTypedIdentity } from "@/data/identity";
+import { clearIdentity, fetchIdentity, putTypedIdentity } from "@/data/identity";
 import { apiResultMessage } from "@/lib/api";
 
 import { AddressPicker } from "./address-picker";
@@ -37,8 +37,9 @@ import { Field, Offline } from "./wizard-ui";
  * - The identity on file, "Checked" only after a machine check passed,
  *   otherwise "PSF will check your ID" (AC-6).
  *
- * Nothing about the business is asked or said here: whether RRA ties this ID
- * to the business is answered on the Business step (`SectionTin`).
+ * Nothing about the business is asked or said here. Business comes first, so
+ * what RRA says about this ID is asked again once it is on file (the wizard's
+ * `onIdentity`), and the wizard says it above this section.
  *
  * WHAT AN ID DOES NOT SHOW IS STILL ASKED, because the API refuses to create a
  * registration for an account without it: a phone, and the home address. A
@@ -54,6 +55,7 @@ export function SectionIdentity({
   errors,
   onEditProfile,
   onNext,
+  onBack = null,
   hideNext = false,
   online = true,
 }: {
@@ -70,6 +72,8 @@ export function SectionIdentity({
   /** Open a complete profile to change what it holds. */
   onEditProfile: () => void;
   onNext: () => void;
+  /** Back to what came before this section: the step before, or the business type. */
+  onBack?: (() => void) | null;
   /** The step after this one is already open below (the broker form): no Next to press again. */
   hideNext?: boolean;
   /**
@@ -87,32 +91,95 @@ export function SectionIdentity({
   const [typedErrors, setTypedErrors] = useState<Record<string, string>>({});
   const [typedProblem, setTypedProblem] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Typed details on file, opened to be typed again. A checked ID is never typed over (the API refuses it),
+  // and a name NIDA's register gave is not the person's to retype.
+  const [changing, setChanging] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [clearProblem, setClearProblem] = useState<string | null>(null);
+
+  /** "Use a different ID": the server drops the identity on file, and the scanner opens again. */
+  const replaceId = async () => {
+    setClearing(true);
+    setClearProblem(null);
+    let res = await clearIdentity();
+    // A slow answer can time out after the server already dropped it: what is on file now decides.
+    if (res.status !== "ok" && res.status !== "refused") {
+      const now = await fetchIdentity();
+      if (now.status === "ok" && now.data.onFile === null) res = now;
+    }
+    setClearing(false);
+    if (res.status !== "ok") {
+      setClearProblem(apiResultMessage(res));
+      return;
+    }
+    setLast(null);
+    setTyping(false);
+    setDocumentType("national_id");
+    onIdentity(res.data);
+  };
+
+  const back = onBack ? (
+    <Button variant="ghost" onClick={onBack}>
+      <ArrowLeft size={16} aria-hidden />
+      Back
+    </Button>
+  ) : null;
 
   if (!identity) {
-    return <p className="text-sm text-muted-foreground">Reading what is on file…</p>;
+    // The steps open once the first read has answered, so no identity here means that read failed.
+    return (
+      <>
+        <p className="text-sm text-muted-foreground">We couldn&apos;t read your ID details just now.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          {back}
+          <Button variant="secondary" onClick={() => onIdentity()} disabled={!online}>
+            Try again
+          </Button>
+        </div>
+      </>
+    );
   }
 
+  const mayRetype = onFile !== null && !onFile.checked && !onFile.generated && onFile.source !== "registry";
+
   // --- On file: who, and what is still owed.
-  if (onFile) {
+  if (onFile && !(changing && mayRetype)) {
     return (
       <>
         <IdentityCard person={onFile} />
+        {/* Both (2026-11-03 merge): retype typed details, or drop the ID on file and use another. */}
+        <div className="-mt-2 flex flex-wrap gap-2">
+          {mayRetype && scan ? (
+            <Button variant="ghost" size="sm" onClick={() => setChanging(true)}>
+              Change these details
+            </Button>
+          ) : null}
+          <Button variant="outline" size="sm" onClick={() => void replaceId()} pending={clearing} disabled={!online}>
+            Use a different ID
+          </Button>
+        </div>
+        {clearProblem ? (
+          <Callout tone="danger" icon={<TriangleAlert size={16} aria-hidden />} title="That did not go through">
+            {clearProblem}
+          </Callout>
+        ) : null}
         {profileComplete ? (
           <OnFile onEdit={onEditProfile} />
         ) : needsExtras ? (
           <Extras draft={draft} onDraftChange={onDraftChange} errors={errors} />
         ) : null}
-        {hideNext ? null : (
-          <div>
-            <Button onClick={onNext}>Next</Button>
+        {back || !hideNext ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {back}
+            {hideNext ? null : <Button onClick={onNext}>Next</Button>}
           </div>
-        )}
+        ) : null}
       </>
     );
   }
 
   // --- The details as printed: no checker here, or the tries ran out.
-  if (scan && scan.mayContinue && (typing || scan.outcome === "manual_needed")) {
+  if (scan && (changing || (scan.mayContinue && (typing || scan.outcome === "manual_needed")))) {
     const typedType = scan.documentType;
     const confirmTyped = async () => {
       setTypedProblem(null);
@@ -137,12 +204,15 @@ export function SectionIdentity({
         return;
       }
       setTypedErrors({});
+      setChanging(false);
       onIdentity(res.data);
     };
     return (
       <>
         <p className="text-sm">
-          {scan.outcome === "manual_needed"
+          {changing
+            ? "Type your details again, exactly as they are printed on your ID. PSF checks them against your photos."
+            : scan.outcome === "manual_needed"
             ? "Your photos are saved. Now type your details as they are printed on your ID, and PSF checks them against the photos."
             : "Type your details as they are printed on your ID. PSF checks them against your photos before approving."}
         </p>
@@ -157,6 +227,7 @@ export function SectionIdentity({
           </Callout>
         ) : null}
         <div className="flex flex-wrap items-center gap-3">
+          {back}
           <Button
             onClick={() => void confirmTyped()}
             pending={saving}
@@ -166,7 +237,11 @@ export function SectionIdentity({
             Confirm
           </Button>
           {online ? null : <Offline id="register-typed-offline">You're offline. Connect to save your ID details.</Offline>}
-          {scan.outcome === "machine_failed" ? (
+          {changing ? (
+            <Button variant="ghost" onClick={() => setChanging(false)}>
+              Cancel
+            </Button>
+          ) : scan.outcome === "machine_failed" ? (
             <Button variant="ghost" onClick={() => setTyping(false)}>
               Scan again
             </Button>
@@ -199,11 +274,14 @@ export function SectionIdentity({
           {failed.mayContinue ? null : " After 3 tries you can carry on, and PSF checks your ID."}
         </Callout>
       ) : null}
-      {scan?.outcome === "machine_failed" && scan.mayContinue ? (
-        <div>
-          <Button variant="secondary" onClick={() => setTyping(true)}>
-            Continue, PSF will check it
-          </Button>
+      {back || (scan?.outcome === "machine_failed" && scan.mayContinue) ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {back}
+          {scan?.outcome === "machine_failed" && scan.mayContinue ? (
+            <Button variant="secondary" onClick={() => setTyping(true)}>
+              Continue, PSF will check it
+            </Button>
+          ) : null}
         </div>
       ) : null}
     </>

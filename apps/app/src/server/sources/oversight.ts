@@ -19,7 +19,8 @@ type OversightRole =
   | "business_field_verifier"
   | "business_approver"
   | "tax_compliance_officer"
-  | "psf_membership_officer";
+  | "psf_membership_officer"
+  | "psf_business_officer";
 
 /** One grant from GET /api/v1/me/oversight (OversightConsoleGrant). */
 interface ApiConsole {
@@ -167,6 +168,7 @@ const ROLE_LABEL: Record<OversightRole, string> = {
   business_approver: "Approval",
   tax_compliance_officer: "Tax compliance",
   psf_membership_officer: "PSF membership · registration review",
+  psf_business_officer: "PSF membership · read only",
 };
 
 // ── The desk: what this officer holds and what waits on them, read once per request ─────────────────
@@ -693,3 +695,31 @@ export const sources = defineSources({
     parity: "shape",
   },
 });
+
+/** Every decision this officer made or that was routed to them, for the Decisions tab (2026-10-30). */
+export async function decisionRows(ctx: SourceContext): Promise<
+  {
+    id: string;
+    orgId: string;
+    business: string;
+    gate: string;
+    passed: boolean;
+    reason: string | null;
+    notes: string | null;
+    decidedAt: string;
+  }[]
+> {
+  const desk = await readDesk(ctx);
+  if (!holds(desk.consoles, "business_field_verifier") && !holds(desk.consoles, "business_approver")) return [];
+  const { items } = await ctx.api.get<{ items: ApiDecision[] }>("/api/v1/oversight/decisions");
+  return items.map((d) => ({
+    id: d.reviewId,
+    orgId: d.orgId,
+    business: d.legalName,
+    gate: d.stage === "tin_verified" ? "Field verification" : "Approval",
+    passed: d.decision === "passed",
+    reason: d.reasonCode ? REJECTION_REASONS[d.reasonCode] : null,
+    notes: d.notes,
+    decidedAt: d.decidedAt,
+  }));
+}

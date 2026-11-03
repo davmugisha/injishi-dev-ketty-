@@ -29,10 +29,25 @@ export declare const DISTRICT_LETTERS: Readonly<Record<number, {
  * on geography, and the fallback is the same rule the table follows.
  */
 export declare function districtLetters(districtId: number, districtName: string | null): string;
-/** The digits a code carries at least: `KIC0001`, and `KIC10000` past 9999. */
+/** The digits an OLD code carries at least: `KIC0001`, and `KIC10000` past 9999. */
 export declare const BUSINESS_CODE_DIGITS = 4;
-/** A district's letters and its nth business, as the code is written. */
+/** The old format (until 2026-11-02): a district's letters and its nth business. Codes issued so far keep it. */
 export declare function formatBusinessCode(letters: string, n: number): string;
-/** A code as people type it, or null when it is not one: `kic 0001` → `KIC0001`. */
+/**
+ * THE CODE FROM 2026-11-02 (the owner's decision): `GIS-4K7Q-92`. The district's
+ * letters, four random characters, and two check characters. About a million
+ * codes a district, never handed out in order (so nobody counts a district's
+ * businesses by them), and a mistyped character or two swapped ones are caught
+ * by the check. The characters leave out 0/O and 1/I, which people misread.
+ */
+export declare const BUSINESS_CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+/** The two check characters of a district's letters and a four-character body. */
+export declare function businessCodeCheck(letters: string, body: string): string;
+/** A new code for a district, from four random bytes (the server passes `crypto.randomBytes`). */
+export declare function newBusinessCode(letters: string, random: (n: number) => Uint8Array): string;
+/**
+ * A code as people type it, in either format, or null when it is not one:
+ * `kic 0001` → `KIC0001`, `gis4k7q92` → `GIS-4K7Q-92` (its check must hold).
+ */
 export declare function normalizeBusinessCode(raw: string): string | null;
 //# sourceMappingURL=business-code.d.ts.map

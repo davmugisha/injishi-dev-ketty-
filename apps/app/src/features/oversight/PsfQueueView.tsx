@@ -93,6 +93,12 @@ export function PsfQueueView({ scope, page, q }: { scope: PsfScope; page: PsfQue
                             <span className="flex min-w-0 flex-col gap-0.5">
                               <span className="flex flex-wrap items-center gap-1.5">
                                 <span className="font-medium">{item.businessName}</span>
+                                {/* A holder of an old PSF card joining the new module (2026-11-02): no fee, a new number. */}
+                                {item.intake === "card_holder" ? (
+                                  <Chip size="sm" variant="soft" color="accent">
+                                    Card holder
+                                  </Chip>
+                                ) : null}
                                 {item.decidesHere && !item.canDecide ? (
                                   <Chip size="sm" variant="soft" color="warning">
                                     Your business
@@ -106,7 +112,8 @@ export function PsfQueueView({ scope, page, q }: { scope: PsfScope; page: PsfQue
                                 ) : null}
                               </span>
                               <span className="text-[12px] leading-4 text-muted tabular">
-                                {[item.docId, item.businessCode].filter(Boolean).join(" · ")} · sent {dayMonth(item.queuedAt ?? item.submittedAt)}
+                                {[item.docId, item.businessCode].filter(Boolean).join(" · ")} · sent {dayMonth(item.queuedAt ?? item.submittedAt)} from{" "}
+                                {item.origin === "psf_form" ? "the PSF form" : "Injishi registration"}
                               </span>
                             </span>
                           </span>
@@ -119,7 +126,7 @@ export function PsfQueueView({ scope, page, q }: { scope: PsfScope; page: PsfQue
                         </Table.Cell>
                         {showDistrict ? <Table.Cell>{item.districtName ?? "—"}</Table.Cell> : null}
                         <Table.Cell>{item.requestedTierName}</Table.Cell>
-                        <Table.Cell className="tabular">{item.paidRwf ? rwf(item.paidRwf) : "—"}</Table.Cell>
+                        <Table.Cell className="tabular">{item.intake === "card_holder" ? "No fee now" : item.paidRwf ? rwf(item.paidRwf) : "—"}</Table.Cell>
                         <Table.Cell>
                           <Chip size="sm" variant="soft" color={item.waitingDays > 7 ? "danger" : item.waitingDays === 0 ? "success" : "default"}>
                             {item.waitingDays === 0 ? "New today" : `${item.waitingDays} day${item.waitingDays === 1 ? "" : "s"}`}

@@ -83,7 +83,6 @@ export function AssistantUsageView({ data }: { data: AssistantUsageData }) {
       <PageHeader
         eyebrow="Oversight · Assistant"
         title="Assistant Usage and Safety"
-        description="Usage, cost and answer quality across tenants. You see metadata only; an answer’s text appears here only when a user flags it or hands the conversation to support."
         actions={
           <>
             <Segment aria-label="Month" selectedKey={monthId} onSelectionChange={(k) => setMonthId(String(k))}>

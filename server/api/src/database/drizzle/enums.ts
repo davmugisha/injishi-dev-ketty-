@@ -234,6 +234,8 @@ export const paymentAttemptPurposeEnum = pgEnum('payment_attempt_purpose', [
   'psf_membership',
   // The difference a reservation change costs, asked of the guest by MoMo (migration 0120).
   'booking_change',
+  // A broker's group of rooms paid by one MoMo payment (migration 0126).
+  'broker_group',
 ]);
 
 /**
@@ -408,6 +410,9 @@ export const oversightRoleEnum = pgEnum('oversight_role', [
   // The chains settled as village, cell, district for both bodies: DGIE's village and cell officers.
   'dgie_village',
   'dgie_cell',
+  // A PSF BDE (Business Development & Empowerment) (0129): reads one district's PSF console, decides nothing.
+  // Appointed by the district's PSF Province Manager.
+  'psf_business_officer',
 ]);
 
 export const oversightScopeLevelEnum = pgEnum('oversight_scope_level', [
@@ -818,6 +823,8 @@ export const payoutDestinationEnum = pgEnum('payout_destination', [
 
 export const payoutSourceEnum = pgEnum('payout_source', [
   'booking',
+  // A broker's 85% of a hotel commission, once collected from the hotel (migration 0128).
+  'broker_commission',
   'rent',
   'placement_fee',
   // Rentals (migration 0073).
@@ -1147,6 +1154,8 @@ export const auditSubjectTypeEnum = pgEnum('audit_subject_type', [
   'maintenance_ticket',
   'expense',
   'tax_declaration',
+  // People (migration 0125): a custom staff role made, changed or archived.
+  'staff_role',
 ]);
 
 export const recordDataClassEnum = pgEnum('record_data_class', [

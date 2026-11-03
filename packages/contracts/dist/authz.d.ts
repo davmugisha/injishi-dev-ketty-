@@ -855,7 +855,7 @@ export declare function workspaceAllows(access: Pick<WorkspaceAccess, "permissio
 export declare const OversightGrant: z.ZodObject<{
     /** The assignment row: a local leader's seen marks and flags name it. */
     assignmentId: z.ZodString;
-    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell"]>;
+    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell", "psf_business_officer"]>;
     governmentBodyCode: z.ZodString;
     governmentTitle: z.ZodNullable<z.ZodString>;
     scopeLevel: z.ZodEnum<["country", "province", "district", "sector", "cell", "village"]>;
@@ -871,7 +871,7 @@ export declare const OversightGrant: z.ZodObject<{
     sectorId: number | null;
     cellId: number | null;
     villageId: number | null;
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
     governmentBodyCode: string;
     governmentTitle: string | null;
     scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
@@ -882,7 +882,7 @@ export declare const OversightGrant: z.ZodObject<{
     sectorId: number | null;
     cellId: number | null;
     villageId: number | null;
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
     governmentBodyCode: string;
     governmentTitle: string | null;
     scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
@@ -913,7 +913,7 @@ export declare const OversightConsoleGrant: z.ZodObject<{
     /** The assignment row, so a console can name the seat it is rendering. */
     assignmentId: z.ZodString;
     console: z.ZodEnum<["verification", "approval", "tax", "membership", "guests"]>;
-    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell"]>;
+    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell", "psf_business_officer"]>;
     bodyCode: z.ZodString;
     bodyName: z.ZodNullable<z.ZodString>;
     title: z.ZodNullable<z.ZodString>;
@@ -930,7 +930,7 @@ export declare const OversightConsoleGrant: z.ZodObject<{
     sectorId: number | null;
     cellId: number | null;
     villageId: number | null;
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
     title: string | null;
     scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
     scopeLabel: string;
@@ -944,7 +944,7 @@ export declare const OversightConsoleGrant: z.ZodObject<{
     sectorId: number | null;
     cellId: number | null;
     villageId: number | null;
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
     title: string | null;
     scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
     scopeLabel: string;

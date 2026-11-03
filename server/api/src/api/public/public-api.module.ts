@@ -135,6 +135,7 @@ import {
   OpsRoomAssignmentsController,
 } from './ops/reservations.controller';
 import { OpsBrokerController } from './ops/broker.controller';
+import { OpsBrokerDealsController } from './ops/broker-deals.controller';
 import { BrokersModule } from '../../modules/brokers/brokers.module';
 import { MeTenancyBrokerController } from './me/tenancy-broker.controller';
 import { OpsLeaseBrokersController } from './ops/rentals/lease-brokers.controller';
@@ -177,6 +178,8 @@ import { OpsFilingsController, OpsTaxesController } from './ops/rentals/taxes.co
 import { OpsRoomsController } from './ops/rooms.controller';
 import { OpsThreadsController } from './ops/threads.controller';
 import { OpsStaysController } from './ops/stays.controller';
+import { OpsStaysOverviewController } from './ops/stays-overview.controller';
+import { OpsRatesCalendarController } from './ops/rates-calendar.controller';
 // The front desk's day in one read (interface real-data, frontdesk leaf).
 import { OpsFrontDeskController } from './ops/front-desk.controller';
 import { OpsMessageTemplatesController } from './ops/message-templates.controller';
@@ -185,6 +188,7 @@ import { PlatformController } from './platform/platform.controller';
 import {
   OversightPsfController,
   OversightPsfRegisterController,
+  OversightPsfTeamController,
   PsfMembershipController,
   PsfTiersController,
 } from './psf/psf-membership.controller';
@@ -290,6 +294,7 @@ import { TrainingPublicModule } from './training/training.module';
     PsfMembershipController,
     OversightPsfController,
     OversightPsfRegisterController,
+    OversightPsfTeamController,
     // The public PSF path and the officer console's report (2026-10-19).
     PsfPublicController,
     OversightPsfConsoleController,
@@ -375,6 +380,8 @@ import { TrainingPublicModule } from './training/training.module';
     OpsServiceOrdersController,
     OpsRraController,
     OpsStaysController,
+    OpsStaysOverviewController,
+    OpsRatesCalendarController,
     OpsFrontDeskController,
     OpsMessageTemplatesController,
     OpsThreadsController,
@@ -419,6 +426,7 @@ import { TrainingPublicModule } from './training/training.module';
     // earnings, reviews and plan; the landlord's side of a lease's broker;
     // the tenant's rating; the registration fee.
     OpsBrokerController,
+    OpsBrokerDealsController,
     OpsLeaseBrokersController,
     MeTenancyBrokerController,
     RegistrationBrokerFeeController,

@@ -333,7 +333,6 @@ export function HousekeepingBoardView({
       <PageHeader
         eyebrow={now ? `${kigaliLongDate(now)} · ${kigaliClock(now)} · ${data.propertyName}` : data.propertyName}
         title="Housekeeping"
-        description="Room status and cleaning tasks. A room is offered to arrivals only after it passes inspection."
         actions={
           <>
             <Segment aria-label="View" selectedKey={view} onSelectionChange={(k) => setView(k as View)}>

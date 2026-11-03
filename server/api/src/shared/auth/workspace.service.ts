@@ -17,7 +17,7 @@ import {
   oversightConsoleFor,
   parseRolePermissionOverride,
   permissionsForWorkspace,
-  staffPermissionsForRoles,
+  staffPermissionsForGrants,
   tidyPlaceName,
 } from '@injishi/contracts';
 
@@ -25,6 +25,9 @@ import { DRIZZLE, type Database } from '../database/database.module';
 import type { CoveredProperties } from './branch-scope';
 import {
   adminUsers,
+  staffCustomRolePermissions,
+  staffCustomRoles,
+  userStaffCustomRoles,
   cells,
   departments,
   districts,
@@ -607,11 +610,40 @@ export class WorkspaceService {
 
     if (!row) return NO_STAFF_ACCESS;
 
+    // Custom roles (2026-11-02): the live assignments to live (unarchived)
+    // roles, and the permissions each bundles. Read here, in the ONE resolver,
+    // so `StaffGuard` and `/me/staff` pick them up together. The stored
+    // permission strings go through `staffPermissionsForGrants`, which keeps
+    // only what the code defines and never a reserved power.
+    const custom = await this.db
+      .select({
+        id: staffCustomRoles.id,
+        name: staffCustomRoles.name,
+        permission: staffCustomRolePermissions.permission,
+      })
+      .from(userStaffCustomRoles)
+      .innerJoin(staffCustomRoles, eq(staffCustomRoles.id, userStaffCustomRoles.roleId))
+      .leftJoin(staffCustomRolePermissions, eq(staffCustomRolePermissions.roleId, staffCustomRoles.id))
+      .where(
+        and(
+          eq(userStaffCustomRoles.userId, userId),
+          isNull(userStaffCustomRoles.revokedAt),
+          isNull(staffCustomRoles.archivedAt),
+        ),
+      );
+
+    const customRoles = new Map<string, string>();
+    for (const c of custom) customRoles.set(c.id, c.name);
+
     const roles = row.staffRoles ?? [];
     return {
       isStaff: true,
       roles,
-      permissions: staffPermissionsForRoles(roles),
+      permissions: staffPermissionsForGrants(
+        roles,
+        custom.flatMap((c) => (c.permission ? [c.permission] : [])),
+      ),
+      customRoles: [...customRoles].map(([id, name]) => ({ id, name })),
     };
   }
 

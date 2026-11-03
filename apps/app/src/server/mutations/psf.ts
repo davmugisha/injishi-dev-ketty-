@@ -28,11 +28,19 @@ const note = (text: string | undefined): string | undefined => {
   return trimmed ? trimmed.slice(0, 1000) : undefined;
 };
 
-/** Approve: PSF's membership number for the business. A paid application is a member at once. */
-export function approvePsf(ctx: SourceContext, id: string, membershipNumber: string): Promise<PsfOfficerApplication> {
+/**
+ * Approve: PSF's membership number for the business. A paid application is a member at once, and so is a
+ * card holder (2026-11-02), with the year its card shows.
+ */
+export function approvePsf(
+  ctx: SourceContext,
+  id: string,
+  membershipNumber: string,
+  card?: { startsOn?: string; expiresOn: string },
+): Promise<PsfOfficerApplication> {
   const number = membershipNumber.trim();
   if (!number) throw new PsfRefusal("Give the PSF membership number.");
-  return ctx.api.post<PsfOfficerApplication>(`${applicationPath(id)}/approve`, { membershipNumber: number.slice(0, 40) });
+  return ctx.api.post<PsfOfficerApplication>(`${applicationPath(id)}/approve`, { membershipNumber: number.slice(0, 40), ...(card ?? {}) });
 }
 
 /** Decline, with PSF's reason; `other` needs a note the business will read. */

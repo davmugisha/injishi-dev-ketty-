@@ -91,6 +91,7 @@ export function NewLeaseView({
   profile,
   today,
   initialUnitId,
+  initialStart = null,
   canSign,
 }: {
   units: RentalUnitView[];
@@ -98,6 +99,8 @@ export function NewLeaseView({
   profile: LandlordProfileView;
   today: string;
   initialUnitId: string | null;
+  /** The first day, from a day chosen on the landlord's calendar. */
+  initialStart?: string | null;
   canSign: boolean;
 }) {
   const router = useRouter();
@@ -115,7 +118,10 @@ export function NewLeaseView({
   const [known, setKnown] = useState<TenantView[] | null>(null);
   const [lookFor, setLookFor] = useState("");
   const [tenant, setTenant] = useState<TenantDraft>(emptyTenant);
-  const [terms, setTerms] = useState<TermsDraft>(() => newTerms(unit, profile.leaseDefaults));
+  const [terms, setTerms] = useState<TermsDraft>(() => ({
+    ...newTerms(unit, profile.leaseDefaults),
+    ...(initialStart ? { startDate: initialStart } : {}),
+  }));
   const [broker, setBroker] = useState<BrokerDraft>(noBroker);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -293,11 +299,7 @@ export function NewLeaseView({
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
-      <PageHeader
-        eyebrow={<BackToLeases />}
-        title="New lease"
-        description="Draft it here. You sign it next, then the tenant gets an email to read and sign."
-      />
+      <PageHeader eyebrow={<BackToLeases />} title="New lease" />
       <FlowStepper label="New lease steps" steps={[...STEPS]} current={step} onStepChange={goTo} />
 
       <div className="grid min-w-0 items-start gap-5 lg:grid-cols-3">

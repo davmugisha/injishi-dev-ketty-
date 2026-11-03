@@ -9,6 +9,7 @@ import { AdminBrokersService } from '../brokers/brokers.service';
 import { AdminOrgActionsService } from './org-actions.service';
 import { AdminOrgsController } from './orgs.controller';
 import { AdminOrgsService } from './orgs.service';
+import { AdminPsfController } from './psf-admin.controller';
 
 /**
  * Businesses and Brokers — sections 2 and 4 of the admin console.
@@ -38,7 +39,7 @@ import { AdminOrgsService } from './orgs.service';
  */
 @Module({
   imports: [AdminSharedModule, OrganizationModule],
-  controllers: [AdminOrgsController, AdminBrokersController],
+  controllers: [AdminOrgsController, AdminBrokersController, AdminPsfController],
   providers: [
     AdminOrgsService,
     AdminOrgActionsService,

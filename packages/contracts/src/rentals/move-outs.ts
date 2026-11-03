@@ -268,8 +268,12 @@ export function moveOutTabOf(input: {
   return null;
 }
 
+/** The list's filter: one tab, or every move-out ("all", the default: nothing is chosen for the landlord). */
+export const MoveOutListTab = z.enum(["all", ...MoveOutTab.options]);
+export type MoveOutListTab = z.infer<typeof MoveOutListTab>;
+
 export const MoveOutListQuery = z.object({
-  tab: MoveOutTab.default("to_acknowledge"),
+  tab: MoveOutListTab.default("all"),
   q: z.string().trim().max(120).optional(),
 });
 export type MoveOutListQuery = z.input<typeof MoveOutListQuery>;
@@ -347,7 +351,7 @@ export const MoveOutRow = z.object({
 export type MoveOutRow = z.infer<typeof MoveOutRow>;
 
 export const MoveOutList = z.object({
-  tab: MoveOutTab,
+  tab: MoveOutListTab,
   items: z.array(MoveOutRow),
   counts: z.record(MoveOutTab, z.number().int()),
 });

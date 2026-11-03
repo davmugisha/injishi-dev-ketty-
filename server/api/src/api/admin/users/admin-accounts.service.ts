@@ -8,15 +8,19 @@ import {
   type AdminCreateUserRequest,
   type AdminSetStaffRolesRequest,
   type OrgRole,
+  type StaffAccess,
   type StaffRole,
+  permissionsBeyond,
+  staffPermissionsForRoles,
 } from '@injishi/contracts';
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 
-import { adminUsers, auditEvents, orgMemberships, orgs, users } from '../../../database/drizzle/schema';
+import { adminUsers, auditEvents, orgMemberships, orgs, userProfiles, users } from '../../../database/drizzle/schema';
 import { compose, greeting } from '../../../modules/organization/domain/registration-mail';
 import { GuestNotifier } from '../../../modules/guests/infrastructure/guest-notifier';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import { StaffRolesService, endStaffIfEmpty, liveCustomRoleCount } from './staff-roles.service';
 
 type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 
@@ -39,33 +43,70 @@ export class AdminAccountsService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly notifier: GuestNotifier,
+    private readonly roles: StaffRolesService,
   ) {}
 
-  /** Create an account by email, or answer the one that address already has. */
-  async createUser(input: AdminCreateUserRequest, actorUserId: string): Promise<AdminCreateUserResponse> {
+  /**
+   * Create an account by email, or answer the one that address already has.
+   *
+   * With a `grant`, a NEW account is given that staff role in the same
+   * transaction (2026-11-02), through the same checks as giving it later. An
+   * address that already had an account is answered as it is, with
+   * `granted: false`: changing an existing person's authority is done on their
+   * page, where what they already hold is in front of the staffer.
+   *
+   * There is no password: the invitation says to sign in with an emailed code.
+   * A tenant may add a password later, from their lease invitation, as before.
+   */
+  async createUser(
+    input: AdminCreateUserRequest,
+    actor: { userId: string; access: StaffAccess },
+  ): Promise<AdminCreateUserResponse> {
+    const actorUserId = actor.userId;
     const result = await this.db.transaction(async (tx) => {
       const person = await this.findOrCreate(tx, input.email, input.name);
-      if (person.created) {
-        await this.audit(tx, actorUserId, 'user', person.userId, 'admin.user.created', { email: input.email }, input.reason);
+      if (!person.created) return { ...person, granted: input.grant ? false : undefined };
+      if (input.phone) {
+        await tx
+          .insert(userProfiles)
+          .values({ userId: person.userId, phoneE164: input.phone })
+          .onConflictDoUpdate({ target: userProfiles.userId, set: { phoneE164: input.phone, updatedAt: new Date() } });
       }
-      return person;
-    });
-    if (result.created) {
-      await this.notifier.send(
-        input.email,
-        compose({
-          subject: 'Your Injishi account is ready',
-          heading: 'Your Injishi account is ready',
-          greeting: greeting({ name: input.name }),
-          paragraphs: [
-            'An Injishi account has been made for this email address. There is no password: you sign in with a code we email you each time.',
-          ],
-          cta: { label: 'Sign in to Injishi', href: `${this.notifier.appUrl}/sign-in` },
-        }),
-        'account created',
+      await this.audit(
+        tx,
+        actorUserId,
+        'user',
+        person.userId,
+        'admin.user.created',
+        { email: input.email, ...(input.phone ? { phone: input.phone } : {}), ...(input.grant ? { grant: input.grant } : {}) },
+        input.reason,
       );
-    }
+      if (input.grant?.kind === 'staff_role') {
+        await this.applyStaffRoles(tx, person.userId, [input.grant.role], actor, input.reason);
+      } else if (input.grant?.kind === 'custom_role') {
+        await this.roles.assign(person.userId, input.grant.roleId, input.reason, actor, tx);
+      }
+      return { ...person, granted: input.grant ? true : undefined };
+    });
+    if (result.created) await this.sendInvitation(input.email, input.name);
     return AdminCreateUserResponse.parse(result);
+  }
+
+  /** The invitation: sign in with an emailed code, no password. Sent on create and on resend. */
+  async sendInvitation(email: string, name: string | null): Promise<void> {
+    await this.notifier.send(
+      email,
+      compose({
+        subject: 'Your Injishi account is ready',
+        heading: 'Your Injishi account is ready',
+        greeting: greeting({ name }),
+        paragraphs: [
+          'An Injishi account has been made for this email address. There is no password: you sign in with a code we email you each time.',
+        ],
+        cta: { label: 'Sign in to Injishi', href: `${this.notifier.appUrl}/sign-in` },
+      }),
+      'account created',
+    );
   }
 
   /**
@@ -79,66 +120,99 @@ export class AdminAccountsService {
   async setStaffRoles(
     userId: string,
     input: AdminSetStaffRolesRequest,
-    actorUserId: string,
+    actor: { userId: string; access: StaffAccess },
   ): Promise<AdminStaffRolesResponse> {
-    if (userId === actorUserId) {
+    return this.db.transaction(async (tx) => {
+      const { roles, auditEventId } = await this.applyStaffRoles(tx, userId, input.roles, actor, input.reason);
+      return AdminStaffRolesResponse.parse({ userId, staffRoles: roles, auditEventId });
+    });
+  }
+
+  /**
+   * The built-in role write, shared by "set staff roles" and "create with a
+   * role". Refuses: your own roles, a role carrying a permission you do not
+   * hold, and removing the last super admin. An empty set ends staff access
+   * only when no custom role is held either.
+   */
+  private async applyStaffRoles(
+    tx: Tx,
+    userId: string,
+    wanted: readonly StaffRole[],
+    actor: { userId: string; access: StaffAccess },
+    reason: string,
+  ): Promise<{ roles: StaffRole[]; auditEventId: string }> {
+    if (userId === actor.userId) {
       throw new ConflictException({
         code: 'self_grant',
         message: 'You cannot change your own staff roles. Ask another super admin.',
       });
     }
-    const roles = [...new Set(input.roles)] as StaffRole[];
-    return this.db.transaction(async (tx) => {
-      await this.requireUser(tx, userId);
-      const [current] = await tx
-        .select({ staffRoles: adminUsers.staffRoles, revokedAt: adminUsers.revokedAt })
+    const roles = [...new Set(wanted)] as StaffRole[];
+    await this.requireUser(tx, userId);
+    const [current] = await tx
+      .select({ staffRoles: adminUsers.staffRoles, revokedAt: adminUsers.revokedAt })
+      .from(adminUsers)
+      .where(eq(adminUsers.userId, userId))
+      .limit(1)
+      .for('update');
+    const before: StaffRole[] = current && !current.revokedAt ? (current.staffRoles as StaffRole[]) : [];
+
+    // Nobody hands out a power they do not hold (2026-11-02). Only the roles
+    // being ADDED are checked: keeping what someone already has gives nothing.
+    const added = roles.filter((r) => !before.includes(r));
+    const beyond = permissionsBeyond(actor.access.permissions, staffPermissionsForRoles(added));
+    if (beyond.length) {
+      throw new ForbiddenException({
+        code: 'beyond_own',
+        message: `You cannot give these roles: you do not hold ${beyond.join(', ')} yourself.`,
+      });
+    }
+
+    if (before.includes('super_admin') && !roles.includes('super_admin')) {
+      const [others] = await tx
+        .select({ n: sql<number>`count(*)::int` })
         .from(adminUsers)
-        .where(eq(adminUsers.userId, userId))
-        .limit(1);
-      const before: StaffRole[] = current && !current.revokedAt ? (current.staffRoles as StaffRole[]) : [];
-
-      if (before.includes('super_admin') && !roles.includes('super_admin')) {
-        const [others] = await tx
-          .select({ n: sql<number>`count(*)::int` })
-          .from(adminUsers)
-          .where(
-            and(
-              ne(adminUsers.userId, userId),
-              isNull(adminUsers.revokedAt),
-              sql`'super_admin' = any(${adminUsers.staffRoles})`,
-            ),
-          );
-        if ((others?.n ?? 0) === 0) {
-          throw new ConflictException({
-            code: 'last_super_admin',
-            message: 'This is the only super admin. Make someone else a super admin first.',
-          });
-        }
+        .where(
+          and(
+            ne(adminUsers.userId, userId),
+            isNull(adminUsers.revokedAt),
+            sql`'super_admin' = any(${adminUsers.staffRoles})`,
+          ),
+        );
+      if ((others?.n ?? 0) === 0) {
+        throw new ConflictException({
+          code: 'last_super_admin',
+          message: 'This is the only super admin. Make someone else a super admin first.',
+        });
       }
+    }
 
-      const now = new Date();
-      if (roles.length === 0) {
-        if (current) await tx.update(adminUsers).set({ revokedAt: now, updatedAt: now }).where(eq(adminUsers.userId, userId));
-      } else if (current) {
+    const now = new Date();
+    let staffAccessEnded = false;
+    if (current && !current.revokedAt) {
+      await tx.update(adminUsers).set({ staffRoles: roles, grantedByUserId: actor.userId, updatedAt: now }).where(eq(adminUsers.userId, userId));
+      if (roles.length === 0) staffAccessEnded = await endStaffIfEmpty(tx, userId);
+    } else if (roles.length > 0 || (await liveCustomRoleCount(tx, userId)) > 0) {
+      if (current) {
         await tx
           .update(adminUsers)
-          .set({ staffRoles: roles, revokedAt: null, grantedByUserId: actorUserId, updatedAt: now })
+          .set({ staffRoles: roles, revokedAt: null, grantedByUserId: actor.userId, updatedAt: now })
           .where(eq(adminUsers.userId, userId));
       } else {
-        await tx.insert(adminUsers).values({ userId, staffRoles: roles, grantedByUserId: actorUserId });
+        await tx.insert(adminUsers).values({ userId, staffRoles: roles, grantedByUserId: actor.userId });
       }
+    }
 
-      const auditEventId = await this.audit(
-        tx,
-        actorUserId,
-        'user',
-        userId,
-        'admin.user.staff_roles_set',
-        { staffRoles: { from: before, to: roles } },
-        input.reason,
-      );
-      return AdminStaffRolesResponse.parse({ userId, staffRoles: roles, auditEventId });
-    });
+    const auditEventId = await this.audit(
+      tx,
+      actor.userId,
+      'user',
+      userId,
+      'admin.user.staff_roles_set',
+      { staffRoles: { from: before, to: roles }, ...(staffAccessEnded ? { staffAccessEnded } : {}) },
+      reason,
+    );
+    return { roles, auditEventId };
   }
 
   /**

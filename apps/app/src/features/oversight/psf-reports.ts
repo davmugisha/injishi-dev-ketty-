@@ -11,8 +11,8 @@ export const PSF_REPORTS = [
   },
   {
     id: "membership",
-    title: "Membership",
-    blurb: "Applications to PSF, the decisions on them, the fees they brought and who the members are.",
+    title: "Membership activity",
+    blurb: "What happened over the period you pick: applications to PSF, the decisions on them and the fees they brought.",
   },
   {
     id: "approvals",
@@ -27,7 +27,7 @@ export const PSF_REPORTS = [
   {
     id: "members",
     title: "Member register",
-    blurb: "PSF's members today: their standing, their tiers, and the renewals coming up.",
+    blurb: "Where things stand today, whatever the period: PSF's members, their tiers, and the renewals coming up.",
   },
 ] as const;
 export type PsfReportId = (typeof PSF_REPORTS)[number]["id"];

@@ -28,10 +28,11 @@ import {
 /** The select value for "Other" (the kind typed in) and "Not on the list: I will type it". */
 export const TYPE_IT = "__type_it__";
 
-export type StepKey = "you" | "business" | "membership" | "review";
+export type StepKey = "business" | "place" | "you" | "membership" | "review";
 export const STEPS: { key: StepKey; title: string; sub: string }[] = [
+  { key: "business", title: "Your business", sub: "Its TIN, name and sector" },
+  { key: "place", title: "Where it trades", sub: "Address, branches, trade" },
   { key: "you", title: "You", sub: "Your National ID, checked once" },
-  { key: "business", title: "Your business", sub: "What it does and where it is" },
   { key: "membership", title: "Membership", sub: "The level you can afford" },
   { key: "review", title: "Check and pay", sub: "One payment, by mobile money" },
 ];
@@ -107,6 +108,13 @@ export interface PsfDraft {
   family: PsfMembershipFamily | "";
   tierCode: string;
   amount: string;
+  /**
+   * A holder of an old PSF card joining the new module (2026-11-02): no fee now, the level on its card,
+   * and the card itself, uploaded under the ID check. PSF gives a new number and the certificate.
+   */
+  cardHolder: boolean;
+  cardObjectKey: string;
+  cardName: string;
 
   payer: string;
   agree: boolean;
@@ -150,6 +158,9 @@ export const EMPTY_DRAFT: PsfDraft = {
   family: "",
   tierCode: "",
   amount: "",
+  cardHolder: false,
+  cardObjectKey: "",
+  cardName: "",
   payer: "",
   agree: false,
 };
@@ -251,7 +262,26 @@ export function validateYou(d: PsfDraft): Errors {
   return errors;
 }
 
+/**
+ * The business's fields that the second step, Where it trades, asks for
+ * (2026-11-02): its address, its branches and its trade. Everything else under
+ * `business.` is the first step's.
+ */
+export function isPlaceField(path: string): boolean {
+  return /^business\.(address|branches|trade)/.test(path);
+}
+
+/** Your business: registration, name and sector. */
 export function validateBusiness(d: PsfDraft): Errors {
+  return Object.fromEntries(Object.entries(validateBusinessAll(d)).filter(([k]) => !isPlaceField(k)));
+}
+
+/** Where it trades: address, branches and trade. */
+export function validatePlace(d: PsfDraft): Errors {
+  return Object.fromEntries(Object.entries(validateBusinessAll(d)).filter(([k]) => isPlaceField(k)));
+}
+
+function validateBusinessAll(d: PsfDraft): Errors {
   const errors: Errors = {};
   if (!d.clusterCode) errors["business.clusterCode"] = "Pick the sector your business works in.";
   if (d.clusterCode && !d.subsectorId) errors["business.subsectorId"] = "Pick the kind of business, or type it.";
@@ -277,8 +307,10 @@ export function validateBusiness(d: PsfDraft): Errors {
  */
 export function validateMembership(d: PsfDraft, tiers: PsfTier[], fees: PsfFeesView | null): Errors {
   const tier = tiers.find((t) => t.code === d.tierCode);
-  if (!d.family) return { "membership.family": "Pick a membership." };
-  if (!tier) return { "membership.tierCode": "Pick the band you can afford." };
+  if (!d.family) return { "membership.family": d.cardHolder ? "Pick the level printed on your card." : "Pick a membership." };
+  if (!tier) return { "membership.tierCode": d.cardHolder ? "Pick the band printed on your card." : "Pick the band you can afford." };
+  // A card holder pays nothing now: its card, not an amount (2026-11-02).
+  if (d.cardHolder) return d.cardObjectKey ? {} : { "membership.cardObjectKey": "Add a photo or scan of your PSF card." };
   if (!fees) return { "membership.declaredFeeRwf": "Loading PSF's price for your district. Try again in a moment." };
   const band = fees.fees.find((f) => f.tierCode === tier.code);
   const price = band?.amountRwf ?? null;
@@ -298,7 +330,7 @@ export function validateMembership(d: PsfDraft, tiers: PsfTier[], fees: PsfFeesV
 export function validateReview(d: PsfDraft): Errors {
   const errors: Errors = {};
   const momo = MomoPhone.safeParse(d.payer);
-  if (!momo.success) errors.payerPhoneE164 = momo.error.issues[0]?.message ?? "Give a mobile money number.";
+  if (!d.cardHolder && !momo.success) errors.payerPhoneE164 = momo.error.issues[0]?.message ?? "Give a mobile money number.";
   if (!d.agree) errors.consent = "Tick the box to agree to share this with PSF.";
   return errors;
 }
@@ -307,17 +339,20 @@ export function toRequest(d: PsfDraft): PsfPublicSubmitRequest {
   return {
     checkToken: d.applicant?.checkToken ?? "",
     business: businessFrom(d) as PsfPublicSubmitRequest["business"],
-    membership: {
-      tierCode: d.tierCode,
-      declaredFeeRwf: d.amount.trim() === "" ? undefined : Number(d.amount.replace(/[^\d]/g, "")),
-    },
+    membership: d.cardHolder
+      ? { tierCode: d.tierCode, intake: "card_holder", cardObjectKey: d.cardObjectKey }
+      : {
+          tierCode: d.tierCode,
+          declaredFeeRwf: d.amount.trim() === "" ? undefined : Number(d.amount.replace(/[^\d]/g, "")),
+          intake: "new",
+        },
     contact: {
       role: d.role,
       gender: (d.gender || "female") as "male" | "female",
       phoneE164: d.phone,
       email: blank(d.email),
     },
-    payerPhoneE164: d.payer,
+    ...(d.cardHolder ? {} : { payerPhoneE164: d.payer }),
     consent: true,
   };
 }
@@ -325,6 +360,9 @@ export function toRequest(d: PsfDraft): PsfPublicSubmitRequest {
 /** Which step a field the server refused lives on, so the form can go back to it. */
 export function stepOfPath(path: string): StepKey {
   if (path.startsWith("membership")) return "membership";
+  // The logo is asked for on the last step, after the ID check it uploads under.
+  if (path === "business.logoObjectKey") return "review";
+  if (isPlaceField(path)) return "place";
   if (path.startsWith("business")) return "business";
   if (path.startsWith("contact") || path.startsWith("checkToken")) return "you";
   return "review";

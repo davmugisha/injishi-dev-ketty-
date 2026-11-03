@@ -68,7 +68,6 @@ export function OnboardingView({ items, gates }: { items: SetupItem[]; gates: Go
       <PageHeader
         eyebrow="Isangano Lakeside Hotel · Setup and activation"
         title="Get Ready to Go Live"
-        description="Finish your steps and we’ll show what still waits on Injishi staff or outside partners, and why."
         actions={
           <>
             <LinkButton href={screenHref("TeamRoles")} variant="secondary">

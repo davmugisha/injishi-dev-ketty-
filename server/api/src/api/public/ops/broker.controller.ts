@@ -3,7 +3,19 @@ import {
   BrokerHomesQuery,
   BrokerPlanChangeRequest,
   BrokerPlanCheckoutRequest,
+  BrokerRoomsQuery,
+  CreateBrokerBookingRequest,
+  SetBrokerPayoutAccountRequest,
+  EndBrokerDealRequest,
+  ProposeBrokerDealRequest,
   StartPlacementRequest,
+  type BrokerBookingGroup,
+  type BrokerBookingList,
+  type BrokerCommissionList,
+  type BrokerPayoutAccount,
+  type BrokerDeal,
+  type BrokerDealList,
+  type BrokerHotels,
   type BrokerEarnings,
   type BrokerHome,
   type BrokerHomes,
@@ -11,6 +23,7 @@ import {
   type BrokerPlacementList,
   type BrokerPlanOverview,
   type BrokerPlanPayment,
+  type BrokerRoomOffer,
   type BrokerReveal,
   type BrokerReviews,
   type BrokerSummary,
@@ -19,9 +32,12 @@ import {
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 
+import { BrokerBookingsService } from '../../../modules/brokers/application/broker-bookings.service';
+import { BrokerDealsService } from '../../../modules/brokers/application/broker-deals.service';
+import { BrokerPayoutsService } from '../../../modules/brokers/application/broker-payouts.service';
 import { BrokerHomesService } from '../../../modules/brokers/application/broker-homes.service';
 import { BrokerPlansService } from '../../../modules/brokers/application/broker-plans.service';
-import { SessionGuard } from '../../../shared/auth/session.guard';
+import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import { CurrentWorkspace, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
 import { IdempotencyKey } from '../../../shared/http/idempotency-key';
 import { UserThrottlerGuard } from '../../../shared/http/user-throttler.guard';
@@ -45,6 +61,9 @@ export class OpsBrokerController {
   constructor(
     private readonly homes: BrokerHomesService,
     private readonly plans: BrokerPlansService,
+    private readonly deals: BrokerDealsService,
+    private readonly bookings: BrokerBookingsService,
+    private readonly brokerPayouts: BrokerPayoutsService,
   ) {}
 
   @Get('summary')
@@ -146,5 +165,114 @@ export class OpsBrokerController {
     @CurrentWorkspace() workspace: WorkspaceAccess,
   ): Promise<BrokerPlanOverview> {
     return this.plans.setHomeDistrict(workspace, body);
+  }
+
+  // --- Hotels (0125): commission deals with hotels inside the plan's area ------------------------
+
+  @Get('hotels')
+  hotels(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerHotels> {
+    return this.deals.hotels(workspace);
+  }
+
+  @Get('deals')
+  brokerDeals(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerDealList> {
+    return this.deals.brokerDeals(workspace);
+  }
+
+  /** Propose commission terms to a hotel. One proposed or running deal per hotel at a time. */
+  @Post('hotels/:orgId/deals')
+  @HttpCode(200)
+  @UseGuards(UserThrottlerGuard)
+  @Throttle({ money: { limit: 20, ttl: 60_000 } })
+  proposeDeal(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Body(new ZodValidationPipe(ProposeBrokerDealRequest)) body: ProposeBrokerDealRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentUser() user: SessionUser,
+  ): Promise<BrokerDeal> {
+    return this.deals.propose(workspace, orgId, body, user.id);
+  }
+
+  /** Take back a proposal the hotel has not answered. */
+  @Post('deals/:id/withdraw')
+  @HttpCode(200)
+  withdrawDeal(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(EndBrokerDealRequest)) body: EndBrokerDealRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentUser() user: SessionUser,
+  ): Promise<BrokerDeal> {
+    return this.deals.withdraw(workspace, id, body, user.id);
+  }
+
+  /** End a running deal from the broker's side. */
+  @Post('deals/:id/end')
+  @HttpCode(200)
+  endDeal(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(EndBrokerDealRequest)) body: EndBrokerDealRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentUser() user: SessionUser,
+  ): Promise<BrokerDeal> {
+    return this.deals.endByBroker(workspace, id, body, user.id);
+  }
+
+  // --- Bookings (0126): rooms booked for clients under a running deal --------------------------------
+
+  /** The hotel's rooms for these dates, at their rates, with how many are free. Needs a running deal. */
+  @Get('hotels/:orgId/rooms')
+  rooms(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Query(new ZodValidationPipe(BrokerRoomsQuery)) query: BrokerRoomsQuery,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<BrokerRoomOffer> {
+    return this.bookings.rooms(workspace, orgId, query.checkIn, query.checkOut);
+  }
+
+  /** Book one room or many, paid at the hotel or by one MoMo payment for the group. */
+  @Post('hotels/:orgId/bookings')
+  @HttpCode(200)
+  @UseGuards(UserThrottlerGuard)
+  @Throttle({ money: { limit: 10, ttl: 60_000 } })
+  createBooking(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Body(new ZodValidationPipe(CreateBrokerBookingRequest)) body: CreateBrokerBookingRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<BrokerBookingGroup> {
+    return this.bookings.create(workspace, orgId, body);
+  }
+
+  @Get('bookings')
+  brokerBookings(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerBookingList> {
+    return this.bookings.list(workspace);
+  }
+
+  /** One booking; while its MoMo prompt is out, this is the poll. */
+  @Get('bookings/:id')
+  brokerBooking(@Param('id', ParseUUIDPipe) id: string, @CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerBookingGroup> {
+    return this.bookings.get(workspace, id);
+  }
+
+  // --- Commission (0128): earned on hotel stays, paid to the broker's MoMo number ----------------------
+
+  @Get('commissions')
+  commissions(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerCommissionList> {
+    return this.brokerPayouts.brokerCommissions(workspace);
+  }
+
+  @Get('payout-account')
+  payoutAccount(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerPayoutAccount | null> {
+    return this.brokerPayouts.account(workspace);
+  }
+
+  /** Where the broker's share is paid. A share that waited for a number is sent to it at once. */
+  @Put('payout-account')
+  @UseGuards(UserThrottlerGuard)
+  @Throttle({ money: { limit: 10, ttl: 60_000 } })
+  setPayoutAccount(
+    @Body(new ZodValidationPipe(SetBrokerPayoutAccountRequest)) body: SetBrokerPayoutAccountRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<BrokerPayoutAccount> {
+    return this.brokerPayouts.setAccount(workspace, body);
   }
 }

@@ -1,12 +1,13 @@
 "use client";
 
 import { Description, FieldError, Label, TextArea, TextField, toast } from "@heroui/react";
-import { ID_KIND_LABEL, type LeaderGuest } from "@injishi/contracts";
+import { guestHostLines, ID_KIND_LABEL, type LeaderGuest } from "@injishi/contracts";
 import { ActionButton, FormDialog, SidePanel } from "@injishi/ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { flagGuest, markGuestSeen } from "./actions";
-import { ChainList, GuestStatusChip, phoneWords, stayWords } from "./parts";
+import { withFlag } from "./GuestFilters";
+import { ChainList, dayTime, GuestStatusChip, phoneWords, stayWords } from "./parts";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -125,7 +126,7 @@ export function GuestPanel({ guest: initial, onClose }: { guest: LeaderGuest; on
         isOpen
         onOpenChange={(open) => (open ? undefined : onClose())}
         title={guest.fullName}
-        description={`${guest.nationalityName}${guest.fromAbroad ? ", from abroad" : ""}`}
+        description={`${withFlag(guest.nationality, guest.nationalityName)}${guest.fromAbroad ? ", from abroad" : ""}`}
         headerExtra={<GuestStatusChip guest={guest} />}
         footer={
           <>
@@ -140,6 +141,7 @@ export function GuestPanel({ guest: initial, onClose }: { guest: LeaderGuest; on
           <Facts
             items={[
               { label: "Dates", value: stayWords(guest) },
+              ...(guest.checkedInAt ? [{ label: "Checked in", value: dayTime(guest.checkedInAt) }] : []),
               { label: "Coming from", value: guest.originWords },
               { label: "Relationship", value: guest.relationshipLabel },
               ...(guest.changedAt ? [{ label: "Changed", value: "The host changed the details after filing" }] : []),
@@ -162,9 +164,18 @@ export function GuestPanel({ guest: initial, onClose }: { guest: LeaderGuest; on
             ]}
           />
         </Section>
-        <Section title={guest.host.kind === "tenant" ? "Staying with the tenant" : "Staying with the landlord"}>
+        <Section
+          title={
+            guest.host.kind === "tenant"
+              ? "Staying with the tenant"
+              : guest.host.kind === "hotel"
+                ? "Staying at"
+                : "Staying with the landlord"
+          }
+        >
           <Facts
             items={[
+              { label: "Type of place", value: guest.place.kindLabel },
               { label: "Host", value: guest.host.name },
               ...(guest.host.phone
                 ? [
@@ -179,10 +190,13 @@ export function GuestPanel({ guest: initial, onClose }: { guest: LeaderGuest; on
                   ]
                 : []),
               {
-                label: "Home",
-                value: guest.home.unitLabel
-                  ? `${guest.home.propertyName}, unit ${guest.home.unitLabel}`
-                  : guest.home.propertyName,
+                label: guest.host.kind === "hotel" ? "Room" : "Home",
+                value:
+                  guest.host.kind === "hotel"
+                    ? guestHostLines(guest).detail || "Not recorded"
+                    : guest.home.unitLabel
+                      ? `${guest.home.propertyName}, unit ${guest.home.unitLabel}`
+                      : guest.home.propertyName,
               },
               { label: "Address", value: guest.home.address },
             ]}

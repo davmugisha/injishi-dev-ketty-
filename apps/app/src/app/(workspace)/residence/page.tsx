@@ -7,11 +7,11 @@ import {
   can,
   landlordScope,
   orNull,
+  rentalsMoney,
   rentalsOverview,
   rentalsProfile,
   rentalsSetup,
   rentalsSummary,
-  rentalUnits,
 } from "@/server/rentals/client";
 
 export const metadata: Metadata = { title: screens.ResidenceHome.pageTitle };
@@ -29,13 +29,13 @@ export default async function LandlordHomePage() {
   await requirePersona("ResidenceHome");
   const scope = await landlordScope();
   if (!scope) return <NoRentalsBusiness title="Home" />;
-  const [account, overview, summary, setup, profile, vacant] = await Promise.all([
+  const [account, overview, money, summary, setup, profile] = await Promise.all([
     currentAccount(),
     orNull(rentalsOverview()),
+    orNull(rentalsMoney()),
     orNull(rentalsSummary()),
     orNull(rentalsSetup()),
     orNull(rentalsProfile()),
-    orNull(rentalUnits("vacant")),
   ]);
   // The account's own name; else the signatory's, when the signatory is this person (same email).
   const email = account?.user.email?.trim().toLowerCase();
@@ -50,17 +50,9 @@ export default async function LandlordHomePage() {
       businessName={scope.workspace.orgName ?? account?.persona.workspace?.name ?? "Your business"}
       today={overview?.today ?? today()}
       overview={overview}
+      money={money}
       summary={summary}
       setup={setup}
-      // Units that can be let now, the longest empty first: the Units card's quick links to a new lease.
-      vacantUnits={(vacant?.units ?? [])
-        .filter((u) => u.state === "active")
-        .sort(
-          (a, b) =>
-            (a.vacantSince ?? "9999").localeCompare(b.vacantSince ?? "9999") ||
-            a.label.localeCompare(b.label, undefined, { numeric: true }),
-        )
-        .slice(0, 3)}
       canLease={can(scope, "lease.manage")}
       canAddUnits={can(scope, "unit.manage")}
     />

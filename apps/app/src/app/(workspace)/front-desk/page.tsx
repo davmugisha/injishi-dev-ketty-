@@ -13,14 +13,30 @@ import type {
 import { FrontDeskTodayView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { PmsMount } from "@/features/pms/pms-mount";
+import { StayTodayView } from "@/features/pms/stays/StayTodayView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { deskPropertyName } from "@/server/sources/frontdesk";
+import { can, staysScope, staysSummary } from "@/server/stays/client";
+import { deskRoomTypes, deskRows, readDesk } from "@/server/stays/desk";
 
 export const metadata: Metadata = { title: screens.FrontDeskToday.pageTitle };
 
 export default async function FrontDeskTodayPage({ searchParams }: { searchParams: Promise<{ offline?: string }> }) {
   await requirePersona("FrontDeskToday");
+  // A real stay business (guest house, lodge, apartments) gets one table of today's guests, all live.
+  if (await staysSummary()) {
+    const board = await readDesk();
+    const scope = await staysScope();
+    return (
+      <StayTodayView
+        rows={deskRows(board)}
+        today={board.today}
+        roomTypes={deskRoomTypes(board)}
+        canBook={scope ? can(scope, "reservation.approve") : false}
+      />
+    );
+  }
   const [kpis, tabs, arrivals, inHouse, departures, requests, readiness, roomTypes, rooms] = await Promise.all([
     getCollection<DeskKpi>("frontdesk.deskKpis"),
     getCollection<QueueTab>("frontdesk.queueTabs"),

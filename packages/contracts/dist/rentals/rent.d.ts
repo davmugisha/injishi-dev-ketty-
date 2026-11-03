@@ -1388,16 +1388,16 @@ export declare const RentRoll: z.ZodObject<{
         overdueLeases: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         leases: number;
+        collectedRwf: number;
         overdueRwf: number;
         expectedRwf: number;
-        collectedRwf: number;
         outstandingRwf: number;
         overdueLeases: number;
     }, {
         leases: number;
+        collectedRwf: number;
         overdueRwf: number;
         expectedRwf: number;
-        collectedRwf: number;
         outstandingRwf: number;
         overdueLeases: number;
     }>;
@@ -1458,9 +1458,9 @@ export declare const RentRoll: z.ZodObject<{
     }[];
     totals: {
         leases: number;
+        collectedRwf: number;
         overdueRwf: number;
         expectedRwf: number;
-        collectedRwf: number;
         outstandingRwf: number;
         overdueLeases: number;
     };
@@ -1523,9 +1523,9 @@ export declare const RentRoll: z.ZodObject<{
     }[];
     totals: {
         leases: number;
+        collectedRwf: number;
         overdueRwf: number;
         expectedRwf: number;
-        collectedRwf: number;
         outstandingRwf: number;
         overdueLeases: number;
     };
@@ -1558,11 +1558,11 @@ export declare const RentSummary: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     pendingRwf: number;
     month: string;
+    collectedRwf: number;
     today: string;
     overdueRwf: number;
     overdueCharges: number;
     expectedRwf: number;
-    collectedRwf: number;
     outstandingRwf: number;
     depositsCollectedRwf: number;
     paidOutRwf: number;
@@ -1571,11 +1571,11 @@ export declare const RentSummary: z.ZodObject<{
 }, {
     pendingRwf: number;
     month: string;
+    collectedRwf: number;
     today: string;
     overdueRwf: number;
     overdueCharges: number;
     expectedRwf: number;
-    collectedRwf: number;
     outstandingRwf: number;
     depositsCollectedRwf: number;
     paidOutRwf: number;
@@ -1724,24 +1724,24 @@ export declare const RemindersSent: z.ZodObject<{
         chargeId: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    skipped: {
-        reason: string;
-        chargeId: string;
-    }[];
     sent: {
         chargeId: string;
         reminderId: string;
         emailedTo: string | null;
+    }[];
+    skipped: {
+        reason: string;
+        chargeId: string;
     }[];
 }, {
-    skipped: {
-        reason: string;
-        chargeId: string;
-    }[];
     sent: {
         chargeId: string;
         reminderId: string;
         emailedTo: string | null;
+    }[];
+    skipped: {
+        reason: string;
+        chargeId: string;
     }[];
 }>;
 export type RemindersSent = z.infer<typeof RemindersSent>;

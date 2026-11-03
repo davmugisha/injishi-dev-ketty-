@@ -26,6 +26,8 @@ import {
 import NextLink from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useId } from "react";
+import { ExportMenu } from "@/components/ExportMenu";
+import type { ExportTable } from "@/lib/table-export";
 import type { PsfReport, PsfScope } from "@/server/sources/psf";
 
 import { PSF_REPORTS, type PsfReportId } from "./psf-reports";
@@ -82,38 +84,12 @@ function tierSlices(r: PsfReport) {
   return untiered > 0 ? [...slices, { key: "none", label: "No tier", count: untiered }] : slices;
 }
 
-// ── CSV and print ─────────────────────────────────────────────────────────────────────────────────
+// ── Export and print ──────────────────────────────────────────────────────────────────────────────
 
 interface CsvSection {
   title: string;
   columns: string[];
   rows: (string | number)[][];
-}
-
-const cell = (v: string | number) => {
-  const s = String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
-
-/** One file a spreadsheet opens: each section a titled table, a blank line between them. */
-function downloadCsv(name: string, heading: string[], sections: CsvSection[]) {
-  const lines = [
-    ...heading.map(cell),
-    "",
-    ...sections.flatMap((s) => [
-      cell(s.title),
-      s.columns.map(cell).join(","),
-      ...s.rows.map((r) => r.map(cell).join(",")),
-      "",
-    ]),
-  ];
-  const blob = new Blob([`﻿${lines.join("\n")}`], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 function csvFor(id: PsfReportId, r: PsfReport): CsvSection[] {
@@ -134,6 +110,8 @@ function csvFor(id: PsfReportId, r: PsfReport): CsvSection[] {
             ["Approved", k.approved.value, k.approved.previous],
             ["Declined", k.declined.value, k.declined.previous],
             ["New members", k.newMembers.value, k.newMembers.previous],
+            ["Renewed", k.renewed.value, k.renewed.previous],
+            ["Card holders brought in", k.cardHolders.value, k.cardHolders.previous],
             ["Membership fees (RWF)", k.membershipFeesRwf.value, k.membershipFeesRwf.previous],
             ["Median days to decide", k.medianDecisionDays.value ?? "", k.medianDecisionDays.previous ?? ""],
           ],
@@ -254,7 +232,7 @@ function csvFor(id: PsfReportId, r: PsfReport): CsvSection[] {
           rows: [
             ["Membership applications", r.now.waiting],
             ["Businesses to approve", r.registrations.waitingReview],
-            ["Membership claims to confirm", r.now.claimsWaiting],
+            ["Card holders to confirm", r.now.claimsWaiting],
             ["Renewals due in 30 days", r.now.expiringIn30Days],
           ],
         },
@@ -493,7 +471,7 @@ function Overview({ r }: { r: PsfReport }) {
           },
           {
             id: "claims",
-            label: "Membership claims",
+            label: "Card holders to confirm",
             value: n.claimsWaiting,
             format: "count",
             icon: "CircleCheck",
@@ -595,6 +573,15 @@ function Membership({ r }: { r: PsfReport }) {
             trend: trend(k.membershipFeesRwf),
           },
           waitKpi("days", k.medianDecisionDays.value, "from applying"),
+        ]}
+      />
+      {/* How members came in (2026-11-02): new, renewed, and old card holders brought into the new module. */}
+      <KpiStrip
+        label="How members came in"
+        items={[
+          { id: "in-new", label: "New members", value: k.newMembers.value, format: "count", icon: "PersonPlus", trend: trend(k.newMembers) },
+          { id: "in-renewed", label: "Renewed", value: k.renewed.value, format: "count", icon: "ArrowRotateRight", trend: trend(k.renewed) },
+          { id: "in-cards", label: "Card holders brought in", value: k.cardHolders.value, format: "count", icon: "CreditCard", trend: trend(k.cardHolders) },
         ]}
       />
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
@@ -1099,12 +1086,13 @@ export function PsfReportsView({
   const meta = PSF_REPORTS.find((r) => r.id === id) ?? PSF_REPORTS[0];
   const period = periodFromRange(report.from, report.to, today);
   const span = `${formatDay(report.from)} to ${formatDay(report.to)}`;
-  const download = () =>
-    downloadCsv(
-      `psf-${id}-${report.from}-to-${report.to}.csv`,
-      [`PSF · ${meta.title}`, `${report.regionLabel}, ${span}`, `${scope.title}`],
-      csvFor(id, report),
-    );
+  // Every part of the report, as CSV, Excel, PDF or Word (2026-11-02).
+  const exportRows = async (): Promise<ExportTable> => ({
+    filename: `psf-${id}-${report.from}-to-${report.to}`,
+    title: `PSF · ${meta.title}`,
+    subtitle: `${report.regionLabel}, ${span} · ${scope.title}`,
+    sections: csvFor(id, report).map((sec) => ({ title: sec.title, heading: sec.columns, rows: sec.rows })),
+  });
   return (
     <div data-print-root="">
       <PageContent>
@@ -1114,11 +1102,9 @@ export function PsfReportsView({
           description={`${meta.blurb} ${span}.`}
           actions={
             <div className="flex flex-wrap items-center gap-2 print:hidden">
-              <ActionButton icon="ArrowDownToLine" onPress={download}>
-                CSV
-              </ActionButton>
+              <ExportMenu load={exportRows} />
               <ActionButton icon="Printer" intent="primary" onPress={() => window.print()}>
-                Print or save as PDF
+                Print
               </ActionButton>
             </div>
           }

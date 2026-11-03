@@ -53,6 +53,9 @@ import { AdminUsersController } from './users.controller';
  */
 import { AdminAccountsService } from './admin-accounts.service';
 import { AdminOrgMembersController } from './org-members.controller';
+import { AccountAccessService } from './account-access.service';
+import { AdminStaffRolesController } from './staff-roles.controller';
+import { StaffRolesService } from './staff-roles.service';
 @Module({
   // GuestsModule: appointing a local leader hands them the guests waiting in
   // their area, and ending one hands current guests on (P5).
@@ -70,6 +73,8 @@ import { AdminOrgMembersController } from './org-members.controller';
     AdminLocalLeadersController,
     // Who works in a business, set by staff (2026-10-29).
     AdminOrgMembersController,
+    // Custom staff roles and the matrix (2026-11-02).
+    AdminStaffRolesController,
   ],
   providers: [
     AdminUsersRepository,
@@ -85,6 +90,9 @@ import { AdminOrgMembersController } from './org-members.controller';
     OversightGrantsService,
     // Create an account, staff roles, business members (2026-10-29).
     AdminAccountsService,
+    // Custom roles; suspension, sign ins and a person's trail (2026-11-02).
+    StaffRolesService,
+    AccountAccessService,
     LocalLeadersRepository,
     LocalLeadersService,
     RecordAccessService,

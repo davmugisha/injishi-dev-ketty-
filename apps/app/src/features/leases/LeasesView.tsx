@@ -3,29 +3,24 @@
 import type { LeaseCounts, LeaseListItem, LeaseListPage, LeaseTab } from "@injishi/contracts";
 import { screenHref } from "@injishi/data";
 import {
-  ActionButton,
   ActionLink,
   type DataColumn,
   DataTable,
   DateText,
   EmptyBlock,
-  FilterTabs,
   formatMoney,
-  formatNumber,
   IconAction,
   type IconKey,
-  ListToolbar,
   Money,
   PageContent,
-  PageHeader,
   PersonCell,
   RowActions,
-  SearchBar,
   StatusChip,
   UnitCell,
 } from "@injishi/ui";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useTransition } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { LEASE_TABS, leaseHref, TAB_LABEL } from "./shared";
 
 export type LeaseListTab = LeaseTab | "all";
@@ -165,14 +160,11 @@ export function LeasesView({
 
   // The next step is each row's first action (its tooltip says it), not a column repeating the status.
   const shownColumns = columns;
-  const filtered = query.tab !== "all" || query.q !== "";
-  const pages = Math.max(1, Math.ceil(list.total / Math.max(1, list.pageSize)));
   const can = { manage: canManage, sign: canSign, record: canRecord };
 
   return (
     <PageContent>
-      <PageHeader
-        title="Leases"
+      <AreaHeader
         actions={
           canManage ? (
             <ActionLink href={screenHref("LeaseNew")} icon="Plus" intent="primary">
@@ -181,20 +173,6 @@ export function LeasesView({
           ) : null
         }
       />
-
-      <ListToolbar
-        tabs={
-          <FilterTabs
-            label="Leases by stage"
-            name="Stage"
-            tabs={tabs}
-            selectedKey={query.tab}
-            onSelectionChange={(key) => go({ tab: key as LeaseListTab })}
-          />
-        }
-      >
-        <SearchBar label="Search leases" value={search} onChange={onSearch} placeholder="Tenant, unit or reference" />
-      </ListToolbar>
 
       <div className={pending ? "opacity-60 transition-opacity" : "transition-opacity"} aria-busy={pending}>
         <DataTable
@@ -228,68 +206,38 @@ export function LeasesView({
             description: (l) => [l.unit.label, l.reference, formatMoney(l.monthlyRentRwf)].join(" · "),
             trailing: (l) => <StatusChip kind="lease" status={l.status} />,
           }}
+          search={{ placeholder: "Tenant, unit or reference", value: search, onChange: onSearch }}
+          filters={[
+            {
+              id: "stage",
+              name: "Stage",
+              options: tabs,
+              value: query.tab,
+              onChange: (key) => go({ tab: key as LeaseListTab }),
+            },
+          ]}
+          onClearFilters={() => {
+            setSearch("");
+            go({ tab: "all", q: "" });
+          }}
+          pages={{ page: list.page, pageSize: list.pageSize, total: list.total, onPageChange: (page) => go({ page }) }}
+          noun={{ one: "lease", many: "leases" }}
           empty={
-            filtered ? (
-              <EmptyBlock
-                icon="Magnifier"
-                title="No lease matches"
-                description="Try another tab or search."
-                action={
-                  <ActionButton
-                    icon="Xmark"
-                    onPress={() => {
-                      setSearch("");
-                      go({ tab: "all", q: "" });
-                    }}
-                  >
-                    Clear filters
-                  </ActionButton>
-                }
-              />
-            ) : (
-              <EmptyBlock
-                icon="FileText"
-                title="No leases yet"
-                description="Draft one for a vacant unit. The tenant reads and signs it online."
-                action={
-                  canManage ? (
-                    <ActionLink href={screenHref("LeaseNew")} icon="Plus" intent="primary">
-                      New lease
-                    </ActionLink>
-                  ) : undefined
-                }
-              />
-            )
+            <EmptyBlock
+              icon="FileText"
+              title="No leases yet"
+              description="Draft one for a vacant unit. The tenant reads and signs it online."
+              action={
+                canManage ? (
+                  <ActionLink href={screenHref("LeaseNew")} icon="Plus" intent="primary">
+                    New lease
+                  </ActionLink>
+                ) : undefined
+              }
+            />
           }
         />
       </div>
-
-      {pages > 1 ? (
-        <nav aria-label="Pages" className="flex items-center justify-between gap-3">
-          <span className="text-sm text-muted tabular">
-            Page {formatNumber(list.page)} of {formatNumber(pages)} · {formatNumber(list.total)} leases
-          </span>
-          <div className="flex gap-2">
-            <ActionButton
-              icon="ChevronLeft"
-              size="sm"
-              isDisabled={list.page <= 1}
-              onPress={() => go({ page: list.page - 1 })}
-            >
-              Previous
-            </ActionButton>
-            <ActionButton
-              icon="ChevronRight"
-              iconPlacement="end"
-              size="sm"
-              isDisabled={list.page >= pages}
-              onPress={() => go({ page: list.page + 1 })}
-            >
-              Next
-            </ActionButton>
-          </div>
-        </nav>
-      ) : null}
     </PageContent>
   );
 }

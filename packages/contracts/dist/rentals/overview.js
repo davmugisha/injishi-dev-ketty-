@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UnitVideoFields = exports.ReorderUnitPhotosRequest = exports.UnitMediaView = exports.UnitVideoView = exports.UnitPhotoView = exports.UNIT_VIDEO_POSTER_MAX_BYTES = exports.UNIT_VIDEO_MAX_SECONDS = exports.UNIT_VIDEO_MIN_SECONDS = exports.UNIT_VIDEO_MAX_BYTES = exports.UNIT_PHOTO_MAX_BYTES = exports.UNIT_PHOTO_MAX = exports.PropertyLocationRequest = exports.RentalPropertyList = exports.RentalPropertyView = exports.PlaceRef = exports.RentalsOverview = exports.OVERVIEW_MONTHS = exports.RentalsMonthFigure = exports.RentalsSummary = exports.RentalsAttentionItem = exports.RentalsAttentionKind = exports.MonthKey = void 0;
+exports.RentalsMoney = exports.RentalsMoneyPayment = exports.RentalsMoneyCharge = exports.UnitVideoFields = exports.ReorderUnitPhotosRequest = exports.UnitMediaView = exports.UnitVideoView = exports.UnitPhotoView = exports.UNIT_VIDEO_POSTER_MAX_BYTES = exports.UNIT_VIDEO_MAX_SECONDS = exports.UNIT_VIDEO_MIN_SECONDS = exports.UNIT_VIDEO_MAX_BYTES = exports.UNIT_PHOTO_MAX_BYTES = exports.UNIT_PHOTO_MAX = exports.PropertyLocationRequest = exports.RentalPropertyList = exports.RentalPropertyView = exports.PlaceRef = exports.RentalsOverview = exports.OVERVIEW_MONTHS = exports.RentalsMonthFigure = exports.RentalsSummary = exports.RentalsAttentionItem = exports.RentalsAttentionKind = exports.MonthKey = void 0;
 exports.overviewMonths = overviewMonths;
 exports.percentChange = percentChange;
 const zod_1 = require("zod");
@@ -237,5 +237,40 @@ exports.UnitVideoFields = zod_1.z.object({
         .max(exports.UNIT_VIDEO_MAX_SECONDS, "A video tour runs at most 3 minutes."),
     width: zod_1.z.coerce.number().int().min(1).max(10000).optional(),
     height: zod_1.z.coerce.number().int().min(1).max(10000).optional(),
+});
+/** A rent or deposit charge on the landlord's calendar (2026-10-28). */
+exports.RentalsMoneyCharge = zod_1.z.object({
+    id: primitives_1.Uuid,
+    leaseId: primitives_1.Uuid,
+    kind: zod_1.z.enum(["rent", "deposit"]),
+    dueOn: dates_1.CalendarDay,
+    amountRwf: zod_1.z.number().int().min(0),
+    paidRwf: zod_1.z.number().int().min(0),
+    /** `overdue` is open and past its due day. */
+    status: zod_1.z.enum(["paid", "open", "overdue"]),
+    tenantName: zod_1.z.string(),
+    unitLabel: zod_1.z.string(),
+});
+/** A payment that arrived, on the day it arrived in Kigali. */
+exports.RentalsMoneyPayment = zod_1.z.object({
+    id: primitives_1.Uuid,
+    leaseId: primitives_1.Uuid,
+    day: dates_1.CalendarDay,
+    amountRwf: zod_1.z.number().int().min(0),
+    tenantName: zod_1.z.string(),
+    unitLabel: zod_1.z.string(),
+});
+/**
+ * `GET /ops/rentals/money?from=&to=`: the landlord's money by the day (2026-10-28), for the home's
+ * period filter, area charts and payments calendar. At most two years and two months.
+ */
+exports.RentalsMoney = zod_1.z.object({
+    from: dates_1.CalendarDay,
+    to: dates_1.CalendarDay,
+    today: dates_1.CalendarDay,
+    charges: zod_1.z.array(exports.RentalsMoneyCharge),
+    payments: zod_1.z.array(exports.RentalsMoneyPayment),
+    /** Expenses paid, summed per day. */
+    spent: zod_1.z.array(zod_1.z.object({ day: dates_1.CalendarDay, amountRwf: zod_1.z.number().int().min(0) })),
 });
 //# sourceMappingURL=overview.js.map

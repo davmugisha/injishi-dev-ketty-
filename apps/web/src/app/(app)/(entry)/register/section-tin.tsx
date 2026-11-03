@@ -7,6 +7,7 @@ import {
   type TinCheckResult,
 } from "@injishi/contracts";
 import {
+  ArrowLeft,
   CircleCheck,
   CircleX,
   CloudOff,
@@ -70,6 +71,8 @@ export function SectionTin({
   isDirector,
   onPrepareForOwner,
   onNext,
+  onBack = null,
+  onChangeTin,
   error,
   online = true,
 }: {
@@ -92,6 +95,10 @@ export function SectionTin({
   /** Switch to "I'm registering it for the owner" when RRA does not list the registrant. */
   onPrepareForOwner: () => void;
   onNext: () => void;
+  /** Back: the step before. */
+  onBack?: (() => void) | null;
+  /** Reopen the TIN field on a checked answer, the digits kept, to check another. */
+  onChangeTin: () => void;
   error?: string;
   /** The device has a network. RRA cannot be asked without one, and the section says so (ADR-075 S9). */
   online?: boolean;
@@ -106,6 +113,12 @@ export function SectionTin({
   const pendingAccepted = verdict?.result === "pending" && carryOnPending;
   const showFields = !known && !pendingAccepted;
   const canValidate = /^\d{9}$/.test(digits);
+  const back = onBack ? (
+    <Button variant="ghost" onClick={onBack}>
+      <ArrowLeft size={16} aria-hidden />
+      Back
+    </Button>
+  ) : null;
 
   return (
     <>
@@ -145,6 +158,7 @@ export function SectionTin({
 
       {view.kind === "idle" || verdict?.result === "failed" || verdict?.result === "taken" ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          {back}
           <Button onClick={onValidate} disabled={!canValidate || !online} aria-describedby={online ? undefined : "register-tin-offline"}>
             Validate with RRA
           </Button>
@@ -165,6 +179,7 @@ export function SectionTin({
             You typed {typedName.trim()}. Use RRA&apos;s name? A registration can only carry the name RRA holds.
           </Callout>
           <div className="flex flex-wrap gap-2">
+            {back}
             <Button onClick={onUseRraName}>Use RRA&apos;s name</Button>
             <Button variant="secondary" onClick={onCheckAnother}>
               Check another TIN
@@ -194,6 +209,7 @@ export function SectionTin({
             and an officer sees that it was not checked here.
           </Callout>
           <div className="flex flex-wrap gap-2">
+            {back}
             <Button variant="secondary" onClick={onValidate} disabled={!online}>
               <RotateCw size={16} aria-hidden />
               Try again
@@ -219,9 +235,12 @@ export function SectionTin({
               {found ? found.legalName : typedName.trim() || "Not named yet"}
             </dd>
             <dt className="text-muted-foreground">TIN</dt>
-            <dd className="font-medium tabular-nums sm:col-span-2">
+            <dd className="flex flex-wrap items-center gap-x-2 font-medium tabular-nums sm:col-span-2">
               {formatTin(digits)}
               {pendingAccepted ? " · not checked yet" : ""}
+              <Button variant="link" size="sm" onClick={onChangeTin} className="h-auto min-h-6 px-0">
+                Change TIN
+              </Button>
             </dd>
             {found?.companyType ? (
               <>
@@ -258,7 +277,7 @@ export function SectionTin({
                 checked={capPick === "owner"}
                 icon={<User size={20} aria-hidden />}
                 title="I own or direct this business"
-                description="You confirm it with your own ID, checked against RRA's directors."
+                description="You add your own ID in the next step, and we check it against RRA's directors."
                 onSelect={() => onCapPick("owner")}
               />
               <ChoiceTile
@@ -285,7 +304,8 @@ export function SectionTin({
                 RRA does not list your ID among the directors for this TIN. Register it for the owner instead: you
                 name them, and they claim it with their own ID once Injishi approves it.
               </Callout>
-              <div>
+              <div className="flex flex-wrap items-center gap-2">
+                {back}
                 <Button onClick={onPrepareForOwner}>Register it for the owner instead</Button>
               </div>
             </>
@@ -296,7 +316,8 @@ export function SectionTin({
                   RRA does not list your ID among the directors for this TIN, so you register it for the owner.
                 </p>
               ) : null}
-              <div>
+              <div className="flex flex-wrap items-center gap-2">
+                {back}
                 <Button onClick={onNext}>Next</Button>
               </div>
             </>

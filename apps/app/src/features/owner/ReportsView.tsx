@@ -113,11 +113,7 @@ export function ReportsView({ data, businessName }: { data: ReportsData; busines
   if (!property) {
     return (
       <PageContent>
-        <PageHeader
-          eyebrow={`${businessName} · Reports`}
-          title="Reports"
-          description="Defined measures with their source. Open any figure to see the records behind it."
-        />
+        <PageHeader eyebrow={`${businessName} · Reports`} title="Reports" />
         <EmptyState size="sm">
           <EmptyState.Header>
             <EmptyState.Media variant="icon">
@@ -139,7 +135,6 @@ export function ReportsView({ data, businessName }: { data: ReportsData; busines
       <PageHeader
         eyebrow={`${businessName} · Reports`}
         title="Reports"
-        description="Defined measures with their source. Open any figure to see the records behind it."
         actions={
           <>
             <Button

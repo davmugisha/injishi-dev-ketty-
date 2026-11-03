@@ -108,7 +108,6 @@ export function NightAuditView({ data }: { data: NightAuditData }) {
       <PageHeader
         eyebrow="Cashiering · Isangano + Ishyamba · run NA-20261012 · started 23:30 (scheduled)"
         title="Night Audit · 12 Oct"
-        description="Posts the day’s room and tax charges, applies the no-show policy and checks every balance before the business date rolls to 13 Oct."
         actions={
           <>
             <span className="text-xs text-muted tabular">

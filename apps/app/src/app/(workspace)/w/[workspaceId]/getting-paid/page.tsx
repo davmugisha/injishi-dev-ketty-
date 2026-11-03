@@ -2,8 +2,8 @@ import { type PayoutAccountList, type PayoutList, TOURISM_TAX_LABEL, tourismTaxI
 import { KpiStrip, PageContent, PageHeader } from "@injishi/ui";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { PayoutsView } from "@/features/rentals/PayoutsView";
 import { PayoutAccounts } from "@/features/rentals/settings/PayoutAccounts";
-import { Payouts } from "@/features/rentals/settings/Payouts";
 import { currentAccount } from "@/lib/session";
 import { can, hostScope, orNull } from "@/server/rentals/client";
 
@@ -17,8 +17,7 @@ export const metadata: Metadata = { title: "Getting paid" };
  */
 export default async function GettingPaidPage({ params }: { params: Promise<{ workspaceId: string }> }) {
   const { workspaceId } = await params;
-  if (!(await currentAccount()))
-    redirect(`/sign-in?next=${encodeURIComponent(`/w/${workspaceId}/getting-paid`)}`);
+  if (!(await currentAccount())) redirect(`/sign-in?next=${encodeURIComponent(`/w/${workspaceId}/getting-paid`)}`);
   const scope = await hostScope(workspaceId);
   if (!scope) notFound();
   const api = { workspaceId };
@@ -72,7 +71,7 @@ export default async function GettingPaidPage({ params }: { params: Promise<{ wo
           />
         ) : null}
         <PayoutAccounts accounts={accounts?.accounts ?? null} canManage={manage} business={{ host: workspaceId }} />
-        <Payouts list={payouts} canRetry={manage} business={{ host: workspaceId }} />
+        <PayoutsView list={payouts} canRetry={manage} business={{ host: workspaceId }} embedded />
       </div>
     </PageContent>
   );

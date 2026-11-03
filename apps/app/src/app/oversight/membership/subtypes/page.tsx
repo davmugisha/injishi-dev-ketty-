@@ -1,12 +1,6 @@
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { PsfSubtypes } from "@/pms/oversight/screens/psf-subtypes";
-
-/** Suspense, because the console reads its place from the url (`useSearchParams`). */
+/** Old membership-console URL → WorkspaceShell portal. */
 export default function Page() {
-  return (
-    <Suspense>
-      <PsfSubtypes />
-    </Suspense>
-  );
+  redirect("/psf/subtypes");
 }

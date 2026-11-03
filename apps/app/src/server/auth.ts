@@ -9,7 +9,7 @@
  * the person is signed in on web and here at once.
  */
 
-import { landlordBusiness, type MeContext, type MeContextBusiness } from "@injishi/contracts";
+import { isLeaderRole, landlordBusiness, type MeContext, type MeContextBusiness } from "@injishi/contracts";
 import {
   type BoardId,
   DEMO_OTP,
@@ -17,6 +17,7 @@ import {
   type PersonaId,
   personaByEmail,
   personas,
+  screens,
   type WorkspaceContext,
 } from "@injishi/data";
 import { ApiError, apiBaseUrl, apiOrigin, apiRequest, clientIpHeaders, type SessionCookie } from "./api";
@@ -372,10 +373,7 @@ const HOTEL_SHELLS: ReadonlySet<string> = new Set([
 function hotelBusiness(context: MeContext): MeContextBusiness | null {
   const held = context.businesses.filter((b) => b.domain === "hospitality" && b.role !== null);
   return (
-    held.find((b) => b.workspaceId === context.activeWorkspaceId) ??
-    held.find((b) => b.operational) ??
-    held[0] ??
-    null
+    held.find((b) => b.workspaceId === context.activeWorkspaceId) ?? held.find((b) => b.operational) ?? held[0] ?? null
   );
 }
 
@@ -424,7 +422,9 @@ function businessSwitcher(business: MeContextBusiness, workspaces: Workspace[], 
     return typeof id === "string" ? [{ id, name: String(b.name), meta: "" }] : [];
   });
   const all =
-    branches.length > 1 ? [{ id: "all", name: `All ${units}`, meta: `${branches.length} ${units}` }, ...branches] : branches;
+    branches.length > 1
+      ? [{ id: "all", name: `All ${units}`, meta: `${branches.length} ${units}` }, ...branches]
+      : branches;
   const others: WorkspaceContext["others"] = context.businesses
     .filter((b) => b.workspaceId !== business.workspaceId && b.role !== null)
     .map((b) => ({
@@ -494,7 +494,9 @@ function withOversightBoards(shell: Persona, oversight: string[]): Persona {
   const extra =
     oversight.includes("psf_membership_officer")
       ? (personas.psf.access ?? [])
-      : (["OfficerHome", "OfficerCase", "DelegatedReports"] as const);
+      : oversight.includes("psf_business_officer")
+        ? (personas.psfdbo.access ?? [])
+        : (["OfficerHome", "OfficerCase", "DelegatedReports"] as const);
   const access = [...new Set([...(shell.access ?? []), ...extra])];
   return access.length === (shell.access?.length ?? 0) ? shell : { ...shell, access: [...access] };
 }
@@ -507,6 +509,47 @@ function withOversightBoards(shell: Persona, oversight: string[]): Persona {
  * otherwise the guest side. A residence business still in review opens nothing yet.
  */
 async function personaFor(
+  cookie: SessionCookie,
+  user: ApiUser,
+  workspaces: Workspace[],
+  context: MeContext | null,
+): Promise<Persona> {
+  const shell = await shellFor(cookie, user, workspaces, context);
+  return personaByEmail(user.email) ? shell : withHats(shell, context);
+}
+
+/** Every screen of a persona, by the persona the screen belongs to. */
+const boardsOf = (persona: PersonaId): BoardId[] =>
+  (Object.values(screens) as { board: BoardId; persona: string | null }[])
+    .filter((s) => s.persona === persona)
+    .map((s) => s.board);
+
+/**
+ * THE OTHER HATS A PERSON WEARS (2026-10-30). A shell is the role they land in; the rest of what they
+ * hold stays reachable: a landlord or a hotel owner who is also a village leader opens the guests in
+ * their area, a tenant who brokers opens their placements, an officer who rents opens their home. Each
+ * adds its screens to the persona's access (the sidebar then lists them, `withOversightNav`); the API
+ * still decides what each read returns.
+ */
+function withHats(shell: Persona, context: MeContext | null): Persona {
+  if (!context) return shell;
+  const extra: BoardId[] = [];
+  const seats = context.oversight.map((g) => g.oversightRole);
+  if (shell.id !== "officer" && seats.some((r) => isLeaderRole(r))) extra.push("LeaderGuests", "LeaderReports");
+  const reviews = seats.filter((r) => !isLeaderRole(r) && r !== "psf_membership_officer");
+  if (shell.id !== "officer" && reviews.length > 0) extra.push("OfficerHome", "OfficerCase", "OfficerDecisions");
+  if (shell.id !== "tenant" && context.tenancies.length > 0) extra.push(...boardsOf("tenant"));
+  if (shell.id !== "broker" && context.broker?.status === "active") extra.push(...boardsOf("broker"));
+  const withSeats = withOversightBoards(
+    shell,
+    seats.includes("psf_membership_officer") ? ["psf_membership_officer"] : [],
+  );
+  if (extra.length === 0) return withSeats;
+  return { ...withSeats, access: [...new Set([...(withSeats.access ?? []), ...extra])] };
+}
+
+/** The shell a person lands in (see `personaFor`). */
+async function shellFor(
   cookie: SessionCookie,
   user: ApiUser,
   workspaces: Workspace[],
@@ -549,9 +592,14 @@ async function personaFor(
   if (top?.orgRole && ROLE_PERSONA[top.orgRole]) return shellFor(top.orgRole);
   if (landing?.surface === "tenant") return personas.tenant;
   if (context ? context.staff.isStaff : await holds(cookie, "/api/v1/me/staff")) return personas.ops;
+  // A local leader or DGIE officer reviews no business: they land on the guests in their area.
+  if (context && context.oversight.length > 0 && context.oversight.every((g) => isLeaderRole(g.oversightRole)))
+    return { ...personas.officer, home: "LeaderGuests" };
   const oversight = context ? context.oversight.map((g) => g.oversightRole) : await oversightRoles(cookie);
   // A PSF District Manager's desk is the PSF console: membership, registration review and the overview.
   if (oversight.includes("psf_membership_officer")) return personas.psf;
+  // A BDE, Business Development & Empowerment (2026-11-02): the PSF console, read only for now.
+  if (oversight.includes("psf_business_officer")) return personas.psfdbo;
   if (oversight.length > 0) return personas.officer;
   return personas.guest;
 }

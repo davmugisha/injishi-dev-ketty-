@@ -4,6 +4,9 @@ import {
   SetPsfTierFeeRequest,
   type PsfOfficerFeesView,
   PsfAreaQuery,
+  PsfMemberCardQuery,
+  type PsfCardUploadResult,
+  type PsfMemberCard,
   UpdatePsfFormFieldRequest,
   UpdatePsfSubsectorRequest,
   type PsfSubsectorsView,
@@ -14,6 +17,11 @@ import {
   PsfPublicSubmitRequest,
   PsfReportQuery,
   PsfTrackPayRequest,
+  PsfRenewRequest,
+  PsfMemberLookupRequest,
+  PsfMemberLookupConfirm,
+  type PsfMemberLookupResult,
+  type PsfMemberLookupConfirmed,
   PSF_CHECK_TOKEN_HEADER,
   type OversightGrant,
   type PsfFormFieldsOfficerView,
@@ -30,11 +38,12 @@ import {
 } from '@injishi/contracts';
 import { BadRequestException, Body, Controller, Get, Headers, HttpCode, HttpException, Logger, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
+import { PsfCertificatesService } from '../../../modules/organization/application/psf-certificates.service';
 
 import { PsfMembershipService } from '../../../modules/organization/application/psf-membership.service';
 import { PsfPublicService } from '../../../modules/organization/application/psf-public.service';
 import { PsfReportService } from '../../../modules/organization/application/psf-report.service';
-import { MAX_LOGO_BYTES } from '../../../modules/storage/domain/storage-port';
+import { MAX_CERTIFICATE_BYTES, MAX_LOGO_BYTES } from '../../../modules/storage/domain/storage-port';
 import { CurrentOversight, OversightGuard, RequireOversight } from '../../../shared/auth/oversight.guard';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
@@ -63,13 +72,32 @@ interface LogoRequest {
 export class PsfPublicController {
   private readonly logger = new Logger(PsfPublicController.name);
 
-  constructor(private readonly psf: PsfPublicService) {}
+  constructor(
+    private readonly psf: PsfPublicService,
+    private readonly certificates: PsfCertificatesService,
+  ) {}
 
   @Post('identity/lookup')
   @HttpCode(200)
   @SkipThrottle({ 'psf-track': true, 'psf-logo': true })
   lookup(@Body(new ZodValidationPipe(PsfIdentityLookupRequest)) body: PsfIdentityLookupRequest): Promise<PsfIdentityLookupResult> {
     return this.psf.lookup(body);
+  }
+
+  /** Tracking by membership number (2026-11-02): a code goes to the phone on file. */
+  @Post('member-lookup')
+  @HttpCode(200)
+  @SkipThrottle({ 'psf-track': true, 'psf-logo': true })
+  memberLookup(@Body(new ZodValidationPipe(PsfMemberLookupRequest)) body: PsfMemberLookupRequest): Promise<PsfMemberLookupResult> {
+    return this.psf.memberLookup(body);
+  }
+
+  /** The code read back answers the docID, which opens the tracking page. */
+  @Post('member-lookup/confirm')
+  @HttpCode(200)
+  @SkipThrottle({ 'psf-track': true, 'psf-logo': true })
+  memberLookupConfirm(@Body(new ZodValidationPipe(PsfMemberLookupConfirm)) body: PsfMemberLookupConfirm): PsfMemberLookupConfirmed {
+    return this.psf.memberLookupConfirm(body);
   }
 
   @Post('identity/confirm')
@@ -115,6 +143,28 @@ export class PsfPublicController {
     const body = await uploaded.toBuffer();
     if (uploaded.file?.truncated) throw new BadRequestException('A logo must be 2 MB or smaller.');
     return this.psf.uploadLogo(checkToken, { body, mime: uploaded.mimetype ?? 'application/octet-stream', filename: uploaded.filename ?? 'logo' });
+  }
+
+  /** A card holder's old PSF card (2026-11-02), under the form's ID check, like the logo. */
+  @Post('card-upload')
+  @HttpCode(201)
+  @SkipThrottle({ 'psf-track': true, 'psf-form': true })
+  async uploadCard(@Req() request: LogoRequest, @Headers(PSF_CHECK_TOKEN_HEADER) checkToken: string | undefined): Promise<PsfCardUploadResult> {
+    if (typeof request.isMultipart !== 'function' || !request.isMultipart() || typeof request.file !== 'function') {
+      throw new BadRequestException('Send the card as multipart/form-data.');
+    }
+    const uploaded = await request.file({ limits: { fileSize: MAX_CERTIFICATE_BYTES } });
+    if (!uploaded) throw new BadRequestException('No file was sent.');
+    const body = await uploaded.toBuffer();
+    if (uploaded.file?.truncated) throw new BadRequestException('The card must be 10 MB or smaller.');
+    return this.psf.uploadCard(checkToken, { body, mime: uploaded.mimetype ?? 'application/octet-stream', filename: uploaded.filename ?? 'psf-card' });
+  }
+
+  /** A member's card, by its number (2026-11-02): what a certificate's QR code opens. */
+  @Get('card')
+  @SkipThrottle({ 'psf-form': true, 'psf-logo': true })
+  card(@Query(new ZodValidationPipe(PsfMemberCardQuery)) query: PsfMemberCardQuery): Promise<PsfMemberCard> {
+    return this.certificates.card(query.number);
   }
 
   /** The business's logo, for its tracking page and certificate. */
@@ -177,6 +227,17 @@ export class PsfPublicController {
   ): Promise<PsfTrackPayResult> {
     return this.psf.payMembership(docId);
   }
+
+  /** Renew a membership (2026-11-02): the band, the amount within it, and the phone to prompt. */
+  @Post('track/:docId/renew')
+  @HttpCode(200)
+  @SkipThrottle({ 'psf-form': true, 'psf-logo': true })
+  renew(
+    @Param('docId', docIdPipe) docId: string,
+    @Body(new ZodValidationPipe(PsfRenewRequest)) body: PsfRenewRequest,
+  ): Promise<PsfTrackPayResult> {
+    return this.psf.renew(docId, body);
+  }
 }
 
 /**
@@ -186,7 +247,8 @@ export class PsfPublicController {
  */
 @Controller({ path: 'oversight/psf', version: '1' })
 @UseGuards(SessionGuard, OversightGuard)
-@RequireOversight('psf_membership_officer')
+// BDEs read here (2026-11-02); every write below names the District Manager's role alone.
+@RequireOversight('psf_membership_officer', 'psf_business_officer')
 export class OversightPsfConsoleController {
   constructor(
     private readonly reports: PsfReportService,
@@ -203,6 +265,7 @@ export class OversightPsfConsoleController {
   }
 
   @Post('subsectors')
+  @RequireOversight('psf_membership_officer')
   @HttpCode(201)
   createSubsector(
     @CurrentUser() user: SessionUser,
@@ -213,6 +276,7 @@ export class OversightPsfConsoleController {
   }
 
   @Patch('subsectors/:id')
+  @RequireOversight('psf_membership_officer')
   updateSubsector(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: SessionUser,
@@ -233,6 +297,7 @@ export class OversightPsfConsoleController {
 
   /** Set a band's price for a district (or nationally), or clear it. */
   @Put('fees')
+  @RequireOversight('psf_membership_officer')
   setFee(
     @CurrentUser() user: SessionUser,
     @CurrentOversight() grants: OversightGrant[],
@@ -278,6 +343,7 @@ export class OversightPsfConsoleController {
   }
 
   @Post('form-fields')
+  @RequireOversight('psf_membership_officer')
   @HttpCode(201)
   createFormField(
     @CurrentOversight() grants: OversightGrant[],
@@ -287,6 +353,7 @@ export class OversightPsfConsoleController {
   }
 
   @Patch('form-fields/:id')
+  @RequireOversight('psf_membership_officer')
   updateFormField(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentOversight() grants: OversightGrant[],
