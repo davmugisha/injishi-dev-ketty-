@@ -1,3 +1,5 @@
+import { notFound } from "next/navigation";
+import { fetchPlatform, isDemo } from "@/data/platform";
 import { SpecimenGallery } from "@/components/receipt/specimen-gallery";
 
 /**
@@ -15,6 +17,12 @@ import { SpecimenGallery } from "@/components/receipt/specimen-gallery";
  */
 export const metadata = { title: "RRA receipt specimens" };
 
-export default function Page() {
+/**
+ * The RRA spec's own example receipts (a "Trade Name", TIN 000000000), for a
+ * reviewer comparing layouts. Sample data, so only on a demo stack: on a real
+ * one it is not a page (2026-10-29).
+ */
+export default async function Page() {
+  if (!isDemo(await fetchPlatform())) notFound();
   return <SpecimenGallery />;
 }

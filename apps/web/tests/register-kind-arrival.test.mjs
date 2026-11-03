@@ -45,6 +45,9 @@ const { safeRedirect } = await import("@/lib/redirect");
 describe("a tile on /host", () => {
   test("goes straight to /register with its kind", () => {
     for (const kind of HOST_PROPERTY_KINDS) {
+      // The PSF tile is the one exception: it opens the PSF page first, which
+      // says what joining PSF costs, and whose button registers (next test).
+      if (kind.value === "psf") continue;
       const href = hostKindHref(kind.value);
       const url = new URL(href, "http://x.invalid");
       assert.equal(url.pathname, "/register", `${kind.value} links to ${href}`);
@@ -52,8 +55,20 @@ describe("a tile on /host", () => {
     }
   });
 
+  test("the PSF tile opens the PSF page, and the account wizard no longer registers PSF", () => {
+    assert.equal(hostKindHref("psf"), "/psf");
+    // Joining PSF is the public form at /psf/register (2026-10-19); the
+    // wizard drops `?kind=psf`, and the page redirects it before that.
+    assert.equal(findRegistrationKind("psf"), null);
+    assert.match(
+      src("app/(app)/(entry)/register/page.tsx"),
+      /if \(kind === "psf"\) redirect\("\/psf\/register"\)/,
+    );
+  });
+
   test("carries a kind the registration form accepts, so none lands unanswered", () => {
     for (const kind of HOST_PROPERTY_KINDS) {
+      if (kind.value === "psf") continue;
       const entry = findRegistrationKind(kind.value);
       assert.ok(entry, `/register would drop ?kind=${kind.value}`);
       // And a kind the server can price: every chooser tile is a business, never a broker.
@@ -108,16 +123,16 @@ describe("the sign in round trip", () => {
 });
 
 describe("the wizard, given a kind", () => {
-  test("opens on Business whether or not the kind arrived; Business asks it when it did not (ADR-075 S3)", () => {
+  test("opens on Business whether or not the kind arrived; the kind is asked first when it did not (ADR-075 S3)", () => {
     assert.equal(openingStep(), "business");
   });
 
   test("reopens a draft on the step it was left at, which never asks again a kind the draft already knows (ADR-075 S9)", () => {
-    assert.equal(resumeStep("you"), "you");
+    assert.equal(resumeStep("business"), "business");
     assert.equal(resumeStep(undefined), "business");
   });
 
-  test("walks the same five steps whether or not the kind arrived: the kind is a question inside Business", () => {
+  test("walks the same five steps whether or not the kind arrived: the business, then the person", () => {
     assert.deepEqual(stepOrder(), ["business", "you", "documents", "review", "pay"]);
   });
 

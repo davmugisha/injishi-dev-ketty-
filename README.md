@@ -118,7 +118,26 @@ Database: `pnpm --filter @injishi/api db:migrate` applies pending migrations
 writes one from the schema, and `db:seed` runs the sample recipe on a database
 marked as sample.
 
-Tests: `pnpm --filter @injishi/api test` (Jest), `@injishi/web test` and
+```bash
+pnpm --filter @injishi/api drizzle:generate   # write a migration from the schema
+pnpm --filter @injishi/api db:migrate         # apply pending migrations
+pnpm --filter @injishi/api seed:geography     # Rwanda administrative geography
+pnpm --filter @injishi/api seed:content       # static content
+pnpm --filter @injishi/api db:seed            # the sample recipe (seed-sample.mjs); refuses an unmarked database
+pnpm --filter @injishi/api seed:hr-demo       # a working HR demo, through the running API; sample databases only
+```
+
+`seed:hr-demo` is the one seed that needs the API up (`pnpm api:dev`): it signs
+in as the demo owners and fills Staff the way an office would, so contracts,
+rosters, attendance, leave and a confirmed pay run are rows the product wrote.
+Without it every Staff lens but Employees opens empty. Safe to run again.
+
+`db:migrate` is built on `drizzle-orm`'s migrator, **not** on `drizzle-kit`.
+drizzle-kit is a devDependency and is not in the runtime image, so a release
+step that shells out to it works on a laptop and fails on the platform. The
+script is idempotent — running it on every deploy is the intended use.
+
+Tests: `pnpm --filter @injishi/api test` (Vitest), `@injishi/web test` and
 `@injishi/contracts test` (node:test), `@injishi/app test` (tsx). CI is
 `.github/workflows/ci.yml`; `pnpm check:manifests`, `pnpm lint:ratchet` and
 `node scripts/api-cycles-ratchet.mjs` are its checks you can run locally.

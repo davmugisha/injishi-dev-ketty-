@@ -8,6 +8,22 @@ import { z } from "zod";
 /** Per-Room-type booking mode (F-B03). */
 export declare const BookingMode: z.ZodEnum<["instant_book", "request_to_book"]>;
 export type BookingMode = z.infer<typeof BookingMode>;
+/**
+ * How a room type's price is counted (owner decisions, 2026-10-29).
+ *
+ * - `per_person`: per guest, per night. A hotel, motel, lodge, guest house or
+ *   tented camp room; four guests pay four times what one does.
+ * - `per_unit`: per night for the whole place, whoever is in the party. A villa
+ *   or an apartment is let whole, to one party.
+ * - `per_item`: a bar's or coffee shop's menu item, priced each. Listed on the
+ *   marketplace and never booked.
+ */
+export declare const RoomPriceBasis: z.ZodEnum<["per_person", "per_unit", "per_item"]>;
+export type RoomPriceBasis = z.infer<typeof RoomPriceBasis>;
+/** The guests a stay's rate is multiplied by: the party per person, one per unit. */
+export declare function chargedGuests(priceBasis: RoomPriceBasis | null | undefined, partyGuests: number): number;
+/** Can a room type with this basis be booked as a stay? A menu item cannot. */
+export declare function isStayPriceBasis(priceBasis: RoomPriceBasis | null | undefined): boolean;
 /** Sub-field of `request_to_book` only — never a mode of its own (F-B03). */
 export declare const ApprovalPolicy: z.ZodEnum<["approve_all", "approve_first_three"]>;
 export type ApprovalPolicy = z.infer<typeof ApprovalPolicy>;
@@ -28,7 +44,7 @@ export type IsoDate = z.infer<typeof IsoDate>;
 export declare const RoomTypeSummary: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodString;
-    domain: z.ZodEnum<["hospitality", "residence"]>;
+    domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
     capacity: z.ZodNullable<z.ZodNumber>;
     /** Bookable units of this Room type (the atomic-hold denominator). */
     roomCount: z.ZodNumber;
@@ -37,6 +53,8 @@ export declare const RoomTypeSummary: z.ZodObject<{
     approvalPolicy: z.ZodNullable<z.ZodEnum<["approve_all", "approve_first_three"]>>;
     cancellationTier: z.ZodNullable<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
     nonrefundableEligible: z.ZodBoolean;
+    /** How the price is counted; absent from an older API, which only priced per person. */
+    priceBasis: z.ZodDefault<z.ZodEnum<["per_person", "per_unit", "per_item"]>>;
     /**
      * The shortest stay this room accepts (ARI, F-L08).
      *
@@ -46,10 +64,34 @@ export declare const RoomTypeSummary: z.ZodObject<{
      * absent minimum as 1 rather than inventing a longer one.
      */
     minStay: z.ZodNullable<z.ZodNumber>;
+    /**
+     * 0117: what one guest pays for a room priced per room (`nightlyRateFor`), the kind of room, its beds,
+     * who may sleep there, its size and bathroom. Optional, so an older API's answer still parses.
+     */
+    singleGuestPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    roomCategory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    beds: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+        type: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        type: string;
+        count: number;
+    }, {
+        type: string;
+        count: number;
+    }>, "many">>>;
+    maxAdults: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    maxChildren: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    sizeM2: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    bathroom: z.ZodOptional<z.ZodNullable<z.ZodEnum<["private", "shared"]>>>;
+    /** 0118: extra beds the room takes and their price a night; the room type's own photograph. */
+    extraBedsMax: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    extraBedPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    photo: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
     id: string;
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     capacity: number | null;
     roomCount: number;
     nightlyRateRwf: number | null;
@@ -57,11 +99,25 @@ export declare const RoomTypeSummary: z.ZodObject<{
     approvalPolicy: "approve_all" | "approve_first_three" | null;
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
     nonrefundableEligible: boolean;
+    priceBasis: "per_person" | "per_unit" | "per_item";
     minStay: number | null;
+    singleGuestPriceRwf?: number | null | undefined;
+    roomCategory?: string | null | undefined;
+    beds?: {
+        type: string;
+        count: number;
+    }[] | null | undefined;
+    maxAdults?: number | null | undefined;
+    maxChildren?: number | null | undefined;
+    sizeM2?: number | null | undefined;
+    bathroom?: "private" | "shared" | null | undefined;
+    extraBedsMax?: number | null | undefined;
+    extraBedPriceRwf?: number | null | undefined;
+    photo?: string | null | undefined;
 }, {
     name: string;
     id: string;
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     capacity: number | null;
     roomCount: number;
     nightlyRateRwf: number | null;
@@ -70,6 +126,20 @@ export declare const RoomTypeSummary: z.ZodObject<{
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
     nonrefundableEligible: boolean;
     minStay: number | null;
+    priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
+    singleGuestPriceRwf?: number | null | undefined;
+    roomCategory?: string | null | undefined;
+    beds?: {
+        type: string;
+        count: number;
+    }[] | null | undefined;
+    maxAdults?: number | null | undefined;
+    maxChildren?: number | null | undefined;
+    sizeM2?: number | null | undefined;
+    bathroom?: "private" | "shared" | null | undefined;
+    extraBedsMax?: number | null | undefined;
+    extraBedPriceRwf?: number | null | undefined;
+    photo?: string | null | undefined;
 }>;
 export type RoomTypeSummary = z.infer<typeof RoomTypeSummary>;
 /**
@@ -115,19 +185,19 @@ export declare const BookablePropertySummary: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     id: string;
+    photo: string | null;
     slug: string | null;
     districtName: string | null;
     checkInTime: string | null;
     checkOutTime: string | null;
-    photo: string | null;
 }, {
     name: string;
     id: string;
+    photo: string | null;
     slug: string | null;
     districtName: string | null;
     checkInTime: string | null;
     checkOutTime: string | null;
-    photo: string | null;
 }>;
 export type BookablePropertySummary = z.infer<typeof BookablePropertySummary>;
 /**
@@ -158,24 +228,24 @@ export declare const BookableRoom: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string;
         id: string;
+        photo: string | null;
         slug: string | null;
         districtName: string | null;
         checkInTime: string | null;
         checkOutTime: string | null;
-        photo: string | null;
     }, {
         name: string;
         id: string;
+        photo: string | null;
         slug: string | null;
         districtName: string | null;
         checkInTime: string | null;
         checkOutTime: string | null;
-        photo: string | null;
     }>;
     roomType: z.ZodObject<{
         id: z.ZodString;
         name: z.ZodString;
-        domain: z.ZodEnum<["hospitality", "residence"]>;
+        domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
         capacity: z.ZodNullable<z.ZodNumber>;
         /** Bookable units of this Room type (the atomic-hold denominator). */
         roomCount: z.ZodNumber;
@@ -184,6 +254,8 @@ export declare const BookableRoom: z.ZodObject<{
         approvalPolicy: z.ZodNullable<z.ZodEnum<["approve_all", "approve_first_three"]>>;
         cancellationTier: z.ZodNullable<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
         nonrefundableEligible: z.ZodBoolean;
+        /** How the price is counted; absent from an older API, which only priced per person. */
+        priceBasis: z.ZodDefault<z.ZodEnum<["per_person", "per_unit", "per_item"]>>;
         /**
          * The shortest stay this room accepts (ARI, F-L08).
          *
@@ -193,10 +265,34 @@ export declare const BookableRoom: z.ZodObject<{
          * absent minimum as 1 rather than inventing a longer one.
          */
         minStay: z.ZodNullable<z.ZodNumber>;
+        /**
+         * 0117: what one guest pays for a room priced per room (`nightlyRateFor`), the kind of room, its beds,
+         * who may sleep there, its size and bathroom. Optional, so an older API's answer still parses.
+         */
+        singleGuestPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        roomCategory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        beds: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+            type: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            type: string;
+            count: number;
+        }, {
+            type: string;
+            count: number;
+        }>, "many">>>;
+        maxAdults: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        maxChildren: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        sizeM2: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        bathroom: z.ZodOptional<z.ZodNullable<z.ZodEnum<["private", "shared"]>>>;
+        /** 0118: extra beds the room takes and their price a night; the room type's own photograph. */
+        extraBedsMax: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        extraBedPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        photo: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         name: string;
         id: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
         roomCount: number;
         nightlyRateRwf: number | null;
@@ -204,11 +300,25 @@ export declare const BookableRoom: z.ZodObject<{
         approvalPolicy: "approve_all" | "approve_first_three" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
+        priceBasis: "per_person" | "per_unit" | "per_item";
         minStay: number | null;
+        singleGuestPriceRwf?: number | null | undefined;
+        roomCategory?: string | null | undefined;
+        beds?: {
+            type: string;
+            count: number;
+        }[] | null | undefined;
+        maxAdults?: number | null | undefined;
+        maxChildren?: number | null | undefined;
+        sizeM2?: number | null | undefined;
+        bathroom?: "private" | "shared" | null | undefined;
+        extraBedsMax?: number | null | undefined;
+        extraBedPriceRwf?: number | null | undefined;
+        photo?: string | null | undefined;
     }, {
         name: string;
         id: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
         roomCount: number;
         nightlyRateRwf: number | null;
@@ -217,21 +327,35 @@ export declare const BookableRoom: z.ZodObject<{
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
         minStay: number | null;
+        priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
+        singleGuestPriceRwf?: number | null | undefined;
+        roomCategory?: string | null | undefined;
+        beds?: {
+            type: string;
+            count: number;
+        }[] | null | undefined;
+        maxAdults?: number | null | undefined;
+        maxChildren?: number | null | undefined;
+        sizeM2?: number | null | undefined;
+        bathroom?: "private" | "shared" | null | undefined;
+        extraBedsMax?: number | null | undefined;
+        extraBedPriceRwf?: number | null | undefined;
+        photo?: string | null | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
     property: {
         name: string;
         id: string;
+        photo: string | null;
         slug: string | null;
         districtName: string | null;
         checkInTime: string | null;
         checkOutTime: string | null;
-        photo: string | null;
     };
     roomType: {
         name: string;
         id: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
         roomCount: number;
         nightlyRateRwf: number | null;
@@ -239,22 +363,36 @@ export declare const BookableRoom: z.ZodObject<{
         approvalPolicy: "approve_all" | "approve_first_three" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
+        priceBasis: "per_person" | "per_unit" | "per_item";
         minStay: number | null;
+        singleGuestPriceRwf?: number | null | undefined;
+        roomCategory?: string | null | undefined;
+        beds?: {
+            type: string;
+            count: number;
+        }[] | null | undefined;
+        maxAdults?: number | null | undefined;
+        maxChildren?: number | null | undefined;
+        sizeM2?: number | null | undefined;
+        bathroom?: "private" | "shared" | null | undefined;
+        extraBedsMax?: number | null | undefined;
+        extraBedPriceRwf?: number | null | undefined;
+        photo?: string | null | undefined;
     };
 }, {
     property: {
         name: string;
         id: string;
+        photo: string | null;
         slug: string | null;
         districtName: string | null;
         checkInTime: string | null;
         checkOutTime: string | null;
-        photo: string | null;
     };
     roomType: {
         name: string;
         id: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
         roomCount: number;
         nightlyRateRwf: number | null;
@@ -263,6 +401,20 @@ export declare const BookableRoom: z.ZodObject<{
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
         minStay: number | null;
+        priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
+        singleGuestPriceRwf?: number | null | undefined;
+        roomCategory?: string | null | undefined;
+        beds?: {
+            type: string;
+            count: number;
+        }[] | null | undefined;
+        maxAdults?: number | null | undefined;
+        maxChildren?: number | null | undefined;
+        sizeM2?: number | null | undefined;
+        bathroom?: "private" | "shared" | null | undefined;
+        extraBedsMax?: number | null | undefined;
+        extraBedPriceRwf?: number | null | undefined;
+        photo?: string | null | undefined;
     };
 }>;
 export type BookableRoom = z.infer<typeof BookableRoom>;
@@ -279,6 +431,31 @@ export type BookableRoom = z.infer<typeof BookableRoom>;
  * one number per rule.
  */
 export declare const MAX_NIGHTS = 90;
+/**
+ * The longest stay a room type may allow when it lets by the week or the month (serviced apartments,
+ * 2026-10-29): its own `max_stay`, up to a year. Others keep `MAX_NIGHTS`.
+ */
+export declare const LONG_STAY_MAX_NIGHTS = 365;
+/** The most nights a room type takes in one booking. */
+export declare function maxNightsFor(roomTypeMaxStay: number | null | undefined): number;
+/** A week and more takes the weekly discount, four weeks and more the monthly one. */
+export declare const WEEKLY_FROM_NIGHTS = 7;
+export declare const MONTHLY_FROM_NIGHTS = 28;
+/**
+ * The nightly rate a stay is charged at (2026-10-29): each night at its own price (a price set for that
+ * day, else the room type's), averaged, less the weekly or monthly discount the stay is long enough for.
+ * The one rule the quote and the booking both use, so what a guest is shown is what they pay.
+ */
+export declare function stayNightlyRate(input: {
+    baseRwf: number;
+    /** One entry per night, in order; null where no day price is set. */
+    dayRatesRwf: readonly (number | null)[];
+    weeklyDiscountPct?: number | null;
+    monthlyDiscountPct?: number | null;
+}): {
+    nightlyRwf: number;
+    discountPct: number;
+};
 /** How far ahead a booking may be made. 18 months. */
 export declare const MAX_HORIZON_DAYS = 540;
 /** A room type with no stated capacity is not unlimited. */
@@ -566,8 +743,14 @@ export type MoneyBreakdown = z.infer<typeof MoneyBreakdown>;
  * Non-refundable rate is ~10% cheaper than the standard one (F-B05 Path A).
  */
 export declare const NON_REFUNDABLE_DISCOUNT = 0.1;
-/** Guest service fee. Rates are quoted excluding it. */
-export declare const GUEST_SERVICE_FEE_RATE = 0.05;
+/**
+ * Guest service fee: none (owner decision, 2026-10-29). A guest pays the room
+ * rate the host set and nothing on top. It was 5%. The rate stays a constant,
+ * and `serviceFeeRwf` stays on `MoneyBreakdown` at 0, so bookings and refunds
+ * made under the old rate still read, and every receipt that hides a zero fee
+ * line keeps working.
+ */
+export declare const GUEST_SERVICE_FEE_RATE = 0;
 /**
  * The one implementation of what a stay costs (ADR-014 call 4, ADR-020 AC-8).
  *
@@ -596,7 +779,26 @@ export declare function computeBreakdown(args: {
      * locked figure must not multiply by the party a second time.
      */
     guests?: number;
+    /**
+     * How the rate is counted. `per_unit` prices the whole place, so the party
+     * size does not multiply it (`chargedGuests`). Absent means per person.
+     */
+    priceBasis?: RoomPriceBasis | null;
 }): MoneyBreakdown;
+/** The guest service fee every booking paid until 2026-10-29, when it was dropped. */
+export declare const LEGACY_GUEST_SERVICE_FEE_RATE = 0.05;
+/**
+ * A PAID booking's lines, as it was charged.
+ *
+ * A booking keeps its locked rate and its total, not the split, so readers
+ * re-derive the split with `computeBreakdown`. A booking paid before the guest
+ * service fee was dropped carried 5% on top; re-derived at today's 0%, its
+ * lines would no longer add up to what the guest paid, and a receipt that must
+ * total the charge would refuse it. So when the charge is exactly the old fee
+ * over the stay, the fee is put back as it was charged. Anything else is left
+ * as `computeBreakdown` says, for the caller's own check to catch.
+ */
+export declare function breakdownAsCharged(args: Parameters<typeof computeBreakdown>[0], chargedRwf: number): MoneyBreakdown;
 /**
  * What one night of this stay costs the whole party: the per-guest rate times
  * the billable guests. This is the figure a booking LOCKS, so everything that
@@ -1361,6 +1563,12 @@ export declare const CANCELLATION_TIERS: Record<CancellationTier, {
     beforePercent: number;
     afterPercent: number;
 }>;
+/**
+ * A tier in one sentence for the guest, from the same rules the refund is
+ * computed with (`CANCELLATION_TIERS`), so the words can never drift from the
+ * money. The web used to keep its own copy of these sentences.
+ */
+export declare function cancellationSummary(tier: CancellationTier | null, nonRefundable?: boolean): string;
 /** Who cancelled. A host cancellation always refunds in full (F-B11). */
 export declare const CancellationParty: z.ZodEnum<["guest", "host"]>;
 export type CancellationParty = z.infer<typeof CancellationParty>;

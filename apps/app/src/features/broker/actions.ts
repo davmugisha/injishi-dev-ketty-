@@ -7,14 +7,23 @@
  * outside the plan.
  */
 import {
+  type BrokerBookingGroup,
+  type BrokerDeal,
   type BrokerHome,
   BrokerHomeDistrictRequest,
+  type BrokerPayoutAccount,
   type BrokerPlacement,
   BrokerPlanChangeRequest,
   BrokerPlanCheckoutRequest,
   type BrokerPlanOverview,
   type BrokerPlanPayment,
   type BrokerReveal,
+  type BrokerRoomOffer,
+  BrokerRoomsQuery,
+  CreateBrokerBookingRequest,
+  EndBrokerDealRequest,
+  ProposeBrokerDealRequest,
+  SetBrokerPayoutAccountRequest,
   StartPlacementRequest,
 } from "@injishi/contracts";
 import { revalidatePath } from "next/cache";
@@ -104,5 +113,88 @@ export async function setHomeDistrict(districtId: number): Promise<ActionResult<
   if (!parsed.ok) return invalid(parsed.error);
   return changed(
     await runBroker((s) => s.api.put<BrokerPlanOverview>("/api/v1/ops/broker/home-district", parsed.data, ws(s))),
+  );
+}
+
+// --- Hotel deals (0125) ---------------------------------------------------------------------------
+
+const NO_HOTEL = "That hotel is not open to you for a deal any more.";
+const NO_DEAL = "That deal is not there any more.";
+
+/** Propose commission terms to a hotel inside the plan's area. */
+export async function proposeDeal(orgId: string, input: unknown): Promise<ActionResult<BrokerDeal>> {
+  if (!UUID.test(orgId)) return { ok: false, error: NO_HOTEL };
+  const parsed = parse(ProposeBrokerDealRequest, input);
+  if (!parsed.ok) return invalid(parsed.error);
+  return changed(
+    await runBroker(
+      (s) => s.api.post<BrokerDeal>(`/api/v1/ops/broker/hotels/${orgId}/deals`, parsed.data, ws(s)),
+      NO_HOTEL,
+    ),
+  );
+}
+
+/** Take back a proposal the hotel has not answered, or end a running deal. */
+export async function closeDeal(id: string, move: "withdraw" | "end", note: string): Promise<ActionResult<BrokerDeal>> {
+  if (!UUID.test(id)) return { ok: false, error: NO_DEAL };
+  const parsed = parse(EndBrokerDealRequest, { note: note.trim() || null });
+  if (!parsed.ok) return invalid(parsed.error);
+  return changed(
+    await runBroker(
+      (s) => s.api.post<BrokerDeal>(`/api/v1/ops/broker/deals/${id}/${move}`, parsed.data, ws(s)),
+      NO_DEAL,
+    ),
+  );
+}
+
+// --- Bookings under a running deal (0126) ---------------------------------------------------------
+
+/** The hotel's rooms for these dates, with their rates and how many are free. */
+export async function loadRooms(
+  orgId: string,
+  checkIn: string,
+  checkOut: string,
+): Promise<ActionResult<BrokerRoomOffer>> {
+  if (!UUID.test(orgId)) return { ok: false, error: NO_HOTEL };
+  const parsed = parse(BrokerRoomsQuery, { checkIn, checkOut });
+  if (!parsed.ok) return invalid(parsed.error);
+  return runBroker(
+    (s) =>
+      s.api.get<BrokerRoomOffer>(`/api/v1/ops/broker/hotels/${orgId}/rooms`, {
+        ...ws(s),
+        query: { checkIn: parsed.data.checkIn, checkOut: parsed.data.checkOut },
+      }),
+    "You have no running deal with that hotel any more.",
+  );
+}
+
+/** Book the rooms: written at once when paid at the hotel; when paid by MoMo, once the phone approves. */
+export async function bookRooms(orgId: string, input: unknown): Promise<ActionResult<BrokerBookingGroup>> {
+  if (!UUID.test(orgId)) return { ok: false, error: NO_HOTEL };
+  const parsed = parse(CreateBrokerBookingRequest, input);
+  if (!parsed.ok) return invalid(parsed.error);
+  return changed(
+    await runBroker(
+      (s) => s.api.post<BrokerBookingGroup>(`/api/v1/ops/broker/hotels/${orgId}/bookings`, parsed.data, ws(s)),
+      "You have no running deal with that hotel any more.",
+    ),
+  );
+}
+
+/** Where a group's MoMo payment got to. */
+export async function pollBooking(id: string): Promise<ActionResult<BrokerBookingGroup>> {
+  if (!UUID.test(id)) return { ok: false, error: "That booking is not there." };
+  return runBroker(
+    (s) => s.api.get<BrokerBookingGroup>(`/api/v1/ops/broker/bookings/${id}`, ws(s)),
+    "That booking is not there.",
+  );
+}
+
+/** Where the broker's share of hotel commissions is paid; a share that waited for a number goes out at once. */
+export async function setPayoutNumber(input: unknown): Promise<ActionResult<BrokerPayoutAccount>> {
+  const parsed = parse(SetBrokerPayoutAccountRequest, input);
+  if (!parsed.ok) return invalid(parsed.error);
+  return changed(
+    await runBroker((s) => s.api.put<BrokerPayoutAccount>("/api/v1/ops/broker/payout-account", parsed.data, ws(s))),
   );
 }

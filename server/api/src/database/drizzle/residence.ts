@@ -630,6 +630,13 @@ export const paymentAttempts = pgTable(
      * (money.ts imports this file).
      */
     subscriptionInvoiceId: uuid('subscription_invoice_id'),
+    /**
+     * The reservation change a `booking_change` attempt pays the difference of (migration 0120). Its
+     * foreign key to `booking_changes` is written in that migration (hospitality.ts imports this file).
+     */
+    bookingChangeId: uuid('booking_change_id'),
+    /** Set on a `broker_group` attempt: the broker's group of rooms it pays for (0126). FK in the SQL. */
+    brokerGroupId: uuid('broker_group_id'),
 
     // --- the stay this attempt is for, because no booking exists yet ---
     // Null on a `service_order` attempt, which has no stay.
@@ -696,6 +703,11 @@ export const paymentAttempts = pgTable(
         OR (${t.purpose} = 'registration_fee'
             AND ${t.subscriptionInvoiceId} IS NOT NULL
             AND ${t.serviceOrderId} IS NULL
+            AND ${t.roomTypeId} IS NULL AND ${t.checkIn} IS NULL
+            AND ${t.checkOut} IS NULL AND ${t.guestCount} IS NULL)
+        OR (${t.purpose}::text = 'booking_change'
+            AND ${t.bookingChangeId} IS NOT NULL AND ${t.bookingId} IS NOT NULL
+            AND ${t.serviceOrderId} IS NULL AND ${t.subscriptionInvoiceId} IS NULL
             AND ${t.roomTypeId} IS NULL AND ${t.checkIn} IS NULL
             AND ${t.checkOut} IS NULL AND ${t.guestCount} IS NULL)`,
     ),

@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { ApiError } from "@/server/api";
 import {
   accountFor,
+  demoRoster,
   demoSignInCode,
   OTP_TTL_SECONDS,
   revokeOtherSessions,
@@ -71,12 +72,42 @@ export async function startSignIn(_prev: SignInState, form: FormData): Promise<S
   return { error: SEND_ERRORS[await beginChallenge(email, next)], email };
 }
 
+/**
+ * Drop any existing session before minting a demo challenge.
+ *
+ * Without this, "Sign in as Eric" while still holding Olivier's cookie leaves
+ * Olivier in place if the visitor abandons verify, or briefly paints Olivier's
+ * console before the new cookie lands — which reads as "every PSF login is Olivier".
+ */
+async function clearSessionForDemoSwitch(): Promise<void> {
+  const store = await cookies();
+  const cookie = await currentSessionCookie();
+  if (!cookie) return;
+  const cleared = await signOutOfApi(cookie);
+  if (cleared.length > 0) applyApiCookies(store, cleared);
+  else clearAuthCookies(store);
+}
+
 /** "Sign in as …" on a demo persona card: same code step, for that persona's email. */
 export async function signInAs(personaId: PersonaId, next?: string): Promise<void> {
   const persona = personas[personaId];
   // Only the demo has personas to sign in as; anywhere else this would mail a code to an address nobody owns.
   if (!persona || !(await demoSignInCode())) redirect("/sign-in");
+  await clearSessionForDemoSwitch();
   redirect(`/sign-in?error=${await beginChallenge(persona.email, safeReturn(next))}`);
+}
+
+/**
+ * "Sign in as" for someone on the API's demo roster (2026-10-26). Only an address on that roster:
+ * a press here sends a code, and an address typed into a form is what the email box is for.
+ */
+export async function signInAsDemoEmail(email: string, next?: string): Promise<void> {
+  if (!(await demoSignInCode())) redirect("/sign-in");
+  const roster = await demoRoster();
+  const person = roster.find((p) => p.email.toLowerCase() === email.trim().toLowerCase());
+  if (!person) redirect("/sign-in");
+  await clearSessionForDemoSwitch();
+  redirect(`/sign-in?error=${await beginChallenge(person.email, safeReturn(next))}`);
 }
 
 export type VerifyState = { error?: string; attemptsLeft?: number };

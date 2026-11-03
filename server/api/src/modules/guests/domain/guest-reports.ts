@@ -1,4 +1,18 @@
-import { type GuestReport, type ReportBucket, addDays, daysBetween, guestNights } from '@injishi/contracts';
+import {
+  GUEST_PLACE_TYPE_LABEL,
+  type GuestPlaceType,
+  type GuestReport,
+  REPORT_TIMING_LABEL,
+  type ReportBucket,
+  STAY_BANDS,
+  STAY_BAND_LABEL,
+  type ReportTiming,
+  addDays,
+  daysBetween,
+  guestNights,
+  reportTimingOf,
+  stayBandOf,
+} from '@injishi/contracts';
 
 /**
  * The leader's report (P5): totals, the area table, nationality and
@@ -11,6 +25,13 @@ import { type GuestReport, type ReportBucket, addDays, daysBetween, guestNights 
 export interface ReportRow {
   arrivalOn: string;
   departureOn: string;
+  /** The Kigali day the guest was reported. */
+  reportedOn: string;
+  placeType: GuestPlaceType;
+  /** The place's own kind in words ("Motel", "Residence"). */
+  placeLabel: string;
+  /** The business or building's name. */
+  propertyName: string;
   nationality: string;
   nationalityName: string;
   fromAbroad: boolean;
@@ -155,18 +176,64 @@ export function byRelationship(rows: readonly ReportRow[]): GuestReport['byRelat
   return [...groups.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
-/** The homes with the most guests, by address and unit: never the host's name. */
+/**
+ * The homes and places with the most guests: a hotel as one place, a residence by building and unit. Named by
+ * the business or building and its address, never by the person living there.
+ */
 export function topHomes(rows: readonly ReportRow[]): GuestReport['topHomes'] {
-  const groups = new Map<string, { address: string; unitLabel: string | null; guests: number }>();
+  const groups = new Map<string, GuestReport['topHomes'][number]>();
   for (const r of rows) {
-    const key = `${r.propertyId}:${r.unitId ?? ''}`;
-    const g = groups.get(key) ?? { address: r.homeAddress, unitLabel: r.unitLabel, guests: 0 };
+    const unit = r.placeType === 'residence' ? r.unitLabel : null;
+    const key = `${r.propertyId}:${r.placeType === 'residence' ? (r.unitId ?? '') : ''}`;
+    const g = groups.get(key) ?? { name: r.propertyName, placeLabel: r.placeLabel, address: r.homeAddress, unitLabel: unit, guests: 0, fromAbroad: 0 };
     g.guests += 1;
+    if (r.fromAbroad) g.fromAbroad += 1;
     groups.set(key, g);
   }
   return [...groups.values()]
-    .sort((a, b) => b.guests - a.guests || a.address.localeCompare(b.address))
+    .sort((a, b) => b.guests - a.guests || a.name.localeCompare(b.name))
     .slice(0, TOP_HOMES);
+}
+
+/** Arrivals by type of place, most first, with those from abroad and the mean stay. */
+export function byPlaceType(rows: readonly ReportRow[]): GuestReport['byPlaceType'] {
+  const groups = new Map<GuestPlaceType, ReportRow[]>();
+  for (const r of rows) groups.set(r.placeType, [...(groups.get(r.placeType) ?? []), r]);
+  return [...groups.entries()]
+    .map(([type, list]) => ({
+      type,
+      label: GUEST_PLACE_TYPE_LABEL[type],
+      count: list.length,
+      fromAbroad: list.filter((r) => r.fromAbroad).length,
+      averageNights: averageNights(list),
+    }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
+/** How long the stays are, every band present in order (zero where none). */
+export function stayBands(rows: readonly Pick<ReportRow, 'arrivalOn' | 'departureOn'>[]): GuestReport['stayBands'] {
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    const band = stayBandOf(guestNights(r.arrivalOn, r.departureOn));
+    counts.set(band, (counts.get(band) ?? 0) + 1);
+  }
+  return STAY_BANDS.map((band) => ({ band, label: STAY_BAND_LABEL[band], count: counts.get(band) ?? 0 }));
+}
+
+/** When guests were reported against their arrival day: before, on the day, after. */
+export function reportTiming(rows: readonly Pick<ReportRow, 'arrivalOn' | 'reportedOn'>[]): GuestReport['timing'] {
+  const order: ReportTiming[] = ['before', 'same_day', 'after'];
+  const counts = new Map<ReportTiming, number>();
+  for (const r of rows) {
+    const t = reportTimingOf(r.reportedOn, r.arrivalOn);
+    counts.set(t, (counts.get(t) ?? 0) + 1);
+  }
+  return order.map((timing) => ({ timing, label: REPORT_TIMING_LABEL[timing], count: counts.get(timing) ?? 0 }));
+}
+
+/** Guests present each day, labelled for a chart's axis. */
+export function presentSeries(days: readonly { day: string; total: number; fromAbroad: number }[]): GuestReport['presentByDay'] {
+  return days.map((d) => ({ ...d, label: shortDay(d.day) }));
 }
 
 /**
@@ -184,18 +251,35 @@ export function reportFigures(input: {
   purged: PurgedCounts | null;
 }): Pick<
   GuestReport,
-  'totals' | 'areaLevel' | 'byArea' | 'byNationality' | 'byRelationship' | 'arrivals' | 'topHomes' | 'purged'
+  | 'totals'
+  | 'areaLevel'
+  | 'byArea'
+  | 'byNationality'
+  | 'byRelationship'
+  | 'arrivals'
+  | 'topHomes'
+  | 'purged'
+  | 'byPlaceType'
+  | 'stayBands'
+  | 'timing'
 > {
   const rows = input.rows.filter((r) => r.arrivalOn >= input.from && r.arrivalOn <= input.to);
   const purged = input.purged && input.purged.registered > 0 ? input.purged : null;
+  const registered = rows.length + (purged?.registered ?? 0);
+  const fromAbroad = rows.filter((r) => r.fromAbroad).length + (purged?.fromAbroad ?? 0);
   return {
     totals: {
-      registered: rows.length + (purged?.registered ?? 0),
+      registered,
       stayingNow: input.stayingNow,
-      fromAbroad: rows.filter((r) => r.fromAbroad).length + (purged?.fromAbroad ?? 0),
+      fromAbroad,
+      nationals: registered - fromAbroad,
+      nationalities: new Set(rows.map((r) => r.nationality)).size,
       flagged: rows.filter((r) => r.flagged).length + (purged?.flagged ?? 0),
       averageNights: averageNights(rows),
     },
+    byPlaceType: byPlaceType(rows),
+    stayBands: stayBands(rows),
+    timing: reportTiming(rows),
     areaLevel: input.areaLevel,
     byArea: byArea(rows, input.areaLevel),
     byNationality: byNationality(rows),

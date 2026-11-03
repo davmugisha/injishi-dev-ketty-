@@ -16,12 +16,18 @@ export class ApiError extends Error {
   readonly parse: boolean;
   /** The API's own sentence for a person, when a refusal carried one. */
   readonly serverMessage: string | null;
+  /** A refusal's HTTP status (404 for a property that is not public); null otherwise. */
+  readonly httpStatus: number | null;
 
-  constructor(kind: ApiErrorKind, options: { parse?: boolean; serverMessage?: string | null } = {}) {
+  constructor(
+    kind: ApiErrorKind,
+    options: { parse?: boolean; serverMessage?: string | null; httpStatus?: number | null } = {},
+  ) {
     super(kind);
     this.kind = kind;
     this.parse = options.parse ?? false;
     this.serverMessage = options.serverMessage ?? null;
+    this.httpStatus = options.httpStatus ?? null;
   }
 }
 
@@ -44,7 +50,7 @@ export async function getParsed<T>(schema: ParseSchema<T>, path: string, init?: 
         sessionEvents.stepUpRequired();
         throw new ApiError("stepUp");
       }
-      throw new ApiError("refused", { serverMessage: answer.message ?? null });
+      throw new ApiError("refused", { serverMessage: answer.message ?? null, httpStatus: answer.httpStatus });
     case "failed":
       throw new ApiError("failed");
   }

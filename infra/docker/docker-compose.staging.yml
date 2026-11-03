@@ -8,9 +8,10 @@
 # --build` with the repo root as the build context. Every image is built on the
 # host from the same Dockerfiles production builds.
 #
-# THE API AND THE OPERATOR APP, NOTHING ELSE. Staging ships api, worker and app
+# THE API, THE OPERATOR APP AND WEB. Staging ships api, worker, app and (since
+# 2026-11-03, the owner's request, so testers can work the marketplace) web,
 # with their own Postgres, Redis, MinIO and Mailpit, its own secrets and its own
-# volumes (the project name namespaces them). It ships no web and no admin.
+# volumes (the project name namespaces them). It ships no admin.
 # Since ADR-077 it also ships Injishi Mock APIs (mock-apis), which a seam set
 # to `sandbox` calls in place of GTBank, RRA or Smile ID.
 #
@@ -21,16 +22,25 @@
 # unmarked database, so the FIRST bring up migrates, marks and seeds in a one
 # time container (DOKPLOY.md names the command).
 #
-# UNDER injishi.com, BY THE OWNER'S CHOICE (2026-10-20): api-staging. and
-# app-staging.injishi.com. Production sets its session cookie on
-# `.injishi.com`, so a browser signed in to production hands that cookie to
+# UNDER injishi.com, BY THE OWNER'S CHOICE (2026-10-20): www-staging.,
+# api-staging. and app-staging.injishi.com. Production sets its session cookie
+# on `.injishi.com`, so a browser signed in to production hands that cookie to
 # these hosts too. Staging cannot verify it (its secret is its own) and its
-# logs redact cookies, but unreleased code does receive it. Staging's own API
-# cookie is host only (AUTH_COOKIE_DOMAIN is empty), so it never reaches
-# production.
+# logs redact cookies, but unreleased code does receive it.
 #
-# PUBLIC WHERE IT HAS TO BE. The API and the app are Dokploy domain rows and
-# answer anyone; a stranger still cannot sign in, because every code goes to
+# STAGING'S COOKIE IS ON `.injishi.com` TOO (the owner's choice, 2026-11-03).
+# Until then it was host only on api-staging, which kept it from production
+# but also kept it from www-staging: a tester signed in on app-staging was a
+# stranger on web. Web, the app and the API share a session only through their
+# common parent, exactly as production's three hosts do. The cost, accepted:
+# both stacks write the same cookie NAME on the same domain, so signing in to
+# one signs a browser out of the other, and a staging token reaches
+# production's hosts, which cannot verify it (another secret, another
+# database) and treat it as signed out. A staging cookie name of its own would
+# end both; it needs a code change (API, auth edge names, app, web, mobile).
+#
+# PUBLIC WHERE IT HAS TO BE. Web, the API and the app are Dokploy domain rows
+# and answer anyone; a stranger still cannot sign in, because every code goes to
 # this stack's Mailpit, whose inbox asks for MAILPIT_UI_PASSWORD. The storage
 # host passes only signed S3 requests. Every service carries a resource
 # ceiling so a test run cannot starve production on the same host.
@@ -72,11 +82,12 @@ x-api-env: &api-env
   # runs the production platform, so it refuses to boot without one.
   PAYOUT_ACCOUNT_ENCRYPTION_KEY: "${PAYOUT_ACCOUNT_ENCRYPTION_KEY:?set PAYOUT_ACCOUNT_ENCRYPTION_KEY via openssl rand -base64 32}"
   BETTER_AUTH_URL: https://${API_HOST:-api-staging.injishi.com}
-  # Empty: a host only cookie on the API's host. A cookie on `.injishi.com`
-  # would reach production. The app keeps its session in its own cookie.
-  AUTH_COOKIE_DOMAIN: ""
-  # The app's origin, which its server side calls send as their Origin.
-  CORS_ORIGINS: https://${APP_HOST:-app-staging.injishi.com}
+  # The parent of web, the app and the API, so the three share one session (the
+  # header says what that costs). The app reads the same value below.
+  AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.injishi.com}
+  # Web's origin (the browser's calls) and the app's (its server side calls
+  # send it as their Origin). Better Auth trusts the same list.
+  CORS_ORIGINS: https://${WEB_HOST:-www-staging.injishi.com},https://${APP_HOST:-app-staging.injishi.com}
   # The phone app's internal test build (`injishi-preview://`) signs in here,
   # and only here: production lists no extra scheme (mobile spec 0001, AC-7).
   MOBILE_EXTRA_SCHEMES: injishi-preview
@@ -114,9 +125,8 @@ x-api-env: &api-env
   SMTP_URL: smtp://staging-api:${MAILPIT_SMTP_API_PASSWORD:?set MAILPIT_SMTP_API_PASSWORD, see dokploy-staging.env.example}@injishi-mailpit:1025
   MAIL_FROM: "Injishi Staging <no-reply@staging.injishi.com>"
   # Web's public origin, for a mail that links to a page on web (ADR-053). The
-  # API refuses to boot without one. Staging has no web, so its mail names the
-  # app's origin, and a link to a page only web has answers 404 there.
-  WEB_URL: https://${APP_HOST:-app-staging.injishi.com}
+  # API refuses to boot without one. The same host web is built against below.
+  WEB_URL: https://${WEB_HOST:-www-staging.injishi.com}
   # The app's public origin, for a mail that opens a page in the app (a lease
   # invitation, a tenant's lease). The API refuses to boot without one.
   APP_URL: https://${APP_HOST:-app-staging.injishi.com}
@@ -138,9 +148,10 @@ x-api-env: &api-env
 
 x-staging-public: &staging-public
   NEXT_PUBLIC_API_URL: https://${API_HOST:-api-staging.injishi.com}
-  # The app sends `/` to web's front door. Staging has no web, so its front
-  # door is the app's own sign-in screen.
-  NEXT_PUBLIC_WEB_URL: https://${APP_HOST:-app-staging.injishi.com}/sign-in
+  # Web's origin. The app sends `/` to web's front door, and both apps admit a
+  # return address only on this origin or the app's (an exact-origin allowlist).
+  NEXT_PUBLIC_WEB_URL: https://${WEB_HOST:-www-staging.injishi.com}
+  NEXT_PUBLIC_SITE_URL: https://${WEB_HOST:-www-staging.injishi.com}
   NEXT_PUBLIC_PMS_URL: https://${APP_HOST:-app-staging.injishi.com}
   # Pinned (ADR-043, AC-14). Staging's builds are production builds: they never
   # strip session cookies, which only the demo's builds do.
@@ -544,7 +555,9 @@ services:
       - default
 
   # The operator app on app-staging.injishi.com, a Dokploy domain row (port
-  # 3002), as production's app is on app.injishi.com. Staging ships no web.
+  # 3002), as production's app is on app.injishi.com. Its sign-in hands the
+  # browser the API's own session cookie, on AUTH_COOKIE_DOMAIN, so web and the
+  # app share one session.
   app:
     image: injishi-app:staging
     build:
@@ -564,6 +577,10 @@ services:
       INJISHI_API_URL: http://injishi-api:8000
       # The Origin its calls carry, listed in the API's CORS_ORIGINS.
       INJISHI_API_ORIGIN: https://${APP_HOST:-app-staging.injishi.com}
+      # The domain the API writes the session cookie on, the same expression as
+      # the API's. Signing out with the API unreachable can only remove the
+      # cookie with a write naming this domain (apps/app/src/server/session-cookies.ts).
+      AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.injishi.com}
       INJISHI_DB_URL: file:/data/injishi.db
     volumes:
       - app-data:/data
@@ -587,7 +604,46 @@ services:
       - default
       - dokploy-network
 
-# HeroUI Pro's CI/CD token for the app build, read from the Dokploy
+  # The marketplace on www-staging.injishi.com, a Dokploy domain row (port
+  # 3000), as production's web is on www.injishi.com: the same Dockerfile, a
+  # production build against staging's origins. No visit counting (a rehearsal
+  # is not traffic), and the domain row carries injishi-staging-noindex, so no
+  # search engine indexes a copy of the marketplace under a staging host.
+  web:
+    image: injishi-web:staging
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.web
+      secrets:
+        - heroui_token
+      args:
+        <<: *staging-public
+    restart: unless-stopped
+    environment:
+      <<: *staging-public
+      NODE_ENV: production
+      PORT: "3000"
+      # Server only, read at runtime. Sign-in sends reach the API over the compose
+      # network so the visitor's IP can be forwarded (apps/web/src/lib/otp.server.ts).
+      INTERNAL_API_URL: http://injishi-api:8000
+    expose:
+      - "3000"
+    depends_on:
+      api:
+        condition: service_healthy
+      app:
+        condition: service_started
+    deploy: *large
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      # Named on the www-staging domain row in Dokploy (`injishi-staging-noindex@docker`).
+      - traefik.http.middlewares.injishi-staging-noindex.headers.customresponseheaders.X-Robots-Tag=noindex, nofollow
+    networks:
+      - default
+      - dokploy-network
+
+# HeroUI Pro's CI/CD token for the web and app builds, read from the Dokploy
 # environment's variables (stack settings live on the host, never in GitHub). See the
 # note in Dockerfile.web.
 secrets:

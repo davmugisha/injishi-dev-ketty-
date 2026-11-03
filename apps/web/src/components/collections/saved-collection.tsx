@@ -33,14 +33,14 @@ export function SavedCollection({ listings: all = [] }: { listings?: Listing[] }
   );
 
   return (
-    <section className="animate-fade-up mt-6 flex flex-col gap-6">
+    <section className="animate-fade-up mx-auto flex w-full max-w-wide flex-col gap-6">
       {/* One column, not a `justify-between` row: the "Compare" button that
           used to sit on the other side of it is gone. */}
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-page-fg lg:text-display-sm">Saved stays</h1>
+        <h2 className="font-display text-2xl font-bold tracking-tight text-page-fg sm:text-3xl">Stays you saved</h2>
         <p className="text-sm text-page-fg-70">
           {listings.length === 0
-            ? "Nothing saved yet"
+            ? "Keep the places you like here, and come back to book them."
             : `${pluralize(listings.length, "stay")} saved`}
         </p>
       </div>
@@ -72,13 +72,17 @@ export function SavedCollection({ listings: all = [] }: { listings?: Listing[] }
 
 function EmptySaved() {
   return (
-    <div className="flex flex-col items-center gap-4 rounded-card border border-dashed border-input py-20 text-center">
-      <p className="text-xl text-page-fg">You have not saved any stays yet.</p>
-      <p className="text-sm text-page-fg-70">
-        Tap the heart on any listing and it will appear here.
-      </p>
-      <Button asChild className="mt-2">
-        <Link href="/explore">Browse stays</Link>
+    // The same quiet panel as an empty Trips page (2026-10-30), not a dashed box the width of the screen.
+    <div className="grid gap-6 rounded-card border border-border bg-card p-6 sm:grid-cols-[1fr_auto] sm:items-center sm:p-8">
+      <div>
+        <p className="font-display text-xl font-bold tracking-tight text-page-fg">Nothing saved yet</p>
+        <p className="mt-2 max-w-prose text-sm leading-relaxed text-page-fg-70">
+          Tap the heart on any stay and it waits here for you, with its price and photos, until you are ready
+          to book.
+        </p>
+      </div>
+      <Button asChild size="lg">
+        <Link href="/explore">Explore stays</Link>
       </Button>
     </div>
   );

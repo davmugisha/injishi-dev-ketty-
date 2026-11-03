@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   AdminUnclaimedStaysResponse,
+  AdminPersonDetail,
   AdminUserListResponse,
+  type AdminAccountStatus,
   type AdminKycState,
   type AdminOversightGrant,
   type AdminUserListQuery,
@@ -72,12 +74,20 @@ export class AdminUsersService {
       reason,
     });
 
-    const [roles, memberships, staff, oversight] = await Promise.all([
+    const [roles, memberships, staff, oversight, custom] = await Promise.all([
       this.repo.globalRolesFor(ids),
       this.repo.membershipsFor(ids),
       this.repo.staffRolesFor(ids),
       this.repo.oversightFor(ids),
+      this.repo.customRolesFor(ids),
     ]);
+
+    const customByUser = new Map<string, AdminUserRow['customRoles']>();
+    for (const row of custom) {
+      const list = customByUser.get(row.userId) ?? [];
+      list.push({ id: row.id, name: row.name });
+      customByUser.set(row.userId, list);
+    }
 
     const rolesByUser = new Map<string, AdminUserRow['globalRoles']>();
     for (const row of roles) {
@@ -118,8 +128,11 @@ export class AdminUsersService {
       globalRoles: rolesByUser.get(row.id) ?? [],
       memberships: membershipsByUser.get(row.id) ?? [],
       staffRoles: staffByUser.get(row.id) ?? [],
+      customRoles: customByUser.get(row.id) ?? [],
       oversight: oversightByUser.get(row.id) ?? null,
       twoFactorEnrolled: isTwoFactorEnrolled(row),
+      status: toStatus(row),
+      lastSignInAt: toIso(row.lastSignInAt),
       createdAt: row.createdAt.toISOString(),
     }));
 
@@ -129,6 +142,47 @@ export class AdminUsersService {
     return AdminUserListResponse.parse({
       items,
       meta: { total, page, pageSize },
+    });
+  }
+
+  /**
+   * One person, with every authority they hold (`GET /admin/users/:userId`).
+   *
+   * The same trail rule as the directory: the read is recorded before it is
+   * answered. Every government seat is returned, not the newest one, because
+   * this page is where a staffer ends one of several.
+   */
+  async getUser(userId: string, actorUserId: string, reason: string): Promise<AdminPersonDetail> {
+    const row = await this.repo.userById(userId);
+    if (!row) throw new NotFoundException('No user has that id.');
+    await this.access.recordRead({ actorUserId, subjectUserIds: [userId], dataClass: 'national_id', reason });
+    const ids = [userId];
+    const [roles, memberships, staff, oversight, custom] = await Promise.all([
+      this.repo.globalRolesFor(ids),
+      this.repo.membershipsFor(ids),
+      this.repo.staffRolesFor(ids),
+      this.repo.oversightFor(ids),
+      this.repo.customRolesFor(ids),
+    ]);
+    const grants = oversight.map(toOversightGrant);
+    return AdminPersonDetail.parse({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      emailVerified: row.emailVerified,
+      kyc: toKycState(row.kycStatus),
+      phoneMasked: maskPhone(row.phoneE164),
+      nationalIdMasked: maskNationalId(row.nationalId),
+      globalRoles: roles.map((r) => r.globalRole),
+      memberships: memberships.map(toMembership),
+      staffRoles: staff[0]?.staffRoles ?? [],
+      customRoles: custom.map((c) => ({ id: c.id, name: c.name })),
+      oversight: grants[0] ?? null,
+      oversightGrants: grants,
+      twoFactorEnrolled: isTwoFactorEnrolled(row),
+      status: toStatus(row),
+      lastSignInAt: toIso(row.lastSignInAt),
+      createdAt: row.createdAt.toISOString(),
     });
   }
 
@@ -199,6 +253,18 @@ function toKycState(
  * question this row answers is "does a second factor stand between an attacker
  * and this account", and either enrolment answers it yes.
  */
+/** Suspended wins; otherwise "invited" until they have signed in once (a verified email). */
+function toStatus(row: AdminUserBaseRow): AdminAccountStatus {
+  if (row.suspended) return 'suspended';
+  return row.emailVerified ? 'active' : 'invited';
+}
+
+/** A raw `max()` can come back as a string from the driver; either way, ISO or null. */
+function toIso(value: Date | string | null): string | null {
+  if (value == null) return null;
+  return (value instanceof Date ? value : new Date(value)).toISOString();
+}
+
 function isTwoFactorEnrolled(row: AdminUserBaseRow): boolean {
   return Boolean(row.profileTwoFactorEnrolled) || Boolean(row.staffTwoFactorEnrolled);
 }

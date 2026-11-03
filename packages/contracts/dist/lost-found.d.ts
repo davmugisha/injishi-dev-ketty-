@@ -110,15 +110,15 @@ export declare const FoundItem: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         rule: string;
         note: string;
-        proposedByName: string | null;
         proposedAt: string;
+        proposedByName: string | null;
         approvedByName: string | null;
         approvedAt: string | null;
     }, {
         rule: string;
         note: string;
-        proposedByName: string | null;
         proposedAt: string;
+        proposedByName: string | null;
         approvedByName: string | null;
         approvedAt: string | null;
     }>>;
@@ -150,6 +150,7 @@ export declare const FoundItem: z.ZodObject<{
     status: "claimed" | "stored" | "returned" | "disposal_pending" | "disposed";
     id: string;
     reference: string;
+    description: string;
     events: {
         id: string;
         kind: "verified" | "note" | "stored" | "returned" | "found" | "handed_over" | "logged" | "claim_opened" | "disposal_proposed" | "disposal_approved" | "retention_extended";
@@ -160,7 +161,6 @@ export declare const FoundItem: z.ZodObject<{
     }[];
     category: "other" | "documents" | "cash" | "electronics" | "jewellery" | "clothing" | "accessories";
     roomId: string | null;
-    description: string;
     propertyId: string;
     valuable: boolean;
     foundLocation: string;
@@ -190,8 +190,8 @@ export declare const FoundItem: z.ZodObject<{
     disposal: {
         rule: string;
         note: string;
-        proposedByName: string | null;
         proposedAt: string;
+        proposedByName: string | null;
         approvedByName: string | null;
         approvedAt: string | null;
     } | null;
@@ -200,6 +200,7 @@ export declare const FoundItem: z.ZodObject<{
     status: "claimed" | "stored" | "returned" | "disposal_pending" | "disposed";
     id: string;
     reference: string;
+    description: string;
     events: {
         id: string;
         kind: "verified" | "note" | "stored" | "returned" | "found" | "handed_over" | "logged" | "claim_opened" | "disposal_proposed" | "disposal_approved" | "retention_extended";
@@ -210,7 +211,6 @@ export declare const FoundItem: z.ZodObject<{
     }[];
     category: "other" | "documents" | "cash" | "electronics" | "jewellery" | "clothing" | "accessories";
     roomId: string | null;
-    description: string;
     propertyId: string;
     valuable: boolean;
     foundLocation: string;
@@ -240,8 +240,8 @@ export declare const FoundItem: z.ZodObject<{
     disposal: {
         rule: string;
         note: string;
-        proposedByName: string | null;
         proposedAt: string;
+        proposedByName: string | null;
         approvedByName: string | null;
         approvedAt: string | null;
     } | null;
@@ -331,15 +331,15 @@ export declare const FoundItemList: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             rule: string;
             note: string;
-            proposedByName: string | null;
             proposedAt: string;
+            proposedByName: string | null;
             approvedByName: string | null;
             approvedAt: string | null;
         }, {
             rule: string;
             note: string;
-            proposedByName: string | null;
             proposedAt: string;
+            proposedByName: string | null;
             approvedByName: string | null;
             approvedAt: string | null;
         }>>;
@@ -371,6 +371,7 @@ export declare const FoundItemList: z.ZodObject<{
         status: "claimed" | "stored" | "returned" | "disposal_pending" | "disposed";
         id: string;
         reference: string;
+        description: string;
         events: {
             id: string;
             kind: "verified" | "note" | "stored" | "returned" | "found" | "handed_over" | "logged" | "claim_opened" | "disposal_proposed" | "disposal_approved" | "retention_extended";
@@ -381,7 +382,6 @@ export declare const FoundItemList: z.ZodObject<{
         }[];
         category: "other" | "documents" | "cash" | "electronics" | "jewellery" | "clothing" | "accessories";
         roomId: string | null;
-        description: string;
         propertyId: string;
         valuable: boolean;
         foundLocation: string;
@@ -411,8 +411,8 @@ export declare const FoundItemList: z.ZodObject<{
         disposal: {
             rule: string;
             note: string;
-            proposedByName: string | null;
             proposedAt: string;
+            proposedByName: string | null;
             approvedByName: string | null;
             approvedAt: string | null;
         } | null;
@@ -421,6 +421,7 @@ export declare const FoundItemList: z.ZodObject<{
         status: "claimed" | "stored" | "returned" | "disposal_pending" | "disposed";
         id: string;
         reference: string;
+        description: string;
         events: {
             id: string;
             kind: "verified" | "note" | "stored" | "returned" | "found" | "handed_over" | "logged" | "claim_opened" | "disposal_proposed" | "disposal_approved" | "retention_extended";
@@ -431,7 +432,6 @@ export declare const FoundItemList: z.ZodObject<{
         }[];
         category: "other" | "documents" | "cash" | "electronics" | "jewellery" | "clothing" | "accessories";
         roomId: string | null;
-        description: string;
         propertyId: string;
         valuable: boolean;
         foundLocation: string;
@@ -461,8 +461,8 @@ export declare const FoundItemList: z.ZodObject<{
         disposal: {
             rule: string;
             note: string;
-            proposedByName: string | null;
             proposedAt: string;
+            proposedByName: string | null;
             approvedByName: string | null;
             approvedAt: string | null;
         } | null;
@@ -486,6 +486,7 @@ export declare const FoundItemList: z.ZodObject<{
         status: "claimed" | "stored" | "returned" | "disposal_pending" | "disposed";
         id: string;
         reference: string;
+        description: string;
         events: {
             id: string;
             kind: "verified" | "note" | "stored" | "returned" | "found" | "handed_over" | "logged" | "claim_opened" | "disposal_proposed" | "disposal_approved" | "retention_extended";
@@ -496,7 +497,6 @@ export declare const FoundItemList: z.ZodObject<{
         }[];
         category: "other" | "documents" | "cash" | "electronics" | "jewellery" | "clothing" | "accessories";
         roomId: string | null;
-        description: string;
         propertyId: string;
         valuable: boolean;
         foundLocation: string;
@@ -526,8 +526,8 @@ export declare const FoundItemList: z.ZodObject<{
         disposal: {
             rule: string;
             note: string;
-            proposedByName: string | null;
             proposedAt: string;
+            proposedByName: string | null;
             approvedByName: string | null;
             approvedAt: string | null;
         } | null;
@@ -543,6 +543,7 @@ export declare const FoundItemList: z.ZodObject<{
         status: "claimed" | "stored" | "returned" | "disposal_pending" | "disposed";
         id: string;
         reference: string;
+        description: string;
         events: {
             id: string;
             kind: "verified" | "note" | "stored" | "returned" | "found" | "handed_over" | "logged" | "claim_opened" | "disposal_proposed" | "disposal_approved" | "retention_extended";
@@ -553,7 +554,6 @@ export declare const FoundItemList: z.ZodObject<{
         }[];
         category: "other" | "documents" | "cash" | "electronics" | "jewellery" | "clothing" | "accessories";
         roomId: string | null;
-        description: string;
         propertyId: string;
         valuable: boolean;
         foundLocation: string;
@@ -583,8 +583,8 @@ export declare const FoundItemList: z.ZodObject<{
         disposal: {
             rule: string;
             note: string;
-            proposedByName: string | null;
             proposedAt: string;
+            proposedByName: string | null;
             approvedByName: string | null;
             approvedAt: string | null;
         } | null;
@@ -613,8 +613,8 @@ export declare const LogFoundItemRequest: z.ZodObject<{
     storageLocation: z.ZodOptional<z.ZodString>;
     photoCount: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
-    category: "other" | "documents" | "cash" | "electronics" | "jewellery" | "clothing" | "accessories";
     description: string;
+    category: "other" | "documents" | "cash" | "electronics" | "jewellery" | "clothing" | "accessories";
     valuable: boolean;
     foundLocation: string;
     foundAt: string;
@@ -626,8 +626,8 @@ export declare const LogFoundItemRequest: z.ZodObject<{
     storageLocation?: string | undefined;
     photoCount?: number | undefined;
 }, {
-    category: "other" | "documents" | "cash" | "electronics" | "jewellery" | "clothing" | "accessories";
     description: string;
+    category: "other" | "documents" | "cash" | "electronics" | "jewellery" | "clothing" | "accessories";
     valuable: boolean;
     foundLocation: string;
     foundAt: string;

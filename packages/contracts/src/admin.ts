@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { AdminOrgPsf } from "./psf";
+import { normalizeRwPhone } from "./phone";
+import { StaffPermission } from "./staff-authz";
 import {
     AdapterMode,
     Domain,
@@ -115,6 +117,8 @@ export const AdminAuditSubjectType = z.enum([
     "maintenance_ticket",
     "expense",
     "tax_declaration",
+    // People (migration 0125): a custom staff role made, changed or archived.
+    "staff_role",
 ]);
 export type AdminAuditSubjectType = z.infer<typeof AdminAuditSubjectType>;
 /**
@@ -175,11 +179,12 @@ export const AdminRegistrationRejectionReason = z.enum([
 export type AdminRegistrationRejectionReason = z.infer<
     typeof AdminRegistrationRejectionReason
 >;
-/** `registration_business_type`. The three paths the fee catalog prices. */
+/** `registration_business_type`. The four paths the fee catalog prices. */
 export const AdminRegistrationBusinessType = z.enum([
     "hospitality",
     "residence",
     "broker",
+    "enterprise",
 ]);
 export type AdminRegistrationBusinessType = z.infer<
     typeof AdminRegistrationBusinessType
@@ -986,8 +991,14 @@ export const AdminUserRow = z.object({
     globalRoles: z.array(GlobalRole),
     memberships: z.array(AdminUserMembership),
     staffRoles: z.array(StaffRole),
+    /** Custom staff roles held (2026-11-02), by id and name. */
+    customRoles: z.array(z.object({ id: Uuid, name: z.string() })),
     oversight: AdminOversightGrant.nullable(),
     twoFactorEnrolled: z.boolean(),
+    /** `invited`: made here and never signed in. `suspended`: may not sign in. */
+    status: z.lazy(() => AdminAccountStatus),
+    /** The last time this person signed in, or null when never (or before sign ins were recorded). */
+    lastSignInAt: z.string().nullable(),
     createdAt: z.string(),
 });
 export type AdminUserRow = z.infer<typeof AdminUserRow>;
@@ -997,6 +1008,13 @@ export const AdminUserListQuery = z.object({
     q: z.string().optional(),
     globalRole: GlobalRole.optional(),
     kyc: AdminKycState.optional(),
+    /** What kind of account (2026-11-02). A person can be several kinds; this matches any who is this one. */
+    kind: z.lazy(() => AdminAccountKind).optional(),
+    status: z.lazy(() => AdminAccountStatus).optional(),
+    /** A built-in staff role (`ops`) or a custom role's id. */
+    role: z.string().trim().max(64).optional(),
+    sort: z.enum(["name", "email", "createdAt", "lastSignInAt"]).optional(),
+    dir: z.enum(["asc", "desc"]).optional(),
     ...pageQuery,
 });
 export type AdminUserListQuery = z.infer<typeof AdminUserListQuery>;
@@ -1600,6 +1618,85 @@ export const AdminActionRequest = z.object({
 });
 export type AdminActionRequest = z.infer<typeof AdminActionRequest>;
 /**
+ * One person in full (`GET /api/v1/admin/users/:userId`): the directory row,
+ * with EVERY government seat they hold rather than the newest one, and when
+ * their staff grant was given.
+ */
+export const AdminPersonDetail = AdminUserRow.extend({
+    oversightGrants: z.array(AdminOversightGrant),
+});
+export type AdminPersonDetail = z.infer<typeof AdminPersonDetail>;
+/**
+ * Create an account by email (`POST /api/v1/admin/users`). The person signs in
+ * with the code emailed to that address; nothing else is set for them. An
+ * address that already has an account answers that account, not a second one.
+ */
+export const AdminCreateUserRequest = z.object({
+    email: z.string().trim().toLowerCase().email("Use an email address like name@example.com."),
+    name: z.string().trim().min(2, "Give the person's name.").max(200),
+    /**
+     * A phone number to show on their profile (2026-11-02). Display only: it is
+     * not a proved number, so it never signs anyone in. Empty means none.
+     */
+    phone: z.lazy(() => AdminDisplayPhone).optional(),
+    /** A staff role to give them in the same step. A government or PSF post is appointed from Leaders. */
+    grant: z.lazy(() => AdminInitialGrant).optional(),
+    reason: AdminReasonQuery.shape.reason,
+});
+export type AdminCreateUserRequest = z.infer<typeof AdminCreateUserRequest>;
+export const AdminCreateUserResponse = z.object({
+    userId: Uuid,
+    /** False when the address already had an account, which is returned instead. */
+    created: z.boolean(),
+    /** Whether the role asked for in `grant` was given. Absent when none was asked for. */
+    granted: z.boolean().optional(),
+});
+export type AdminCreateUserResponse = z.infer<typeof AdminCreateUserResponse>;
+/**
+ * Set a person's platform staff roles (`PUT /api/v1/admin/users/:userId/staff-roles`).
+ * The whole set: an empty list ends their staff access.
+ */
+export const AdminSetStaffRolesRequest = z.object({
+    roles: z.array(StaffRole).max(5),
+    reason: AdminReasonQuery.shape.reason,
+});
+export type AdminSetStaffRolesRequest = z.infer<typeof AdminSetStaffRolesRequest>;
+export const AdminStaffRolesResponse = z.object({
+    userId: Uuid,
+    staffRoles: z.array(StaffRole),
+    auditEventId: Uuid,
+});
+export type AdminStaffRolesResponse = z.infer<typeof AdminStaffRolesResponse>;
+/**
+ * Add a person to a business with a role (`POST /api/v1/admin/orgs/:orgId/members`).
+ * Directly, not by invitation: they are a member at once and are emailed that
+ * they were added. Making someone `owner` turns the current owner into a manager.
+ */
+export const AdminAddMemberRequest = z.object({
+    email: z.string().trim().toLowerCase().email("Use an email address like name@example.com."),
+    name: z.string().trim().min(2).max(200).optional(),
+    orgRole: OrgRole,
+    reason: AdminReasonQuery.shape.reason,
+});
+export type AdminAddMemberRequest = z.infer<typeof AdminAddMemberRequest>;
+/** Change a member's role (`PATCH /api/v1/admin/orgs/:orgId/members/:userId`). */
+export const AdminChangeMemberRoleRequest = z.object({
+    orgRole: OrgRole,
+    reason: AdminReasonQuery.shape.reason,
+});
+export type AdminChangeMemberRoleRequest = z.infer<typeof AdminChangeMemberRoleRequest>;
+/** What a member change did, including any owner it moved aside. */
+export const AdminMemberChange = z.object({
+    orgId: Uuid,
+    userId: Uuid,
+    orgRole: OrgRole.nullable(),
+    status: z.enum(["active", "removed"]),
+    /** Owners made managers because this person became the owner. */
+    demotedOwnerIds: z.array(Uuid),
+    auditEventId: Uuid,
+});
+export type AdminMemberChange = z.infer<typeof AdminMemberChange>;
+/**
  * Append a registration fee (ADR-053, AC-R9).
  *
  * APPEND, never edit: a new row with its own `effectiveFrom`. `currentFee` reads
@@ -1755,3 +1852,170 @@ export const AdminClaimCodeReissued = z.object({
     ...AuditReceipt,
 });
 export type AdminClaimCodeReissued = z.infer<typeof AdminClaimCodeReissued>;
+
+// ===========================================================================
+// People: accounts, custom staff roles, suspension, sign ins (2026-11-02)
+// ===========================================================================
+/** Where an account stands. */
+export const AdminAccountStatus = z.enum(["active", "invited", "suspended"]);
+export type AdminAccountStatus = z.infer<typeof AdminAccountStatus>;
+/**
+ * What kind of account, for the People filter. `staff`: holds a live staff
+ * grant. `official`: holds a government or PSF post. `business`: works in a
+ * business. `guest`: none of those.
+ */
+export const AdminAccountKind = z.enum(["staff", "official", "business", "guest"]);
+export type AdminAccountKind = z.infer<typeof AdminAccountKind>;
+/** A phone typed by staff: a Rwandan mobile is normalized to +250…, anything else kept as digits with a leading +. */
+export const AdminDisplayPhone = z
+    .string()
+    .trim()
+    .max(32)
+    .transform((raw) => {
+        if (raw === "") return "";
+        const rw = normalizeRwPhone(raw);
+        if (rw) return rw;
+        const digits = raw.replace(/[^0-9]/g, "");
+        return raw.startsWith("+") || raw.startsWith("00") ? `+${digits.replace(/^00/, "")}` : digits;
+    })
+    .refine((v) => v === "" || /^\+?[0-9]{7,15}$/.test(v), "Enter a phone number like 0788 123 456 or +256 772 123 456.");
+/** The staff role given when an account is made: a built-in role or a custom one. */
+export const AdminInitialGrant = z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("staff_role"), role: StaffRole }),
+    z.object({ kind: z.literal("custom_role"), roleId: Uuid }),
+]);
+export type AdminInitialGrant = z.infer<typeof AdminInitialGrant>;
+/** A custom role's name: short, and not one of the built-in names. */
+const CustomRoleName = z
+    .string()
+    .trim()
+    .min(2, "Give the role a name.")
+    .max(60, "Keep the name under 60 characters.");
+/** A custom staff role as the console reads it. */
+export const AdminCustomRole = z.object({
+    id: Uuid,
+    key: z.string(),
+    name: z.string(),
+    description: z.string(),
+    permissions: z.array(StaffPermission),
+    holderCount: z.number().int().nonnegative(),
+    archivedAt: z.string().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+});
+export type AdminCustomRole = z.infer<typeof AdminCustomRole>;
+/** A built-in role, read only. */
+export const AdminBuiltInRole = z.object({
+    role: StaffRole,
+    name: z.string(),
+    permissions: z.array(StaffPermission),
+    holderCount: z.number().int().nonnegative(),
+});
+export type AdminBuiltInRole = z.infer<typeof AdminBuiltInRole>;
+/** `GET /api/v1/admin/staff-roles`: every role, built in and custom, which is also the matrix. */
+export const AdminStaffRoleCatalog = z.object({
+    builtIn: z.array(AdminBuiltInRole),
+    custom: z.array(AdminCustomRole),
+});
+export type AdminStaffRoleCatalog = z.infer<typeof AdminStaffRoleCatalog>;
+/** `POST /api/v1/admin/staff-roles`. */
+export const AdminCreateCustomRoleRequest = z.object({
+    name: CustomRoleName,
+    description: z.string().trim().max(300, "Keep the description under 300 characters.").default(""),
+    permissions: z.array(StaffPermission).min(1, "Choose at least one permission.").max(64),
+    reason: AdminReasonQuery.shape.reason,
+});
+export type AdminCreateCustomRoleRequest = z.infer<typeof AdminCreateCustomRoleRequest>;
+/** `PUT /api/v1/admin/staff-roles/:roleId`: the whole role, replaced. */
+export const AdminUpdateCustomRoleRequest = AdminCreateCustomRoleRequest;
+export type AdminUpdateCustomRoleRequest = z.infer<typeof AdminUpdateCustomRoleRequest>;
+/** What a role write did. */
+export const AdminCustomRoleChange = z.object({
+    role: AdminCustomRole,
+    ...AuditReceipt,
+});
+export type AdminCustomRoleChange = z.infer<typeof AdminCustomRoleChange>;
+/** One person holding a role. */
+export const AdminRoleHolder = z.object({
+    userId: Uuid,
+    name: z.string().nullable(),
+    email: z.string(),
+    grantedAt: z.string().nullable(),
+});
+export type AdminRoleHolder = z.infer<typeof AdminRoleHolder>;
+export const AdminRoleHolders = z.object({ items: z.array(AdminRoleHolder) });
+export type AdminRoleHolders = z.infer<typeof AdminRoleHolders>;
+/** `POST /api/v1/admin/users/:userId/custom-roles`. */
+export const AdminAssignCustomRoleRequest = z.object({
+    roleId: Uuid,
+    reason: AdminReasonQuery.shape.reason,
+});
+export type AdminAssignCustomRoleRequest = z.infer<typeof AdminAssignCustomRoleRequest>;
+/** What a custom role assignment or revoke did. */
+export const AdminCustomRoleAssignment = z.object({
+    userId: Uuid,
+    roleId: Uuid,
+    held: z.boolean(),
+    ...AuditReceipt,
+});
+export type AdminCustomRoleAssignment = z.infer<typeof AdminCustomRoleAssignment>;
+/** `POST /api/v1/admin/users/:userId/suspend` and `/reactivate`. */
+export const AdminSuspensionChange = z.object({
+    userId: Uuid,
+    status: AdminAccountStatus,
+    endedSessions: z.number().int().nonnegative(),
+    ...AuditReceipt,
+});
+export type AdminSuspensionChange = z.infer<typeof AdminSuspensionChange>;
+/** `POST /api/v1/admin/users/:userId/resend-invitation`. */
+export const AdminInvitationResent = z.object({
+    userId: Uuid,
+    ...AuditReceipt,
+});
+export type AdminInvitationResent = z.infer<typeof AdminInvitationResent>;
+/** One sign in, from `sign_in_events`. */
+export const AdminSignIn = z.object({
+    occurredAt: z.string(),
+    /** How they signed in, in words: "Email code", "Password", "Google", "Phone code". */
+    method: z.string(),
+    ipAddress: z.string().nullable(),
+    userAgent: z.string().nullable(),
+});
+export type AdminSignIn = z.infer<typeof AdminSignIn>;
+/** One live session: a device that is signed in now. */
+export const AdminDevice = z.object({
+    sessionId: Uuid,
+    signedInAt: z.string(),
+    lastActiveAt: z.string(),
+    expiresAt: z.string(),
+    ipAddress: z.string().nullable(),
+    userAgent: z.string().nullable(),
+});
+export type AdminDevice = z.infer<typeof AdminDevice>;
+/** `GET /api/v1/admin/users/:userId/sign-ins`. A PII read, so it takes a reason. */
+export const AdminSignInsResponse = z.object({
+    signIns: z.array(AdminSignIn),
+    devices: z.array(AdminDevice),
+});
+export type AdminSignInsResponse = z.infer<typeof AdminSignInsResponse>;
+/** `DELETE /api/v1/admin/users/:userId/sessions/:sessionId`. */
+export const AdminSessionEnded = z.object({
+    userId: Uuid,
+    sessionId: Uuid,
+    ...AuditReceipt,
+});
+export type AdminSessionEnded = z.infer<typeof AdminSessionEnded>;
+/** One audit row about, or by, a person. */
+export const AdminActivityItem = z.object({
+    id: Uuid,
+    occurredAt: z.string(),
+    eventType: z.string(),
+    /** `about`: done to this person. `by`: done by them. */
+    direction: z.enum(["about", "by"]),
+    actorName: z.string().nullable(),
+    reason: z.string().nullable(),
+});
+export type AdminActivityItem = z.infer<typeof AdminActivityItem>;
+/** `GET /api/v1/admin/users/:userId/activity`. */
+export const AdminActivityResponse = z.object({ items: z.array(AdminActivityItem) });
+export type AdminActivityResponse = z.infer<typeof AdminActivityResponse>;

@@ -450,7 +450,7 @@ const require = createRequire(import.meta.url);
 try {
   const { drizzle } = require('drizzle-orm/node-postgres');
   const schema = require('../dist/database/drizzle/schema.js');
-  const repoModule = require('../dist/modules/payments/infrastructure/payment-transactions.repository.js');
+  const repoModule = require('../dist/modules/pay/infrastructure/payment-transactions.repository.js');
   const repo = new repoModule.PaymentTransactionsRepository(drizzle(pool, { schema }));
   const probe = {
     collectionId: collection.id,

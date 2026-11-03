@@ -65,7 +65,14 @@ function presentAppointment(row: AppointmentRow): OversightAppointment {
     name: row.name,
     email: row.email,
     role: row.role,
-    roleLabel: isLeaderRole(row.role) ? LEADER_ROLE_LABEL[row.role] : OVERSIGHT_ROLE_LABEL[row.role],
+    roleLabel: isLeaderRole(row.role)
+      ? LEADER_ROLE_LABEL[row.role]
+      : // A PSF manager is named by the level they are posted at (2026-11-02).
+        row.role === 'psf_membership_officer' && row.scopeLevel === 'province'
+        ? 'PSF Province Manager'
+        : row.role === 'psf_membership_officer' && row.scopeLevel === 'country'
+          ? 'PSF National Manager'
+          : OVERSIGHT_ROLE_LABEL[row.role],
     kind: appointmentKindOf(row.role),
     bodyCode: row.bodyCode,
     bodyName: row.bodyName,
@@ -326,7 +333,8 @@ export class LocalLeadersService {
           appUrl: this.notifier.appUrl,
           roleLabel: appointment.roleLabel,
           area: appointment.area,
-          next: leader ? '/officer/guests' : '/officer',
+          // A PSF manager lands on the PSF console (2026-11-02), as the team's own appointments do.
+          next: leader ? '/officer/guests' : appointment.role === 'psf_membership_officer' ? '/psf' : '/officer',
         }),
         'appointment',
       );

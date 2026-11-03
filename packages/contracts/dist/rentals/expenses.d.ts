@@ -37,7 +37,7 @@ export declare const RecordExpenseRequest: z.ZodEffects<z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     amountRwf: number;
     category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
-    method: "other" | "cash" | "bank" | "momo";
+    method: "other" | "cash" | "momo" | "bank";
     paidOn: string;
     note?: string | undefined;
     propertyId?: string | undefined;
@@ -48,7 +48,7 @@ export declare const RecordExpenseRequest: z.ZodEffects<z.ZodObject<{
 }, {
     amountRwf: number;
     category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
-    method: "other" | "cash" | "bank" | "momo";
+    method: "other" | "cash" | "momo" | "bank";
     paidOn: string;
     note?: string | undefined;
     propertyId?: string | undefined;
@@ -59,7 +59,7 @@ export declare const RecordExpenseRequest: z.ZodEffects<z.ZodObject<{
 }>, {
     amountRwf: number;
     category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
-    method: "other" | "cash" | "bank" | "momo";
+    method: "other" | "cash" | "momo" | "bank";
     paidOn: string;
     note?: string | undefined;
     propertyId?: string | undefined;
@@ -70,7 +70,7 @@ export declare const RecordExpenseRequest: z.ZodEffects<z.ZodObject<{
 }, {
     amountRwf: number;
     category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
-    method: "other" | "cash" | "bank" | "momo";
+    method: "other" | "cash" | "momo" | "bank";
     paidOn: string;
     note?: string | undefined;
     propertyId?: string | undefined;
@@ -147,9 +147,9 @@ export declare const ExpenseView: z.ZodObject<{
     createdAt: string;
     propertyName: string | null;
     category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+    method: "other" | "cash" | "momo" | "bank";
     ticketId: string | null;
     unitLabel: string | null;
-    method: "other" | "cash" | "bank" | "momo";
     propertyId: string | null;
     unitId: string | null;
     hasReceipt: boolean;
@@ -174,9 +174,9 @@ export declare const ExpenseView: z.ZodObject<{
     createdAt: string;
     propertyName: string | null;
     category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+    method: "other" | "cash" | "momo" | "bank";
     ticketId: string | null;
     unitLabel: string | null;
-    method: "other" | "cash" | "bank" | "momo";
     propertyId: string | null;
     unitId: string | null;
     hasReceipt: boolean;
@@ -204,28 +204,28 @@ export declare const ExpenseTotals: z.ZodObject<{
         amountRwf: z.ZodNumber;
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        amountRwf: number;
         count: number;
+        amountRwf: number;
         category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
     }, {
-        amountRwf: number;
         count: number;
+        amountRwf: number;
         category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     count: number;
     totalRwf: number;
     byCategory: {
-        amountRwf: number;
         count: number;
+        amountRwf: number;
         category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
     }[];
 }, {
     count: number;
     totalRwf: number;
     byCategory: {
-        amountRwf: number;
         count: number;
+        amountRwf: number;
         category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
     }[];
 }>;
@@ -276,9 +276,9 @@ export declare const ExpenseList: z.ZodObject<{
         createdAt: string;
         propertyName: string | null;
         category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+        method: "other" | "cash" | "momo" | "bank";
         ticketId: string | null;
         unitLabel: string | null;
-        method: "other" | "cash" | "bank" | "momo";
         propertyId: string | null;
         unitId: string | null;
         hasReceipt: boolean;
@@ -303,9 +303,9 @@ export declare const ExpenseList: z.ZodObject<{
         createdAt: string;
         propertyName: string | null;
         category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+        method: "other" | "cash" | "momo" | "bank";
         ticketId: string | null;
         unitLabel: string | null;
-        method: "other" | "cash" | "bank" | "momo";
         propertyId: string | null;
         unitId: string | null;
         hasReceipt: boolean;
@@ -332,28 +332,28 @@ export declare const ExpenseList: z.ZodObject<{
             amountRwf: z.ZodNumber;
             count: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
-            amountRwf: number;
             count: number;
+            amountRwf: number;
             category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
         }, {
-            amountRwf: number;
             count: number;
+            amountRwf: number;
             category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         count: number;
         totalRwf: number;
         byCategory: {
-            amountRwf: number;
             count: number;
+            amountRwf: number;
             category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
         }[];
     }, {
         count: number;
         totalRwf: number;
         byCategory: {
-            amountRwf: number;
             count: number;
+            amountRwf: number;
             category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
         }[];
     }>;
@@ -366,9 +366,9 @@ export declare const ExpenseList: z.ZodObject<{
         createdAt: string;
         propertyName: string | null;
         category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+        method: "other" | "cash" | "momo" | "bank";
         ticketId: string | null;
         unitLabel: string | null;
-        method: "other" | "cash" | "bank" | "momo";
         propertyId: string | null;
         unitId: string | null;
         hasReceipt: boolean;
@@ -390,8 +390,8 @@ export declare const ExpenseList: z.ZodObject<{
         count: number;
         totalRwf: number;
         byCategory: {
-            amountRwf: number;
             count: number;
+            amountRwf: number;
             category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
         }[];
     };
@@ -405,9 +405,9 @@ export declare const ExpenseList: z.ZodObject<{
         createdAt: string;
         propertyName: string | null;
         category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+        method: "other" | "cash" | "momo" | "bank";
         ticketId: string | null;
         unitLabel: string | null;
-        method: "other" | "cash" | "bank" | "momo";
         propertyId: string | null;
         unitId: string | null;
         hasReceipt: boolean;
@@ -429,8 +429,8 @@ export declare const ExpenseList: z.ZodObject<{
         count: number;
         totalRwf: number;
         byCategory: {
-            amountRwf: number;
             count: number;
+            amountRwf: number;
             category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
         }[];
     };
@@ -516,14 +516,14 @@ export declare const RecordFaultPaymentRequest: z.ZodObject<{
     note: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, string | undefined>;
 }, "strip", z.ZodTypeAny, {
     amountRwf: number;
-    method: "other" | "cash" | "bank" | "momo";
+    method: "other" | "cash" | "momo" | "bank";
     paidOn: string;
     payeeName: string;
     note?: string | undefined;
     payeePhone?: string | undefined;
 }, {
     amountRwf: number;
-    method: "other" | "cash" | "bank" | "momo";
+    method: "other" | "cash" | "momo" | "bank";
     paidOn: string;
     payeeName: string;
     note?: string | undefined;
@@ -555,26 +555,26 @@ export declare const FaultPaymentView: z.ZodObject<{
     receiptUrl: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    status: "failed" | "paid" | "waiting" | "voided";
+    status: "failed" | "waiting" | "paid" | "voided";
     id: string;
     amountRwf: number;
     failureReason: string | null;
     source: "gateway" | "recorded";
     createdAt: string;
-    method: "other" | "cash" | "bank" | "momo" | null;
+    method: "other" | "cash" | "momo" | "bank" | null;
     paidOn: string | null;
     destination: string | null;
     payeeName: string | null;
     receiptUrl: string | null;
     expenseId: string | null;
 }, {
-    status: "failed" | "paid" | "waiting" | "voided";
+    status: "failed" | "waiting" | "paid" | "voided";
     id: string;
     amountRwf: number;
     failureReason: string | null;
     source: "gateway" | "recorded";
     createdAt: string;
-    method: "other" | "cash" | "bank" | "momo" | null;
+    method: "other" | "cash" | "momo" | "bank" | null;
     paidOn: string | null;
     destination: string | null;
     payeeName: string | null;

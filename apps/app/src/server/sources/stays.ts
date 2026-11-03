@@ -16,10 +16,13 @@
  * and documents, late-checkout fees, payments in flight (MoMo prompts, unmatched transfers), the
  * company ledger and fiscal receipt list of checkout, guest profiles and the offline desk.
  */
+
+import { TOURISM_TAX_LABEL, tourismTaxIncludedRwf } from "@injishi/contracts";
 import type {
   ChargeDepartment,
   CheckoutCase,
   CheckoutLedgerLine,
+  DeskTender,
   FolioDepartment,
   FolioLine,
   FolioPayment,
@@ -384,8 +387,10 @@ function presentLines(
         ? `Reversal of ${of?.description ?? "a charge"}`
         : (c.description ?? c.chargeType.replace(/_/g, " "));
     const vat = tax?.amountRwf ? ` · VAT ${rwf(Math.abs(tax.amountRwf))} included` : "";
+    // Rwanda's 3% tourism tax is inside each room night's price (2026-10-30): said, never added.
+    const tourism = night && !reversal ? tourismTaxIncludedRwf(amount) : 0;
     const src = night
-      ? `Night audit ${dayMonth(day)}`
+      ? `Night audit ${dayMonth(day)}${tourism ? ` · ${TOURISM_TAX_LABEL} ${rwf(tourism)} included` : ""}`
       : reversal
         ? `Void · ${voidReason(c.description)}`
         : `${SOURCE_LABEL[c.sourceRefType ?? ""] ?? "Posted to the bill"}${vat}`;
@@ -530,6 +535,23 @@ function presentCheckout(
     transfer: [],
     invoice: { number: "", due: "" },
   };
+}
+
+/**
+ * What the bill's room nights come to, net of voids: the night audit's charges with their VAT, less any
+ * reversal of one. The tourism tax is worked out on this (2026-10-30).
+ */
+function roomNightsRwf(folio: ApiFolioDetail): number {
+  const nights = new Set(folio.charges.filter((c) => c.sourceRefType === "night_audit").map((c) => c.id));
+  const taxOf = (id: string) =>
+    folio.charges.find((t) => t.chargeType === "tax" && t.sourceRefType === "tax" && t.sourceRefId === id)?.amountRwf ??
+    0;
+  let total = 0;
+  for (const c of folio.charges) {
+    if (nights.has(c.id)) total += c.amountRwf + taxOf(c.id);
+    else if (c.sourceRefType === "void" && c.sourceRefId && nights.has(c.sourceRefId)) total += c.amountRwf;
+  }
+  return Math.max(0, total);
 }
 
 /** The evidence behind the balance: charges per department, then each payment. */
@@ -706,8 +728,11 @@ function presentMessages(lines: ApiMessage[], today: string): ThreadMessage[] {
             text: m.body,
             meta: `${clock(m.createdAt)} · ${m.senderName ?? "Front desk"} · guest app`,
             delivery: [],
+            id: m.id,
+            at: m.createdAt,
+            sender: m.senderName,
           }
-        : { t: "guest", text: m.body, meta: `${clock(m.createdAt)} · guest app` },
+        : { t: "guest", text: m.body, meta: `${clock(m.createdAt)} · guest app`, id: m.id, at: m.createdAt },
     );
   }
   return out;
@@ -773,6 +798,27 @@ async function inViewWithFolio(ctx: SourceContext) {
   return { ...view, folio };
 }
 
+const DESK_TENDERS: DeskTender[] = [
+  { id: "cash", label: "Cash", icon: "Wallet", network: "", hint: "Counted at shift close", blocked: false },
+  {
+    id: "mtn",
+    label: "MTN MoMo",
+    icon: "Smartphone",
+    network: "MTN Rwanda",
+    hint: "Not at the desk yet",
+    blocked: true,
+  },
+  {
+    id: "airtel",
+    label: "Airtel Money",
+    icon: "Smartphone",
+    network: "Airtel Rwanda",
+    hint: "Not at the desk yet",
+    blocked: true,
+  },
+  { id: "card", label: "Card", icon: "CreditCard", network: "", hint: "Not available yet", blocked: true },
+];
+
 export const sources = defineSources({
   // The stay record. A stay is opened by its reference or id; the list is the one stay the desk
   // deals with next (the next guest due out). Parity on shape: the prototype's stay ST-8812 is a
@@ -832,6 +878,15 @@ export const sources = defineSources({
       }));
     },
   },
+  // How the desk can take money on a bill. Cash is recorded on the bill; a MoMo or Airtel prompt
+  // from the desk has no route yet, and no card provider is signed. Without this list the bill's
+  // "Record cash" pressed into nothing: no tender, so the handler returned before any request.
+  "stays.deskTenders": {
+    parity: "shape",
+    async list(): Promise<DeskTender[]> {
+      return DESK_TENDERS;
+    },
+  },
   // Checkout opens on the next guest due out; with nobody left today, the next one due.
   "stays.checkouts": {
     parity: "shape",
@@ -848,10 +903,26 @@ export const sources = defineSources({
       const view = await checkoutOf(ctx);
       if (!view?.folio) return [];
       const id = docId(view.stay);
-      return presentLedger(
+      const ledger = presentLedger(
         presentLines(id, view.stay, view.folio, meOf(ctx)),
         presentPayments(id, view.folio, meOf(ctx), bookingOfStay(view.board, view.stay)),
       );
+      const tax = tourismTaxIncludedRwf(roomNightsRwf(view.folio));
+      // Not a charge of its own: the share of the room nights the business passes on (2026-10-30).
+      return tax > 0
+        ? [
+            ...ledger,
+            {
+              id: "tourism-tax",
+              item: `${TOURISM_TAX_LABEL} included`,
+              evidence: `${rwf(tax)} of the room nights, passed on by the business`,
+              state: "Included",
+              tone: "default",
+              amount: null,
+              afterGuestPaid: false,
+            },
+          ]
+        : ledger;
     },
   },
   "stays.messageTemplates": {

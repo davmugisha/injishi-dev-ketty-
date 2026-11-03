@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.OversightDecisionQuery = exports.OversightDecisionPage = exports.OversightDecision = exports.OversightQueueItem = exports.OversightDocumentList = exports.OversightDocument = exports.RejectRegistrationRequest = exports.PassGateRequest = exports.RegistrationReview = exports.RegistrationReviewDecision = exports.RegistrationReviewStage = exports.REJECTION_REASON_LABEL = exports.RegistrationRejectionReason = exports.CreateRegistrationRequest = exports.IntendedOwner = exports.BusinessDetails = exports.ResidenceBusiness = exports.HospitalityBusiness = exports.FranchiseDeclaration = exports.FranchiseRole = exports.PsfMembershipNumber = exports.PsfApplicationInput = exports.PsfIdDocument = exports.PSF_CONSENT_TEXT = exports.PSF_CONSENT_VERSION = exports.PsfGender = exports.PsfContactRole = exports.PsfTradeDirection = exports.PsfOwnership = exports.PsfCompanyType = exports.RegistrationBranch = exports.MAX_REGISTRATION_BRANCHES = exports.CertificateInput = exports.ORG_CERTIFICATE_KIND_LABEL = exports.OrgCertificateKind = exports.PersonalDetails = exports.Upi = exports.Tin = exports.Address = exports.InternationalAddress = exports.RwandanAddress = exports.IdentityDocumentInput = exports.PassportNumber = exports.RwandanNationalId = exports.CountryCode = exports.AccountDocumentType = exports.Gender = exports.RegistrantCapacity = exports.RegistrationBusinessType = exports.RegistrantRole = void 0;
-exports.CERTIFICATE_KIND_LABEL = exports.UploadedObject = exports.BrokerRegistrationSummary = exports.BrokerStatus = exports.CreateBrokerRegistrationRequest = exports.MyProfile = exports.MyProfileDocument = exports.RegistrationPayResult = exports.RegistrationFeeAttemptStatus = exports.RegistrationPayRequest = exports.RegistrationFeeQuote = exports.ClaimPreview = exports.ClaimOrgRequest = exports.TinCheckResult = exports.RegistryBusiness = exports.TinCheckRequest = exports.RegistrationConflictCode = exports.OPERATOR_CONTRACT_VERSION = exports.RegistrationSummary = void 0;
+exports.OversightDocumentList = exports.OversightDocument = exports.RejectRegistrationRequest = exports.PassGateRequest = exports.RegistrationReview = exports.RegistrationReviewDecision = exports.RegistrationReviewStage = exports.REJECTION_REASON_LABEL = exports.RegistrationRejectionReason = exports.CreateRegistrationRequest = exports.IntendedOwner = exports.BusinessDetails = exports.EnterpriseBusiness = exports.ResidenceBusiness = exports.HospitalityBusiness = exports.FranchiseDeclaration = exports.FranchiseRole = exports.PsfMembershipNumber = exports.NUMBERED_REGISTRATION_KINDS = exports.EnterpriseRegistrationKind = exports.PsfOwnerGroup = exports.PsfApplicationInput = exports.PsfIdDocument = exports.PSF_CONSENT_TEXT = exports.PSF_CONSENT_VERSION = exports.PsfGender = exports.PsfContactRole = exports.PsfTradeDirection = exports.PsfOwnership = exports.PsfCompanyType = exports.RegistrationBranch = exports.MAX_REGISTRATION_BRANCHES = exports.CertificateInput = exports.ORG_CERTIFICATE_KIND_LABEL = exports.OrgCertificateKind = exports.PersonalDetails = exports.Upi = exports.Tin = exports.Address = exports.InternationalAddress = exports.RwandanAddress = exports.IdentityDocumentInput = exports.PassportNumber = exports.RwandanNationalId = exports.CountryCode = exports.AccountDocumentType = exports.Gender = exports.RegistrantCapacity = exports.RegistrationBusinessType = exports.RegistrantRole = void 0;
+exports.CERTIFICATE_KIND_LABEL = exports.UploadedObject = exports.BrokerRegistrationSummary = exports.BrokerStatus = exports.CreateBrokerRegistrationRequest = exports.MyProfile = exports.MyProfileDocument = exports.RegistrationPayResult = exports.RegistrationFeeAttemptStatus = exports.RegistrationPayRequest = exports.RegistrationFeeQuote = exports.ClaimPreview = exports.ClaimOrgRequest = exports.TinCheckResult = exports.RegistryBusiness = exports.TinCheckRequest = exports.RegistrationConflictCode = exports.OPERATOR_CONTRACT_VERSION = exports.RegistrationSummary = exports.OversightDecisionQuery = exports.OversightDecisionPage = exports.OversightDecision = exports.OversightQueueItem = void 0;
 exports.businessTypeFor = businessTypeFor;
+exports.domainForRole = domainForRole;
 exports.isRwandanAddress = isRwandanAddress;
 exports.branchNameKey = branchNameKey;
 exports.stepForRejectionReason = stepForRejectionReason;
@@ -26,17 +27,21 @@ const booking_1 = require("./booking");
 /**
  * The first question the wizard asks, because it picks the whole path.
  *
- * `host` and `landlord` both create an `orgs` row and differ by `domain`;
- * `broker` creates a `brokers` row and no org at all. All three are priced
- * separately in `registration_fees`, which is why this is one enum and not a
- * boolean plus a domain.
+ * `host`, `landlord` and `enterprise` each create an `orgs` row and differ by
+ * `domain`; `broker` creates a `brokers` row and no org at all. All four are
+ * priced separately in `registration_fees`, which is why this is one enum and
+ * not a boolean plus a domain.
+ *
+ * `enterprise` is the PSF path: a business of any sector registering to join
+ * the Private Sector Federation through Injishi.
  */
-exports.RegistrantRole = zod_1.z.enum(["host", "landlord", "broker"]);
-/** The three rows `registration_fees` is keyed by (schema §8.3a). */
+exports.RegistrantRole = zod_1.z.enum(["host", "landlord", "broker", "enterprise"]);
+/** The four rows `registration_fees` is keyed by (schema §8.3a). */
 exports.RegistrationBusinessType = zod_1.z.enum([
     "hospitality",
     "residence",
     "broker",
+    "enterprise",
 ]);
 /** A registrant's answer maps onto exactly one fee row and one domain. */
 function businessTypeFor(role) {
@@ -47,6 +52,19 @@ function businessTypeFor(role) {
             return "residence";
         case "broker":
             return "broker";
+        case "enterprise":
+            return "enterprise";
+    }
+}
+/** The domain a registrant's role registers, for the three roles that create an org. */
+function domainForRole(role) {
+    switch (role) {
+        case "host":
+            return "hospitality";
+        case "landlord":
+            return "residence";
+        case "enterprise":
+            return "enterprise";
     }
 }
 /** Whether this registrant is the owner, or acting for one (OBO, FL02). */
@@ -323,8 +341,8 @@ exports.PsfCompanyType = zod_1.z.enum([
 ]);
 /** PSF's form, "Ownership", as printed. `other` carries a text. */
 exports.PsfOwnership = zod_1.z.enum([
-    "foreign_100",
     "rwandan_100",
+    "foreign_100",
     "franchise",
     "joint_venture",
     "foreign_representative",
@@ -366,8 +384,27 @@ exports.PsfIdDocument = zod_1.z.discriminatedUnion("documentType", [
 exports.PsfApplicationInput = zod_1.z
     .object({
     requestedTierCode: zod_1.z.string().trim().min(1, "Pick a membership tier.").max(60),
-    companyName: psfText(200, "Give the name PSF should record."),
-    streetAddress: psfText(200, "Give the business's street address."),
+    /**
+     * What the business will pay a year, inside the band it picked. A business
+     * pays what it can afford within its tier, so the amount is its own answer.
+     * Required for every tier except one PSF prices itself; the server checks it
+     * against the tier (`psfTierAcceptsFee`), which only the server reads.
+     */
+    declaredFeeRwf: primitives_1.RwfAmount.refine((n) => n > 0, "Give the amount you will pay.").optional(),
+    /**
+     * Who the business is, and where (2026-11-03): absent from Injishi's registration, which already
+     * names the business and places it, so the server copies them from there.
+     */
+    companyName: psfText(200, "Give the name PSF should record.").optional(),
+    streetAddress: psfText(200, "Give the business's street address.").optional(),
+    /**
+     * Its sector, kind of business and association, as the PSF form asks them (2026-11-03). Absent: a
+     * hotel is filed under PSF's hospitality association.
+     */
+    associationCode: zod_1.z.string().trim().min(1).max(60).optional(),
+    associationOther: zod_1.z.string().trim().min(2, "Name your association.").max(120).optional(),
+    subsectorId: zod_1.z.string().uuid().optional(),
+    subsectorOther: zod_1.z.string().trim().min(2, "Name the kind of business.").max(80).optional(),
     website: zod_1.z
         .string()
         .trim()
@@ -381,16 +418,22 @@ exports.PsfApplicationInput = zod_1.z
     tradeDirection: exports.PsfTradeDirection,
     tradeGoods: zod_1.z.string().trim().min(1).max(300).optional(),
     tradeCountries: zod_1.z.array(exports.CountryCode).max(50).default([]),
-    contactRole: exports.PsfContactRole,
-    firstName: psfText(80, "Give a first name."),
-    lastName: psfText(80, "Give a last name."),
-    gender: exports.PsfGender,
+    /**
+     * The contact person (2026-11-03): each is absent when the person already gave it on You, and the
+     * server copies it from their profile. Gender is asked here only when You holds neither of the two
+     * PSF's form knows.
+     */
+    contactRole: exports.PsfContactRole.optional(),
+    firstName: psfText(80, "Give a first name.").optional(),
+    lastName: psfText(80, "Give a last name.").optional(),
+    gender: exports.PsfGender.optional(),
     phoneE164: zod_1.z
         .string()
         .trim()
         .transform((v) => v.replace(/[\s-]/g, ""))
-        .pipe(zod_1.z.string().regex(/^\+\d{7,15}$/, "Include the country code, like +250788123456.")),
-    email: zod_1.z.string().trim().email("That email address does not look right."),
+        .pipe(zod_1.z.string().regex(/^\+\d{7,15}$/, "Include the country code, like +250788123456."))
+        .optional(),
+    email: zod_1.z.string().trim().email("That email address does not look right.").optional(),
     /** Absent only when `useDocumentOnFile` asks the server for it instead. */
     idDocument: exports.PsfIdDocument.optional(),
     /**
@@ -409,7 +452,8 @@ exports.PsfApplicationInput = zod_1.z
             return false;
         const years = (Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
         return years >= 18 && years <= 120;
-    }, "The person named here must be at least 18."),
+    }, "The person named here must be at least 18.")
+        .optional(),
     /** Must be ticked: an unticked box and a Yes are different acts (AC-5). */
     consent: zod_1.z.literal(true, {
         errorMap: () => ({ message: "Tick the box to agree to share this with PSF." }),
@@ -448,6 +492,22 @@ exports.PsfApplicationInput = zod_1.z
         }
     }
 });
+/**
+ * The owners PSF's Specialized cluster speaks for: women, young people and
+ * people with disabilities. A marker on a business of ANY sector, never a
+ * sector of its own, because a factory a woman owns is still a factory.
+ */
+exports.PsfOwnerGroup = zod_1.z.enum(["women", "youth", "pwd"]);
+/**
+ * How a PSF business is registered, when it says so. A TIN is optional on this
+ * path: a cooperative is registered with RCA, an NGO with RGB, and the smallest
+ * businesses PSF wants are often registered nowhere yet. `tin` is checked with
+ * RRA like every other TIN; the others are recorded as given, and the PSF
+ * officer reads them.
+ */
+exports.EnterpriseRegistrationKind = zod_1.z.enum(["tin", "rca", "rgb", "other", "none"]);
+/** The kinds that carry a number other than a TIN. */
+exports.NUMBERED_REGISTRATION_KINDS = ["rca", "rgb", "other"];
 /** The membership number a business that answered Yes may give (ADR-056 AC-1). */
 exports.PsfMembershipNumber = zod_1.z
     .string()
@@ -577,9 +637,59 @@ exports.ResidenceBusiness = businessBase.extend({
         .never({ errorMap: () => ({ message: "A residence registers without a franchise." }) })
         .optional(),
 });
+/**
+ * A business of any sector joining PSF through Injishi (the PSF path). It
+ * names its sector by the PSF association it belongs to (the cluster follows
+ * from it), may carry a TIN, and carries none of the tourism apparatus.
+ *
+ * The PSF application itself is NOT part of this: the business registers, gets
+ * its code, and applies from its own portal, where the form and the tiers live.
+ */
+exports.EnterpriseBusiness = businessBase.extend({
+    domain: zod_1.z.literal("enterprise"),
+    registrationKind: exports.EnterpriseRegistrationKind,
+    /** Required with `registrationKind: tin`, forbidden otherwise. */
+    tin: exports.Tin.optional(),
+    /** Required with `rca`, `rgb` and `other`, forbidden otherwise. */
+    registrationNumber: zod_1.z.string().trim().min(1, "Give the registration number.").max(60).optional(),
+    /** A row of the PSF association catalogue, which admin edits. */
+    associationCode: zod_1.z.string().trim().min(1, "Pick the association your business belongs to.").max(60),
+    ownerGroups: zod_1.z.array(exports.PsfOwnerGroup).max(3).default([]),
+    /** Refused, not stripped, like a residence's (ADR-054 AC-R3). */
+    branches: zod_1.z
+        .array(zod_1.z.unknown())
+        .max(0, "A PSF business registers without branches.")
+        .optional(),
+    psfApplication: zod_1.z
+        .never({ errorMap: () => ({ message: "Apply for membership from your portal once you are registered." }) })
+        .optional(),
+    psfMembershipNumber: zod_1.z
+        .never({ errorMap: () => ({ message: "Apply for membership from your portal once you are registered." }) })
+        .optional(),
+});
 exports.BusinessDetails = zod_1.z
-    .discriminatedUnion("domain", [exports.HospitalityBusiness, exports.ResidenceBusiness])
+    .discriminatedUnion("domain", [exports.HospitalityBusiness, exports.ResidenceBusiness, exports.EnterpriseBusiness])
     .superRefine((value, ctx) => {
+    if (value.domain === "enterprise") {
+        // Mirrors `orgs_registration_shape`, so the wizard can name the field.
+        if (value.registrationKind === "tin" && !value.tin) {
+            ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, path: ["tin"], message: "Enter the 9-digit TIN." });
+        }
+        if (value.registrationKind !== "tin" && value.tin) {
+            ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, path: ["tin"], message: "Only give a TIN when you pick TIN." });
+        }
+        const numbered = exports.NUMBERED_REGISTRATION_KINDS.includes(value.registrationKind);
+        if (numbered && !value.registrationNumber) {
+            ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, path: ["registrationNumber"], message: "Give the registration number." });
+        }
+        if (!numbered && value.registrationNumber) {
+            ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, path: ["registrationNumber"], message: "Leave this empty for this kind of registration." });
+        }
+        if (new Set(value.ownerGroups).size !== value.ownerGroups.length) {
+            ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, path: ["ownerGroups"], message: "Pick each group once." });
+        }
+        return;
+    }
     // ADR-075 AC-8: a franchise agreement goes with a franchisee's answer, and with nothing else.
     const franchisee = value.domain === "hospitality" && value.franchise?.role === "franchisee";
     value.certificates.forEach((certificate, index) => {
@@ -723,12 +833,24 @@ exports.CreateRegistrationRequest = zod_1.z
     intendedOwner: exports.IntendedOwner.optional(),
 })
     .superRefine((value, ctx) => {
-    const expected = value.role === "landlord" ? "residence" : "hospitality";
-    if (value.role !== "broker" && value.business.domain !== expected) {
+    if (value.role !== "broker") {
+        const expected = domainForRole(value.role);
+        if (value.business.domain !== expected) {
+            ctx.addIssue({
+                code: zod_1.z.ZodIssueCode.custom,
+                path: ["business", "domain"],
+                message: `A ${value.role} registers a ${expected} business.`,
+            });
+        }
+    }
+    // A PSF business is registered by the person who runs it. The on behalf
+    // path exists for agents who list a stranger's hotel, and its claim
+    // machinery has nothing to say to a business that lists nothing.
+    if (value.role === "enterprise" && value.capacity === "on_behalf_of") {
         ctx.addIssue({
             code: zod_1.z.ZodIssueCode.custom,
-            path: ["business", "domain"],
-            message: `A ${value.role} registers a ${expected} business.`,
+            path: ["capacity"],
+            message: "A PSF business is registered by its owner.",
         });
     }
     if (value.capacity === "on_behalf_of" && !value.intendedOwner) {
@@ -965,6 +1087,8 @@ exports.OversightDecision = zod_1.z.object({
     /** The gate decided: `tin_verified` is field verification, `field_verified` approval. */
     stage: zod_1.z.enum(["tin_verified", "field_verified"]),
     decision: zod_1.z.enum(["passed", "rejected"]),
+    /** Who decided it: a PSF District Manager's review is one step that approves (0119). */
+    oversightRole: zod_1.z.enum(["business_field_verifier", "business_approver", "psf_membership_officer"]).optional(),
     reasonCode: exports.RegistrationRejectionReason.nullable(),
     notes: zod_1.z.string().nullable(),
     governmentBodyCode: zod_1.z.string(),
@@ -989,8 +1113,11 @@ exports.RegistrationSummary = zod_1.z.object({
     workspaceId: primitives_1.Uuid,
     legalName: zod_1.z.string(),
     domain: primitives_1.Domain,
-    /** What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say. */
-    businessKind: business_kind_1.BusinessKind,
+    /**
+     * What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say.
+     * Null for a PSF business (`enterprise`), which is not a place.
+     */
+    businessKind: business_kind_1.BusinessKind.nullable(),
     accommodationClass: rdb_1.StoredAccommodationClass.nullable(),
     status: primitives_1.OrgRegistrationStatus,
     /** Set only while `status` is `pending_payment`. */
@@ -1014,6 +1141,12 @@ exports.RegistrationSummary = zod_1.z.object({
      * AC-R1). Null for a business nobody registered on behalf of anyone else.
      */
     payoutLocked: zod_1.z.boolean().nullable(),
+    /**
+     * The business's code, its district's letters and a number (`KIC0001`),
+     * given when the registration fee is paid. Null until then. Optional on the
+     * wire so a client still parses a summary from an API built before it.
+     */
+    businessCode: zod_1.z.string().nullable().default(null),
 });
 /**
  * The operator contract's version: the date its terms last changed (ADR-053).

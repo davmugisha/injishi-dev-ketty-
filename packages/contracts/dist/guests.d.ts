@@ -52,7 +52,8 @@ export declare const OVERSIGHT_ROLE_SCOPES: Readonly<Record<OversightRole, reado
 export declare function guestChainFor(fromAbroad: boolean): LeaderRole[];
 /** A guest is "from abroad" when their nationality is not Rwandan. */
 export declare function isFromAbroad(nationality: string): boolean;
-export declare const GuestHostKind: z.ZodEnum<["tenant", "landlord"]>;
+/** `hotel`: a guest checked in at a hotel, motel or lodge, filed by the desk (0114). */
+export declare const GuestHostKind: z.ZodEnum<["tenant", "landlord", "hotel"]>;
 export type GuestHostKind = z.infer<typeof GuestHostKind>;
 export declare const GuestRegistrationStatus: z.ZodEnum<["submitted", "cancelled"]>;
 export type GuestRegistrationStatus = z.infer<typeof GuestRegistrationStatus>;
@@ -77,6 +78,69 @@ export declare const GUEST_RELATIONSHIPS: ReadonlyArray<{
 }>;
 /** The relationship that asks for its own words. */
 export declare const OTHER_RELATIONSHIP = "other";
+/**
+ * The type of place, as a leader's filter and column name it: a hotel desk files its guests from the business
+ * (`orgs.business_kind`), a tenant or landlord from a residence. A motel counts as a hotel, a tented camp as
+ * a lodge and a villa as apartments; the exact kind is still shown (`guestPlaceKindLabel`).
+ */
+export declare const GUEST_PLACE_TYPES: readonly ["hotel", "lodge", "guest_house", "apartment", "residence", "other"];
+export declare const GuestPlaceType: z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>;
+export type GuestPlaceType = z.infer<typeof GuestPlaceType>;
+export declare const GUEST_PLACE_TYPE_LABEL: Readonly<Record<GuestPlaceType, string>>;
+/** The business kinds each type of place covers (a residence is any tenant's or landlord's guest). */
+export declare const GUEST_PLACE_TYPE_KINDS: Readonly<Record<Exclude<GuestPlaceType, "residence" | "other">, readonly string[]>>;
+/** The type of place from who filed the guest and the business's kind. */
+export declare function guestPlaceTypeOf(hostKind: GuestHostKind, businessKind: string | null | undefined): GuestPlaceType;
+/** The place's own kind in words: "Motel", "Tented camp", "Residence". */
+export declare function guestPlaceKindLabel(hostKind: GuestHostKind, businessKind: string | null | undefined): string;
+/** When guests arrived, relative to the Kigali day: a shared link keeps meaning "today". */
+export declare const GuestArrived: z.ZodEnum<["today", "yesterday", "last_7_days", "this_month"]>;
+export type GuestArrived = z.infer<typeof GuestArrived>;
+export declare const GUEST_ARRIVED_LABEL: Readonly<Record<GuestArrived, string>>;
+/** The days a preset covers, first and last included. */
+export declare function guestArrivedRange(preset: GuestArrived, today: string): {
+    from: string;
+    to: string;
+};
+/** When guests leave: today, or within the next 7 days (today included). */
+export declare const GuestLeaving: z.ZodEnum<["today", "next_7_days"]>;
+export type GuestLeaving = z.infer<typeof GuestLeaving>;
+export declare const GUEST_LEAVING_LABEL: Readonly<Record<GuestLeaving, string>>;
+/** How long the stay is, in nights from arrival to departure. */
+export declare const GuestLength: z.ZodEnum<["under_3", "week", "month"]>;
+export type GuestLength = z.infer<typeof GuestLength>;
+export declare const GUEST_LENGTH_LABEL: Readonly<Record<GuestLength, string>>;
+/** The nights each length covers: `min` and `max` included. */
+export declare const GUEST_LENGTH_NIGHTS: Readonly<Record<GuestLength, {
+    min?: number;
+    max?: number;
+}>>;
+/** Does a stay of so many nights fall in a length? */
+export declare function guestLengthHolds(length: GuestLength, nights: number): boolean;
+/**
+ * Who reads a console: local government (every guest, Rwandan or foreign) or DGIE (guests from abroad only).
+ * A person holding posts in both reads as local government, the wider of the two.
+ */
+export declare const LeaderAudience: z.ZodEnum<["local", "dgie"]>;
+export type LeaderAudience = z.infer<typeof LeaderAudience>;
+export declare function leaderAudienceOf(roles: readonly LeaderRole[]): LeaderAudience;
+/**
+ * Where a guest stays, in two lines for a list or a file: the place (the business, or the landlord's
+ * building), and who hosted them there (the room, the tenant and their unit, or the landlord).
+ */
+export declare function guestHostLines(g: {
+    host: {
+        kind: GuestHostKind;
+        name: string;
+    };
+    place: {
+        name: string;
+        room: string | null;
+    };
+}): {
+    place: string;
+    detail: string;
+};
 /**
  * A guest's phone in E.164: a Rwandan mobile however it is spaced
  * (`0788 123 456`), or a number from another country with its + code. The
@@ -164,9 +228,6 @@ export declare const TenantGuestRequest: z.ZodEffects<z.ZodObject<{
     departureOn: z.ZodEffects<z.ZodString, string, string>;
 }, "strip", z.ZodTypeAny, {
     fullName: string;
-    phone: string;
-    arrivalOn: string;
-    departureOn: string;
     origin: {
         kind: "village";
         villageId: number;
@@ -174,16 +235,16 @@ export declare const TenantGuestRequest: z.ZodEffects<z.ZodObject<{
         kind: "country";
         countryCode: string;
     };
+    phone: string;
     nationality: string;
+    arrivalOn: string;
+    departureOn: string;
     relationship: string;
     idNumber?: string | null | undefined;
     idKind?: "national_id" | "passport" | null | undefined;
     relationshipOther?: string | null | undefined;
 }, {
     fullName: string;
-    phone: string;
-    arrivalOn: string;
-    departureOn: string;
     origin: {
         kind: "village";
         villageId: number;
@@ -191,16 +252,16 @@ export declare const TenantGuestRequest: z.ZodEffects<z.ZodObject<{
         kind: "country";
         countryCode: string;
     };
+    phone: string;
+    arrivalOn: string;
+    departureOn: string;
     relationship: string;
     idNumber?: string | null | undefined;
+    nationality?: string | undefined;
     idKind?: "national_id" | "passport" | null | undefined;
     relationshipOther?: string | null | undefined;
-    nationality?: string | undefined;
 }>, {
     fullName: string;
-    phone: string;
-    arrivalOn: string;
-    departureOn: string;
     origin: {
         kind: "village";
         villageId: number;
@@ -208,16 +269,16 @@ export declare const TenantGuestRequest: z.ZodEffects<z.ZodObject<{
         kind: "country";
         countryCode: string;
     };
+    phone: string;
     nationality: string;
+    arrivalOn: string;
+    departureOn: string;
     relationship: string;
     idNumber?: string | null | undefined;
     idKind?: "national_id" | "passport" | null | undefined;
     relationshipOther?: string | null | undefined;
 }, {
     fullName: string;
-    phone: string;
-    arrivalOn: string;
-    departureOn: string;
     origin: {
         kind: "village";
         villageId: number;
@@ -225,11 +286,14 @@ export declare const TenantGuestRequest: z.ZodEffects<z.ZodObject<{
         kind: "country";
         countryCode: string;
     };
+    phone: string;
+    arrivalOn: string;
+    departureOn: string;
     relationship: string;
     idNumber?: string | null | undefined;
+    nationality?: string | undefined;
     idKind?: "national_id" | "passport" | null | undefined;
     relationshipOther?: string | null | undefined;
-    nationality?: string | undefined;
 }>;
 export type TenantGuestRequest = z.infer<typeof TenantGuestRequest>;
 /** A landlord registers their own guest at one of their buildings: `POST /ops/guests`, and `PATCH …/:id`. */
@@ -266,10 +330,6 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
     departureOn: z.ZodEffects<z.ZodString, string, string>;
 }, "strip", z.ZodTypeAny, {
     fullName: string;
-    phone: string;
-    propertyId: string;
-    arrivalOn: string;
-    departureOn: string;
     origin: {
         kind: "village";
         villageId: number;
@@ -277,7 +337,11 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
         kind: "country";
         countryCode: string;
     };
+    phone: string;
     nationality: string;
+    propertyId: string;
+    arrivalOn: string;
+    departureOn: string;
     relationship: string;
     idNumber?: string | null | undefined;
     unitId?: string | null | undefined;
@@ -285,10 +349,6 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
     relationshipOther?: string | null | undefined;
 }, {
     fullName: string;
-    phone: string;
-    propertyId: string;
-    arrivalOn: string;
-    departureOn: string;
     origin: {
         kind: "village";
         villageId: number;
@@ -296,18 +356,18 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
         kind: "country";
         countryCode: string;
     };
+    phone: string;
+    propertyId: string;
+    arrivalOn: string;
+    departureOn: string;
     relationship: string;
     idNumber?: string | null | undefined;
+    nationality?: string | undefined;
     unitId?: string | null | undefined;
     idKind?: "national_id" | "passport" | null | undefined;
     relationshipOther?: string | null | undefined;
-    nationality?: string | undefined;
 }>, {
     fullName: string;
-    phone: string;
-    propertyId: string;
-    arrivalOn: string;
-    departureOn: string;
     origin: {
         kind: "village";
         villageId: number;
@@ -315,7 +375,11 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
         kind: "country";
         countryCode: string;
     };
+    phone: string;
     nationality: string;
+    propertyId: string;
+    arrivalOn: string;
+    departureOn: string;
     relationship: string;
     idNumber?: string | null | undefined;
     unitId?: string | null | undefined;
@@ -323,10 +387,6 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
     relationshipOther?: string | null | undefined;
 }, {
     fullName: string;
-    phone: string;
-    propertyId: string;
-    arrivalOn: string;
-    departureOn: string;
     origin: {
         kind: "village";
         villageId: number;
@@ -334,12 +394,16 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
         kind: "country";
         countryCode: string;
     };
+    phone: string;
+    propertyId: string;
+    arrivalOn: string;
+    departureOn: string;
     relationship: string;
     idNumber?: string | null | undefined;
+    nationality?: string | undefined;
     unitId?: string | null | undefined;
     idKind?: "national_id" | "passport" | null | undefined;
     relationshipOther?: string | null | undefined;
-    nationality?: string | undefined;
 }>;
 export type LandlordGuestRequest = z.infer<typeof LandlordGuestRequest>;
 /** One step of the chain as the host reads it: who it went to and where it stands. Never a flag. */
@@ -349,20 +413,20 @@ export declare const HostChainStep: z.ZodObject<{
     step: z.ZodNumber;
     state: z.ZodEnum<["waiting", "delivered", "seen"]>;
 }, "strip", z.ZodTypeAny, {
-    state: "delivered" | "waiting" | "seen";
+    state: "waiting" | "delivered" | "seen";
     role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-    roleLabel: string;
     step: number;
+    roleLabel: string;
 }, {
-    state: "delivered" | "waiting" | "seen";
+    state: "waiting" | "delivered" | "seen";
     role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-    roleLabel: string;
     step: number;
+    roleLabel: string;
 }>;
 export type HostChainStep = z.infer<typeof HostChainStep>;
 export declare const HostGuest: z.ZodObject<{
     id: z.ZodString;
-    hostKind: z.ZodEnum<["tenant", "landlord"]>;
+    hostKind: z.ZodEnum<["tenant", "landlord", "hotel"]>;
     fullName: z.ZodString;
     phone: z.ZodString;
     nationality: z.ZodString;
@@ -412,15 +476,15 @@ export declare const HostGuest: z.ZodObject<{
         step: z.ZodNumber;
         state: z.ZodEnum<["waiting", "delivered", "seen"]>;
     }, "strip", z.ZodTypeAny, {
-        state: "delivered" | "waiting" | "seen";
+        state: "waiting" | "delivered" | "seen";
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-        roleLabel: string;
         step: number;
+        roleLabel: string;
     }, {
-        state: "delivered" | "waiting" | "seen";
+        state: "waiting" | "delivered" | "seen";
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-        roleLabel: string;
         step: number;
+        roleLabel: string;
     }>, "many">;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
@@ -428,10 +492,18 @@ export declare const HostGuest: z.ZodObject<{
     id: string;
     nights: number;
     fullName: string;
+    origin: {
+        kind: "village";
+        villageId: number;
+    } | {
+        kind: "country";
+        countryCode: string;
+    };
+    phone: string;
     createdAt: string;
     propertyName: string;
-    phone: string;
     idNumber: string | null;
+    nationality: string;
     stay: "arriving" | "staying" | "left" | null;
     unitLabel: string | null;
     propertyId: string;
@@ -440,36 +512,36 @@ export declare const HostGuest: z.ZodObject<{
     unitId: string | null;
     idKind: "national_id" | "passport" | null;
     relationshipOther: string | null;
-    origin: {
-        kind: "village";
-        villageId: number;
-    } | {
-        kind: "country";
-        countryCode: string;
-    };
-    nationality: string;
     relationship: string;
-    hostKind: "landlord" | "tenant";
+    hostKind: "hotel" | "landlord" | "tenant";
     nationalityName: string;
     fromAbroad: boolean;
     relationshipLabel: string;
     originWords: string;
     canChange: boolean;
     chain: {
-        state: "delivered" | "waiting" | "seen";
+        state: "waiting" | "delivered" | "seen";
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-        roleLabel: string;
         step: number;
+        roleLabel: string;
     }[];
 }, {
     status: "submitted" | "cancelled";
     id: string;
     nights: number;
     fullName: string;
+    origin: {
+        kind: "village";
+        villageId: number;
+    } | {
+        kind: "country";
+        countryCode: string;
+    };
+    phone: string;
     createdAt: string;
     propertyName: string;
-    phone: string;
     idNumber: string | null;
+    nationality: string;
     stay: "arriving" | "staying" | "left" | null;
     unitLabel: string | null;
     propertyId: string;
@@ -478,26 +550,18 @@ export declare const HostGuest: z.ZodObject<{
     unitId: string | null;
     idKind: "national_id" | "passport" | null;
     relationshipOther: string | null;
-    origin: {
-        kind: "village";
-        villageId: number;
-    } | {
-        kind: "country";
-        countryCode: string;
-    };
-    nationality: string;
     relationship: string;
-    hostKind: "landlord" | "tenant";
+    hostKind: "hotel" | "landlord" | "tenant";
     nationalityName: string;
     fromAbroad: boolean;
     relationshipLabel: string;
     originWords: string;
     canChange: boolean;
     chain: {
-        state: "delivered" | "waiting" | "seen";
+        state: "waiting" | "delivered" | "seen";
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-        roleLabel: string;
         step: number;
+        roleLabel: string;
     }[];
 }>;
 export type HostGuest = z.infer<typeof HostGuest>;
@@ -522,20 +586,20 @@ export declare const GuestBuilding: z.ZodObject<{
     name: string;
     id: string;
     address: string | null;
-    located: boolean;
     units: {
         id: string;
         label: string;
     }[];
+    located: boolean;
 }, {
     name: string;
     id: string;
     address: string | null;
-    located: boolean;
     units: {
         id: string;
         label: string;
     }[];
+    located: boolean;
 }>;
 export type GuestBuilding = z.infer<typeof GuestBuilding>;
 export declare const HostGuestTab: z.ZodEnum<["arriving", "staying", "left", "cancelled"]>;
@@ -551,7 +615,7 @@ export type HostGuestQuery = z.infer<typeof HostGuestQuery>;
 export declare const HostGuestList: z.ZodObject<{
     guests: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
-        hostKind: z.ZodEnum<["tenant", "landlord"]>;
+        hostKind: z.ZodEnum<["tenant", "landlord", "hotel"]>;
         fullName: z.ZodString;
         phone: z.ZodString;
         nationality: z.ZodString;
@@ -601,15 +665,15 @@ export declare const HostGuestList: z.ZodObject<{
             step: z.ZodNumber;
             state: z.ZodEnum<["waiting", "delivered", "seen"]>;
         }, "strip", z.ZodTypeAny, {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }, {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }>, "many">;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
@@ -617,10 +681,18 @@ export declare const HostGuestList: z.ZodObject<{
         id: string;
         nights: number;
         fullName: string;
+        origin: {
+            kind: "village";
+            villageId: number;
+        } | {
+            kind: "country";
+            countryCode: string;
+        };
+        phone: string;
         createdAt: string;
         propertyName: string;
-        phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -629,36 +701,36 @@ export declare const HostGuestList: z.ZodObject<{
         unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
-        origin: {
-            kind: "village";
-            villageId: number;
-        } | {
-            kind: "country";
-            countryCode: string;
-        };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "hotel" | "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
         originWords: string;
         canChange: boolean;
         chain: {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }[];
     }, {
         status: "submitted" | "cancelled";
         id: string;
         nights: number;
         fullName: string;
+        origin: {
+            kind: "village";
+            villageId: number;
+        } | {
+            kind: "country";
+            countryCode: string;
+        };
+        phone: string;
         createdAt: string;
         propertyName: string;
-        phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -667,26 +739,18 @@ export declare const HostGuestList: z.ZodObject<{
         unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
-        origin: {
-            kind: "village";
-            villageId: number;
-        } | {
-            kind: "country";
-            countryCode: string;
-        };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "hotel" | "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
         originWords: string;
         canChange: boolean;
         chain: {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }[];
     }>, "many">;
     counts: z.ZodRecord<z.ZodEnum<["arriving", "staying", "left", "cancelled"]>, z.ZodNumber>;
@@ -696,10 +760,18 @@ export declare const HostGuestList: z.ZodObject<{
         id: string;
         nights: number;
         fullName: string;
+        origin: {
+            kind: "village";
+            villageId: number;
+        } | {
+            kind: "country";
+            countryCode: string;
+        };
+        phone: string;
         createdAt: string;
         propertyName: string;
-        phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -708,26 +780,18 @@ export declare const HostGuestList: z.ZodObject<{
         unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
-        origin: {
-            kind: "village";
-            villageId: number;
-        } | {
-            kind: "country";
-            countryCode: string;
-        };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "hotel" | "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
         originWords: string;
         canChange: boolean;
         chain: {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }[];
     }[];
     counts: Partial<Record<"cancelled" | "arriving" | "staying" | "left", number>>;
@@ -737,10 +801,18 @@ export declare const HostGuestList: z.ZodObject<{
         id: string;
         nights: number;
         fullName: string;
+        origin: {
+            kind: "village";
+            villageId: number;
+        } | {
+            kind: "country";
+            countryCode: string;
+        };
+        phone: string;
         createdAt: string;
         propertyName: string;
-        phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -749,26 +821,18 @@ export declare const HostGuestList: z.ZodObject<{
         unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
-        origin: {
-            kind: "village";
-            villageId: number;
-        } | {
-            kind: "country";
-            countryCode: string;
-        };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "hotel" | "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
         originWords: string;
         canChange: boolean;
         chain: {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }[];
     }[];
     counts: Partial<Record<"cancelled" | "arriving" | "staying" | "left", number>>;
@@ -778,7 +842,7 @@ export type HostGuestList = z.infer<typeof HostGuestList>;
 export declare const TenantGuestList: z.ZodObject<{
     guests: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
-        hostKind: z.ZodEnum<["tenant", "landlord"]>;
+        hostKind: z.ZodEnum<["tenant", "landlord", "hotel"]>;
         fullName: z.ZodString;
         phone: z.ZodString;
         nationality: z.ZodString;
@@ -828,15 +892,15 @@ export declare const TenantGuestList: z.ZodObject<{
             step: z.ZodNumber;
             state: z.ZodEnum<["waiting", "delivered", "seen"]>;
         }, "strip", z.ZodTypeAny, {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }, {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }>, "many">;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
@@ -844,10 +908,18 @@ export declare const TenantGuestList: z.ZodObject<{
         id: string;
         nights: number;
         fullName: string;
+        origin: {
+            kind: "village";
+            villageId: number;
+        } | {
+            kind: "country";
+            countryCode: string;
+        };
+        phone: string;
         createdAt: string;
         propertyName: string;
-        phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -856,36 +928,36 @@ export declare const TenantGuestList: z.ZodObject<{
         unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
-        origin: {
-            kind: "village";
-            villageId: number;
-        } | {
-            kind: "country";
-            countryCode: string;
-        };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "hotel" | "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
         originWords: string;
         canChange: boolean;
         chain: {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }[];
     }, {
         status: "submitted" | "cancelled";
         id: string;
         nights: number;
         fullName: string;
+        origin: {
+            kind: "village";
+            villageId: number;
+        } | {
+            kind: "country";
+            countryCode: string;
+        };
+        phone: string;
         createdAt: string;
         propertyName: string;
-        phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -894,26 +966,18 @@ export declare const TenantGuestList: z.ZodObject<{
         unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
-        origin: {
-            kind: "village";
-            villageId: number;
-        } | {
-            kind: "country";
-            countryCode: string;
-        };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "hotel" | "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
         originWords: string;
         canChange: boolean;
         chain: {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }[];
     }>, "many">;
     counts: z.ZodRecord<z.ZodEnum<["arriving", "staying", "left", "cancelled"]>, z.ZodNumber>;
@@ -934,10 +998,18 @@ export declare const TenantGuestList: z.ZodObject<{
         id: string;
         nights: number;
         fullName: string;
+        origin: {
+            kind: "village";
+            villageId: number;
+        } | {
+            kind: "country";
+            countryCode: string;
+        };
+        phone: string;
         createdAt: string;
         propertyName: string;
-        phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -946,26 +1018,18 @@ export declare const TenantGuestList: z.ZodObject<{
         unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
-        origin: {
-            kind: "village";
-            villageId: number;
-        } | {
-            kind: "country";
-            countryCode: string;
-        };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "hotel" | "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
         originWords: string;
         canChange: boolean;
         chain: {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }[];
     }[];
     counts: Partial<Record<"cancelled" | "arriving" | "staying" | "left", number>>;
@@ -979,10 +1043,18 @@ export declare const TenantGuestList: z.ZodObject<{
         id: string;
         nights: number;
         fullName: string;
+        origin: {
+            kind: "village";
+            villageId: number;
+        } | {
+            kind: "country";
+            countryCode: string;
+        };
+        phone: string;
         createdAt: string;
         propertyName: string;
-        phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -991,26 +1063,18 @@ export declare const TenantGuestList: z.ZodObject<{
         unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
-        origin: {
-            kind: "village";
-            villageId: number;
-        } | {
-            kind: "country";
-            countryCode: string;
-        };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "hotel" | "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
         originWords: string;
         canChange: boolean;
         chain: {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }[];
     }[];
     counts: Partial<Record<"cancelled" | "arriving" | "staying" | "left", number>>;
@@ -1024,7 +1088,7 @@ export type TenantGuestList = z.infer<typeof TenantGuestList>;
 export declare const LandlordGuestList: z.ZodObject<{
     guests: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
-        hostKind: z.ZodEnum<["tenant", "landlord"]>;
+        hostKind: z.ZodEnum<["tenant", "landlord", "hotel"]>;
         fullName: z.ZodString;
         phone: z.ZodString;
         nationality: z.ZodString;
@@ -1074,15 +1138,15 @@ export declare const LandlordGuestList: z.ZodObject<{
             step: z.ZodNumber;
             state: z.ZodEnum<["waiting", "delivered", "seen"]>;
         }, "strip", z.ZodTypeAny, {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }, {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }>, "many">;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
@@ -1090,10 +1154,18 @@ export declare const LandlordGuestList: z.ZodObject<{
         id: string;
         nights: number;
         fullName: string;
+        origin: {
+            kind: "village";
+            villageId: number;
+        } | {
+            kind: "country";
+            countryCode: string;
+        };
+        phone: string;
         createdAt: string;
         propertyName: string;
-        phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -1102,36 +1174,36 @@ export declare const LandlordGuestList: z.ZodObject<{
         unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
-        origin: {
-            kind: "village";
-            villageId: number;
-        } | {
-            kind: "country";
-            countryCode: string;
-        };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "hotel" | "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
         originWords: string;
         canChange: boolean;
         chain: {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }[];
     }, {
         status: "submitted" | "cancelled";
         id: string;
         nights: number;
         fullName: string;
+        origin: {
+            kind: "village";
+            villageId: number;
+        } | {
+            kind: "country";
+            countryCode: string;
+        };
+        phone: string;
         createdAt: string;
         propertyName: string;
-        phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -1140,26 +1212,18 @@ export declare const LandlordGuestList: z.ZodObject<{
         unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
-        origin: {
-            kind: "village";
-            villageId: number;
-        } | {
-            kind: "country";
-            countryCode: string;
-        };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "hotel" | "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
         originWords: string;
         canChange: boolean;
         chain: {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }[];
     }>, "many">;
     counts: z.ZodRecord<z.ZodEnum<["arriving", "staying", "left", "cancelled"]>, z.ZodNumber>;
@@ -1184,20 +1248,20 @@ export declare const LandlordGuestList: z.ZodObject<{
         name: string;
         id: string;
         address: string | null;
-        located: boolean;
         units: {
             id: string;
             label: string;
         }[];
+        located: boolean;
     }, {
         name: string;
         id: string;
         address: string | null;
-        located: boolean;
         units: {
             id: string;
             label: string;
         }[];
+        located: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     guests: {
@@ -1205,10 +1269,18 @@ export declare const LandlordGuestList: z.ZodObject<{
         id: string;
         nights: number;
         fullName: string;
+        origin: {
+            kind: "village";
+            villageId: number;
+        } | {
+            kind: "country";
+            countryCode: string;
+        };
+        phone: string;
         createdAt: string;
         propertyName: string;
-        phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -1217,26 +1289,18 @@ export declare const LandlordGuestList: z.ZodObject<{
         unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
-        origin: {
-            kind: "village";
-            villageId: number;
-        } | {
-            kind: "country";
-            countryCode: string;
-        };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "hotel" | "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
         originWords: string;
         canChange: boolean;
         chain: {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }[];
     }[];
     counts: Partial<Record<"cancelled" | "arriving" | "staying" | "left", number>>;
@@ -1244,11 +1308,11 @@ export declare const LandlordGuestList: z.ZodObject<{
         name: string;
         id: string;
         address: string | null;
-        located: boolean;
         units: {
             id: string;
             label: string;
         }[];
+        located: boolean;
     }[];
 }, {
     guests: {
@@ -1256,10 +1320,18 @@ export declare const LandlordGuestList: z.ZodObject<{
         id: string;
         nights: number;
         fullName: string;
+        origin: {
+            kind: "village";
+            villageId: number;
+        } | {
+            kind: "country";
+            countryCode: string;
+        };
+        phone: string;
         createdAt: string;
         propertyName: string;
-        phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -1268,26 +1340,18 @@ export declare const LandlordGuestList: z.ZodObject<{
         unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
-        origin: {
-            kind: "village";
-            villageId: number;
-        } | {
-            kind: "country";
-            countryCode: string;
-        };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "hotel" | "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
         originWords: string;
         canChange: boolean;
         chain: {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
         }[];
     }[];
     counts: Partial<Record<"cancelled" | "arriving" | "staying" | "left", number>>;
@@ -1295,11 +1359,11 @@ export declare const LandlordGuestList: z.ZodObject<{
         name: string;
         id: string;
         address: string | null;
-        located: boolean;
         units: {
             id: string;
             label: string;
         }[];
+        located: boolean;
     }[];
 }>;
 export type LandlordGuestList = z.infer<typeof LandlordGuestList>;
@@ -1328,7 +1392,8 @@ export declare const GuestRelationship: z.ZodObject<{
     needsDetail: boolean;
 }>;
 export type GuestRelationship = z.infer<typeof GuestRelationship>;
-export declare const LeaderGuestTab: z.ZodEnum<["arriving", "staying", "left", "flagged"]>;
+/** `all` (the default): every guest in the area, nothing chosen for the leader. */
+export declare const LeaderGuestTab: z.ZodEnum<["all", "arriving", "staying", "left", "flagged"]>;
 export type LeaderGuestTab = z.infer<typeof LeaderGuestTab>;
 /** The Arriving tab's window: the next 7 days, or everyone arriving after that. */
 export declare const LeaderArrivingWhen: z.ZodEnum<["soon", "later"]>;
@@ -1336,40 +1401,106 @@ export type LeaderArrivingWhen = z.infer<typeof LeaderArrivingWhen>;
 /** A guest filter by nationality, in the leader's words: everyone, Rwandans, or guests from other countries. */
 export declare const ReportOrigin: z.ZodEnum<["nationals", "international"]>;
 export type ReportOrigin = z.infer<typeof ReportOrigin>;
-export declare const LeaderGuestQuery: z.ZodObject<{
-    tab: z.ZodDefault<z.ZodEnum<["arriving", "staying", "left", "flagged"]>>;
+export declare const LeaderGuestQuery: z.ZodEffects<z.ZodObject<{
+    /** Arrived today, yesterday, in the last 7 days or this month (Kigali days). */
+    arrived: z.ZodOptional<z.ZodEnum<["today", "yesterday", "last_7_days", "this_month"]>>;
+    /** Arrived between two days, both included: a custom range, in place of `arrived`. */
+    arrivedFrom: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
+    arrivedTo: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
+    /** In the area on this day: arrived on or before it, leaving on or after it. */
+    presentOn: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
+    leaving: z.ZodOptional<z.ZodEnum<["today", "next_7_days"]>>;
+    page: z.ZodDefault<z.ZodNumber>;
+    /** Rwandan guests, or guests of another nationality. */
+    origin: z.ZodOptional<z.ZodEnum<["nationals", "international"]>>;
+    /** One nationality (ISO 3166-1 alpha-2). */
+    nationality: z.ZodOptional<z.ZodString>;
+    /** One relationship code (`guest_relationships`), or `hotel_guest`. */
+    relationship: z.ZodOptional<z.ZodString>;
+    placeType: z.ZodOptional<z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>>;
+    length: z.ZodOptional<z.ZodEnum<["under_3", "week", "month"]>>;
+    tab: z.ZodDefault<z.ZodEnum<["all", "arriving", "staying", "left", "flagged"]>>;
     when: z.ZodDefault<z.ZodEnum<["soon", "later"]>>;
     sectorId: z.ZodOptional<z.ZodNumber>;
     cellId: z.ZodOptional<z.ZodNumber>;
     villageId: z.ZodOptional<z.ZodNumber>;
     q: z.ZodOptional<z.ZodString>;
-    /** Rwandan guests, or guests of another nationality. */
-    origin: z.ZodOptional<z.ZodEnum<["nationals", "international"]>>;
-    /** One nationality (ISO 3166-1 alpha-2). */
-    nationality: z.ZodOptional<z.ZodString>;
-    page: z.ZodDefault<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     page: number;
-    tab: "arriving" | "staying" | "left" | "flagged";
+    tab: "all" | "arriving" | "staying" | "left" | "flagged";
     when: "soon" | "later";
+    length?: "month" | "under_3" | "week" | undefined;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
-    q?: string | undefined;
     origin?: "nationals" | "international" | undefined;
+    q?: string | undefined;
     nationality?: string | undefined;
+    relationship?: string | undefined;
+    arrived?: "today" | "yesterday" | "last_7_days" | "this_month" | undefined;
+    arrivedFrom?: string | undefined;
+    arrivedTo?: string | undefined;
+    presentOn?: string | undefined;
+    leaving?: "today" | "next_7_days" | undefined;
+    placeType?: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge" | undefined;
 }, {
+    length?: "month" | "under_3" | "week" | undefined;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
-    page?: number | undefined;
-    q?: string | undefined;
     origin?: "nationals" | "international" | undefined;
+    q?: string | undefined;
+    page?: number | undefined;
     nationality?: string | undefined;
-    tab?: "arriving" | "staying" | "left" | "flagged" | undefined;
+    relationship?: string | undefined;
+    tab?: "all" | "arriving" | "staying" | "left" | "flagged" | undefined;
     when?: "soon" | "later" | undefined;
+    arrived?: "today" | "yesterday" | "last_7_days" | "this_month" | undefined;
+    arrivedFrom?: string | undefined;
+    arrivedTo?: string | undefined;
+    presentOn?: string | undefined;
+    leaving?: "today" | "next_7_days" | undefined;
+    placeType?: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge" | undefined;
+}>, {
+    page: number;
+    tab: "all" | "arriving" | "staying" | "left" | "flagged";
+    when: "soon" | "later";
+    length?: "month" | "under_3" | "week" | undefined;
+    sectorId?: number | undefined;
+    cellId?: number | undefined;
+    villageId?: number | undefined;
+    origin?: "nationals" | "international" | undefined;
+    q?: string | undefined;
+    nationality?: string | undefined;
+    relationship?: string | undefined;
+    arrived?: "today" | "yesterday" | "last_7_days" | "this_month" | undefined;
+    arrivedFrom?: string | undefined;
+    arrivedTo?: string | undefined;
+    presentOn?: string | undefined;
+    leaving?: "today" | "next_7_days" | undefined;
+    placeType?: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge" | undefined;
+}, {
+    length?: "month" | "under_3" | "week" | undefined;
+    sectorId?: number | undefined;
+    cellId?: number | undefined;
+    villageId?: number | undefined;
+    origin?: "nationals" | "international" | undefined;
+    q?: string | undefined;
+    page?: number | undefined;
+    nationality?: string | undefined;
+    relationship?: string | undefined;
+    tab?: "all" | "arriving" | "staying" | "left" | "flagged" | undefined;
+    when?: "soon" | "later" | undefined;
+    arrived?: "today" | "yesterday" | "last_7_days" | "this_month" | undefined;
+    arrivedFrom?: string | undefined;
+    arrivedTo?: string | undefined;
+    presentOn?: string | undefined;
+    leaving?: "today" | "next_7_days" | undefined;
+    placeType?: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge" | undefined;
 }>;
 export type LeaderGuestQuery = z.infer<typeof LeaderGuestQuery>;
+/** The guest filters that narrow a list or report, as an address keeps them: the list's, then the report's. */
+export declare const GUEST_LIST_FILTER_KEYS: readonly ["origin", "nationality", "relationship", "placeType", "length", "arrived", "arrivedFrom", "arrivedTo", "presentOn", "leaving"];
 export declare const FlagGuestRequest: z.ZodObject<{
     note: z.ZodString;
 }, "strip", z.ZodTypeAny, {
@@ -1401,10 +1532,10 @@ export declare const LeaderChainStep: z.ZodObject<{
         by: string | null;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    state: "delivered" | "waiting" | "seen";
+    state: "waiting" | "delivered" | "seen";
     role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-    roleLabel: string;
     step: number;
+    roleLabel: string;
     deliveredAt: string | null;
     seenAt: string | null;
     seenBy: string | null;
@@ -1414,10 +1545,10 @@ export declare const LeaderChainStep: z.ZodObject<{
         by: string | null;
     } | null;
 }, {
-    state: "delivered" | "waiting" | "seen";
+    state: "waiting" | "delivered" | "seen";
     role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-    roleLabel: string;
     step: number;
+    roleLabel: string;
     deliveredAt: string | null;
     seenAt: string | null;
     seenBy: string | null;
@@ -1444,18 +1575,38 @@ export declare const LeaderGuest: z.ZodObject<{
     nights: z.ZodNumber;
     stay: z.ZodEnum<["arriving", "staying", "left"]>;
     host: z.ZodObject<{
-        kind: z.ZodEnum<["tenant", "landlord"]>;
+        kind: z.ZodEnum<["tenant", "landlord", "hotel"]>;
+        /** The tenant or the landlord who filed the guest; for a hotel, the business. */
         name: z.ZodString;
         phone: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        kind: "landlord" | "tenant";
+        kind: "hotel" | "landlord" | "tenant";
         phone: string | null;
     }, {
         name: string;
-        kind: "landlord" | "tenant";
+        kind: "hotel" | "landlord" | "tenant";
         phone: string | null;
     }>;
+    /** Where they stay: the type of place, its own kind in words, the business or building, the room or unit. */
+    place: z.ZodObject<{
+        type: z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>;
+        kindLabel: z.ZodString;
+        name: z.ZodString;
+        room: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        name: string;
+        room: string | null;
+        kindLabel: string;
+    }, {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        name: string;
+        room: string | null;
+        kindLabel: string;
+    }>;
+    /** When the desk checked the guest in (a hotel stay), or null. */
+    checkedInAt: z.ZodNullable<z.ZodString>;
     home: z.ZodObject<{
         propertyName: z.ZodString;
         unitLabel: z.ZodNullable<z.ZodString>;
@@ -1511,10 +1662,10 @@ export declare const LeaderGuest: z.ZodObject<{
             by: string | null;
         }>>;
     }, "strip", z.ZodTypeAny, {
-        state: "delivered" | "waiting" | "seen";
+        state: "waiting" | "delivered" | "seen";
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-        roleLabel: string;
         step: number;
+        roleLabel: string;
         deliveredAt: string | null;
         seenAt: string | null;
         seenBy: string | null;
@@ -1524,10 +1675,10 @@ export declare const LeaderGuest: z.ZodObject<{
             by: string | null;
         } | null;
     }, {
-        state: "delivered" | "waiting" | "seen";
+        state: "waiting" | "delivered" | "seen";
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-        roleLabel: string;
         step: number;
+        roleLabel: string;
         deliveredAt: string | null;
         seenAt: string | null;
         seenBy: string | null;
@@ -1548,13 +1699,14 @@ export declare const LeaderGuest: z.ZodObject<{
     nights: number;
     host: {
         name: string;
-        kind: "landlord" | "tenant";
+        kind: "hotel" | "landlord" | "tenant";
         phone: string | null;
     };
     fullName: string;
-    createdAt: string;
     phone: string;
+    createdAt: string;
     idNumber: string | null;
+    nationality: string;
     stay: "arriving" | "staying" | "left";
     arrivalOn: string;
     departureOn: string;
@@ -1569,17 +1721,22 @@ export declare const LeaderGuest: z.ZodObject<{
         villageName: string | null;
         cellName: string | null;
     };
+    place: {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        name: string;
+        room: string | null;
+        kindLabel: string;
+    };
     idKind: "national_id" | "passport" | null;
-    nationality: string;
     nationalityName: string;
     fromAbroad: boolean;
     relationshipLabel: string;
     originWords: string;
     chain: {
-        state: "delivered" | "waiting" | "seen";
+        state: "waiting" | "delivered" | "seen";
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-        roleLabel: string;
         step: number;
+        roleLabel: string;
         deliveredAt: string | null;
         seenAt: string | null;
         seenBy: string | null;
@@ -1590,6 +1747,7 @@ export declare const LeaderGuest: z.ZodObject<{
         } | null;
     }[];
     flagged: boolean;
+    checkedInAt: string | null;
     seenByMe: boolean;
     changedAt: string | null;
 }, {
@@ -1597,13 +1755,14 @@ export declare const LeaderGuest: z.ZodObject<{
     nights: number;
     host: {
         name: string;
-        kind: "landlord" | "tenant";
+        kind: "hotel" | "landlord" | "tenant";
         phone: string | null;
     };
     fullName: string;
-    createdAt: string;
     phone: string;
+    createdAt: string;
     idNumber: string | null;
+    nationality: string;
     stay: "arriving" | "staying" | "left";
     arrivalOn: string;
     departureOn: string;
@@ -1618,17 +1777,22 @@ export declare const LeaderGuest: z.ZodObject<{
         villageName: string | null;
         cellName: string | null;
     };
+    place: {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        name: string;
+        room: string | null;
+        kindLabel: string;
+    };
     idKind: "national_id" | "passport" | null;
-    nationality: string;
     nationalityName: string;
     fromAbroad: boolean;
     relationshipLabel: string;
     originWords: string;
     chain: {
-        state: "delivered" | "waiting" | "seen";
+        state: "waiting" | "delivered" | "seen";
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-        roleLabel: string;
         step: number;
+        roleLabel: string;
         deliveredAt: string | null;
         seenAt: string | null;
         seenBy: string | null;
@@ -1639,6 +1803,7 @@ export declare const LeaderGuest: z.ZodObject<{
         } | null;
     }[];
     flagged: boolean;
+    checkedInAt: string | null;
     seenByMe: boolean;
     changedAt: string | null;
 }>;
@@ -1716,6 +1881,34 @@ export declare const LeaderFilters: z.ZodObject<{
         name: string;
         count: number;
     }>, "many">>;
+    /** The types of place among those guests, most first. */
+    placeTypes: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        type: z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>;
+        label: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        count: number;
+        label: string;
+    }, {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        count: number;
+        label: string;
+    }>, "many">>;
+    /** Who those guests are to their hosts, most first. */
+    relationships: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        code: z.ZodString;
+        label: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        code: string;
+        count: number;
+        label: string;
+    }, {
+        code: string;
+        count: number;
+        label: string;
+    }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     sectors: {
         name: string;
@@ -1736,6 +1929,16 @@ export declare const LeaderFilters: z.ZodObject<{
         name: string;
         count: number;
     }[];
+    placeTypes: {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        count: number;
+        label: string;
+    }[];
+    relationships: {
+        code: string;
+        count: number;
+        label: string;
+    }[];
 }, {
     sectors: {
         name: string;
@@ -1755,6 +1958,16 @@ export declare const LeaderFilters: z.ZodObject<{
         code: string;
         name: string;
         count: number;
+    }[] | undefined;
+    placeTypes?: {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        count: number;
+        label: string;
+    }[] | undefined;
+    relationships?: {
+        code: string;
+        count: number;
+        label: string;
     }[] | undefined;
 }>;
 export type LeaderFilters = z.infer<typeof LeaderFilters>;
@@ -1811,6 +2024,8 @@ export declare const LeaderSummary: z.ZodObject<{
         name: string | null;
         email: string;
     }>;
+    /** Local government (every guest) or DGIE (guests from abroad only): what the screens and files show. */
+    audience: z.ZodDefault<z.ZodEnum<["local", "dgie"]>>;
     scopes: z.ZodArray<z.ZodObject<{
         assignmentId: z.ZodString;
         role: z.ZodEnum<["village_leader", "cell_executive", "district_officer", "dgie_village", "dgie_cell", "district_immigration", "dasso", "sector_executive", "dgie_province", "dgie_national"]>;
@@ -1881,6 +2096,34 @@ export declare const LeaderSummary: z.ZodObject<{
             name: string;
             count: number;
         }>, "many">>;
+        /** The types of place among those guests, most first. */
+        placeTypes: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            type: z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>;
+            label: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }, {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }>, "many">>;
+        /** Who those guests are to their hosts, most first. */
+        relationships: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            code: z.ZodString;
+            label: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            code: string;
+            count: number;
+            label: string;
+        }, {
+            code: string;
+            count: number;
+            label: string;
+        }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         sectors: {
             name: string;
@@ -1901,6 +2144,16 @@ export declare const LeaderSummary: z.ZodObject<{
             name: string;
             count: number;
         }[];
+        placeTypes: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }[];
+        relationships: {
+            code: string;
+            count: number;
+            label: string;
+        }[];
     }, {
         sectors: {
             name: string;
@@ -1920,6 +2173,16 @@ export declare const LeaderSummary: z.ZodObject<{
             code: string;
             name: string;
             count: number;
+        }[] | undefined;
+        placeTypes?: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }[] | undefined;
+        relationships?: {
+            code: string;
+            count: number;
+            label: string;
         }[] | undefined;
     }>;
     counts: z.ZodObject<{
@@ -1964,13 +2227,6 @@ export declare const LeaderSummary: z.ZodObject<{
         stayingByDay?: number[] | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    scopes: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-        level: "country" | "province" | "district" | "sector" | "cell" | "village";
-        area: string;
-        assignmentId: string;
-        roleLabel: string;
-    }[];
     counts: {
         current: number;
         arriving: number;
@@ -1983,6 +2239,14 @@ export declare const LeaderSummary: z.ZodObject<{
         arrivingByDay: number[];
         stayingByDay: number[];
     };
+    audience: "local" | "dgie";
+    scopes: {
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
+        area: string;
+        assignmentId: string;
+        roleLabel: string;
+    }[];
     leader: {
         name: string | null;
         email: string;
@@ -2007,15 +2271,18 @@ export declare const LeaderSummary: z.ZodObject<{
             name: string;
             count: number;
         }[];
+        placeTypes: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }[];
+        relationships: {
+            code: string;
+            count: number;
+            label: string;
+        }[];
     };
 }, {
-    scopes: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-        level: "country" | "province" | "district" | "sector" | "cell" | "village";
-        area: string;
-        assignmentId: string;
-        roleLabel: string;
-    }[];
     counts: {
         arriving: number;
         staying: number;
@@ -2028,6 +2295,13 @@ export declare const LeaderSummary: z.ZodObject<{
         arrivingByDay?: number[] | undefined;
         stayingByDay?: number[] | undefined;
     };
+    scopes: {
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
+        area: string;
+        assignmentId: string;
+        roleLabel: string;
+    }[];
     leader: {
         name: string | null;
         email: string;
@@ -2052,7 +2326,18 @@ export declare const LeaderSummary: z.ZodObject<{
             name: string;
             count: number;
         }[] | undefined;
+        placeTypes?: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }[] | undefined;
+        relationships?: {
+            code: string;
+            count: number;
+            label: string;
+        }[] | undefined;
     };
+    audience?: "local" | "dgie" | undefined;
 }>;
 export type LeaderSummary = z.infer<typeof LeaderSummary>;
 export declare const LeaderGuestPage: z.ZodObject<{
@@ -2066,6 +2351,8 @@ export declare const LeaderGuestPage: z.ZodObject<{
         name: string | null;
         email: string;
     }>;
+    /** Local government (every guest) or DGIE (guests from abroad only): what the screens and files show. */
+    audience: z.ZodDefault<z.ZodEnum<["local", "dgie"]>>;
     scopes: z.ZodArray<z.ZodObject<{
         assignmentId: z.ZodString;
         role: z.ZodEnum<["village_leader", "cell_executive", "district_officer", "dgie_village", "dgie_cell", "district_immigration", "dasso", "sector_executive", "dgie_province", "dgie_national"]>;
@@ -2136,6 +2423,34 @@ export declare const LeaderGuestPage: z.ZodObject<{
             name: string;
             count: number;
         }>, "many">>;
+        /** The types of place among those guests, most first. */
+        placeTypes: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            type: z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>;
+            label: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }, {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }>, "many">>;
+        /** Who those guests are to their hosts, most first. */
+        relationships: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            code: z.ZodString;
+            label: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            code: string;
+            count: number;
+            label: string;
+        }, {
+            code: string;
+            count: number;
+            label: string;
+        }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         sectors: {
             name: string;
@@ -2156,6 +2471,16 @@ export declare const LeaderGuestPage: z.ZodObject<{
             name: string;
             count: number;
         }[];
+        placeTypes: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }[];
+        relationships: {
+            code: string;
+            count: number;
+            label: string;
+        }[];
     }, {
         sectors: {
             name: string;
@@ -2175,6 +2500,16 @@ export declare const LeaderGuestPage: z.ZodObject<{
             code: string;
             name: string;
             count: number;
+        }[] | undefined;
+        placeTypes?: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }[] | undefined;
+        relationships?: {
+            code: string;
+            count: number;
+            label: string;
         }[] | undefined;
     }>;
     counts: z.ZodObject<{
@@ -2219,7 +2554,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
         stayingByDay?: number[] | undefined;
     }>;
 } & {
-    tab: z.ZodEnum<["arriving", "staying", "left", "flagged"]>;
+    tab: z.ZodEnum<["all", "arriving", "staying", "left", "flagged"]>;
     when: z.ZodEnum<["soon", "later"]>;
     guests: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -2237,18 +2572,38 @@ export declare const LeaderGuestPage: z.ZodObject<{
         nights: z.ZodNumber;
         stay: z.ZodEnum<["arriving", "staying", "left"]>;
         host: z.ZodObject<{
-            kind: z.ZodEnum<["tenant", "landlord"]>;
+            kind: z.ZodEnum<["tenant", "landlord", "hotel"]>;
+            /** The tenant or the landlord who filed the guest; for a hotel, the business. */
             name: z.ZodString;
             phone: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
             name: string;
-            kind: "landlord" | "tenant";
+            kind: "hotel" | "landlord" | "tenant";
             phone: string | null;
         }, {
             name: string;
-            kind: "landlord" | "tenant";
+            kind: "hotel" | "landlord" | "tenant";
             phone: string | null;
         }>;
+        /** Where they stay: the type of place, its own kind in words, the business or building, the room or unit. */
+        place: z.ZodObject<{
+            type: z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>;
+            kindLabel: z.ZodString;
+            name: z.ZodString;
+            room: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            name: string;
+            room: string | null;
+            kindLabel: string;
+        }, {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            name: string;
+            room: string | null;
+            kindLabel: string;
+        }>;
+        /** When the desk checked the guest in (a hotel stay), or null. */
+        checkedInAt: z.ZodNullable<z.ZodString>;
         home: z.ZodObject<{
             propertyName: z.ZodString;
             unitLabel: z.ZodNullable<z.ZodString>;
@@ -2304,10 +2659,10 @@ export declare const LeaderGuestPage: z.ZodObject<{
                 by: string | null;
             }>>;
         }, "strip", z.ZodTypeAny, {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
             deliveredAt: string | null;
             seenAt: string | null;
             seenBy: string | null;
@@ -2317,10 +2672,10 @@ export declare const LeaderGuestPage: z.ZodObject<{
                 by: string | null;
             } | null;
         }, {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
             deliveredAt: string | null;
             seenAt: string | null;
             seenBy: string | null;
@@ -2341,13 +2696,14 @@ export declare const LeaderGuestPage: z.ZodObject<{
         nights: number;
         host: {
             name: string;
-            kind: "landlord" | "tenant";
+            kind: "hotel" | "landlord" | "tenant";
             phone: string | null;
         };
         fullName: string;
-        createdAt: string;
         phone: string;
+        createdAt: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left";
         arrivalOn: string;
         departureOn: string;
@@ -2362,17 +2718,22 @@ export declare const LeaderGuestPage: z.ZodObject<{
             villageName: string | null;
             cellName: string | null;
         };
+        place: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            name: string;
+            room: string | null;
+            kindLabel: string;
+        };
         idKind: "national_id" | "passport" | null;
-        nationality: string;
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
         originWords: string;
         chain: {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
             deliveredAt: string | null;
             seenAt: string | null;
             seenBy: string | null;
@@ -2383,6 +2744,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
             } | null;
         }[];
         flagged: boolean;
+        checkedInAt: string | null;
         seenByMe: boolean;
         changedAt: string | null;
     }, {
@@ -2390,13 +2752,14 @@ export declare const LeaderGuestPage: z.ZodObject<{
         nights: number;
         host: {
             name: string;
-            kind: "landlord" | "tenant";
+            kind: "hotel" | "landlord" | "tenant";
             phone: string | null;
         };
         fullName: string;
-        createdAt: string;
         phone: string;
+        createdAt: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left";
         arrivalOn: string;
         departureOn: string;
@@ -2411,17 +2774,22 @@ export declare const LeaderGuestPage: z.ZodObject<{
             villageName: string | null;
             cellName: string | null;
         };
+        place: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            name: string;
+            room: string | null;
+            kindLabel: string;
+        };
         idKind: "national_id" | "passport" | null;
-        nationality: string;
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
         originWords: string;
         chain: {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
             deliveredAt: string | null;
             seenAt: string | null;
             seenBy: string | null;
@@ -2432,6 +2800,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
             } | null;
         }[];
         flagged: boolean;
+        checkedInAt: string | null;
         seenByMe: boolean;
         changedAt: string | null;
     }>, "many">;
@@ -2444,13 +2813,14 @@ export declare const LeaderGuestPage: z.ZodObject<{
         nights: number;
         host: {
             name: string;
-            kind: "landlord" | "tenant";
+            kind: "hotel" | "landlord" | "tenant";
             phone: string | null;
         };
         fullName: string;
-        createdAt: string;
         phone: string;
+        createdAt: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left";
         arrivalOn: string;
         departureOn: string;
@@ -2465,17 +2835,22 @@ export declare const LeaderGuestPage: z.ZodObject<{
             villageName: string | null;
             cellName: string | null;
         };
+        place: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            name: string;
+            room: string | null;
+            kindLabel: string;
+        };
         idKind: "national_id" | "passport" | null;
-        nationality: string;
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
         originWords: string;
         chain: {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
             deliveredAt: string | null;
             seenAt: string | null;
             seenBy: string | null;
@@ -2486,20 +2861,11 @@ export declare const LeaderGuestPage: z.ZodObject<{
             } | null;
         }[];
         flagged: boolean;
+        checkedInAt: string | null;
         seenByMe: boolean;
         changedAt: string | null;
     }[];
     total: number;
-    page: number;
-    pageSize: number;
-    scopes: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-        level: "country" | "province" | "district" | "sector" | "cell" | "village";
-        area: string;
-        assignmentId: string;
-        roleLabel: string;
-    }[];
-    tab: "arriving" | "staying" | "left" | "flagged";
     counts: {
         current: number;
         arriving: number;
@@ -2512,6 +2878,17 @@ export declare const LeaderGuestPage: z.ZodObject<{
         arrivingByDay: number[];
         stayingByDay: number[];
     };
+    page: number;
+    pageSize: number;
+    audience: "local" | "dgie";
+    scopes: {
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
+        area: string;
+        assignmentId: string;
+        roleLabel: string;
+    }[];
+    tab: "all" | "arriving" | "staying" | "left" | "flagged";
     when: "soon" | "later";
     leader: {
         name: string | null;
@@ -2537,6 +2914,16 @@ export declare const LeaderGuestPage: z.ZodObject<{
             name: string;
             count: number;
         }[];
+        placeTypes: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }[];
+        relationships: {
+            code: string;
+            count: number;
+            label: string;
+        }[];
     };
 }, {
     guests: {
@@ -2544,13 +2931,14 @@ export declare const LeaderGuestPage: z.ZodObject<{
         nights: number;
         host: {
             name: string;
-            kind: "landlord" | "tenant";
+            kind: "hotel" | "landlord" | "tenant";
             phone: string | null;
         };
         fullName: string;
-        createdAt: string;
         phone: string;
+        createdAt: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left";
         arrivalOn: string;
         departureOn: string;
@@ -2565,17 +2953,22 @@ export declare const LeaderGuestPage: z.ZodObject<{
             villageName: string | null;
             cellName: string | null;
         };
+        place: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            name: string;
+            room: string | null;
+            kindLabel: string;
+        };
         idKind: "national_id" | "passport" | null;
-        nationality: string;
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
         originWords: string;
         chain: {
-            state: "delivered" | "waiting" | "seen";
+            state: "waiting" | "delivered" | "seen";
             role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-            roleLabel: string;
             step: number;
+            roleLabel: string;
             deliveredAt: string | null;
             seenAt: string | null;
             seenBy: string | null;
@@ -2586,20 +2979,11 @@ export declare const LeaderGuestPage: z.ZodObject<{
             } | null;
         }[];
         flagged: boolean;
+        checkedInAt: string | null;
         seenByMe: boolean;
         changedAt: string | null;
     }[];
     total: number;
-    page: number;
-    pageSize: number;
-    scopes: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-        level: "country" | "province" | "district" | "sector" | "cell" | "village";
-        area: string;
-        assignmentId: string;
-        roleLabel: string;
-    }[];
-    tab: "arriving" | "staying" | "left" | "flagged";
     counts: {
         arriving: number;
         staying: number;
@@ -2612,6 +2996,16 @@ export declare const LeaderGuestPage: z.ZodObject<{
         arrivingByDay?: number[] | undefined;
         stayingByDay?: number[] | undefined;
     };
+    page: number;
+    pageSize: number;
+    scopes: {
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
+        area: string;
+        assignmentId: string;
+        roleLabel: string;
+    }[];
+    tab: "all" | "arriving" | "staying" | "left" | "flagged";
     when: "soon" | "later";
     leader: {
         name: string | null;
@@ -2637,28 +3031,42 @@ export declare const LeaderGuestPage: z.ZodObject<{
             name: string;
             count: number;
         }[] | undefined;
+        placeTypes?: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }[] | undefined;
+        relationships?: {
+            code: string;
+            count: number;
+            label: string;
+        }[] | undefined;
     };
+    audience?: "local" | "dgie" | undefined;
 }>;
 export type LeaderGuestPage = z.infer<typeof LeaderGuestPage>;
 /** The longest period one report covers. */
 export declare const GUEST_REPORT_MAX_DAYS = 731;
 export declare const GuestReportQuery: z.ZodEffects<z.ZodObject<{
+    /** Only guests a leader flagged. */
+    flagged: z.ZodOptional<z.ZodEnum<["only"]>>;
+    /** Rwandan guests, or guests of another nationality. */
+    origin: z.ZodOptional<z.ZodEnum<["nationals", "international"]>>;
+    /** One nationality (ISO 3166-1 alpha-2). */
+    nationality: z.ZodOptional<z.ZodString>;
+    /** One relationship code (`guest_relationships`), or `hotel_guest`. */
+    relationship: z.ZodOptional<z.ZodString>;
+    placeType: z.ZodOptional<z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>>;
+    length: z.ZodOptional<z.ZodEnum<["under_3", "week", "month"]>>;
     from: z.ZodEffects<z.ZodString, string, string>;
     to: z.ZodEffects<z.ZodString, string, string>;
     sectorId: z.ZodOptional<z.ZodNumber>;
     cellId: z.ZodOptional<z.ZodNumber>;
     villageId: z.ZodOptional<z.ZodNumber>;
-    /** By nationality: Rwandan guests, or guests of any other nationality. */
-    origin: z.ZodOptional<z.ZodEnum<["nationals", "international"]>>;
-    /** One nationality (ISO 3166-1 alpha-2). */
-    nationality: z.ZodOptional<z.ZodString>;
-    /** One relationship code (`guest_relationships`). */
-    relationship: z.ZodOptional<z.ZodString>;
-    /** Only guests a leader flagged. */
-    flagged: z.ZodOptional<z.ZodEnum<["only"]>>;
 }, "strip", z.ZodTypeAny, {
     from: string;
     to: string;
+    length?: "month" | "under_3" | "week" | undefined;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
@@ -2666,9 +3074,11 @@ export declare const GuestReportQuery: z.ZodEffects<z.ZodObject<{
     nationality?: string | undefined;
     relationship?: string | undefined;
     flagged?: "only" | undefined;
+    placeType?: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge" | undefined;
 }, {
     from: string;
     to: string;
+    length?: "month" | "under_3" | "week" | undefined;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
@@ -2676,9 +3086,11 @@ export declare const GuestReportQuery: z.ZodEffects<z.ZodObject<{
     nationality?: string | undefined;
     relationship?: string | undefined;
     flagged?: "only" | undefined;
+    placeType?: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge" | undefined;
 }>, {
     from: string;
     to: string;
+    length?: "month" | "under_3" | "week" | undefined;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
@@ -2686,9 +3098,11 @@ export declare const GuestReportQuery: z.ZodEffects<z.ZodObject<{
     nationality?: string | undefined;
     relationship?: string | undefined;
     flagged?: "only" | undefined;
+    placeType?: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge" | undefined;
 }, {
     from: string;
     to: string;
+    length?: "month" | "under_3" | "week" | undefined;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
@@ -2696,10 +3110,22 @@ export declare const GuestReportQuery: z.ZodEffects<z.ZodObject<{
     nationality?: string | undefined;
     relationship?: string | undefined;
     flagged?: "only" | undefined;
+    placeType?: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge" | undefined;
 }>;
 export type GuestReportQuery = z.infer<typeof GuestReportQuery>;
 export declare const ReportBucket: z.ZodEnum<["day", "week", "month"]>;
 export type ReportBucket = z.infer<typeof ReportBucket>;
+/** How long stays are, in bands a chart reads at a glance. */
+export declare const STAY_BANDS: readonly ["same_day", "short", "days", "weeks", "month"];
+export declare const StayBand: z.ZodEnum<["same_day", "short", "days", "weeks", "month"]>;
+export type StayBand = z.infer<typeof StayBand>;
+export declare const STAY_BAND_LABEL: Readonly<Record<StayBand, string>>;
+export declare function stayBandOf(nights: number): StayBand;
+/** When a guest was reported, against their arrival day (Kigali): ahead, on the day, or late. */
+export declare const ReportTiming: z.ZodEnum<["before", "same_day", "after"]>;
+export type ReportTiming = z.infer<typeof ReportTiming>;
+export declare const REPORT_TIMING_LABEL: Readonly<Record<ReportTiming, string>>;
+export declare function reportTimingOf(reportedOn: string, arrivalOn: string): ReportTiming;
 export declare const GuestReport: z.ZodObject<{
     period: z.ZodObject<{
         from: z.ZodString;
@@ -2712,6 +3138,8 @@ export declare const GuestReport: z.ZodObject<{
         to: string;
     }>;
     generatedAt: z.ZodString;
+    /** Local government (every guest) or DGIE (guests from abroad only): which charts and columns it has. */
+    audience: z.ZodDefault<z.ZodEnum<["local", "dgie"]>>;
     leader: z.ZodObject<{
         name: z.ZodNullable<z.ZodString>;
         email: z.ZodString;
@@ -2766,12 +3194,12 @@ export declare const GuestReport: z.ZodObject<{
             count: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
             code: string;
-            label: string;
             count: number;
+            label: string;
         }, {
             code: string;
-            label: string;
             count: number;
+            label: string;
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         nationalities: {
@@ -2781,8 +3209,8 @@ export declare const GuestReport: z.ZodObject<{
         }[];
         relationships: {
             code: string;
-            label: string;
             count: number;
+            label: string;
         }[];
     }, {
         nationalities: {
@@ -2792,8 +3220,8 @@ export declare const GuestReport: z.ZodObject<{
         }[];
         relationships: {
             code: string;
-            label: string;
             count: number;
+            label: string;
         }[];
     }>>;
     totals: z.ZodObject<{
@@ -2802,12 +3230,18 @@ export declare const GuestReport: z.ZodObject<{
         /** Guests staying today, whatever the period. */
         stayingNow: z.ZodNumber;
         fromAbroad: z.ZodNumber;
+        /** Rwandan guests: registered less those from abroad. */
+        nationals: z.ZodDefault<z.ZodNumber>;
+        /** How many nationalities the period's guests hold. */
+        nationalities: z.ZodDefault<z.ZodNumber>;
         flagged: z.ZodNumber;
         /** Mean nights per stay, one decimal; null with no guests. */
         averageNights: z.ZodNullable<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         fromAbroad: number;
         flagged: number;
+        nationals: number;
+        nationalities: number;
         registered: number;
         stayingNow: number;
         averageNights: number | null;
@@ -2817,7 +3251,77 @@ export declare const GuestReport: z.ZodObject<{
         registered: number;
         stayingNow: number;
         averageNights: number | null;
+        nationals?: number | undefined;
+        nationalities?: number | undefined;
     }>;
+    /**
+     * Guests in the area on each day of the period (arrived on or before it, not yet gone), and how many of
+     * them are from abroad: who was here, not only who arrived.
+     */
+    presentByDay: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        day: z.ZodString;
+        label: z.ZodString;
+        total: z.ZodNumber;
+        fromAbroad: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        total: number;
+        label: string;
+        fromAbroad: number;
+        day: string;
+    }, {
+        total: number;
+        label: string;
+        fromAbroad: number;
+        day: string;
+    }>, "many">>;
+    /** Arrivals by type of place, with those from abroad and the mean stay there. */
+    byPlaceType: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        type: z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>;
+        label: z.ZodString;
+        count: z.ZodNumber;
+        fromAbroad: z.ZodNumber;
+        averageNights: z.ZodNullable<z.ZodNumber>;
+    }, "strip", z.ZodTypeAny, {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        count: number;
+        label: string;
+        fromAbroad: number;
+        averageNights: number | null;
+    }, {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        count: number;
+        label: string;
+        fromAbroad: number;
+        averageNights: number | null;
+    }>, "many">>;
+    /** How long the stays are, in bands. */
+    stayBands: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        band: z.ZodEnum<["same_day", "short", "days", "weeks", "month"]>;
+        label: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        count: number;
+        label: string;
+        band: "month" | "days" | "same_day" | "short" | "weeks";
+    }, {
+        count: number;
+        label: string;
+        band: "month" | "days" | "same_day" | "short" | "weeks";
+    }>, "many">>;
+    /** When the guests were reported against their arrival day. */
+    timing: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        timing: z.ZodEnum<["before", "same_day", "after"]>;
+        label: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        count: number;
+        label: string;
+        timing: "same_day" | "before" | "after";
+    }, {
+        count: number;
+        label: string;
+        timing: "same_day" | "before" | "after";
+    }>, "many">>;
     /** The level the area table breaks down by: one below the widest post. */
     areaLevel: z.ZodEnum<["sector", "cell", "village"]>;
     byArea: z.ZodArray<z.ZodObject<{
@@ -2858,12 +3362,12 @@ export declare const GuestReport: z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         code: string;
-        label: string;
         count: number;
+        label: string;
     }, {
         code: string;
-        label: string;
         count: number;
+        label: string;
     }>, "many">;
     arrivals: z.ZodObject<{
         bucket: z.ZodEnum<["day", "week", "month"]>;
@@ -2872,28 +3376,28 @@ export declare const GuestReport: z.ZodObject<{
             label: z.ZodString;
             count: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
-            label: string;
             count: number;
+            label: string;
             start: string;
         }, {
-            label: string;
             count: number;
+            label: string;
             start: string;
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         points: {
-            label: string;
             count: number;
+            label: string;
             start: string;
         }[];
-        bucket: "month" | "day" | "week";
+        bucket: "month" | "week" | "day";
     }, {
         points: {
-            label: string;
             count: number;
+            label: string;
             start: string;
         }[];
-        bucket: "month" | "day" | "week";
+        bucket: "month" | "week" | "day";
     }>;
     /**
      * How the period's guests went along the chain, one row per leader post in its order: how many it
@@ -2913,8 +3417,8 @@ export declare const GuestReport: z.ZodObject<{
         guests: number;
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
         label: string;
-        delivered: number;
         waiting: number;
+        delivered: number;
         step: number;
         flagged: number;
         opened: number;
@@ -2922,25 +3426,37 @@ export declare const GuestReport: z.ZodObject<{
         guests: number;
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
         label: string;
-        delivered: number;
         waiting: number;
+        delivered: number;
         step: number;
         flagged: number;
         opened: number;
     }>, "many">>;
-    /** Homes with the most guests, by address: never a person's name. */
+    /**
+     * Homes and places with the most guests: the business or building by name and type, its address and the
+     * unit, never a person's name.
+     */
     topHomes: z.ZodArray<z.ZodObject<{
+        name: z.ZodDefault<z.ZodString>;
+        placeLabel: z.ZodDefault<z.ZodString>;
         address: z.ZodString;
         unitLabel: z.ZodNullable<z.ZodString>;
         guests: z.ZodNumber;
+        fromAbroad: z.ZodDefault<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
+        name: string;
         guests: number;
         address: string;
         unitLabel: string | null;
+        fromAbroad: number;
+        placeLabel: string;
     }, {
         guests: number;
         address: string;
         unitLabel: string | null;
+        name?: string | undefined;
+        fromAbroad?: number | undefined;
+        placeLabel?: string | undefined;
     }>, "many">;
     /** Records older than the retention period are purged; their counts are folded into the totals. */
     purged: z.ZodNullable<z.ZodObject<{
@@ -2951,18 +3467,21 @@ export declare const GuestReport: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         fromAbroad: number;
         flagged: number;
-        registered: number;
         before: string;
+        registered: number;
     }, {
         fromAbroad: number;
         flagged: number;
-        registered: number;
         before: string;
+        registered: number;
     }>>;
 }, "strip", z.ZodTypeAny, {
+    audience: "local" | "dgie";
     totals: {
         fromAbroad: number;
         flagged: number;
+        nationals: number;
+        nationalities: number;
         registered: number;
         stayingNow: number;
         averageNights: number | null;
@@ -2975,8 +3494,8 @@ export declare const GuestReport: z.ZodObject<{
         }[];
         relationships: {
             code: string;
-            label: string;
             count: number;
+            label: string;
         }[];
     };
     scopes: {
@@ -2991,8 +3510,8 @@ export declare const GuestReport: z.ZodObject<{
         guests: number;
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
         label: string;
-        delivered: number;
         waiting: number;
+        delivered: number;
         step: number;
         flagged: number;
         opened: number;
@@ -3007,6 +3526,29 @@ export declare const GuestReport: z.ZodObject<{
     };
     narrowedTo: string | null;
     filteredBy: string[];
+    presentByDay: {
+        total: number;
+        label: string;
+        fromAbroad: number;
+        day: string;
+    }[];
+    byPlaceType: {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        count: number;
+        label: string;
+        fromAbroad: number;
+        averageNights: number | null;
+    }[];
+    stayBands: {
+        count: number;
+        label: string;
+        band: "month" | "days" | "same_day" | "short" | "weeks";
+    }[];
+    timing: {
+        count: number;
+        label: string;
+        timing: "same_day" | "before" | "after";
+    }[];
     areaLevel: "sector" | "cell" | "village";
     byArea: {
         name: string;
@@ -3022,27 +3564,30 @@ export declare const GuestReport: z.ZodObject<{
     }[];
     byRelationship: {
         code: string;
-        label: string;
         count: number;
+        label: string;
     }[];
     arrivals: {
         points: {
-            label: string;
             count: number;
+            label: string;
             start: string;
         }[];
-        bucket: "month" | "day" | "week";
+        bucket: "month" | "week" | "day";
     };
     topHomes: {
+        name: string;
         guests: number;
         address: string;
         unitLabel: string | null;
+        fromAbroad: number;
+        placeLabel: string;
     }[];
     purged: {
         fromAbroad: number;
         flagged: number;
-        registered: number;
         before: string;
+        registered: number;
     } | null;
 }, {
     totals: {
@@ -3051,6 +3596,8 @@ export declare const GuestReport: z.ZodObject<{
         registered: number;
         stayingNow: number;
         averageNights: number | null;
+        nationals?: number | undefined;
+        nationalities?: number | undefined;
     };
     scopes: {
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
@@ -3084,28 +3631,32 @@ export declare const GuestReport: z.ZodObject<{
     }[];
     byRelationship: {
         code: string;
-        label: string;
         count: number;
+        label: string;
     }[];
     arrivals: {
         points: {
-            label: string;
             count: number;
+            label: string;
             start: string;
         }[];
-        bucket: "month" | "day" | "week";
+        bucket: "month" | "week" | "day";
     };
     topHomes: {
         guests: number;
         address: string;
         unitLabel: string | null;
+        name?: string | undefined;
+        fromAbroad?: number | undefined;
+        placeLabel?: string | undefined;
     }[];
     purged: {
         fromAbroad: number;
         flagged: number;
-        registered: number;
         before: string;
+        registered: number;
     } | null;
+    audience?: "local" | "dgie" | undefined;
     choices?: {
         nationalities: {
             code: string;
@@ -3114,21 +3665,44 @@ export declare const GuestReport: z.ZodObject<{
         }[];
         relationships: {
             code: string;
-            label: string;
             count: number;
+            label: string;
         }[];
     } | undefined;
     chain?: {
         guests: number;
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
         label: string;
-        delivered: number;
         waiting: number;
+        delivered: number;
         step: number;
         flagged: number;
         opened: number;
     }[] | undefined;
     filteredBy?: string[] | undefined;
+    presentByDay?: {
+        total: number;
+        label: string;
+        fromAbroad: number;
+        day: string;
+    }[] | undefined;
+    byPlaceType?: {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        count: number;
+        label: string;
+        fromAbroad: number;
+        averageNights: number | null;
+    }[] | undefined;
+    stayBands?: {
+        count: number;
+        label: string;
+        band: "month" | "days" | "same_day" | "short" | "weeks";
+    }[] | undefined;
+    timing?: {
+        count: number;
+        label: string;
+        timing: "same_day" | "before" | "after";
+    }[] | undefined;
 }>;
 export type GuestReport = z.infer<typeof GuestReport>;
 /** How an appointment is grouped on the admin screen. */
@@ -3140,7 +3714,7 @@ export declare const OversightAppointment: z.ZodObject<{
     userId: z.ZodString;
     name: z.ZodNullable<z.ZodString>;
     email: z.ZodString;
-    role: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell"]>;
+    role: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell", "psf_business_officer"]>;
     roleLabel: z.ZodString;
     kind: z.ZodEnum<["leader", "reviewer", "officer"]>;
     bodyCode: z.ZodString;
@@ -3162,51 +3736,51 @@ export declare const OversightAppointment: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string | null;
     id: string;
-    kind: "leader" | "reviewer" | "officer";
+    kind: "officer" | "leader" | "reviewer";
     provinceId: number | null;
     districtId: number | null;
     sectorId: number | null;
     cellId: number | null;
     villageId: number | null;
     email: string;
-    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
     title: string | null;
     userId: string;
     scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
+    grantedAt: string;
     delivered: number;
     area: string;
     bodyCode: string;
     bodyName: string | null;
     seen: number;
     roleLabel: string;
-    grantedAt: string;
     grantedBy: string | null;
 }, {
     name: string | null;
     id: string;
-    kind: "leader" | "reviewer" | "officer";
+    kind: "officer" | "leader" | "reviewer";
     provinceId: number | null;
     districtId: number | null;
     sectorId: number | null;
     cellId: number | null;
     villageId: number | null;
     email: string;
-    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
     title: string | null;
     userId: string;
     scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
+    grantedAt: string;
     delivered: number;
     area: string;
     bodyCode: string;
     bodyName: string | null;
     seen: number;
     roleLabel: string;
-    grantedAt: string;
     grantedBy: string | null;
 }>;
 export type OversightAppointment = z.infer<typeof OversightAppointment>;
 export declare const OversightAppointmentQuery: z.ZodObject<{
-    role: z.ZodOptional<z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell"]>>;
+    role: z.ZodOptional<z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell", "psf_business_officer"]>>;
     kind: z.ZodOptional<z.ZodEnum<["leader", "reviewer", "officer"]>>;
     provinceId: z.ZodOptional<z.ZodNumber>;
     districtId: z.ZodOptional<z.ZodNumber>;
@@ -3215,22 +3789,22 @@ export declare const OversightAppointmentQuery: z.ZodObject<{
     villageId: z.ZodOptional<z.ZodNumber>;
     q: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    kind?: "leader" | "reviewer" | "officer" | undefined;
+    kind?: "officer" | "leader" | "reviewer" | undefined;
     provinceId?: number | undefined;
     districtId?: number | undefined;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
-    role?: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | undefined;
+    role?: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer" | undefined;
     q?: string | undefined;
 }, {
-    kind?: "leader" | "reviewer" | "officer" | undefined;
+    kind?: "officer" | "leader" | "reviewer" | undefined;
     provinceId?: number | undefined;
     districtId?: number | undefined;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
-    role?: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | undefined;
+    role?: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer" | undefined;
     q?: string | undefined;
 }>;
 export type OversightAppointmentQuery = z.infer<typeof OversightAppointmentQuery>;
@@ -3337,7 +3911,7 @@ export declare const OversightAppointmentList: z.ZodObject<{
         userId: z.ZodString;
         name: z.ZodNullable<z.ZodString>;
         email: z.ZodString;
-        role: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell"]>;
+        role: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell", "psf_business_officer"]>;
         roleLabel: z.ZodString;
         kind: z.ZodEnum<["leader", "reviewer", "officer"]>;
         bodyCode: z.ZodString;
@@ -3359,46 +3933,46 @@ export declare const OversightAppointmentList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string | null;
         id: string;
-        kind: "leader" | "reviewer" | "officer";
+        kind: "officer" | "leader" | "reviewer";
         provinceId: number | null;
         districtId: number | null;
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
         email: string;
-        role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
         title: string | null;
         userId: string;
         scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
+        grantedAt: string;
         delivered: number;
         area: string;
         bodyCode: string;
         bodyName: string | null;
         seen: number;
         roleLabel: string;
-        grantedAt: string;
         grantedBy: string | null;
     }, {
         name: string | null;
         id: string;
-        kind: "leader" | "reviewer" | "officer";
+        kind: "officer" | "leader" | "reviewer";
         provinceId: number | null;
         districtId: number | null;
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
         email: string;
-        role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
         title: string | null;
         userId: string;
         scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
+        grantedAt: string;
         delivered: number;
         area: string;
         bodyCode: string;
         bodyName: string | null;
         seen: number;
         roleLabel: string;
-        grantedAt: string;
         grantedBy: string | null;
     }>, "many">;
     counts: z.ZodObject<{
@@ -3406,13 +3980,13 @@ export declare const OversightAppointmentList: z.ZodObject<{
         reviewer: z.ZodNumber;
         officer: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
+        officer: number;
         leader: number;
         reviewer: number;
-        officer: number;
     }, {
+        officer: number;
         leader: number;
         reviewer: number;
-        officer: number;
     }>;
     waiting: z.ZodArray<z.ZodObject<{
         role: z.ZodEnum<["village_leader", "cell_executive", "district_officer", "dgie_village", "dgie_cell", "district_immigration", "dasso", "sector_executive", "dgie_province", "dgie_national"]>;
@@ -3512,31 +4086,31 @@ export declare const OversightAppointmentList: z.ZodObject<{
         oldestArrival: string;
     }[];
     counts: {
+        officer: number;
         leader: number;
         reviewer: number;
-        officer: number;
     };
     appointments: {
         name: string | null;
         id: string;
-        kind: "leader" | "reviewer" | "officer";
+        kind: "officer" | "leader" | "reviewer";
         provinceId: number | null;
         districtId: number | null;
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
         email: string;
-        role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
         title: string | null;
         userId: string;
         scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
+        grantedAt: string;
         delivered: number;
         area: string;
         bodyCode: string;
         bodyName: string | null;
         seen: number;
         roleLabel: string;
-        grantedAt: string;
         grantedBy: string | null;
     }[];
     waitingReports: number;
@@ -3563,31 +4137,31 @@ export declare const OversightAppointmentList: z.ZodObject<{
         oldestArrival: string;
     }[];
     counts: {
+        officer: number;
         leader: number;
         reviewer: number;
-        officer: number;
     };
     appointments: {
         name: string | null;
         id: string;
-        kind: "leader" | "reviewer" | "officer";
+        kind: "officer" | "leader" | "reviewer";
         provinceId: number | null;
         districtId: number | null;
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
         email: string;
-        role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
         title: string | null;
         userId: string;
         scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
+        grantedAt: string;
         delivered: number;
         area: string;
         bodyCode: string;
         bodyName: string | null;
         seen: number;
         roleLabel: string;
-        grantedAt: string;
         grantedBy: string | null;
     }[];
     waitingReports: number;
@@ -3604,7 +4178,7 @@ export type OversightAppointmentList = z.infer<typeof OversightAppointmentList>;
 export declare const AppointOfficerRequest: z.ZodEffects<z.ZodObject<{
     email: z.ZodString;
     name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    role: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell"]>;
+    role: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell", "psf_business_officer"]>;
     governmentBodyCode: z.ZodString;
     governmentTitle: z.ZodString;
     scopeLevel: z.ZodEnum<["country", "province", "district", "sector", "cell", "village"]>;
@@ -3616,7 +4190,7 @@ export declare const AppointOfficerRequest: z.ZodEffects<z.ZodObject<{
     reason: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     email: string;
-    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
     governmentBodyCode: string;
     governmentTitle: string;
     reason: string;
@@ -3629,7 +4203,7 @@ export declare const AppointOfficerRequest: z.ZodEffects<z.ZodObject<{
     villageId?: number | null | undefined;
 }, {
     email: string;
-    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
     governmentBodyCode: string;
     governmentTitle: string;
     reason: string;
@@ -3642,7 +4216,7 @@ export declare const AppointOfficerRequest: z.ZodEffects<z.ZodObject<{
     villageId?: number | null | undefined;
 }>, {
     email: string;
-    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
     governmentBodyCode: string;
     governmentTitle: string;
     reason: string;
@@ -3655,7 +4229,7 @@ export declare const AppointOfficerRequest: z.ZodEffects<z.ZodObject<{
     villageId?: number | null | undefined;
 }, {
     email: string;
-    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
     governmentBodyCode: string;
     governmentTitle: string;
     reason: string;
@@ -3890,58 +4464,24 @@ export declare const LeaderCoverage: z.ZodObject<{
         name: string | null;
         email: string;
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        grantedAt: string;
         delivered: number;
         area: string;
         assignmentId: string;
         roleLabel: string;
-        grantedAt: string;
         firstDeliveredAt: string;
     }, {
         name: string | null;
         email: string;
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        grantedAt: string;
         delivered: number;
         area: string;
         assignmentId: string;
         roleLabel: string;
-        grantedAt: string;
         firstDeliveredAt: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    uncovered: {
-        provinceId: number | null;
-        districtId: number | null;
-        sectorId: number | null;
-        cellId: number | null;
-        villageId: number | null;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-        level: "country" | "province" | "district" | "sector" | "cell" | "village";
-        area: string;
-        homes: number;
-        roleLabel: string;
-        names: {
-            province: string | null;
-            district: string | null;
-            sector: string | null;
-            cell: string | null;
-            village: string | null;
-        };
-        waitingReports: number;
-    }[];
-    roles: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-        level: "country" | "province" | "district" | "sector" | "cell" | "village";
-        roleLabel: string;
-        nationwide: {
-            covered: number;
-            areas: number;
-        };
-        withHomes: {
-            covered: number;
-            areas: number;
-        };
-    }[];
-    generatedAt: string;
     waiting: {
         provinceId: number | null;
         districtId: number | null;
@@ -3963,52 +4503,52 @@ export declare const LeaderCoverage: z.ZodObject<{
         reports: number;
         oldestArrival: string;
     }[];
+    roles: {
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
+        roleLabel: string;
+        nationwide: {
+            covered: number;
+            areas: number;
+        };
+        withHomes: {
+            covered: number;
+            areas: number;
+        };
+    }[];
+    uncovered: {
+        provinceId: number | null;
+        districtId: number | null;
+        sectorId: number | null;
+        cellId: number | null;
+        villageId: number | null;
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
+        area: string;
+        homes: number;
+        roleLabel: string;
+        names: {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        };
+        waitingReports: number;
+    }[];
+    generatedAt: string;
     neverOpened: {
         name: string | null;
         email: string;
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        grantedAt: string;
         delivered: number;
         area: string;
         assignmentId: string;
         roleLabel: string;
-        grantedAt: string;
         firstDeliveredAt: string;
     }[];
 }, {
-    uncovered: {
-        provinceId: number | null;
-        districtId: number | null;
-        sectorId: number | null;
-        cellId: number | null;
-        villageId: number | null;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-        level: "country" | "province" | "district" | "sector" | "cell" | "village";
-        area: string;
-        homes: number;
-        roleLabel: string;
-        names: {
-            province: string | null;
-            district: string | null;
-            sector: string | null;
-            cell: string | null;
-            village: string | null;
-        };
-        waitingReports: number;
-    }[];
-    roles: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
-        level: "country" | "province" | "district" | "sector" | "cell" | "village";
-        roleLabel: string;
-        nationwide: {
-            covered: number;
-            areas: number;
-        };
-        withHomes: {
-            covered: number;
-            areas: number;
-        };
-    }[];
-    generatedAt: string;
     waiting: {
         provinceId: number | null;
         districtId: number | null;
@@ -4030,15 +4570,49 @@ export declare const LeaderCoverage: z.ZodObject<{
         reports: number;
         oldestArrival: string;
     }[];
+    roles: {
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
+        roleLabel: string;
+        nationwide: {
+            covered: number;
+            areas: number;
+        };
+        withHomes: {
+            covered: number;
+            areas: number;
+        };
+    }[];
+    uncovered: {
+        provinceId: number | null;
+        districtId: number | null;
+        sectorId: number | null;
+        cellId: number | null;
+        villageId: number | null;
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
+        area: string;
+        homes: number;
+        roleLabel: string;
+        names: {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        };
+        waitingReports: number;
+    }[];
+    generatedAt: string;
     neverOpened: {
         name: string | null;
         email: string;
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        grantedAt: string;
         delivered: number;
         area: string;
         assignmentId: string;
         roleLabel: string;
-        grantedAt: string;
         firstDeliveredAt: string;
     }[];
 }>;

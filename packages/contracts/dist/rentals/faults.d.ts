@@ -78,8 +78,8 @@ export declare const FaultListQuery: z.ZodObject<{
     unitId?: string | undefined;
     tab?: "fixed" | "open" | "closed" | "in_hand" | undefined;
 }, {
-    page?: number | undefined;
     q?: string | undefined;
+    page?: number | undefined;
     unitId?: string | undefined;
     tab?: "fixed" | "open" | "closed" | "in_hand" | undefined;
 }>;
@@ -100,8 +100,8 @@ export declare const ReportFaultRequest: z.ZodObject<{
     description?: string | undefined;
 }, {
     title: string;
-    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     description?: string | undefined;
+    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     staffMayEnter?: unknown;
     urgency?: "low" | "normal" | "high" | "urgent" | undefined;
 }>;
@@ -124,8 +124,8 @@ export declare const RaiseFaultRequest: z.ZodObject<{
 }, {
     title: string;
     unitId: string;
-    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     description?: string | undefined;
+    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     staffMayEnter?: unknown;
     urgency?: "low" | "normal" | "high" | "urgent" | undefined;
 }>;
@@ -224,13 +224,13 @@ export declare const FaultAssigneeView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     kind: "member" | "contractor";
-    userId: string | null;
     phone: string | null;
+    userId: string | null;
 }, {
     name: string;
     kind: "member" | "contractor";
-    userId: string | null;
     phone: string | null;
+    userId: string | null;
 }>;
 export type FaultAssigneeView = z.infer<typeof FaultAssigneeView>;
 /** One row of the landlord's fault list. */
@@ -264,6 +264,7 @@ export declare const FaultListItem: z.ZodObject<{
     title: string;
     propertyName: string | null;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
+    updatedAt: string;
     leaseId: string | null;
     unitLabel: string | null;
     tenantName: string | null;
@@ -271,7 +272,6 @@ export declare const FaultListItem: z.ZodObject<{
     unitId: string | null;
     tab: "fixed" | "open" | "closed" | "in_hand";
     photoCount: number;
-    updatedAt: string;
     leaseReference: string | null;
     urgency: "low" | "normal" | "high" | "urgent";
     reportedBy: "landlord" | "tenant";
@@ -285,6 +285,7 @@ export declare const FaultListItem: z.ZodObject<{
     title: string;
     propertyName: string | null;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
+    updatedAt: string;
     leaseId: string | null;
     unitLabel: string | null;
     tenantName: string | null;
@@ -292,7 +293,6 @@ export declare const FaultListItem: z.ZodObject<{
     unitId: string | null;
     tab: "fixed" | "open" | "closed" | "in_hand";
     photoCount: number;
-    updatedAt: string;
     leaseReference: string | null;
     urgency: "low" | "normal" | "high" | "urgent";
     reportedBy: "landlord" | "tenant";
@@ -334,6 +334,7 @@ export declare const FaultListPage: z.ZodObject<{
         title: string;
         propertyName: string | null;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
+        updatedAt: string;
         leaseId: string | null;
         unitLabel: string | null;
         tenantName: string | null;
@@ -341,7 +342,6 @@ export declare const FaultListPage: z.ZodObject<{
         unitId: string | null;
         tab: "fixed" | "open" | "closed" | "in_hand";
         photoCount: number;
-        updatedAt: string;
         leaseReference: string | null;
         urgency: "low" | "normal" | "high" | "urgent";
         reportedBy: "landlord" | "tenant";
@@ -355,6 +355,7 @@ export declare const FaultListPage: z.ZodObject<{
         title: string;
         propertyName: string | null;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
+        updatedAt: string;
         leaseId: string | null;
         unitLabel: string | null;
         tenantName: string | null;
@@ -362,7 +363,6 @@ export declare const FaultListPage: z.ZodObject<{
         unitId: string | null;
         tab: "fixed" | "open" | "closed" | "in_hand";
         photoCount: number;
-        updatedAt: string;
         leaseReference: string | null;
         urgency: "low" | "normal" | "high" | "urgent";
         reportedBy: "landlord" | "tenant";
@@ -383,6 +383,7 @@ export declare const FaultListPage: z.ZodObject<{
         title: string;
         propertyName: string | null;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
+        updatedAt: string;
         leaseId: string | null;
         unitLabel: string | null;
         tenantName: string | null;
@@ -390,7 +391,6 @@ export declare const FaultListPage: z.ZodObject<{
         unitId: string | null;
         tab: "fixed" | "open" | "closed" | "in_hand";
         photoCount: number;
-        updatedAt: string;
         leaseReference: string | null;
         urgency: "low" | "normal" | "high" | "urgent";
         reportedBy: "landlord" | "tenant";
@@ -399,10 +399,10 @@ export declare const FaultListPage: z.ZodObject<{
         thumbUrl: string | null;
     }[];
     total: number;
+    counts: Partial<Record<"fixed" | "open" | "closed" | "in_hand", number>>;
     page: number;
     pageSize: number;
     tab: "fixed" | "open" | "closed" | "in_hand" | null;
-    counts: Partial<Record<"fixed" | "open" | "closed" | "in_hand", number>>;
 }, {
     items: {
         status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
@@ -411,6 +411,7 @@ export declare const FaultListPage: z.ZodObject<{
         title: string;
         propertyName: string | null;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
+        updatedAt: string;
         leaseId: string | null;
         unitLabel: string | null;
         tenantName: string | null;
@@ -418,7 +419,6 @@ export declare const FaultListPage: z.ZodObject<{
         unitId: string | null;
         tab: "fixed" | "open" | "closed" | "in_hand";
         photoCount: number;
-        updatedAt: string;
         leaseReference: string | null;
         urgency: "low" | "normal" | "high" | "urgent";
         reportedBy: "landlord" | "tenant";
@@ -427,10 +427,10 @@ export declare const FaultListPage: z.ZodObject<{
         thumbUrl: string | null;
     }[];
     total: number;
+    counts: Partial<Record<"fixed" | "open" | "closed" | "in_hand", number>>;
     page: number;
     pageSize: number;
     tab: "fixed" | "open" | "closed" | "in_hand" | null;
-    counts: Partial<Record<"fixed" | "open" | "closed" | "in_hand", number>>;
 }>;
 export type FaultListPage = z.infer<typeof FaultListPage>;
 export declare const FaultPhotoView: z.ZodObject<{
@@ -443,16 +443,16 @@ export declare const FaultPhotoView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     id: string;
     url: string;
+    uploadedAt: string;
     position: number;
     phase: "fixed" | "report" | "progress";
-    uploadedAt: string;
     byTenant: boolean;
 }, {
     id: string;
     url: string;
+    uploadedAt: string;
     position: number;
     phase: "fixed" | "report" | "progress";
-    uploadedAt: string;
     byTenant: boolean;
 }>;
 export type FaultPhotoView = z.infer<typeof FaultPhotoView>;
@@ -527,13 +527,13 @@ export declare const FaultDetail: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string;
         kind: "member" | "contractor";
-        userId: string | null;
         phone: string | null;
+        userId: string | null;
     }, {
         name: string;
         kind: "member" | "contractor";
-        userId: string | null;
         phone: string | null;
+        userId: string | null;
     }>>;
     acknowledgedAt: z.ZodNullable<z.ZodString>;
     resolvedAt: z.ZodNullable<z.ZodString>;
@@ -555,16 +555,16 @@ export declare const FaultDetail: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         url: string;
+        uploadedAt: string;
         position: number;
         phase: "fixed" | "report" | "progress";
-        uploadedAt: string;
         byTenant: boolean;
     }, {
         id: string;
         url: string;
+        uploadedAt: string;
         position: number;
         phase: "fixed" | "report" | "progress";
-        uploadedAt: string;
         byTenant: boolean;
     }>, "many">;
     events: z.ZodArray<z.ZodObject<{
@@ -616,26 +616,26 @@ export declare const FaultDetail: z.ZodObject<{
         receiptUrl: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        status: "failed" | "paid" | "waiting" | "voided";
+        status: "failed" | "waiting" | "paid" | "voided";
         id: string;
         amountRwf: number;
         failureReason: string | null;
         source: "gateway" | "recorded";
         createdAt: string;
-        method: "other" | "cash" | "bank" | "momo" | null;
+        method: "other" | "cash" | "momo" | "bank" | null;
         paidOn: string | null;
         destination: string | null;
         payeeName: string | null;
         receiptUrl: string | null;
         expenseId: string | null;
     }, {
-        status: "failed" | "paid" | "waiting" | "voided";
+        status: "failed" | "waiting" | "paid" | "voided";
         id: string;
         amountRwf: number;
         failureReason: string | null;
         source: "gateway" | "recorded";
         createdAt: string;
-        method: "other" | "cash" | "bank" | "momo" | null;
+        method: "other" | "cash" | "momo" | "bank" | null;
         paidOn: string | null;
         destination: string | null;
         payeeName: string | null;
@@ -648,6 +648,8 @@ export declare const FaultDetail: z.ZodObject<{
     status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
     reference: string | null;
+    description: string | null;
+    paidRwf: number | null;
     title: string;
     events: {
         id: string;
@@ -662,15 +664,14 @@ export declare const FaultDetail: z.ZodObject<{
         words: string;
     }[];
     propertyName: string | null;
-    paidRwf: number | null;
     payments: {
-        status: "failed" | "paid" | "waiting" | "voided";
+        status: "failed" | "waiting" | "paid" | "voided";
         id: string;
         amountRwf: number;
         failureReason: string | null;
         source: "gateway" | "recorded";
         createdAt: string;
-        method: "other" | "cash" | "bank" | "momo" | null;
+        method: "other" | "cash" | "momo" | "bank" | null;
         paidOn: string | null;
         destination: string | null;
         payeeName: string | null;
@@ -679,28 +680,27 @@ export declare const FaultDetail: z.ZodObject<{
     }[] | null;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
     resolvedAt: string | null;
+    updatedAt: string;
     leaseId: string | null;
     unitLabel: string | null;
-    description: string | null;
     tenantName: string | null;
     propertyId: string | null;
     unitId: string | null;
     photos: {
         id: string;
         url: string;
+        uploadedAt: string;
         position: number;
         phase: "fixed" | "report" | "progress";
-        uploadedAt: string;
         byTenant: boolean;
     }[];
     tab: "fixed" | "open" | "closed" | "in_hand";
     photoCount: number;
-    updatedAt: string;
     assignee: {
         name: string;
         kind: "member" | "contractor";
-        userId: string | null;
         phone: string | null;
+        userId: string | null;
     } | null;
     staffMayEnter: boolean | null;
     acknowledgedAt: string | null;
@@ -719,6 +719,8 @@ export declare const FaultDetail: z.ZodObject<{
     status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
     reference: string | null;
+    description: string | null;
+    paidRwf: number | null;
     title: string;
     events: {
         id: string;
@@ -733,15 +735,14 @@ export declare const FaultDetail: z.ZodObject<{
         words: string;
     }[];
     propertyName: string | null;
-    paidRwf: number | null;
     payments: {
-        status: "failed" | "paid" | "waiting" | "voided";
+        status: "failed" | "waiting" | "paid" | "voided";
         id: string;
         amountRwf: number;
         failureReason: string | null;
         source: "gateway" | "recorded";
         createdAt: string;
-        method: "other" | "cash" | "bank" | "momo" | null;
+        method: "other" | "cash" | "momo" | "bank" | null;
         paidOn: string | null;
         destination: string | null;
         payeeName: string | null;
@@ -750,28 +751,27 @@ export declare const FaultDetail: z.ZodObject<{
     }[] | null;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
     resolvedAt: string | null;
+    updatedAt: string;
     leaseId: string | null;
     unitLabel: string | null;
-    description: string | null;
     tenantName: string | null;
     propertyId: string | null;
     unitId: string | null;
     photos: {
         id: string;
         url: string;
+        uploadedAt: string;
         position: number;
         phase: "fixed" | "report" | "progress";
-        uploadedAt: string;
         byTenant: boolean;
     }[];
     tab: "fixed" | "open" | "closed" | "in_hand";
     photoCount: number;
-    updatedAt: string;
     assignee: {
         name: string;
         kind: "member" | "contractor";
-        userId: string | null;
         phone: string | null;
+        userId: string | null;
     } | null;
     staffMayEnter: boolean | null;
     acknowledgedAt: string | null;
@@ -808,8 +808,8 @@ export declare const TenantFaultItem: z.ZodObject<{
     reference: string | null;
     title: string;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
-    photoCount: number;
     updatedAt: string;
+    photoCount: number;
     statusWords: string;
     urgency: "low" | "normal" | "high" | "urgent";
     reportedAt: string;
@@ -821,8 +821,8 @@ export declare const TenantFaultItem: z.ZodObject<{
     reference: string | null;
     title: string;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
-    photoCount: number;
     updatedAt: string;
+    photoCount: number;
     statusWords: string;
     urgency: "low" | "normal" | "high" | "urgent";
     reportedAt: string;
@@ -850,8 +850,8 @@ export declare const TenantFaultList: z.ZodObject<{
         reference: string | null;
         title: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
-        photoCount: number;
         updatedAt: string;
+        photoCount: number;
         statusWords: string;
         urgency: "low" | "normal" | "high" | "urgent";
         reportedAt: string;
@@ -863,8 +863,8 @@ export declare const TenantFaultList: z.ZodObject<{
         reference: string | null;
         title: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
-        photoCount: number;
         updatedAt: string;
+        photoCount: number;
         statusWords: string;
         urgency: "low" | "normal" | "high" | "urgent";
         reportedAt: string;
@@ -878,8 +878,8 @@ export declare const TenantFaultList: z.ZodObject<{
         reference: string | null;
         title: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
-        photoCount: number;
         updatedAt: string;
+        photoCount: number;
         statusWords: string;
         urgency: "low" | "normal" | "high" | "urgent";
         reportedAt: string;
@@ -893,8 +893,8 @@ export declare const TenantFaultList: z.ZodObject<{
         reference: string | null;
         title: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
-        photoCount: number;
         updatedAt: string;
+        photoCount: number;
         statusWords: string;
         urgency: "low" | "normal" | "high" | "urgent";
         reportedAt: string;
@@ -931,16 +931,16 @@ export declare const TenantFaultDetail: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         url: string;
+        uploadedAt: string;
         position: number;
         phase: "fixed" | "report" | "progress";
-        uploadedAt: string;
         byTenant: boolean;
     }, {
         id: string;
         url: string;
+        uploadedAt: string;
         position: number;
         phase: "fixed" | "report" | "progress";
-        uploadedAt: string;
         byTenant: boolean;
     }>, "many">;
     /** Only what the tenant may see. */
@@ -982,6 +982,7 @@ export declare const TenantFaultDetail: z.ZodObject<{
     status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
     reference: string | null;
+    description: string | null;
     title: string;
     events: {
         id: string;
@@ -996,17 +997,16 @@ export declare const TenantFaultDetail: z.ZodObject<{
         words: string;
     }[];
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
-    description: string | null;
+    updatedAt: string;
     photos: {
         id: string;
         url: string;
+        uploadedAt: string;
         position: number;
         phase: "fixed" | "report" | "progress";
-        uploadedAt: string;
         byTenant: boolean;
     }[];
     photoCount: number;
-    updatedAt: string;
     staffMayEnter: boolean | null;
     statusWords: string;
     urgency: "low" | "normal" | "high" | "urgent";
@@ -1019,6 +1019,7 @@ export declare const TenantFaultDetail: z.ZodObject<{
     status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
     reference: string | null;
+    description: string | null;
     title: string;
     events: {
         id: string;
@@ -1033,17 +1034,16 @@ export declare const TenantFaultDetail: z.ZodObject<{
         words: string;
     }[];
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
-    description: string | null;
+    updatedAt: string;
     photos: {
         id: string;
         url: string;
+        uploadedAt: string;
         position: number;
         phase: "fixed" | "report" | "progress";
-        uploadedAt: string;
         byTenant: boolean;
     }[];
     photoCount: number;
-    updatedAt: string;
     staffMayEnter: boolean | null;
     statusWords: string;
     urgency: "low" | "normal" | "high" | "urgent";

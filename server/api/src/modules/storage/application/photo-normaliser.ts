@@ -31,6 +31,29 @@ export interface NormalisedPhoto {
   height: number;
 }
 
+/** The longest edge a logo is kept at: sharp on a printed certificate, small to send. */
+export const LOGO_MAX_EDGE_PX = 600;
+
+/**
+ * A business's logo, as it is kept (2026-10-23): upright, fitted inside
+ * 600 px, re-encoded as PNG so a transparent logo stays transparent on the
+ * certificate's paper, and stripped of metadata like a photo. PNG because
+ * the certificate PDF embeds PNG and JPEG only, and a browser shows both.
+ */
+export async function normaliseLogo(input: Buffer): Promise<{ body: Buffer; mime: 'image/png'; width: number; height: number }> {
+  try {
+    const { data, info } = await sharp(input, { failOn: 'error' })
+      .rotate()
+      .resize({ width: LOGO_MAX_EDGE_PX, height: LOGO_MAX_EDGE_PX, fit: 'inside', withoutEnlargement: true })
+      .toColourspace('srgb')
+      .png({ compressionLevel: 9 })
+      .toBuffer({ resolveWithObject: true });
+    return { body: data, mime: 'image/png', width: info.width, height: info.height };
+  } catch {
+    throw new BadRequestException("We couldn't read that image. Try your logo saved as a PNG or JPEG.");
+  }
+}
+
 export async function normalisePhoto(input: Buffer, mime: string): Promise<NormalisedPhoto> {
   try {
     const { data, info } = await sharp(input, { failOn: 'error' })

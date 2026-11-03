@@ -7,6 +7,7 @@ import { IdentityService } from './application/identity.service';
 import { MeContextService } from './application/me-context.service';
 import { ProfileService } from './application/profile.service';
 import { identityAdapterProviders } from './infrastructure/identity-adapters.provider';
+import { identityRegistryProvider } from './infrastructure/identity-registry.adapters';
 import { IdentityRepository } from './infrastructure/identity.repository';
 import { MeContextRepository } from './infrastructure/me-context.repository';
 import { ProfileRepository } from './infrastructure/profile.repository';
@@ -33,6 +34,7 @@ import { ProfileRepository } from './infrastructure/profile.repository';
     IdentityRepository,
     IdentityService,
     ...identityAdapterProviders,
+    identityRegistryProvider,
     // Who am I, in one call (blueprint 2.5): tenancies and the broker record.
     MeContextRepository,
     MeContextService,

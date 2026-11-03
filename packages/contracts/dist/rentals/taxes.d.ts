@@ -492,14 +492,14 @@ export declare const TaxYearView: z.ZodObject<{
             taxRwf: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
             taxRwf: number;
-            ratePercent: number;
             fromRwf: number;
+            ratePercent: number;
             toRwf: number | null;
             incomeRwf: number;
         }, {
             taxRwf: number;
-            ratePercent: number;
             fromRwf: number;
+            ratePercent: number;
             toRwf: number | null;
             incomeRwf: number;
         }>, "many">;
@@ -513,8 +513,8 @@ export declare const TaxYearView: z.ZodObject<{
         taxableIncomeRwf: number;
         bands: {
             taxRwf: number;
-            ratePercent: number;
             fromRwf: number;
+            ratePercent: number;
             toRwf: number | null;
             incomeRwf: number;
         }[];
@@ -527,8 +527,8 @@ export declare const TaxYearView: z.ZodObject<{
         taxableIncomeRwf: number;
         bands: {
             taxRwf: number;
-            ratePercent: number;
             fromRwf: number;
+            ratePercent: number;
             toRwf: number | null;
             incomeRwf: number;
         }[];
@@ -692,8 +692,8 @@ export declare const TaxYearView: z.ZodObject<{
         paymentCount: number;
         depositsExcludedRwf: number;
     };
-    running: boolean;
     dueOn: string;
+    running: boolean;
     year: number;
     asOf: string;
     taxpayer: "individual" | "company" | null;
@@ -736,8 +736,8 @@ export declare const TaxYearView: z.ZodObject<{
         taxableIncomeRwf: number;
         bands: {
             taxRwf: number;
-            ratePercent: number;
             fromRwf: number;
+            ratePercent: number;
             toRwf: number | null;
             incomeRwf: number;
         }[];
@@ -798,8 +798,8 @@ export declare const TaxYearView: z.ZodObject<{
         paymentCount: number;
         depositsExcludedRwf: number;
     };
-    running: boolean;
     dueOn: string;
+    running: boolean;
     year: number;
     asOf: string;
     taxpayer: "individual" | "company" | null;
@@ -842,8 +842,8 @@ export declare const TaxYearView: z.ZodObject<{
         taxableIncomeRwf: number;
         bands: {
             taxRwf: number;
-            ratePercent: number;
             fromRwf: number;
+            ratePercent: number;
             toRwf: number | null;
             incomeRwf: number;
         }[];

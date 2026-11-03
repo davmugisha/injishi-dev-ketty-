@@ -22,7 +22,6 @@ import {
   KeyValueList,
   LoadingBlock,
   PageContent,
-  PageHeader,
   PhotoGallery,
   SectionHeader,
   SidePanel,
@@ -30,6 +29,7 @@ import {
 } from "@injishi/ui";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useTransition } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { placeWords } from "../leases/shared";
 import { TextInput } from "../rentals/fields";
 import { loadTenantFault, reopenFault, reportFault, tenantReplyOnFault } from "./actions";
@@ -80,6 +80,7 @@ export function TenantFaultsView({
     {
       id: "status",
       header: "Status",
+      sortValue: (f) => f.status,
       cell: (f) => (
         <StatusChip kind="fault" status={f.status}>
           {f.statusWords}
@@ -107,13 +108,28 @@ export function TenantFaultsView({
     <PageContent>
       <Toast.Provider placement="bottom" />
       {/* With nothing reported, the empty state carries the one Report button. */}
-      <PageHeader eyebrow={placeWords(tenancy)} title="Faults" actions={items.length > 0 ? reportButton : null} />
+      <AreaHeader eyebrow={placeWords(tenancy)} actions={items.length > 0 ? reportButton : null} />
       <DataTable
         label="Your faults"
         rows={items}
         rowKey={(f) => f.id}
         columns={columns}
         defaultSort={{ column: "age", direction: "descending" }}
+        noun={{ one: "fault", many: "faults" }}
+        search={{ placeholder: "Fault or reference", text: (f) => `${f.title} ${f.reference ?? ""}` }}
+        filters={[
+          {
+            id: "stage",
+            name: "Stage",
+            options: [
+              { id: "all", label: "All" },
+              { id: "open", label: "Being fixed" },
+              { id: "done", label: "Fixed or closed" },
+            ],
+            match: (f, v) =>
+              ["resolved", "closed", "wont_fix", "cancelled"].includes(f.status) ? v === "done" : v === "open",
+          },
+        ]}
         onRowAction={(f) => setSelected(f.id)}
         mobile={{
           title: (f) => f.title,
@@ -124,19 +140,11 @@ export function TenantFaultsView({
             </StatusChip>
           ),
         }}
-        empty={
-          <EmptyBlock
-            icon="Wrench"
-            title="Nothing reported"
-            description="A leak, a broken lock, no power: report it with a photo."
-            action={reportButton ?? undefined}
-          />
-        }
+        empty={<EmptyBlock icon="Wrench" title="Nothing reported" action={reportButton ?? undefined} />}
       />
       {reporting ? (
         <ReportFaultDialog
           title="Report a fault"
-          description="Your landlord is told at once."
           create={async (draft) => {
             const r = await reportFault(tenancy.id, draft);
             return r.ok ? { ok: true, value: { id: r.value.id, reference: r.value.reference } } : r;

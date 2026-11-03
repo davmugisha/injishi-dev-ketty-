@@ -102,7 +102,6 @@ export function KitGallery({ today }: { today: string }) {
             </>
           }
           title="Component gallery"
-          description="Every shared component in every state, as screens use them. Names and amounts here are made up."
           actions={<ThemeToggle />}
         />
         <nav aria-label="Gallery sections" className="-mt-2 flex flex-wrap gap-2">
@@ -291,7 +290,6 @@ function LayoutSection() {
         <PageHeader
           eyebrow="Kacyiru Heights"
           title="Leases"
-          description="Every lease, from the draft to the move-out."
           actions={
             <>
               <ActionButton icon="ArrowDownToLine">Export</ActionButton>
@@ -301,7 +299,7 @@ function LayoutSection() {
             </>
           }
         />
-        <PageHeader size="hello" title="Good morning, Aline" description="Two things need you today." />
+        <PageHeader size="hello" title="Good morning, Aline" />
       </div>
       <div className="grid gap-4 lg:grid-cols-3">
         <SectionCard

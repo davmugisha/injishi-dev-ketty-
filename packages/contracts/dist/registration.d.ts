@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Domain } from "./primitives";
 /**
  * Business registration (F-S03 / FL01), governed by D20, D23 and D24.
  *
@@ -10,18 +11,23 @@ import { z } from "zod";
 /**
  * The first question the wizard asks, because it picks the whole path.
  *
- * `host` and `landlord` both create an `orgs` row and differ by `domain`;
- * `broker` creates a `brokers` row and no org at all. All three are priced
- * separately in `registration_fees`, which is why this is one enum and not a
- * boolean plus a domain.
+ * `host`, `landlord` and `enterprise` each create an `orgs` row and differ by
+ * `domain`; `broker` creates a `brokers` row and no org at all. All four are
+ * priced separately in `registration_fees`, which is why this is one enum and
+ * not a boolean plus a domain.
+ *
+ * `enterprise` is the PSF path: a business of any sector registering to join
+ * the Private Sector Federation through Injishi.
  */
-export declare const RegistrantRole: z.ZodEnum<["host", "landlord", "broker"]>;
+export declare const RegistrantRole: z.ZodEnum<["host", "landlord", "broker", "enterprise"]>;
 export type RegistrantRole = z.infer<typeof RegistrantRole>;
-/** The three rows `registration_fees` is keyed by (schema §8.3a). */
-export declare const RegistrationBusinessType: z.ZodEnum<["hospitality", "residence", "broker"]>;
+/** The four rows `registration_fees` is keyed by (schema §8.3a). */
+export declare const RegistrationBusinessType: z.ZodEnum<["hospitality", "residence", "broker", "enterprise"]>;
 export type RegistrationBusinessType = z.infer<typeof RegistrationBusinessType>;
 /** A registrant's answer maps onto exactly one fee row and one domain. */
 export declare function businessTypeFor(role: RegistrantRole): RegistrationBusinessType;
+/** The domain a registrant's role registers, for the three roles that create an org. */
+export declare function domainForRole(role: Exclude<RegistrantRole, "broker">): Domain;
 /** Whether this registrant is the owner, or acting for one (OBO, FL02). */
 export declare const RegistrantCapacity: z.ZodEnum<["owner", "on_behalf_of"]>;
 export type RegistrantCapacity = z.infer<typeof RegistrantCapacity>;
@@ -437,7 +443,7 @@ export declare function branchNameKey(name: string): string;
 export declare const PsfCompanyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
 export type PsfCompanyType = z.infer<typeof PsfCompanyType>;
 /** PSF's form, "Ownership", as printed. `other` carries a text. */
-export declare const PsfOwnership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+export declare const PsfOwnership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
 export type PsfOwnership = z.infer<typeof PsfOwnership>;
 export declare const PsfTradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
 export type PsfTradeDirection = z.infer<typeof PsfTradeDirection>;
@@ -488,22 +494,46 @@ export declare const PsfIdDocument: z.ZodDiscriminatedUnion<"documentType", [z.Z
 export type PsfIdDocument = z.infer<typeof PsfIdDocument>;
 export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     requestedTierCode: z.ZodString;
-    companyName: z.ZodString;
-    streetAddress: z.ZodString;
+    /**
+     * What the business will pay a year, inside the band it picked. A business
+     * pays what it can afford within its tier, so the amount is its own answer.
+     * Required for every tier except one PSF prices itself; the server checks it
+     * against the tier (`psfTierAcceptsFee`), which only the server reads.
+     */
+    declaredFeeRwf: z.ZodOptional<z.ZodEffects<z.ZodNumber, number, number>>;
+    /**
+     * Who the business is, and where (2026-11-03): absent from Injishi's registration, which already
+     * names the business and places it, so the server copies them from there.
+     */
+    companyName: z.ZodOptional<z.ZodString>;
+    streetAddress: z.ZodOptional<z.ZodString>;
+    /**
+     * Its sector, kind of business and association, as the PSF form asks them (2026-11-03). Absent: a
+     * hotel is filed under PSF's hospitality association.
+     */
+    associationCode: z.ZodOptional<z.ZodString>;
+    associationOther: z.ZodOptional<z.ZodString>;
+    subsectorId: z.ZodOptional<z.ZodString>;
+    subsectorOther: z.ZodOptional<z.ZodString>;
     website: z.ZodOptional<z.ZodString>;
     companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
-    ownership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+    ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
     ownershipOther: z.ZodOptional<z.ZodString>;
     businessActivity: z.ZodString;
     tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
     tradeGoods: z.ZodOptional<z.ZodString>;
     tradeCountries: z.ZodDefault<z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">>;
-    contactRole: z.ZodEnum<["owner", "managing_director", "ceo", "chairman"]>;
-    firstName: z.ZodString;
-    lastName: z.ZodString;
-    gender: z.ZodEnum<["male", "female"]>;
-    phoneE164: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
-    email: z.ZodString;
+    /**
+     * The contact person (2026-11-03): each is absent when the person already gave it on You, and the
+     * server copies it from their profile. Gender is asked here only when You holds neither of the two
+     * PSF's form knows.
+     */
+    contactRole: z.ZodOptional<z.ZodEnum<["owner", "managing_director", "ceo", "chairman"]>>;
+    firstName: z.ZodOptional<z.ZodString>;
+    lastName: z.ZodOptional<z.ZodString>;
+    gender: z.ZodOptional<z.ZodEnum<["male", "female"]>>;
+    phoneE164: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
+    email: z.ZodOptional<z.ZodString>;
     /** Absent only when `useDocumentOnFile` asks the server for it instead. */
     idDocument: z.ZodOptional<z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
         documentType: z.ZodLiteral<"national_id">;
@@ -531,29 +561,34 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
      * browser never sees it.
      */
     useDocumentOnFile: z.ZodOptional<z.ZodLiteral<true>>;
-    dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
+    dateOfBirth: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
     /** Must be ticked: an unticked box and a Yes are different acts (AC-5). */
     consent: z.ZodLiteral<true>;
 }, "strip", z.ZodTypeAny, {
-    gender: "female" | "male";
-    dateOfBirth: string;
-    phoneE164: string;
     requestedTierCode: string;
-    companyName: string;
-    streetAddress: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-    ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     tradeCountries: string[];
-    contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-    firstName: string;
-    lastName: string;
-    email: string;
     consent: true;
+    gender?: "female" | "male" | undefined;
+    dateOfBirth?: string | undefined;
+    phoneE164?: string | undefined;
+    declaredFeeRwf?: number | undefined;
+    companyName?: string | undefined;
+    streetAddress?: string | undefined;
+    associationCode?: string | undefined;
+    associationOther?: string | undefined;
+    subsectorId?: string | undefined;
+    subsectorOther?: string | undefined;
     website?: string | undefined;
     ownershipOther?: string | undefined;
     tradeGoods?: string | undefined;
+    contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+    firstName?: string | undefined;
+    lastName?: string | undefined;
+    email?: string | undefined;
     idDocument?: {
         documentType: "national_id";
         documentNumber: string;
@@ -563,25 +598,30 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     } | undefined;
     useDocumentOnFile?: true | undefined;
 }, {
-    gender: "female" | "male";
-    dateOfBirth: string;
-    phoneE164: string;
     requestedTierCode: string;
-    companyName: string;
-    streetAddress: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-    ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
-    contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-    firstName: string;
-    lastName: string;
-    email: string;
     consent: true;
+    gender?: "female" | "male" | undefined;
+    dateOfBirth?: string | undefined;
+    phoneE164?: string | undefined;
+    declaredFeeRwf?: number | undefined;
+    companyName?: string | undefined;
+    streetAddress?: string | undefined;
+    associationCode?: string | undefined;
+    associationOther?: string | undefined;
+    subsectorId?: string | undefined;
+    subsectorOther?: string | undefined;
     website?: string | undefined;
     ownershipOther?: string | undefined;
     tradeGoods?: string | undefined;
     tradeCountries?: string[] | undefined;
+    contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+    firstName?: string | undefined;
+    lastName?: string | undefined;
+    email?: string | undefined;
     idDocument?: {
         documentType: "national_id";
         documentNumber: string;
@@ -591,25 +631,30 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     } | undefined;
     useDocumentOnFile?: true | undefined;
 }>, {
-    gender: "female" | "male";
-    dateOfBirth: string;
-    phoneE164: string;
     requestedTierCode: string;
-    companyName: string;
-    streetAddress: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-    ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     tradeCountries: string[];
-    contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-    firstName: string;
-    lastName: string;
-    email: string;
     consent: true;
+    gender?: "female" | "male" | undefined;
+    dateOfBirth?: string | undefined;
+    phoneE164?: string | undefined;
+    declaredFeeRwf?: number | undefined;
+    companyName?: string | undefined;
+    streetAddress?: string | undefined;
+    associationCode?: string | undefined;
+    associationOther?: string | undefined;
+    subsectorId?: string | undefined;
+    subsectorOther?: string | undefined;
     website?: string | undefined;
     ownershipOther?: string | undefined;
     tradeGoods?: string | undefined;
+    contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+    firstName?: string | undefined;
+    lastName?: string | undefined;
+    email?: string | undefined;
     idDocument?: {
         documentType: "national_id";
         documentNumber: string;
@@ -619,25 +664,30 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     } | undefined;
     useDocumentOnFile?: true | undefined;
 }, {
-    gender: "female" | "male";
-    dateOfBirth: string;
-    phoneE164: string;
     requestedTierCode: string;
-    companyName: string;
-    streetAddress: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-    ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
-    contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-    firstName: string;
-    lastName: string;
-    email: string;
     consent: true;
+    gender?: "female" | "male" | undefined;
+    dateOfBirth?: string | undefined;
+    phoneE164?: string | undefined;
+    declaredFeeRwf?: number | undefined;
+    companyName?: string | undefined;
+    streetAddress?: string | undefined;
+    associationCode?: string | undefined;
+    associationOther?: string | undefined;
+    subsectorId?: string | undefined;
+    subsectorOther?: string | undefined;
     website?: string | undefined;
     ownershipOther?: string | undefined;
     tradeGoods?: string | undefined;
     tradeCountries?: string[] | undefined;
+    contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+    firstName?: string | undefined;
+    lastName?: string | undefined;
+    email?: string | undefined;
     idDocument?: {
         documentType: "national_id";
         documentNumber: string;
@@ -648,6 +698,24 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     useDocumentOnFile?: true | undefined;
 }>;
 export type PsfApplicationInput = z.infer<typeof PsfApplicationInput>;
+/**
+ * The owners PSF's Specialized cluster speaks for: women, young people and
+ * people with disabilities. A marker on a business of ANY sector, never a
+ * sector of its own, because a factory a woman owns is still a factory.
+ */
+export declare const PsfOwnerGroup: z.ZodEnum<["women", "youth", "pwd"]>;
+export type PsfOwnerGroup = z.infer<typeof PsfOwnerGroup>;
+/**
+ * How a PSF business is registered, when it says so. A TIN is optional on this
+ * path: a cooperative is registered with RCA, an NGO with RGB, and the smallest
+ * businesses PSF wants are often registered nowhere yet. `tin` is checked with
+ * RRA like every other TIN; the others are recorded as given, and the PSF
+ * officer reads them.
+ */
+export declare const EnterpriseRegistrationKind: z.ZodEnum<["tin", "rca", "rgb", "other", "none"]>;
+export type EnterpriseRegistrationKind = z.infer<typeof EnterpriseRegistrationKind>;
+/** The kinds that carry a number other than a TIN. */
+export declare const NUMBERED_REGISTRATION_KINDS: readonly EnterpriseRegistrationKind[];
 /** The membership number a business that answered Yes may give (ADR-056 AC-1). */
 export declare const PsfMembershipNumber: z.ZodString;
 /**
@@ -779,22 +847,46 @@ export declare const HospitalityBusiness: z.ZodObject<{
      */
     psfApplication: z.ZodOptional<z.ZodEffects<z.ZodObject<{
         requestedTierCode: z.ZodString;
-        companyName: z.ZodString;
-        streetAddress: z.ZodString;
+        /**
+         * What the business will pay a year, inside the band it picked. A business
+         * pays what it can afford within its tier, so the amount is its own answer.
+         * Required for every tier except one PSF prices itself; the server checks it
+         * against the tier (`psfTierAcceptsFee`), which only the server reads.
+         */
+        declaredFeeRwf: z.ZodOptional<z.ZodEffects<z.ZodNumber, number, number>>;
+        /**
+         * Who the business is, and where (2026-11-03): absent from Injishi's registration, which already
+         * names the business and places it, so the server copies them from there.
+         */
+        companyName: z.ZodOptional<z.ZodString>;
+        streetAddress: z.ZodOptional<z.ZodString>;
+        /**
+         * Its sector, kind of business and association, as the PSF form asks them (2026-11-03). Absent: a
+         * hotel is filed under PSF's hospitality association.
+         */
+        associationCode: z.ZodOptional<z.ZodString>;
+        associationOther: z.ZodOptional<z.ZodString>;
+        subsectorId: z.ZodOptional<z.ZodString>;
+        subsectorOther: z.ZodOptional<z.ZodString>;
         website: z.ZodOptional<z.ZodString>;
         companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
-        ownership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+        ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
         ownershipOther: z.ZodOptional<z.ZodString>;
         businessActivity: z.ZodString;
         tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
         tradeGoods: z.ZodOptional<z.ZodString>;
         tradeCountries: z.ZodDefault<z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">>;
-        contactRole: z.ZodEnum<["owner", "managing_director", "ceo", "chairman"]>;
-        firstName: z.ZodString;
-        lastName: z.ZodString;
-        gender: z.ZodEnum<["male", "female"]>;
-        phoneE164: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
-        email: z.ZodString;
+        /**
+         * The contact person (2026-11-03): each is absent when the person already gave it on You, and the
+         * server copies it from their profile. Gender is asked here only when You holds neither of the two
+         * PSF's form knows.
+         */
+        contactRole: z.ZodOptional<z.ZodEnum<["owner", "managing_director", "ceo", "chairman"]>>;
+        firstName: z.ZodOptional<z.ZodString>;
+        lastName: z.ZodOptional<z.ZodString>;
+        gender: z.ZodOptional<z.ZodEnum<["male", "female"]>>;
+        phoneE164: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
+        email: z.ZodOptional<z.ZodString>;
         /** Absent only when `useDocumentOnFile` asks the server for it instead. */
         idDocument: z.ZodOptional<z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
             documentType: z.ZodLiteral<"national_id">;
@@ -822,29 +914,34 @@ export declare const HospitalityBusiness: z.ZodObject<{
          * browser never sees it.
          */
         useDocumentOnFile: z.ZodOptional<z.ZodLiteral<true>>;
-        dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
+        dateOfBirth: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
         /** Must be ticked: an unticked box and a Yes are different acts (AC-5). */
         consent: z.ZodLiteral<true>;
     }, "strip", z.ZodTypeAny, {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
+        declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -854,25 +951,30 @@ export declare const HospitalityBusiness: z.ZodObject<{
         } | undefined;
         useDocumentOnFile?: true | undefined;
     }, {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
+        declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -882,25 +984,30 @@ export declare const HospitalityBusiness: z.ZodObject<{
         } | undefined;
         useDocumentOnFile?: true | undefined;
     }>, {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
+        declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -910,25 +1017,30 @@ export declare const HospitalityBusiness: z.ZodObject<{
         } | undefined;
         useDocumentOnFile?: true | undefined;
     }, {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
+        declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1033,6 +1145,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         villageId?: number | undefined;
         street?: string | undefined;
     };
+    tin: string;
     legalName: string;
     certificates: {
         kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -1044,7 +1157,6 @@ export declare const HospitalityBusiness: z.ZodObject<{
         expiresOn?: string | undefined;
     }[];
     entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
-    tin: string;
     chamberOfTourismMember: boolean;
     psfMember: boolean;
     branches: {
@@ -1076,25 +1188,30 @@ export declare const HospitalityBusiness: z.ZodObject<{
     tourismLicenseNumber?: string | undefined;
     psfMembershipNumber?: string | undefined;
     psfApplication?: {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
+        declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1116,8 +1233,8 @@ export declare const HospitalityBusiness: z.ZodObject<{
         villageId?: number | undefined;
         street?: string | undefined;
     };
-    legalName: string;
     tin: string;
+    legalName: string;
     franchise?: {
         role: "franchisee";
         brandName: string;
@@ -1147,25 +1264,30 @@ export declare const HospitalityBusiness: z.ZodObject<{
     psfMember?: boolean | undefined;
     psfMembershipNumber?: string | undefined;
     psfApplication?: {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
+        declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1321,6 +1443,144 @@ export declare const ResidenceBusiness: z.ZodObject<{
     psfApplication?: undefined;
     branches?: unknown[] | undefined;
 }>;
+/**
+ * A business of any sector joining PSF through Injishi (the PSF path). It
+ * names its sector by the PSF association it belongs to (the cluster follows
+ * from it), may carry a TIN, and carries none of the tourism apparatus.
+ *
+ * The PSF application itself is NOT part of this: the business registers, gets
+ * its code, and applies from its own portal, where the form and the tiers live.
+ */
+export declare const EnterpriseBusiness: z.ZodObject<{
+    legalName: z.ZodString;
+    address: z.ZodObject<{
+        country: z.ZodLiteral<"RW">;
+        provinceId: z.ZodNumber;
+        districtId: z.ZodNumber;
+        sectorId: z.ZodNumber;
+        /** Fourth level. Collected to drive the village picker, never stored. */
+        cellId: z.ZodOptional<z.ZodNumber>;
+        /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+        villageId: z.ZodOptional<z.ZodNumber>;
+        /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
+        street: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        country: "RW";
+        provinceId: number;
+        districtId: number;
+        sectorId: number;
+        cellId?: number | undefined;
+        villageId?: number | undefined;
+        street?: string | undefined;
+    }, {
+        country: "RW";
+        provinceId: number;
+        districtId: number;
+        sectorId: number;
+        cellId?: number | undefined;
+        villageId?: number | undefined;
+        street?: string | undefined;
+    }>;
+    certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title", "franchise_agreement"]>;
+        /** Required when `kind` is `other`; the database carries the same rule. */
+        kindOther: z.ZodOptional<z.ZodString>;
+        /** Key of an already-uploaded `stored_objects` row (F-S09). */
+        objectKey: z.ZodString;
+        certificateNumber: z.ZodOptional<z.ZodString>;
+        issuedBy: z.ZodOptional<z.ZodString>;
+        issuedOn: z.ZodOptional<z.ZodString>;
+        expiresOn: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+        objectKey: string;
+        kindOther?: string | undefined;
+        certificateNumber?: string | undefined;
+        issuedBy?: string | undefined;
+        issuedOn?: string | undefined;
+        expiresOn?: string | undefined;
+    }, {
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+        objectKey: string;
+        kindOther?: string | undefined;
+        certificateNumber?: string | undefined;
+        issuedBy?: string | undefined;
+        issuedOn?: string | undefined;
+        expiresOn?: string | undefined;
+    }>, "many">>;
+} & {
+    domain: z.ZodLiteral<"enterprise">;
+    registrationKind: z.ZodEnum<["tin", "rca", "rgb", "other", "none"]>;
+    /** Required with `registrationKind: tin`, forbidden otherwise. */
+    tin: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
+    /** Required with `rca`, `rgb` and `other`, forbidden otherwise. */
+    registrationNumber: z.ZodOptional<z.ZodString>;
+    /** A row of the PSF association catalogue, which admin edits. */
+    associationCode: z.ZodString;
+    ownerGroups: z.ZodDefault<z.ZodArray<z.ZodEnum<["women", "youth", "pwd"]>, "many">>;
+    /** Refused, not stripped, like a residence's (ADR-054 AC-R3). */
+    branches: z.ZodOptional<z.ZodArray<z.ZodUnknown, "many">>;
+    psfApplication: z.ZodOptional<z.ZodNever>;
+    psfMembershipNumber: z.ZodOptional<z.ZodNever>;
+}, "strip", z.ZodTypeAny, {
+    domain: "enterprise";
+    address: {
+        country: "RW";
+        provinceId: number;
+        districtId: number;
+        sectorId: number;
+        cellId?: number | undefined;
+        villageId?: number | undefined;
+        street?: string | undefined;
+    };
+    associationCode: string;
+    legalName: string;
+    certificates: {
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+        objectKey: string;
+        kindOther?: string | undefined;
+        certificateNumber?: string | undefined;
+        issuedBy?: string | undefined;
+        issuedOn?: string | undefined;
+        expiresOn?: string | undefined;
+    }[];
+    registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
+    ownerGroups: ("women" | "youth" | "pwd")[];
+    tin?: string | undefined;
+    psfMembershipNumber?: undefined;
+    psfApplication?: undefined;
+    branches?: unknown[] | undefined;
+    registrationNumber?: string | undefined;
+}, {
+    domain: "enterprise";
+    address: {
+        country: "RW";
+        provinceId: number;
+        districtId: number;
+        sectorId: number;
+        cellId?: number | undefined;
+        villageId?: number | undefined;
+        street?: string | undefined;
+    };
+    associationCode: string;
+    legalName: string;
+    registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
+    tin?: string | undefined;
+    certificates?: {
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+        objectKey: string;
+        kindOther?: string | undefined;
+        certificateNumber?: string | undefined;
+        issuedBy?: string | undefined;
+        issuedOn?: string | undefined;
+        expiresOn?: string | undefined;
+    }[] | undefined;
+    psfMembershipNumber?: undefined;
+    psfApplication?: undefined;
+    branches?: unknown[] | undefined;
+    registrationNumber?: string | undefined;
+    ownerGroups?: ("women" | "youth" | "pwd")[] | undefined;
+}>;
 export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"domain", [z.ZodObject<{
     legalName: z.ZodString;
     address: z.ZodObject<{
@@ -1408,22 +1668,46 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
      */
     psfApplication: z.ZodOptional<z.ZodEffects<z.ZodObject<{
         requestedTierCode: z.ZodString;
-        companyName: z.ZodString;
-        streetAddress: z.ZodString;
+        /**
+         * What the business will pay a year, inside the band it picked. A business
+         * pays what it can afford within its tier, so the amount is its own answer.
+         * Required for every tier except one PSF prices itself; the server checks it
+         * against the tier (`psfTierAcceptsFee`), which only the server reads.
+         */
+        declaredFeeRwf: z.ZodOptional<z.ZodEffects<z.ZodNumber, number, number>>;
+        /**
+         * Who the business is, and where (2026-11-03): absent from Injishi's registration, which already
+         * names the business and places it, so the server copies them from there.
+         */
+        companyName: z.ZodOptional<z.ZodString>;
+        streetAddress: z.ZodOptional<z.ZodString>;
+        /**
+         * Its sector, kind of business and association, as the PSF form asks them (2026-11-03). Absent: a
+         * hotel is filed under PSF's hospitality association.
+         */
+        associationCode: z.ZodOptional<z.ZodString>;
+        associationOther: z.ZodOptional<z.ZodString>;
+        subsectorId: z.ZodOptional<z.ZodString>;
+        subsectorOther: z.ZodOptional<z.ZodString>;
         website: z.ZodOptional<z.ZodString>;
         companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
-        ownership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+        ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
         ownershipOther: z.ZodOptional<z.ZodString>;
         businessActivity: z.ZodString;
         tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
         tradeGoods: z.ZodOptional<z.ZodString>;
         tradeCountries: z.ZodDefault<z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">>;
-        contactRole: z.ZodEnum<["owner", "managing_director", "ceo", "chairman"]>;
-        firstName: z.ZodString;
-        lastName: z.ZodString;
-        gender: z.ZodEnum<["male", "female"]>;
-        phoneE164: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
-        email: z.ZodString;
+        /**
+         * The contact person (2026-11-03): each is absent when the person already gave it on You, and the
+         * server copies it from their profile. Gender is asked here only when You holds neither of the two
+         * PSF's form knows.
+         */
+        contactRole: z.ZodOptional<z.ZodEnum<["owner", "managing_director", "ceo", "chairman"]>>;
+        firstName: z.ZodOptional<z.ZodString>;
+        lastName: z.ZodOptional<z.ZodString>;
+        gender: z.ZodOptional<z.ZodEnum<["male", "female"]>>;
+        phoneE164: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
+        email: z.ZodOptional<z.ZodString>;
         /** Absent only when `useDocumentOnFile` asks the server for it instead. */
         idDocument: z.ZodOptional<z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
             documentType: z.ZodLiteral<"national_id">;
@@ -1451,29 +1735,34 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
          * browser never sees it.
          */
         useDocumentOnFile: z.ZodOptional<z.ZodLiteral<true>>;
-        dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
+        dateOfBirth: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
         /** Must be ticked: an unticked box and a Yes are different acts (AC-5). */
         consent: z.ZodLiteral<true>;
     }, "strip", z.ZodTypeAny, {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
+        declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1483,25 +1772,30 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         } | undefined;
         useDocumentOnFile?: true | undefined;
     }, {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
+        declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1511,25 +1805,30 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         } | undefined;
         useDocumentOnFile?: true | undefined;
     }>, {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
+        declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1539,25 +1838,30 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         } | undefined;
         useDocumentOnFile?: true | undefined;
     }, {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
+        declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1662,6 +1966,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         villageId?: number | undefined;
         street?: string | undefined;
     };
+    tin: string;
     legalName: string;
     certificates: {
         kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -1673,7 +1978,6 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         expiresOn?: string | undefined;
     }[];
     entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
-    tin: string;
     chamberOfTourismMember: boolean;
     psfMember: boolean;
     branches: {
@@ -1705,25 +2009,30 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     tourismLicenseNumber?: string | undefined;
     psfMembershipNumber?: string | undefined;
     psfApplication?: {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
+        declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1745,8 +2054,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         villageId?: number | undefined;
         street?: string | undefined;
     };
-    legalName: string;
     tin: string;
+    legalName: string;
     franchise?: {
         role: "franchisee";
         brandName: string;
@@ -1776,25 +2085,30 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     psfMember?: boolean | undefined;
     psfMembershipNumber?: string | undefined;
     psfApplication?: {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
+        declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -1947,6 +2261,135 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     psfMembershipNumber?: undefined;
     psfApplication?: undefined;
     branches?: unknown[] | undefined;
+}>, z.ZodObject<{
+    legalName: z.ZodString;
+    address: z.ZodObject<{
+        country: z.ZodLiteral<"RW">;
+        provinceId: z.ZodNumber;
+        districtId: z.ZodNumber;
+        sectorId: z.ZodNumber;
+        /** Fourth level. Collected to drive the village picker, never stored. */
+        cellId: z.ZodOptional<z.ZodNumber>;
+        /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+        villageId: z.ZodOptional<z.ZodNumber>;
+        /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
+        street: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        country: "RW";
+        provinceId: number;
+        districtId: number;
+        sectorId: number;
+        cellId?: number | undefined;
+        villageId?: number | undefined;
+        street?: string | undefined;
+    }, {
+        country: "RW";
+        provinceId: number;
+        districtId: number;
+        sectorId: number;
+        cellId?: number | undefined;
+        villageId?: number | undefined;
+        street?: string | undefined;
+    }>;
+    certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title", "franchise_agreement"]>;
+        /** Required when `kind` is `other`; the database carries the same rule. */
+        kindOther: z.ZodOptional<z.ZodString>;
+        /** Key of an already-uploaded `stored_objects` row (F-S09). */
+        objectKey: z.ZodString;
+        certificateNumber: z.ZodOptional<z.ZodString>;
+        issuedBy: z.ZodOptional<z.ZodString>;
+        issuedOn: z.ZodOptional<z.ZodString>;
+        expiresOn: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+        objectKey: string;
+        kindOther?: string | undefined;
+        certificateNumber?: string | undefined;
+        issuedBy?: string | undefined;
+        issuedOn?: string | undefined;
+        expiresOn?: string | undefined;
+    }, {
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+        objectKey: string;
+        kindOther?: string | undefined;
+        certificateNumber?: string | undefined;
+        issuedBy?: string | undefined;
+        issuedOn?: string | undefined;
+        expiresOn?: string | undefined;
+    }>, "many">>;
+} & {
+    domain: z.ZodLiteral<"enterprise">;
+    registrationKind: z.ZodEnum<["tin", "rca", "rgb", "other", "none"]>;
+    /** Required with `registrationKind: tin`, forbidden otherwise. */
+    tin: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
+    /** Required with `rca`, `rgb` and `other`, forbidden otherwise. */
+    registrationNumber: z.ZodOptional<z.ZodString>;
+    /** A row of the PSF association catalogue, which admin edits. */
+    associationCode: z.ZodString;
+    ownerGroups: z.ZodDefault<z.ZodArray<z.ZodEnum<["women", "youth", "pwd"]>, "many">>;
+    /** Refused, not stripped, like a residence's (ADR-054 AC-R3). */
+    branches: z.ZodOptional<z.ZodArray<z.ZodUnknown, "many">>;
+    psfApplication: z.ZodOptional<z.ZodNever>;
+    psfMembershipNumber: z.ZodOptional<z.ZodNever>;
+}, "strip", z.ZodTypeAny, {
+    domain: "enterprise";
+    address: {
+        country: "RW";
+        provinceId: number;
+        districtId: number;
+        sectorId: number;
+        cellId?: number | undefined;
+        villageId?: number | undefined;
+        street?: string | undefined;
+    };
+    associationCode: string;
+    legalName: string;
+    certificates: {
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+        objectKey: string;
+        kindOther?: string | undefined;
+        certificateNumber?: string | undefined;
+        issuedBy?: string | undefined;
+        issuedOn?: string | undefined;
+        expiresOn?: string | undefined;
+    }[];
+    registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
+    ownerGroups: ("women" | "youth" | "pwd")[];
+    tin?: string | undefined;
+    psfMembershipNumber?: undefined;
+    psfApplication?: undefined;
+    branches?: unknown[] | undefined;
+    registrationNumber?: string | undefined;
+}, {
+    domain: "enterprise";
+    address: {
+        country: "RW";
+        provinceId: number;
+        districtId: number;
+        sectorId: number;
+        cellId?: number | undefined;
+        villageId?: number | undefined;
+        street?: string | undefined;
+    };
+    associationCode: string;
+    legalName: string;
+    registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
+    tin?: string | undefined;
+    certificates?: {
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+        objectKey: string;
+        kindOther?: string | undefined;
+        certificateNumber?: string | undefined;
+        issuedBy?: string | undefined;
+        issuedOn?: string | undefined;
+        expiresOn?: string | undefined;
+    }[] | undefined;
+    psfMembershipNumber?: undefined;
+    psfApplication?: undefined;
+    branches?: unknown[] | undefined;
+    registrationNumber?: string | undefined;
+    ownerGroups?: ("women" | "youth" | "pwd")[] | undefined;
 }>]>, {
     domain: "hospitality";
     address: {
@@ -1958,6 +2401,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         villageId?: number | undefined;
         street?: string | undefined;
     };
+    tin: string;
     legalName: string;
     certificates: {
         kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -1969,7 +2413,6 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         expiresOn?: string | undefined;
     }[];
     entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
-    tin: string;
     chamberOfTourismMember: boolean;
     psfMember: boolean;
     branches: {
@@ -2001,25 +2444,30 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     tourismLicenseNumber?: string | undefined;
     psfMembershipNumber?: string | undefined;
     psfApplication?: {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
+        declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -2057,6 +2505,35 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     psfMembershipNumber?: undefined;
     psfApplication?: undefined;
     branches?: unknown[] | undefined;
+} | {
+    domain: "enterprise";
+    address: {
+        country: "RW";
+        provinceId: number;
+        districtId: number;
+        sectorId: number;
+        cellId?: number | undefined;
+        villageId?: number | undefined;
+        street?: string | undefined;
+    };
+    associationCode: string;
+    legalName: string;
+    certificates: {
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+        objectKey: string;
+        kindOther?: string | undefined;
+        certificateNumber?: string | undefined;
+        issuedBy?: string | undefined;
+        issuedOn?: string | undefined;
+        expiresOn?: string | undefined;
+    }[];
+    registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
+    ownerGroups: ("women" | "youth" | "pwd")[];
+    tin?: string | undefined;
+    psfMembershipNumber?: undefined;
+    psfApplication?: undefined;
+    branches?: unknown[] | undefined;
+    registrationNumber?: string | undefined;
 }, {
     domain: "hospitality";
     address: {
@@ -2068,8 +2545,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         villageId?: number | undefined;
         street?: string | undefined;
     };
-    legalName: string;
     tin: string;
+    legalName: string;
     franchise?: {
         role: "franchisee";
         brandName: string;
@@ -2099,25 +2576,30 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     psfMember?: boolean | undefined;
     psfMembershipNumber?: string | undefined;
     psfApplication?: {
-        gender: "female" | "male";
-        dateOfBirth: string;
-        phoneE164: string;
         requestedTierCode: string;
-        companyName: string;
-        streetAddress: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
-        contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-        firstName: string;
-        lastName: string;
-        email: string;
         consent: true;
+        gender?: "female" | "male" | undefined;
+        dateOfBirth?: string | undefined;
+        phoneE164?: string | undefined;
+        declaredFeeRwf?: number | undefined;
+        companyName?: string | undefined;
+        streetAddress?: string | undefined;
+        associationCode?: string | undefined;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+        firstName?: string | undefined;
+        lastName?: string | undefined;
+        email?: string | undefined;
         idDocument?: {
             documentType: "national_id";
             documentNumber: string;
@@ -2167,6 +2649,35 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     psfMembershipNumber?: undefined;
     psfApplication?: undefined;
     branches?: unknown[] | undefined;
+} | {
+    domain: "enterprise";
+    address: {
+        country: "RW";
+        provinceId: number;
+        districtId: number;
+        sectorId: number;
+        cellId?: number | undefined;
+        villageId?: number | undefined;
+        street?: string | undefined;
+    };
+    associationCode: string;
+    legalName: string;
+    registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
+    tin?: string | undefined;
+    certificates?: {
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+        objectKey: string;
+        kindOther?: string | undefined;
+        certificateNumber?: string | undefined;
+        issuedBy?: string | undefined;
+        issuedOn?: string | undefined;
+        expiresOn?: string | undefined;
+    }[] | undefined;
+    psfMembershipNumber?: undefined;
+    psfApplication?: undefined;
+    branches?: unknown[] | undefined;
+    registrationNumber?: string | undefined;
+    ownerGroups?: ("women" | "youth" | "pwd")[] | undefined;
 }>;
 export type BusinessDetails = z.infer<typeof BusinessDetails>;
 /**
@@ -2194,7 +2705,7 @@ export declare const IntendedOwner: z.ZodObject<{
 }>;
 export type IntendedOwner = z.infer<typeof IntendedOwner>;
 export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
-    role: z.ZodEnum<["host", "landlord", "broker"]>;
+    role: z.ZodEnum<["host", "landlord", "broker", "enterprise"]>;
     capacity: z.ZodDefault<z.ZodEnum<["owner", "on_behalf_of"]>>;
     /**
      * Omitted by a returning registrant, whose profile already carries it.
@@ -2418,22 +2929,46 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
          */
         psfApplication: z.ZodOptional<z.ZodEffects<z.ZodObject<{
             requestedTierCode: z.ZodString;
-            companyName: z.ZodString;
-            streetAddress: z.ZodString;
+            /**
+             * What the business will pay a year, inside the band it picked. A business
+             * pays what it can afford within its tier, so the amount is its own answer.
+             * Required for every tier except one PSF prices itself; the server checks it
+             * against the tier (`psfTierAcceptsFee`), which only the server reads.
+             */
+            declaredFeeRwf: z.ZodOptional<z.ZodEffects<z.ZodNumber, number, number>>;
+            /**
+             * Who the business is, and where (2026-11-03): absent from Injishi's registration, which already
+             * names the business and places it, so the server copies them from there.
+             */
+            companyName: z.ZodOptional<z.ZodString>;
+            streetAddress: z.ZodOptional<z.ZodString>;
+            /**
+             * Its sector, kind of business and association, as the PSF form asks them (2026-11-03). Absent: a
+             * hotel is filed under PSF's hospitality association.
+             */
+            associationCode: z.ZodOptional<z.ZodString>;
+            associationOther: z.ZodOptional<z.ZodString>;
+            subsectorId: z.ZodOptional<z.ZodString>;
+            subsectorOther: z.ZodOptional<z.ZodString>;
             website: z.ZodOptional<z.ZodString>;
             companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
-            ownership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+            ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
             ownershipOther: z.ZodOptional<z.ZodString>;
             businessActivity: z.ZodString;
             tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
             tradeGoods: z.ZodOptional<z.ZodString>;
             tradeCountries: z.ZodDefault<z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">>;
-            contactRole: z.ZodEnum<["owner", "managing_director", "ceo", "chairman"]>;
-            firstName: z.ZodString;
-            lastName: z.ZodString;
-            gender: z.ZodEnum<["male", "female"]>;
-            phoneE164: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
-            email: z.ZodString;
+            /**
+             * The contact person (2026-11-03): each is absent when the person already gave it on You, and the
+             * server copies it from their profile. Gender is asked here only when You holds neither of the two
+             * PSF's form knows.
+             */
+            contactRole: z.ZodOptional<z.ZodEnum<["owner", "managing_director", "ceo", "chairman"]>>;
+            firstName: z.ZodOptional<z.ZodString>;
+            lastName: z.ZodOptional<z.ZodString>;
+            gender: z.ZodOptional<z.ZodEnum<["male", "female"]>>;
+            phoneE164: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
+            email: z.ZodOptional<z.ZodString>;
             /** Absent only when `useDocumentOnFile` asks the server for it instead. */
             idDocument: z.ZodOptional<z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
                 documentType: z.ZodLiteral<"national_id">;
@@ -2461,29 +2996,34 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
              * browser never sees it.
              */
             useDocumentOnFile: z.ZodOptional<z.ZodLiteral<true>>;
-            dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
+            dateOfBirth: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
             /** Must be ticked: an unticked box and a Yes are different acts (AC-5). */
             consent: z.ZodLiteral<true>;
         }, "strip", z.ZodTypeAny, {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
+            declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -2493,25 +3033,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             } | undefined;
             useDocumentOnFile?: true | undefined;
         }, {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
+            declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -2521,25 +3066,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             } | undefined;
             useDocumentOnFile?: true | undefined;
         }>, {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
+            declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -2549,25 +3099,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             } | undefined;
             useDocumentOnFile?: true | undefined;
         }, {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
+            declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -2672,6 +3227,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
+        tin: string;
         legalName: string;
         certificates: {
             kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -2683,7 +3239,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[];
         entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
-        tin: string;
         chamberOfTourismMember: boolean;
         psfMember: boolean;
         branches: {
@@ -2715,25 +3270,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         tourismLicenseNumber?: string | undefined;
         psfMembershipNumber?: string | undefined;
         psfApplication?: {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
+            declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -2755,8 +3315,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
-        legalName: string;
         tin: string;
+        legalName: string;
         franchise?: {
             role: "franchisee";
             brandName: string;
@@ -2786,25 +3346,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfMember?: boolean | undefined;
         psfMembershipNumber?: string | undefined;
         psfApplication?: {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
+            declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -2957,6 +3522,135 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfMembershipNumber?: undefined;
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
+    }>, z.ZodObject<{
+        legalName: z.ZodString;
+        address: z.ZodObject<{
+            country: z.ZodLiteral<"RW">;
+            provinceId: z.ZodNumber;
+            districtId: z.ZodNumber;
+            sectorId: z.ZodNumber;
+            /** Fourth level. Collected to drive the village picker, never stored. */
+            cellId: z.ZodOptional<z.ZodNumber>;
+            /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+            villageId: z.ZodOptional<z.ZodNumber>;
+            /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
+            street: z.ZodOptional<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            country: "RW";
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            cellId?: number | undefined;
+            villageId?: number | undefined;
+            street?: string | undefined;
+        }, {
+            country: "RW";
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            cellId?: number | undefined;
+            villageId?: number | undefined;
+            street?: string | undefined;
+        }>;
+        certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title", "franchise_agreement"]>;
+            /** Required when `kind` is `other`; the database carries the same rule. */
+            kindOther: z.ZodOptional<z.ZodString>;
+            /** Key of an already-uploaded `stored_objects` row (F-S09). */
+            objectKey: z.ZodString;
+            certificateNumber: z.ZodOptional<z.ZodString>;
+            issuedBy: z.ZodOptional<z.ZodString>;
+            issuedOn: z.ZodOptional<z.ZodString>;
+            expiresOn: z.ZodOptional<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+            objectKey: string;
+            kindOther?: string | undefined;
+            certificateNumber?: string | undefined;
+            issuedBy?: string | undefined;
+            issuedOn?: string | undefined;
+            expiresOn?: string | undefined;
+        }, {
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+            objectKey: string;
+            kindOther?: string | undefined;
+            certificateNumber?: string | undefined;
+            issuedBy?: string | undefined;
+            issuedOn?: string | undefined;
+            expiresOn?: string | undefined;
+        }>, "many">>;
+    } & {
+        domain: z.ZodLiteral<"enterprise">;
+        registrationKind: z.ZodEnum<["tin", "rca", "rgb", "other", "none"]>;
+        /** Required with `registrationKind: tin`, forbidden otherwise. */
+        tin: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
+        /** Required with `rca`, `rgb` and `other`, forbidden otherwise. */
+        registrationNumber: z.ZodOptional<z.ZodString>;
+        /** A row of the PSF association catalogue, which admin edits. */
+        associationCode: z.ZodString;
+        ownerGroups: z.ZodDefault<z.ZodArray<z.ZodEnum<["women", "youth", "pwd"]>, "many">>;
+        /** Refused, not stripped, like a residence's (ADR-054 AC-R3). */
+        branches: z.ZodOptional<z.ZodArray<z.ZodUnknown, "many">>;
+        psfApplication: z.ZodOptional<z.ZodNever>;
+        psfMembershipNumber: z.ZodOptional<z.ZodNever>;
+    }, "strip", z.ZodTypeAny, {
+        domain: "enterprise";
+        address: {
+            country: "RW";
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            cellId?: number | undefined;
+            villageId?: number | undefined;
+            street?: string | undefined;
+        };
+        associationCode: string;
+        legalName: string;
+        certificates: {
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+            objectKey: string;
+            kindOther?: string | undefined;
+            certificateNumber?: string | undefined;
+            issuedBy?: string | undefined;
+            issuedOn?: string | undefined;
+            expiresOn?: string | undefined;
+        }[];
+        registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
+        ownerGroups: ("women" | "youth" | "pwd")[];
+        tin?: string | undefined;
+        psfMembershipNumber?: undefined;
+        psfApplication?: undefined;
+        branches?: unknown[] | undefined;
+        registrationNumber?: string | undefined;
+    }, {
+        domain: "enterprise";
+        address: {
+            country: "RW";
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            cellId?: number | undefined;
+            villageId?: number | undefined;
+            street?: string | undefined;
+        };
+        associationCode: string;
+        legalName: string;
+        registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
+        tin?: string | undefined;
+        certificates?: {
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+            objectKey: string;
+            kindOther?: string | undefined;
+            certificateNumber?: string | undefined;
+            issuedBy?: string | undefined;
+            issuedOn?: string | undefined;
+            expiresOn?: string | undefined;
+        }[] | undefined;
+        psfMembershipNumber?: undefined;
+        psfApplication?: undefined;
+        branches?: unknown[] | undefined;
+        registrationNumber?: string | undefined;
+        ownerGroups?: ("women" | "youth" | "pwd")[] | undefined;
     }>]>, {
         domain: "hospitality";
         address: {
@@ -2968,6 +3662,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
+        tin: string;
         legalName: string;
         certificates: {
             kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -2979,7 +3674,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[];
         entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
-        tin: string;
         chamberOfTourismMember: boolean;
         psfMember: boolean;
         branches: {
@@ -3011,25 +3705,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         tourismLicenseNumber?: string | undefined;
         psfMembershipNumber?: string | undefined;
         psfApplication?: {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
+            declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -3067,6 +3766,35 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfMembershipNumber?: undefined;
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
+    } | {
+        domain: "enterprise";
+        address: {
+            country: "RW";
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            cellId?: number | undefined;
+            villageId?: number | undefined;
+            street?: string | undefined;
+        };
+        associationCode: string;
+        legalName: string;
+        certificates: {
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+            objectKey: string;
+            kindOther?: string | undefined;
+            certificateNumber?: string | undefined;
+            issuedBy?: string | undefined;
+            issuedOn?: string | undefined;
+            expiresOn?: string | undefined;
+        }[];
+        registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
+        ownerGroups: ("women" | "youth" | "pwd")[];
+        tin?: string | undefined;
+        psfMembershipNumber?: undefined;
+        psfApplication?: undefined;
+        branches?: unknown[] | undefined;
+        registrationNumber?: string | undefined;
     }, {
         domain: "hospitality";
         address: {
@@ -3078,8 +3806,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
-        legalName: string;
         tin: string;
+        legalName: string;
         franchise?: {
             role: "franchisee";
             brandName: string;
@@ -3109,25 +3837,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfMember?: boolean | undefined;
         psfMembershipNumber?: string | undefined;
         psfApplication?: {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
+            declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -3177,6 +3910,35 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfMembershipNumber?: undefined;
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
+    } | {
+        domain: "enterprise";
+        address: {
+            country: "RW";
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            cellId?: number | undefined;
+            villageId?: number | undefined;
+            street?: string | undefined;
+        };
+        associationCode: string;
+        legalName: string;
+        registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
+        tin?: string | undefined;
+        certificates?: {
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+            objectKey: string;
+            kindOther?: string | undefined;
+            certificateNumber?: string | undefined;
+            issuedBy?: string | undefined;
+            issuedOn?: string | undefined;
+            expiresOn?: string | undefined;
+        }[] | undefined;
+        psfMembershipNumber?: undefined;
+        psfApplication?: undefined;
+        branches?: unknown[] | undefined;
+        registrationNumber?: string | undefined;
+        ownerGroups?: ("women" | "youth" | "pwd")[] | undefined;
     }>;
     /** Captured when `capacity` is `on_behalf_of`. See `IntendedOwner`. */
     intendedOwner: z.ZodOptional<z.ZodObject<{
@@ -3204,6 +3966,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
+        tin: string;
         legalName: string;
         certificates: {
             kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -3215,7 +3978,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[];
         entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
-        tin: string;
         chamberOfTourismMember: boolean;
         psfMember: boolean;
         branches: {
@@ -3247,25 +4009,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         tourismLicenseNumber?: string | undefined;
         psfMembershipNumber?: string | undefined;
         psfApplication?: {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
+            declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -3303,9 +4070,38 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfMembershipNumber?: undefined;
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
+    } | {
+        domain: "enterprise";
+        address: {
+            country: "RW";
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            cellId?: number | undefined;
+            villageId?: number | undefined;
+            street?: string | undefined;
+        };
+        associationCode: string;
+        legalName: string;
+        certificates: {
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+            objectKey: string;
+            kindOther?: string | undefined;
+            certificateNumber?: string | undefined;
+            issuedBy?: string | undefined;
+            issuedOn?: string | undefined;
+            expiresOn?: string | undefined;
+        }[];
+        registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
+        ownerGroups: ("women" | "youth" | "pwd")[];
+        tin?: string | undefined;
+        psfMembershipNumber?: undefined;
+        psfApplication?: undefined;
+        branches?: unknown[] | undefined;
+        registrationNumber?: string | undefined;
     };
     capacity: "owner" | "on_behalf_of";
-    role: "broker" | "host" | "landlord";
+    role: "enterprise" | "broker" | "host" | "landlord";
     personal?: {
         fullName: string;
         dateOfBirth: string;
@@ -3350,8 +4146,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
-        legalName: string;
         tin: string;
+        legalName: string;
         franchise?: {
             role: "franchisee";
             brandName: string;
@@ -3381,25 +4177,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfMember?: boolean | undefined;
         psfMembershipNumber?: string | undefined;
         psfApplication?: {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
+            declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -3449,8 +4250,37 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfMembershipNumber?: undefined;
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
+    } | {
+        domain: "enterprise";
+        address: {
+            country: "RW";
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            cellId?: number | undefined;
+            villageId?: number | undefined;
+            street?: string | undefined;
+        };
+        associationCode: string;
+        legalName: string;
+        registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
+        tin?: string | undefined;
+        certificates?: {
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+            objectKey: string;
+            kindOther?: string | undefined;
+            certificateNumber?: string | undefined;
+            issuedBy?: string | undefined;
+            issuedOn?: string | undefined;
+            expiresOn?: string | undefined;
+        }[] | undefined;
+        psfMembershipNumber?: undefined;
+        psfApplication?: undefined;
+        branches?: unknown[] | undefined;
+        registrationNumber?: string | undefined;
+        ownerGroups?: ("women" | "youth" | "pwd")[] | undefined;
     };
-    role: "broker" | "host" | "landlord";
+    role: "enterprise" | "broker" | "host" | "landlord";
     personal?: {
         fullName: string;
         dateOfBirth: string;
@@ -3496,6 +4326,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
+        tin: string;
         legalName: string;
         certificates: {
             kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
@@ -3507,7 +4338,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[];
         entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
-        tin: string;
         chamberOfTourismMember: boolean;
         psfMember: boolean;
         branches: {
@@ -3539,25 +4369,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         tourismLicenseNumber?: string | undefined;
         psfMembershipNumber?: string | undefined;
         psfApplication?: {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
             tradeCountries: string[];
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
+            declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -3595,9 +4430,38 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfMembershipNumber?: undefined;
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
+    } | {
+        domain: "enterprise";
+        address: {
+            country: "RW";
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            cellId?: number | undefined;
+            villageId?: number | undefined;
+            street?: string | undefined;
+        };
+        associationCode: string;
+        legalName: string;
+        certificates: {
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+            objectKey: string;
+            kindOther?: string | undefined;
+            certificateNumber?: string | undefined;
+            issuedBy?: string | undefined;
+            issuedOn?: string | undefined;
+            expiresOn?: string | undefined;
+        }[];
+        registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
+        ownerGroups: ("women" | "youth" | "pwd")[];
+        tin?: string | undefined;
+        psfMembershipNumber?: undefined;
+        psfApplication?: undefined;
+        branches?: unknown[] | undefined;
+        registrationNumber?: string | undefined;
     };
     capacity: "owner" | "on_behalf_of";
-    role: "broker" | "host" | "landlord";
+    role: "enterprise" | "broker" | "host" | "landlord";
     personal?: {
         fullName: string;
         dateOfBirth: string;
@@ -3642,8 +4506,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
-        legalName: string;
         tin: string;
+        legalName: string;
         franchise?: {
             role: "franchisee";
             brandName: string;
@@ -3673,25 +4537,30 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfMember?: boolean | undefined;
         psfMembershipNumber?: string | undefined;
         psfApplication?: {
-            gender: "female" | "male";
-            dateOfBirth: string;
-            phoneE164: string;
             requestedTierCode: string;
-            companyName: string;
-            streetAddress: string;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
-            contactRole: "owner" | "managing_director" | "ceo" | "chairman";
-            firstName: string;
-            lastName: string;
-            email: string;
             consent: true;
+            gender?: "female" | "male" | undefined;
+            dateOfBirth?: string | undefined;
+            phoneE164?: string | undefined;
+            declaredFeeRwf?: number | undefined;
+            companyName?: string | undefined;
+            streetAddress?: string | undefined;
+            associationCode?: string | undefined;
+            associationOther?: string | undefined;
+            subsectorId?: string | undefined;
+            subsectorOther?: string | undefined;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            contactRole?: "owner" | "managing_director" | "ceo" | "chairman" | undefined;
+            firstName?: string | undefined;
+            lastName?: string | undefined;
+            email?: string | undefined;
             idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
@@ -3741,8 +4610,37 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfMembershipNumber?: undefined;
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
+    } | {
+        domain: "enterprise";
+        address: {
+            country: "RW";
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            cellId?: number | undefined;
+            villageId?: number | undefined;
+            street?: string | undefined;
+        };
+        associationCode: string;
+        legalName: string;
+        registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
+        tin?: string | undefined;
+        certificates?: {
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
+            objectKey: string;
+            kindOther?: string | undefined;
+            certificateNumber?: string | undefined;
+            issuedBy?: string | undefined;
+            issuedOn?: string | undefined;
+            expiresOn?: string | undefined;
+        }[] | undefined;
+        psfMembershipNumber?: undefined;
+        psfApplication?: undefined;
+        branches?: unknown[] | undefined;
+        registrationNumber?: string | undefined;
+        ownerGroups?: ("women" | "youth" | "pwd")[] | undefined;
     };
-    role: "broker" | "host" | "landlord";
+    role: "enterprise" | "broker" | "host" | "landlord";
     personal?: {
         fullName: string;
         dateOfBirth: string;
@@ -3805,7 +4703,7 @@ export type RegistrationReviewDecision = z.infer<typeof RegistrationReviewDecisi
 export declare const RegistrationReview: z.ZodObject<{
     stage: z.ZodEnum<["tin_verified", "field_verified"]>;
     decision: z.ZodEnum<["passed", "rejected"]>;
-    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell"]>;
+    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell", "psf_business_officer"]>;
     /** The body and title AS OF the decision, never re-resolved (F-S03 §9). */
     governmentBodyCode: z.ZodString;
     governmentTitle: z.ZodNullable<z.ZodString>;
@@ -3815,7 +4713,7 @@ export declare const RegistrationReview: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     stage: "tin_verified" | "field_verified";
     decision: "rejected" | "passed";
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
     governmentBodyCode: string;
     governmentTitle: string | null;
     reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
@@ -3824,7 +4722,7 @@ export declare const RegistrationReview: z.ZodObject<{
 }, {
     stage: "tin_verified" | "field_verified";
     decision: "rejected" | "passed";
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
     governmentBodyCode: string;
     governmentTitle: string | null;
     reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
@@ -4022,7 +4920,7 @@ export type OversightDocumentList = z.infer<typeof OversightDocumentList>;
 export declare const OversightQueueItem: z.ZodObject<{
     orgId: z.ZodString;
     legalName: z.ZodString;
-    domain: z.ZodEnum<["hospitality", "residence"]>;
+    domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
     accommodationClass: z.ZodNullable<z.ZodUnion<[z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>, z.ZodEnum<["town_hotel", "vacation_hotel_resort", "serviced_apartment", "cottage"]>]>>;
     tin: z.ZodNullable<z.ZodString>;
     upi: z.ZodNullable<z.ZodString>;
@@ -4115,10 +5013,11 @@ export declare const OversightQueueItem: z.ZodObject<{
     intendedOwnerName: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     districtName: string | null;
     districtId: number | null;
     addressText: string | null;
+    tin: string | null;
     legalName: string;
     certificates: {
         kind: string;
@@ -4126,7 +5025,6 @@ export declare const OversightQueueItem: z.ZodObject<{
         certificateNumber: string | null;
     }[];
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
-    tin: string | null;
     upi: string | null;
     tourismLicenseNumber: string | null;
     branches: {
@@ -4150,10 +5048,11 @@ export declare const OversightQueueItem: z.ZodObject<{
     intendedOwnerName: string | null;
 }, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     districtName: string | null;
     districtId: number | null;
     addressText: string | null;
+    tin: string | null;
     legalName: string;
     certificates: {
         kind: string;
@@ -4161,7 +5060,6 @@ export declare const OversightQueueItem: z.ZodObject<{
         certificateNumber: string | null;
     }[];
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
-    tin: string | null;
     upi: string | null;
     tourismLicenseNumber: string | null;
     branches: {
@@ -4201,6 +5099,8 @@ export declare const OversightDecision: z.ZodObject<{
     /** The gate decided: `tin_verified` is field verification, `field_verified` approval. */
     stage: z.ZodEnum<["tin_verified", "field_verified"]>;
     decision: z.ZodEnum<["passed", "rejected"]>;
+    /** Who decided it: a PSF District Manager's review is one step that approves (0119). */
+    oversightRole: z.ZodOptional<z.ZodEnum<["business_field_verifier", "business_approver", "psf_membership_officer"]>>;
     reasonCode: z.ZodNullable<z.ZodEnum<["tin_not_found", "tin_mismatch", "premises_not_found", "documents_invalid", "documents_expired", "not_operating", "ownership_unclear", "duplicate_business", "other"]>>;
     notes: z.ZodNullable<z.ZodString>;
     governmentBodyCode: z.ZodString;
@@ -4217,6 +5117,7 @@ export declare const OversightDecision: z.ZodObject<{
     decidedAt: string;
     orgId: string;
     reviewId: string;
+    oversightRole?: "business_field_verifier" | "business_approver" | "psf_membership_officer" | undefined;
 }, {
     legalName: string;
     stage: "tin_verified" | "field_verified";
@@ -4228,6 +5129,7 @@ export declare const OversightDecision: z.ZodObject<{
     decidedAt: string;
     orgId: string;
     reviewId: string;
+    oversightRole?: "business_field_verifier" | "business_approver" | "psf_membership_officer" | undefined;
 }>;
 export type OversightDecision = z.infer<typeof OversightDecision>;
 /** A page of the log, newest first. `nextCursor` is null on the last page. */
@@ -4239,6 +5141,8 @@ export declare const OversightDecisionPage: z.ZodObject<{
         /** The gate decided: `tin_verified` is field verification, `field_verified` approval. */
         stage: z.ZodEnum<["tin_verified", "field_verified"]>;
         decision: z.ZodEnum<["passed", "rejected"]>;
+        /** Who decided it: a PSF District Manager's review is one step that approves (0119). */
+        oversightRole: z.ZodOptional<z.ZodEnum<["business_field_verifier", "business_approver", "psf_membership_officer"]>>;
         reasonCode: z.ZodNullable<z.ZodEnum<["tin_not_found", "tin_mismatch", "premises_not_found", "documents_invalid", "documents_expired", "not_operating", "ownership_unclear", "duplicate_business", "other"]>>;
         notes: z.ZodNullable<z.ZodString>;
         governmentBodyCode: z.ZodString;
@@ -4255,6 +5159,7 @@ export declare const OversightDecisionPage: z.ZodObject<{
         decidedAt: string;
         orgId: string;
         reviewId: string;
+        oversightRole?: "business_field_verifier" | "business_approver" | "psf_membership_officer" | undefined;
     }, {
         legalName: string;
         stage: "tin_verified" | "field_verified";
@@ -4266,6 +5171,7 @@ export declare const OversightDecisionPage: z.ZodObject<{
         decidedAt: string;
         orgId: string;
         reviewId: string;
+        oversightRole?: "business_field_verifier" | "business_approver" | "psf_membership_officer" | undefined;
     }>, "many">;
     nextCursor: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
@@ -4280,6 +5186,7 @@ export declare const OversightDecisionPage: z.ZodObject<{
         decidedAt: string;
         orgId: string;
         reviewId: string;
+        oversightRole?: "business_field_verifier" | "business_approver" | "psf_membership_officer" | undefined;
     }[];
     nextCursor: string | null;
 }, {
@@ -4294,6 +5201,7 @@ export declare const OversightDecisionPage: z.ZodObject<{
         decidedAt: string;
         orgId: string;
         reviewId: string;
+        oversightRole?: "business_field_verifier" | "business_approver" | "psf_membership_officer" | undefined;
     }[];
     nextCursor: string | null;
 }>;
@@ -4312,9 +5220,12 @@ export declare const RegistrationSummary: z.ZodObject<{
     orgId: z.ZodString;
     workspaceId: z.ZodString;
     legalName: z.ZodString;
-    domain: z.ZodEnum<["hospitality", "residence"]>;
-    /** What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say. */
-    businessKind: z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other", "bar_restaurant", "coffee_shop", "residence", "broker"]>;
+    domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
+    /**
+     * What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say.
+     * Null for a PSF business (`enterprise`), which is not a place.
+     */
+    businessKind: z.ZodNullable<z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other", "bar_restaurant", "coffee_shop", "residence", "broker"]>>;
     accommodationClass: z.ZodNullable<z.ZodUnion<[z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>, z.ZodEnum<["town_hotel", "vacation_hotel_resort", "serviced_apartment", "cottage"]>]>>;
     status: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
     /** Set only while `status` is `pending_payment`. */
@@ -4338,11 +5249,17 @@ export declare const RegistrationSummary: z.ZodObject<{
      * AC-R1). Null for a business nobody registered on behalf of anyone else.
      */
     payoutLocked: z.ZodNullable<z.ZodBoolean>;
+    /**
+     * The business's code, its district's letters and a number (`KIC0001`),
+     * given when the registration fee is paid. Null until then. Optional on the
+     * wire so a client still parses a summary from an API built before it.
+     */
+    businessCode: z.ZodDefault<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     legalName: string;
-    businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+    businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | null;
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
     orgId: string;
     workspaceId: string;
@@ -4354,11 +5271,12 @@ export declare const RegistrationSummary: z.ZodObject<{
     contractVersion: string | null;
     contractAcceptedAt: string | null;
     payoutLocked: boolean | null;
+    businessCode: string | null;
 }, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     legalName: string;
-    businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+    businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | null;
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
     orgId: string;
     workspaceId: string;
@@ -4370,6 +5288,7 @@ export declare const RegistrationSummary: z.ZodObject<{
     contractVersion: string | null;
     contractAcceptedAt: string | null;
     payoutLocked: boolean | null;
+    businessCode?: string | null | undefined;
 }>;
 export type RegistrationSummary = z.infer<typeof RegistrationSummary>;
 /**
@@ -4641,16 +5560,16 @@ export declare const ClaimPreview: z.ZodObject<{
 export type ClaimPreview = z.infer<typeof ClaimPreview>;
 /** The fee a registrant is quoted, read from the effective-dated catalog. */
 export declare const RegistrationFeeQuote: z.ZodObject<{
-    businessType: z.ZodEnum<["hospitality", "residence", "broker"]>;
+    businessType: z.ZodEnum<["hospitality", "residence", "broker", "enterprise"]>;
     amountRwf: z.ZodNumber;
     currency: z.ZodLiteral<"RWF">;
 }, "strip", z.ZodTypeAny, {
     amountRwf: number;
-    businessType: "hospitality" | "residence" | "broker";
+    businessType: "hospitality" | "residence" | "enterprise" | "broker";
     currency: "RWF";
 }, {
     amountRwf: number;
-    businessType: "hospitality" | "residence" | "broker";
+    businessType: "hospitality" | "residence" | "enterprise" | "broker";
     currency: "RWF";
 }>;
 export type RegistrationFeeQuote = z.infer<typeof RegistrationFeeQuote>;
@@ -4722,9 +5641,12 @@ export declare const RegistrationFeeAttemptStatus: z.ZodObject<{
         orgId: z.ZodString;
         workspaceId: z.ZodString;
         legalName: z.ZodString;
-        domain: z.ZodEnum<["hospitality", "residence"]>;
-        /** What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say. */
-        businessKind: z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other", "bar_restaurant", "coffee_shop", "residence", "broker"]>;
+        domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
+        /**
+         * What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say.
+         * Null for a PSF business (`enterprise`), which is not a place.
+         */
+        businessKind: z.ZodNullable<z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other", "bar_restaurant", "coffee_shop", "residence", "broker"]>>;
         accommodationClass: z.ZodNullable<z.ZodUnion<[z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>, z.ZodEnum<["town_hotel", "vacation_hotel_resort", "serviced_apartment", "cottage"]>]>>;
         status: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
         /** Set only while `status` is `pending_payment`. */
@@ -4748,11 +5670,17 @@ export declare const RegistrationFeeAttemptStatus: z.ZodObject<{
          * AC-R1). Null for a business nobody registered on behalf of anyone else.
          */
         payoutLocked: z.ZodNullable<z.ZodBoolean>;
+        /**
+         * The business's code, its district's letters and a number (`KIC0001`),
+         * given when the registration fee is paid. Null until then. Optional on the
+         * wire so a client still parses a summary from an API built before it.
+         */
+        businessCode: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         legalName: string;
-        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | null;
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
         orgId: string;
         workspaceId: string;
@@ -4764,11 +5692,12 @@ export declare const RegistrationFeeAttemptStatus: z.ZodObject<{
         contractVersion: string | null;
         contractAcceptedAt: string | null;
         payoutLocked: boolean | null;
+        businessCode: string | null;
     }, {
         status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         legalName: string;
-        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | null;
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
         orgId: string;
         workspaceId: string;
@@ -4780,6 +5709,7 @@ export declare const RegistrationFeeAttemptStatus: z.ZodObject<{
         contractVersion: string | null;
         contractAcceptedAt: string | null;
         payoutLocked: boolean | null;
+        businessCode?: string | null | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
     network: "mtn_momo" | "airtel_money" | null;
@@ -4791,9 +5721,9 @@ export declare const RegistrationFeeAttemptStatus: z.ZodObject<{
     failureReason: string | null;
     registration: {
         status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         legalName: string;
-        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | null;
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
         orgId: string;
         workspaceId: string;
@@ -4805,6 +5735,7 @@ export declare const RegistrationFeeAttemptStatus: z.ZodObject<{
         contractVersion: string | null;
         contractAcceptedAt: string | null;
         payoutLocked: boolean | null;
+        businessCode: string | null;
     };
 }, {
     network: "mtn_momo" | "airtel_money" | null;
@@ -4816,9 +5747,9 @@ export declare const RegistrationFeeAttemptStatus: z.ZodObject<{
     failureReason: string | null;
     registration: {
         status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         legalName: string;
-        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | null;
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
         orgId: string;
         workspaceId: string;
@@ -4830,6 +5761,7 @@ export declare const RegistrationFeeAttemptStatus: z.ZodObject<{
         contractVersion: string | null;
         contractAcceptedAt: string | null;
         payoutLocked: boolean | null;
+        businessCode?: string | null | undefined;
     };
 }>;
 export type RegistrationFeeAttemptStatus = z.infer<typeof RegistrationFeeAttemptStatus>;
@@ -4843,9 +5775,12 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
         orgId: z.ZodString;
         workspaceId: z.ZodString;
         legalName: z.ZodString;
-        domain: z.ZodEnum<["hospitality", "residence"]>;
-        /** What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say. */
-        businessKind: z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other", "bar_restaurant", "coffee_shop", "residence", "broker"]>;
+        domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
+        /**
+         * What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say.
+         * Null for a PSF business (`enterprise`), which is not a place.
+         */
+        businessKind: z.ZodNullable<z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other", "bar_restaurant", "coffee_shop", "residence", "broker"]>>;
         accommodationClass: z.ZodNullable<z.ZodUnion<[z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>, z.ZodEnum<["town_hotel", "vacation_hotel_resort", "serviced_apartment", "cottage"]>]>>;
         status: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
         /** Set only while `status` is `pending_payment`. */
@@ -4869,11 +5804,17 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
          * AC-R1). Null for a business nobody registered on behalf of anyone else.
          */
         payoutLocked: z.ZodNullable<z.ZodBoolean>;
+        /**
+         * The business's code, its district's letters and a number (`KIC0001`),
+         * given when the registration fee is paid. Null until then. Optional on the
+         * wire so a client still parses a summary from an API built before it.
+         */
+        businessCode: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         legalName: string;
-        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | null;
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
         orgId: string;
         workspaceId: string;
@@ -4885,11 +5826,12 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
         contractVersion: string | null;
         contractAcceptedAt: string | null;
         payoutLocked: boolean | null;
+        businessCode: string | null;
     }, {
         status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         legalName: string;
-        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | null;
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
         orgId: string;
         workspaceId: string;
@@ -4901,14 +5843,15 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
         contractVersion: string | null;
         contractAcceptedAt: string | null;
         payoutLocked: boolean | null;
+        businessCode?: string | null | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
     kind: "settled";
     registration: {
         status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         legalName: string;
-        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | null;
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
         orgId: string;
         workspaceId: string;
@@ -4920,14 +5863,15 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
         contractVersion: string | null;
         contractAcceptedAt: string | null;
         payoutLocked: boolean | null;
+        businessCode: string | null;
     };
 }, {
     kind: "settled";
     registration: {
         status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         legalName: string;
-        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | null;
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
         orgId: string;
         workspaceId: string;
@@ -4939,6 +5883,7 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
         contractVersion: string | null;
         contractAcceptedAt: string | null;
         payoutLocked: boolean | null;
+        businessCode?: string | null | undefined;
     };
 }>, z.ZodObject<{
     kind: z.ZodLiteral<"attempt">;
@@ -4956,9 +5901,12 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
             orgId: z.ZodString;
             workspaceId: z.ZodString;
             legalName: z.ZodString;
-            domain: z.ZodEnum<["hospitality", "residence"]>;
-            /** What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say. */
-            businessKind: z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other", "bar_restaurant", "coffee_shop", "residence", "broker"]>;
+            domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
+            /**
+             * What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say.
+             * Null for a PSF business (`enterprise`), which is not a place.
+             */
+            businessKind: z.ZodNullable<z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other", "bar_restaurant", "coffee_shop", "residence", "broker"]>>;
             accommodationClass: z.ZodNullable<z.ZodUnion<[z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>, z.ZodEnum<["town_hotel", "vacation_hotel_resort", "serviced_apartment", "cottage"]>]>>;
             status: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
             /** Set only while `status` is `pending_payment`. */
@@ -4982,11 +5930,17 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
              * AC-R1). Null for a business nobody registered on behalf of anyone else.
              */
             payoutLocked: z.ZodNullable<z.ZodBoolean>;
+            /**
+             * The business's code, its district's letters and a number (`KIC0001`),
+             * given when the registration fee is paid. Null until then. Optional on the
+             * wire so a client still parses a summary from an API built before it.
+             */
+            businessCode: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         }, "strip", z.ZodTypeAny, {
             status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-            domain: "hospitality" | "residence";
+            domain: "hospitality" | "residence" | "enterprise";
             legalName: string;
-            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | null;
             accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
             orgId: string;
             workspaceId: string;
@@ -4998,11 +5952,12 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
             contractVersion: string | null;
             contractAcceptedAt: string | null;
             payoutLocked: boolean | null;
+            businessCode: string | null;
         }, {
             status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-            domain: "hospitality" | "residence";
+            domain: "hospitality" | "residence" | "enterprise";
             legalName: string;
-            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | null;
             accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
             orgId: string;
             workspaceId: string;
@@ -5014,6 +5969,7 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
             contractVersion: string | null;
             contractAcceptedAt: string | null;
             payoutLocked: boolean | null;
+            businessCode?: string | null | undefined;
         }>;
     }, "strip", z.ZodTypeAny, {
         network: "mtn_momo" | "airtel_money" | null;
@@ -5025,9 +5981,9 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
         failureReason: string | null;
         registration: {
             status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-            domain: "hospitality" | "residence";
+            domain: "hospitality" | "residence" | "enterprise";
             legalName: string;
-            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | null;
             accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
             orgId: string;
             workspaceId: string;
@@ -5039,6 +5995,7 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
             contractVersion: string | null;
             contractAcceptedAt: string | null;
             payoutLocked: boolean | null;
+            businessCode: string | null;
         };
     }, {
         network: "mtn_momo" | "airtel_money" | null;
@@ -5050,9 +6007,9 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
         failureReason: string | null;
         registration: {
             status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-            domain: "hospitality" | "residence";
+            domain: "hospitality" | "residence" | "enterprise";
             legalName: string;
-            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | null;
             accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
             orgId: string;
             workspaceId: string;
@@ -5064,6 +6021,7 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
             contractVersion: string | null;
             contractAcceptedAt: string | null;
             payoutLocked: boolean | null;
+            businessCode?: string | null | undefined;
         };
     }>;
 }, "strip", z.ZodTypeAny, {
@@ -5078,9 +6036,9 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
         failureReason: string | null;
         registration: {
             status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-            domain: "hospitality" | "residence";
+            domain: "hospitality" | "residence" | "enterprise";
             legalName: string;
-            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | null;
             accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
             orgId: string;
             workspaceId: string;
@@ -5092,6 +6050,7 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
             contractVersion: string | null;
             contractAcceptedAt: string | null;
             payoutLocked: boolean | null;
+            businessCode: string | null;
         };
     };
 }, {
@@ -5106,9 +6065,9 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
         failureReason: string | null;
         registration: {
             status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-            domain: "hospitality" | "residence";
+            domain: "hospitality" | "residence" | "enterprise";
             legalName: string;
-            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | null;
             accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
             orgId: string;
             workspaceId: string;
@@ -5120,6 +6079,7 @@ export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.Z
             contractVersion: string | null;
             contractAcceptedAt: string | null;
             payoutLocked: boolean | null;
+            businessCode?: string | null | undefined;
         };
     };
 }>]>;

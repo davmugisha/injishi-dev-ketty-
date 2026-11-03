@@ -2,13 +2,18 @@ import { Module } from '@nestjs/common';
 
 import { isWorkerProcess } from '../../shared/process/process-role';
 import { MailerModule } from '../mailer/mailer.module';
-import { PaymentsModule } from '../payments/payments.module';
+import { BookingModule } from '../pms/booking.module';
+import { PaymentsModule } from '../pay/payments.module';
 import { RentalsMailer } from '../rentals/infrastructure/rentals.mailer';
 import { StorageModule } from '../storage/storage.module';
+import { BrokerBookingsService } from './application/broker-bookings.service';
+import { BrokerDealsService } from './application/broker-deals.service';
+import { BrokerPayoutsService } from './application/broker-payouts.service';
 import { BrokerHomesService } from './application/broker-homes.service';
 import { BrokerPlansService } from './application/broker-plans.service';
 import { BrokerRegistrationFeeService } from './application/broker-registration-fee.service';
 import { BrokerPlansProcessor } from './infrastructure/broker-plans.processor';
+import { BrokerDealsRepository } from './infrastructure/broker-deals.repository';
 import { BrokerPlansRepository } from './infrastructure/broker-plans.repository';
 import { BrokersRepository } from './infrastructure/brokers.repository';
 
@@ -17,7 +22,8 @@ import { BrokersRepository } from './infrastructure/brokers.repository';
  * Province and Country by the month on the gateway, renewed hourly with three
  * days' grace), the opted-in homes inside the plan's area, free reveals of a
  * landlord's contact, placements, recorded fees and ratings, and the
- * registration fee paid before the broker row exists.
+ * registration fee paid before the broker row exists, and commission deals
+ * with hotels (0125): proposed by the broker, answered by the hotel's owner.
  *
  * The landlord's side of brokers (the opt-in on a unit, the broker on a
  * lease, its fee record and ratings) lives in the rentals module. Mail goes
@@ -25,7 +31,7 @@ import { BrokersRepository } from './infrastructure/brokers.repository';
  * the queues are global. The BrokerPlans processor runs in the worker only.
  */
 @Module({
-  imports: [PaymentsModule, StorageModule, MailerModule],
+  imports: [PaymentsModule, StorageModule, MailerModule, BookingModule],
   providers: [
     RentalsMailer,
     BrokersRepository,
@@ -33,8 +39,12 @@ import { BrokersRepository } from './infrastructure/brokers.repository';
     BrokerPlansService,
     BrokerHomesService,
     BrokerRegistrationFeeService,
+    BrokerDealsRepository,
+    BrokerDealsService,
+    BrokerBookingsService,
+    BrokerPayoutsService,
     ...(isWorkerProcess() ? [BrokerPlansProcessor] : []),
   ],
-  exports: [BrokerPlansService, BrokerHomesService, BrokerRegistrationFeeService, BrokerPlansRepository],
+  exports: [BrokerPlansService, BrokerHomesService, BrokerRegistrationFeeService, BrokerPlansRepository, BrokerDealsService, BrokerBookingsService, BrokerPayoutsService],
 })
 export class BrokersModule {}

@@ -280,24 +280,14 @@ export function LeaseConversation({
         view.writable
           ? null
           : ref.kind === "lease"
-            ? "This lease has ended, so the conversation is read only."
-            : "This placement was closed, so the conversation is read only."
+            ? "This lease has ended. The conversation is read only."
+            : "This placement was closed. The conversation is read only."
       }
       placeholder={side === "tenant" ? "Message your landlord" : `Message ${view.counterpartName}`}
       accept={MESSAGE_ACCEPT}
       checkFiles={(files, voice) => messageFilesProblem(files, voice)}
       maxVoiceSeconds={VOICE_NOTE_MAX_S}
-      empty={
-        <EmptyBlock
-          icon="Comments"
-          title="No messages yet"
-          description={
-            side === "tenant"
-              ? "Write to your landlord. Photos, documents and voice notes work too."
-              : `Write to ${view.counterpartName}. Photos, documents and voice notes work too.`
-          }
-        />
-      }
+      empty={<EmptyBlock icon="Comments" title="No messages yet" />}
     />
   );
 }

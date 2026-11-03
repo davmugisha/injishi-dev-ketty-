@@ -3,10 +3,10 @@ import type { PayoutList, PayoutView, PayoutsQuery } from '@injishi/contracts';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import { PAYMENT_PORT, PaymentDeclinedError, PaymentUnavailableError, type PaymentPort } from '../../payments/domain/payment-port';
+import { PAYMENT_PORT, PaymentDeclinedError, PaymentUnavailableError, type PaymentPort } from '../../pay/domain/payment-port';
 import { buildingIdsOf } from '../domain/attention';
 import { destinationOf } from '../domain/payout-accounts';
-import { assertResidence } from '../domain/residence';
+import { assertPaidBusiness } from '../domain/residence';
 import type { PaymentRow } from '../infrastructure/lease-payments.repository';
 import type { PayoutAccountRow } from '../infrastructure/payout-accounts.repository';
 import { PayoutsRepository, type PayoutRow } from '../infrastructure/payouts.repository';
@@ -173,12 +173,16 @@ export class PayoutsService {
   // --- The landlord's routes ---------------------------------------------------------------
 
   async list(ws: ScopedWorkspace, query: PayoutsQuery): Promise<PayoutList> {
-    const r = assertResidence(ws);
+    // A landlord's rent, or a host's bookings once each guest checked out (0116).
+    const r = assertPaidBusiness(ws);
+    const host = ws.domain === 'hospitality';
     const rows = await this.payouts.list({
       workspaceId: r.workspaceId,
       month: query.month ?? null,
       status: query.status ?? null,
-      propertyIds: buildingIdsOf(ws.branchScope),
+      // A booking payout carries no building; the branch filter is a landlord's.
+      propertyIds: host ? null : buildingIdsOf(ws.branchScope),
+      source: host ? 'booking' : 'rent',
     });
     const totals = { queuedRwf: 0, heldRwf: 0, paidRwf: 0, failedRwf: 0 };
     for (const { payout } of rows) {
@@ -193,9 +197,10 @@ export class PayoutsService {
 
   /** Send a failed or held payout again, to the primary account as it stands now. */
   async retry(ws: ScopedWorkspace, userId: string, payoutId: string): Promise<PayoutView> {
-    const r = assertResidence(ws);
+    const r = assertPaidBusiness(ws);
+    const source = ws.domain === 'hospitality' ? 'booking' : 'rent';
     const row = await this.payouts.find(payoutId);
-    if (!row || row.workspaceId !== r.workspaceId || row.source !== 'rent') throw new NotFoundException('Payout not found.');
+    if (!row || row.workspaceId !== r.workspaceId || row.source !== source) throw new NotFoundException('Payout not found.');
     if (row.status === 'paid') throw new ConflictException({ code: 'payout_paid', message: 'This payout was already paid.' });
     if (row.status === 'queued') throw new ConflictException({ code: 'payout_queued', message: 'This payout is already on its way.' });
     const account = await this.payouts.primaryAccount(r.orgId);

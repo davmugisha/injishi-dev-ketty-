@@ -7,7 +7,7 @@ export declare const MeContextBusiness: z.ZodObject<{
     workspaceId: z.ZodString;
     orgId: z.ZodString;
     orgName: z.ZodString;
-    domain: z.ZodEnum<["hospitality", "residence"]>;
+    domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
     role: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
     registrationStatus: z.ZodNullable<z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>>;
     /** Approved and running: only then does it grant any permission. */
@@ -16,23 +16,23 @@ export declare const MeContextBusiness: z.ZodObject<{
     /** A landlord business's lease signatory, as their ID names them; null until set or for other businesses. */
     signatoryName: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     orgId: string;
     workspaceId: string;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
-    orgName: string;
     permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
+    orgName: string;
     signatoryName: string | null;
     operational: boolean;
 }, {
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     orgId: string;
     workspaceId: string;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
-    orgName: string;
     permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
+    orgName: string;
     signatoryName: string | null;
     operational: boolean;
 }>;
@@ -88,7 +88,7 @@ export declare const MeContext: z.ZodObject<{
         workspaceId: z.ZodString;
         orgId: z.ZodString;
         orgName: z.ZodString;
-        domain: z.ZodEnum<["hospitality", "residence"]>;
+        domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
         role: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
         registrationStatus: z.ZodNullable<z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>>;
         /** Approved and running: only then does it grant any permission. */
@@ -97,23 +97,23 @@ export declare const MeContext: z.ZodObject<{
         /** A landlord business's lease signatory, as their ID names them; null until set or for other businesses. */
         signatoryName: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         orgId: string;
         workspaceId: string;
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
-        orgName: string;
         permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
+        orgName: string;
         signatoryName: string | null;
         operational: boolean;
     }, {
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         orgId: string;
         workspaceId: string;
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
-        orgName: string;
         permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
+        orgName: string;
         signatoryName: string | null;
         operational: boolean;
     }>, "many">;
@@ -153,7 +153,7 @@ export declare const MeContext: z.ZodObject<{
     /** Seats as a local leader or a government officer. */
     oversight: z.ZodArray<z.ZodObject<{
         assignmentId: z.ZodString;
-        oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell"]>;
+        oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell", "psf_business_officer"]>;
         governmentBodyCode: z.ZodString;
         governmentTitle: z.ZodNullable<z.ZodString>;
         scopeLevel: z.ZodEnum<["country", "province", "district", "sector", "cell", "village"]>;
@@ -168,7 +168,7 @@ export declare const MeContext: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
         governmentBodyCode: string;
         governmentTitle: string | null;
         scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
@@ -179,7 +179,7 @@ export declare const MeContext: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
         governmentBodyCode: string;
         governmentTitle: string | null;
         scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
@@ -202,11 +202,11 @@ export declare const MeContext: z.ZodObject<{
         isStaff: z.ZodBoolean;
         roles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance", "trainer"]>, "many">;
     }, "strip", z.ZodTypeAny, {
-        roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
         isStaff: boolean;
+        roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
     }, {
-        roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
         isStaff: boolean;
+        roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
     }>;
     /** Where this person lands after signing in, with the business it is about (landlord and business). */
     landing: z.ZodObject<{
@@ -225,6 +225,17 @@ export declare const MeContext: z.ZodObject<{
         name: string | null;
         id: string;
     } | null;
+    businesses: {
+        domain: "hospitality" | "residence" | "enterprise";
+        role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
+        orgId: string;
+        workspaceId: string;
+        registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
+        permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
+        orgName: string;
+        signatoryName: string | null;
+        operational: boolean;
+    }[];
     user: {
         name: string | null;
         id: string;
@@ -236,28 +247,17 @@ export declare const MeContext: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
         governmentBodyCode: string;
         governmentTitle: string | null;
         scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
         assignmentId: string;
     }[];
     staff: {
-        roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
         isStaff: boolean;
+        roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
     };
     activeWorkspaceId: string | null;
-    businesses: {
-        domain: "hospitality" | "residence";
-        role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
-        orgId: string;
-        workspaceId: string;
-        registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
-        orgName: string;
-        permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
-        signatoryName: string | null;
-        operational: boolean;
-    }[];
     tenancies: {
         status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         reference: string;
@@ -279,6 +279,17 @@ export declare const MeContext: z.ZodObject<{
         name: string | null;
         id: string;
     } | null;
+    businesses: {
+        domain: "hospitality" | "residence" | "enterprise";
+        role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
+        orgId: string;
+        workspaceId: string;
+        registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
+        permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
+        orgName: string;
+        signatoryName: string | null;
+        operational: boolean;
+    }[];
     user: {
         name: string | null;
         id: string;
@@ -290,28 +301,17 @@ export declare const MeContext: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
         governmentBodyCode: string;
         governmentTitle: string | null;
         scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
         assignmentId: string;
     }[];
     staff: {
-        roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
         isStaff: boolean;
+        roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
     };
     activeWorkspaceId: string | null;
-    businesses: {
-        domain: "hospitality" | "residence";
-        role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
-        orgId: string;
-        workspaceId: string;
-        registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
-        orgName: string;
-        permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
-        signatoryName: string | null;
-        operational: boolean;
-    }[];
     tenancies: {
         status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         reference: string;

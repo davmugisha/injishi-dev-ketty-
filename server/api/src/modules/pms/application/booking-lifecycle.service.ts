@@ -1,11 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
-import { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
-import { releaseKeyFor } from '../../payments/domain/keys';
+import { PaymentCompensationService } from '../../pay/application/payment-compensation.service';
+import { releaseKeyFor } from '../../pay/domain/keys';
 import {
   PAYMENT_PORT,
   type PaymentPort,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import {
   BookingRepository,
   type ExpiredRequest,

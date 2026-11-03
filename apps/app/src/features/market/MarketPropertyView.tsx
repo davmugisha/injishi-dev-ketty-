@@ -1018,7 +1018,7 @@ export function MarketPropertyView({
                     </div>
                   ))}
                   <div className="flex items-center justify-between gap-3 border-t border-separator pt-3 text-[15px] font-semibold">
-                    <dt>Total before the service fee</dt>
+                    <dt>Total</dt>
                     <dd className="tabular">{rwf(total)}</dd>
                   </div>
                 </dl>

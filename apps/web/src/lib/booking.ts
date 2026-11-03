@@ -1,4 +1,11 @@
-import { computeBreakdown, type MoneyBreakdown } from "@injishi/contracts";
+import {
+  type CancellationTier,
+  cancellationSummary,
+  computeBreakdown,
+  type MoneyBreakdown,
+  type RoomPriceBasis,
+  tourismTaxIncludedRwf,
+} from "@injishi/contracts";
 import { buildMoneyLines, type MoneyLine } from "@injishi/utils/money";
 import { formatPrice } from "@injishi/utils";
 
@@ -21,6 +28,8 @@ import { formatPrice } from "@injishi/utils";
  */
 export interface QuotePreview extends MoneyBreakdown {
   lines: MoneyLine[];
+  /** Rwanda's 3% tourism tax inside the room's price (2026-10-30): shown, never added. */
+  tourismTaxRwf: number;
 }
 
 /** Returns null when there are no nights to price. */
@@ -29,46 +38,39 @@ export function computeQuote({
   nights,
   guests,
   nonRefundable = false,
+  priceBasis = "per_person",
 }: {
-  /** Per guest, per night. */
+  /** Per guest, per night; or, for a place let whole, per night. */
   nightlyRateRwf: number;
   nights: number;
   /** Billable guests (adults plus children). Infants are free and never counted. */
   guests: number;
   nonRefundable?: boolean;
+  /** `per_unit`: a villa or apartment, priced for the whole place whatever the party. */
+  priceBasis?: RoomPriceBasis | null;
 }): QuotePreview | null {
   if (nights <= 0) return null;
 
-  const amounts = computeBreakdown({ nightlyRateRwf, nights, nonRefundable, guests });
+  const amounts = computeBreakdown({ nightlyRateRwf, nights, nonRefundable, guests, priceBasis });
   const party = amounts.guests ?? 1;
+  const nightWord = `${nights} night${nights === 1 ? "" : "s"}`;
 
   const lines: MoneyLine[] = buildMoneyLines(amounts, {
-    accommodation: `${formatPrice(nightlyRateRwf)} × ${party} guest${party === 1 ? "" : "s"} × ${nights} night${nights === 1 ? "" : "s"}`,
+    accommodation:
+      priceBasis === "per_unit"
+        ? `${formatPrice(nightlyRateRwf)} × ${nightWord}`
+        : `${formatPrice(nightlyRateRwf)} × ${party} guest${party === 1 ? "" : "s"} × ${nightWord}`,
     nonRefundableDiscount: "Non-refundable discount",
     serviceFee: "Guest service fee",
   });
 
-  return { ...amounts, lines };
+  // What the guest pays for the room, after any discount, holds the tax.
+  const tourismTaxRwf = tourismTaxIncludedRwf(amounts.accommodationRwf - amounts.nonRefundableDiscountRwf);
+  return { ...amounts, lines, tourismTaxRwf };
 }
 
-const CANCELLATION_COPY = {
-  flexible: "Free cancellation up to 24 hours before check-in.",
-  moderate: "Free cancellation up to 5 days before check-in, then 50% refundable.",
-  limited: "50% refund up to 7 days before check-in; non-refundable after.",
-  firm: "50% refund up to 30 days before check-in; non-refundable after.",
-  strict_extended_stay: "Extended-stay terms: 50% refund up to 30 days before check-in.",
-} as const;
-
-export function cancellationCopy(
-  tier: keyof typeof CANCELLATION_COPY | null,
-  nonRefundable = false,
-): string {
-  if (nonRefundable) {
-    return "Non-refundable — full forfeit on cancellation, regardless of tier.";
-  }
-  // No tier on the room type means flexible: it is what the server applies
-  // when the guest cancels (`cancellationOutcome`, `input.tier ?? "flexible"`).
-  // This used to say "Cancellation policy is shown before payment." on the
-  // last step before payment, so a guest paid without seeing any terms.
-  return CANCELLATION_COPY[tier ?? "flexible"];
+/** The room's cancellation terms in one sentence, from the rules the refund is computed with. */
+export function cancellationCopy(tier: CancellationTier | null, nonRefundable = false): string {
+  // No tier on the room type means flexible: it is what the server applies when the guest cancels.
+  return cancellationSummary(tier, nonRefundable);
 }

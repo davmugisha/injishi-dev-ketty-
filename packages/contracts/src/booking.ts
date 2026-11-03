@@ -9,6 +9,26 @@ import { Domain, RwfAmount } from "./primitives";
 /** Per-Room-type booking mode (F-B03). */
 export const BookingMode = z.enum(["instant_book", "request_to_book"]);
 export type BookingMode = z.infer<typeof BookingMode>;
+/**
+ * How a room type's price is counted (owner decisions, 2026-10-29).
+ *
+ * - `per_person`: per guest, per night. A hotel, motel, lodge, guest house or
+ *   tented camp room; four guests pay four times what one does.
+ * - `per_unit`: per night for the whole place, whoever is in the party. A villa
+ *   or an apartment is let whole, to one party.
+ * - `per_item`: a bar's or coffee shop's menu item, priced each. Listed on the
+ *   marketplace and never booked.
+ */
+export const RoomPriceBasis = z.enum(["per_person", "per_unit", "per_item"]);
+export type RoomPriceBasis = z.infer<typeof RoomPriceBasis>;
+/** The guests a stay's rate is multiplied by: the party per person, one per unit. */
+export function chargedGuests(priceBasis: RoomPriceBasis | null | undefined, partyGuests: number): number {
+    return priceBasis === "per_unit" ? 1 : Math.max(1, Math.trunc(partyGuests));
+}
+/** Can a room type with this basis be booked as a stay? A menu item cannot. */
+export function isStayPriceBasis(priceBasis: RoomPriceBasis | null | undefined): boolean {
+    return priceBasis !== "per_item";
+}
 /** Sub-field of `request_to_book` only — never a mode of its own (F-B03). */
 export const ApprovalPolicy = z.enum(["approve_all", "approve_first_three"]);
 export type ApprovalPolicy = z.infer<typeof ApprovalPolicy>;
@@ -69,6 +89,8 @@ export const RoomTypeSummary = z.object({
     approvalPolicy: ApprovalPolicy.nullable(),
     cancellationTier: CancellationTier.nullable(),
     nonrefundableEligible: z.boolean(),
+    /** How the price is counted; absent from an older API, which only priced per person. */
+    priceBasis: RoomPriceBasis.default("per_person"),
     /**
      * The shortest stay this room accepts (ARI, F-L08).
      *
@@ -78,6 +100,21 @@ export const RoomTypeSummary = z.object({
      * absent minimum as 1 rather than inventing a longer one.
      */
     minStay: z.number().int().positive().nullable(),
+    /**
+     * 0117: what one guest pays for a room priced per room (`nightlyRateFor`), the kind of room, its beds,
+     * who may sleep there, its size and bathroom. Optional, so an older API's answer still parses.
+     */
+    singleGuestPriceRwf: RwfAmount.nullish(),
+    roomCategory: z.string().nullish(),
+    beds: z.array(z.object({ type: z.string(), count: z.number().int().positive() })).nullish(),
+    maxAdults: z.number().int().nullish(),
+    maxChildren: z.number().int().nullish(),
+    sizeM2: z.number().int().nullish(),
+    bathroom: z.enum(["private", "shared"]).nullish(),
+    /** 0118: extra beds the room takes and their price a night; the room type's own photograph. */
+    extraBedsMax: z.number().int().nullish(),
+    extraBedPriceRwf: z.number().int().nullish(),
+    photo: z.string().url().nullish(),
 });
 export type RoomTypeSummary = z.infer<typeof RoomTypeSummary>;
 /**
@@ -150,6 +187,46 @@ export type BookableRoom = z.infer<typeof BookableRoom>;
  * one number per rule.
  */
 export const MAX_NIGHTS = 90;
+/**
+ * The longest stay a room type may allow when it lets by the week or the month (serviced apartments,
+ * 2026-10-29): its own `max_stay`, up to a year. Others keep `MAX_NIGHTS`.
+ */
+export const LONG_STAY_MAX_NIGHTS = 365;
+
+/** The most nights a room type takes in one booking. */
+export function maxNightsFor(roomTypeMaxStay: number | null | undefined): number {
+  return roomTypeMaxStay && roomTypeMaxStay > MAX_NIGHTS ? Math.min(roomTypeMaxStay, LONG_STAY_MAX_NIGHTS) : MAX_NIGHTS;
+}
+
+/** A week and more takes the weekly discount, four weeks and more the monthly one. */
+export const WEEKLY_FROM_NIGHTS = 7;
+export const MONTHLY_FROM_NIGHTS = 28;
+
+/**
+ * The nightly rate a stay is charged at (2026-10-29): each night at its own price (a price set for that
+ * day, else the room type's), averaged, less the weekly or monthly discount the stay is long enough for.
+ * The one rule the quote and the booking both use, so what a guest is shown is what they pay.
+ */
+export function stayNightlyRate(input: {
+  baseRwf: number;
+  /** One entry per night, in order; null where no day price is set. */
+  dayRatesRwf: readonly (number | null)[];
+  weeklyDiscountPct?: number | null;
+  monthlyDiscountPct?: number | null;
+}): { nightlyRwf: number; discountPct: number } {
+  const n = input.dayRatesRwf.length;
+  if (n === 0) return { nightlyRwf: input.baseRwf, discountPct: 0 };
+  const total = input.dayRatesRwf.reduce<number>((t, r) => t + (r ?? input.baseRwf), 0);
+  const pct =
+    n >= MONTHLY_FROM_NIGHTS && input.monthlyDiscountPct
+      ? input.monthlyDiscountPct
+      : n >= WEEKLY_FROM_NIGHTS && input.weeklyDiscountPct
+        ? input.weeklyDiscountPct
+        : 0;
+  const bounded = Math.max(0, Math.min(90, pct));
+  return { nightlyRwf: Math.round((total / n) * (1 - bounded / 100)), discountPct: bounded };
+}
+
 /** How far ahead a booking may be made. 18 months. */
 export const MAX_HORIZON_DAYS = 540;
 /** A room type with no stated capacity is not unlimited. */
@@ -352,8 +429,14 @@ export type MoneyBreakdown = z.infer<typeof MoneyBreakdown>;
  * Non-refundable rate is ~10% cheaper than the standard one (F-B05 Path A).
  */
 export const NON_REFUNDABLE_DISCOUNT = 0.1;
-/** Guest service fee. Rates are quoted excluding it. */
-export const GUEST_SERVICE_FEE_RATE = 0.05;
+/**
+ * Guest service fee: none (owner decision, 2026-10-29). A guest pays the room
+ * rate the host set and nothing on top. It was 5%. The rate stays a constant,
+ * and `serviceFeeRwf` stays on `MoneyBreakdown` at 0, so bookings and refunds
+ * made under the old rate still read, and every receipt that hides a zero fee
+ * line keeps working.
+ */
+export const GUEST_SERVICE_FEE_RATE = 0;
 /**
  * The one implementation of what a stay costs (ADR-014 call 4, ADR-020 AC-8).
  *
@@ -382,9 +465,14 @@ export function computeBreakdown(args: {
      * locked figure must not multiply by the party a second time.
      */
     guests?: number;
+    /**
+     * How the rate is counted. `per_unit` prices the whole place, so the party
+     * size does not multiply it (`chargedGuests`). Absent means per person.
+     */
+    priceBasis?: RoomPriceBasis | null;
 }): MoneyBreakdown {
     const { nightlyRateRwf, nights, nonRefundable } = args;
-    const guests = Math.max(1, Math.trunc(args.guests ?? 1));
+    const guests = chargedGuests(args.priceBasis, args.guests ?? 1);
     const accommodationRwf = nightlyRateRwf * guests * nights;
     const nonRefundableDiscountRwf = nonRefundable
         ? Math.round(accommodationRwf * NON_REFUNDABLE_DISCOUNT)
@@ -400,6 +488,28 @@ export function computeBreakdown(args: {
         serviceFeeRwf,
         grossRwf: discounted + serviceFeeRwf,
     };
+}
+/** The guest service fee every booking paid until 2026-10-29, when it was dropped. */
+export const LEGACY_GUEST_SERVICE_FEE_RATE = 0.05;
+/**
+ * A PAID booking's lines, as it was charged.
+ *
+ * A booking keeps its locked rate and its total, not the split, so readers
+ * re-derive the split with `computeBreakdown`. A booking paid before the guest
+ * service fee was dropped carried 5% on top; re-derived at today's 0%, its
+ * lines would no longer add up to what the guest paid, and a receipt that must
+ * total the charge would refuse it. So when the charge is exactly the old fee
+ * over the stay, the fee is put back as it was charged. Anything else is left
+ * as `computeBreakdown` says, for the caller's own check to catch.
+ */
+export function breakdownAsCharged(args: Parameters<typeof computeBreakdown>[0], chargedRwf: number): MoneyBreakdown {
+    const today = computeBreakdown(args);
+    const stay = today.accommodationRwf - today.nonRefundableDiscountRwf;
+    const legacyFee = Math.round(stay * LEGACY_GUEST_SERVICE_FEE_RATE);
+    if (today.serviceFeeRwf === 0 && legacyFee > 0 && chargedRwf === stay + legacyFee) {
+        return { ...today, serviceFeeRwf: legacyFee, grossRwf: chargedRwf };
+    }
+    return today;
 }
 /**
  * What one night of this stay costs the whole party: the per-guest rate times
@@ -558,6 +668,28 @@ export const CANCELLATION_TIERS: Record<CancellationTier, {
     firm: { windowHours: 30 * 24, beforePercent: 50, afterPercent: 0 },
     strict_extended_stay: { windowHours: 30 * 24, beforePercent: 50, afterPercent: 0 },
 };
+/** "24 hours" or "5 days": a window in the words a guest reads. */
+function windowWords(hours: number): string {
+    return hours % 24 === 0 && hours >= 48 ? `${hours / 24} days` : `${hours} hours`;
+}
+/**
+ * A tier in one sentence for the guest, from the same rules the refund is
+ * computed with (`CANCELLATION_TIERS`), so the words can never drift from the
+ * money. The web used to keep its own copy of these sentences.
+ */
+export function cancellationSummary(tier: CancellationTier | null, nonRefundable = false): string {
+    if (nonRefundable)
+        return "Non-refundable: nothing is refunded if you cancel.";
+    const rule = CANCELLATION_TIERS[tier ?? "flexible"];
+    const window = windowWords(rule.windowHours);
+    if (rule.beforePercent === 100)
+        return rule.afterPercent === 0
+            ? `Free cancellation up to ${window} before check-in.`
+            : `Free cancellation up to ${window} before check-in, then ${rule.afterPercent}% refunded.`;
+    return rule.afterPercent === 0
+        ? `${rule.beforePercent}% refunded up to ${window} before check-in, nothing after.`
+        : `${rule.beforePercent}% refunded up to ${window} before check-in, then ${rule.afterPercent}%.`;
+}
 /** Who cancelled. A host cancellation always refunds in full (F-B11). */
 export const CancellationParty = z.enum(["guest", "host"]);
 export type CancellationParty = z.infer<typeof CancellationParty>;

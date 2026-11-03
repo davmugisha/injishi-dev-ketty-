@@ -2,7 +2,7 @@ import { describe, expect, it, type Mock, vi } from 'vitest';
 
 import { ConflictException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 
-import { PaymentUnavailableError, type PaymentPort } from '../../payments/domain/payment-port';
+import { PaymentUnavailableError, type PaymentPort } from '../../pay/domain/payment-port';
 import type { BookingRepository, CancellableBooking } from '../infrastructure/booking.repository';
 import { BookingCancellationService, hoursUntilCheckIn } from './booking-cancellation.service';
 import type { BookingNotificationsService } from './booking-notifications.service';
@@ -53,13 +53,20 @@ describe('BookingCancellationService', () => {
 
   function build(
     row: CancellableBooking | null,
-    opts: { providerDown?: boolean; recorded?: boolean; plan?: { oweTx: Mock; announce: Mock } } = {},
+    opts: {
+      providerDown?: boolean;
+      recorded?: boolean;
+      plan?: { oweTx: Mock; announce: Mock };
+      changePayments?: { escrowId: string; amountRwf: number; adapterRef: string | null; workspaceId: string; idempotencyKey: string }[];
+    } = {},
   ): {
     service: BookingCancellationService;
     repo: { findForCancellation: Mock; recordCancellation: Mock; recordNoShow: Mock };
     payments: { releaseEscrow: Mock; refund: Mock };
     notifications: { notify: Mock };
     refunds: { plan: Mock };
+    changes: { takeChangePayments: Mock };
+    compensations: { enqueue: Mock };
   } {
     const repo = {
       findForCancellation: vi.fn().mockResolvedValue(row),
@@ -81,13 +88,18 @@ describe('BookingCancellationService', () => {
     // 073 AC-13: by default no bank record stands behind these payments, so the
     // provider path runs; `plan` makes the refund owed instead.
     const refunds = { plan: vi.fn().mockResolvedValue(opts.plan ?? null) };
+    // MoMo payments of desk changes (0120): none unless a test hands some in.
+    const changes = { takeChangePayments: vi.fn().mockResolvedValue(opts.changePayments ?? []) };
+    const compensations = { enqueue: vi.fn().mockResolvedValue(undefined) };
     const service = new BookingCancellationService(
       repo as unknown as BookingRepository,
       payments as unknown as PaymentPort,
       notifications as unknown as BookingNotificationsService,
       refunds as unknown as BookingRefunds,
+      changes as never,
+      compensations as never,
     );
-    return { service, repo, payments, notifications, refunds };
+    return { service, repo, payments, notifications, refunds, changes, compensations };
   }
 
   it('refunds a flexible booking in full, through the provider, before recording it', async () => {
@@ -312,5 +324,21 @@ describe('BookingCancellationService', () => {
     expect(repo.recordNoShow).not.toHaveBeenCalled();
     expect(payments.releaseEscrow).not.toHaveBeenCalled();
     expect(payments.refund).not.toHaveBeenCalled();
+  });
+  it('refunds a change paid by MoMo in full when the booking is cancelled (0120)', async () => {
+    const { service, compensations } = build(booking(), {
+      changePayments: [
+        { escrowId: 'e-2', amountRwf: 60_000, adapterRef: 'momo-2', workspaceId: 'ws-1', idempotencyKey: 'ws-1:booking-change:c-1:t-1' },
+      ],
+    });
+    await service.cancelByGuest('bk-abcd-1234', GUEST);
+    expect(compensations.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'refund',
+        amountRwf: 60_000,
+        originalRef: 'momo-2',
+        idempotencyKey: 'refund:ws-1:booking-change:c-1:t-1',
+      }),
+    );
   });
 });

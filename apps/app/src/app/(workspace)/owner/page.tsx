@@ -9,11 +9,13 @@ import type {
 } from "@injishi/data/fixtures/platform";
 import type { Metadata } from "next";
 import { OwnerHomeView, type SetupDue } from "@/features/platform/OwnerHomeView";
+import { StayHomeView } from "@/features/pms/stays/StayHomeView";
 import { currentAccount, requirePersona } from "@/lib/session";
 import { setupPath } from "@/lib/setup-path";
 import { getCollection, requestContext } from "@/server/data";
 import { readSetup } from "@/server/mutations/setup";
 import { holdsSampleData } from "@/server/sample-data";
+import { staysActivity, staysSummary } from "@/server/stays/client";
 
 /**
  * The owner's businesses that are not on the marketplace yet, read the way the setup page reads them, so
@@ -35,6 +37,9 @@ async function setupDue(): Promise<SetupDue[]> {
           workspaceId: w.workspaceId,
           businessName: setup.businessName,
           notApproved: !setup.open,
+          inReview: setup.open && !setup.approved,
+          // What is still missing besides approval, in the setup page's own words.
+          missing: setup.open ? setup.blockers.filter((b) => !/approved/i.test(b)) : [],
           href: setupPath(w.workspaceId),
         };
       } catch {
@@ -49,8 +54,22 @@ export const metadata: Metadata = { title: screens.OwnerHome.pageTitle };
 
 export default async function OwnerHomePage() {
   const persona = await requirePersona("OwnerHome");
+  // A stay business (guest house, lodge, hotel, apartments) gets its own home, all from the API.
+  const stays = await staysSummary();
+  if (stays) {
+    const [account, activity, due] = await Promise.all([currentAccount(), staysActivity(), setupDue()]);
+    const mine = due[0] ?? null;
+    return (
+      <StayHomeView
+        firstName={(account?.user.name ?? "").trim().split(/\s+/)[0] ?? ""}
+        summary={stays}
+        activity={activity}
+        setup={mine ? { href: mine.href, notApproved: mine.notApproved } : null}
+      />
+    );
+  }
   // Decisions and insights have no live source yet, so they come from the fixture store: the demo's pay run,
-  // refund and rate change. A real owner is shown none rather than a stranger's.
+  // refund and rate change. Only the demo's own people see them; a real owner is shown none (2026-10-30).
   const sample = await holdsSampleData();
   const [kpis, decisions, revenueDays, properties, insights, compliance, due] = await Promise.all([
     getCollection<OwnerKpi>("platform.ownerKpis"),
@@ -66,6 +85,7 @@ export default async function OwnerHomePage() {
       persona={persona}
       data={{ kpis, decisions, revenueDays, properties, insights, compliance }}
       setupDue={due}
+      sample={sample}
     />
   );
 }

@@ -1,11 +1,14 @@
 import {
+  breakdownAsCharged,
   instrumentProblem,
+  isStayPriceBasis,
   type BookingMode,
   type BookingResult,
   type CreateBookingInput,
   type CreateBookingOutcome,
   type MoneyBreakdown,
   type PaymentInstrument,
+  nightlyRateFor,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -24,7 +27,7 @@ import { createHash } from 'node:crypto';
 
 // Cross-module dependency goes through ListingModule's application service —
 // never its repository (architecture.md invariant).
-import { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
+import { EbmSaleTrigger } from '../../platform/fiscal/application/ebm-sale-trigger.service';
 import { reportAlarm } from '../../../shared/observability/error-reporter';
 import { BookingNotificationsService } from './booking-notifications.service';
 import { PaymentAttemptService } from './payment-attempt.service';
@@ -32,20 +35,20 @@ import {
   ListingService,
   type BookableRoomType,
 } from '../../listing/application/listing.service';
-import { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
-import { PaymentSeam } from '../../payments/domain/payment-seam';
+import { PaymentCompensationService } from '../../pay/application/payment-compensation.service';
+import { PaymentSeam } from '../../pay/domain/payment-seam';
 import {
   captureKeyFor,
   refundKeyFor,
   voidKeyFor,
-} from '../../payments/domain/keys';
+} from '../../pay/domain/keys';
 import {
   PAYMENT_PORT,
   PaymentDeclinedError,
   PaymentUnavailableError,
   type PaymentPort,
   type PaymentReceipt,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import {
   DEFAULT_CAPACITY,
   MAX_HORIZON_DAYS,
@@ -213,6 +216,10 @@ export class BookingService {
     if (roomType.domain !== 'hospitality') {
       throw new BadRequestException('That room type is not bookable.');
     }
+    // A venue's menu item is listed, never booked.
+    if (!isStayPriceBasis(roomType.priceBasis)) {
+      throw new BadRequestException('That is not something that can be booked.');
+    }
     if (roomType.nightlyRateRwf == null || roomType.bookingMode == null) {
       throw new BadRequestException('That room type is not priced for booking.');
     }
@@ -227,8 +234,17 @@ export class BookingService {
     if (nights <= 0) {
       throw new BadRequestException('Check-out must be after check-in.');
     }
-    if (nights > MAX_NIGHTS) {
-      throw new BadRequestException(`Stays are limited to ${MAX_NIGHTS} nights.`);
+    // The stay's own rules (2026-10-29): day prices, closed nights, the shortest and longest stay, and
+    // a weekly or monthly discount, the same answer the quote gave.
+    const rate = await this.listings.stayRate(roomType, input.checkIn, input.checkOut);
+    if (nights > rate.maxNights) {
+      throw new BadRequestException(`Stays are limited to ${rate.maxNights} nights.`);
+    }
+    if (nights < rate.minNights) {
+      throw new BadRequestException(`This room takes stays of ${rate.minNights} nights or more.`);
+    }
+    if (rate.closedOn) {
+      throw new ConflictException(`${roomType.name} is not available on ${rate.closedOn}. Choose other dates.`);
     }
 
     // "Today" is a Kigali fact, not a UTC one (review 1.6).
@@ -237,6 +253,14 @@ export class BookingService {
     }
     if (daysFromToday(input.checkIn) > MAX_HORIZON_DAYS) {
       throw new BadRequestException('Bookings open up to 18 months ahead.');
+    }
+
+    // The host's minimum stay (ARI, F-L08). The booking card already refuses a
+    // shorter range; this is the rule, the card only says it first.
+    if (roomType.minStay != null && nights < roomType.minStay) {
+      throw new BadRequestException(
+        `That room needs at least ${roomType.minStay} nights.`,
+      );
     }
 
     // A room type with no stated capacity is not unlimited (review 3.7).
@@ -263,13 +287,20 @@ export class BookingService {
 
     const nonRefundable = input.nonRefundable && roomType.nonrefundableEligible;
 
-    // Priced per person: the rate is per guest, per night (infants are not in
-    // `guests`, so they stay free).
+    // Per person, the rate is per guest, per night (infants are not in
+    // `guests`, so they stay free); a villa or apartment is per unit, per night.
+    // A room priced per room charges one guest its one guest price, when it has one (0117).
+    // The base is the stay's own rate: day prices averaged, less a long stay discount (2026-10-29).
+    const nightlyRateRwf = nightlyRateFor(
+      { ...roomType, nightlyRateRwf: rate.nightlyRateRwf },
+      input.guests,
+    );
     const breakdown = computeBreakdown({
-      nightlyRateRwf: roomType.nightlyRateRwf,
+      nightlyRateRwf,
       nights,
       nonRefundable,
       guests: input.guests,
+      priceBasis: roomType.priceBasis,
     });
 
     // The bank's rules, refused before any hold, attempt or prompt
@@ -394,7 +425,7 @@ export class BookingService {
         // Narrowed by the two guards at the top of this method. TypeScript
         // narrows a PROPERTY rather than the object, so they are passed
         // explicitly instead of as an intersection the call site cannot satisfy.
-        nightlyRateRwf: roomType.nightlyRateRwf,
+        nightlyRateRwf,
         bookingMode: roomType.bookingMode,
         receipt,
         idempotencyKey,
@@ -557,6 +588,10 @@ export class BookingService {
     // nothing at all (booking audit, 2026-09-13).
     if (created.status === 'pending_approval') {
       await this.notifications.notify(created.id, 'host_request');
+    } else if (created.status === 'confirmed') {
+      // An instant booking needs no answer, but the property still has to
+      // know a guest is coming (2026-10-29).
+      await this.notifications.notify(created.id, 'host_confirmed');
     }
 
     return {
@@ -605,11 +640,14 @@ export class BookingService {
       // The lines are recomputed for display; the total is what was captured
       // (review 3.6). A row with no locked rate must not answer "0 RWF".
       breakdown: withCapturedTotal(
-        computeBreakdown({
-          nightlyRateRwf: settled.lockedNightlyRateRwf ?? 0,
-          nights,
-          nonRefundable: settled.nonRefundable,
-        }),
+        breakdownAsCharged(
+          {
+            nightlyRateRwf: settled.lockedNightlyRateRwf ?? 0,
+            nights,
+            nonRefundable: settled.nonRefundable,
+          },
+          settled.grossRwf ?? 0,
+        ),
         settled.grossRwf,
       ),
       approvalExpiresAt: settled.approvalExpiresAt?.toISOString() ?? null,

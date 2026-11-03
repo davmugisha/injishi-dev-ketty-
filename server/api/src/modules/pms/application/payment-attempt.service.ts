@@ -1,12 +1,13 @@
 import {
   PAYMENT_PROMPT_TTL_SECONDS,
-  computeBreakdown,
+  breakdownAsCharged,
   type BookingResult,
   type CreateBookingInput,
   type OrderPaymentAttemptStatus,
   type PaymentAttemptStatus,
   type PaymentInstrument,
   type RegistrationFeeAttemptStatus,
+  nightlyRateFor,
 } from '@injishi/contracts';
 import {
   Inject,
@@ -19,9 +20,9 @@ import {
 import { ListingService } from '../../listing/application/listing.service';
 import { GuestOrderingService } from '../../outlets/application/guest-ordering.service';
 import { OrderPaymentService } from '../../outlets/application/order-payment.service';
-import { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
-import { feeDuplicateKeyFor, registrationFeeKeyFor, voidKeyFor } from '../../payments/domain/keys';
-import { PaymentTransactionsRepository } from '../../payments/infrastructure/payment-transactions.repository';
+import { PaymentCompensationService } from '../../pay/application/payment-compensation.service';
+import { feeDuplicateKeyFor, registrationFeeKeyFor, voidKeyFor } from '../../pay/domain/keys';
+import { PaymentTransactionsRepository } from '../../pay/infrastructure/payment-transactions.repository';
 import { REGISTRATION_FEES, type RegistrationFees } from '../domain/registration-fees';
 import { reportAlarm } from '../../../shared/observability/error-reporter';
 import {
@@ -31,8 +32,10 @@ import {
   maskDestination,
   type PaymentPort,
   type PaymentReceipt,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import { approvalExpiresAt, nightsBetween, statusForMode } from '../domain/pricing';
+import { BookingChangeRepository } from '../infrastructure/booking-change.repository';
+import { BrokerGroupRepository, type GroupRow } from '../infrastructure/broker-group.repository';
 import {
   PaymentAttemptRepository,
   type PaymentAttemptRow,
@@ -87,7 +90,320 @@ export class PaymentAttemptService {
     private readonly transactions: PaymentTransactionsRepository,
     /** Settles a registration once its fee lands (073 AC-16). */
     @Inject(REGISTRATION_FEES) private readonly registrations: RegistrationFees,
+    /** Applies a reservation change once the guest's MoMo payment of its difference lands (0120). */
+    private readonly changes: BookingChangeRepository,
+    /** Writes a broker's group of rooms once its one MoMo payment lands (0126). */
+    private readonly brokerGroups: BrokerGroupRepository,
   ) {}
+
+  /**
+   * ASK A BROKER TO PAY FOR A GROUP OF ROOMS (0126): one Request to Pay for the whole group, held in escrow
+   * like a guest's own booking. The group row was written first, `awaiting_payment`, so a capture never
+   * exists without what it pays for. Nothing is booked until the money lands (`completeBrokerGroup`). One
+   * key per group and press, so a retried press is the same request at the provider.
+   */
+  async beginForBrokerGroup(args: {
+    group: GroupRow;
+    payerUserId: string;
+    instrument: PaymentInstrument;
+    attemptToken: string;
+  }): Promise<PaymentAttemptRow> {
+    const { group, instrument } = args;
+    const idempotencyKey = `${group.workspaceId}:broker-group:${group.id}:${args.attemptToken}`;
+    const known = await this.attempts.findByKey(idempotencyKey);
+    if (known && known.state !== 'prompting') return known;
+    const network = instrument.kind === 'mobile_money' ? instrument.network : null;
+    const payerMasked = instrument.kind === 'mobile_money' ? maskDestination(instrument.msisdn) : null;
+
+    let receipt: PaymentReceipt;
+    try {
+      receipt = await this.payments.captureEscrow({
+        kind: 'escrow_capture',
+        purpose: 'booking',
+        idempotencyKey,
+        amountRwf: group.totalRwf,
+        currency: 'RWF',
+        workspaceId: group.workspaceId,
+        instrument,
+        memo: `Broker booking ${group.reference}, ${group.rooms.length} ${group.rooms.length === 1 ? 'room' : 'rooms'}`,
+      });
+    } catch (err) {
+      if (err instanceof PaymentDeclinedError) {
+        await this.brokerGroups.markFailed(group.id, DECLINED);
+        throw new BrokerGroupPaymentRefused(DECLINED);
+      }
+      if (err instanceof PaymentUnavailableError) {
+        if (err.delivered === 'no') {
+          await this.brokerGroups.markFailed(group.id, 'We could not reach the payment service. Nothing was charged.');
+        }
+        throw new ServiceUnavailableException(
+          err.delivered === 'no'
+            ? 'We could not reach the payment service. Nothing has been charged and nothing was booked. Try again.'
+            : 'We could not confirm whether the request reached the phone. Do not pay again; check this booking in a minute.',
+        );
+      }
+      throw err;
+    }
+
+    const attemptId = await this.attempts.record({
+      purpose: 'broker_group',
+      brokerGroupId: group.id,
+      attemptToken: args.attemptToken,
+      idempotencyKey,
+      guestUserId: args.payerUserId,
+      workspaceId: group.workspaceId,
+      attemptFingerprint: `broker-group:${group.id}:${group.totalRwf}`,
+      amountRwf: group.totalRwf,
+      adapterRef: receipt.adapterRef,
+      adapterMode: receipt.mode,
+      instrumentKind: instrument.kind,
+      network,
+      payerMasked,
+      expiresAt: new Date(Date.now() + PAYMENT_PROMPT_TTL_SECONDS * 1_000),
+    });
+    await this.transactions.linkAttempt(idempotencyKey, attemptId);
+    const row = await this.attempts.findByKey(idempotencyKey);
+    if (!row) throw new Error(`Payment attempt ${idempotencyKey} was written and could not be read back.`);
+    if (receipt.settlement === 'settled') {
+      const done = await this.completeBrokerGroup(row, receipt);
+      return { ...row, state: done.state, failureReason: done.failureReason };
+    }
+    return row;
+  }
+
+  /** Where a broker group's payment got to: asks the provider while it is still prompting. */
+  async pollBrokerGroup(row: PaymentAttemptRow): Promise<PaymentAttemptRow> {
+    if (row.state !== 'prompting') return row;
+    const step = await this.resolve(row, 'poll');
+    return { ...row, state: step.state, failureReason: step.failureReason };
+  }
+
+  /**
+   * The broker's payment landed: write the group's rooms, once. The attempt is claimed first, so a poll and
+   * the sweep cannot both write it. A group whose rooms sold out while the phone was answering is refunded
+   * in full and books nothing: a broker never pays for part of a group.
+   */
+  private async completeBrokerGroup(row: PaymentAttemptRow, receipt?: PaymentReceipt): Promise<Resolution> {
+    if (!(await this.attempts.claimConfirmed(row.id))) {
+      const now = await this.attempts.findByKey(row.idempotencyKey);
+      return { state: now?.state ?? row.state, failureReason: now?.failureReason ?? row.failureReason, booking: null };
+    }
+    const group = row.brokerGroupId ? await this.brokerGroups.group(row.brokerGroupId) : null;
+    const outcome =
+      group && row.adapterRef
+        ? await this.brokerGroups.writeBookings(group, {
+            receipt: { adapterRef: row.adapterRef, mode: receipt?.mode ?? 'mock' },
+            idempotencyKey: row.idempotencyKey,
+          })
+        : ({ kind: 'not_waiting' } as const);
+    if (outcome.kind === 'booked' || outcome.kind === 'already') {
+      this.log.log(`Broker group ${group?.reference ?? row.brokerGroupId} booked once its MoMo payment landed.`);
+      return { state: 'confirmed', failureReason: null, booking: null };
+    }
+    const reason =
+      outcome.kind === 'sold_out'
+        ? `${outcome.roomTypeName} sold out before the payment landed. Nothing was booked, and the payment is refunded in full.`
+        : 'This booking could no longer be made when the payment landed. The payment is refunded in full.';
+    if (group) await this.brokerGroups.markFailed(group.id, reason);
+    if ((await this.attempts.markBrokerGroupRefused(row.id, reason)) && row.adapterRef && row.amountRwf != null) {
+      await this.compensations.enqueue({
+        kind: 'refund',
+        idempotencyKey: feeDuplicateKeyFor(row.idempotencyKey),
+        workspaceId: row.workspaceId,
+        originalRef: row.adapterRef,
+        amountRwf: row.amountRwf,
+        memo: `Broker group could not be booked (${outcome.kind}); refunded in full`,
+      });
+    }
+    return { state: 'refused', failureReason: reason, booking: null };
+  }
+
+  /**
+   * ASK THE GUEST TO PAY A RESERVATION CHANGE'S DIFFERENCE NOW (0120, the owner's decision).
+   *
+   * The desk chose MoMo for a change that costs more: a Request to Pay goes to the guest's phone for the
+   * difference, held in escrow like the booking's own money, and the change applies only once it lands.
+   * The change row was written first, awaiting payment, so a capture never exists without the change it
+   * pays for. One key per change and press, so a retried press is the same request at the provider.
+   */
+  async beginForBookingChange(args: {
+    changeId: string;
+    bookingId: string;
+    reference: string;
+    workspaceId: string;
+    /** Whose attempt it is on the row: the guest, else the desk member who sent it. */
+    payerUserId: string;
+    amountRwf: number;
+    instrument: PaymentInstrument;
+    attemptToken: string;
+  }): Promise<BookingChangeAttempt> {
+    const idempotencyKey = `${args.workspaceId}:booking-change:${args.changeId}:${args.attemptToken}`;
+    const { instrument } = args;
+    const network = instrument.kind === 'mobile_money' ? instrument.network : null;
+    const payerMasked = instrument.kind === 'mobile_money' ? maskDestination(instrument.msisdn) : null;
+
+    const known = await this.attempts.findByKey(idempotencyKey);
+    if (known && known.state !== 'prompting') return this.presentChangeAttempt(known);
+
+    let receipt: PaymentReceipt;
+    try {
+      receipt = await this.payments.captureEscrow({
+        kind: 'escrow_capture',
+        purpose: 'booking',
+        idempotencyKey,
+        amountRwf: args.amountRwf,
+        currency: 'RWF',
+        workspaceId: args.workspaceId,
+        instrument,
+        memo: `Change to booking ${args.reference}`,
+      });
+    } catch (err) {
+      if (err instanceof PaymentDeclinedError) {
+        await this.changes.abandon(args.changeId);
+        return {
+          attemptToken: args.attemptToken,
+          state: 'refused',
+          network,
+          payerMasked,
+          amountRwf: args.amountRwf,
+          expiresAt: new Date().toISOString(),
+          failureReason: DECLINED,
+        };
+      }
+      if (err instanceof PaymentUnavailableError) {
+        if (err.delivered === 'no') await this.changes.abandon(args.changeId);
+        throw new ServiceUnavailableException(
+          err.delivered === 'no'
+            ? 'We could not reach the payment service. Nothing has been charged and nothing was changed. Try again.'
+            : 'We could not confirm whether the request reached the guest’s phone. Do not send a second one; check this booking again in a minute.',
+        );
+      }
+      throw err;
+    }
+
+    const expiresAt = new Date(Date.now() + PAYMENT_PROMPT_TTL_SECONDS * 1_000);
+    const attemptId = await this.attempts.record({
+      purpose: 'booking_change',
+      bookingChangeId: args.changeId,
+      bookingId: args.bookingId,
+      attemptToken: args.attemptToken,
+      idempotencyKey,
+      guestUserId: args.payerUserId,
+      workspaceId: args.workspaceId,
+      attemptFingerprint: `booking-change:${args.changeId}:${args.amountRwf}`,
+      amountRwf: args.amountRwf,
+      adapterRef: receipt.adapterRef,
+      adapterMode: receipt.mode,
+      instrumentKind: instrument.kind,
+      network,
+      payerMasked,
+      expiresAt,
+    });
+    await this.transactions.linkAttempt(idempotencyKey, attemptId);
+
+    const row = await this.attempts.findByKey(idempotencyKey);
+    if (!row) throw new Error(`Payment attempt ${idempotencyKey} was written and could not be read back.`);
+    if (receipt.settlement === 'settled') {
+      const done = await this.completeBookingChange(row, receipt);
+      return this.presentChangeAttempt({ ...row, state: done.state, failureReason: done.failureReason });
+    }
+    return this.presentChangeAttempt(row);
+  }
+
+  /** Where did the guest's payment of a change get to? The desk's poll, scoped to its workspace. */
+  async pollBookingChange(attemptToken: string, workspaceId: string): Promise<BookingChangeAttempt & { changeId: string }> {
+    const row = await this.attempts.findChangeAttempt(attemptToken, workspaceId);
+    if (!row?.bookingChangeId) throw new NotFoundException('No such payment request.');
+    let { state, failureReason } = row;
+    if (row.state === 'prompting') {
+      const step = await this.resolve(row, 'poll');
+      state = step.state;
+      failureReason = step.failureReason;
+    }
+    return { ...this.presentChangeAttempt({ ...row, state, failureReason }), changeId: row.bookingChangeId };
+  }
+
+  /**
+   * The guest's payment landed: apply the change it paid for, once. The attempt is claimed first, so a poll
+   * and the sweep cannot both apply it. A change that can no longer be made (the booking moved, was checked
+   * in or cancelled, or its new room type sold out meanwhile) gives the money back in full.
+   */
+  private async completeBookingChange(row: PaymentAttemptRow, receipt?: PaymentReceipt): Promise<Resolution> {
+    if (!(await this.attempts.claimConfirmed(row.id))) {
+      const now = await this.attempts.findByKey(row.idempotencyKey);
+      return { state: now?.state ?? row.state, failureReason: now?.failureReason ?? row.failureReason, booking: null };
+    }
+    const change = row.bookingChangeId ? await this.changes.findChange(row.bookingChangeId) : null;
+    const outcome =
+      change && change.status === 'awaiting_payment' && row.adapterRef && row.amountRwf != null
+        ? await this.changes.apply({
+            bookingId: change.bookingId,
+            workspaceId: change.workspaceId,
+            changeId: change.id,
+            from: {
+              checkIn: change.fromCheckIn,
+              checkOut: change.fromCheckOut,
+              roomTypeId: change.fromRoomTypeId,
+              adults: change.fromAdults,
+              children: change.fromChildren,
+              lockedNightlyRwf: Number(change.fromNightlyRwf),
+            },
+            ask: {
+              checkIn: change.toCheckIn,
+              checkOut: change.toCheckOut,
+              roomTypeId: change.toRoomTypeId,
+              adults: change.toAdults,
+              children: change.toChildren,
+            },
+            price: {
+              nights: 0,
+              fromNightlyRwf: Number(change.fromNightlyRwf),
+              toNightlyRwf: Number(change.toNightlyRwf),
+              paidRoomRwf: Number(change.paidRoomRwf),
+              newRoomRwf: Number(change.newRoomRwf),
+              differenceRwf: Number(change.differenceRwf),
+            },
+            settlement: 'momo',
+            actorUserId: change.actorUserId,
+            payment: {
+              amountRwf: row.amountRwf,
+              adapterRef: row.adapterRef,
+              adapterMode: receipt?.mode ?? 'mock',
+              idempotencyKey: row.idempotencyKey,
+            },
+          })
+        : ({ kind: 'stale' } as const);
+    if (outcome.kind === 'applied') {
+      this.log.log(`Booking change ${outcome.changeId} applied once its MoMo payment landed.`);
+      return { state: 'confirmed', failureReason: null, booking: null };
+    }
+    if (change) await this.changes.abandon(change.id);
+    const reason =
+      outcome.kind === 'sold_out' ? CHANGE_SOLD_OUT : 'The booking changed before the payment landed. It is refunded in full.';
+    if ((await this.attempts.markChangeRefused(row.id, reason)) && row.adapterRef && row.amountRwf != null) {
+      await this.compensations.enqueue({
+        kind: 'refund',
+        idempotencyKey: feeDuplicateKeyFor(row.idempotencyKey),
+        workspaceId: row.workspaceId,
+        originalRef: row.adapterRef,
+        amountRwf: row.amountRwf,
+        memo: `Booking change could not be applied (${outcome.kind}); refunded in full`,
+      });
+    }
+    return { state: 'refused', failureReason: reason, booking: null };
+  }
+
+  private presentChangeAttempt(row: PaymentAttemptRow): BookingChangeAttempt {
+    return {
+      attemptToken: row.attemptToken,
+      state: row.state,
+      network: row.network,
+      payerMasked: row.payerMasked,
+      amountRwf: row.amountRwf,
+      expiresAt: row.expiresAt.toISOString(),
+      failureReason: row.failureReason,
+    };
+  }
 
   /**
    * ASK FOR A PAY NOW ORDER'S MONEY (ADR-050 D-n, D-p; AC-21).
@@ -486,6 +802,8 @@ export class PaymentAttemptService {
 
     // --- It landed, whatever the clock says. Hand it to what it paid for. ---
     if (row.purpose === 'registration_fee') return this.completeRegistrationFee(row);
+    if (row.purpose === 'booking_change') return this.completeBookingChange(row, receipt);
+    if (row.purpose === 'broker_group') return this.completeBrokerGroup(row, receipt);
     if (row.purpose === 'service_order') {
       return (await this.completeOrder(row))
         ? { state: 'confirmed', failureReason: null, booking: null }
@@ -713,7 +1031,12 @@ export class PaymentAttemptService {
     }
 
     const roomType = await this.listings.findBookableRoomType(roomTypeId);
-    if (!roomType || roomType.nightlyRateRwf == null || roomType.bookingMode == null) {
+    if (
+      !roomType ||
+      roomType.nightlyRateRwf == null ||
+      roomType.bookingMode == null ||
+      roomType.priceBasis === 'per_item'
+    ) {
       // The room stopped being sellable while the guest was approving. Their
       // money goes back; a reservation against inventory that no longer exists
       // would be worse than the refund.
@@ -721,12 +1044,33 @@ export class PaymentAttemptService {
     }
 
     const nights = nightsBetween(checkIn, checkOut);
-    const breakdown = computeBreakdown({
-      nightlyRateRwf: roomType.nightlyRateRwf,
-      nights,
-      nonRefundable: row.nonRefundable,
-      guests,
-    });
+    // Priced as the booking was quoted: day prices and the length of stay discount (2026-10-29).
+    const rate = await this.listings.stayRate(roomType, checkIn, checkOut);
+    // A room priced per room charges one guest its one guest price, when it has one (0117).
+    const nightlyRateRwf = nightlyRateFor({ ...roomType, nightlyRateRwf: rate.nightlyRateRwf }, guests);
+    // Priced as it was charged: a prompt started before the guest service fee
+    // was dropped carried 5% on top (`breakdownAsCharged`), and the booking and
+    // its escrow must record what the guest actually paid.
+    const breakdown = breakdownAsCharged(
+      {
+        nightlyRateRwf,
+        nights,
+        nonRefundable: row.nonRefundable,
+        guests,
+        priceBasis: roomType.priceBasis,
+      },
+      row.amountRwf ?? 0,
+    );
+    if (row.amountRwf != null && breakdown.grossRwf !== row.amountRwf) {
+      // The price moved while the guest was approving (the host changed the
+      // rate). Booking at today's figure would record an escrow that is not
+      // the money taken, and later refund the wrong amount, so the guest is
+      // refunded in full and can book again at the new price.
+      this.log.warn(
+        `Payment attempt ${row.attemptToken} captured ${row.amountRwf} RWF but the stay now prices at ${breakdown.grossRwf}; refunded.`,
+      );
+      return this.end(row, 'refused', PRICE_MOVED);
+    }
 
     let booking: BookingResult;
     try {
@@ -748,7 +1092,7 @@ export class PaymentAttemptService {
         } satisfies CreateBookingInput,
         guestUserId: row.guestUserId,
         roomType,
-        nightlyRateRwf: roomType.nightlyRateRwf,
+        nightlyRateRwf,
         bookingMode: roomType.bookingMode,
         receipt,
         idempotencyKey: row.idempotencyKey,
@@ -802,6 +1146,14 @@ export class PaymentAttemptService {
     // still pending order moves, so this can never undo a settled one.
     if (row.purpose === 'service_order' && row.serviceOrderId) {
       await this.orderPayments.fail(row.serviceOrderId, reason);
+    }
+    // A change waiting on this payment does not happen (0120); the booking stays as it was.
+    if (row.purpose === 'booking_change' && row.bookingChangeId) {
+      await this.changes.abandon(row.bookingChangeId);
+    }
+    // A broker's group waiting on this payment is not booked (0126).
+    if (row.purpose === 'broker_group' && row.brokerGroupId) {
+      await this.brokerGroups.markFailed(row.brokerGroupId, reason);
     }
 
     if (!row.adapterRef || row.amountRwf == null) return true;
@@ -906,6 +1258,22 @@ const LOST =
 const WITHDRAWN =
   'That room stopped being available while the payment was being approved, so your payment is being refunded in full.';
 const DECLINED = 'That payment was declined. Nothing has been charged.';
+/** A change's new room type sold out while its MoMo request was out (0120). */
+const CHANGE_SOLD_OUT =
+  'The new room type sold out before the payment landed, so nothing was changed. The guest is refunded in full.';
+
+/** The desk's view of a MoMo request for a reservation change's difference (0120). */
+export interface BookingChangeAttempt {
+  attemptToken: string;
+  state: PaymentAttemptRow['state'];
+  network: PaymentAttemptRow['network'];
+  payerMasked: string | null;
+  amountRwf: number | null;
+  expiresAt: string;
+  failureReason: string | null;
+}
+const PRICE_MOVED =
+  'The price of that room changed while the payment was being approved, so your payment is being refunded in full. Book again to see the new price.';
 const ORDER_GONE =
   'This order was cancelled while the payment was being approved, so your payment is being refunded in full.';
 const FEE_ALREADY_PAID =
@@ -916,4 +1284,12 @@ const FEE_NOT_PAYABLE =
 /** `<workspace>:booking-capture:<token>` → `<token>`. */
 function tokenFromKey(idempotencyKey: string): string {
   return idempotencyKey.slice(idempotencyKey.lastIndexOf(':') + 1);
+}
+
+/** The provider refused a broker group's payment outright: nothing was charged, and the group failed (0126). */
+export class BrokerGroupPaymentRefused extends Error {
+  constructor(readonly reason: string) {
+    super(reason);
+    this.name = 'BrokerGroupPaymentRefused';
+  }
 }

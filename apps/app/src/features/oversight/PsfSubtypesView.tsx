@@ -1,0 +1,265 @@
+"use client";
+
+import { Alert, Button, Input } from "@heroui/react";
+import type { PsfSubsectorsView } from "@injishi/contracts";
+import { EmptyBlock, PageContent, PageHeader, SectionCard, StatusChip } from "@injishi/ui";
+import { useState } from "react";
+import type { PsfScope } from "@/server/sources/psf";
+import { createPsfSubtypeAction, updatePsfSubtypeAction } from "./psf-subtypes-actions";
+
+type View = PsfSubsectorsView;
+type Cluster = View["clusters"][number];
+type Sub = Cluster["subsectors"][number];
+type Association = View["associations"][number];
+type Saved = (next: View, message: string) => void;
+
+/**
+ * Subtypes (2026-11-02, rebuilt on the console's own parts): the kinds of business inside each PSF
+ * sector, and the associations each offers, as the public form shows them. PSF's national office keeps
+ * the national list; a province or district officer adds subtypes for their districts.
+ */
+export function PsfSubtypesView({ scope, initial }: { scope: PsfScope; initial: View }) {
+  const [view, setView] = useState(initial);
+  const [note, setNote] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
+  const saved: Saved = (next, message) => {
+    setView(next);
+    setNote({ tone: "success", text: message });
+  };
+
+  return (
+    <PageContent>
+      <PageHeader
+        eyebrow={`${scope.title} · ${scope.label}`}
+        title="Subtypes"
+        description="The kinds of business and the associations the public PSF form offers, sector by sector."
+      />
+
+      <Alert status="accent">
+        <Alert.Content>
+          <Alert.Title>How the form uses them</Alert.Title>
+          <Alert.Description>
+            A business picks its sector, then one of these subtypes, then an association the subtype offers. A business whose kind is on no list types
+            its own.{" "}
+            {view.places.some((p) => p.districtId === null)
+              ? "You keep the national list."
+              : "The national list is kept by PSF’s national office; you add subtypes for your districts."}
+          </Alert.Description>
+        </Alert.Content>
+      </Alert>
+
+      {note ? (
+        <Alert status={note.tone}>
+          <Alert.Content>
+            <Alert.Description>{note.text}</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
+
+      {view.clusters.map((c) => (
+        <ClusterCard key={c.code} cluster={c} view={view} onSaved={saved} onFailed={(text) => setNote({ tone: "danger", text })} />
+      ))}
+    </PageContent>
+  );
+}
+
+function ClusterCard({ cluster, view, onSaved, onFailed }: { cluster: Cluster; view: View; onSaved: Saved; onFailed: (text: string) => void }) {
+  const [adding, setAdding] = useState(false);
+  const associations = view.associations.filter((a) => a.clusterCode === cluster.code && !a.code.endsWith("_other"));
+  const offered = cluster.subsectors.filter((s) => s.active).length;
+  return (
+    <SectionCard
+      title={cluster.nameEn}
+      description={`${offered} ${offered === 1 ? "subtype" : "subtypes"} offered · ${associations.length} associations`}
+      actions={
+        view.places.length && !adding ? (
+          <Button size="sm" variant="secondary" onPress={() => setAdding(true)}>
+            Add a subtype
+          </Button>
+        ) : null
+      }
+      contentClassName="gap-3"
+    >
+      {adding ? (
+        <SubtypeForm
+          associations={associations}
+          places={view.places}
+          submitLabel="Add subtype"
+          onCancel={() => setAdding(false)}
+          onSubmit={async (v) => {
+            const res = await createPsfSubtypeAction({ clusterCode: cluster.code, nameEn: v.nameEn, districtId: v.districtId, associationCodes: v.associationCodes });
+            if (!res.ok) return res.error;
+            setAdding(false);
+            onSaved(res.value, `${v.nameEn} added to ${cluster.nameEn}.`);
+            return null;
+          }}
+        />
+      ) : null}
+      {cluster.subsectors.length === 0 ? (
+        <EmptyBlock size="sm" icon="Briefcase" title="No subtypes yet" description="The form lets a business in this sector type its own kind." />
+      ) : (
+        <ul className="flex flex-col divide-y divide-separator">
+          {cluster.subsectors.map((s) => (
+            <SubtypeRow key={s.id} sub={s} associations={associations} view={view} onSaved={onSaved} onFailed={onFailed} />
+          ))}
+        </ul>
+      )}
+    </SectionCard>
+  );
+}
+
+function SubtypeRow({
+  sub,
+  associations,
+  view,
+  onSaved,
+  onFailed,
+}: {
+  sub: Sub;
+  associations: Association[];
+  view: View;
+  onSaved: Saved;
+  onFailed: (text: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const names = sub.associationCodes.map((code) => associations.find((a) => a.code === code)?.nameEn).filter((n): n is string => Boolean(n));
+
+  if (editing) {
+    return (
+      <li className="py-3">
+        <SubtypeForm
+          associations={associations}
+          places={[]}
+          initial={{ nameEn: sub.nameEn, districtId: sub.districtId, associationCodes: sub.associationCodes }}
+          submitLabel="Save"
+          onCancel={() => setEditing(false)}
+          onSubmit={async (v) => {
+            const res = await updatePsfSubtypeAction(sub.id, { nameEn: v.nameEn, associationCodes: v.associationCodes });
+            if (!res.ok) return res.error;
+            setEditing(false);
+            onSaved(res.value, `${v.nameEn} saved.`);
+            return null;
+          }}
+        />
+      </li>
+    );
+  }
+
+  return (
+    <li className={["flex flex-col gap-2 py-3 sm:flex-row sm:items-center", sub.active ? "" : "opacity-60"].join(" ")}>
+      <div className="min-w-0 flex-1">
+        <p className="flex flex-wrap items-center gap-2">
+          <span className="font-medium text-foreground">{sub.nameEn}</span>
+          <StatusChip tone={sub.districtId ? "info" : "default"}>{sub.districtId ? `${sub.districtName} only` : "National"}</StatusChip>
+          {!sub.active ? <StatusChip tone="warning">Hidden from the form</StatusChip> : null}
+        </p>
+        <p className="mt-0.5 text-xs text-muted">{names.length ? names.join(" · ") : "No association linked: the form offers the whole sector's."}</p>
+      </div>
+      {sub.canEdit ? (
+        <div className="flex shrink-0 items-center gap-2">
+          <Button size="sm" variant="secondary" isDisabled={busy} onPress={() => setEditing(true)}>
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            isPending={busy}
+            onPress={async () => {
+              setBusy(true);
+              const res = await updatePsfSubtypeAction(sub.id, { active: !sub.active });
+              setBusy(false);
+              if (!res.ok) return onFailed(res.error);
+              onSaved(res.value, sub.active ? `${sub.nameEn} is hidden from the form.` : `${sub.nameEn} is offered again.`);
+            }}
+          >
+            {sub.active ? "Hide" : "Offer again"}
+          </Button>
+        </div>
+      ) : (
+        <span className="shrink-0 text-xs text-muted">{view.places.length ? "Kept by the national office" : "Read only"}</span>
+      )}
+    </li>
+  );
+}
+
+function SubtypeForm({
+  associations,
+  places,
+  initial,
+  submitLabel,
+  onCancel,
+  onSubmit,
+}: {
+  associations: Association[];
+  places: View["places"];
+  initial?: { nameEn: string; districtId: number | null; associationCodes: string[] };
+  submitLabel: string;
+  onCancel: () => void;
+  onSubmit: (v: { nameEn: string; districtId: number | null; associationCodes: string[] }) => Promise<string | null>;
+}) {
+  const [nameEn, setName] = useState(initial?.nameEn ?? "");
+  const [place, setPlace] = useState<string>(initial ? String(initial.districtId ?? "") : String(places[0]?.districtId ?? ""));
+  const [codes, setCodes] = useState<string[]>(initial?.associationCodes ?? []);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const toggle = (code: string) => setCodes((c) => (c.includes(code) ? c.filter((x) => x !== code) : [...c, code]));
+
+  return (
+    <form
+      className="flex flex-col gap-4 rounded-xl bg-default/40 p-4"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (nameEn.trim().length < 2) return setProblem("Give the subtype a name.");
+        setBusy(true);
+        setProblem(await onSubmit({ nameEn: nameEn.trim(), districtId: place === "" ? null : Number(place), associationCodes: codes }));
+        setBusy(false);
+      }}
+    >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1.5 text-sm font-medium">
+          Name
+          <Input value={nameEn} onChange={(e) => setName(e.target.value)} placeholder="Like “Hospitality” or “Beekeeping”" />
+        </label>
+        {places.length ? (
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            Offered in
+            <select
+              value={place}
+              onChange={(e) => setPlace(e.target.value)}
+              className="h-10 rounded-xl border border-border bg-field px-3 text-sm font-normal"
+            >
+              {places.map((p) => (
+                <option key={String(p.districtId)} value={p.districtId === null ? "" : String(p.districtId)}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-sm font-medium">Associations it offers</legend>
+        <p className="text-xs text-muted">None picked: the form offers every association of the sector.</p>
+        <div className="flex flex-wrap gap-1.5">
+          {associations.map((a) => {
+            const on = codes.includes(a.code);
+            return (
+              <Button key={a.code} size="sm" variant={on ? "primary" : "ghost"} aria-pressed={on} onPress={() => toggle(a.code)}>
+                {a.nameEn}
+              </Button>
+            );
+          })}
+        </div>
+      </fieldset>
+      {problem ? <p className="text-sm text-danger">{problem}</p> : null}
+      <div className="flex gap-2">
+        <Button type="submit" variant="primary" isPending={busy}>
+          {submitLabel}
+        </Button>
+        <Button variant="ghost" isDisabled={busy} onPress={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}

@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import RegisterGate from "./register-gate";
 import { findRegistrationKind } from "./registration-kinds";
 
@@ -43,6 +45,8 @@ export default async function Page({
   searchParams: Promise<{ kind?: string }>;
 }) {
   const { kind } = await searchParams;
+  // Joining PSF has its own public form since 2026-10-19: no account, a docID.
+  if (kind === "psf") redirect("/psf/register");
   const chosen = findRegistrationKind(kind);
 
   return <RegisterGate initialKind={chosen?.value ?? null} />;

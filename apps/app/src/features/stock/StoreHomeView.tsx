@@ -62,7 +62,6 @@ export function StoreHomeView({ persona, data }: { persona: Persona; data: Store
         size="hello"
         eyebrow="Monday 12 October 2026 · 08:15 · Isangano main store"
         title={`Good morning, ${persona.firstName}`}
-        description="Five items are at or below their reorder point. Three deliveries are due and four requisitions are waiting."
         actions={
           <>
             <LinkButton href={`${screenHref("StockLedger")}?tab=count`} variant="secondary">

@@ -40,8 +40,10 @@ COPY packages/utils/package.json ./packages/utils/
 COPY packages/product-contract/package.json ./packages/product-contract/
 COPY packages/api-client/package.json ./packages/api-client/
 COPY packages/i18n/package.json ./packages/i18n/
+COPY products/finance/package.json ./products/finance/
 COPY products/hr/package.json ./products/hr/
 COPY products/outlets/package.json ./products/outlets/
+COPY products/pay/package.json ./products/pay/
 COPY products/pms/package.json ./products/pms/
 # HeroUI Pro (a paid licence) ships a stub on npm; its postinstall downloads
 # the real code with HEROUI_AUTH_TOKEN, the team's CI/CD token (never a

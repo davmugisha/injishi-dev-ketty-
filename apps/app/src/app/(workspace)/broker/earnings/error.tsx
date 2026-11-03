@@ -1,12 +1,7 @@
 "use client";
 
-import { ErrorBlock, PageContent, PageHeader } from "@injishi/ui";
+import { AreaError } from "@/components/shell/WorkspaceNav";
 
-export default function EarningsError({ reset }: { error: Error; reset: () => void }) {
-  return (
-    <PageContent>
-      <PageHeader title="Earnings" />
-      <ErrorBlock title="Couldn't load your earnings" onRetry={reset} />
-    </PageContent>
-  );
+export default function PageError({ reset }: { error: Error; reset: () => void }) {
+  return <AreaError heading="Earnings" title="Couldn't load your earnings" onRetry={reset} />;
 }

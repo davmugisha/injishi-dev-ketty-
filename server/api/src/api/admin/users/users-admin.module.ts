@@ -51,6 +51,11 @@ import { AdminUsersController } from './users.controller';
  * grows the check, this module has to provide the service or the API will fail
  * to boot. That is owed work, not done work.
  */
+import { AdminAccountsService } from './admin-accounts.service';
+import { AdminOrgMembersController } from './org-members.controller';
+import { AccountAccessService } from './account-access.service';
+import { AdminStaffRolesController } from './staff-roles.controller';
+import { StaffRolesService } from './staff-roles.service';
 @Module({
   // GuestsModule: appointing a local leader hands them the guests waiting in
   // their area, and ending one hands current guests on (P5).
@@ -66,6 +71,10 @@ import { AdminUsersController } from './users.controller';
     // Local leaders and officers (P5): every appointment, by email and area,
     // the guests waiting for a leader, and the coverage report.
     AdminLocalLeadersController,
+    // Who works in a business, set by staff (2026-10-29).
+    AdminOrgMembersController,
+    // Custom staff roles and the matrix (2026-11-02).
+    AdminStaffRolesController,
   ],
   providers: [
     AdminUsersRepository,
@@ -79,6 +88,11 @@ import { AdminUsersController } from './users.controller';
     // conflict rules it enforces are the longest reasoning in this area and do
     // not belong among the session and claim-code writes.
     OversightGrantsService,
+    // Create an account, staff roles, business members (2026-10-29).
+    AdminAccountsService,
+    // Custom roles; suspension, sign ins and a person's trail (2026-11-02).
+    StaffRolesService,
+    AccountAccessService,
     LocalLeadersRepository,
     LocalLeadersService,
     RecordAccessService,

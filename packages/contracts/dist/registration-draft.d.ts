@@ -154,7 +154,7 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
         filename: string;
     }[] | undefined;
     done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
-    phase?: "business" | "documents" | "place" | "about" | undefined;
+    phase?: "business" | "documents" | "about" | "place" | undefined;
     openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
     reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
 }, {
@@ -196,7 +196,7 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
         filename: string;
     }[] | undefined;
     done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
-    phase?: "business" | "documents" | "place" | "about" | undefined;
+    phase?: "business" | "documents" | "about" | "place" | undefined;
     openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
     reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
 }>, {
@@ -238,7 +238,7 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
         filename: string;
     }[] | undefined;
     done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
-    phase?: "business" | "documents" | "place" | "about" | undefined;
+    phase?: "business" | "documents" | "about" | "place" | undefined;
     openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
     reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
 }, {
@@ -280,7 +280,7 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
         filename: string;
     }[] | undefined;
     done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
-    phase?: "business" | "documents" | "place" | "about" | undefined;
+    phase?: "business" | "documents" | "about" | "place" | undefined;
     openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
     reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
 }>;
@@ -687,7 +687,7 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             filename: string;
         }[] | undefined;
         done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
-        phase?: "business" | "documents" | "place" | "about" | undefined;
+        phase?: "business" | "documents" | "about" | "place" | undefined;
         openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
         reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
     }, {
@@ -729,7 +729,7 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             filename: string;
         }[] | undefined;
         done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
-        phase?: "business" | "documents" | "place" | "about" | undefined;
+        phase?: "business" | "documents" | "about" | "place" | undefined;
         openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
         reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
     }>, {
@@ -771,7 +771,7 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             filename: string;
         }[] | undefined;
         done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
-        phase?: "business" | "documents" | "place" | "about" | undefined;
+        phase?: "business" | "documents" | "about" | "place" | undefined;
         openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
         reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
     }, {
@@ -813,7 +813,7 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             filename: string;
         }[] | undefined;
         done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
-        phase?: "business" | "documents" | "place" | "about" | undefined;
+        phase?: "business" | "documents" | "about" | "place" | undefined;
         openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
         reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
     }>>;
@@ -1105,7 +1105,7 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             filename: string;
         }[] | undefined;
         done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
-        phase?: "business" | "documents" | "place" | "about" | undefined;
+        phase?: "business" | "documents" | "about" | "place" | undefined;
         openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
         reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
     } | null;
@@ -1185,7 +1185,7 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             filename: string;
         }[] | undefined;
         done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
-        phase?: "business" | "documents" | "place" | "about" | undefined;
+        phase?: "business" | "documents" | "about" | "place" | undefined;
         openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
         reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
     } | null;

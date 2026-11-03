@@ -77,7 +77,6 @@ export function IntegrationsView({
       <PageHeader
         eyebrow={`Settings · ${businessName}`}
         title="Integrations"
-        description="Each connection shows what has actually been verified. Sandbox is not production, and connected is not certified."
         actions={
           <>
             <LinkButton href={screenHref("AuditLog")} variant="ghost">

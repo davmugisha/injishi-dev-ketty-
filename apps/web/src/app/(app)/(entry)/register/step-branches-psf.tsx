@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { MAX_REGISTRATION_BRANCHES, type PsfTier } from "@injishi/contracts";
+import { useEffect, useState } from "react";
+import { looksLikePsfNumber, MAX_REGISTRATION_BRANCHES, type PsfCatalogue, type PsfTier } from "@injishi/contracts";
 import { Button } from "@injishi/web-ui";
-import { GitBranch, Plus, Trash2 } from "lucide-react";
+import { FileCheck, FileText, GitBranch, Plus, Trash2, Upload } from "lucide-react";
+
+import { uploadCertificate } from "@/data/uploads";
+import { apiResultMessage } from "@/lib/api";
 
 import { AddressPicker, useAddressLine, type AddressDraft } from "./address-picker";
-import { branchReady, newBranchDraft, type BranchDraft, type BusinessDraft } from "./business-draft";
+import { branchReady, newBranchDraft, type BranchDraft, type BusinessDraft, type DocumentDraft } from "./business-draft";
 import { PsfApplication, type PsfDraft } from "./psf-application";
 import { ChoiceCard, ChoiceTile, Field, Fieldset, TextInput } from "./wizard-ui";
 
@@ -39,6 +42,10 @@ export function StepBranchesPsf({
   tiersFailed,
   onRetryTiers,
   documentLine,
+  catalogue,
+  askGender,
+  card,
+  onCardChange,
   errors,
 }: {
   tinLabel: string;
@@ -55,6 +62,13 @@ export function StepBranchesPsf({
   tiersFailed: boolean;
   onRetryTiers: () => void;
   documentLine: string | null;
+  /** PSF's sectors and associations, for the application (2026-11-03); null while they load. */
+  catalogue: PsfCatalogue | null;
+  /** You holds no male or female answer: the application asks gender (2026-11-03). */
+  askGender: boolean;
+  /** The PSF membership card a member sends with its claim (2026-11-02), filed with its documents. */
+  card: DocumentDraft | null;
+  onCardChange: (next: DocumentDraft | null) => void;
   errors: Record<string, string>;
 }) {
   /** The branch being added or edited, and which one (null: a new one). */
@@ -159,7 +173,7 @@ export function StepBranchesPsf({
           <div className="grid gap-3 sm:grid-cols-2">
             {(
               [
-                [true, "yes", "Yes"],
+                [true, "yes", "Yes, we hold a PSF card"],
                 [false, "no", "No"],
               ] as const
             ).map(([member, value, label]) => (
@@ -169,13 +183,15 @@ export function StepBranchesPsf({
                 value={value}
                 checked={business.psfMember === member}
                 title={label}
-                onSelect={() =>
+                onSelect={() => {
                   onBusinessChange({
                     ...business,
                     psfMember: member,
                     ...(member ? { psfApply: null } : { psfMembershipNumber: "" }),
-                  })
-                }
+                  });
+                  // Not a member: no card travels with the registration.
+                  if (!member) onCardChange(null);
+                }}
               />
             ))}
           </div>
@@ -184,9 +200,14 @@ export function StepBranchesPsf({
         {business.psfMember === true ? (
           <div className="max-w-form">
             <Field
-              label="PSF membership number"
-              hint="PSF's officer sees this as your claim. Injishi does not check it."
-              error={errors["business.psfMembershipNumber"]}
+              label="Number on your old card (optional)"
+              hint="If your card has one. PSF checks the card you send below, then gives you a new membership number and your certificate. Until then your business shows as a card holder, not a member."
+              error={
+                errors["business.psfMembershipNumber"] ??
+                (business.psfMembershipNumber.trim().length > 3 && !looksLikePsfNumber(business.psfMembershipNumber)
+                  ? "That does not look like a PSF membership number. Type it in full, as on your card."
+                  : undefined)
+              }
             >
               <TextInput
                 className="w-full tabular-nums"
@@ -195,6 +216,7 @@ export function StepBranchesPsf({
                 onChange={(e) => onBusinessChange({ ...business, psfMembershipNumber: e.target.value })}
               />
             </Field>
+            <MembershipCard card={card} onChange={onCardChange} />
           </div>
         ) : null}
 
@@ -204,7 +226,7 @@ export function StepBranchesPsf({
               name="psf-plan"
               checked={business.psfApply === true}
               title="Apply now"
-              description="PSF's full form, here. PSF takes it up once it approves your registration."
+              description="Fill PSF’s form here. It is filed with this registration; PSF reviews it alongside Injishi’s checks."
               onSelect={() => {
                 onBusinessChange({ ...business, psfApply: true });
                 onApplyNow();
@@ -214,14 +236,14 @@ export function StepBranchesPsf({
               name="psf-plan"
               checked={business.psfApply === false}
               title="Not now"
-              description="Apply from your workspace whenever you like."
+              description="Register on Injishi only. Apply for PSF later from your workspace."
               onSelect={() => onBusinessChange({ ...business, psfApply: false })}
             />
           </div>
         ) : null}
 
         {business.psfMember === false && business.psfApply === true ? (
-          <PsfApplication draft={psf} onChange={onPsfChange} tiers={tiers} tiersFailed={tiersFailed} onRetryTiers={onRetryTiers} documentLine={documentLine} errors={errors} />
+          <PsfApplication draft={psf} onChange={onPsfChange} tiers={tiers} tiersFailed={tiersFailed} onRetryTiers={onRetryTiers} documentLine={documentLine} catalogue={catalogue} askGender={askGender} errors={errors} />
         ) : null}
         {business.psfMember === false && business.psfApply === false ? (
           <p className="text-xs text-muted-foreground">PSF never holds up your registration.</p>
@@ -249,5 +271,88 @@ function BranchRow({ branch, onEdit, onRemove }: { branch: BranchDraft; onEdit: 
         <Trash2 size={16} aria-hidden />
       </Button>
     </li>
+  );
+}
+
+const CARD_ACCEPT = "application/pdf,image/jpeg,image/png,image/webp";
+/** The ceiling `POST /uploads/certificate` enforces. */
+const CARD_MAX_BYTES = 10 * 1024 * 1024;
+
+/**
+ * The PSF membership card (2026-11-02): a photo or scan, sent with the claim so the PSF District
+ * Manager can check the number against it. Uploaded the moment it is chosen, as a `psf_certificate`.
+ */
+function MembershipCard({ card, onChange }: { card: DocumentDraft | null; onChange: (next: DocumentDraft | null) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  /** The picked file, shown from memory (2026-11-02): after a reload only its name is left to show. */
+  const [preview, setPreview] = useState<{ url: string; pdf: boolean } | null>(null);
+  useEffect(() => () => {
+    if (preview) URL.revokeObjectURL(preview.url);
+  }, [preview]);
+
+  const pick = async (file: globalThis.File | undefined) => {
+    if (!file) return;
+    if (file.size > CARD_MAX_BYTES) return setProblem("That file is larger than 10 MB. Send a smaller photo or scan.");
+    if (!/\.(pdf|jpe?g|png|webp)$/i.test(file.name) && !CARD_ACCEPT.split(",").includes(file.type)) {
+      return setProblem("Send the card as a PDF, JPEG or PNG.");
+    }
+    setBusy(true);
+    setProblem(null);
+    const res = await uploadCertificate(file);
+    setBusy(false);
+    if (res.status !== "ok") return setProblem(apiResultMessage(res));
+    setPreview({ url: URL.createObjectURL(file), pdf: file.type === "application/pdf" || /\.pdf$/i.test(file.name) });
+    onChange({ kind: "psf_certificate", kindOther: "", objectKey: res.data.objectKey, filename: res.data.filename, sizeBytes: res.data.sizeBytes });
+  };
+
+  return (
+    <div className="mt-5">
+      <Field label="Your PSF card" hint="A photo or scan of the card, front side. PSF checks your membership against it." required error={problem ?? undefined}>
+        {card ? (
+          <div className="flex flex-wrap items-center gap-4 rounded-card border border-border bg-card p-3">
+            {preview ? (
+              <a href={preview.url} target="_blank" rel="noreferrer" title="Open the card in full" className="shrink-0">
+                {preview.pdf ? (
+                  <span className="flex h-20 w-28 items-center justify-center rounded-md bg-secondary text-muted-foreground ring-1 ring-border">
+                    <FileText size={28} aria-hidden />
+                  </span>
+                ) : (
+                  // A local blob of the picked file; next/image has nothing to optimise here.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={preview.url} alt="Your PSF membership card" className="h-20 w-28 rounded-md object-cover ring-1 ring-border" />
+                )}
+              </a>
+            ) : (
+              <FileCheck size={18} aria-hidden className="shrink-0 text-accent-text" />
+            )}
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="truncate text-sm font-medium">{card.filename}</span>
+              {preview ? (
+                <a href={preview.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-accent-text hover:underline">
+                  View it in full
+                </a>
+              ) : null}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setPreview(null);
+                onChange(null);
+              }}
+              className="text-sm font-medium text-accent-text hover:underline"
+            >
+              Replace
+            </button>
+          </div>
+        ) : (
+          <label className="flex cursor-pointer items-center gap-3 rounded-card border border-dashed border-border bg-card px-4 py-3 hover:bg-secondary">
+            <Upload size={18} aria-hidden className="text-muted-foreground" />
+            <span className="text-sm">{busy ? "Uploading…" : "Choose a photo or PDF of the card"}</span>
+            <input type="file" accept={CARD_ACCEPT} className="sr-only" disabled={busy} onChange={(e) => void pick(e.target.files?.[0])} />
+          </label>
+        )}
+      </Field>
+    </div>
   );
 }

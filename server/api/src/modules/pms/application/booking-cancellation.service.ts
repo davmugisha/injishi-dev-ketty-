@@ -15,12 +15,14 @@ import {
 } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import { PaymentCompensationService } from '../../pay/application/payment-compensation.service';
+import { BookingChangeRepository } from '../infrastructure/booking-change.repository';
 import {
   assertInBranchScope,
   type ScopedWorkspace,
 } from '../../../shared/auth/branch-scope';
-import { releaseKeyFor } from '../../payments/domain/keys';
-import { PAYMENT_PORT, type PaymentPort } from '../../payments/domain/payment-port';
+import { releaseKeyFor } from '../../pay/domain/keys';
+import { PAYMENT_PORT, type PaymentPort } from '../../pay/domain/payment-port';
 import { noShowRefund } from '../domain/no-show';
 import { localToday } from '../domain/pricing';
 import {
@@ -83,6 +85,9 @@ export class BookingCancellationService {
     @Inject(PAYMENT_PORT) private readonly payments: PaymentPort,
     private readonly notifications: BookingNotificationsService,
     private readonly refunds: BookingRefunds,
+    /** MoMo payments of desk changes, refunded whole when the booking ends unslept (0120). */
+    private readonly changes: BookingChangeRepository,
+    private readonly compensations: PaymentCompensationService,
   ) {}
 
   /** What cancelling would refund, before anything is committed. Guest scoped. */
@@ -213,6 +218,7 @@ export class BookingCancellationService {
       throw new ConflictException('This booking was just changed. Refresh to see where it stands.');
     }
     await plan?.announce();
+    await this.refundChangePayments(row.bookingId, row.reference);
     const refundRwf = recorded.refundRwf ?? refund.refundRwf;
     this.log.log(
       `${row.reference} recorded as a no-show: ${refundRwf} RWF ${plan ? 'owed back' : 'refunded'}, ${refund.forfeitRwf} RWF kept.`,
@@ -325,6 +331,31 @@ export class BookingCancellationService {
     });
   }
 
+  /**
+   * Hand back, in full, whatever the guest paid by MoMo for desk changes to this booking (0120). Queued and
+   * durable, each on its own key; never throws, because the cancellation itself has already happened.
+   */
+  private async refundChangePayments(bookingId: string, reference: string): Promise<void> {
+    try {
+      for (const paid of await this.changes.takeChangePayments(bookingId)) {
+        if (!paid.adapterRef || paid.amountRwf <= 0) continue;
+        await this.compensations.enqueue({
+          kind: 'refund',
+          idempotencyKey: `refund:${paid.idempotencyKey}`,
+          workspaceId: paid.workspaceId,
+          originalRef: paid.adapterRef,
+          amountRwf: paid.amountRwf,
+          memo: `Booking ${reference} ended unslept: its change payment refunded in full`,
+        });
+      }
+    } catch (error) {
+      this.log.error(
+        `Booking ${reference} ended, but a change payment was not queued for refund: ` +
+          (error instanceof Error ? error.message : String(error)),
+      );
+    }
+  }
+
   private async cancel(
     row: CancellableBooking,
     party: CancellationParty,
@@ -362,6 +393,7 @@ export class BookingCancellationService {
       throw new ConflictException('This booking was just changed. Refresh to see where it stands.');
     }
     await plan?.announce();
+    await this.refundChangePayments(row.bookingId, row.reference);
     this.log.log(
       `${row.reference} cancelled by ${party}: ${refund.percent}% (${recorded.refundRwf} RWF) ${plan ? 'owed back' : 'refunded'}.`,
     );

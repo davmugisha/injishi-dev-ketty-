@@ -36,7 +36,7 @@ import {
   maskDestination,
   type PaymentPort,
   type SubscriptionChargeCommand,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import {
   addDays,
   addMonth,

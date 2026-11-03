@@ -135,6 +135,10 @@ exports.TypedIdentityRequest = zod_1.z.object({
  */
 exports.NationalIdCheckRequest = zod_1.z.object({
     documentNumber: registration_1.RwandanNationalId,
-    selfieKey: PhotoKey,
+    /**
+     * Optional since 2026-11-02 (the owner's decision): without one, NIDA is asked by the number alone,
+     * its details fill the form, and the document reviewer confirms the ID before approving.
+     */
+    selfieKey: PhotoKey.optional(),
 });
 //# sourceMappingURL=identity.js.map

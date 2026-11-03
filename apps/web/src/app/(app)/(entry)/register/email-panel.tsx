@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@injishi/web-ui";
+import { cn } from "@injishi/utils";
 
 import GoogleButton from "@/components/auth/google-button";
 import { useSlow } from "@/components/auth/auth-feedback";
@@ -44,7 +45,14 @@ export function EmailPanel({
   googleReturn,
   fallbackHref,
   onSignedIn,
+  position = null,
 }: {
+  /**
+   * Where the panel stands in the form: the start of its first step, 1 of 5.
+   * Drawn as the phone's "Step 1 of 5 · Business" over its thin bar, as `StepFrame` does; from
+   * a tablet up the shell's rail says it. Null when there are no steps (a broker).
+   */
+  position?: { n: number; of: number; title: string } | null;
   /** `GET /api/v1/platform` said demo; null while it has not answered. */
   demo: boolean | null;
   /** This page, path and query, for Google to bring the person back to. */
@@ -145,7 +153,22 @@ export function EmailPanel({
   return (
     <StepCard
       id="register-email"
-      title="Start with your email"
+      level={position ? "h2" : "h1"}
+      chip={
+        position ? (
+          <span className="flex w-full flex-col gap-1.5 md:hidden">
+            <span className="text-sm font-semibold">
+              Step {position.n} of {position.of} · {position.title}
+            </span>
+            <span aria-hidden className="grid gap-1" style={{ gridTemplateColumns: `repeat(${position.of}, minmax(0, 1fr))` }}>
+              {Array.from({ length: position.of }, (_, i) => (
+                <span key={i} className={cn("h-1 rounded-full", i < position.n ? "bg-accent-brand" : "bg-secondary")} />
+              ))}
+            </span>
+          </span>
+        ) : undefined
+      }
+      title={position ? "Your email" : "Start with your email"}
       lead="We send a 6-digit code. There is no password, and your answers save as you go."
     >
       {sent === null ? (

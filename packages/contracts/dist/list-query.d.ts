@@ -104,11 +104,11 @@ export declare const ListSortSchema: z.ZodObject<{
     field: z.ZodString;
     dir: z.ZodEnum<["asc", "desc"]>;
 }, "strip", z.ZodTypeAny, {
-    field: string;
     dir: "asc" | "desc";
+    field: string;
 }, {
-    field: string;
     dir: "asc" | "desc";
+    field: string;
 }>;
 export declare const LIST_PAGE_SIZES: readonly [10, 25, 50, 100];
 export declare const DEFAULT_PAGE_SIZE = 25;
@@ -134,22 +134,22 @@ export declare const ListQuery: z.ZodObject<{
         field: z.ZodString;
         dir: z.ZodEnum<["asc", "desc"]>;
     }, "strip", z.ZodTypeAny, {
-        field: string;
         dir: "asc" | "desc";
+        field: string;
     }, {
-        field: string;
         dir: "asc" | "desc";
+        field: string;
     }>, "many">>;
     groupBy: z.ZodOptional<z.ZodString>;
     page: z.ZodDefault<z.ZodNumber>;
     pageSize: z.ZodDefault<z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>>;
 }, "strip", z.ZodTypeAny, {
     sort: {
-        field: string;
         dir: "asc" | "desc";
+        field: string;
     }[];
     page: number;
-    pageSize: 10 | 50 | 100 | 25;
+    pageSize: 10 | 100 | 50 | 25;
     filters: {
         field: string;
         op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
@@ -159,12 +159,12 @@ export declare const ListQuery: z.ZodObject<{
     groupBy?: string | undefined;
 }, {
     sort?: {
-        field: string;
         dir: "asc" | "desc";
+        field: string;
     }[] | undefined;
-    page?: number | undefined;
-    pageSize?: 10 | 50 | 100 | 25 | undefined;
     q?: string | undefined;
+    page?: number | undefined;
+    pageSize?: 10 | 100 | 50 | 25 | undefined;
     filters?: {
         field: string;
         op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
@@ -195,13 +195,13 @@ export declare const ListGroup: z.ZodObject<{
     label: z.ZodString;
     count: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
+    count: number;
     key: string | null;
     label: string;
-    count: number;
 }, {
+    count: number;
     key: string | null;
     label: string;
-    count: number;
 }>;
 export type ListGroup = z.infer<typeof ListGroup>;
 export declare const ListCount: z.ZodObject<{
@@ -239,13 +239,13 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
         label: z.ZodString;
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
+        count: number;
         key: string | null;
         label: string;
-        count: number;
     }, {
+        count: number;
         key: string | null;
         label: string;
-        count: number;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -271,11 +271,11 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
     items: T["_output"][];
     total: number;
     page: number;
-    pageSize: 10 | 50 | 100 | 25;
+    pageSize: 10 | 100 | 50 | 25;
     groups?: {
+        count: number;
         key: string | null;
         label: string;
-        count: number;
     }[] | undefined;
     statusCounts?: {
         value: string;
@@ -289,11 +289,11 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
     items: T["_input"][];
     total: number;
     page: number;
-    pageSize: 10 | 50 | 100 | 25;
+    pageSize: 10 | 100 | 50 | 25;
     groups?: {
+        count: number;
         key: string | null;
         label: string;
-        count: number;
     }[] | undefined;
     statusCounts?: {
         value: string;
@@ -356,11 +356,11 @@ export declare const SavedViewConfig: z.ZodObject<{
         field: z.ZodString;
         dir: z.ZodEnum<["asc", "desc"]>;
     }, "strip", z.ZodTypeAny, {
-        field: string;
         dir: "asc" | "desc";
+        field: string;
     }, {
-        field: string;
         dir: "asc" | "desc";
+        field: string;
     }>, "many">>;
     groupBy: z.ZodOptional<z.ZodString>;
     pageSize: z.ZodDefault<z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>>;
@@ -368,32 +368,32 @@ export declare const SavedViewConfig: z.ZodObject<{
     view: z.ZodDefault<z.ZodEnum<["list", "card", "kanban"]>>;
 }, "strip", z.ZodTypeAny, {
     sort: {
-        field: string;
         dir: "asc" | "desc";
+        field: string;
     }[];
-    pageSize: 10 | 50 | 100 | 25;
+    pageSize: 10 | 100 | 50 | 25;
+    view: "card" | "list" | "kanban";
     filters: {
         field: string;
         op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
         value?: string | number | boolean | (string | number)[] | undefined;
     }[];
-    view: "card" | "list" | "kanban";
     q?: string | undefined;
     groupBy?: string | undefined;
     columns?: string[] | undefined;
 }, {
     sort?: {
-        field: string;
         dir: "asc" | "desc";
+        field: string;
     }[] | undefined;
-    pageSize?: 10 | 50 | 100 | 25 | undefined;
     q?: string | undefined;
+    pageSize?: 10 | 100 | 50 | 25 | undefined;
+    view?: "card" | "list" | "kanban" | undefined;
     filters?: {
         field: string;
         op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
         value?: string | number | boolean | (string | number)[] | undefined;
     }[] | undefined;
-    view?: "card" | "list" | "kanban" | undefined;
     groupBy?: string | undefined;
     columns?: string[] | undefined;
 }>;
@@ -422,11 +422,11 @@ export declare const SavedView: z.ZodObject<{
             field: z.ZodString;
             dir: z.ZodEnum<["asc", "desc"]>;
         }, "strip", z.ZodTypeAny, {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }, {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }>, "many">>;
         groupBy: z.ZodOptional<z.ZodString>;
         pageSize: z.ZodDefault<z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>>;
@@ -434,32 +434,32 @@ export declare const SavedView: z.ZodObject<{
         view: z.ZodDefault<z.ZodEnum<["list", "card", "kanban"]>>;
     }, "strip", z.ZodTypeAny, {
         sort: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
+        view: "card" | "list" | "kanban";
         filters: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
             value?: string | number | boolean | (string | number)[] | undefined;
         }[];
-        view: "card" | "list" | "kanban";
         q?: string | undefined;
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     }, {
         sort?: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[] | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
         q?: string | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
+        view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
             value?: string | number | boolean | (string | number)[] | undefined;
         }[] | undefined;
-        view?: "card" | "list" | "kanban" | undefined;
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     }>;
@@ -471,53 +471,53 @@ export declare const SavedView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     id: string;
+    shared: boolean;
     config: {
         sort: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
+        view: "card" | "list" | "kanban";
         filters: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
             value?: string | number | boolean | (string | number)[] | undefined;
         }[];
-        view: "card" | "list" | "kanban";
         q?: string | undefined;
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     };
     authorName: string | null;
-    shared: boolean;
-    listKey: string;
-    isDefault: boolean;
-    mine: boolean;
     updatedAt: string;
+    isDefault: boolean;
+    listKey: string;
+    mine: boolean;
 }, {
     name: string;
     id: string;
+    shared: boolean;
     config: {
         sort?: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[] | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
         q?: string | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
+        view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
             value?: string | number | boolean | (string | number)[] | undefined;
         }[] | undefined;
-        view?: "card" | "list" | "kanban" | undefined;
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     };
     authorName: string | null;
-    shared: boolean;
-    listKey: string;
-    isDefault: boolean;
-    mine: boolean;
     updatedAt: string;
+    isDefault: boolean;
+    listKey: string;
+    mine: boolean;
 }>;
 export type SavedView = z.infer<typeof SavedView>;
 export declare const SavedViewList: z.ZodObject<{
@@ -545,11 +545,11 @@ export declare const SavedViewList: z.ZodObject<{
                 field: z.ZodString;
                 dir: z.ZodEnum<["asc", "desc"]>;
             }, "strip", z.ZodTypeAny, {
-                field: string;
                 dir: "asc" | "desc";
+                field: string;
             }, {
-                field: string;
                 dir: "asc" | "desc";
+                field: string;
             }>, "many">>;
             groupBy: z.ZodOptional<z.ZodString>;
             pageSize: z.ZodDefault<z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>>;
@@ -557,32 +557,32 @@ export declare const SavedViewList: z.ZodObject<{
             view: z.ZodDefault<z.ZodEnum<["list", "card", "kanban"]>>;
         }, "strip", z.ZodTypeAny, {
             sort: {
-                field: string;
                 dir: "asc" | "desc";
+                field: string;
             }[];
-            pageSize: 10 | 50 | 100 | 25;
+            pageSize: 10 | 100 | 50 | 25;
+            view: "card" | "list" | "kanban";
             filters: {
                 field: string;
                 op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
                 value?: string | number | boolean | (string | number)[] | undefined;
             }[];
-            view: "card" | "list" | "kanban";
             q?: string | undefined;
             groupBy?: string | undefined;
             columns?: string[] | undefined;
         }, {
             sort?: {
-                field: string;
                 dir: "asc" | "desc";
+                field: string;
             }[] | undefined;
-            pageSize?: 10 | 50 | 100 | 25 | undefined;
             q?: string | undefined;
+            pageSize?: 10 | 100 | 50 | 25 | undefined;
+            view?: "card" | "list" | "kanban" | undefined;
             filters?: {
                 field: string;
                 op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
                 value?: string | number | boolean | (string | number)[] | undefined;
             }[] | undefined;
-            view?: "card" | "list" | "kanban" | undefined;
             groupBy?: string | undefined;
             columns?: string[] | undefined;
         }>;
@@ -594,107 +594,107 @@ export declare const SavedViewList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string;
         id: string;
+        shared: boolean;
         config: {
             sort: {
-                field: string;
                 dir: "asc" | "desc";
+                field: string;
             }[];
-            pageSize: 10 | 50 | 100 | 25;
+            pageSize: 10 | 100 | 50 | 25;
+            view: "card" | "list" | "kanban";
             filters: {
                 field: string;
                 op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
                 value?: string | number | boolean | (string | number)[] | undefined;
             }[];
-            view: "card" | "list" | "kanban";
             q?: string | undefined;
             groupBy?: string | undefined;
             columns?: string[] | undefined;
         };
         authorName: string | null;
-        shared: boolean;
-        listKey: string;
-        isDefault: boolean;
-        mine: boolean;
         updatedAt: string;
+        isDefault: boolean;
+        listKey: string;
+        mine: boolean;
     }, {
         name: string;
         id: string;
+        shared: boolean;
         config: {
             sort?: {
-                field: string;
                 dir: "asc" | "desc";
+                field: string;
             }[] | undefined;
-            pageSize?: 10 | 50 | 100 | 25 | undefined;
             q?: string | undefined;
+            pageSize?: 10 | 100 | 50 | 25 | undefined;
+            view?: "card" | "list" | "kanban" | undefined;
             filters?: {
                 field: string;
                 op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
                 value?: string | number | boolean | (string | number)[] | undefined;
             }[] | undefined;
-            view?: "card" | "list" | "kanban" | undefined;
             groupBy?: string | undefined;
             columns?: string[] | undefined;
         };
         authorName: string | null;
-        shared: boolean;
-        listKey: string;
-        isDefault: boolean;
-        mine: boolean;
         updatedAt: string;
+        isDefault: boolean;
+        listKey: string;
+        mine: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     views: {
         name: string;
         id: string;
+        shared: boolean;
         config: {
             sort: {
-                field: string;
                 dir: "asc" | "desc";
+                field: string;
             }[];
-            pageSize: 10 | 50 | 100 | 25;
+            pageSize: 10 | 100 | 50 | 25;
+            view: "card" | "list" | "kanban";
             filters: {
                 field: string;
                 op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
                 value?: string | number | boolean | (string | number)[] | undefined;
             }[];
-            view: "card" | "list" | "kanban";
             q?: string | undefined;
             groupBy?: string | undefined;
             columns?: string[] | undefined;
         };
         authorName: string | null;
-        shared: boolean;
-        listKey: string;
-        isDefault: boolean;
-        mine: boolean;
         updatedAt: string;
+        isDefault: boolean;
+        listKey: string;
+        mine: boolean;
     }[];
 }, {
     views: {
         name: string;
         id: string;
+        shared: boolean;
         config: {
             sort?: {
-                field: string;
                 dir: "asc" | "desc";
+                field: string;
             }[] | undefined;
-            pageSize?: 10 | 50 | 100 | 25 | undefined;
             q?: string | undefined;
+            pageSize?: 10 | 100 | 50 | 25 | undefined;
+            view?: "card" | "list" | "kanban" | undefined;
             filters?: {
                 field: string;
                 op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
                 value?: string | number | boolean | (string | number)[] | undefined;
             }[] | undefined;
-            view?: "card" | "list" | "kanban" | undefined;
             groupBy?: string | undefined;
             columns?: string[] | undefined;
         };
         authorName: string | null;
-        shared: boolean;
-        listKey: string;
-        isDefault: boolean;
-        mine: boolean;
         updatedAt: string;
+        isDefault: boolean;
+        listKey: string;
+        mine: boolean;
     }[];
 }>;
 export type SavedViewList = z.infer<typeof SavedViewList>;
@@ -721,11 +721,11 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
             field: z.ZodString;
             dir: z.ZodEnum<["asc", "desc"]>;
         }, "strip", z.ZodTypeAny, {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }, {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }>, "many">>;
         groupBy: z.ZodOptional<z.ZodString>;
         pageSize: z.ZodDefault<z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>>;
@@ -733,32 +733,32 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
         view: z.ZodDefault<z.ZodEnum<["list", "card", "kanban"]>>;
     }, "strip", z.ZodTypeAny, {
         sort: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
+        view: "card" | "list" | "kanban";
         filters: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
             value?: string | number | boolean | (string | number)[] | undefined;
         }[];
-        view: "card" | "list" | "kanban";
         q?: string | undefined;
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     }, {
         sort?: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[] | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
         q?: string | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
+        view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
             value?: string | number | boolean | (string | number)[] | undefined;
         }[] | undefined;
-        view?: "card" | "list" | "kanban" | undefined;
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     }>;
@@ -766,40 +766,40 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
     isDefault: z.ZodDefault<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     name: string;
+    shared: boolean;
     config: {
         sort: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
+        view: "card" | "list" | "kanban";
         filters: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
             value?: string | number | boolean | (string | number)[] | undefined;
         }[];
-        view: "card" | "list" | "kanban";
         q?: string | undefined;
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     };
-    shared: boolean;
-    listKey: string;
     isDefault: boolean;
+    listKey: string;
 }, {
     name: string;
     config: {
         sort?: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[] | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
         q?: string | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
+        view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
             value?: string | number | boolean | (string | number)[] | undefined;
         }[] | undefined;
-        view?: "card" | "list" | "kanban" | undefined;
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     };
@@ -830,11 +830,11 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             field: z.ZodString;
             dir: z.ZodEnum<["asc", "desc"]>;
         }, "strip", z.ZodTypeAny, {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }, {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }>, "many">>;
         groupBy: z.ZodOptional<z.ZodString>;
         pageSize: z.ZodDefault<z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>>;
@@ -842,32 +842,32 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
         view: z.ZodDefault<z.ZodEnum<["list", "card", "kanban"]>>;
     }, "strip", z.ZodTypeAny, {
         sort: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
+        view: "card" | "list" | "kanban";
         filters: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
             value?: string | number | boolean | (string | number)[] | undefined;
         }[];
-        view: "card" | "list" | "kanban";
         q?: string | undefined;
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     }, {
         sort?: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[] | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
         q?: string | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
+        view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
             value?: string | number | boolean | (string | number)[] | undefined;
         }[] | undefined;
-        view?: "card" | "list" | "kanban" | undefined;
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     }>>;
@@ -875,83 +875,83 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
     isDefault: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     name?: string | undefined;
+    shared?: boolean | undefined;
     config?: {
         sort: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
+        view: "card" | "list" | "kanban";
         filters: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
             value?: string | number | boolean | (string | number)[] | undefined;
         }[];
-        view: "card" | "list" | "kanban";
         q?: string | undefined;
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     } | undefined;
-    shared?: boolean | undefined;
     isDefault?: boolean | undefined;
 }, {
     name?: string | undefined;
+    shared?: boolean | undefined;
     config?: {
         sort?: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[] | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
         q?: string | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
+        view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
             value?: string | number | boolean | (string | number)[] | undefined;
         }[] | undefined;
-        view?: "card" | "list" | "kanban" | undefined;
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     } | undefined;
-    shared?: boolean | undefined;
     isDefault?: boolean | undefined;
 }>, {
     name?: string | undefined;
+    shared?: boolean | undefined;
     config?: {
         sort: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
+        view: "card" | "list" | "kanban";
         filters: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
             value?: string | number | boolean | (string | number)[] | undefined;
         }[];
-        view: "card" | "list" | "kanban";
         q?: string | undefined;
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     } | undefined;
-    shared?: boolean | undefined;
     isDefault?: boolean | undefined;
 }, {
     name?: string | undefined;
+    shared?: boolean | undefined;
     config?: {
         sort?: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[] | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
         q?: string | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
+        view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
             value?: string | number | boolean | (string | number)[] | undefined;
         }[] | undefined;
-        view?: "card" | "list" | "kanban" | undefined;
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     } | undefined;
-    shared?: boolean | undefined;
     isDefault?: boolean | undefined;
 }>;
 export type UpdateSavedViewRequest = z.infer<typeof UpdateSavedViewRequest>;

@@ -9,6 +9,7 @@ import { StorageModule } from '../storage/storage.module';
 import { AttendanceCloser } from './application/attendance-closer';
 import { AttendanceInsightsService } from './application/attendance-insights.service';
 import { AttendanceSweepService } from './application/attendance-sweep.service';
+import { ChecklistsService } from './application/checklists.service';
 import { EmployeesService } from './application/employees.service';
 import { HrContentService } from './application/hr-content.service';
 import { HrDailyService } from './application/hr-daily.service';
@@ -20,6 +21,7 @@ import { LeaveTypesService } from './application/leave-types.service';
 import { LeaveService } from './application/leave.service';
 import { LoansService } from './application/loans.service';
 import { MyLeaveService } from './application/my-leave.service';
+import { MyDocumentsService } from './application/my-documents.service';
 import { MyPayService } from './application/my-pay.service';
 import { MyStaffService } from './application/my-staff.service';
 import { RestrictedPeriodsService } from './application/restricted-periods.service';
@@ -36,6 +38,7 @@ import { RotationService } from './application/rotation.service';
 import { TimeRequestsService } from './application/time-requests.service';
 import { TimeSettingsService } from './application/time-settings.service';
 import { TimeService } from './application/time.service';
+import { ChecklistsRepository } from './infrastructure/checklists.repository';
 import { EmployeesRepository } from './infrastructure/employees.repository';
 import { HrContentRepository } from './infrastructure/hr-content.repository';
 import { HrDailyProcessor } from './infrastructure/hr-daily.processor';
@@ -101,6 +104,7 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     TimeRequestsRepository,
     KioskRepository,
     MyWorkRepository,
+    ChecklistsRepository,
     MyStaffRepository,
     HrWorkforceRepository,
     {
@@ -118,6 +122,7 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     HrFilesService,
     PeopleFileService,
     HrContentService,
+    ChecklistsService,
     HrWorkforceService,
     TimeService,
     RotationService,
@@ -141,6 +146,7 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     PayComponentsService,
     PayrollViewsService,
     MyPayService,
+    MyDocumentsService,
     MyStaffService,
     HrDailyService,
     ...(isWorkerProcess() ? [HrDailyProcessor] : []),
@@ -169,10 +175,12 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     PayComponentsService,
     PayrollViewsService,
     MyPayService,
+    MyDocumentsService,
     HrDailyService,
     HrFilesService,
     PeopleFileService,
     HrContentService,
+    ChecklistsService,
     HrWorkforceService,
   ],
 })

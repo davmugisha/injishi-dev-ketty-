@@ -11,6 +11,7 @@ import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
+  char,
   check,
   date,
   index,
@@ -101,10 +102,21 @@ export const bookings = pgTable(
      * given rather than recomputing it from a tier and a clock that have moved.
      */
     cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    /**
+     * When the guest checked out (0116). The booking stays `confirmed`; this
+     * says the stay is over, frees the nights from that day on, and is what
+     * releases the escrow to the host.
+     */
+    completedAt: timestamp('completed_at', { withTimezone: true }),
     /** `guest` or `host`. */
     cancelledBy: text('cancelled_by'),
     /** What went back to the guest; the rest of `gross_rwf` stays with the host. */
     refundRwf: amount('refund_rwf'),
+    /**
+     * The room money the guest has paid (migration 0120). Null until a desk change reprices the stay; until
+     * then it is the locked nightly charge times the nights, less any refund. The bill credits this at check in.
+     */
+    paidRoomRwf: amount('paid_room_rwf'),
     /**
      * The front desk's working columns (interface real-data, frontdesk leaf).
      * Each is one fact about this reservation that the desk reads on every
@@ -129,6 +141,16 @@ export const bookings = pgTable(
     noShowAt: timestamp('no_show_at', { withTimezone: true }),
     noShowByUserId: uuid('no_show_by_user_id').references(() => users.id),
     noShowReason: text('no_show_reason'),
+    /**
+     * A broker's booking (0126): the group it was booked in, the broker and the deal it was booked under,
+     * and the guest's own name and phone, because a broker's guest has no Injishi account. Plain uuids
+     * here (the broker tables import this file); the foreign keys are in the migration.
+     */
+    brokerGroupId: uuid('broker_group_id'),
+    brokerId: uuid('broker_id'),
+    brokerDealId: uuid('broker_deal_id'),
+    guestName: text('guest_name'),
+    guestPhone: text('guest_phone'),
     /**
      * Why the desk cancelled, in the desk's words, when it cancelled at the
      * guest's request (`POST /ops/reservations/:id/cancel`). The refund is not
@@ -158,6 +180,7 @@ export const bookings = pgTable(
     // (platform audit step 3). Half open stays: a zero night booking holds no
     // night and prices to nothing, so it is refused rather than stored.
     check('bookings_dates_ordered', sql`${t.checkOut} > ${t.checkIn}`),
+    check('bookings_paid_room_nonnegative', sql`${t.paidRoomRwf} IS NULL OR ${t.paidRoomRwf} >= 0`),
     check('bookings_guest_count_positive', sql`${t.guestCount} > 0`),
     check(
       'bookings_amounts_non_negative',
@@ -189,6 +212,80 @@ export const bookings = pgTable(
       .where(
         sql`${t.status} = 'pending_approval' AND ${t.approvalExpiresAt} IS NOT NULL`,
       ),
+  ],
+);
+
+/**
+ * A change the desk made to a confirmed reservation (migration 0120): its dates, its room type, its party.
+ *
+ * Each row keeps the stay before and after, what the room cost before (what the guest had paid) and after,
+ * and how the difference is settled: on the guest's bill, by a MoMo request to the guest (the change waits
+ * for the payment), or as credit on the bill when the stay costs less. Never edited after it applies; a
+ * second change is a second row.
+ */
+export const bookingChanges = pgTable(
+  'booking_changes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    bookingId: uuid('booking_id')
+      .notNull()
+      .references(() => bookings.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    /** `applied`, `awaiting_payment` (a MoMo request is out) or `abandoned` (it was refused or ran out). */
+    status: text('status').notNull(),
+    /** `none` (same price), `bill`, `momo` (costs more) or `credit` (costs less). */
+    settlement: text('settlement').notNull(),
+    fromCheckIn: date('from_check_in').notNull(),
+    fromCheckOut: date('from_check_out').notNull(),
+    fromRoomTypeId: uuid('from_room_type_id')
+      .notNull()
+      .references(() => roomTypes.id),
+    fromAdults: smallint('from_adults').notNull(),
+    fromChildren: smallint('from_children').notNull(),
+    toCheckIn: date('to_check_in').notNull(),
+    toCheckOut: date('to_check_out').notNull(),
+    toRoomTypeId: uuid('to_room_type_id')
+      .notNull()
+      .references(() => roomTypes.id),
+    toAdults: smallint('to_adults').notNull(),
+    toChildren: smallint('to_children').notNull(),
+    fromNightlyRwf: amount('from_nightly_rwf').notNull(),
+    toNightlyRwf: amount('to_nightly_rwf').notNull(),
+    /** The room money paid before the change. */
+    paidRoomRwf: amount('paid_room_rwf').notNull(),
+    /** What the room costs after it. */
+    newRoomRwf: amount('new_room_rwf').notNull(),
+    /** `new_room_rwf - paid_room_rwf`: more owed when positive, credit when negative. */
+    differenceRwf: bigint('difference_rwf', { mode: 'number' }).notNull(),
+    actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    appliedAt: timestamp('applied_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('booking_changes_booking_idx').on(t.bookingId, t.createdAt),
+    uniqueIndex('booking_changes_one_awaiting_uk')
+      .on(t.bookingId)
+      .where(sql`${t.status} = 'awaiting_payment'`),
+    check('booking_changes_status_ck', sql`${t.status} IN ('applied', 'awaiting_payment', 'abandoned')`),
+    check('booking_changes_settlement_ck', sql`${t.settlement} IN ('none', 'bill', 'credit', 'momo')`),
+    check(
+      'booking_changes_settlement_shape',
+      sql`(${t.differenceRwf} = 0 AND ${t.settlement} = 'none')
+          OR (${t.differenceRwf} > 0 AND ${t.settlement} IN ('bill', 'momo'))
+          OR (${t.differenceRwf} < 0 AND ${t.settlement} = 'credit')`,
+    ),
+    check('booking_changes_applied_shape', sql`(${t.status} = 'applied') = (${t.appliedAt} IS NOT NULL)`),
+    check('booking_changes_awaiting_momo', sql`${t.status} <> 'awaiting_payment' OR ${t.settlement} = 'momo'`),
+    check(
+      'booking_changes_dates_ordered',
+      sql`${t.toCheckOut} > ${t.toCheckIn} AND ${t.fromCheckOut} > ${t.fromCheckIn}`,
+    ),
+    check(
+      'booking_changes_money_nonnegative',
+      sql`${t.fromNightlyRwf} >= 0 AND ${t.toNightlyRwf} >= 0 AND ${t.paidRoomRwf} >= 0 AND ${t.newRoomRwf} >= 0`,
+    ),
   ],
 );
 
@@ -355,6 +452,8 @@ export const stayIdentities = pgTable('stay_identities', {
   fullName: text('full_name'),
   idNumber: text('id_number'),
   documentType: documentTypeEnum('document_type'),
+  /** ISO-3166-1 alpha-2, as the desk took it (0114): who the stay is reported to. */
+  nationality: char('nationality', { length: 2 }),
   idPhotoObjectId: uuid('id_photo_object_id').references(() => storedObjects.id),
   addressText: text('address_text'),
   capturedAt: timestamp('captured_at', { withTimezone: true })
@@ -515,3 +614,47 @@ export const arrivalGuides = pgTable('arrival_guides', {
 // ===========================================================================
 // §7  RESIDENCE  (leases + lifecycle + broker channel)
 // ===========================================================================
+
+/**
+ * A reservation the FRONT DESK made (0124, 2026-10-30): a phone call, a WhatsApp, an email, a walk in
+ * for a later day. One row per such booking, beside it rather than on it.
+ *
+ * A side table, not columns on `bookings`, for one reason the owner chose: the migration that adds it
+ * alters nothing that exists, so the live database takes it with no risk to a single booking read.
+ *
+ * - `guest_name` and `guest_phone`: the desk's guest has no account, so `bookings.guest_user_id` is null
+ *   and this is who the booking is for. Readers prefer an account's name and fall back to this.
+ * - `nationality`, `document_type`, `id_number`: what the desk took on the phone, carried to the
+ *   registration card at check in. Optional here; check in asks for what is missing.
+ * - `hold_until`: a booking held for the guest, not confirmed. Past it, the sweep releases the nights.
+ * - `rate_override_reason`: why the desk charged other than the room's price (the price itself is
+ *   the booking's locked nightly rate).
+ */
+export const bookingDeskDetails = pgTable(
+  'booking_desk_details',
+  {
+    bookingId: uuid('booking_id')
+      .primaryKey()
+      .references(() => bookings.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    guestName: text('guest_name').notNull(),
+    guestPhone: text('guest_phone'),
+    guestEmail: text('guest_email'),
+    /** ISO-3166-1 alpha-2, as the desk took it. */
+    nationality: char('nationality', { length: 2 }),
+    documentType: documentTypeEnum('document_type'),
+    idNumber: text('id_number'),
+    holdUntil: timestamp('hold_until', { withTimezone: true }),
+    rateOverrideReason: text('rate_override_reason'),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [
+    index('booking_desk_details_workspace_idx').on(t.workspaceId),
+    index('booking_desk_details_hold_idx')
+      .on(t.holdUntil)
+      .where(sql`${t.holdUntil} IS NOT NULL`),
+  ],
+);

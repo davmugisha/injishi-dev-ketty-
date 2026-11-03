@@ -759,6 +759,7 @@ export declare const Loan: z.ZodObject<{
     kind: "loan" | "advance";
     amountRwf: number;
     reason: string | null;
+    paidRwf: number;
     employee: {
         employeeId: string;
         displayName: string;
@@ -766,7 +767,6 @@ export declare const Loan: z.ZodObject<{
     };
     createdAt: string;
     settledAt: string | null;
-    paidRwf: number;
     branchId: string | null;
     givenOn: string;
     installments: number;
@@ -785,6 +785,7 @@ export declare const Loan: z.ZodObject<{
     kind: "loan" | "advance";
     amountRwf: number;
     reason: string | null;
+    paidRwf: number;
     employee: {
         employeeId: string;
         displayName: string;
@@ -792,7 +793,6 @@ export declare const Loan: z.ZodObject<{
     };
     createdAt: string;
     settledAt: string | null;
-    paidRwf: number;
     branchId: string | null;
     givenOn: string;
     installments: number;
@@ -899,6 +899,7 @@ export declare const PayClaim: z.ZodObject<{
     decidedAt: string | null;
     reason: string;
     decisionNote: string | null;
+    decidedByName: string | null;
     employee: {
         employeeId: string;
         displayName: string;
@@ -907,13 +908,12 @@ export declare const PayClaim: z.ZodObject<{
     paid: boolean;
     createdAt: string;
     branchId: string | null;
-    period: string;
     days: number | null;
     leaveType: {
         name: string;
         id: string;
     } | null;
-    decidedByName: string | null;
+    period: string;
     hasReceipt: boolean;
 }, {
     status: "approved" | "rejected" | "cancelled" | "requested";
@@ -923,6 +923,7 @@ export declare const PayClaim: z.ZodObject<{
     decidedAt: string | null;
     reason: string;
     decisionNote: string | null;
+    decidedByName: string | null;
     employee: {
         employeeId: string;
         displayName: string;
@@ -931,13 +932,12 @@ export declare const PayClaim: z.ZodObject<{
     paid: boolean;
     createdAt: string;
     branchId: string | null;
-    period: string;
     days: number | null;
     leaveType: {
         name: string;
         id: string;
     } | null;
-    decidedByName: string | null;
+    period: string;
     hasReceipt: boolean;
 }>;
 export type PayClaim = z.infer<typeof PayClaim>;
@@ -1101,18 +1101,18 @@ export declare const CreatePayAdjustmentRequest: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     amountRwf: number;
     reason: string;
+    employeeId: string;
     side: "earning" | "deduction";
     taxable: boolean;
     contributable: boolean;
-    employeeId: string;
     correctsPeriod: string;
 }, {
     amountRwf: number;
     reason: string;
+    employeeId: string;
     side: "earning" | "deduction";
     taxable: boolean;
     contributable: boolean;
-    employeeId: string;
     correctsPeriod: string;
 }>;
 export type CreatePayAdjustmentRequest = z.infer<typeof CreatePayAdjustmentRequest>;
@@ -1168,17 +1168,17 @@ export declare const PayslipRow: z.ZodObject<{
     status: "confirmed" | "draft";
     id: string;
     grossRwf: number;
+    paidAt: string | null;
     employee: {
         employeeId: string;
         displayName: string;
         jobPositionTitle: string | null;
     };
-    paidAt: string | null;
+    employeeNumber: string;
     branchId: string | null;
     period: string;
-    employeeNumber: string;
     netRwf: number;
-    paidMethod: "cash" | "bank" | "momo" | null;
+    paidMethod: "cash" | "momo" | "bank" | null;
     paidReference: string | null;
     sentAt: string | null;
     payRunId: string;
@@ -1186,17 +1186,17 @@ export declare const PayslipRow: z.ZodObject<{
     status: "confirmed" | "draft";
     id: string;
     grossRwf: number;
+    paidAt: string | null;
     employee: {
         employeeId: string;
         displayName: string;
         jobPositionTitle: string | null;
     };
-    paidAt: string | null;
+    employeeNumber: string;
     branchId: string | null;
     period: string;
-    employeeNumber: string;
     netRwf: number;
-    paidMethod: "cash" | "bank" | "momo" | null;
+    paidMethod: "cash" | "momo" | "bank" | null;
     paidReference: string | null;
     sentAt: string | null;
     payRunId: string;
@@ -1208,11 +1208,11 @@ export declare const MarkPaidParams: z.ZodObject<{
     reference: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     reference: string;
-    method: "cash" | "bank" | "momo";
+    method: "cash" | "momo" | "bank";
     paidOn: string;
 }, {
     reference: string;
-    method: "cash" | "bank" | "momo";
+    method: "cash" | "momo" | "bank";
     paidOn: string;
 }>;
 export type MarkPaidParams = z.infer<typeof MarkPaidParams>;
@@ -1239,7 +1239,7 @@ export declare const PayFile: z.ZodObject<{
     createdByName: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     id: string;
-    kind: "bank" | "momo" | "paye" | "rssb";
+    kind: "momo" | "bank" | "paye" | "rssb";
     createdAt: string;
     totalRwf: number | null;
     rowCount: number | null;
@@ -1247,7 +1247,7 @@ export declare const PayFile: z.ZodObject<{
     createdByName: string | null;
 }, {
     id: string;
-    kind: "bank" | "momo" | "paye" | "rssb";
+    kind: "momo" | "bank" | "paye" | "rssb";
     createdAt: string;
     totalRwf: number | null;
     rowCount: number | null;
@@ -1267,7 +1267,7 @@ export declare const PayFileList: z.ZodObject<{
         createdByName: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         id: string;
-        kind: "bank" | "momo" | "paye" | "rssb";
+        kind: "momo" | "bank" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
         rowCount: number | null;
@@ -1275,7 +1275,7 @@ export declare const PayFileList: z.ZodObject<{
         createdByName: string | null;
     }, {
         id: string;
-        kind: "bank" | "momo" | "paye" | "rssb";
+        kind: "momo" | "bank" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
         rowCount: number | null;
@@ -1285,7 +1285,7 @@ export declare const PayFileList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     files: {
         id: string;
-        kind: "bank" | "momo" | "paye" | "rssb";
+        kind: "momo" | "bank" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
         rowCount: number | null;
@@ -1295,7 +1295,7 @@ export declare const PayFileList: z.ZodObject<{
 }, {
     files: {
         id: string;
-        kind: "bank" | "momo" | "paye" | "rssb";
+        kind: "momo" | "bank" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
         rowCount: number | null;
@@ -1307,9 +1307,9 @@ export type PayFileList = z.infer<typeof PayFileList>;
 export declare const CreatePayExportRequest: z.ZodObject<{
     kind: z.ZodEnum<["bank", "momo"]>;
 }, "strip", z.ZodTypeAny, {
-    kind: "bank" | "momo";
+    kind: "momo" | "bank";
 }, {
-    kind: "bank" | "momo";
+    kind: "momo" | "bank";
 }>;
 export type CreatePayExportRequest = z.infer<typeof CreatePayExportRequest>;
 export declare const CreatePayDeclarationRequest: z.ZodObject<{
@@ -1333,7 +1333,7 @@ export declare const PayFileResult: z.ZodObject<{
         createdByName: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         id: string;
-        kind: "bank" | "momo" | "paye" | "rssb";
+        kind: "momo" | "bank" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
         rowCount: number | null;
@@ -1341,7 +1341,7 @@ export declare const PayFileResult: z.ZodObject<{
         createdByName: string | null;
     }, {
         id: string;
-        kind: "bank" | "momo" | "paye" | "rssb";
+        kind: "momo" | "bank" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
         rowCount: number | null;
@@ -1367,7 +1367,7 @@ export declare const PayFileResult: z.ZodObject<{
     url: string;
     file: {
         id: string;
-        kind: "bank" | "momo" | "paye" | "rssb";
+        kind: "momo" | "bank" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
         rowCount: number | null;
@@ -1384,7 +1384,7 @@ export declare const PayFileResult: z.ZodObject<{
     url: string;
     file: {
         id: string;
-        kind: "bank" | "momo" | "paye" | "rssb";
+        kind: "momo" | "bank" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
         rowCount: number | null;
@@ -1669,13 +1669,13 @@ export declare const ContractRow: z.ZodObject<{
         jobPositionTitle: string | null;
     };
     noticeDays: number | null;
-    branchId: string | null;
-    contractType: string;
-    employeeNumber: string;
     endsOn: string | null;
+    contractType: string;
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
+    employeeNumber: string;
     payStructureId: string | null;
+    branchId: string | null;
 }, {
     status: string;
     id: string;
@@ -1686,13 +1686,13 @@ export declare const ContractRow: z.ZodObject<{
         jobPositionTitle: string | null;
     };
     noticeDays: number | null;
-    branchId: string | null;
-    contractType: string;
-    employeeNumber: string;
     endsOn: string | null;
+    contractType: string;
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
+    employeeNumber: string;
     payStructureId: string | null;
+    branchId: string | null;
 }>;
 export type ContractRow = z.infer<typeof ContractRow>;
 /** `PATCH /ops/contracts/:id`: the pay terms a contract carries; its wage and dates change only by a new contract. */
@@ -1823,6 +1823,7 @@ export declare const MyLoanList: z.ZodObject<{
         kind: "loan" | "advance";
         amountRwf: number;
         reason: string | null;
+        paidRwf: number;
         employee: {
             employeeId: string;
             displayName: string;
@@ -1830,7 +1831,6 @@ export declare const MyLoanList: z.ZodObject<{
         };
         createdAt: string;
         settledAt: string | null;
-        paidRwf: number;
         branchId: string | null;
         givenOn: string;
         installments: number;
@@ -1849,6 +1849,7 @@ export declare const MyLoanList: z.ZodObject<{
         kind: "loan" | "advance";
         amountRwf: number;
         reason: string | null;
+        paidRwf: number;
         employee: {
             employeeId: string;
             displayName: string;
@@ -1856,7 +1857,6 @@ export declare const MyLoanList: z.ZodObject<{
         };
         createdAt: string;
         settledAt: string | null;
-        paidRwf: number;
         branchId: string | null;
         givenOn: string;
         installments: number;
@@ -1877,6 +1877,7 @@ export declare const MyLoanList: z.ZodObject<{
         kind: "loan" | "advance";
         amountRwf: number;
         reason: string | null;
+        paidRwf: number;
         employee: {
             employeeId: string;
             displayName: string;
@@ -1884,7 +1885,6 @@ export declare const MyLoanList: z.ZodObject<{
         };
         createdAt: string;
         settledAt: string | null;
-        paidRwf: number;
         branchId: string | null;
         givenOn: string;
         installments: number;
@@ -1905,6 +1905,7 @@ export declare const MyLoanList: z.ZodObject<{
         kind: "loan" | "advance";
         amountRwf: number;
         reason: string | null;
+        paidRwf: number;
         employee: {
             employeeId: string;
             displayName: string;
@@ -1912,7 +1913,6 @@ export declare const MyLoanList: z.ZodObject<{
         };
         createdAt: string;
         settledAt: string | null;
-        paidRwf: number;
         branchId: string | null;
         givenOn: string;
         installments: number;
@@ -1979,6 +1979,7 @@ export declare const MyPayClaimList: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -1987,13 +1988,12 @@ export declare const MyPayClaimList: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        period: string;
         days: number | null;
         leaveType: {
             name: string;
             id: string;
         } | null;
-        decidedByName: string | null;
+        period: string;
         hasReceipt: boolean;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested";
@@ -2003,6 +2003,7 @@ export declare const MyPayClaimList: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -2011,13 +2012,12 @@ export declare const MyPayClaimList: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        period: string;
         days: number | null;
         leaveType: {
             name: string;
             id: string;
         } | null;
-        decidedByName: string | null;
+        period: string;
         hasReceipt: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -2029,6 +2029,7 @@ export declare const MyPayClaimList: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -2037,13 +2038,12 @@ export declare const MyPayClaimList: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        period: string;
         days: number | null;
         leaveType: {
             name: string;
             id: string;
         } | null;
-        decidedByName: string | null;
+        period: string;
         hasReceipt: boolean;
     }[];
 }, {
@@ -2055,6 +2055,7 @@ export declare const MyPayClaimList: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         employee: {
             employeeId: string;
             displayName: string;
@@ -2063,13 +2064,12 @@ export declare const MyPayClaimList: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        period: string;
         days: number | null;
         leaveType: {
             name: string;
             id: string;
         } | null;
-        decidedByName: string | null;
+        period: string;
         hasReceipt: boolean;
     }[];
 }>;

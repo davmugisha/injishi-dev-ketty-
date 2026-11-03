@@ -44,7 +44,7 @@ export function CaseDocuments({ file }: { file: CaseFile }) {
             </EmptyState.Media>
             <EmptyState.Title>No documents to read</EmptyState.Title>
             <EmptyState.Description>
-              The business attached no certificate. Check what you need on the field visit, and reject with a reason if
+              The business attached no certificate. Ask the host to upload what you need, and reject with a reason if
               a document the law requires is missing.
             </EmptyState.Description>
           </EmptyState.Header>
@@ -162,7 +162,7 @@ export function CaseDocuments({ file }: { file: CaseFile }) {
                     </EmptyState.Media>
                     <EmptyState.Title>No file on record</EmptyState.Title>
                     <EmptyState.Description>
-                      The certificate is declared but its file is not stored. Ask for it on the field visit.
+                      The certificate is declared but its file is not stored. Ask the host to upload it.
                     </EmptyState.Description>
                   </EmptyState.Header>
                 </EmptyState>

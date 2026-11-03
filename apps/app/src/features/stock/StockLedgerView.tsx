@@ -183,7 +183,6 @@ export function StockLedgerView({ data, initialTab }: { data: StockLedgerData; i
       <PageHeader
         eyebrow="Stock › Ledger · all Isangano locations · Monday 12 October 2026"
         title="Stock Ledger"
-        description="Every movement is recorded once and never edited. Corrections are new movements that point to the original."
         actions={
           <>
             <Button variant="secondary" onPress={() => exportCsv(rows)}>

@@ -11,9 +11,14 @@ import {
  * owner's five steps, O-3).
  *
  * FIVE STEPS FOR EVERY KIND: Business · You · Documents · Review · Pay (AC-3).
- * Business opens on "What kind of business?" when no kind arrived, then the TIN
- * (a residence: its property and UPI), who is registering it, the location,
- * and for a business the branches and PSF. You is the identity. Review shows
+ * Business comes first (the owner's call, 2026-11-02): the TIN is the first
+ * thing asked. Business is the business and only the business: the TIN (a
+ * residence: its property and UPI), who is registering it, the owner on the
+ * helper path, the location, and the branches and PSF. You is the person and
+ * only the person: the ID, a selfie, a phone and a home address. Whether RRA
+ * lists the owner's ID among the TIN's directors needs the ID, so it is asked
+ * again once the ID is on file and answered on You. A kind that did not
+ * arrive is asked before either ("What kind of business?"). Review shows
  * the answers and the fee with no agreement and no signature: the agreement
  * moved to after approval (O-10). The first Pay press creates the registration
  * (D-l). The six step wizard this replaces (ADR-071) is superseded whole.
@@ -49,7 +54,7 @@ export function pathFor(role: RegistrantRole | null, capacity: RegistrantCapacit
   return capacity === "on_behalf_of" ? "helper" : "owner";
 }
 
-/** Every path walks the same five steps, in this order (AC-3). */
+/** Every path walks the same five steps, in this order (AC-3): the business, then the person. */
 export const STEP_ORDER: readonly StepId[] = ["business", "you", "documents", "review", "pay"];
 
 export function stepOrder(): StepId[] {
@@ -61,11 +66,9 @@ export function stepOrder(): StepId[] {
 // ---------------------------------------------------------------------------
 
 export type SectionId =
-  /** Business name and TIN, checked with RRA, then who is registering it. */
+  /** Business name and TIN, checked with RRA, then who is registering it and, for the owner, the director check. */
   | "tin"
-  /** You and the company: your ID, checked, and whether RRA lists you as a director. */
-  | "owner"
-  /** Your identity, for a helper or a residence: the ID check alone. */
+  /** Your identity: the ID check, a phone and a home address. Nothing about the business. */
   | "id"
   /** The owner, on the helper path: who the claim link goes to. */
   | "intended"
@@ -78,16 +81,20 @@ export type SectionId =
   /** The property: its name, its UPI and how it is held. */
   | "upi";
 
-/** Business's sections, in order: what the business is, where it is, and whether it is a franchise (S3). */
+/**
+ * Business's sections, in order: what the business is and who registers it, on the helper path whose it
+ * is, and where it is. The franchise question (S3, "fr") is not asked for now (2026-11-03, the owner:
+ * it confused people); its section stays in the code, to come back.
+ */
 export function businessSections(path: RegisterPath): SectionId[] {
-  return path === "landlord" ? ["upi", "loc"] : ["tin", "cls", "loc", "fr"];
+  if (path === "landlord") return ["upi", "loc"];
+  if (path === "helper") return ["tin", "intended", "cls", "loc"];
+  return ["tin", "cls", "loc"];
 }
 
-/** You's sections, in order: who is registering it, and on the helper path whose it is. */
-export function youSections(path: RegisterPath): SectionId[] {
-  if (path === "landlord") return ["id"];
-  if (path === "helper") return ["id", "intended"];
-  return ["owner"];
+/** You's one section, on every path: the person's identity. */
+export function youSections(_path: RegisterPath): SectionId[] {
+  return ["id"];
 }
 
 /** The sections a step carries; Documents, Review and Pay have none. */
@@ -131,11 +138,47 @@ export function openableThrough(order: readonly StepId[], complete: (id: StepId)
   return first < 0 ? order.length - 1 : first;
 }
 
+/**
+ * Why a step on the rail cannot be opened, or null when it can (2026-10-30).
+ *
+ * - Paid: only Pay, where the receipt is, opens. Changes go through support.
+ * - Created on the first Pay press but not paid: the registration exists on the
+ *   server and no route changes its answers, so only Review and Pay open, and
+ *   the rail says why rather than greying the step out with nothing said.
+ * - Otherwise every step up to the one on screen opens (Back is never refused),
+ *   and a step ahead opens once reached and everything before it is complete.
+ */
+export function railLock(
+  order: readonly StepId[],
+  id: StepId,
+  at: { current: StepId; openable: number; reached: number; created: boolean; paid: boolean },
+): string | null {
+  if (at.paid) return id === "pay" ? null : "Paid. Changes go through support.";
+  if (at.created) return id === "review" || id === "pay" ? null : "Created when you pressed Pay. Changes go through support.";
+  const i = order.indexOf(id);
+  if (i <= order.indexOf(at.current)) return null;
+  if (i > at.reached) return "Not reached yet";
+  return i <= at.openable ? null : "Finish the steps before it first";
+}
+
+/**
+ * The section Back reopens from an open section: the one before it, passing over
+ * Classification, which asks nothing. Null on a step's first section, whose Back
+ * is the step's own.
+ */
+export function previousSection(ids: readonly SectionId[], id: SectionId): SectionId | null {
+  const i = ids.indexOf(id);
+  for (let j = i - 1; j >= 0; j--) {
+    if (ids[j] !== "cls") return ids[j] ?? null;
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Drafts (ADR-075 S9): where a person begins, and where a draft reopens
 // ---------------------------------------------------------------------------
 
-/** Where a person opening `/register` begins: always Business, which asks the kind when it is not known. */
+/** Where a person opening `/register` begins: always Business. A kind not yet known is asked before it. */
 export function openingStep(): StepId {
   return "business";
 }

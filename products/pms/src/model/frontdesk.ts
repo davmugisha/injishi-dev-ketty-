@@ -8,6 +8,9 @@
  */
 import type { BoardId, IconName, Tone } from "./shared.ts";
 
+/** The name the API gives a booking that names nobody; the desk asks for the name on the ID instead. */
+export const UNNAMED_GUEST = "Unnamed guest";
+
 /** Housekeeping status of a room. */
 export type RoomStatus = "dirty" | "clean" | "inspected" | "occupied" | "ooo";
 
@@ -230,53 +233,61 @@ export interface CheckInFile {
   documents: CheckInDocument[];
 }
 
-export interface RackDay {
-  id: string;
-  /** Day of October 2026. */
-  day: number;
-  dow: string;
-  free: number;
-}
+// The room rack on the property's own records (2026-10-30): the app reads it from the desk's day
+// (`GET /ops/front-desk`) and hands the view these shapes.
 
-export type RackBarKind = "booked" | "inhouse" | "tentative" | "group" | "ooo";
+export type RackBarKind = "inhouse" | "booked" | "tentative" | "departed";
+export type RackRoomState = "clean" | "dirty" | "inspected" | "occupied" | "ooo";
 
 export interface RackBar {
   id: string;
-  /** Arrival day (October); bars run from that afternoon to the departure morning. */
+  /** Arrival, in days from the rack's first day (an afternoon: n + 0.5). */
   from: number;
+  /** Departure, in days from the rack's first day (a morning: n + 0.5). */
   to: number;
   kind: RackBarKind;
-  label: string;
-  /** Booking behind a confirmed or requested bar (opens it). */
-  bookingId?: string;
-  icon?: IconName;
-  /** Outline that flags the bar: an arrival without a room. */
-  flag?: "warning";
-  /** Part of the room conflict until the move is confirmed. */
-  conflict?: boolean;
-  /** Label once the split stay is confirmed. */
-  movedLabel?: string;
-  /** The proposed move (opens the move check). */
-  proposal?: boolean;
+  guest: string;
+  reference: string | null;
+  /** Where pressing the bar goes: the booking in Reservations, or the desk for a walk-in. */
+  href: string;
+  /** "1 → 3 Nov". */
+  dates: string;
 }
 
 export interface RackLane {
   id: string;
-  kind: "group" | "room";
-  /** Group lanes: room type and summary. */
+  kind: "group" | "room" | "unassigned";
+  roomTypeId: string;
+  /** A room's label; a group's room type; an unassigned lane's guest. */
   label: string;
+  /** A group's summary ("4 rooms · sleeps 2"); a room's status in words. */
   meta: string;
-  /** Group lanes: rooms of this type in the property. */
-  rooms: number;
-  /** Room lanes: room number (or the guest for an unassigned arrival). */
-  room: string;
-  status: RoomStatus | null;
-  /** Shown instead of the housekeeping status (unassigned arrivals). */
-  statusLabel: string | null;
-  group: string;
+  state: RackRoomState | null;
   bars: RackBar[];
-  conflict: boolean;
-  proposal: boolean;
+  /** Two bars on this room overlap on some night. */
+  overlap: boolean;
+}
+
+export interface RackDay {
+  date: string;
+  dow: string;
+  day: number;
+  month: string;
+  /** Rooms of every type with nothing in them that night. */
+  free: number;
+}
+
+export interface RoomRack {
+  property: string;
+  today: string;
+  days: RackDay[];
+  /** Now, in days from the first day (Kigali time). */
+  now: number;
+  types: { id: string; name: string; rooms: number }[];
+  lanes: RackLane[];
+  unassigned: number;
+  overlaps: number;
+  totalRooms: number;
 }
 
 export interface MoveCheck {

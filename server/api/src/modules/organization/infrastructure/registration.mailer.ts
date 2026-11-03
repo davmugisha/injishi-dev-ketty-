@@ -2,6 +2,7 @@ import type { RegistrationRejectionReason } from '@injishi/contracts';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { resolveAppUrl } from '../../../shared/config/app-url';
 import { resolveWebUrl } from '../../../shared/config/web-url';
 import {
   MAILER_PORT,
@@ -11,20 +12,23 @@ import {
   fieldVerificationPassedMail,
   officerQueueMail,
   officersCoveringDistrict,
-  oversightQueueLink,
+  oversightCaseLink,
+  psfBusinessRegisteredMail,
   registrationApprovedMail,
   registrationLink,
   registrationReceivedMail,
   registrationRejectedMail,
   registrationSubmittedMail,
+  setupWhileInReviewMail,
   workspaceSetupLink,
   type RegistrationMail,
   type RejectionGate,
 } from '../domain/registration-mail';
+import { psfMembershipLink } from '../domain/psf-mail';
 import { OrganizationRepository } from './organization.repository';
 
 type Recipient = { userId: string; email: string; name: string | null };
-type OfficerRole = 'business_field_verifier' | 'business_approver';
+type OfficerRole = 'business_field_verifier' | 'business_approver' | 'psf_membership_officer';
 
 /**
  * Mails the registrant, and the officers who review them, as a business moves
@@ -50,6 +54,8 @@ export class RegistrationMailer {
 
   private readonly logger = new Logger(RegistrationMailer.name);
   private readonly webUrl: string;
+  /** The operator app, where setup and the officer console live. */
+  private readonly appUrl: string;
 
   constructor(
     @Inject(MAILER_PORT) private readonly mailer: MailerPort,
@@ -60,9 +66,13 @@ export class RegistrationMailer {
       webUrl: config.get<string>('WEB_URL'),
       nodeEnv: config.get<string>('NODE_ENV'),
     });
+    this.appUrl = resolveAppUrl({
+      appUrl: config.get<string>('APP_URL'),
+      nodeEnv: config.get<string>('NODE_ENV'),
+    });
   }
 
-  /** Created at `pending_payment`: accept the contract and pay the fee. */
+  /** Created at `pending_payment`: pay the fee. */
   received(orgId: string, amountDueRwf: number | null): Promise<void> {
     return this.toOwners(orgId, 'registration received', (to, facts) =>
       registrationReceivedMail({
@@ -74,15 +84,54 @@ export class RegistrationMailer {
     );
   }
 
-  /** Paid, or corrected and resubmitted: in the pipeline, nothing to do. */
-  submitted(orgId: string, resubmitted: boolean): Promise<void> {
+  /**
+   * Paid, or corrected and resubmitted.
+   *
+   * A hotel, lodge, venue or any other hospitality business paying for the
+   * first time is told to set up its listing now (`canSetUpDuringReview`): the
+   * workspace already holds `listing.manage`, and only Publish waits for
+   * approval. Everyone else (a resubmission, a residence, an OBO registration
+   * whose owner has not claimed it) is told it is in the pipeline.
+   */
+  async submitted(orgId: string, resubmitted: boolean): Promise<void> {
+    const invite =
+      !resubmitted && !(await this.awaitingClaim(orgId));
     return this.toOwners(orgId, 'registration submitted', (to, facts) =>
-      registrationSubmittedMail({
+      invite && facts.domain === 'hospitality' && facts.workspaceId
+        ? setupWhileInReviewMail({
+            to,
+            legalName: facts.legalName,
+            hasTin: facts.tin !== null,
+            setupLink: workspaceSetupLink(this.appUrl, facts.workspaceId, facts.domain),
+          })
+        : registrationSubmittedMail({
+            to,
+            legalName: facts.legalName,
+            hasTin: facts.tin !== null,
+            resubmitted,
+            link: registrationLink(this.webUrl),
+          }),
+    );
+  }
+
+  /** An unclaimed OBO registration; a failed read counts as one, so no setup link goes out on a guess. */
+  private async awaitingClaim(orgId: string): Promise<boolean> {
+    try {
+      return await this.orgs.isAwaitingOwnerClaim(orgId);
+    } catch {
+      return true;
+    }
+  }
+
+  /** THE PSF PATH: registered, with its code. The next step is membership. */
+  registeredForPsf(orgId: string): Promise<void> {
+    return this.toOwners(orgId, 'registered for PSF', (to, facts) =>
+      psfBusinessRegisteredMail({
         to,
         legalName: facts.legalName,
-        hasTin: facts.tin !== null,
-        resubmitted,
-        link: registrationLink(this.webUrl),
+        businessCode: facts.businessCode,
+        districtName: facts.districtName,
+        link: psfMembershipLink(this.appUrl),
       }),
     );
   }
@@ -108,9 +157,9 @@ export class RegistrationMailer {
     );
   }
 
-  /** The field verifier passed it: tell the registrant. */
+  /** The documents were checked: tell the registrant. */
   fieldVerified(orgId: string): Promise<void> {
-    return this.toOwners(orgId, 'field verification passed', (to, facts) =>
+    return this.toOwners(orgId, 'documents checked', (to, facts) =>
       fieldVerificationPassedMail({
         to,
         legalName: facts.legalName,
@@ -136,7 +185,7 @@ export class RegistrationMailer {
             // Every registration is created with its workspace, in the same
             // transaction; the fallback only keeps a link in the mail.
             setupLink: facts.workspaceId
-              ? workspaceSetupLink(this.webUrl, facts.workspaceId)
+              ? workspaceSetupLink(this.appUrl, facts.workspaceId, facts.domain)
               : registrationLink(this.webUrl),
           }),
     );
@@ -173,7 +222,8 @@ export class RegistrationMailer {
           ? await this.orgs.latestFieldVerifierId(orgId)
           : null;
 
-      const link = oversightQueueLink(this.webUrl, role);
+      // The business itself (2026-11-02): the mail is about one registration, not the whole queue.
+      const link = oversightCaseLink(this.appUrl, orgId);
       let mailed = 0;
       for (const officer of covering) {
         if (officer.userId === verifierId) continue;

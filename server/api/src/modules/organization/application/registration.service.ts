@@ -24,7 +24,9 @@ import {
   entityGroupForKind,
   hospitalityKindOf,
   isVenueKind,
+  looksLikePsfNumber,
   missingRegistrationDocument,
+  normalizePsfNumber,
   OVERSIGHT_OWN_BUSINESS_MESSAGE,
   districtScopeOf,
   scopeCoversDistrict,
@@ -34,11 +36,16 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  GoneException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
   UnprocessableEntityException,
+  Optional,
 } from '@nestjs/common';
+
+import { PLATFORM, type Platform } from '../../../shared/config/platform';
 
 import {
   awaitsRegistrationFee,
@@ -96,8 +103,11 @@ const STAGE_FOR_ROLE: Readonly<
   dgie_national: null,
   dgie_village: null,
   dgie_cell: null,
-  // Membership is not a registration gate (ADR-056); its queue is its own.
-  psf_membership_officer: null,
+  // A PSF BDE (Business Development & Empowerment) reads the PSF console only (2026-11-02).
+  psf_business_officer: null,
+  // A PSF District Manager decides the first gate in one step (0119): their
+  // Reviewed approves the business. Membership keeps its own queue (ADR-056).
+  psf_membership_officer: 'tin_verified',
 };
 
 /**
@@ -148,7 +158,17 @@ export class RegistrationService {
      * marks it with the registration it became, whose settled fee clears it.
      */
     private readonly drafts: RegistrationDraftService,
+    /**
+     * Demo lets one dual-hat officer verify and approve the same case so a
+     * walkthrough does not need a second login. Production keeps SoD.
+     */
+    @Optional() @Inject(PLATFORM) private readonly platform?: Pick<Platform, 'environment'>,
   ) {}
+
+  /** True when this stack relaxes separation of duties for a dual-hat demo. */
+  private get allowSelfApprove(): boolean {
+    return this.platform?.environment === 'demo';
+  }
 
   /** What this registration will cost, before anyone commits to it. */
   async quote(
@@ -274,12 +294,13 @@ export class RegistrationService {
    *   any text, or by someone else's upload.
    */
   private async assertDocuments(
-    kind: BusinessKind,
+    /** Null for a PSF business, which no kind names and no document is required of. */
+    kind: BusinessKind | null,
     certificates: readonly { kind: string; objectKey: string }[],
     registrantUserId: string,
   ): Promise<void> {
     const issues: { code: 'custom'; path: (string | number)[]; message: string }[] = [];
-    const missing = missingRegistrationDocument(kind, certificates);
+    const missing = kind === null ? null : missingRegistrationDocument(kind, certificates);
     if (missing) {
       const label = ORG_CERTIFICATE_KIND_LABEL[missing];
       // "RDB certificate" keeps its capitals; "Land title" reads mid sentence.
@@ -298,6 +319,23 @@ export class RegistrationService {
     }
     if (issues.length > 0) {
       throw new UnprocessableEntityException({ message: 'Validation failed', issues });
+    }
+  }
+
+  /**
+   * A membership number a business typed (0121): it must read like one ("PSF-" alone does not), and it
+   * must not be another business's current membership on Injishi. Whether it is real is PSF's to
+   * confirm; until then it is a claim.
+   */
+  private async assertPsfNumber(raw: string | null): Promise<void> {
+    if (raw === null) return;
+    const path = ['business', 'psfMembershipNumber'];
+    const fail = (message: string): never => {
+      throw new UnprocessableEntityException({ message: 'Validation failed', issues: [{ code: 'custom', path, message }] });
+    };
+    if (!looksLikePsfNumber(raw)) fail('Type your full PSF membership number, as it is printed on your certificate.');
+    if (await this.psf.numberHeldByAnotherBusiness(normalizePsfNumber(raw))) {
+      fail('That PSF number belongs to another business on Injishi. Check it, or contact your PSF district office.');
     }
   }
 
@@ -335,7 +373,11 @@ export class RegistrationService {
       issues.push({
         code: 'custom',
         path: ['capacity'],
-        message: `You are not listed as a director of ${business.legalName}. Register it on behalf of its owner.`,
+        // The PSF path has no on behalf registration, so it cannot offer one.
+        message:
+          request.role === 'enterprise'
+            ? `You are not listed as a director of ${business.legalName}. One of its directors registers it for PSF.`
+            : `You are not listed as a director of ${business.legalName}. Register it on behalf of its owner.`,
       });
     }
     return issues;
@@ -371,6 +413,13 @@ export class RegistrationService {
         'A broker registers at /api/v1/registrations/broker, not here.',
       );
     }
+    if (request.role === 'enterprise') {
+      // Since 2026-10-19 a business joins PSF on the public form, with no
+      // account and no workspace: one form, one fee, a docID to track it by.
+      throw new GoneException(
+        'Joining PSF has its own form now, with no account needed. Register at /psf/register.',
+      );
+    }
 
     // Step 1 is saved BEFORE the business is created, and in its own
     // transaction. Two reasons. A registrant who then gets Step 2 wrong keeps
@@ -397,12 +446,26 @@ export class RegistrationService {
 
     const b = request.business;
     const address = b.address;
-    // ADR-075 D-h: the kind the org carries. The contract has already refused a hospitality request with none.
-    const businessKind: BusinessKind =
-      b.domain === 'residence' ? 'residence' : (hospitalityKindOf(b) as BusinessKind);
-    const venue = isVenueKind(businessKind);
-    if (b.domain === 'hospitality') {
-      const tinOutcome = await this.verifyTinSafely(b.tin);
+    // ADR-075 D-h: the kind the org carries. The contract has already refused a
+    // hospitality request with none. A PSF business (`enterprise`) carries none:
+    // it is not a place, and `business_kind` names places.
+    const businessKind: BusinessKind | null =
+      b.domain === 'residence'
+        ? 'residence'
+        : b.domain === 'enterprise'
+          ? null
+          : (hospitalityKindOf(b) as BusinessKind);
+    const venue = businessKind !== null && isVenueKind(businessKind);
+    // The TIN a business carries: always for a hotel, when it chose one for a
+    // PSF business (the PSF path makes it optional), never for a residence.
+    const tin =
+      b.domain === 'hospitality'
+        ? b.tin
+        : b.domain === 'enterprise' && b.registrationKind === 'tin'
+          ? (b.tin ?? null)
+          : null;
+    if (tin) {
+      const tinOutcome = await this.verifyTinSafely(tin);
       // The shape the validation pipe gives, so the wizard puts each sentence
       // under the field it came from.
       const issues =
@@ -418,6 +481,32 @@ export class RegistrationService {
     await this.assertVillagesPlaced(b);
     const branches = await this.branchRowsFor(b);
 
+    // THE PSF PATH: the sector a business names must still be on PSF's list,
+    // read before anything is written like a tier is. A hotel is filed under
+    // PSF's hospitality association by default, while PSF lists one.
+    // A hotel applying to PSF names its sector, kind of business and association, as the PSF form asks
+    // (2026-11-03); without them it is filed under the hospitality association.
+    const picked = b.domain === 'hospitality' ? b.psfApplication : undefined;
+    const pickedAssociation = picked?.associationCode ? await this.psf.associationForRegistration(picked.associationCode) : null;
+    if (pickedAssociation && picked?.subsectorId) {
+      await this.psf.subsectorForRegistration(picked.subsectorId, pickedAssociation.clusterCode, b.address.districtId);
+    }
+    const psfAssociationCode =
+      b.domain === 'enterprise'
+        ? (await this.psf.associationForRegistration(b.associationCode)).code
+        : pickedAssociation
+          ? pickedAssociation.code
+          : b.domain === 'hospitality' && (await this.psf.associationOffered(HOTEL_ASSOCIATION))
+            ? HOTEL_ASSOCIATION
+            : null;
+    const psfPicks = pickedAssociation
+      ? {
+          psfAssociationOther: picked?.associationOther ?? null,
+          psfSubsectorId: picked?.subsectorId ?? null,
+          psfSubsectorOther: picked?.subsectorOther ?? null,
+        }
+      : {};
+
     // ADR-056 AC-6: an application a No carries is filed in the create
     // transaction below, so the form someone filled cannot be lost between
     // two calls. Its tier is checked here, first, so a retired one refuses the
@@ -427,15 +516,29 @@ export class RegistrationService {
         ? {
             tier: await this.psf.tierForFiling(b.psfApplication.requestedTierCode),
             // After `profiles.save` above, so a first-time registrant's
-            // document is already on file for "use the one on file".
-            form: await this.psf.withIdDocument(b.psfApplication, registrantUserId),
+            // document is already on file for "use the one on file", and the
+            // contact person You saved fills the rest (2026-11-03).
+            form: await this.psf.completeForm(
+              await this.psf.withIdDocument(b.psfApplication, registrantUserId),
+              registrantUserId,
+              { legalName: b.legalName, street: b.address.street ?? null },
+              ['business', 'psfApplication'],
+            ),
             tin: b.tin,
           }
         : null;
+    if (psfFiling) {
+      this.psf.assertDeclaredFee(psfFiling.tier, psfFiling.form.declaredFeeRwf, [
+        'business',
+        'psfApplication',
+        'declaredFeeRwf',
+      ]);
+    }
     const psfApplication = psfFiling
       ? buildPsfApplicationRow({
           submittedByUserId: registrantUserId,
           capacity: request.capacity === 'on_behalf_of' ? 'on_behalf_of' : 'owner',
+          registrationType: 'tin',
           registrationNumber: psfFiling.tin,
           tier: psfFiling.tier,
           form: psfFiling.form,
@@ -448,6 +551,14 @@ export class RegistrationService {
     // certificate one this registrant uploaded. Last of the checks, so a request refused for something else is
     // refused for that.
     await this.assertDocuments(businessKind, b.certificates, registrantUserId);
+    await this.assertPsfNumber(b.domain === 'hospitality' && b.psfMember ? (b.psfMembershipNumber ?? null) : null);
+    // A member sends its card, with or without the number (2026-11-02): it is what PSF checks the claim against.
+    if (b.domain === 'hospitality' && b.psfMember && !b.certificates.some((c) => c.kind === 'psf_certificate')) {
+      throw new UnprocessableEntityException({
+        message: 'Validation failed',
+        issues: [{ code: 'custom', path: ['business', 'psfCard'], message: 'Add a photo or scan of your PSF membership card.' }],
+      });
+    }
 
     try {
       const created = await this.orgs.createRegistration({
@@ -477,15 +588,22 @@ export class RegistrationService {
         // ADR-056: the application a No carries, and the number a Yes carries.
         psfApplication,
         psfMembershipNumber:
-          b.domain === 'hospitality' && b.psfMember
-            ? (b.psfMembershipNumber ?? null)
+          b.domain === 'hospitality' && b.psfMember && b.psfMembershipNumber
+            ? normalizePsfNumber(b.psfMembershipNumber)
             : null,
         eacStarGrade:
           b.domain === 'hospitality' ? (b.eacStarGrade ?? null) : null,
         // D24: a business carries a TIN, a residence carries a UPI. The database
-        // carries the same rule, so this maps rather than decides.
-        tin: b.domain === 'hospitality' ? b.tin : null,
-        upi: b.domain === 'hospitality' ? (b.upi ?? null) : b.upi,
+        // carries the same rule, so this maps rather than decides. A PSF
+        // business carries a TIN only when it registered with one.
+        tin,
+        upi: b.domain === 'hospitality' ? (b.upi ?? null) : b.domain === 'residence' ? b.upi : null,
+        psfAssociationCode,
+        ...psfPicks,
+        ownerGroups: b.domain === 'enterprise' ? b.ownerGroups : [],
+        registrationKind: b.domain === 'enterprise' ? b.registrationKind : null,
+        registrationNumber:
+          b.domain === 'enterprise' ? (b.registrationNumber ?? null) : null,
         districtId: address.districtId,
         sectorId: address.sectorId,
         // D24: the fifth level, optional and the only one below sector that is
@@ -535,7 +653,11 @@ export class RegistrationService {
           registrantName: await this.orgs.displayNameFor(registrantUserId),
         });
       }
-      await this.mail.received(created.orgId, created.amountDueRwf);
+      // A PSF business is created and paid in one press, with no contract to
+      // read in between, so it is mailed once, when it is registered.
+      if (b.domain !== 'enterprise') {
+        await this.mail.received(created.orgId, created.amountDueRwf);
+      }
       // The draft stays the answers' editable source until the fee settles (ADR-075 D-l), so it is marked with the
       // registration it became rather than cleared; settling the fee clears it (D-m).
       await this.drafts.markRegistered(registrantUserId, created.orgId);
@@ -563,6 +685,8 @@ export class RegistrationService {
         contractAcceptedAt: null,
         // An OBO registration is born locked (FL02); nobody else's is.
         payoutLocked: created.obo ? true : null,
+        // Issued when the fee settles.
+        businessCode: null,
       };
     } catch (err) {
       if (err instanceof DuplicateTinError) {
@@ -655,6 +779,7 @@ export class RegistrationService {
       name: string;
       sectorId: number;
       districtId: number;
+      villageId: number | null;
       street: string | null;
       isHeadOffice: boolean;
     }[]
@@ -699,6 +824,9 @@ export class RegistrationService {
       name: l.name,
       sectorId: l.address.sectorId,
       districtId: districtOf.get(l.address.sectorId)!,
+      // Checked to lie in its sector by `assertVillagesPlaced`, so Setup opens
+      // on the village the registrant already chose instead of asking again.
+      villageId: l.address.villageId ?? null,
       street: l.address.street ?? null,
       isHeadOffice: l.isHeadOffice,
     }));
@@ -725,8 +853,9 @@ export class RegistrationService {
         // It lost the race to a concurrent callback, which is not an error: re-reading is the answer. Paying no
         // longer waits on an accepted contract (ADR-075 AC-12); the agreement is signed after approval.
         this.log.log(`Registration fee for ${orgId} was already settled.`);
-      } else {
+      } else if (before.domain !== 'enterprise') {
         // Only the call that settled mails, so a repeated callback is silent.
+        // A PSF business is mailed when it is registered, a moment later.
         await this.mail.submitted(orgId, false);
       }
       await this.runTinCheck(orgId);
@@ -767,7 +896,9 @@ export class RegistrationService {
     if (!awaitsRegistrationFee(before.status)) return 'already_settled';
 
     if (await this.orgs.settleRegistrationFee(orgId, SYSTEM_MOVER)) {
-      await this.mail.submitted(orgId, false);
+      // As in `settleFeeAndVerify`: a PSF business is mailed when it is
+      // registered, a moment later, so it is not told it is "in review" first.
+      if (before.domain !== 'enterprise') await this.mail.submitted(orgId, false);
       await this.runTinCheck(orgId);
       return 'settled';
     }
@@ -816,12 +947,18 @@ export class RegistrationService {
     if (!org) throw new NotFoundException('Registration not found.');
     if (org.status !== 'submitted') return;
 
+    if (org.domain === 'enterprise') {
+      await this.registerForPsf(orgId, org.tin);
+      return;
+    }
+
     if (!org.tin) {
       // A residence has no TIN to check, so the automatic gate does not apply
       // and it goes straight to the human ones.
       const to = nextStatus('submitted', 'tin_verified');
       if (to && (await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER))) {
         await this.mail.queueEntered(orgId, 'business_field_verifier');
+        await this.mail.queueEntered(orgId, 'psf_membership_officer');
       }
       return;
     }
@@ -842,6 +979,7 @@ export class RegistrationService {
       const to = nextStatus('submitted', 'tin_verified');
       if (to && (await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER))) {
         await this.mail.queueEntered(orgId, 'business_field_verifier');
+        await this.mail.queueEntered(orgId, 'psf_membership_officer');
         // ADR-056 AC-8 and AC-9: a PSF application waiting on this check is in
         // PSF's queue from now on. The stamp is its own guarded update, so a
         // resubmitted business that passes again emails no officer twice.
@@ -863,6 +1001,45 @@ export class RegistrationService {
     // `pending` is RRA being unreachable, never a rejection. The org holds at
     // `submitted` and is retried; telling a real business it failed a check
     // that never ran would be the worse error (F-S03 §8).
+  }
+
+  /**
+   * THE PSF PATH: a business of any sector is registered once its fee settles
+   * and its TIN, when it gave one, is confirmed. No field visit and no
+   * approval: Injishi's part ends here, and PSF's membership queue takes over.
+   *
+   * With a TIN, the RRA check runs exactly as a hotel's does and writes its
+   * `tin_verifications` row: a pass registers it, a refusal rejects it with the
+   * same mail, and an unanswered check holds it at `submitted` for the sweep.
+   * Without one, it is registered at once; the PSF officer sees "No TIN".
+   */
+  private async registerForPsf(orgId: string, tin: string | null): Promise<void> {
+    if (tin) {
+      const outcome = await this.tin.verify(tin);
+      await this.orgs.recordTinCheck({
+        orgId,
+        tin,
+        result: outcome.result,
+        latencyMs: outcome.latencyMs,
+        adapterMode: outcome.adapterMode,
+        raw: outcome.raw,
+      });
+      if (outcome.result === 'failed') {
+        const to = nextStatus('submitted', 'rejected');
+        if (to && (await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER))) {
+          await this.mail.rejected(orgId, { gate: 'tin_check', reasonCode: null, notes: null });
+        }
+        return;
+      }
+      // Unreachable is never a rejection (F-S03 §8): hold, and the sweep retries.
+      if (outcome.result !== 'verified') return;
+    }
+    const to = nextStatus('submitted', 'enterprise_registered');
+    if (to && (await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER))) {
+      await this.mail.registeredForPsf(orgId);
+      // An application filed before this moment joins PSF's queue now.
+      await this.psf.markQueued(orgId);
+    }
   }
 
   /**
@@ -956,6 +1133,7 @@ export class RegistrationService {
       contractVersion: org.contractVersion,
       contractAcceptedAt: org.contractAcceptedAt?.toISOString() ?? null,
       payoutLocked,
+      businessCode: org.businessCode,
     };
   }
 
@@ -1003,7 +1181,7 @@ export class RegistrationService {
         uncheckedDocumentCount: r.uncheckedDocumentCount,
         waitingSince: r.waitingSince.toISOString(),
         blockedBySeparationOfDuties:
-          role === 'business_approver'
+          role === 'business_approver' && !this.allowSelfApprove
             ? violatesSeparationOfDuties({
                 actorUserId,
                 fieldVerifiedByUserId:
@@ -1092,8 +1270,12 @@ export class RegistrationService {
     // Separation of duties, re-checked HERE and not only at grant time: an
     // officer can legitimately hold both functions in different scopes, so the
     // question is never "may this person approve" but "may they approve THIS".
+    // Demo dual-hat walkthroughs skip this so one login can finish both gates.
     const verifier = await this.orgs.latestFieldVerifierId(orgId);
-    if (violatesSeparationOfDuties({ actorUserId, fieldVerifiedByUserId: verifier })) {
+    if (
+      !this.allowSelfApprove &&
+      violatesSeparationOfDuties({ actorUserId, fieldVerifiedByUserId: verifier })
+    ) {
       throw new ForbiddenException(SEPARATION_OF_DUTIES_MESSAGE);
     }
 
@@ -1115,6 +1297,45 @@ export class RegistrationService {
         `Org ${orgId} is approved and held for an owner claim (OBO); it stays payout-locked.`,
       );
     }
+    return this.summary(orgId);
+  }
+
+  /**
+   * A PSF District Manager's one-step review: `tin_verified → approved`, and on
+   * to `active` as the approver's gate does (0119, the owner's decision).
+   *
+   * The documents are the review, so every one must be marked checked first, as
+   * at the field verifier's gate. There is no second officer: the manager's
+   * Reviewed is the decision, recorded at the first gate under their function.
+   */
+  async review(
+    orgId: string,
+    actorUserId: string,
+    grants: OversightGrant[],
+    notes: string | null,
+  ): Promise<RegistrationSummary> {
+    const grant = await this.grantCovering(orgId, grants, actorUserId);
+    const unread = (await this.orgs.documentsForOrg(orgId)).filter((d) => d.checkedAt === null).length;
+    if (unread > 0) {
+      throw new ConflictException(
+        unread === 1
+          ? 'One document on this registration has not been checked yet. Open it and mark it checked before marking the business reviewed.'
+          : `${unread} documents on this registration have not been checked yet. Open each one and mark it checked before marking the business reviewed.`,
+      );
+    }
+    const awaitingClaim = await this.orgs.isAwaitingOwnerClaim(orgId);
+    await this.decide({
+      orgId,
+      stage: 'tin_verified',
+      decision: 'passed',
+      to: 'approved',
+      actorUserId,
+      grant,
+      reasonCode: null,
+      notes,
+      thenActivate: !awaitingClaim,
+    });
+    await this.mail.approved(orgId, awaitingClaim);
     return this.summary(orgId);
   }
 
@@ -1298,7 +1519,9 @@ export class RegistrationService {
     // The grant-time check cannot cover this direction. A person appointed first
     // can be added to a business afterwards, and nothing revisits their grant when
     // that happens.
-    if (await this.orgs.holdsOrgRole(orgId, actorUserId)) {
+    // Demo dual-hat walkthroughs skip this so an officer who also registered a
+    // sample business (Olivier / Amen Coffee) can finish the case alone.
+    if (!this.allowSelfApprove && (await this.orgs.holdsOrgRole(orgId, actorUserId))) {
       throw new ForbiddenException(OVERSIGHT_OWN_BUSINESS_MESSAGE);
     }
 
@@ -1351,7 +1574,8 @@ export class RegistrationService {
       decidedByUserId: input.actorUserId,
       oversightRole: input.grant.oversightRole as
         | 'business_field_verifier'
-        | 'business_approver',
+        | 'business_approver'
+        | 'psf_membership_officer',
       governmentBodyCode: input.grant.governmentBodyCode,
       governmentTitle: input.grant.governmentTitle,
       reasonCode: input.reasonCode,
@@ -1394,6 +1618,7 @@ export class RegistrationService {
         legalName: r.legalName,
         stage: r.stage,
         decision: r.decision,
+        oversightRole: r.oversightRole,
         reasonCode: r.reasonCode,
         notes: r.notes,
         governmentBodyCode: r.governmentBodyCode,
@@ -1467,6 +1692,12 @@ function isDirector(
 function normalizeName(name: string): string {
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
 }
+
+/**
+ * The association a hotel is filed under on PSF's register: the Rwanda
+ * Hospitality Association, in the Services cluster.
+ */
+const HOTEL_ASSOCIATION = 'rha';
 
 /** What a registrant is told when RRA does not recognise their TIN. */
 const TIN_REFUSED_MESSAGE =

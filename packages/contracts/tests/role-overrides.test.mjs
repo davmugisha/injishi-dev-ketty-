@@ -280,7 +280,7 @@ describe("permissionsForWorkspace resolves through the overrides", () => {
   });
 
   test("the registration gate still wins — a business cannot grant past its own approval", () => {
-    for (const status of ["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "rejected", "suspended"]) {
+    for (const status of ["pending_payment", "approved", "rejected", "suspended"]) {
       assert.deepEqual(
         permissionsForWorkspace({
           kind: "business",
@@ -292,6 +292,31 @@ describe("permissionsForWorkspace resolves through the overrides", () => {
           ],
         }),
         [],
+        status,
+      );
+    }
+  });
+
+  test("in review an override cannot add listing.manage to a role that lacks it", () => {
+    for (const status of ["submitted", "tin_verified", "field_verified"]) {
+      assert.deepEqual(
+        permissionsForWorkspace({
+          kind: "business",
+          registrationStatus: status,
+          orgRole: "receptionist",
+          roleOverrides: [{ orgRole: "receptionist", permission: "listing.manage", granted: true }],
+        }),
+        [],
+        status,
+      );
+      assert.deepEqual(
+        permissionsForWorkspace({
+          kind: "business",
+          registrationStatus: status,
+          orgRole: "manager",
+          roleOverrides: [{ orgRole: "manager", permission: "money.view", granted: true }],
+        }),
+        ["listing.manage"],
         status,
       );
     }

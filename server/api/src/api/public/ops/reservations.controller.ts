@@ -2,12 +2,21 @@ import {
   AssignRoomRequest,
   type BookingCancellationResult,
   CancelReservationRequest,
+  DeskReservationAsk,
+  type DeskReservationQuote,
+  DeskReservationRequest,
+  type DeskReservationResult,
   MarkNoShowRequest,
   type OperatorReservation,
   type OperatorReservationList,
   OperatorReservationQuery,
   type OperatorRoomAssignment,
   type OperatorRoomAssignmentList,
+  ReservationChangeAsk,
+  type ReservationChangeForm,
+  type ReservationChangeQuote,
+  ReservationChangeRequest,
+  type ReservationChangeResult,
   RoomAssignmentWindowQuery,
 } from '@injishi/contracts';
 import {
@@ -22,6 +31,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { BookingChangeService } from '../../../modules/pms/application/booking-change.service';
+import { DeskReservationService } from '../../../modules/pms/application/desk-reservation.service';
 import { OperatorReservationsService } from '../../../modules/pms/application/operator-reservations.service';
 import { RoomAssignmentService } from '../../../modules/pms/application/room-assignment.service';
 import {
@@ -36,6 +47,7 @@ import {
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import { IdempotencyKey } from '../../../shared/http/idempotency-key';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -71,7 +83,39 @@ export class OpsReservationsController {
   constructor(
     private readonly reservations: OperatorReservationsService,
     private readonly assignments: RoomAssignmentService,
+    private readonly changes: BookingChangeService,
+    private readonly desk: DeskReservationService,
   ) {}
+
+  /**
+   * What a booking the desk is about to make would cost, the rooms free to hold and why it cannot be
+   * made, if it cannot (0124). Nothing is written. The same permission as answering a request.
+   */
+  @Post('quote')
+  @RequirePermission('reservation.approve')
+  quoteDesk(
+    @Body(new ZodValidationPipe(DeskReservationAsk)) body: DeskReservationAsk,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<DeskReservationQuote> {
+    return this.desk.quote(workspace, body);
+  }
+
+  /**
+   * The desk books a guest for any day from today (0124): a phone call, a WhatsApp, a walk in for later.
+   * Confirmed at once, priced by the stay's rules (or the desk's price, with its reason), the room held
+   * when one is named, and a deposit put on the guest's bill. A money command: the Idempotency-Key makes
+   * a retried press record the deposit once.
+   */
+  @Post()
+  @RequirePermission('reservation.approve')
+  createDesk(
+    @Body(new ZodValidationPipe(DeskReservationRequest)) body: DeskReservationRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+    @IdempotencyKey() key: string,
+  ): Promise<DeskReservationResult> {
+    return this.desk.create(workspace, body, user.id, key);
+  }
 
   /**
    * Every reservation on this desk.
@@ -174,6 +218,58 @@ export class OpsReservationsController {
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<BookingCancellationResult> {
     return this.reservations.cancelAtGuestRequest(workspace, id, body);
+  }
+
+  /** The stay as it stands and the room types it may move to, for the desk's change form (0120). */
+  @Get(':id/change')
+  @RequirePermission('reservation.approve')
+  changeForm(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<ReservationChangeForm> {
+    return this.changes.form(workspace, id);
+  }
+
+  /**
+   * What a change to this reservation would cost, before anything moves (0120): the new price, the
+   * difference against what the guest paid, the settlements the desk may choose, availability (this
+   * booking left out) and why it cannot be made, if it cannot. The same permission as cancel.
+   */
+  @Post(':id/change/quote')
+  @RequirePermission('reservation.approve')
+  quoteChange(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(ReservationChangeAsk)) body: ReservationChangeAsk,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<ReservationChangeQuote> {
+    return this.changes.quote(workspace, id, body);
+  }
+
+  /**
+   * Change a confirmed reservation's dates, room type or party (0120). Costing more, the body says how the
+   * difference is settled: `bill`, or `momo` with the guest's number, and then the change applies once the
+   * guest pays. Costing less, the difference is credit on the guest's bill.
+   */
+  @Post(':id/change')
+  @RequirePermission('reservation.approve')
+  change(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(ReservationChangeRequest)) body: ReservationChangeRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<ReservationChangeResult> {
+    return this.changes.change(workspace, id, body, user.id);
+  }
+
+  /** Where a MoMo request for a change's difference got to; the change applies when it lands. */
+  @Get(':id/change/attempts/:token')
+  @RequirePermission('reservation.approve')
+  pollChange(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('token') token: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<ReservationChangeResult> {
+    return this.changes.poll(workspace, id, token);
   }
 
   /**

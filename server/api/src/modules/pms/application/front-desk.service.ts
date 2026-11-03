@@ -1,3 +1,5 @@
+import { localToday } from '../domain/pricing';
+import { NightAuditService } from './night-audit.service';
 import type {
   CheckInRequest,
   CheckOutRequest,
@@ -21,6 +23,8 @@ import {
 } from '../../../shared/auth/branch-scope';
 import { plannedExitFor } from '../domain/stay-reference';
 import { FolioRepository } from '../infrastructure/folio.repository';
+import { StayCompletionService } from './stay-completion.service';
+import { HotelGuestFilingService } from '../../guests/application/hotel-guest-filing.service';
 import { FolioService } from './folio.service';
 import {
   type CheckInSubject,
@@ -64,6 +68,12 @@ export class FrontDeskService {
     private readonly onboarding: StayClaimService,
     /** The identity a guest sent ahead of arrival, carried onto the stay (ADR-060). */
     private readonly selfCheckIn: SelfCheckInService,
+    /** Each check in files its guest for the village leader, DASSO and district (0114). */
+    private readonly hotelGuests: HotelGuestFilingService,
+    /** Check out completes the booking and releases its escrow to the host (0116). */
+    private readonly completion: StayCompletionService,
+    /** Check out bills the room nights the night audit has not reached yet. */
+    private readonly audit: NightAuditService,
   ) {}
 
   /** Every room in this workspace, with who is in it. */
@@ -126,6 +136,8 @@ export class FrontDeskService {
     ws: ScopedWorkspace,
     bookingId: string,
     body: CheckInRequest,
+    /** Who pressed Check in: the registration filed for local government is theirs (0114). */
+    deskUserId?: string,
   ): Promise<OperatorStay> {
     const booking = assertOwned(
       await this.rooms.findCheckInSubject(bookingId),
@@ -182,9 +194,10 @@ export class FrontDeskService {
       bookingId: booking.id,
       workspaceId: ws.workspaceId,
       guestUserId: booking.guestUserId,
-      // Null: this guest HAS an account, and the account is the better source
-      // of the name. The column is for a walk in, which has none.
-      guestName: null,
+      // The name the desk typed from the ID (main). Readers still prefer the account's name; this is what
+      // they fall back to when the account has none, which is every guest who signed up with only an email
+      // code. With none typed, a broker's guest (0126) has no account, so the booking's own name goes on.
+      guestName: body.guest?.fullName?.trim() || (booking.guestUserId ? null : (booking.guestName ?? null)),
       roomId: room.id,
       // The planned exit is the booking's own checkout date at the property's
       // checkout hour, on the Kigali clock. Read from the booking rather than
@@ -224,6 +237,10 @@ export class FrontDeskService {
     // What the guest sent from their phone before arriving, photo included.
     // After the desk card, so anything the desk typed wins; never throws.
     await this.selfCheckIn.carryToStay(booking.id, created.id);
+    // Last, after the card and the pre-arrival identity, so the registration
+    // is filed from everything known: the guest into the register local
+    // government reads (0114). Never throws.
+    if (deskUserId) await this.hotelGuests.fileStay(created.id, deskUserId);
 
     return this.presentStay(created);
   }
@@ -252,7 +269,7 @@ export class FrontDeskService {
    * nobody could charge, which is most of what a walk in is: somebody who pays
    * at the counter.
    */
-  async walkIn(ws: ScopedWorkspace, body: WalkInRequest): Promise<OperatorStay> {
+  async walkIn(ws: ScopedWorkspace, body: WalkInRequest, deskUserId?: string): Promise<OperatorStay> {
     const room = assertOwned(await this.rooms.findRoom(body.roomId), ws);
     assertInBranchScope(ws, room.propertyId);
     assertRoomTypeOnSale(room);
@@ -290,9 +307,10 @@ export class FrontDeskService {
      * check in with a 409 nobody at the counter could fix. An open ended walk
      * in is asked about tonight only, which is all the desk is promising.
      */
-    const today = now.toISOString().slice(0, 10);
+    // Kigali days, not UTC: between midnight and 02:00 the UTC date is still yesterday.
+    const today = localToday(now);
     const lastNight = plannedExitAt
-      ? plannedExitAt.toISOString().slice(0, 10)
+      ? localToday(plannedExitAt)
       : today;
     const until = lastNight > today ? lastNight : this.dayAfter(today);
     const hold = await this.assignments.firstHoldOnRoom(room.id, today, until);
@@ -362,6 +380,8 @@ export class FrontDeskService {
      * invitation is best effort and the desk can send it again.
      */
     await this.onboarding.registerAndInvite(created.id, body.guest);
+    // A walk in is a guest too: into the register local government reads (0114). Never throws.
+    if (deskUserId) await this.hotelGuests.fileStay(created.id, deskUserId);
 
     return this.presentStay(created);
   }
@@ -383,6 +403,10 @@ export class FrontDeskService {
     assertInBranchScope(ws, stay.propertyId);
     if (stay.lifecycle === 'closed') return this.presentStay(stay);
 
+    // Before the stay closes, so the bill the guest settles carries every night
+    // used, a same-day stay included. Never throws.
+    await this.audit.chargeOnDeparture(stay.id);
+
     const closed = await this.rooms.closeStay({
       stayId: stay.id,
       roomId: stay.roomId,
@@ -399,6 +423,9 @@ export class FrontDeskService {
     // moment the guest walked into the first room.
     if (closed && stay.bookingId) {
       await this.assignments.releaseForBooking(stay.bookingId);
+      // The stay is over: free the nights it no longer uses and pay the host.
+      // Never throws (StayCompletionService), so it cannot un-check-out a guest.
+      await this.completion.completeBooking(stay.bookingId);
     }
     if (!closed) {
       // Somebody else closed it between our read and our write. Their write is
@@ -609,11 +636,18 @@ const PREPAID_STATUSES = new Set(['captured', 'refunded_partial', 'refund_pendin
  * The room the guest already paid for online: the locked nightly rate times
  * the nights, less any refund. Zero when nothing is held (refunded in full,
  * forfeited) or no rate was locked.
+ *
+ * Once a desk change has repriced the stay (0120) the nightly rate is the new
+ * price, so the room money recorded at that change is what was paid. The night
+ * audit then posts the new price, and the bill shows the difference owing, or
+ * in credit, on its own.
  */
 export function prepaidRoomRwf(
-  booking: Pick<CheckInSubject, 'checkIn' | 'checkOut' | 'lockedNightlyRateRwf' | 'paymentStatus' | 'refundRwf'>,
+  booking: Pick<CheckInSubject, 'checkIn' | 'checkOut' | 'lockedNightlyRateRwf' | 'paymentStatus' | 'refundRwf' | 'paidRoomRwf'>,
 ): number {
-  if (!booking.paymentStatus || !PREPAID_STATUSES.has(booking.paymentStatus) || !booking.lockedNightlyRateRwf) return 0;
+  if (!booking.paymentStatus || !PREPAID_STATUSES.has(booking.paymentStatus)) return 0;
+  if (booking.paidRoomRwf != null) return Math.max(0, booking.paidRoomRwf);
+  if (!booking.lockedNightlyRateRwf) return 0;
   const nights = Math.round(
     (Date.parse(`${booking.checkOut}T00:00:00Z`) - Date.parse(`${booking.checkIn}T00:00:00Z`)) / 86_400_000,
   );

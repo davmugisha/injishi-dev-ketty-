@@ -1,4 +1,4 @@
-import { PropertyCard, type AccommodationClass } from "@injishi/contracts";
+import { ACCOMMODATION_CLASS_LABEL, AccommodationClass, PropertyCard } from "@injishi/contracts";
 import { formatPrice } from "@injishi/utils";
 import { byNightlyRate, listingFor, type Listing } from "@/data/listings";
 import type { GalleryImage, PropertyDetail } from "@/data/properties";
@@ -68,16 +68,22 @@ function districtSlug(name: string | null): DistrictSlug {
   return match ?? "kigali";
 }
 
-/** The class a business trades as, read from its name where it says; `other` where it does not. */
-function kindOf(name: string): AccommodationClass {
-  if (/guest\s*house/i.test(name)) return "guest_house";
-  if (/lodge/i.test(name)) return "lodge";
-  if (/apartment/i.test(name)) return "apartment";
-  if (/villa/i.test(name)) return "villa";
-  if (/motel/i.test(name)) return "motel";
-  if (/hotel/i.test(name)) return "hotel";
-  if (/camp/i.test(name)) return "tented_camp";
-  return "other";
+/**
+ * The class the business registered as (`PropertyCard.businessKind`). It used
+ * to be guessed from the property's name, so "Hilltop Hotel Apartments" read as
+ * an apartment whatever it registered as. A venue or an unknown kind is `other`.
+ */
+function kindOf(businessKind: string | null): AccommodationClass {
+  const parsed = AccommodationClass.safeParse(businessKind);
+  return parsed.success ? parsed.data : "other";
+}
+
+/** "Hotel", "Coffee shop", "Stay": the kind in words, for "Hotel in Musanze". */
+function kindWords(businessKind: string | null): string {
+  if (businessKind === "coffee_shop") return "Coffee shop";
+  if (businessKind === "bar_restaurant") return "Bar & Restaurant";
+  const parsed = AccommodationClass.safeParse(businessKind);
+  return parsed.success && parsed.data !== "other" ? ACCOMMODATION_CLASS_LABEL[parsed.data] : "Stay";
 }
 
 /** The property's own photographs, and none in their place when it has uploaded none. */
@@ -95,19 +101,22 @@ function cardToProperty(card: PropertyCard): PropertyDetail {
   const district = card.districtName ?? "Rwanda";
   const [lead, ...rest] = card.name.split(" ");
   const rate = card.fromNightlyRateRwf;
-  const guests = card.maxGuests ?? 2;
+  // The host's own figure, or none: never a default that reads as a fact.
+  const guests = card.maxGuests;
   const about = (card.description ?? "")
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean);
 
+  // Let whole only when the business is a villa or an apartment; any other stay priced per unit is a room.
+  const wholePlace = card.businessKind === "villa" || card.businessKind === "apartment";
   return {
     slug: card.slug,
     name: card.name,
     location: district,
     district: districtSlug(card.districtName),
-    kind: kindOf(card.name),
-    propertyType: `${card.name.match(/guest\s*house|lodge|hotel|apartment|villa/i)?.[0] ?? "Stay"} in ${district}`,
+    kind: kindOf(card.businessKind),
+    propertyType: `${kindWords(card.businessKind)} in ${district}`,
     starClass: null,
     rooms: null,
     // Unknown: `PropertyCard` carries no bedroom count. This was a literal 1, so
@@ -117,7 +126,7 @@ function cardToProperty(card: PropertyCard): PropertyDetail {
     maxGuests: guests,
     capacity: [
       `${card.roomTypeCount} room type${card.roomTypeCount === 1 ? "" : "s"}`,
-      `Sleeps up to ${guests}`,
+      ...(guests !== null ? [`Sleeps up to ${guests}`] : []),
     ],
     heroImage: images[0] ?? null,
     gallery: images,
@@ -125,7 +134,23 @@ function cardToProperty(card: PropertyCard): PropertyDetail {
     // Per person: every Injishi booking is charged rate × guests × nights
     // (owner decision 2026-09-15, `computeBreakdown`). This said "per room",
     // so a couple read half of what checkout then charged them.
-    price: { fromUsd: null, fromRwf: rate, basis: "per person, per night", includes: "Room only" },
+    // A villa or apartment is let whole (per night); a hotel, lodge or guest house
+    // is priced per room since 0117; a bar or coffee shop lists menu prices and is
+    // not booked (each).
+    price: {
+      fromUsd: null,
+      fromRwf: rate,
+      basis:
+        card.fromPriceBasis === "per_unit"
+          ? wholePlace
+            ? "per night"
+            : "per room, per night"
+          : card.fromPriceBasis === "per_item"
+            ? "each"
+            : "per person, per night",
+      includes:
+        card.fromPriceBasis === "per_item" ? "Menu" : card.fromPriceBasis === "per_unit" && wholePlace ? "Whole place" : "Room only",
+    },
     nightlyRateRwf: rate,
     rating: null,
     operator: null,

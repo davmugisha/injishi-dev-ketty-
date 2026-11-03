@@ -1,9 +1,15 @@
 import type { MobileMoneyNetwork, PaymentAttemptState } from '@injishi/contracts';
 
 /** Mirrors the Postgres `payment_attempt_purpose` enum. */
-export type PaymentAttemptPurpose = 'booking' | 'service_order' | 'registration_fee';
+export type PaymentAttemptPurpose =
+  | 'booking'
+  | 'service_order'
+  | 'registration_fee'
+  | 'psf_membership'
+  | 'booking_change'
+  | 'broker_group';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, isNull, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 
 import { hasFreeUnitEveryNight } from '../domain/sellable-capacity';
 
@@ -41,6 +47,10 @@ export interface PaymentAttemptRow {
   serviceOrderId: string | null;
   /** Set on a `registration_fee` attempt: the registration invoice it pays (073-gtbank-payments AC-16). */
   subscriptionInvoiceId: string | null;
+  /** Set on a `booking_change` attempt: the reservation change whose difference it pays (0120). */
+  bookingChangeId: string | null;
+  /** Set on a `broker_group` attempt: the broker's group of rooms it pays for (0126). */
+  brokerGroupId: string | null;
   /** The stay, on a `booking` attempt only; null on an order's. */
   roomTypeId: string | null;
   checkIn: string | null;
@@ -91,6 +101,8 @@ export type RecordAttemptInput = RecordAttemptCommon &
       }
     | { purpose: 'service_order'; serviceOrderId: string }
     | { purpose: 'registration_fee'; subscriptionInvoiceId: string }
+    | { purpose: 'booking_change'; bookingChangeId: string; bookingId: string }
+    | { purpose: 'broker_group'; brokerGroupId: string }
   );
 
 @Injectable()
@@ -115,7 +127,15 @@ export class PaymentAttemptRepository {
               purpose: 'registration_fee' as const,
               subscriptionInvoiceId: input.subscriptionInvoiceId,
             }
-          : {
+          : input.purpose === 'booking_change'
+            ? {
+                purpose: 'booking_change' as const,
+                bookingChangeId: input.bookingChangeId,
+                bookingId: input.bookingId,
+              }
+            : input.purpose === 'broker_group'
+              ? { purpose: 'broker_group' as const, brokerGroupId: input.brokerGroupId }
+            : {
               purpose: 'booking' as const,
               roomTypeId: input.roomTypeId,
               checkIn: input.checkIn,
@@ -204,6 +224,25 @@ export class PaymentAttemptRepository {
   }
 
   /**
+   * A desk's MoMo request for a change's difference, by its token, scoped to the workspace that sent it
+   * (0120): the desk polls it, not the guest, so the workspace is the scope a guest id would be.
+   */
+  async findChangeAttempt(attemptToken: string, workspaceId: string): Promise<PaymentAttemptRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(paymentAttempts)
+      .where(
+        and(
+          eq(paymentAttempts.attemptToken, attemptToken),
+          eq(paymentAttempts.workspaceId, workspaceId),
+          eq(paymentAttempts.purpose, 'booking_change'),
+        ),
+      )
+      .limit(1);
+    return row ? shape(row) : null;
+  }
+
+  /**
    * Mark an attempt settled. A booking attempt names the reservation it
    * produced; an order attempt already names its order, so passes null.
    */
@@ -245,6 +284,56 @@ export class PaymentAttemptRepository {
           eq(paymentAttempts.id, id),
           eq(paymentAttempts.state, 'confirmed'),
           eq(paymentAttempts.purpose, 'registration_fee'),
+        ),
+      )
+      .returning({ id: paymentAttempts.id });
+    return moved.length > 0;
+  }
+
+  /**
+   * A confirmed change payment whose change could no longer be applied (0120): refunded in full, and
+   * the attempt says why. Guarded on `confirmed`, so it happens once.
+   */
+  /** A broker group's settled payment that bought nothing (its rooms sold out): refused, and refunded by the caller (0126). */
+  async markBrokerGroupRefused(id: string, failureReason: string): Promise<boolean> {
+    const moved = await this.db
+      .update(paymentAttempts)
+      .set({ state: 'refused', failureReason, updatedAt: new Date() })
+      .where(
+        and(
+          eq(paymentAttempts.id, id),
+          eq(paymentAttempts.state, 'confirmed'),
+          eq(paymentAttempts.purpose, 'broker_group'),
+        ),
+      )
+      .returning({ id: paymentAttempts.id });
+    return moved.length > 0;
+  }
+
+  /** The attempts behind broker groups, newest first per group: what the broker's page shows of each prompt. */
+  async latestForBrokerGroups(groupIds: string[]): Promise<Map<string, PaymentAttemptRow>> {
+    const out = new Map<string, PaymentAttemptRow>();
+    if (groupIds.length === 0) return out;
+    const rows = await this.db
+      .select()
+      .from(paymentAttempts)
+      .where(and(eq(paymentAttempts.purpose, 'broker_group'), inArray(paymentAttempts.brokerGroupId, groupIds)))
+      .orderBy(desc(paymentAttempts.createdAt));
+    for (const row of rows) {
+      if (row.brokerGroupId && !out.has(row.brokerGroupId)) out.set(row.brokerGroupId, shape(row));
+    }
+    return out;
+  }
+
+  async markChangeRefused(id: string, failureReason: string): Promise<boolean> {
+    const moved = await this.db
+      .update(paymentAttempts)
+      .set({ state: 'refused', failureReason, updatedAt: new Date() })
+      .where(
+        and(
+          eq(paymentAttempts.id, id),
+          eq(paymentAttempts.state, 'confirmed'),
+          eq(paymentAttempts.purpose, 'booking_change'),
         ),
       )
       .returning({ id: paymentAttempts.id });
@@ -463,6 +552,8 @@ function shape(row: typeof paymentAttempts.$inferSelect): PaymentAttemptRow {
     purpose: row.purpose,
     serviceOrderId: row.serviceOrderId ?? null,
     subscriptionInvoiceId: row.subscriptionInvoiceId ?? null,
+    bookingChangeId: row.bookingChangeId ?? null,
+    brokerGroupId: row.brokerGroupId ?? null,
     roomTypeId: row.roomTypeId ?? null,
     checkIn: row.checkIn ?? null,
     checkOut: row.checkOut ?? null,

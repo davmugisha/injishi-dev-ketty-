@@ -24,9 +24,10 @@ import { Field, Offline, SelectField, TextInput } from "./wizard-ui";
  * Proving who you are on the You step. No code is sent to any phone (ADR-075 AC-4).
  *
  * - A RWANDAN NATIONAL ID is checked by its number against NIDA's register,
- *   through GTBank, with a selfie (the owner's call, 2026-10-30): type the 16
- *   digits, take a selfie. Where that check is switched off (`nationalIdMode`
- *   `off`) the card is scanned instead, front then selfie, as before.
+ *   through GTBank: type the 16 digits. Since 2026-11-02 (the owner's call) no
+ *   selfie is taken: NIDA's details fill the form and the document reviewer
+ *   confirms the ID. Where that check is switched off (`nationalIdMode` `off`)
+ *   the card is scanned instead, front then selfie, as before.
  * - A PASSPORT is checked by Smile ID: the country that issued it, the photo
  *   page, then a selfie.
  *
@@ -64,11 +65,11 @@ export function IdScanner({
   const passport = documentType === "passport";
   const byNumber = !passport && nationalIdMode !== "off";
   const numberProblem = byNumber && nationalId.trim() !== "" ? nationalIdError(nationalId) : null;
+  // A National ID checked by its number needs no photo (2026-11-02): the reviewer confirms it instead.
   const ready =
-    Boolean(selfie) &&
     consent &&
     online &&
-    (byNumber ? nationalId.trim() !== "" && !numberProblem : Boolean(front) && (!passport || country !== ""));
+    (byNumber ? nationalId.trim() !== "" && !numberProblem : Boolean(selfie) && Boolean(front) && (!passport || country !== ""));
   const demo = byNumber ? nationalIdMode : mode;
 
   const reset = () => {
@@ -80,9 +81,20 @@ export function IdScanner({
 
   const check = async () => {
     setTouched(true);
-    if (!ready || !selfie) return;
+    if (!ready) return;
     setBusy(true);
     setProblem(null);
+    if (byNumber) {
+      const res = await checkNationalId(nationalId.replace(/\s+/g, ""));
+      setBusy(false);
+      if (res.status !== "ok") return setProblem(apiResultMessage(res));
+      onScanned(res.data);
+      return;
+    }
+    if (!selfie) {
+      setBusy(false);
+      return;
+    }
     const uploads = await Promise.all([
       uploadIdPhoto(selfie, crypto.randomUUID()),
       byNumber || !front ? Promise.resolve(null) : uploadIdPhoto(front, crypto.randomUUID()),
@@ -96,14 +108,12 @@ export function IdScanner({
     }
     const [selfieUpload, frontUpload] = uploads;
     const selfieKey = selfieUpload?.status === "ok" ? selfieUpload.data.objectKey : "";
-    const res = byNumber
-      ? await checkNationalId(nationalId.replace(/\s+/g, ""), selfieKey)
-      : await scanIdentity(
-          documentType,
-          frontUpload?.status === "ok" ? frontUpload.data.objectKey : "",
-          selfieKey,
-          passport ? country : undefined,
-        );
+    const res = await scanIdentity(
+      documentType,
+      frontUpload?.status === "ok" ? frontUpload.data.objectKey : "",
+      selfieKey,
+      passport ? country : undefined,
+    );
     setBusy(false);
     if (res.status !== "ok") {
       setProblem(apiResultMessage(res));
@@ -167,8 +177,9 @@ export function IdScanner({
         </Field>
       ) : null}
 
-      <div className={byNumber ? "grid gap-3" : "grid gap-3 sm:grid-cols-2"}>
-        {byNumber ? null : (
+      {/* A National ID checked by its number takes no photo (2026-11-02); a card scan still takes two. */}
+      {byNumber ? null : (
+        <div className="grid gap-3 sm:grid-cols-2">
           <PhotoSlot
             id="register-id-front"
             step={1}
@@ -179,33 +190,29 @@ export function IdScanner({
             file={front}
             onFile={setFront}
           />
-        )}
-        <PhotoSlot
-          id="register-id-selfie"
-          step={byNumber ? 1 : 2}
-          label="A selfie"
-          hint={
-            byNumber
-              ? "Face the camera, nothing covering your face. NIDA compares it with your ID photo."
-              : "Face the camera, nothing covering your face."
-          }
-          icon={<ScanFace size={16} aria-hidden />}
-          capture="user"
-          file={selfie}
-          onFile={setSelfie}
-        />
-      </div>
+          <PhotoSlot
+            id="register-id-selfie"
+            step={2}
+            label="A selfie"
+            hint="Face the camera, nothing covering your face."
+            icon={<ScanFace size={16} aria-hidden />}
+            capture="user"
+            file={selfie}
+            onFile={setSelfie}
+          />
+        </div>
+      )}
 
       {demo === "mock" ? (
         <p className="text-xs text-muted-foreground">
           {byNumber
-            ? "Demo: NIDA is a stand-in here with made-up people. Type any well formed National ID and use any selfie, never a real one."
+            ? "Demo: NIDA is a stand-in here with made-up people. Type any well formed National ID, never a real one."
             : "Demo: nothing is read from the photos. The demo makes up the details, so use any two different pictures, never a real ID."}
         </p>
       ) : demo === "sandbox" ? (
         <p className="text-xs text-muted-foreground">
-          Test service: this check goes to Injishi Mock APIs, not to {byNumber ? "NIDA" : "Smile ID"}. Use a person and
-          their demo {byNumber ? "selfie" : "photos"} from its console, never a real ID.
+          Test service: this check goes to Injishi Mock APIs, not to {byNumber ? "NIDA" : "Smile ID"}. Use{" "}
+          {byNumber ? "a National ID" : "a person and their demo photos"} from its console, never a real ID.
         </p>
       ) : demo === "off" ? (
         <p className="text-xs text-muted-foreground">
@@ -335,7 +342,7 @@ function provenance(person: IdentityOnFile): string {
   if (person.source === "registry") {
     return person.checked
       ? "From NIDA's register. If one is wrong, contact support."
-      : "From NIDA's register. PSF compares your selfie with your ID photo before approving.";
+      : "From NIDA's register. The document reviewer confirms your ID before approving.";
   }
   if (person.checked) return "Read from your ID. If one is wrong, contact support.";
   return "You typed these. PSF compares them with your photos before approving.";

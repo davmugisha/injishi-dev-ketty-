@@ -3,7 +3,7 @@ import { describe, expect, it, type Mock, vi } from 'vitest';
 import { UnprocessableEntityException } from '@nestjs/common';
 
 import type { RegistrationFees } from '../domain/registration-fees';
-import { PaymentSeam, resolvePaymentSeam } from '../../payments/domain/payment-seam';
+import { PaymentSeam, resolvePaymentSeam } from '../../pay/domain/payment-seam';
 import type { PaymentAttemptService } from './payment-attempt.service';
 import { RegistrationFeePaymentService } from './registration-fee-payment.service';
 

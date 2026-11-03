@@ -125,6 +125,9 @@ export function destinationAfterSignIn(
     if (isSetupPath(path)) return target;
     const screen = screenByPath(path);
     if (screen && canAccess(personaId, screen.board)) return target;
+    // `/messages` is one route for three people (2026-11-02): it resolves to the front desk's board, so a
+    // landlord or broker following a message digest is let back to it under their own board.
+    if (path === "/messages" && (canAccess(personaId, "LandlordMessages") || canAccess(personaId, "BrokerMessages"))) return target;
   }
   return homeAfterSignIn(personaId, email, home);
 }

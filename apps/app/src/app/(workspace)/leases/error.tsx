@@ -1,12 +1,7 @@
 "use client";
 
-import { ErrorBlock, PageContent, PageHeader } from "@injishi/ui";
+import { AreaError } from "@/components/shell/WorkspaceNav";
 
-export default function LeasesError({ reset }: { error: Error; reset: () => void }) {
-  return (
-    <PageContent>
-      <PageHeader title="Leases" />
-      <ErrorBlock title="Couldn't load your leases" onRetry={reset} />
-    </PageContent>
-  );
+export default function PageError({ reset }: { error: Error; reset: () => void }) {
+  return <AreaError heading="Leases" title="Couldn't load your leases" onRetry={reset} />;
 }

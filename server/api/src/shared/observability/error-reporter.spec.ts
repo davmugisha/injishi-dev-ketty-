@@ -21,7 +21,7 @@ vi.mock('@sentry/node', () => {
 
 import * as Sentry from '@sentry/node';
 
-import type { EbmSaleTrigger } from '../../modules/ebm/application/ebm-sale-trigger.service';
+import type { EbmSaleTrigger } from '../../modules/platform/fiscal/application/ebm-sale-trigger.service';
 import type { BookingNotificationsService } from '../../modules/pms/application/booking-notifications.service';
 import type { PaymentAttemptService } from '../../modules/pms/application/payment-attempt.service';
 import { BookingService } from '../../modules/pms/application/booking.service';
@@ -30,8 +30,8 @@ import {
   type BookingRepository,
 } from '../../modules/pms/infrastructure/booking.repository';
 import type { ListingService } from '../../modules/listing/application/listing.service';
-import { PaymentCompensationService } from '../../modules/payments/application/payment-compensation.service';
-import type { PaymentPort } from '../../modules/payments/domain/payment-port';
+import { PaymentCompensationService } from '../../modules/pay/application/payment-compensation.service';
+import type { PaymentPort } from '../../modules/pay/domain/payment-port';
 import type { Database } from '../database/database.module';
 import {
   INERT_REPORTER,
@@ -40,7 +40,7 @@ import {
   type Alarm,
   type ErrorReporter,
 } from './error-reporter';
-import type { PaymentSeam } from '../../modules/payments/domain/payment-seam';
+import type { PaymentSeam } from '../../modules/pay/domain/payment-seam';
 
 const sentry = Sentry as unknown as {
   init: Mock;
@@ -170,6 +170,7 @@ describe('the money alarms, from their call sites', () => {
         create: vi.fn().mockRejectedValue(new NoAvailabilityError()),
       } as unknown as BookingRepository,
       {
+        stayRate: vi.fn(async (rt: { nightlyRateRwf: number | null }) => ({ nightlyRateRwf: rt.nightlyRateRwf ?? 0, discountPct: 0, closedOn: null, minNights: 1, maxNights: 90 })),
         findBookableRoomType: vi.fn().mockResolvedValue({
           id: '44444444-4444-4444-4444-444444444444',
           workspaceId: 'ws',

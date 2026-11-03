@@ -18,16 +18,16 @@ export declare const RentalsAttentionItem: z.ZodObject<{
     /** danger: money or a legal deadline is late; warning: needs doing soon; info: waiting on someone else. */
     tone: z.ZodEnum<["danger", "warning", "info"]>;
 }, "strip", z.ZodTypeAny, {
+    count: number;
     kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
     amountRwf: number | null;
-    count: number;
     title: string;
     detail: string | null;
     tone: "info" | "warning" | "danger";
 }, {
+    count: number;
     kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
     amountRwf: number | null;
-    count: number;
     title: string;
     detail: string | null;
     tone: "info" | "warning" | "danger";
@@ -90,12 +90,12 @@ export declare const RentalsSummary: z.ZodObject<{
         complete: boolean;
         total: number;
         done: number;
-        next: "units" | "location" | "signatory" | "getting_paid" | "lease_defaults" | null;
+        next: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults" | null;
     }, {
         complete: boolean;
         total: number;
         done: number;
-        next: "units" | "location" | "signatory" | "getting_paid" | "lease_defaults" | null;
+        next: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults" | null;
     }>;
     hasPayoutAccount: z.ZodBoolean;
     attention: z.ZodArray<z.ZodObject<{
@@ -110,16 +110,16 @@ export declare const RentalsSummary: z.ZodObject<{
         /** danger: money or a legal deadline is late; warning: needs doing soon; info: waiting on someone else. */
         tone: z.ZodEnum<["danger", "warning", "info"]>;
     }, "strip", z.ZodTypeAny, {
+        count: number;
         kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
         amountRwf: number | null;
-        count: number;
         title: string;
         detail: string | null;
         tone: "info" | "warning" | "danger";
     }, {
+        count: number;
         kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
         amountRwf: number | null;
-        count: number;
         title: string;
         detail: string | null;
         tone: "info" | "warning" | "danger";
@@ -142,13 +142,13 @@ export declare const RentalsSummary: z.ZodObject<{
         complete: boolean;
         total: number;
         done: number;
-        next: "units" | "location" | "signatory" | "getting_paid" | "lease_defaults" | null;
+        next: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults" | null;
     };
     hasPayoutAccount: boolean;
     attention: {
+        count: number;
         kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
         amountRwf: number | null;
-        count: number;
         title: string;
         detail: string | null;
         tone: "info" | "warning" | "danger";
@@ -171,13 +171,13 @@ export declare const RentalsSummary: z.ZodObject<{
         complete: boolean;
         total: number;
         done: number;
-        next: "units" | "location" | "signatory" | "getting_paid" | "lease_defaults" | null;
+        next: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults" | null;
     };
     hasPayoutAccount: boolean;
     attention: {
+        count: number;
         kind: "waiting_for_tenant" | "ready_to_start" | "setup_incomplete" | "no_payout_account" | "overdue_rent" | "leases_to_sign" | "notices_to_acknowledge" | "filings_due";
         amountRwf: number | null;
-        count: number;
         title: string;
         detail: string | null;
         tone: "info" | "warning" | "danger";
@@ -195,13 +195,13 @@ export declare const RentalsMonthFigure: z.ZodObject<{
     spentRwf: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     month: string;
-    expectedRwf: number;
     collectedRwf: number;
+    expectedRwf: number;
     spentRwf: number;
 }, {
     month: string;
-    expectedRwf: number;
     collectedRwf: number;
+    expectedRwf: number;
     spentRwf: number;
 }>;
 export type RentalsMonthFigure = z.infer<typeof RentalsMonthFigure>;
@@ -272,13 +272,13 @@ export declare const RentalsOverview: z.ZodObject<{
         spentRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         month: string;
-        expectedRwf: number;
         collectedRwf: number;
+        expectedRwf: number;
         spentRwf: number;
     }, {
         month: string;
-        expectedRwf: number;
         collectedRwf: number;
+        expectedRwf: number;
         spentRwf: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -299,8 +299,8 @@ export declare const RentalsOverview: z.ZodObject<{
     units: number;
     months: {
         month: string;
-        expectedRwf: number;
         collectedRwf: number;
+        expectedRwf: number;
         spentRwf: number;
     }[];
     properties: number;
@@ -328,8 +328,8 @@ export declare const RentalsOverview: z.ZodObject<{
     units: number;
     months: {
         month: string;
-        expectedRwf: number;
         collectedRwf: number;
+        expectedRwf: number;
         spentRwf: number;
     }[];
     properties: number;
@@ -465,8 +465,6 @@ export declare const RentalPropertyView: z.ZodObject<{
     name: string;
     id: string;
     street: string | null;
-    located: boolean;
-    units: number;
     place: {
         province: {
             name: string;
@@ -489,12 +487,12 @@ export declare const RentalPropertyView: z.ZodObject<{
             id: number;
         } | null;
     };
+    units: number;
+    located: boolean;
 }, {
     name: string;
     id: string;
     street: string | null;
-    located: boolean;
-    units: number;
     place: {
         province: {
             name: string;
@@ -517,6 +515,8 @@ export declare const RentalPropertyView: z.ZodObject<{
             id: number;
         } | null;
     };
+    units: number;
+    located: boolean;
 }>;
 export type RentalPropertyView = z.infer<typeof RentalPropertyView>;
 /** `GET /ops/properties`: the business's buildings, the first made from the registration when there is none. */
@@ -628,8 +628,6 @@ export declare const RentalPropertyList: z.ZodObject<{
         name: string;
         id: string;
         street: string | null;
-        located: boolean;
-        units: number;
         place: {
             province: {
                 name: string;
@@ -652,12 +650,12 @@ export declare const RentalPropertyList: z.ZodObject<{
                 id: number;
             } | null;
         };
+        units: number;
+        located: boolean;
     }, {
         name: string;
         id: string;
         street: string | null;
-        located: boolean;
-        units: number;
         place: {
             province: {
                 name: string;
@@ -680,14 +678,14 @@ export declare const RentalPropertyList: z.ZodObject<{
                 id: number;
             } | null;
         };
+        units: number;
+        located: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     properties: {
         name: string;
         id: string;
         street: string | null;
-        located: boolean;
-        units: number;
         place: {
             province: {
                 name: string;
@@ -710,14 +708,14 @@ export declare const RentalPropertyList: z.ZodObject<{
                 id: number;
             } | null;
         };
+        units: number;
+        located: boolean;
     }[];
 }, {
     properties: {
         name: string;
         id: string;
         street: string | null;
-        located: boolean;
-        units: number;
         place: {
             province: {
                 name: string;
@@ -740,6 +738,8 @@ export declare const RentalPropertyList: z.ZodObject<{
                 id: number;
             } | null;
         };
+        units: number;
+        located: boolean;
     }[];
 }>;
 export type RentalPropertyList = z.infer<typeof RentalPropertyList>;
@@ -790,13 +790,13 @@ export declare const UnitPhotoView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     id: string;
     url: string;
-    position: number;
     caption: string | null;
+    position: number;
 }, {
     id: string;
     url: string;
-    position: number;
     caption: string | null;
+    position: number;
 }>;
 export type UnitPhotoView = z.infer<typeof UnitPhotoView>;
 export declare const UnitVideoView: z.ZodObject<{
@@ -810,17 +810,17 @@ export declare const UnitVideoView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     id: string;
     url: string;
+    updatedAt: string;
     posterUrl: string | null;
     durationS: number;
-    updatedAt: string;
     width: number | null;
     height: number | null;
 }, {
     id: string;
     url: string;
+    updatedAt: string;
     posterUrl: string | null;
     durationS: number;
-    updatedAt: string;
     width: number | null;
     height: number | null;
 }>;
@@ -838,13 +838,13 @@ export declare const UnitMediaView: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         url: string;
-        position: number;
         caption: string | null;
+        position: number;
     }, {
         id: string;
         url: string;
-        position: number;
         caption: string | null;
+        position: number;
     }>, "many">;
     video: z.ZodNullable<z.ZodObject<{
         id: z.ZodString;
@@ -857,17 +857,17 @@ export declare const UnitMediaView: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         url: string;
+        updatedAt: string;
         posterUrl: string | null;
         durationS: number;
-        updatedAt: string;
         width: number | null;
         height: number | null;
     }, {
         id: string;
         url: string;
+        updatedAt: string;
         posterUrl: string | null;
         durationS: number;
-        updatedAt: string;
         width: number | null;
         height: number | null;
     }>>;
@@ -876,15 +876,15 @@ export declare const UnitMediaView: z.ZodObject<{
     photos: {
         id: string;
         url: string;
-        position: number;
         caption: string | null;
+        position: number;
     }[];
     video: {
         id: string;
         url: string;
+        updatedAt: string;
         posterUrl: string | null;
         durationS: number;
-        updatedAt: string;
         width: number | null;
         height: number | null;
     } | null;
@@ -893,15 +893,15 @@ export declare const UnitMediaView: z.ZodObject<{
     photos: {
         id: string;
         url: string;
-        position: number;
         caption: string | null;
+        position: number;
     }[];
     video: {
         id: string;
         url: string;
+        updatedAt: string;
         posterUrl: string | null;
         durationS: number;
-        updatedAt: string;
         width: number | null;
         height: number | null;
     } | null;
@@ -935,4 +935,191 @@ export declare const UnitVideoFields: z.ZodObject<{
     height?: number | undefined;
 }>;
 export type UnitVideoFields = z.infer<typeof UnitVideoFields>;
+/** A rent or deposit charge on the landlord's calendar (2026-10-28). */
+export declare const RentalsMoneyCharge: z.ZodObject<{
+    id: z.ZodString;
+    leaseId: z.ZodString;
+    kind: z.ZodEnum<["rent", "deposit"]>;
+    dueOn: z.ZodEffects<z.ZodString, string, string>;
+    amountRwf: z.ZodNumber;
+    paidRwf: z.ZodNumber;
+    /** `overdue` is open and past its due day. */
+    status: z.ZodEnum<["paid", "open", "overdue"]>;
+    tenantName: z.ZodString;
+    unitLabel: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    status: "open" | "paid" | "overdue";
+    id: string;
+    kind: "deposit" | "rent";
+    amountRwf: number;
+    paidRwf: number;
+    leaseId: string;
+    unitLabel: string;
+    tenantName: string;
+    dueOn: string;
+}, {
+    status: "open" | "paid" | "overdue";
+    id: string;
+    kind: "deposit" | "rent";
+    amountRwf: number;
+    paidRwf: number;
+    leaseId: string;
+    unitLabel: string;
+    tenantName: string;
+    dueOn: string;
+}>;
+export type RentalsMoneyCharge = z.infer<typeof RentalsMoneyCharge>;
+/** A payment that arrived, on the day it arrived in Kigali. */
+export declare const RentalsMoneyPayment: z.ZodObject<{
+    id: z.ZodString;
+    leaseId: z.ZodString;
+    day: z.ZodEffects<z.ZodString, string, string>;
+    amountRwf: z.ZodNumber;
+    tenantName: z.ZodString;
+    unitLabel: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    id: string;
+    amountRwf: number;
+    leaseId: string;
+    unitLabel: string;
+    tenantName: string;
+    day: string;
+}, {
+    id: string;
+    amountRwf: number;
+    leaseId: string;
+    unitLabel: string;
+    tenantName: string;
+    day: string;
+}>;
+export type RentalsMoneyPayment = z.infer<typeof RentalsMoneyPayment>;
+/**
+ * `GET /ops/rentals/money?from=&to=`: the landlord's money by the day (2026-10-28), for the home's
+ * period filter, area charts and payments calendar. At most two years and two months.
+ */
+export declare const RentalsMoney: z.ZodObject<{
+    from: z.ZodEffects<z.ZodString, string, string>;
+    to: z.ZodEffects<z.ZodString, string, string>;
+    today: z.ZodEffects<z.ZodString, string, string>;
+    charges: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        leaseId: z.ZodString;
+        kind: z.ZodEnum<["rent", "deposit"]>;
+        dueOn: z.ZodEffects<z.ZodString, string, string>;
+        amountRwf: z.ZodNumber;
+        paidRwf: z.ZodNumber;
+        /** `overdue` is open and past its due day. */
+        status: z.ZodEnum<["paid", "open", "overdue"]>;
+        tenantName: z.ZodString;
+        unitLabel: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        status: "open" | "paid" | "overdue";
+        id: string;
+        kind: "deposit" | "rent";
+        amountRwf: number;
+        paidRwf: number;
+        leaseId: string;
+        unitLabel: string;
+        tenantName: string;
+        dueOn: string;
+    }, {
+        status: "open" | "paid" | "overdue";
+        id: string;
+        kind: "deposit" | "rent";
+        amountRwf: number;
+        paidRwf: number;
+        leaseId: string;
+        unitLabel: string;
+        tenantName: string;
+        dueOn: string;
+    }>, "many">;
+    payments: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        leaseId: z.ZodString;
+        day: z.ZodEffects<z.ZodString, string, string>;
+        amountRwf: z.ZodNumber;
+        tenantName: z.ZodString;
+        unitLabel: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        amountRwf: number;
+        leaseId: string;
+        unitLabel: string;
+        tenantName: string;
+        day: string;
+    }, {
+        id: string;
+        amountRwf: number;
+        leaseId: string;
+        unitLabel: string;
+        tenantName: string;
+        day: string;
+    }>, "many">;
+    /** Expenses paid, summed per day. */
+    spent: z.ZodArray<z.ZodObject<{
+        day: z.ZodEffects<z.ZodString, string, string>;
+        amountRwf: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        amountRwf: number;
+        day: string;
+    }, {
+        amountRwf: number;
+        day: string;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    payments: {
+        id: string;
+        amountRwf: number;
+        leaseId: string;
+        unitLabel: string;
+        tenantName: string;
+        day: string;
+    }[];
+    from: string;
+    to: string;
+    charges: {
+        status: "open" | "paid" | "overdue";
+        id: string;
+        kind: "deposit" | "rent";
+        amountRwf: number;
+        paidRwf: number;
+        leaseId: string;
+        unitLabel: string;
+        tenantName: string;
+        dueOn: string;
+    }[];
+    today: string;
+    spent: {
+        amountRwf: number;
+        day: string;
+    }[];
+}, {
+    payments: {
+        id: string;
+        amountRwf: number;
+        leaseId: string;
+        unitLabel: string;
+        tenantName: string;
+        day: string;
+    }[];
+    from: string;
+    to: string;
+    charges: {
+        status: "open" | "paid" | "overdue";
+        id: string;
+        kind: "deposit" | "rent";
+        amountRwf: number;
+        paidRwf: number;
+        leaseId: string;
+        unitLabel: string;
+        tenantName: string;
+        dueOn: string;
+    }[];
+    today: string;
+    spent: {
+        amountRwf: number;
+        day: string;
+    }[];
+}>;
+export type RentalsMoney = z.infer<typeof RentalsMoney>;
 //# sourceMappingURL=overview.d.ts.map

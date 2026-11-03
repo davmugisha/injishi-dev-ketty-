@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { CircleInfo, TriangleExclamation, Xmark } from "@gravity-ui/icons";
 import {
   Alert,
@@ -16,7 +18,7 @@ import {
   Label,
   TextField,
 } from "@heroui/react";
-import { CellSwitch, RadioButtonGroup, Segment } from "@heroui-pro/react";
+import { RadioButtonGroup, Segment } from "@heroui-pro/react";
 import type {
   TeamRolesInviteDraft,
   TeamRolesRole,
@@ -111,7 +113,7 @@ export function TeamRolesRolePicker({
   countFor,
 }: {
   roles: TeamRolesRole[];
-  value: TeamRolesRoleId;
+  value: TeamRolesRoleId | "";
   onChange: (role: TeamRolesRoleId) => void;
   countFor: (role: TeamRolesRole) => number;
 }) {
@@ -190,8 +192,18 @@ export function TeamRolesScopePicker({
   value: string[];
   onChange: (ids: string[]) => void;
 }) {
+  // Said only once someone has unticked everything, never on a form nobody has touched yet.
+  const [touched, setTouched] = useState(false);
   return (
-    <CheckboxGroup value={value} onChange={onChange} isInvalid={value.length === 0} className="flex flex-col gap-1.5">
+    <CheckboxGroup
+      value={value}
+      onChange={(ids) => {
+        setTouched(true);
+        onChange(ids);
+      }}
+      isInvalid={touched && value.length === 0}
+      className="flex flex-col gap-1.5"
+    >
       <Label>Scope · legal entity and property</Label>
       <div className="flex flex-col gap-0.5">
         {scopes.map((s) =>
@@ -277,7 +289,8 @@ export function TeamRolesStepUp({
 export interface TeamRolesInviteState {
   name: string;
   contact: string;
-  role: TeamRolesRoleId;
+  /** Empty until the owner picks one: no role is chosen for them. */
+  role: TeamRolesRoleId | "";
   scope: string[];
   expiry: string;
   endDate: string;
@@ -305,7 +318,9 @@ export function TeamRolesInviteForm({
   permissionsFor: (role: TeamRolesRole) => string[];
   stepUp: TeamRolesStepUpChannel;
 }) {
-  const role = roles.find((r) => r.id === state.role) ?? roles[0];
+  const role = roles.find((r) => r.id === state.role) ?? null;
+  // Roles that can do nothing in this business (a bar's cashier at a guest house) are not offered.
+  const offered = roles.filter((r) => countFor(r) > 0 || r.id === state.role);
   const expiry = draft.expiries.find((e) => e.id === state.expiry) ?? draft.expiries[0];
   return (
     <>
@@ -321,7 +336,7 @@ export function TeamRolesInviteForm({
       </div>
 
       <TeamRolesRolePicker
-        roles={roles}
+        roles={offered}
         value={state.role}
         onChange={(r) => onChange({ role: r })}
         countFor={countFor}
@@ -352,28 +367,6 @@ export function TeamRolesInviteForm({
         </Segment>
         <p className="text-xs leading-4 text-muted">
           Link stops working on {expiry?.expiresOn} at {draft.expiresAt} if not accepted.
-        </p>
-      </div>
-
-      {/* An invitation carries no end date on the platform, so the field takes nothing rather than drop what is typed. */}
-      <TextField value={state.endDate} isDisabled className="gap-1">
-        <Label>Access ends (optional)</Label>
-        <Input variant="secondary" placeholder="No end date, for permanent staff" />
-        <Description>
-          An end date is not available yet: access does not stop on its own. Revoke it when the person leaves.
-        </Description>
-      </TextField>
-
-      {/* Every sign-in to a business steps up with an emailed code (F-S02), whatever the role, so this is never off. */}
-      <div className="flex flex-col gap-1.5">
-        <CellSwitch variant="secondary" isSelected isDisabled className="w-full">
-          <CellSwitch.Trigger>
-            <CellSwitch.Label>Require two-step verification</CellSwitch.Label>
-            <CellSwitch.Control />
-          </CellSwitch.Trigger>
-        </CellSwitch>
-        <p className="text-xs leading-4 text-muted">
-          Always on: everyone who works in a business confirms an emailed code when they sign in.
         </p>
       </div>
 

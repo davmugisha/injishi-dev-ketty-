@@ -1,7 +1,7 @@
 "use client";
 
-import { PersonPlus, PersonsLock, ShieldKeyhole } from "@gravity-ui/icons";
-import { Alert, Avatar, Button, Card, Chip, Table, Tabs, Toast, toast } from "@heroui/react";
+import { PersonPlus, ShieldKeyhole } from "@gravity-ui/icons";
+import { Avatar, Button, Card, Chip, Table, Tabs, Toast, toast } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type {
@@ -10,8 +10,9 @@ import type {
   TeamRolesRole,
   TeamRolesRoleId,
 } from "@injishi/data/fixtures/owner";
-import { LinkButton, PageContent, PageHeader, SectionHeader, TextLink, toneColor } from "@injishi/ui";
+import { LinkButton, PageContent, SectionHeader, toneColor } from "@injishi/ui";
 import { type ReactNode, useMemo, useState } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import {
   cancelTeamInvite,
   changeTeamMember,
@@ -70,12 +71,18 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
   const [tab, setTab] = useState<Tab>("members");
   const [filter, setFilter] = useState<Filter>("all");
   const [panel, setPanel] = useState<Panel>({ kind: "invite" });
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [inviteState, setInviteState] = useState<TeamRolesInviteState>({
     name: draft.name,
     contact: draft.contact,
-    role: draft.role,
-    scope: draft.scope,
+    role: "",
+    // Every property of the business to begin with (2026-10-30): a business with one hotel had nothing
+    // ticked, so the invite was invalid before anyone touched it. Unticking narrows the grant.
+    scope: (() => {
+      const live = scopes.filter((s) => s.kind === "property").map((s) => s.id);
+      const kept = draft.scope.filter((id) => live.includes(id));
+      return kept.length ? kept : live;
+    })(),
     expiry: draft.expiry,
     endDate: "",
     twoStep: true,
@@ -165,12 +172,17 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
 
   const sendInvite = () => {
     const name = inviteState.name.trim() || inviteState.contact.trim();
+    const role = inviteState.role;
+    if (!role) {
+      toast.danger("Choose a role.");
+      return;
+    }
     void write(
       () =>
         sendTeamInvite({
           name: inviteState.name,
           contact: inviteState.contact,
-          role: inviteState.role,
+          role,
           scope: inviteState.scope,
           code: inviteState.code,
         }),
@@ -402,10 +414,7 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
-      <PageHeader
-        eyebrow={`${data.businessName} · Business`}
-        title="Team and Roles"
-        description="Who can sign in to your business, what each role can do, and where."
+      <AreaHeader
         actions={
           <>
             <Button variant="ghost" onPress={openTransfer}>
@@ -419,20 +428,6 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
           </>
         }
       />
-
-      <Alert>
-        <Alert.Indicator>
-          <PersonsLock />
-        </Alert.Indicator>
-        <Alert.Content>
-          <Alert.Title>Injishi staff and government officers are never members of your business</Alert.Title>
-          <Alert.Description>
-            Injishi support can look at your records only in a time-limited session you approve, and every view is
-            logged. Officers work in their own console and never see guest or money records here.{" "}
-            <TextLink href={screenHref("AuditLog")}>Support access log</TextLink>
-          </Alert.Description>
-        </Alert.Content>
-      </Alert>
 
       <Tabs
         variant="secondary"
@@ -546,10 +541,6 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
                 </Table.Content>
               </Table.ScrollContainer>
             </Table>
-            <p className="text-xs text-muted">
-              A member is a sign-in. Employee files, contracts and pay live in People; removing someone here does not
-              end their employment.
-            </p>
           </section>
 
           <section aria-labelledby="own-h">

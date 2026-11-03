@@ -1,14 +1,33 @@
 import { Grid3x3 } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
-import type { RoomTypeSummary } from "@injishi/contracts";
+import {
+  bedsLine,
+  CHILDREN_POLICY_LABEL,
+  CRIB_POLICY_LABEL,
+  FRONT_DESK_LABEL,
+  INTERNET_LABEL,
+  PARKING_LABEL,
+  PARTIES_POLICY_LABEL,
+  PETS_POLICY_LABEL,
+  type PropertyPolicies,
+  type RoomBed,
+  type RoomTypeSummary,
+  SMOKING_POLICY_LABEL,
+  STAFF_LANGUAGE_LABEL,
+} from "@injishi/contracts";
 import { formatPrice, pluralize } from "@injishi/utils";
 import {
   BookingWidget,
   BookingWidgetSkeleton,
 } from "@/components/property/booking-widget";
 import { PropertyFacilities } from "@/components/property/property-facilities";
+import {
+  ChooseRoomButton,
+  ChooseRoomButtonFallback,
+} from "@/components/property/choose-room-button";
 import { SectionHeading } from "@/components/shared/section-heading";
+import { isSellable } from "@/data/property-rooms";
 import type { PublicProperty } from "@/data/public-property";
 
 /**
@@ -30,13 +49,16 @@ import type { PublicProperty } from "@/data/public-property";
  */
 export function DatabaseProperty({ property, slug }: { property: PublicProperty; slug: string }) {
   const rooms = property.roomTypes.filter((room) => room.domain === "hospitality");
+  // A bar or coffee shop lists a menu and is not booked (owner decision, 2026-10-29).
+  const menu = rooms.length > 0 && rooms.every((room) => room.priceBasis === "per_item");
   const cheapest = rooms.find((room) => room.nightlyRateRwf !== null) ?? null;
   const facts = [
+    // 0118: RDB's grade, shown only once Injishi has checked it against the grading certificate.
+    property.starGrade ? `${"★".repeat(property.starGrade)} ${property.starGrade}-star, graded by RDB` : null,
     property.districtName,
-    rooms.length > 0 ? pluralize(rooms.length, "room type") : null,
-    // Per person: bookings are charged rate × guests × nights.
+    rooms.length > 0 ? pluralize(rooms.length, menu ? "item" : "room type") : null,
     cheapest?.nightlyRateRwf != null
-      ? `from ${formatPrice(cheapest.nightlyRateRwf)} per person, per night`
+      ? `from ${formatPrice(cheapest.nightlyRateRwf)} ${pricePeriod(cheapest)}`
       : null,
   ].filter((fact): fact is string => Boolean(fact));
   // The card's guest ceiling: nobody books more people than the largest room sleeps.
@@ -67,7 +89,7 @@ export function DatabaseProperty({ property, slug }: { property: PublicProperty;
         <div className="flex flex-col gap-14">
           {property.description ? (
             <section className="flex flex-col gap-4">
-              <SectionHeading lead="About this " emphasis="stay" className="mb-2" />
+              <SectionHeading lead="About this " emphasis={menu ? "place" : "stay"} className="mb-2" />
               {paragraphs(property.description).map((paragraph) => (
                 <p key={paragraph.slice(0, 40)} className="max-w-read text-page-fg-70">
                   {paragraph}
@@ -77,7 +99,7 @@ export function DatabaseProperty({ property, slug }: { property: PublicProperty;
           ) : null}
 
           <section>
-            <SectionHeading lead="Rooms" className="mb-6" />
+            <SectionHeading lead={menu ? "Menu" : "Rooms"} className="mb-6" />
             {rooms.length > 0 ? (
               <ul className="m-0 flex list-none flex-col p-0">
                 {rooms.map((room) => (
@@ -95,9 +117,11 @@ export function DatabaseProperty({ property, slug }: { property: PublicProperty;
               <dl className="grid grid-cols-2 gap-x-8">
                 {property.checkInTime ? (
                   <div className="flex flex-col gap-1 border-b border-input py-3">
-                    <dt className="text-sm text-page-fg-70">Check-in from</dt>
+                    <dt className="text-sm text-page-fg-70">Check-in</dt>
                     <dd className="m-0 text-base font-medium text-page-fg">
-                      {clockTime(property.checkInTime)}
+                      {property.policies?.checkInUntil
+                        ? `${clockTime(property.checkInTime)} to ${clockTime(property.policies.checkInUntil)}`
+                        : `From ${clockTime(property.checkInTime)}`}
                     </dd>
                   </div>
                 ) : null}
@@ -112,6 +136,8 @@ export function DatabaseProperty({ property, slug }: { property: PublicProperty;
               </dl>
             </section>
           ) : null}
+
+          {property.policies ? <GoodToKnow policies={property.policies} /> : null}
 
           <PropertyFacilities facilities={property.facilities} />
 
@@ -128,18 +154,108 @@ export function DatabaseProperty({ property, slug }: { property: PublicProperty;
         </div>
 
         {/* It reads the real rooms by slug in the browser, so a property that stops being public stops
-            being sellable on the next load, whatever this page's cache holds. */}
-        <Suspense fallback={<BookingWidgetSkeleton />}>
-          <BookingWidget property={{ slug, maxGuests }} />
-        </Suspense>
+            being sellable on the next load, whatever this page's cache holds. A venue has no booking card:
+            customers walk in, so the card says where and when instead. */}
+        {menu ? (
+          <VisitCard property={property} />
+        ) : (
+          <Suspense fallback={<BookingWidgetSkeleton />}>
+            <BookingWidget property={{ slug, maxGuests }} />
+          </Suspense>
+        )}
       </div>
     </div>
   );
 }
 
+/** How a listed price is counted, in the words beside it. */
+const PRICE_PERIOD: Record<RoomTypeSummary["priceBasis"], string> = {
+  per_person: "per person, per night",
+  per_unit: "per night, whole place",
+  per_item: "each",
+};
+
+/** In place of the booking card on a bar's or coffee shop's page: nothing to book, so where to find it. */
+function VisitCard({ property }: { property: PublicProperty }) {
+  return (
+    <aside className="flex h-fit flex-col gap-3 rounded-card border border-input p-6">
+      <h2 className="text-lg font-semibold text-page-fg">Visit</h2>
+      <p className="text-sm text-page-fg-70">
+        No booking needed. The prices on this page are what you pay when you order.
+      </p>
+      {property.districtName ? <p className="text-sm text-page-fg">{property.districtName}</p> : null}
+      <Link href="/support" className="text-sm underline underline-offset-4">
+        Ask us about this place
+      </Link>
+    </aside>
+  );
+}
+
+/**
+ * What a stay has said about itself (0117), as a guest reads it before booking: the desk, the languages,
+ * children, pets, smoking, parties, quiet hours, internet and parking. Only what the host has said is shown.
+ */
+function GoodToKnow({ policies }: { policies: PropertyPolicies }) {
+  const desk =
+    policies.frontDesk === "limited" && policies.frontDeskOpens && policies.frontDeskCloses
+      ? `Front desk open ${clockTime(policies.frontDeskOpens)} to ${clockTime(policies.frontDeskCloses)}`
+      : policies.frontDesk
+        ? FRONT_DESK_LABEL[policies.frontDesk].replace(/^Open/, "Front desk open")
+        : null;
+  const lines = [
+    desk,
+    policies.languages.length
+      ? `Staff speak ${policies.languages.map((l) => STAFF_LANGUAGE_LABEL[l]).join(", ")}`
+      : null,
+    policies.minCheckInAge ? `Guests check in from age ${policies.minCheckInAge}, with an ID or passport` : null,
+    policies.childrenPolicy ? CHILDREN_POLICY_LABEL[policies.childrenPolicy] : null,
+    policies.petsPolicy ? PETS_POLICY_LABEL[policies.petsPolicy] : null,
+    policies.smokingPolicy ? SMOKING_POLICY_LABEL[policies.smokingPolicy] : null,
+    policies.partiesPolicy ? PARTIES_POLICY_LABEL[policies.partiesPolicy] : null,
+    policies.quietFrom && policies.quietUntil
+      ? `Quiet hours ${clockTime(policies.quietFrom)} to ${clockTime(policies.quietUntil)}`
+      : null,
+    policies.internet ? INTERNET_LABEL[policies.internet] : null,
+    policies.parking ? PARKING_LABEL[policies.parking] : null,
+    policies.cribs === "charged" && policies.cribPriceRwf
+      ? `Cribs on request, ${formatPrice(policies.cribPriceRwf)} a night`
+      : policies.cribs
+        ? CRIB_POLICY_LABEL[policies.cribs]
+        : null,
+  ].filter((line): line is string => Boolean(line));
+  if (lines.length === 0) return null;
+  return (
+    <section>
+      <SectionHeading lead="Good to " emphasis="know" className="mb-6" />
+      <ul className="m-0 grid list-none grid-cols-1 gap-x-8 p-0 sm:grid-cols-2">
+        {lines.map((line) => (
+          <li key={line} className="border-b border-input py-3 text-base text-page-fg">
+            {line}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** How a room's price is counted: a hotel room (one with a kind of room) is per room, a villa the whole place. */
+function pricePeriod(room: RoomTypeSummary): string {
+  return room.priceBasis === "per_unit" && room.roomCategory ? "per room, per night" : PRICE_PERIOD[room.priceBasis];
+}
+
 function RoomRow({ room }: { room: RoomTypeSummary }) {
   const details = [
-    room.capacity ? `Sleeps ${room.capacity}` : null,
+    room.beds?.length ? bedsLine(room.beds as RoomBed[]) : null,
+    room.maxAdults
+      ? `${pluralize(room.maxAdults, "adult")}${room.maxChildren ? ` and ${pluralize(room.maxChildren, "child", "children")}` : ""}`
+      : room.capacity && room.priceBasis !== "per_item"
+        ? `Sleeps ${room.capacity}`
+        : null,
+    room.sizeM2 ? `${room.sizeM2} m²` : null,
+    room.bathroom === "shared" ? "Shared bathroom" : room.bathroom === "private" ? "Private bathroom" : null,
+    room.extraBedsMax
+      ? `Up to ${pluralize(room.extraBedsMax, "extra bed")}${room.extraBedPriceRwf ? `, ${formatPrice(room.extraBedPriceRwf)} a night` : ", free"}`
+      : null,
     room.bookingMode === "instant_book"
       ? "Instant booking"
       : room.bookingMode === "request_to_book"
@@ -149,22 +265,40 @@ function RoomRow({ room }: { room: RoomTypeSummary }) {
   ].filter((detail): detail is string => Boolean(detail));
 
   return (
-    <li className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-input py-4">
-      <span className="flex min-w-0 flex-col gap-1">
+    <li className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-input py-4">
+      {room.photo ? (
+        // A plain img: the API's photo route answers a short-lived redirect, which next/image would cache.
+        <img src={room.photo} alt={room.name} loading="lazy" className="size-20 shrink-0 rounded-card object-cover" />
+      ) : null}
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="text-base font-medium text-page-fg">{room.name}</span>
         {details.length > 0 ? (
           <span className="text-sm text-page-fg-70">{details.join(" · ")}</span>
         ) : null}
       </span>
-      <span className="text-base text-page-fg">
-        {room.nightlyRateRwf !== null ? (
-          <>
-            <b className="font-semibold">{formatPrice(room.nightlyRateRwf)}</b>{" "}
-            <span className="text-sm text-page-fg-70">per person, per night</span>
-          </>
-        ) : (
-          <span className="text-sm text-page-fg-70">Price on request</span>
-        )}
+      <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span className="text-base text-page-fg">
+          {room.nightlyRateRwf !== null ? (
+            <>
+              <b className="font-semibold">{formatPrice(room.nightlyRateRwf)}</b>{" "}
+              <span className="text-sm text-page-fg-70">{pricePeriod(room)}</span>
+              {room.singleGuestPriceRwf != null ? (
+                <span className="block text-sm text-page-fg-70">
+                  {formatPrice(room.singleGuestPriceRwf)} for one guest
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <span className="text-sm text-page-fg-70">Price on request</span>
+          )}
+        </span>
+        {/* Only a room the card can sell can be chosen for it. Suspense
+            because the button reads the address, as the card does. */}
+        {isSellable(room) ? (
+          <Suspense fallback={<ChooseRoomButtonFallback />}>
+            <ChooseRoomButton roomTypeId={room.id} roomName={room.name} />
+          </Suspense>
+        ) : null}
       </span>
     </li>
   );

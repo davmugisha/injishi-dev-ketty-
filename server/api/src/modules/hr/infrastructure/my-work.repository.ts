@@ -99,6 +99,31 @@ export class MyWorkRepository {
       .orderBy(asc(personName));
   }
 
+  /**
+   * Who else works at a branch now: the colleagues a swap could be with. A
+   * roster card's worth of each, as a roster already shows the desk.
+   */
+  async colleaguesAt(orgId: string, propertyId: string, exceptEmployeeId: string): Promise<ReportRow[]> {
+    return this.db
+      .select({
+        id: employees.id,
+        preferredName: employees.preferredName,
+        legalName: employees.legalName,
+        jobPositionTitle: jobPositions.title,
+      })
+      .from(employees)
+      .leftJoin(jobPositions, eq(jobPositions.id, employees.jobPositionId))
+      .where(
+        and(
+          eq(employees.orgId, orgId),
+          eq(employees.workPropertyId, propertyId),
+          eq(employees.status, 'active'),
+          sql`${employees.id} <> ${exceptEmployeeId}`,
+        ),
+      )
+      .orderBy(asc(personName));
+  }
+
   /** The open record of each file named, for "you are clocked in since". */
   async openRecords(employeeIds: readonly string[]): Promise<Map<string, { id: string; clockInAt: Date }>> {
     if (employeeIds.length === 0) return new Map();

@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@injishi/web-ui";
+import { ArrowLeft } from "lucide-react";
 
 import { upiError } from "@/lib/upi";
 
@@ -22,12 +23,21 @@ export function SectionProperty({
   onChange,
   errors,
   onNext,
+  onBack = null,
 }: {
   draft: BusinessDraft;
   onChange: (next: BusinessDraft) => void;
   errors: Record<string, string>;
   onNext: () => void;
+  /** Back: the section before, reopened with its answers, or the step before. */
+  onBack?: (() => void) | null;
 }) {
+  const back = onBack ? (
+    <Button variant="ghost" onClick={onBack}>
+      <ArrowLeft size={16} aria-hidden />
+      Back
+    </Button>
+  ) : null;
   const liveUpi = draft.upi.trim() ? upiError(draft.upi) : null;
   return (
     <>
@@ -70,7 +80,8 @@ export function SectionProperty({
           />
         </div>
       </fieldset>
-      <div>
+      <div className="flex flex-wrap items-center gap-2">
+        {back}
         <Button onClick={onNext} disabled={draft.legalName.trim().length < 2 || upiError(draft.upi) !== null}>
           Next
         </Button>

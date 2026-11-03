@@ -161,8 +161,9 @@ describe('PayoutAccountsService', () => {
     await expect(h.service.retire(ws, USER, id)).rejects.toThrow('That account was removed. Add it again to use it.');
   });
 
-  it('a hotel has no payout accounts here: 404', async () => {
+  it('a hotel keeps payout accounts too, for its booking payouts (0116); a PSF business does not', async () => {
     const h = harness();
-    await expect(h.service.list({ ...ws, domain: 'hospitality' } as ScopedWorkspace)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(h.service.list({ ...ws, domain: 'hospitality' } as ScopedWorkspace)).resolves.toBeDefined();
+    await expect(h.service.list({ ...ws, domain: 'enterprise' } as ScopedWorkspace)).rejects.toBeInstanceOf(NotFoundException);
   });
 });

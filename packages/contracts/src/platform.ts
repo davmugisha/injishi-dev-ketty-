@@ -23,7 +23,7 @@ export const IntegrationMode = z.enum(["off", "mock", "live"]);
 export type IntegrationMode = z.infer<typeof IntegrationMode>;
 
 /** What a collection pays for (073-gtbank-payments AC-2). */
-export const PaymentPurposeName = z.enum(["booking", "service_order", "registration_fee", "rent", "subscription"]);
+export const PaymentPurposeName = z.enum(["booking", "service_order", "registration_fee", "rent", "subscription", "psf_membership"]);
 export type PaymentPurposeName = z.infer<typeof PaymentPurposeName>;
 
 export const PaymentRules = z.object({
@@ -185,9 +185,10 @@ export type DemoPersona = z.infer<typeof DemoPersona>;
  */
 export const OVERSIGHT_ROLE_LABEL: Readonly<Record<OversightRole, string>> = {
     business_approver: "Approver",
-    business_field_verifier: "Field verifier",
+    business_field_verifier: "Document reviewer",
     tax_compliance_officer: "Tax compliance officer",
-    psf_membership_officer: "PSF membership officer",
+    psf_membership_officer: "PSF District Manager",
+    psf_business_officer: "PSF Business Development & Empowerment (BDE)",
     village_leader: "Village leader",
     dasso: "Sector DASSO",
     cell_executive: "Cell executive secretary",

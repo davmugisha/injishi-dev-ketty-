@@ -31,6 +31,20 @@ export function assertResidence(
 }
 
 /**
+ * A business that is paid out: a landlord for rent, or a hospitality business
+ * for its bookings once the guest checks out (0116). Payout accounts are the
+ * business's, not the rentals module's, so both keep them here.
+ */
+export function assertPaidBusiness(
+  ws: Pick<WorkspaceAccess, 'kind' | 'domain' | 'orgId' | 'workspaceId'>,
+): ResidenceWorkspace {
+  if (ws.kind !== 'business' || (ws.domain !== 'residence' && ws.domain !== 'hospitality') || !ws.orgId) {
+    throw new NotFoundException('There is no business here to be paid out.');
+  }
+  return { workspaceId: ws.workspaceId, orgId: ws.orgId };
+}
+
+/**
  * Does the caller's branch scope cover this building?
  *
  * A building is a `properties` row, a branch. A member limited to some

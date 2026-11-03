@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { kigaliToday } from '@injishi/contracts';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 
-import { MockPaymentAdapter, mockCallbackSignature } from '../../payments/infrastructure/mock-payment.adapter';
+import { MockPaymentAdapter, mockCallbackSignature } from '../../pay/infrastructure/mock-payment.adapter';
 import type { ChargeRow } from '../infrastructure/lease-charges.repository';
 import type { LeasePaymentsRepository, PaymentRecord, PaymentRow } from '../infrastructure/lease-payments.repository';
 import type { LeaseRecord, LeasesRepository } from '../infrastructure/leases.repository';
@@ -31,8 +32,12 @@ const CHARGE = '88888888-8888-4888-8888-888888888888';
 
 const ref: TenancyRef = { leaseId: LEASE, tenantId: 'tenant', userId: TENANT_USER, workspaceId: WS };
 
+// Due today in Kigali, so it is inside the lease's grace period whatever day the suite runs. It was a fixed
+// 2026-10-24, which read as overdue from 2026-10-30, once the five grace days had passed.
+const TODAY = kigaliToday(new Date());
+
 const charge = (over: Partial<ChargeRow> = {}): ChargeRow =>
-  ({ id: CHARGE, leaseId: LEASE, kind: 'rent', periodStart: '2026-10-24', dueOn: '2026-10-24', amountRwf: 90_323, paidRwf: 0, status: 'open', createdAt: new Date(), ...over }) as ChargeRow;
+  ({ id: CHARGE, leaseId: LEASE, kind: 'rent', periodStart: TODAY, dueOn: TODAY, amountRwf: 90_323, paidRwf: 0, status: 'open', createdAt: new Date(), ...over }) as ChargeRow;
 
 interface Opts {
   charges?: ChargeRow[];

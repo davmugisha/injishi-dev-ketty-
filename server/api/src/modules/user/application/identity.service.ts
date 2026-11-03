@@ -34,6 +34,13 @@ import {
 } from '../domain/identity-ports';
 import { IdentityRepository, type IdentityRow } from '../infrastructure/identity.repository';
 import { DuplicateIdentityDocumentError } from '../infrastructure/profile.repository';
+import { DEMO_OTP_CODE } from '@injishi/auth';
+import { PLATFORM, type Platform } from '../../../shared/config/platform';
+import {
+  IDENTITY_REGISTRY,
+  type IdentityRegistryPort,
+  type RegistryLookup,
+} from '../domain/identity-registry-port';
 
 const DUPLICATE_MESSAGE =
   'That identity document is already registered to another account. Recover that account rather than creating a second one.';
@@ -63,17 +70,53 @@ const REGISTRY_METHOD = 'national_id_registry';
 export class IdentityService {
   private readonly log = new Logger(IdentityService.name);
 
+  /** The fixed code is issued only on the demo, over a sample database (ADR-043). */
+  private readonly isDemo: boolean;
+
   constructor(
     private readonly repo: IdentityRepository,
     @Inject(DOCUMENT_VERIFIER) private readonly documents: DocumentVerifierPort,
     private readonly storage: StorageService,
+    // The public PSF form's register lookup (see `identity-registry-port.ts`).
+    @Inject(IDENTITY_REGISTRY) private readonly register: IdentityRegistryPort,
     /**
      * The population register (NIDA, through GTBank): a National ID checked by
      * its number and a selfie. Where it is `off`, a National ID is scanned
      * through the document verifier as before.
      */
     @Inject(NATIONAL_ID_REGISTRY) private readonly registry: NationalIdRegistryPort,
-  ) {}
+    @Inject(PLATFORM) platform: Platform,
+  ) {
+    this.isDemo = platform.environment === 'demo';
+  }
+
+  /**
+   * The population register, asked directly, for the public PSF form
+   * (2026-10-19), which binds the answer to the phone itself and records it
+   * on the application rather than on an account. Never throws: an outage is
+   * `unavailable`, like every lookup here.
+   */
+  lookupRegister(documentNumber: string): Promise<RegistryLookup> {
+    return this.lookupSafely(documentNumber);
+  }
+
+  /** The fixed code the demo issues over a sample database, else null. */
+  get demoCode(): string | null {
+    return this.isDemo ? DEMO_OTP_CODE : null;
+  }
+
+  get registryMode(): string {
+    return this.register.mode;
+  }
+
+  private async lookupSafely(documentNumber: string): Promise<RegistryLookup> {
+    try {
+      return await this.register.lookupNationalId(documentNumber);
+    } catch (error) {
+      this.log.warn(`Identity register failed: ${(error as Error).message}`);
+      return { status: 'unavailable' as const };
+    }
+  }
 
   async status(userId: string): Promise<IdentityStatus> {
     const [row, scan, attempts] = await Promise.all([
@@ -243,6 +286,8 @@ export class IdentityService {
     if (current.kycStatus === 'verified') {
       throw new ConflictException('Your ID is already checked. There is nothing to check again.');
     }
+    // No selfie (2026-11-02, the owner's decision): the number alone, and the reviewer confirms.
+    if (!input.selfieKey) return this.checkNationalIdByNumber(userId, input.documentNumber);
     if (this.registry.mode === 'off') {
       throw new ConflictException('National IDs are checked by scanning the card here. Scan the front of your card.');
     }
@@ -342,6 +387,78 @@ export class IdentityService {
   }
 
   /**
+   * A National ID checked by its NUMBER alone (2026-11-02, the owner's decision: no selfie). NIDA's
+   * details fill the registration and are held `pending`: nothing here proves the person holds the
+   * card, so the document reviewer confirms the ID before approving. One try, kept like a scan.
+   */
+  private async checkNationalIdByNumber(userId: string, documentNumber: string): Promise<IdentityScanResult> {
+    if (this.register.mode === 'off') {
+      throw new ConflictException('National IDs are checked by scanning the card here. Scan the front of your card.');
+    }
+    const found = await this.lookupSafely(documentNumber);
+    if (
+      found.status === 'found' &&
+      (await this.repo.heldByAnother(userId, { documentType: 'national_id', documentNumber, issuingCountry: 'RW' }))
+    ) {
+      throw new ConflictException(DUPLICATE_MESSAGE);
+    }
+    const outcome: IdentityScanOutcome = found.status === 'found' ? 'manual_needed' : 'machine_failed';
+    const reason: IdentityScanReason | null = found.status === 'found' ? null : found.status === 'not_found' ? 'not_found' : 'unavailable';
+    const attempt = await this.repo.recordScan({
+      userId,
+      documentType: 'national_id',
+      checkKind: 'national_id_registry',
+      frontObjectKey: null,
+      selfieObjectKey: null,
+      outcome,
+      reason,
+      adapterMode: this.register.mode,
+    });
+    if (found.status !== 'found') {
+      return {
+        outcome,
+        reason,
+        message: failureMessage(reason!, 'national_id', 'registry'),
+        fields: null,
+        attempt,
+        mayContinue: mayContinue(outcome, attempt),
+      };
+    }
+    const person = found.person;
+    try {
+      await this.repo.recordTyped(userId, {
+        fullName: person.fullName,
+        dateOfBirth: person.dateOfBirth,
+        documentType: 'national_id',
+        documentNumber,
+        issuingCountry: 'RW',
+        method: REGISTRY_METHOD,
+      });
+    } catch (error) {
+      if (error instanceof DuplicateIdentityDocumentError) throw new ConflictException(DUPLICATE_MESSAGE);
+      throw error;
+    }
+    return {
+      outcome,
+      reason: null,
+      message: 'NIDA found your National ID. The document reviewer confirms it before your business is approved.',
+      fields: {
+        fullName: person.fullName,
+        dateOfBirth: person.dateOfBirth,
+        gender: person.gender,
+        documentType: 'national_id',
+        documentNumberMasked: maskIdentifier(documentNumber),
+        issuingCountry: 'RW',
+        generated: found.generated,
+        checked: false,
+        source: 'registry',
+      },
+      attempt,
+      mayContinue: false,
+    };
+  }
+
+  /**
    * The details as printed, typed after a scan that read nothing or after the
    * tries ran out (ADR-075 S4). Stored `pending`, never verified: PSF compares
    * them with the photos before approving (D-o).
@@ -372,6 +489,21 @@ export class IdentityService {
       }
       throw error;
     }
+    return this.status(userId);
+  }
+
+  /**
+   * "Use a different ID" (2026-10-30): the identity on file is dropped so the
+   * person can check another one, or the same one again. Only while nothing on
+   * Injishi stands on it yet; after that a change goes through support.
+   */
+  async clear(userId: string): Promise<IdentityStatus> {
+    if (await this.repo.identityInUse(userId)) {
+      throw new ConflictException(
+        'Your ID is already tied to a business or broker account on Injishi. To change it, contact support.',
+      );
+    }
+    await this.repo.clear(userId);
     return this.status(userId);
   }
 

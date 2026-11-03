@@ -18,6 +18,7 @@ export * from "./registration-documents";
 export * from "./inventory";
 export * from "./setup-steps";
 export * from "./booking";
+export * from "./booking-change";
 export * from "./trips";
 export * from "./refunds";
 export * from "./money-queue";
@@ -27,9 +28,13 @@ export * from "./inbox";
 export * from "./ops";
 export * from "./broker";
 export * from "./broker-plans";
+export * from "./broker-deals";
+export * from "./broker-bookings";
+export * from "./broker-commissions";
 export * from "./ordering";
 export * from "./outlets";
 export * from "./property-detail";
+export * from "./property-policies";
 export * from "./ebm";
 export * from "./ebm-connection";
 export * from "./admin";
@@ -38,6 +43,8 @@ export * from "./assistant";
 export * from "./platform";
 export * from "./training";
 export * from "./psf";
+export * from "./psf-public";
+export * from "./business-code";
 export * from "./identity";
 export * from "./registration-draft";
 export * from "./people";
@@ -46,6 +53,8 @@ export * from "./time";
 export * from "./leave";
 export * from "./payroll-items";
 export * from "./payroll";
+export * from "./checklists";
+export * from "./shift-templates";
 export * from "./list-query";
 export * from "./owner";
 export * from "./hr-lists";
@@ -57,6 +66,8 @@ export * from "./lost-found";
 // The front desk's day in one read, and the no-show command (interface real-data, frontdesk leaf).
 export * from "./front-desk";
 export * from "./marketplace";
+// The guest's public search over stays and homes (mobile spec 0005).
+export * from "./explore";
 // The residence screens of the new interface (real-data 1.3.1).
 export * from "./interface-residence";
 export * from "./staff-phone";
@@ -65,8 +76,14 @@ export * from "./staff-phone";
 export * from "./rentals";
 // Who am I, in one call (blueprint 2.5): where a person lands.
 export * from "./me-context";
+// A short-stay business's home: how it is run, today's counts, a period's stays and money.
+export * from "./stays-overview";
+// Prices and availability by the day, and a room type's own terms.
+export * from "./rates-calendar";
 export * from "./guests";
 // The bar and restaurant point of sale (POS spec, phase 1).
 export * from "./pos";
+// Rwanda's 3% tourism tax, included in room prices (2026-10-30).
+export * from "./tourism-tax";
 // Offline writes from the phone (mobile spec 0003): the reported time and its refusal codes.
 export * from "./offline";

@@ -4,6 +4,7 @@ import { Job, Queue } from 'bullmq';
 
 import { reportJobFailure } from '../../../shared/observability/report-job-failure';
 import { QUEUES } from '../../../shared/queues/queues.module';
+import { BrokerPayoutsService } from '../application/broker-payouts.service';
 import { BrokerPlansService } from '../application/broker-plans.service';
 
 /** The single job name this processor handles on the BrokerPlans queue. */
@@ -15,7 +16,8 @@ const EVERY_MS = 60 * 60_000;
  * The BrokerPlans queue (blueprint 2.6), in the worker process only, hourly:
  * settle plan payments the gateway settled, renew plans at their month's end,
  * give a failed renewal three days' grace and then put the broker back on
- * District, and apply a cheaper plan chosen for next month. Every part is
+ * District, apply a cheaper plan chosen for next month, and send brokers their
+ * share of hotel commissions (0128). Every part is
  * idempotent, so a repeat or an overlap changes nothing twice.
  */
 @Processor(QUEUES.brokerPlans)
@@ -25,6 +27,7 @@ export class BrokerPlansProcessor extends WorkerHost implements OnModuleInit {
   constructor(
     @InjectQueue(QUEUES.brokerPlans) private readonly queue: Queue,
     private readonly plans: BrokerPlansService,
+    private readonly payouts: BrokerPayoutsService,
   ) {
     super();
   }
@@ -40,6 +43,8 @@ export class BrokerPlansProcessor extends WorkerHost implements OnModuleInit {
       return;
     }
     await this.plans.sweep();
+    // Hotel commissions (0128): bulk sums of finished groups, and brokers' shares to their MoMo numbers.
+    await this.payouts.sweep();
   }
 
   /** A job failing its last attempt is reported (ADR-063 AC-12). Earlier attempts are retries. */

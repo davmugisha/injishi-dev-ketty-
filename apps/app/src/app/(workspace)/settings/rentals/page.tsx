@@ -12,7 +12,6 @@ import {
   rentalsProfile,
   rentalsSetup,
   rentalsTeam,
-  rentPayouts,
 } from "@/server/rentals/client";
 
 export const metadata: Metadata = { title: screens.RentalsSettings.pageTitle };
@@ -27,21 +26,18 @@ export default async function RentalsSettingsPage({ searchParams }: { searchPara
     ? (raw as SettingsTab)
     : "getting-paid";
   const canTeam = can(scope, "team.manage");
-  const readsMoney = can(scope, "money.view", "payout.manage");
-  const [profile, accounts, properties, setup, team, payouts] = await Promise.all([
+  const [profile, accounts, properties, setup, team] = await Promise.all([
     rentalsProfile(),
     orNull(payoutAccounts()),
     rentalProperties(),
     orNull(rentalsSetup()),
     tab === "team" && canTeam ? orNull(rentalsTeam()) : Promise.resolve(null),
-    tab === "getting-paid" && readsMoney ? orNull(rentPayouts()) : Promise.resolve(null),
   ]);
   return (
     <RentalsSettingsView
       tab={tab}
       profile={profile}
       accounts={accounts?.accounts ?? null}
-      payouts={payouts}
       properties={properties.properties}
       setup={setup}
       team={team}

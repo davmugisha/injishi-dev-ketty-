@@ -296,8 +296,20 @@ export class GuestRegistryService {
     };
   }
 
+  /**
+   * File a hotel stay's guest (0114): the same transaction, routes, audit and
+   * outbox as a residence's guest, at the hotel's own place.
+   */
+  fileHotelStay(home: HomeRow, values: GuestValues, stayId: string, userId: string): Promise<string> {
+    return this.file(home, values, { hostKind: 'hotel', leaseId: null, userId, guestStayId: stayId });
+  }
+
   /** File a registration and its routes, with the audit and outbox rows, then email the leaders. */
-  private async file(home: HomeRow, values: GuestValues, host: { hostKind: GuestHostKind; leaseId: string | null; userId: string }): Promise<string> {
+  private async file(
+    home: HomeRow,
+    values: GuestValues,
+    host: { hostKind: GuestHostKind; leaseId: string | null; userId: string; guestStayId?: string | null },
+  ): Promise<string> {
     const now = this.now();
     const area = { villageId: home.villageId, cellId: home.cellId, sectorId: home.sectorId, districtId: home.districtId, provinceId: home.provinceId ?? null };
     const id = await this.guests.transaction(async (tx) => {
@@ -310,6 +322,7 @@ export class GuestRegistryService {
         leaseId: host.leaseId,
         propertyId: home.propertyId,
         unitId: home.unitId,
+        guestStayId: host.guestStayId ?? null,
         registeredByUserId: host.userId,
         area,
       });

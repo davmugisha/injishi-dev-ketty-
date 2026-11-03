@@ -36,8 +36,9 @@ import {
 } from "@injishi/ui";
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useState, useTransition } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { leaseHref } from "../leases/shared";
-import { DeclarationPanel, MarkFiledDialog, TaxpayerChoice } from "./TaxDialogs";
+import { DeclarationPanel, TaxpayerChoice } from "./TaxDialogs";
 
 export const RRA_RENTAL_TAX_URL = "https://www.rra.gov.rw/en/taxes-fees/local-government-taxes/rental-income-tax";
 
@@ -83,23 +84,12 @@ function Step({
  * interest on a loan to build or buy, then the bands), or a company's profit; the deadline with a
  * countdown and what paying late adds; where the declaration stands; and the lease copies owed to RRA.
  */
-export function TaxesView({
-  view,
-  filings,
-  today,
-  canManage,
-}: {
-  view: TaxYearView;
-  filings: LeaseFilingView[];
-  today: string;
-  canManage: boolean;
-}) {
+export function TaxesView({ view, today, canManage }: { view: TaxYearView; today: string; canManage: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const [pending, start] = useTransition();
   const [declaring, setDeclaring] = useState(false);
   const [changingKind, setChangingKind] = useState(false);
-  const [filing, setFiling] = useState<LeaseFilingView | null>(null);
   const thisYear = Number(today.slice(0, 4));
   const go = (year: number) =>
     start(() => router.replace(year === thisYear ? pathname : `${pathname}?year=${year}`, { scroll: false }));
@@ -107,11 +97,9 @@ export function TaxesView({
   const soFar = view.running ? " so far" : "";
   const daysLeft = daysBetween(today, view.dueOn);
   const declared = view.declaration.status !== "not_started";
-  const due = filings.filter((f) => f.status === "pending");
 
   const header = (
-    <PageHeader
-      title="Taxes"
+    <AreaHeader
       actions={
         <>
           <YearPicker label="Year" value={view.year} onChange={go} today={today} min={TAX_YEAR_MIN} />
@@ -129,96 +117,6 @@ export function TaxesView({
     />
   );
 
-  const filingColumns: DataColumn<LeaseFilingView>[] = [
-    {
-      id: "lease",
-      header: "Lease",
-      isRowHeader: true,
-      sortValue: (f) => f.leaseReference,
-      cell: (f) => <PersonCell name={f.tenantName} secondary={`${f.leaseReference} · Unit ${f.unitLabel}`} />,
-    },
-    { id: "kind", header: "What", hideBelow: "lg", cell: (f) => LEASE_FILING_KIND_LABEL[f.kind] },
-    {
-      id: "due",
-      header: "Due",
-      sortValue: (f) => f.dueOn,
-      cell: (f) => (
-        <span className="flex flex-col">
-          <DateText value={f.dueOn} />
-          {f.status === "pending" && f.daysLeft !== null ? (
-            <span className={f.late ? "text-xs text-danger" : "text-xs text-muted"}>
-              {f.late ? `${Math.abs(f.daysLeft)} days late` : f.daysLeft === 0 ? "Today" : `${f.daysLeft} days left`}
-            </span>
-          ) : null}
-        </span>
-      ),
-    },
-    {
-      id: "status",
-      header: "Status",
-      cell: (f) => <StatusChip kind="filing" status={f.status === "pending" && f.late ? "overdue" : f.status} />,
-    },
-    {
-      id: "filed",
-      header: "Filed",
-      hideBelow: "lg",
-      cell: (f) =>
-        f.filedOn ? (
-          <span className="flex flex-col">
-            <DateText value={f.filedOn} />
-            {f.reference ? <span className="text-xs text-muted">{f.reference}</span> : null}
-            {f.proofUrl ? (
-              <a
-                href={f.proofUrl}
-                download={`${f.leaseReference}-rra-proof`}
-                target="_blank"
-                rel="noopener"
-                className="text-xs text-accent hover:underline"
-              >
-                Proof
-              </a>
-            ) : null}
-          </span>
-        ) : (
-          <span className="text-muted">-</span>
-        ),
-    },
-  ];
-
-  const filingsCard = (
-    <SectionCard
-      title="Lease copies for RRA"
-      description={due.length > 0 ? `${due.length} to file, each within 15 days of signing` : undefined}
-      contentClassName="gap-0"
-    >
-      <DataTable
-        label="Lease copies for RRA"
-        rows={filings}
-        rowKey={(f) => f.id}
-        columns={filingColumns}
-        onRowAction={(f) => router.push(leaseHref(f.leaseId))}
-        rowActions={(f) =>
-          f.status !== "pending" || !canManage ? null : (
-            <RowActions>
-              {f.status === "pending" && canManage ? (
-                <IconAction icon="FileCheck" label={`Mark ${f.leaseReference} filed`} onPress={() => setFiling(f)} />
-              ) : null}
-            </RowActions>
-          )
-        }
-        mobile={{
-          title: (f) => `${f.leaseReference} · ${f.tenantName}`,
-          description: (f) =>
-            f.status === "filed" && f.filedOn ? `Filed ${formatDay(f.filedOn)}` : `Due ${formatDay(f.dueOn)}`,
-          trailing: (f) => (
-            <StatusChip kind="filing" status={f.status === "pending" && f.late ? "overdue" : f.status} />
-          ),
-        }}
-        empty={<EmptyBlock icon="FileText" title="No lease copies owed" size="sm" />}
-      />
-    </SectionCard>
-  );
-
   if (view.taxpayer === null) {
     return (
       <PageContent>
@@ -234,7 +132,6 @@ export function TaxesView({
             <p className="text-sm text-muted">Ask the owner to choose in Taxes.</p>
           )}
         </SectionCard>
-        {filingsCard}
       </PageContent>
     );
   }
@@ -382,64 +279,6 @@ export function TaxesView({
           pending ? "flex flex-col gap-5 opacity-60 transition-opacity" : "flex flex-col gap-5 transition-opacity"
         }
       >
-        <KpiStrip
-          label={`Tax for ${view.year}`}
-          items={
-            t
-              ? [
-                  {
-                    id: "rent",
-                    label: view.running ? "Rent so far" : "Rent received",
-                    value: t.grossRentRwf,
-                    icon: "Wallet",
-                  },
-                  { id: "taxable", label: "Taxable", value: t.taxableIncomeRwf, icon: "Calculator" },
-                  {
-                    id: "tax",
-                    label: view.running ? "Tax so far" : "Tax",
-                    value: t.taxRwf,
-                    icon: "Receipt",
-                    status: late ? "danger" : undefined,
-                  },
-                  {
-                    id: "due",
-                    label: daysLeft < 0 ? "Days late" : "Days left",
-                    value: Math.abs(daysLeft),
-                    format: "count",
-                    icon: "Calendar",
-                    status:
-                      declared || nothing
-                        ? undefined
-                        : daysLeft < 0
-                          ? "danger"
-                          : daysLeft <= 30
-                            ? "warning"
-                            : undefined,
-                    footnote: formatDay(view.dueOn, "long"),
-                  },
-                ]
-              : p
-                ? [
-                    {
-                      id: "rent",
-                      label: view.running ? "Rent so far" : "Rent received",
-                      value: p.rentRwf,
-                      icon: "Wallet",
-                    },
-                    {
-                      id: "costs",
-                      label: "Costs",
-                      value: p.expensesRwf,
-                      icon: "Receipt",
-                      href: `/expenses?year=${view.year}`,
-                    },
-                    { id: "profit", label: "Profit", value: p.profitRwf, icon: "ChartLineArrowUp" },
-                    { id: "cit", label: "28% of profit", value: p.corporateTaxRwf, icon: "Calculator" },
-                  ]
-                : []
-          }
-        />
-
         <div className="grid gap-5 lg:grid-cols-3">
           <div className="flex min-w-0 flex-col gap-5 lg:col-span-2">
             {t ? (
@@ -578,13 +417,10 @@ export function TaxesView({
             ) : null}
           </div>
         </div>
-
-        {filingsCard}
       </div>
 
       {declaring ? <DeclarationPanel view={view} onClose={() => setDeclaring(false)} /> : null}
       {changingKind ? <TaxpayerChoice value={view.taxpayer} inDialog onDone={() => setChangingKind(false)} /> : null}
-      {filing ? <MarkFiledDialog filing={filing} onClose={() => setFiling(null)} /> : null}
     </PageContent>
   );
 }

@@ -7,12 +7,18 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import {
   AdminActionRequest,
   type AdminClaimCodeReissued,
+  AdminCreateUserRequest,
+  type AdminCreateUserResponse,
+  type AdminPersonDetail,
+  AdminSetStaffRolesRequest,
+  type AdminStaffRolesResponse,
   type AdminOversightGrant,
   AdminReasonQuery,
   type AdminSessionsRevoked,
@@ -20,14 +26,26 @@ import {
   type AdminUnclaimedStaysResponse,
   type AdminUserListResponse,
   CreateOversightGrantRequest,
+  type AdminActivityResponse,
+  AdminAssignCustomRoleRequest,
+  type AdminCustomRoleAssignment,
+  type AdminInvitationResent,
+  type AdminSessionEnded,
+  type AdminSignInsResponse,
+  type AdminSuspensionChange,
+  type StaffAccess,
 } from '@injishi/contracts';
 import { z } from 'zod';
 
 import { CurrentUser, SessionGuard } from '../../../shared/auth/session.guard';
 import type { SessionUser } from '../../../shared/auth/session.guard';
 import { RequireStaffPermission } from '../../../shared/auth/require-staff-permission.decorator';
-import { StaffGuard } from '../../../shared/auth/staff.guard';
+import { RequireFreshStepUp } from '../../../shared/auth/require-fresh-step-up.decorator';
+import { CurrentStaff, StaffGuard } from '../../../shared/auth/staff.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
+import { AccountAccessService } from './account-access.service';
+import { AdminAccountsService } from './admin-accounts.service';
+import { StaffRolesService } from './staff-roles.service';
 import { AdminUsersService } from './admin-users.service';
 import { OversightGrantsService } from './oversight-grants.service';
 import { AdminUserActionsService } from './user-actions.service';
@@ -61,6 +79,9 @@ export class AdminUsersController {
     private readonly users: AdminUsersService,
     private readonly actions: AdminUserActionsService,
     private readonly oversight: OversightGrantsService,
+    private readonly accounts: AdminAccountsService,
+    private readonly accountAccess: AccountAccessService,
+    private readonly roles: StaffRolesService,
   ) {}
 
   /**
@@ -111,6 +132,140 @@ export class AdminUsersController {
     @CurrentUser() user: SessionUser,
   ): Promise<AdminUserListResponse> {
     return this.users.listUsers(query, user.id, stated.reason);
+  }
+
+  /**
+   * Create an account by email (2026-10-29). Answers the existing account when
+   * the address has one. Declared before `:userId` routes like every literal.
+   */
+  @Post()
+  @HttpCode(201)
+  @RequireStaffPermission('admin.user.role.grant')
+  @RequireFreshStepUp()
+  createUser(
+    @Body(new ZodValidationPipe(AdminCreateUserRequest)) body: AdminCreateUserRequest,
+    @CurrentUser() user: SessionUser,
+    @CurrentStaff() staff: StaffAccess,
+  ): Promise<AdminCreateUserResponse> {
+    return this.accounts.createUser(body, { userId: user.id, access: staff });
+  }
+
+  /** One person, with every authority they hold. A PII read, so it takes a reason like the directory. */
+  @Get(':userId')
+  @RequireStaffPermission('admin.user.view')
+  getUser(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Query(new ZodValidationPipe(AdminReasonQuery)) stated: AdminReasonQuery,
+    @CurrentUser() user: SessionUser,
+  ): Promise<AdminPersonDetail> {
+    return this.users.getUser(userId, user.id, stated.reason);
+  }
+
+  /** Set a person's platform staff roles, the whole set; empty ends their staff access. */
+  @Put(':userId/staff-roles')
+  @RequireStaffPermission('admin.user.role.grant')
+  @RequireFreshStepUp()
+  setStaffRoles(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body(new ZodValidationPipe(AdminSetStaffRolesRequest)) body: AdminSetStaffRolesRequest,
+    @CurrentUser() user: SessionUser,
+    @CurrentStaff() staff: StaffAccess,
+  ): Promise<AdminStaffRolesResponse> {
+    return this.accounts.setStaffRoles(userId, body, { userId: user.id, access: staff });
+  }
+
+  /** Give a person a custom staff role (2026-11-02). A grant: fresh step-up. */
+  @Post(':userId/custom-roles')
+  @HttpCode(201)
+  @RequireStaffPermission('admin.user.role.grant')
+  @RequireFreshStepUp()
+  assignCustomRole(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body(new ZodValidationPipe(AdminAssignCustomRoleRequest)) body: AdminAssignCustomRoleRequest,
+    @CurrentUser() user: SessionUser,
+    @CurrentStaff() staff: StaffAccess,
+  ): Promise<AdminCustomRoleAssignment> {
+    return this.roles.assign(userId, body.roleId, body.reason, { userId: user.id, access: staff });
+  }
+
+  /** Take a custom role from a person. Taking away needs no fresh step-up. */
+  @Delete(':userId/custom-roles/:roleId')
+  @RequireStaffPermission('admin.user.role.grant')
+  revokeCustomRole(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('roleId', ParseUUIDPipe) roleId: string,
+    @Query(new ZodValidationPipe(AdminReasonQuery)) query: AdminReasonQuery,
+    @CurrentUser() user: SessionUser,
+  ): Promise<AdminCustomRoleAssignment> {
+    return this.roles.revoke(userId, roleId, query.reason, user.id);
+  }
+
+  /** Recent sign ins and the devices signed in now. Contact data: takes a reason, and the read is logged. */
+  @Get(':userId/sign-ins')
+  @RequireStaffPermission('admin.user.view')
+  signIns(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Query(new ZodValidationPipe(AdminReasonQuery)) stated: AdminReasonQuery,
+    @CurrentUser() user: SessionUser,
+  ): Promise<AdminSignInsResponse> {
+    return this.accountAccess.signIns(userId, user.id, stated.reason);
+  }
+
+  /** What was done about this person, and by them: the audit trail. */
+  @Get(':userId/activity')
+  @RequireStaffPermission('admin.audit.read')
+  activity(@Param('userId', ParseUUIDPipe) userId: string): Promise<AdminActivityResponse> {
+    return this.accountAccess.activity(userId);
+  }
+
+  /** Stop an account from signing in, and sign it out everywhere. A staff member: super admin only. */
+  @Post(':userId/suspend')
+  @HttpCode(200)
+  @RequireStaffPermission('admin.user.suspend')
+  suspend(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body(new ZodValidationPipe(AdminActionRequest)) body: AdminActionRequest,
+    @CurrentUser() user: SessionUser,
+    @CurrentStaff() staff: StaffAccess,
+  ): Promise<AdminSuspensionChange> {
+    return this.accountAccess.suspend(userId, body.reason, { userId: user.id, access: staff });
+  }
+
+  /** Let a suspended account sign in again. */
+  @Post(':userId/reactivate')
+  @HttpCode(200)
+  @RequireStaffPermission('admin.user.suspend')
+  reactivate(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body(new ZodValidationPipe(AdminActionRequest)) body: AdminActionRequest,
+    @CurrentUser() user: SessionUser,
+    @CurrentStaff() staff: StaffAccess,
+  ): Promise<AdminSuspensionChange> {
+    return this.accountAccess.reactivate(userId, body.reason, { userId: user.id, access: staff });
+  }
+
+  /** Mail the invitation again, for someone who has never signed in. */
+  @Post(':userId/resend-invitation')
+  @HttpCode(200)
+  @RequireStaffPermission('admin.user.role.grant')
+  resendInvitation(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body(new ZodValidationPipe(AdminActionRequest)) body: AdminActionRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<AdminInvitationResent> {
+    return this.accountAccess.resendInvitation(userId, body.reason, user.id);
+  }
+
+  /** Sign one device out. */
+  @Delete(':userId/sessions/:sessionId')
+  @RequireStaffPermission('admin.user.session.revoke')
+  endSession(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+    @Query(new ZodValidationPipe(AdminReasonQuery)) query: AdminReasonQuery,
+    @CurrentUser() user: SessionUser,
+  ): Promise<AdminSessionEnded> {
+    return this.accountAccess.endSession(userId, sessionId, query.reason, user.id);
   }
 
   // -------------------------------------------------------------------------
@@ -183,6 +338,7 @@ export class AdminUsersController {
   @Post(':userId/oversight')
   @HttpCode(201)
   @RequireStaffPermission('admin.user.role.grant')
+  @RequireFreshStepUp()
   grantOversight(
     @Param('userId', ParseUUIDPipe) userId: string,
     @Body(new ZodValidationPipe(GrantOversightBody)) body: GrantOversightBody,

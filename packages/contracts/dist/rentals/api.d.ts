@@ -113,8 +113,8 @@ export declare const LandlordProfileView: z.ZodObject<{
     }>]>>;
     setupCompletedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    legalName: string;
     tin: string | null;
+    legalName: string;
     orgId: string;
     workspaceId: string;
     brokerFee: {
@@ -142,8 +142,8 @@ export declare const LandlordProfileView: z.ZodObject<{
     brokerFeePercent: number | null;
     setupCompletedAt: string | null;
 }, {
-    legalName: string;
     tin: string | null;
+    legalName: string;
     orgId: string;
     workspaceId: string;
     brokerFee: {
@@ -248,11 +248,11 @@ export declare const RentalsSetupView: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         detail: string;
         done: boolean;
-        step: "units" | "location" | "signatory" | "getting_paid" | "lease_defaults";
+        step: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults";
     }, {
         detail: string;
         done: boolean;
-        step: "units" | "location" | "signatory" | "getting_paid" | "lease_defaults";
+        step: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults";
     }>, "many">;
     /** The first step not done, or null when all are. */
     next: z.ZodNullable<z.ZodEnum<["location", "units", "getting_paid", "lease_defaults", "signatory"]>>;
@@ -263,19 +263,19 @@ export declare const RentalsSetupView: z.ZodObject<{
     steps: {
         detail: string;
         done: boolean;
-        step: "units" | "location" | "signatory" | "getting_paid" | "lease_defaults";
+        step: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults";
     }[];
     setupCompletedAt: string | null;
-    next: "units" | "location" | "signatory" | "getting_paid" | "lease_defaults" | null;
+    next: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults" | null;
 }, {
     complete: boolean;
     steps: {
         detail: string;
         done: boolean;
-        step: "units" | "location" | "signatory" | "getting_paid" | "lease_defaults";
+        step: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults";
     }[];
     setupCompletedAt: string | null;
-    next: "units" | "location" | "signatory" | "getting_paid" | "lease_defaults" | null;
+    next: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults" | null;
 }>;
 export type RentalsSetupView = z.infer<typeof RentalsSetupView>;
 /**
@@ -302,29 +302,29 @@ export declare const PayoutAccountView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "active" | "retired";
     id: string;
-    kind: "bank" | "momo" | "momo_pay";
+    kind: "momo" | "bank" | "momo_pay";
     createdAt: string;
+    updatedAt: string;
     isPrimary: boolean;
     accountName: string;
     bankName: string | null;
     momoNetwork: "mtn" | "airtel" | null;
     momoPhone: string | null;
     merchantCode: string | null;
-    updatedAt: string;
     destination: string;
     accountLast4: string | null;
 }, {
     status: "active" | "retired";
     id: string;
-    kind: "bank" | "momo" | "momo_pay";
+    kind: "momo" | "bank" | "momo_pay";
     createdAt: string;
+    updatedAt: string;
     isPrimary: boolean;
     accountName: string;
     bankName: string | null;
     momoNetwork: "mtn" | "airtel" | null;
     momoPhone: string | null;
     merchantCode: string | null;
-    updatedAt: string;
     destination: string;
     accountLast4: string | null;
 }>;
@@ -350,29 +350,29 @@ export declare const PayoutAccountList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "active" | "retired";
         id: string;
-        kind: "bank" | "momo" | "momo_pay";
+        kind: "momo" | "bank" | "momo_pay";
         createdAt: string;
+        updatedAt: string;
         isPrimary: boolean;
         accountName: string;
         bankName: string | null;
         momoNetwork: "mtn" | "airtel" | null;
         momoPhone: string | null;
         merchantCode: string | null;
-        updatedAt: string;
         destination: string;
         accountLast4: string | null;
     }, {
         status: "active" | "retired";
         id: string;
-        kind: "bank" | "momo" | "momo_pay";
+        kind: "momo" | "bank" | "momo_pay";
         createdAt: string;
+        updatedAt: string;
         isPrimary: boolean;
         accountName: string;
         bankName: string | null;
         momoNetwork: "mtn" | "airtel" | null;
         momoPhone: string | null;
         merchantCode: string | null;
-        updatedAt: string;
         destination: string;
         accountLast4: string | null;
     }>, "many">;
@@ -380,15 +380,15 @@ export declare const PayoutAccountList: z.ZodObject<{
     accounts: {
         status: "active" | "retired";
         id: string;
-        kind: "bank" | "momo" | "momo_pay";
+        kind: "momo" | "bank" | "momo_pay";
         createdAt: string;
+        updatedAt: string;
         isPrimary: boolean;
         accountName: string;
         bankName: string | null;
         momoNetwork: "mtn" | "airtel" | null;
         momoPhone: string | null;
         merchantCode: string | null;
-        updatedAt: string;
         destination: string;
         accountLast4: string | null;
     }[];
@@ -396,15 +396,15 @@ export declare const PayoutAccountList: z.ZodObject<{
     accounts: {
         status: "active" | "retired";
         id: string;
-        kind: "bank" | "momo" | "momo_pay";
+        kind: "momo" | "bank" | "momo_pay";
         createdAt: string;
+        updatedAt: string;
         isPrimary: boolean;
         accountName: string;
         bankName: string | null;
         momoNetwork: "mtn" | "airtel" | null;
         momoPhone: string | null;
         merchantCode: string | null;
-        updatedAt: string;
         destination: string;
         accountLast4: string | null;
     }[];
@@ -511,13 +511,15 @@ export declare const RentalUnitView: z.ZodObject<{
     createdAt: z.ZodString;
     updatedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    kitchen: "none" | "own" | "shared" | null;
+    kitchen: "shared" | "none" | "own" | null;
     id: string;
     state: "active" | "off_market" | "retired";
     note: string | null;
     label: string;
+    listed: boolean;
     createdAt: string;
     propertyName: string;
+    updatedAt: string;
     propertyId: string;
     bedrooms: number | null;
     bathrooms: number | null;
@@ -526,7 +528,6 @@ export declare const RentalUnitView: z.ZodObject<{
     availableFrom: string | null;
     floor: number | null;
     occupancy: "occupied" | "reserved" | "vacant";
-    updatedAt: string;
     retiredAt: string | null;
     askingRentRwf: number | null;
     vacantSince: string | null;
@@ -541,7 +542,6 @@ export declare const RentalUnitView: z.ZodObject<{
     blockCode: string | null;
     blockName: string | null;
     askingDepositRwf: number | null;
-    listed: boolean;
     brokerOffer: boolean;
     currentLease: {
         status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
@@ -552,13 +552,15 @@ export declare const RentalUnitView: z.ZodObject<{
         endDate: string;
     } | null;
 }, {
-    kitchen: "none" | "own" | "shared" | null;
+    kitchen: "shared" | "none" | "own" | null;
     id: string;
     state: "active" | "off_market" | "retired";
     note: string | null;
     label: string;
+    listed: boolean;
     createdAt: string;
     propertyName: string;
+    updatedAt: string;
     propertyId: string;
     bedrooms: number | null;
     bathrooms: number | null;
@@ -567,7 +569,6 @@ export declare const RentalUnitView: z.ZodObject<{
     availableFrom: string | null;
     floor: number | null;
     occupancy: "occupied" | "reserved" | "vacant";
-    updatedAt: string;
     retiredAt: string | null;
     askingRentRwf: number | null;
     vacantSince: string | null;
@@ -582,7 +583,6 @@ export declare const RentalUnitView: z.ZodObject<{
     blockCode: string | null;
     blockName: string | null;
     askingDepositRwf: number | null;
-    listed: boolean;
     brokerOffer: boolean;
     currentLease: {
         status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
@@ -691,13 +691,15 @@ export declare const RentalUnitList: z.ZodObject<{
         createdAt: z.ZodString;
         updatedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         id: string;
         state: "active" | "off_market" | "retired";
         note: string | null;
         label: string;
+        listed: boolean;
         createdAt: string;
         propertyName: string;
+        updatedAt: string;
         propertyId: string;
         bedrooms: number | null;
         bathrooms: number | null;
@@ -706,7 +708,6 @@ export declare const RentalUnitList: z.ZodObject<{
         availableFrom: string | null;
         floor: number | null;
         occupancy: "occupied" | "reserved" | "vacant";
-        updatedAt: string;
         retiredAt: string | null;
         askingRentRwf: number | null;
         vacantSince: string | null;
@@ -721,7 +722,6 @@ export declare const RentalUnitList: z.ZodObject<{
         blockCode: string | null;
         blockName: string | null;
         askingDepositRwf: number | null;
-        listed: boolean;
         brokerOffer: boolean;
         currentLease: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
@@ -732,13 +732,15 @@ export declare const RentalUnitList: z.ZodObject<{
             endDate: string;
         } | null;
     }, {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         id: string;
         state: "active" | "off_market" | "retired";
         note: string | null;
         label: string;
+        listed: boolean;
         createdAt: string;
         propertyName: string;
+        updatedAt: string;
         propertyId: string;
         bedrooms: number | null;
         bathrooms: number | null;
@@ -747,7 +749,6 @@ export declare const RentalUnitList: z.ZodObject<{
         availableFrom: string | null;
         floor: number | null;
         occupancy: "occupied" | "reserved" | "vacant";
-        updatedAt: string;
         retiredAt: string | null;
         askingRentRwf: number | null;
         vacantSince: string | null;
@@ -762,7 +763,6 @@ export declare const RentalUnitList: z.ZodObject<{
         blockCode: string | null;
         blockName: string | null;
         askingDepositRwf: number | null;
-        listed: boolean;
         brokerOffer: boolean;
         currentLease: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
@@ -776,14 +776,17 @@ export declare const RentalUnitList: z.ZodObject<{
     /** How many units each tab holds, over the whole business (the search and block filter aside). */
     counts: z.ZodRecord<z.ZodEnum<["all", "occupied", "vacant", "off_market", "retired"]>, z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
+    counts: Partial<Record<"all" | "off_market" | "retired" | "occupied" | "vacant", number>>;
     units: {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         id: string;
         state: "active" | "off_market" | "retired";
         note: string | null;
         label: string;
+        listed: boolean;
         createdAt: string;
         propertyName: string;
+        updatedAt: string;
         propertyId: string;
         bedrooms: number | null;
         bathrooms: number | null;
@@ -792,7 +795,6 @@ export declare const RentalUnitList: z.ZodObject<{
         availableFrom: string | null;
         floor: number | null;
         occupancy: "occupied" | "reserved" | "vacant";
-        updatedAt: string;
         retiredAt: string | null;
         askingRentRwf: number | null;
         vacantSince: string | null;
@@ -807,7 +809,6 @@ export declare const RentalUnitList: z.ZodObject<{
         blockCode: string | null;
         blockName: string | null;
         askingDepositRwf: number | null;
-        listed: boolean;
         brokerOffer: boolean;
         currentLease: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
@@ -818,16 +819,18 @@ export declare const RentalUnitList: z.ZodObject<{
             endDate: string;
         } | null;
     }[];
-    counts: Partial<Record<"all" | "off_market" | "retired" | "occupied" | "vacant", number>>;
 }, {
+    counts: Partial<Record<"all" | "off_market" | "retired" | "occupied" | "vacant", number>>;
     units: {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         id: string;
         state: "active" | "off_market" | "retired";
         note: string | null;
         label: string;
+        listed: boolean;
         createdAt: string;
         propertyName: string;
+        updatedAt: string;
         propertyId: string;
         bedrooms: number | null;
         bathrooms: number | null;
@@ -836,7 +839,6 @@ export declare const RentalUnitList: z.ZodObject<{
         availableFrom: string | null;
         floor: number | null;
         occupancy: "occupied" | "reserved" | "vacant";
-        updatedAt: string;
         retiredAt: string | null;
         askingRentRwf: number | null;
         vacantSince: string | null;
@@ -851,7 +853,6 @@ export declare const RentalUnitList: z.ZodObject<{
         blockCode: string | null;
         blockName: string | null;
         askingDepositRwf: number | null;
-        listed: boolean;
         brokerOffer: boolean;
         currentLease: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
@@ -862,7 +863,6 @@ export declare const RentalUnitList: z.ZodObject<{
             endDate: string;
         } | null;
     }[];
-    counts: Partial<Record<"all" | "off_market" | "retired" | "occupied" | "vacant", number>>;
 }>;
 export type RentalUnitList = z.infer<typeof RentalUnitList>;
 /** `POST /ops/units`. */
@@ -907,7 +907,7 @@ export declare const CreateUnitRequest: z.ZodObject<{
     }>]>>>;
 }, "strip", z.ZodTypeAny, {
     label: string;
-    kitchen?: "none" | "own" | "shared" | null | undefined;
+    kitchen?: "shared" | "none" | "own" | null | undefined;
     state?: "active" | "off_market" | undefined;
     note?: string | null | undefined;
     propertyId?: string | undefined;
@@ -930,7 +930,7 @@ export declare const CreateUnitRequest: z.ZodObject<{
     brokerOffer?: boolean | undefined;
 }, {
     label: string;
-    kitchen?: "none" | "own" | "shared" | null | undefined;
+    kitchen?: "shared" | "none" | "own" | null | undefined;
     state?: "active" | "off_market" | undefined;
     note?: string | null | undefined;
     propertyId?: string | undefined;
@@ -989,7 +989,7 @@ export declare const UpdateUnitRequest: z.ZodEffects<z.ZodObject<{
     askingDepositRwf: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
     brokerOffer: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
 }, "strip", z.ZodTypeAny, {
-    kitchen?: "none" | "own" | "shared" | null | undefined;
+    kitchen?: "shared" | "none" | "own" | null | undefined;
     state?: "active" | "off_market" | undefined;
     note?: string | null | undefined;
     label?: string | undefined;
@@ -1011,7 +1011,7 @@ export declare const UpdateUnitRequest: z.ZodEffects<z.ZodObject<{
     askingDepositRwf?: number | null | undefined;
     brokerOffer?: boolean | undefined;
 }, {
-    kitchen?: "none" | "own" | "shared" | null | undefined;
+    kitchen?: "shared" | "none" | "own" | null | undefined;
     state?: "active" | "off_market" | undefined;
     note?: string | null | undefined;
     label?: string | undefined;
@@ -1033,7 +1033,7 @@ export declare const UpdateUnitRequest: z.ZodEffects<z.ZodObject<{
     askingDepositRwf?: number | null | undefined;
     brokerOffer?: boolean | undefined;
 }>, {
-    kitchen?: "none" | "own" | "shared" | null | undefined;
+    kitchen?: "shared" | "none" | "own" | null | undefined;
     state?: "active" | "off_market" | undefined;
     note?: string | null | undefined;
     label?: string | undefined;
@@ -1055,7 +1055,7 @@ export declare const UpdateUnitRequest: z.ZodEffects<z.ZodObject<{
     askingDepositRwf?: number | null | undefined;
     brokerOffer?: boolean | undefined;
 }, {
-    kitchen?: "none" | "own" | "shared" | null | undefined;
+    kitchen?: "shared" | "none" | "own" | null | undefined;
     state?: "active" | "off_market" | undefined;
     note?: string | null | undefined;
     label?: string | undefined;
@@ -1126,7 +1126,7 @@ export declare const BulkUnitsRequest: z.ZodEffects<z.ZodObject<{
     }>]>>>;
 }, "strip", z.ZodTypeAny, {
     labels: string[];
-    kitchen?: "none" | "own" | "shared" | null | undefined;
+    kitchen?: "shared" | "none" | "own" | null | undefined;
     state?: "active" | "off_market" | undefined;
     note?: string | null | undefined;
     label?: undefined;
@@ -1150,7 +1150,7 @@ export declare const BulkUnitsRequest: z.ZodEffects<z.ZodObject<{
     brokerOffer?: boolean | undefined;
 }, {
     labels: string[];
-    kitchen?: "none" | "own" | "shared" | null | undefined;
+    kitchen?: "shared" | "none" | "own" | null | undefined;
     state?: "active" | "off_market" | undefined;
     note?: string | null | undefined;
     label?: undefined;
@@ -1174,7 +1174,7 @@ export declare const BulkUnitsRequest: z.ZodEffects<z.ZodObject<{
     brokerOffer?: boolean | undefined;
 }>, {
     labels: string[];
-    kitchen?: "none" | "own" | "shared" | null | undefined;
+    kitchen?: "shared" | "none" | "own" | null | undefined;
     state?: "active" | "off_market" | undefined;
     note?: string | null | undefined;
     label?: undefined;
@@ -1198,7 +1198,7 @@ export declare const BulkUnitsRequest: z.ZodEffects<z.ZodObject<{
     brokerOffer?: boolean | undefined;
 }, {
     labels: string[];
-    kitchen?: "none" | "own" | "shared" | null | undefined;
+    kitchen?: "shared" | "none" | "own" | null | undefined;
     state?: "active" | "off_market" | undefined;
     note?: string | null | undefined;
     label?: undefined;
@@ -1294,13 +1294,15 @@ export declare const BulkUnitsResult: z.ZodObject<{
         createdAt: z.ZodString;
         updatedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         id: string;
         state: "active" | "off_market" | "retired";
         note: string | null;
         label: string;
+        listed: boolean;
         createdAt: string;
         propertyName: string;
+        updatedAt: string;
         propertyId: string;
         bedrooms: number | null;
         bathrooms: number | null;
@@ -1309,7 +1311,6 @@ export declare const BulkUnitsResult: z.ZodObject<{
         availableFrom: string | null;
         floor: number | null;
         occupancy: "occupied" | "reserved" | "vacant";
-        updatedAt: string;
         retiredAt: string | null;
         askingRentRwf: number | null;
         vacantSince: string | null;
@@ -1324,7 +1325,6 @@ export declare const BulkUnitsResult: z.ZodObject<{
         blockCode: string | null;
         blockName: string | null;
         askingDepositRwf: number | null;
-        listed: boolean;
         brokerOffer: boolean;
         currentLease: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
@@ -1335,13 +1335,15 @@ export declare const BulkUnitsResult: z.ZodObject<{
             endDate: string;
         } | null;
     }, {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         id: string;
         state: "active" | "off_market" | "retired";
         note: string | null;
         label: string;
+        listed: boolean;
         createdAt: string;
         propertyName: string;
+        updatedAt: string;
         propertyId: string;
         bedrooms: number | null;
         bathrooms: number | null;
@@ -1350,7 +1352,6 @@ export declare const BulkUnitsResult: z.ZodObject<{
         availableFrom: string | null;
         floor: number | null;
         occupancy: "occupied" | "reserved" | "vacant";
-        updatedAt: string;
         retiredAt: string | null;
         askingRentRwf: number | null;
         vacantSince: string | null;
@@ -1365,7 +1366,6 @@ export declare const BulkUnitsResult: z.ZodObject<{
         blockCode: string | null;
         blockName: string | null;
         askingDepositRwf: number | null;
-        listed: boolean;
         brokerOffer: boolean;
         currentLease: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
@@ -1378,13 +1378,15 @@ export declare const BulkUnitsResult: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     created: {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         id: string;
         state: "active" | "off_market" | "retired";
         note: string | null;
         label: string;
+        listed: boolean;
         createdAt: string;
         propertyName: string;
+        updatedAt: string;
         propertyId: string;
         bedrooms: number | null;
         bathrooms: number | null;
@@ -1393,7 +1395,6 @@ export declare const BulkUnitsResult: z.ZodObject<{
         availableFrom: string | null;
         floor: number | null;
         occupancy: "occupied" | "reserved" | "vacant";
-        updatedAt: string;
         retiredAt: string | null;
         askingRentRwf: number | null;
         vacantSince: string | null;
@@ -1408,7 +1409,6 @@ export declare const BulkUnitsResult: z.ZodObject<{
         blockCode: string | null;
         blockName: string | null;
         askingDepositRwf: number | null;
-        listed: boolean;
         brokerOffer: boolean;
         currentLease: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
@@ -1421,13 +1421,15 @@ export declare const BulkUnitsResult: z.ZodObject<{
     }[];
 }, {
     created: {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         id: string;
         state: "active" | "off_market" | "retired";
         note: string | null;
         label: string;
+        listed: boolean;
         createdAt: string;
         propertyName: string;
+        updatedAt: string;
         propertyId: string;
         bedrooms: number | null;
         bathrooms: number | null;
@@ -1436,7 +1438,6 @@ export declare const BulkUnitsResult: z.ZodObject<{
         availableFrom: string | null;
         floor: number | null;
         occupancy: "occupied" | "reserved" | "vacant";
-        updatedAt: string;
         retiredAt: string | null;
         askingRentRwf: number | null;
         vacantSince: string | null;
@@ -1451,7 +1452,6 @@ export declare const BulkUnitsResult: z.ZodObject<{
         blockCode: string | null;
         blockName: string | null;
         askingDepositRwf: number | null;
-        listed: boolean;
         brokerOffer: boolean;
         currentLease: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
@@ -1654,9 +1654,11 @@ export declare const TenantView: z.ZodObject<{
     id: string;
     fullName: string;
     email: string | null;
-    createdAt: string;
     phone: string | null;
+    createdAt: string;
+    updatedAt: string;
     idNumber: string | null;
+    nationality: string | null;
     leases: {
         status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         id: string;
@@ -1665,18 +1667,18 @@ export declare const TenantView: z.ZodObject<{
         startDate: string;
         endDate: string;
     }[];
-    idKind: "national_id" | "passport" | null;
-    nationality: string | null;
-    updatedAt: string;
     hasAccount: boolean;
+    idKind: "national_id" | "passport" | null;
     editable: boolean;
 }, {
     id: string;
     fullName: string;
     email: string | null;
-    createdAt: string;
     phone: string | null;
+    createdAt: string;
+    updatedAt: string;
     idNumber: string | null;
+    nationality: string | null;
     leases: {
         status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         id: string;
@@ -1685,10 +1687,8 @@ export declare const TenantView: z.ZodObject<{
         startDate: string;
         endDate: string;
     }[];
-    idKind: "national_id" | "passport" | null;
-    nationality: string | null;
-    updatedAt: string;
     hasAccount: boolean;
+    idKind: "national_id" | "passport" | null;
     editable: boolean;
 }>;
 export type TenantView = z.infer<typeof TenantView>;
@@ -1733,9 +1733,11 @@ export declare const TenantList: z.ZodObject<{
         id: string;
         fullName: string;
         email: string | null;
-        createdAt: string;
         phone: string | null;
+        createdAt: string;
+        updatedAt: string;
         idNumber: string | null;
+        nationality: string | null;
         leases: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
@@ -1744,18 +1746,18 @@ export declare const TenantList: z.ZodObject<{
             startDate: string;
             endDate: string;
         }[];
-        idKind: "national_id" | "passport" | null;
-        nationality: string | null;
-        updatedAt: string;
         hasAccount: boolean;
+        idKind: "national_id" | "passport" | null;
         editable: boolean;
     }, {
         id: string;
         fullName: string;
         email: string | null;
-        createdAt: string;
         phone: string | null;
+        createdAt: string;
+        updatedAt: string;
         idNumber: string | null;
+        nationality: string | null;
         leases: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
@@ -1764,10 +1766,8 @@ export declare const TenantList: z.ZodObject<{
             startDate: string;
             endDate: string;
         }[];
-        idKind: "national_id" | "passport" | null;
-        nationality: string | null;
-        updatedAt: string;
         hasAccount: boolean;
+        idKind: "national_id" | "passport" | null;
         editable: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -1775,9 +1775,11 @@ export declare const TenantList: z.ZodObject<{
         id: string;
         fullName: string;
         email: string | null;
-        createdAt: string;
         phone: string | null;
+        createdAt: string;
+        updatedAt: string;
         idNumber: string | null;
+        nationality: string | null;
         leases: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
@@ -1786,10 +1788,8 @@ export declare const TenantList: z.ZodObject<{
             startDate: string;
             endDate: string;
         }[];
-        idKind: "national_id" | "passport" | null;
-        nationality: string | null;
-        updatedAt: string;
         hasAccount: boolean;
+        idKind: "national_id" | "passport" | null;
         editable: boolean;
     }[];
 }, {
@@ -1797,9 +1797,11 @@ export declare const TenantList: z.ZodObject<{
         id: string;
         fullName: string;
         email: string | null;
-        createdAt: string;
         phone: string | null;
+        createdAt: string;
+        updatedAt: string;
         idNumber: string | null;
+        nationality: string | null;
         leases: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
@@ -1808,10 +1810,8 @@ export declare const TenantList: z.ZodObject<{
             startDate: string;
             endDate: string;
         }[];
-        idKind: "national_id" | "passport" | null;
-        nationality: string | null;
-        updatedAt: string;
         hasAccount: boolean;
+        idKind: "national_id" | "passport" | null;
         editable: boolean;
     }[];
 }>;
@@ -1874,11 +1874,11 @@ export declare const LeaseListItem: z.ZodObject<{
         blockCode: string | null;
     };
     createdAt: string;
+    updatedAt: string;
     monthlyRentRwf: number;
     startDate: string;
     endDate: string;
     tab: "active" | "cancelled" | "ending" | "ended" | "to_sign" | "waiting_for_tenant" | "ready_to_start";
-    updatedAt: string;
     nextAction: string | null;
 }, {
     status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
@@ -1896,11 +1896,11 @@ export declare const LeaseListItem: z.ZodObject<{
         blockCode: string | null;
     };
     createdAt: string;
+    updatedAt: string;
     monthlyRentRwf: number;
     startDate: string;
     endDate: string;
     tab: "active" | "cancelled" | "ending" | "ended" | "to_sign" | "waiting_for_tenant" | "ready_to_start";
-    updatedAt: string;
     nextAction: string | null;
 }>;
 export type LeaseListItem = z.infer<typeof LeaseListItem>;
@@ -1964,11 +1964,11 @@ export declare const LeaseListPage: z.ZodObject<{
             blockCode: string | null;
         };
         createdAt: string;
+        updatedAt: string;
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
         tab: "active" | "cancelled" | "ending" | "ended" | "to_sign" | "waiting_for_tenant" | "ready_to_start";
-        updatedAt: string;
         nextAction: string | null;
     }, {
         status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
@@ -1986,11 +1986,11 @@ export declare const LeaseListPage: z.ZodObject<{
             blockCode: string | null;
         };
         createdAt: string;
+        updatedAt: string;
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
         tab: "active" | "cancelled" | "ending" | "ended" | "to_sign" | "waiting_for_tenant" | "ready_to_start";
-        updatedAt: string;
         nextAction: string | null;
     }>, "many">;
     total: z.ZodNumber;
@@ -2014,11 +2014,11 @@ export declare const LeaseListPage: z.ZodObject<{
             blockCode: string | null;
         };
         createdAt: string;
+        updatedAt: string;
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
         tab: "active" | "cancelled" | "ending" | "ended" | "to_sign" | "waiting_for_tenant" | "ready_to_start";
-        updatedAt: string;
         nextAction: string | null;
     }[];
     total: number;
@@ -2042,11 +2042,11 @@ export declare const LeaseListPage: z.ZodObject<{
             blockCode: string | null;
         };
         createdAt: string;
+        updatedAt: string;
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
         tab: "active" | "cancelled" | "ending" | "ended" | "to_sign" | "waiting_for_tenant" | "ready_to_start";
-        updatedAt: string;
         nextAction: string | null;
     }[];
     total: number;
@@ -2065,8 +2065,8 @@ export declare const LeaseListQuery: z.ZodObject<{
     q?: string | undefined;
     tab?: "active" | "cancelled" | "ending" | "ended" | "to_sign" | "waiting_for_tenant" | "ready_to_start" | undefined;
 }, {
-    page?: number | undefined;
     q?: string | undefined;
+    page?: number | undefined;
     tab?: "active" | "cancelled" | "ending" | "ended" | "to_sign" | "waiting_for_tenant" | "ready_to_start" | undefined;
 }>;
 export type LeaseListQuery = z.infer<typeof LeaseListQuery>;
@@ -2131,8 +2131,8 @@ export declare const LeaseSignatureView: z.ZodObject<{
     role: "landlord" | "tenant";
     note: string | null;
     version: number;
-    signedAt: string;
     method: "email_code" | "password" | "legacy";
+    signedAt: string;
     typedName: string | null;
     voidedAt: string | null;
 }, {
@@ -2140,8 +2140,8 @@ export declare const LeaseSignatureView: z.ZodObject<{
     role: "landlord" | "tenant";
     note: string | null;
     version: number;
-    signedAt: string;
     method: "email_code" | "password" | "legacy";
+    signedAt: string;
     typedName: string | null;
     voidedAt: string | null;
 }>;
@@ -2312,25 +2312,25 @@ export declare const LeaseDetail: z.ZodObject<{
         id: string;
         fullName: string;
         email: string | null;
-        createdAt: string;
         phone: string | null;
-        idNumber: string | null;
-        idKind: "national_id" | "passport" | null;
-        nationality: string | null;
+        createdAt: string;
         updatedAt: string;
+        idNumber: string | null;
+        nationality: string | null;
         hasAccount: boolean;
+        idKind: "national_id" | "passport" | null;
         editable: boolean;
     }, {
         id: string;
         fullName: string;
         email: string | null;
-        createdAt: string;
         phone: string | null;
-        idNumber: string | null;
-        idKind: "national_id" | "passport" | null;
-        nationality: string | null;
+        createdAt: string;
         updatedAt: string;
+        idNumber: string | null;
+        nationality: string | null;
         hasAccount: boolean;
+        idKind: "national_id" | "passport" | null;
         editable: boolean;
     }>;
     terms: z.ZodObject<{
@@ -2400,8 +2400,8 @@ export declare const LeaseDetail: z.ZodObject<{
         role: "landlord" | "tenant";
         note: string | null;
         version: number;
-        signedAt: string;
         method: "email_code" | "password" | "legacy";
+        signedAt: string;
         typedName: string | null;
         voidedAt: string | null;
     }, {
@@ -2409,8 +2409,8 @@ export declare const LeaseDetail: z.ZodObject<{
         role: "landlord" | "tenant";
         note: string | null;
         version: number;
-        signedAt: string;
         method: "email_code" | "password" | "legacy";
+        signedAt: string;
         typedName: string | null;
         voidedAt: string | null;
     }>, "many">;
@@ -2552,12 +2552,12 @@ export declare const LeaseDetail: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string | null;
         id: string;
+        phone: string | null;
         rating: {
             stars: number;
             comment: string | null;
             ratedAt: string;
         } | null;
-        phone: string | null;
         fee: {
             status: "void" | "paid" | "owed";
             amountRwf: number;
@@ -2575,12 +2575,12 @@ export declare const LeaseDetail: z.ZodObject<{
     }, {
         name: string | null;
         id: string;
+        phone: string | null;
         rating: {
             stars: number;
             comment: string | null;
             ratedAt: string;
         } | null;
-        phone: string | null;
         fee: {
             status: "void" | "paid" | "owed";
             amountRwf: number;
@@ -2670,8 +2670,8 @@ export declare const LeaseDetail: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "held" | "settled" | "awaiting";
         id: string;
-        settledAt: string | null;
         paidRwf: number;
+        settledAt: string | null;
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
@@ -2681,7 +2681,7 @@ export declare const LeaseDetail: z.ZodObject<{
         }[];
         agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
-        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
         refundFailureReason: string | null;
         refundReference: string | null;
@@ -2690,8 +2690,8 @@ export declare const LeaseDetail: z.ZodObject<{
     }, {
         status: "held" | "settled" | "awaiting";
         id: string;
-        settledAt: string | null;
         paidRwf: number;
+        settledAt: string | null;
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
@@ -2701,7 +2701,7 @@ export declare const LeaseDetail: z.ZodObject<{
         }[];
         agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
-        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
         refundFailureReason: string | null;
         refundReference: string | null;
@@ -2723,12 +2723,12 @@ export declare const LeaseDetail: z.ZodObject<{
     broker: {
         name: string | null;
         id: string;
+        phone: string | null;
         rating: {
             stars: number;
             comment: string | null;
             ratedAt: string;
         } | null;
-        phone: string | null;
         fee: {
             status: "void" | "paid" | "owed";
             amountRwf: number;
@@ -2754,20 +2754,20 @@ export declare const LeaseDetail: z.ZodObject<{
         id: string;
         fullName: string;
         email: string | null;
-        createdAt: string;
         phone: string | null;
-        idNumber: string | null;
-        idKind: "national_id" | "passport" | null;
-        nationality: string | null;
+        createdAt: string;
         updatedAt: string;
+        idNumber: string | null;
+        nationality: string | null;
         hasAccount: boolean;
+        idKind: "national_id" | "passport" | null;
         editable: boolean;
     };
     deposit: {
         status: "held" | "settled" | "awaiting";
         id: string;
-        settledAt: string | null;
         paidRwf: number;
+        settledAt: string | null;
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
@@ -2777,7 +2777,7 @@ export declare const LeaseDetail: z.ZodObject<{
         }[];
         agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
-        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
         refundFailureReason: string | null;
         refundReference: string | null;
@@ -2791,6 +2791,7 @@ export declare const LeaseDetail: z.ZodObject<{
         blockName: string | null;
     };
     createdAt: string;
+    updatedAt: string;
     charges: {
         balanceRwf: number;
         rentChargedRwf: number;
@@ -2816,11 +2817,10 @@ export declare const LeaseDetail: z.ZodObject<{
         occupants: string[];
         otherTerms: string | null;
     };
-    cancelledAt: string | null;
-    tab: "active" | "cancelled" | "ending" | "ended" | "to_sign" | "waiting_for_tenant" | "ready_to_start";
-    updatedAt: string;
     endReason: string | null;
     cancelReason: string | null;
+    cancelledAt: string | null;
+    tab: "active" | "cancelled" | "ending" | "ended" | "to_sign" | "waiting_for_tenant" | "ready_to_start";
     actions: ("start" | "landlord_sign" | "edit_terms" | "tenant_sign" | "cancel" | "acknowledge_notice" | "near_end" | "withdraw_notice" | "record_move_out")[];
     notice: {
         message: string | null;
@@ -2851,8 +2851,8 @@ export declare const LeaseDetail: z.ZodObject<{
         role: "landlord" | "tenant";
         note: string | null;
         version: number;
-        signedAt: string;
         method: "email_code" | "password" | "legacy";
+        signedAt: string;
         typedName: string | null;
         voidedAt: string | null;
     }[];
@@ -2874,12 +2874,12 @@ export declare const LeaseDetail: z.ZodObject<{
     broker: {
         name: string | null;
         id: string;
+        phone: string | null;
         rating: {
             stars: number;
             comment: string | null;
             ratedAt: string;
         } | null;
-        phone: string | null;
         fee: {
             status: "void" | "paid" | "owed";
             amountRwf: number;
@@ -2905,20 +2905,20 @@ export declare const LeaseDetail: z.ZodObject<{
         id: string;
         fullName: string;
         email: string | null;
-        createdAt: string;
         phone: string | null;
-        idNumber: string | null;
-        idKind: "national_id" | "passport" | null;
-        nationality: string | null;
+        createdAt: string;
         updatedAt: string;
+        idNumber: string | null;
+        nationality: string | null;
         hasAccount: boolean;
+        idKind: "national_id" | "passport" | null;
         editable: boolean;
     };
     deposit: {
         status: "held" | "settled" | "awaiting";
         id: string;
-        settledAt: string | null;
         paidRwf: number;
+        settledAt: string | null;
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
@@ -2928,7 +2928,7 @@ export declare const LeaseDetail: z.ZodObject<{
         }[];
         agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
-        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
         refundFailureReason: string | null;
         refundReference: string | null;
@@ -2942,6 +2942,7 @@ export declare const LeaseDetail: z.ZodObject<{
         blockName: string | null;
     };
     createdAt: string;
+    updatedAt: string;
     charges: {
         balanceRwf: number;
         rentChargedRwf: number;
@@ -2967,11 +2968,10 @@ export declare const LeaseDetail: z.ZodObject<{
         occupants: string[];
         otherTerms: string | null;
     };
-    cancelledAt: string | null;
-    tab: "active" | "cancelled" | "ending" | "ended" | "to_sign" | "waiting_for_tenant" | "ready_to_start";
-    updatedAt: string;
     endReason: string | null;
     cancelReason: string | null;
+    cancelledAt: string | null;
+    tab: "active" | "cancelled" | "ending" | "ended" | "to_sign" | "waiting_for_tenant" | "ready_to_start";
     actions: ("start" | "landlord_sign" | "edit_terms" | "tenant_sign" | "cancel" | "acknowledge_notice" | "near_end" | "withdraw_notice" | "record_move_out")[];
     notice: {
         message: string | null;
@@ -3002,8 +3002,8 @@ export declare const LeaseDetail: z.ZodObject<{
         role: "landlord" | "tenant";
         note: string | null;
         version: number;
-        signedAt: string;
         method: "email_code" | "password" | "legacy";
+        signedAt: string;
         typedName: string | null;
         voidedAt: string | null;
     }[];
@@ -3034,7 +3034,7 @@ export declare const LeaseEventView: z.ZodObject<{
     occurredAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     id: string;
-    kind: "cancelled" | "ending" | "filed" | "payment_failed" | "created" | "terms_edited" | "tenant_updated" | "landlord_signed" | "landlord_signature_voided" | "invitation_sent" | "invitation_resent" | "invitation_accepted" | "tenant_signed" | "signed_copy_ready" | "started" | "charge_raised" | "charge_waived" | "payment_received" | "payment_recorded" | "payment_reversed" | "reminder_sent" | "deposit_received" | "deposit_settled" | "deposit_disputed" | "notice_filed" | "notice_acknowledged" | "notice_withdrawn" | "moved_out" | "filing_due" | "renewed" | "broker_rated";
+    kind: "cancelled" | "created" | "ending" | "filed" | "payment_failed" | "terms_edited" | "tenant_updated" | "landlord_signed" | "landlord_signature_voided" | "invitation_sent" | "invitation_resent" | "invitation_accepted" | "tenant_signed" | "signed_copy_ready" | "started" | "charge_raised" | "charge_waived" | "payment_received" | "payment_recorded" | "payment_reversed" | "reminder_sent" | "deposit_received" | "deposit_settled" | "deposit_disputed" | "notice_filed" | "notice_acknowledged" | "notice_withdrawn" | "moved_out" | "filing_due" | "renewed" | "broker_rated";
     occurredAt: string;
     actorName: string | null;
     actorRole: "broker" | "landlord" | "tenant" | "system";
@@ -3042,7 +3042,7 @@ export declare const LeaseEventView: z.ZodObject<{
     payload: Record<string, unknown>;
 }, {
     id: string;
-    kind: "cancelled" | "ending" | "filed" | "payment_failed" | "created" | "terms_edited" | "tenant_updated" | "landlord_signed" | "landlord_signature_voided" | "invitation_sent" | "invitation_resent" | "invitation_accepted" | "tenant_signed" | "signed_copy_ready" | "started" | "charge_raised" | "charge_waived" | "payment_received" | "payment_recorded" | "payment_reversed" | "reminder_sent" | "deposit_received" | "deposit_settled" | "deposit_disputed" | "notice_filed" | "notice_acknowledged" | "notice_withdrawn" | "moved_out" | "filing_due" | "renewed" | "broker_rated";
+    kind: "cancelled" | "created" | "ending" | "filed" | "payment_failed" | "terms_edited" | "tenant_updated" | "landlord_signed" | "landlord_signature_voided" | "invitation_sent" | "invitation_resent" | "invitation_accepted" | "tenant_signed" | "signed_copy_ready" | "started" | "charge_raised" | "charge_waived" | "payment_received" | "payment_recorded" | "payment_reversed" | "reminder_sent" | "deposit_received" | "deposit_settled" | "deposit_disputed" | "notice_filed" | "notice_acknowledged" | "notice_withdrawn" | "moved_out" | "filing_due" | "renewed" | "broker_rated";
     occurredAt: string;
     actorName: string | null;
     actorRole: "broker" | "landlord" | "tenant" | "system";
@@ -3062,7 +3062,7 @@ export declare const LeaseEventList: z.ZodObject<{
         occurredAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         id: string;
-        kind: "cancelled" | "ending" | "filed" | "payment_failed" | "created" | "terms_edited" | "tenant_updated" | "landlord_signed" | "landlord_signature_voided" | "invitation_sent" | "invitation_resent" | "invitation_accepted" | "tenant_signed" | "signed_copy_ready" | "started" | "charge_raised" | "charge_waived" | "payment_received" | "payment_recorded" | "payment_reversed" | "reminder_sent" | "deposit_received" | "deposit_settled" | "deposit_disputed" | "notice_filed" | "notice_acknowledged" | "notice_withdrawn" | "moved_out" | "filing_due" | "renewed" | "broker_rated";
+        kind: "cancelled" | "created" | "ending" | "filed" | "payment_failed" | "terms_edited" | "tenant_updated" | "landlord_signed" | "landlord_signature_voided" | "invitation_sent" | "invitation_resent" | "invitation_accepted" | "tenant_signed" | "signed_copy_ready" | "started" | "charge_raised" | "charge_waived" | "payment_received" | "payment_recorded" | "payment_reversed" | "reminder_sent" | "deposit_received" | "deposit_settled" | "deposit_disputed" | "notice_filed" | "notice_acknowledged" | "notice_withdrawn" | "moved_out" | "filing_due" | "renewed" | "broker_rated";
         occurredAt: string;
         actorName: string | null;
         actorRole: "broker" | "landlord" | "tenant" | "system";
@@ -3070,7 +3070,7 @@ export declare const LeaseEventList: z.ZodObject<{
         payload: Record<string, unknown>;
     }, {
         id: string;
-        kind: "cancelled" | "ending" | "filed" | "payment_failed" | "created" | "terms_edited" | "tenant_updated" | "landlord_signed" | "landlord_signature_voided" | "invitation_sent" | "invitation_resent" | "invitation_accepted" | "tenant_signed" | "signed_copy_ready" | "started" | "charge_raised" | "charge_waived" | "payment_received" | "payment_recorded" | "payment_reversed" | "reminder_sent" | "deposit_received" | "deposit_settled" | "deposit_disputed" | "notice_filed" | "notice_acknowledged" | "notice_withdrawn" | "moved_out" | "filing_due" | "renewed" | "broker_rated";
+        kind: "cancelled" | "created" | "ending" | "filed" | "payment_failed" | "terms_edited" | "tenant_updated" | "landlord_signed" | "landlord_signature_voided" | "invitation_sent" | "invitation_resent" | "invitation_accepted" | "tenant_signed" | "signed_copy_ready" | "started" | "charge_raised" | "charge_waived" | "payment_received" | "payment_recorded" | "payment_reversed" | "reminder_sent" | "deposit_received" | "deposit_settled" | "deposit_disputed" | "notice_filed" | "notice_acknowledged" | "notice_withdrawn" | "moved_out" | "filing_due" | "renewed" | "broker_rated";
         occurredAt: string;
         actorName: string | null;
         actorRole: "broker" | "landlord" | "tenant" | "system";
@@ -3080,7 +3080,7 @@ export declare const LeaseEventList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     events: {
         id: string;
-        kind: "cancelled" | "ending" | "filed" | "payment_failed" | "created" | "terms_edited" | "tenant_updated" | "landlord_signed" | "landlord_signature_voided" | "invitation_sent" | "invitation_resent" | "invitation_accepted" | "tenant_signed" | "signed_copy_ready" | "started" | "charge_raised" | "charge_waived" | "payment_received" | "payment_recorded" | "payment_reversed" | "reminder_sent" | "deposit_received" | "deposit_settled" | "deposit_disputed" | "notice_filed" | "notice_acknowledged" | "notice_withdrawn" | "moved_out" | "filing_due" | "renewed" | "broker_rated";
+        kind: "cancelled" | "created" | "ending" | "filed" | "payment_failed" | "terms_edited" | "tenant_updated" | "landlord_signed" | "landlord_signature_voided" | "invitation_sent" | "invitation_resent" | "invitation_accepted" | "tenant_signed" | "signed_copy_ready" | "started" | "charge_raised" | "charge_waived" | "payment_received" | "payment_recorded" | "payment_reversed" | "reminder_sent" | "deposit_received" | "deposit_settled" | "deposit_disputed" | "notice_filed" | "notice_acknowledged" | "notice_withdrawn" | "moved_out" | "filing_due" | "renewed" | "broker_rated";
         occurredAt: string;
         actorName: string | null;
         actorRole: "broker" | "landlord" | "tenant" | "system";
@@ -3090,7 +3090,7 @@ export declare const LeaseEventList: z.ZodObject<{
 }, {
     events: {
         id: string;
-        kind: "cancelled" | "ending" | "filed" | "payment_failed" | "created" | "terms_edited" | "tenant_updated" | "landlord_signed" | "landlord_signature_voided" | "invitation_sent" | "invitation_resent" | "invitation_accepted" | "tenant_signed" | "signed_copy_ready" | "started" | "charge_raised" | "charge_waived" | "payment_received" | "payment_recorded" | "payment_reversed" | "reminder_sent" | "deposit_received" | "deposit_settled" | "deposit_disputed" | "notice_filed" | "notice_acknowledged" | "notice_withdrawn" | "moved_out" | "filing_due" | "renewed" | "broker_rated";
+        kind: "cancelled" | "created" | "ending" | "filed" | "payment_failed" | "terms_edited" | "tenant_updated" | "landlord_signed" | "landlord_signature_voided" | "invitation_sent" | "invitation_resent" | "invitation_accepted" | "tenant_signed" | "signed_copy_ready" | "started" | "charge_raised" | "charge_waived" | "payment_received" | "payment_recorded" | "payment_reversed" | "reminder_sent" | "deposit_received" | "deposit_settled" | "deposit_disputed" | "notice_filed" | "notice_acknowledged" | "notice_withdrawn" | "moved_out" | "filing_due" | "renewed" | "broker_rated";
         occurredAt: string;
         actorName: string | null;
         actorRole: "broker" | "landlord" | "tenant" | "system";
@@ -3160,15 +3160,15 @@ export declare const LeaseContractView: z.ZodObject<{
                 email: string;
                 phone: string;
                 idNumber: string;
-                idKind: "national_id" | "passport";
                 nationality: string;
+                idKind: "national_id" | "passport";
             }, {
                 fullName: string;
                 email: string;
                 phone: string;
                 idNumber: string;
-                idKind: "national_id" | "passport";
                 nationality: string;
+                idKind: "national_id" | "passport";
             }>;
         }, "strip", z.ZodTypeAny, {
             landlord: {
@@ -3183,8 +3183,8 @@ export declare const LeaseContractView: z.ZodObject<{
                 email: string;
                 phone: string;
                 idNumber: string;
-                idKind: "national_id" | "passport";
                 nationality: string;
+                idKind: "national_id" | "passport";
             };
         }, {
             landlord: {
@@ -3199,8 +3199,8 @@ export declare const LeaseContractView: z.ZodObject<{
                 email: string;
                 phone: string;
                 idNumber: string;
-                idKind: "national_id" | "passport";
                 nationality: string;
+                idKind: "national_id" | "passport";
             };
         }>;
         premises: z.ZodObject<{
@@ -3308,8 +3308,8 @@ export declare const LeaseContractView: z.ZodObject<{
                 email: string;
                 phone: string;
                 idNumber: string;
-                idKind: "national_id" | "passport";
                 nationality: string;
+                idKind: "national_id" | "passport";
             };
         };
         issuedAt: string;
@@ -3357,8 +3357,8 @@ export declare const LeaseContractView: z.ZodObject<{
                 email: string;
                 phone: string;
                 idNumber: string;
-                idKind: "national_id" | "passport";
                 nationality: string;
+                idKind: "national_id" | "passport";
             };
         };
         issuedAt: string;
@@ -3445,8 +3445,8 @@ export declare const LeaseContractView: z.ZodObject<{
                 email: string;
                 phone: string;
                 idNumber: string;
-                idKind: "national_id" | "passport";
                 nationality: string;
+                idKind: "national_id" | "passport";
             };
         };
         issuedAt: string;
@@ -3512,8 +3512,8 @@ export declare const LeaseContractView: z.ZodObject<{
                 email: string;
                 phone: string;
                 idNumber: string;
-                idKind: "national_id" | "passport";
                 nationality: string;
+                idKind: "national_id" | "passport";
             };
         };
         issuedAt: string;

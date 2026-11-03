@@ -12,7 +12,7 @@ import { faqPageJsonLd } from "@/lib/structured-data";
 import { HostClosing } from "./host-entry-lines";
 
 const DESCRIPTION =
-  "Register your business, and we verify your place, photograph it and get it live. A one time registration fee, a monthly plan once you are live, and no commission on a booking.";
+  "Register your business and add your photos. We verify everything online and put your listing live. A one-time registration fee, a monthly plan once you're live, and no commission on bookings.";
 
 export const metadata: Metadata = {
   title: "List your accommodation",

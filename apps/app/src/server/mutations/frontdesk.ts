@@ -7,6 +7,17 @@
  * resolved against the desk's own day (`GET /ops/front-desk`) before the command is sent, so a
  * reference or a room of another branch never reaches a command.
  */
+import type {
+  DeskReservationAsk,
+  DeskReservationQuote,
+  DeskReservationRequest,
+  DeskReservationResult,
+  ReservationChangeAsk,
+  ReservationChangeForm,
+  ReservationChangeQuote,
+  ReservationChangeRequest,
+  ReservationChangeResult,
+} from "@injishi/contracts";
 import { ApiError } from "../api";
 import { type ApiBoard, deskBoard, forgetDeskBoard } from "../sources/frontdesk";
 import type { SourceContext } from "../sources/types";
@@ -46,6 +57,30 @@ interface CheckInInput {
   roomLabel: string;
   /** Cash taken at the desk, posted to the bill once the stay is open. One key per press of "Record cash". */
   cash?: { amountRwf: number; idempotencyKey: string } | null;
+  /** The registration card: nationality and the document, which decide who the stay is reported to. */
+  guest?: GuestCard;
+}
+
+/** The name, nationality and document, as the desk read them from the guest's ID (`StayRegistrationDetails`). */
+export interface GuestCard {
+  /** Only for a booking that names nobody; the API's limit is 200 characters. */
+  fullName?: string;
+  nationality?: string;
+  documentType?: "national_id" | "passport" | "other";
+  idNumber?: string;
+}
+
+function guestCard(card: GuestCard | undefined): GuestCard {
+  if (!card) return {};
+  const fullName = card.fullName?.trim().slice(0, 200);
+  const nationality = card.nationality?.trim().toUpperCase();
+  const idNumber = card.idNumber?.trim();
+  return {
+    ...(fullName ? { fullName } : {}),
+    ...(nationality && /^[A-Z]{2}$/.test(nationality) ? { nationality } : {}),
+    ...(card.documentType ? { documentType: card.documentType } : {}),
+    ...(idNumber ? { idNumber } : {}),
+  };
 }
 
 export interface CheckedIn {
@@ -63,7 +98,11 @@ export async function checkIn(ctx: SourceContext, input: CheckInInput): Promise<
   const { board, booking } = await bookingOf(ctx, input.bookingRef);
   const room = roomOf(board, input.roomLabel);
   return command(ctx, async () => {
-    const stay = await ctx.ops().post<{ id: string }>(`/api/v1/ops/stays/${booking.id}/checkin`, { roomId: room.id });
+    const card = guestCard(input.guest);
+    const stay = await ctx.ops().post<{ id: string }>(`/api/v1/ops/stays/${booking.id}/checkin`, {
+      roomId: room.id,
+      ...(Object.keys(card).length ? { guest: card } : {}),
+    });
     // The stay's bill, read back from the desk's day as it now stands.
     const after = await ctx.ops().get<ApiBoard>("/api/v1/ops/front-desk");
     const opened = after.stays.find((s) => s.id === stay.id);
@@ -139,11 +178,15 @@ export async function cancelReservation(
 export interface WalkInInput {
   /** The room type's id, as the walk-in screen lists it (frontdesk.roomTypes). */
   roomTypeId: string;
+  /** A room chosen on the calendar; without it the desk takes the first ready room of the type. */
+  roomId?: string;
   nights: number;
   guestName: string;
   phone?: string;
   /** Where the claim code goes, so the guest can carry on in the app. */
   email?: string;
+  /** The registration card (0114). */
+  guest?: GuestCard;
 }
 
 export interface WalkedIn {
@@ -198,12 +241,14 @@ export async function walkIn(ctx: SourceContext, input: WalkInInput): Promise<Wa
   const name = input.guestName.trim();
   if (!name) throw new ApiError(400, "name_required", "Type the guest's name as it is on their ID.", null);
   const nights = Math.trunc(input.nights);
-  if (!(nights >= 1 && nights <= 30)) throw new ApiError(400, "nights", "A walk-in stays 1 to 30 nights.", null);
+  if (!(nights >= 1 && nights <= 365)) throw new ApiError(400, "nights", "A walk-in stays 1 to 365 nights.", null);
   const board = await deskBoard(ctx);
   const type = board.roomTypes.find((t) => t.id === input.roomTypeId && t.active);
   if (!type) throw new ApiError(404, "not_found", "That room type is not sold at this property.", null);
   const leaves = addDays(board.today, nights);
-  const room = roomForWalkIn(board, type.id, board.today, leaves);
+  const chosen = input.roomId ? board.rooms.find((r) => r.id === input.roomId && r.roomTypeId === type.id) : undefined;
+  if (input.roomId && !chosen) throw new ApiError(404, "not_found", "That room is not one of this type.", null);
+  const room = chosen ?? roomForWalkIn(board, type.id, board.today, leaves);
   if (!room) {
     throw new ApiError(
       409,
@@ -222,7 +267,7 @@ export async function walkIn(ctx: SourceContext, input: WalkInInput): Promise<Wa
       roomId: room.id,
       guestName: name,
       plannedExitAt: new Date(`${leaves}T${checkOutTime}:00+02:00`).toISOString(),
-      guest: { fullName: name, ...(phone ? { phone } : {}), ...(email ? { email } : {}) },
+      guest: { fullName: name, ...guestCard(input.guest), ...(phone ? { phone } : {}), ...(email ? { email } : {}) },
     });
     const after = await ctx.ops().get<ApiBoard>("/api/v1/ops/front-desk");
     const opened = after.stays.find((s) => s.id === stay.id);
@@ -271,5 +316,142 @@ export async function markNoShow(ctx: SourceContext, bookingRef: string, reason:
   const { booking } = await bookingOf(ctx, bookingRef);
   await command(ctx, () =>
     ctx.ops().post(`/api/v1/ops/reservations/${booking.id}/no-show`, { reason: reason || undefined }),
+  );
+}
+
+// ── Changing a reservation (0120): its dates, room type or party ────────────────────────────────────
+
+/** The stay as it stands and the room types it may move to, for the change form. */
+export async function reservationChangeForm(ctx: SourceContext, bookingRef: string): Promise<ReservationChangeForm> {
+  const { booking } = await bookingOf(ctx, bookingRef);
+  return ctx.ops().get<ReservationChangeForm>(`/api/v1/ops/reservations/${booking.id}/change`);
+}
+
+/** What the change would cost: the new price, the difference against what was paid, and the choices. */
+export async function quoteReservationChange(
+  ctx: SourceContext,
+  bookingRef: string,
+  ask: ReservationChangeAsk,
+): Promise<ReservationChangeQuote> {
+  const { booking } = await bookingOf(ctx, bookingRef);
+  return ctx.ops().post<ReservationChangeQuote>(`/api/v1/ops/reservations/${booking.id}/change/quote`, ask);
+}
+
+/** Make the change: at once, or once the guest pays the difference by MoMo. */
+export async function changeReservation(
+  ctx: SourceContext,
+  bookingRef: string,
+  body: ReservationChangeRequest,
+): Promise<ReservationChangeResult> {
+  const { booking } = await bookingOf(ctx, bookingRef);
+  return command(ctx, () =>
+    ctx.ops().post<ReservationChangeResult>(`/api/v1/ops/reservations/${booking.id}/change`, body),
+  );
+}
+
+/** Where the guest's MoMo payment of a change got to. */
+export async function pollReservationChange(
+  ctx: SourceContext,
+  bookingRef: string,
+  attemptToken: string,
+): Promise<ReservationChangeResult> {
+  const { booking } = await bookingOf(ctx, bookingRef);
+  return command(ctx, () =>
+    ctx
+      .ops()
+      .get<ReservationChangeResult>(
+        `/api/v1/ops/reservations/${booking.id}/change/attempts/${encodeURIComponent(attemptToken)}`,
+      ),
+  );
+}
+
+// ── Moving a booking on the calendar: other nights, another room ───────────────────────────────────────
+
+export interface BookingMove {
+  /** The room it moves into, by id; null keeps it in its room type with no room held yet. */
+  roomId: string | null;
+  /** The first night and the morning they leave. */
+  checkIn: string;
+  checkOut: string;
+}
+
+/** What moving a booking would cost, before anything moves (the change quote, 0122). */
+export async function quoteBookingMove(
+  ctx: SourceContext,
+  bookingRef: string,
+  move: BookingMove,
+): Promise<{ quote: ReservationChangeQuote | null; problems: string[] }> {
+  const { board, booking } = await bookingOf(ctx, bookingRef);
+  const roomTypeId = move.roomId ? roomOf(board, move.roomId).roomTypeId : booking.roomTypeId;
+  const sameStay =
+    move.checkIn === booking.checkIn && move.checkOut === booking.checkOut && roomTypeId === booking.roomTypeId;
+  if (sameStay) return { quote: null, problems: [] };
+  const form = await ctx.ops().get<ReservationChangeForm>(`/api/v1/ops/reservations/${booking.id}/change`);
+  if (form.problems.length > 0) return { quote: null, problems: form.problems };
+  const quote = await ctx.ops().post<ReservationChangeQuote>(`/api/v1/ops/reservations/${booking.id}/change/quote`, {
+    ...form.current,
+    checkIn: move.checkIn,
+    checkOut: move.checkOut,
+    roomTypeId,
+  });
+  return { quote, problems: quote.problems };
+}
+
+/**
+ * Move a booking: new nights or another room type go through the change (a higher price on the guest's
+ * bill), which lets its held room go; then the chosen room is held for the new stay. A move to another
+ * room of the same type on the same nights only swaps the held room.
+ */
+export async function moveBooking(ctx: SourceContext, bookingRef: string, move: BookingMove): Promise<void> {
+  const { board, booking } = await bookingOf(ctx, bookingRef);
+  const room = move.roomId ? roomOf(board, move.roomId) : null;
+  const roomTypeId = room?.roomTypeId ?? booking.roomTypeId;
+  const sameStay =
+    move.checkIn === booking.checkIn && move.checkOut === booking.checkOut && roomTypeId === booking.roomTypeId;
+  await command(ctx, async () => {
+    if (!sameStay) {
+      const form = await ctx.ops().get<ReservationChangeForm>(`/api/v1/ops/reservations/${booking.id}/change`);
+      const ask = { ...form.current, checkIn: move.checkIn, checkOut: move.checkOut, roomTypeId };
+      const quote = await ctx
+        .ops()
+        .post<ReservationChangeQuote>(`/api/v1/ops/reservations/${booking.id}/change/quote`, ask);
+      if (quote.problems.length > 0) throw new ApiError(409, "change_refused", quote.problems.join(" "), null);
+      const result = await ctx.ops().post<ReservationChangeResult>(`/api/v1/ops/reservations/${booking.id}/change`, {
+        ...ask,
+        ...(quote.differenceRwf > 0 ? { settlement: "bill" } : {}),
+      });
+      if (result.status !== "applied") {
+        throw new ApiError(409, "change_pending", "The change did not apply. Open the booking to finish it.", null);
+      }
+    } else {
+      // The same nights in another room: let the held rooms go first, so the new hold does not overlap.
+      const { assignments } = await ctx
+        .ops()
+        .get<{ assignments: { id: string; status: string }[] }>(`/api/v1/ops/reservations/${booking.id}/assignments`);
+      for (const h of assignments.filter((x) => x.status === "assigned")) {
+        await ctx.ops().delete(`/api/v1/ops/reservations/${booking.id}/assign/${h.id}`);
+      }
+    }
+    // No room chosen: the booking keeps its type and waits for a room ("No room yet").
+    if (room) await ctx.ops().post(`/api/v1/ops/reservations/${booking.id}/assign`, { roomId: room.id });
+  });
+}
+
+/** What a booking the desk is about to make would cost, and the rooms free to hold (0124). */
+export async function quoteDeskBooking(ctx: SourceContext, ask: DeskReservationAsk): Promise<DeskReservationQuote> {
+  return ctx.ops().post<DeskReservationQuote>("/api/v1/ops/reservations/quote", ask);
+}
+
+/**
+ * The desk books a guest for any day from today (0124). One key per press of Book, so a retried request
+ * records the deposit once.
+ */
+export async function createDeskBooking(
+  ctx: SourceContext,
+  request: DeskReservationRequest,
+  idempotencyKey: string,
+): Promise<DeskReservationResult> {
+  return command(ctx, () =>
+    ctx.ops().post<DeskReservationResult>("/api/v1/ops/reservations", request, { idempotencyKey }),
   );
 }

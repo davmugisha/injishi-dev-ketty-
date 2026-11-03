@@ -5,12 +5,15 @@ import {
   FranchiseDeclaration,
   IntendedOwner,
   PersonalDetails,
+  looksLikePsfNumber,
   PsfApplicationInput,
+  isOtherAssociation,
   type BrokerRegistrationSummary,
   type BusinessKind,
   type IdentityStatus,
   type MyProfile,
   type OrgRegistrationStatus,
+  type PsfCatalogue,
   type PsfTier,
   type RegistrantCapacity,
   type MobileMoneyNetwork,
@@ -25,12 +28,13 @@ import {
   registerHeadingFor,
 } from "@injishi/contracts";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowRight, CircleAlert, History, Landmark } from "lucide-react";
+import { ArrowLeft, ArrowRight, CircleAlert, History, Landmark, Lock } from "lucide-react";
 import { Badge, Button } from "@injishi/web-ui";
 
 import { openAssistant } from "@/components/assistant/assistant-widget";
 import { fetchMyWorkspaces, type LabelledWorkspace } from "@/data/me";
 import { fetchIdentity } from "@/data/identity";
+import { fetchPsfCatalogue } from "@/data/psf";
 import {
   checkTin,
   clearRegistrationDraft,
@@ -67,7 +71,7 @@ import {
   type TinCheck,
 } from "./business-draft";
 import { FixBusiness, InReview } from "./in-review";
-import { EMPTY_PSF, psfCandidate, type PsfDraft } from "./psf-application";
+import { EMPTY_PSF, PSF_TYPE_IT, psfCandidate, type PsfDraft } from "./psf-application";
 import { RegisterRail, type RailStep } from "./register-rail";
 import { RegisterSection } from "./register-section";
 import { Callout, RegisterShell, StepCard, StepFrame, StepSkeleton, type StepPrimary } from "./register-shell";
@@ -78,6 +82,8 @@ import {
   openableThrough,
   openingStep,
   pathFor,
+  previousSection,
+  railLock,
   resumeStep,
   sectionOrder,
   sectionStates,
@@ -114,10 +120,11 @@ import { formatRwf } from "./wizard-ui";
  * Business registration (F-S03 / FL01) as ADR-075 A1 decides it, on the real
  * API: the owner presses List Business and walks five steps.
  *
- * FIVE STEPS: Business (the kind when none arrived, then sections that show in
- * order: the TIN with RRA and who is registering it, the classification, the
- * location; then branches and PSF), You (the ID and the director check),
- * Documents, Review (no agreement, no signature) and Pay, whose first press
+ * FIVE STEPS, after the kind when none arrived: You (the person: the ID, a
+ * phone, a home address, and nothing about the business), Business (sections
+ * that show in order: the TIN with RRA, who is registering it and the director
+ * check, on the helper path the owner, the classification, the location; then
+ * branches and PSF), Documents, Review (no agreement, no signature) and Pay, whose first press
  * creates the registration. A residence walks the same five, with its property
  * and UPI in Business. `register-steps.ts` owns the order, the sections and the
  * saving; this component owns the state and the calls.
@@ -242,6 +249,8 @@ export default function RegisterWizard({
   const [docs, setDocs] = useState<DocumentDraft[]>([]);
   const [psf, setPsf] = useState<PsfDraft>(EMPTY_PSF);
   const [tiers, setTiers] = useState<PsfTier[] | null>(null);
+  /** PSF's sectors, kinds of business and associations, for the PSF application (2026-11-03). */
+  const [catalogue, setCatalogue] = useState<PsfCatalogue | null>(null);
   const [tiersFailed, setTiersFailed] = useState(false);
   const [tierRetry, setTierRetry] = useState(0);
   const [profile, setProfile] = useState<MyProfile | null>(null);
@@ -297,6 +306,9 @@ export default function RegisterWizard({
   const order = stepOrder();
   // Scanned and checked, or typed for PSF to check (ADR-075 S4): either way the server keeps the document.
   const identityOnFile = identity?.onFile ?? null;
+  // PSF's form knows male and female (2026-11-03): asked on the PSF application only when You holds neither.
+  const knownGender = identity?.onFile?.gender ?? (personal.gender || null);
+  const askPsfGender = knownGender !== "male" && knownGender !== "female";
 
   const tin = normalizeTin(business.tin);
   const verdict = tinCheck?.tin === tin ? tinCheck.verdict : null;
@@ -535,6 +547,18 @@ export default function RegisterWizard({
     };
   }, [step, tiers, tiersFailed, tierRetry]);
 
+  // PSF's catalogue, once the application is open (2026-11-03): the sector and association it asks.
+  useEffect(() => {
+    if (step !== "business" || business.psfApply !== true || catalogue !== null) return;
+    let cancelled = false;
+    void fetchPsfCatalogue(business.address.districtId ? Number(business.address.districtId) : undefined).then((res) => {
+      if (!cancelled && res.status === "ok") setCatalogue(res.data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, business.psfApply, business.address.districtId, catalogue]);
+
   const locLine = useAddressLine(business.address);
 
   // --- the kind ---------------------------------------------------------------
@@ -615,18 +639,37 @@ export default function RegisterWizard({
     }
   }
 
-  /** The TIN is being changed: drop what the old answer filled in. */
+  /**
+   * The TIN is being changed: drop what the old answer filled in, and only that. The name and the location
+   * RRA gave for the old TIN go (the location is asked again), a name or an address the person typed stays.
+   */
   const changeTin = (raw: string) => {
+    const same = tinCheck !== null && normalizeTin(raw) === tinCheck.tin;
     setBusiness((b) => ({
       ...b,
       tin: raw,
-      ...(registry && sameName(b.legalName, registry.legalName) ? { legalName: "", address: { ...EMPTY_ADDRESS } } : {}),
+      ...(!same && registry && sameName(b.legalName, registry.legalName) ? { legalName: "" } : {}),
+      ...(!same && prefilled ? { address: { ...EMPTY_ADDRESS } } : {}),
     }));
+    if (same) return;
     if (tinCheck) setTinCheck(null);
     setTinConfirmed(false);
     setCarryOnPending(false);
-    setPrefilled(false);
-    setLocSaved(false);
+    if (prefilled) {
+      setPrefilled(false);
+      setLocSaved(false);
+    }
+  };
+
+  /** "Change TIN" on a checked answer: the field opens again with the digits kept. */
+  const reopenTin = () => {
+    setBusiness((b) => ({
+      ...b,
+      ...(registry && sameName(b.legalName, registry.legalName) ? { legalName: "" } : {}),
+    }));
+    setTinCheck(null);
+    setTinConfirmed(false);
+    setCarryOnPending(false);
   };
 
   const confirmTin = () => {
@@ -663,18 +706,15 @@ export default function RegisterWizard({
     (next?: IdentityStatus) => {
       setErrors({});
       setFormError("");
-      void (async () => {
-        // Recording an identity rewrote the stored profile (name, birth date, ID), so the one loaded with the
-        // page is stale: editing it would send the old name.
-        const [res, prof] = await Promise.all([
-          next ? Promise.resolve({ status: "ok" as const, data: next }) : fetchIdentity(),
-          fetchMyProfile(),
-        ]);
-        if (prof.status === "ok") setProfile(prof.data);
-        if (res.status !== "ok") return;
-        setIdentity(res.data);
-        const person = res.data.onFile;
-        if (!person) return;
+      const take = (status: IdentityStatus) => {
+        setIdentity(status);
+        const person = status.onFile;
+        if (!person) {
+          // "Use a different ID": what the old identity filled in goes with it, and the section asks again.
+          setIdConfirmed(false);
+          setPersonal((p) => ({ ...p, firstName: "", middleName: "", lastName: "", dateOfBirth: "", documentNumber: "" }));
+          return;
+        }
         setPersonal((p) => ({
           ...p,
           ...splitFullName(person.fullName),
@@ -685,8 +725,21 @@ export default function RegisterWizard({
           documentNumber: "",
           issuingCountry: person.issuingCountry,
         }));
+      };
+      // An answer in hand shows at once; the profile and the TIN catch up behind it.
+      if (next) take(next);
+      void (async () => {
+        // Recording or dropping an identity rewrote the stored profile (name, birth date, ID), so the one loaded
+        // with the page is stale: editing it would send the old name.
+        const [res, prof] = await Promise.all([
+          next ? Promise.resolve({ status: "ok" as const, data: next }) : fetchIdentity(),
+          fetchMyProfile(),
+        ]);
+        if (prof.status === "ok") setProfile(prof.data);
+        if (res.status !== "ok") return;
+        if (!next) take(res.data);
         // Whether this ID is one of the directors is RRA's answer to the TIN asked by a caller with an ID on
-        // file, so the TIN is asked again now. The server matches again at creation (AC-7).
+        // file, so the TIN is asked again now, after a new ID or none. The server matches again at creation (AC-7).
         if (tinCheck && /^\d{9}$/.test(tinCheck.tin)) {
           const again = await checkTin(tinCheck.tin, capacity);
           if (again.status === "ok") setTinCheck({ tin: tinCheck.tin, verdict: again.data });
@@ -701,10 +754,14 @@ export default function RegisterWizard({
     if (!(profile?.complete === true && !editingProfile)) {
       const parsed = PersonalDetails.safeParse(personalCandidate(personal, identityOnFile !== null));
       if (!parsed.success) {
-        setErrors(issuesToErrors(parsed.error.issues));
+        const found = issuesToErrors(parsed.error.issues);
+        setErrors(found);
+        // Some fields (the date of birth read off the ID) have no input on this step, so say it here too.
+        setFormError(Object.values(found)[0] ?? "Check your details.");
         return;
       }
     }
+    setFormError("");
     setIdConfirmed(true);
   };
 
@@ -737,7 +794,7 @@ export default function RegisterWizard({
   const prepareForOwner = () => {
     setCapacity("on_behalf_of");
     setCapPick("on_behalf_of");
-    setIdConfirmed(true);
+    setTinConfirmed(true);
     void nameTheOwner();
   };
 
@@ -763,10 +820,10 @@ export default function RegisterWizard({
         return (
           tinConfirmed &&
           ((verdict?.result === "verified" && !nameDiffers) || (verdict?.result === "pending" && carryOnPending)) &&
-          legalName.length >= 2
+          legalName.length >= 2 &&
+          // The owner must be one of RRA's directors; someone who is not registers it for the owner.
+          !(capacity === "owner" && isDirector === false)
         );
-      case "owner":
-        return identityOk && isDirector !== false;
       case "id":
         return identityOk;
       case "intended":
@@ -796,9 +853,14 @@ export default function RegisterWizard({
   const documentOnFile = onFile ? `${onFile.label}, ${onFile.source === "checked" ? "already checked" : "on your account"}` : null;
   const psfReady =
     path === "landlord" ||
-    business.psfMember !== false ||
-    business.psfApply !== true ||
-    PsfApplicationInput.safeParse(psfCandidate(psf, documentOnFile !== null)).success;
+    (business.psfMember === true
+      ? // A member sends its card (2026-11-02), and its number if it knows it: PSF reads the number off
+        // the card otherwise.
+        (!business.psfMembershipNumber.trim() || looksLikePsfNumber(business.psfMembershipNumber)) &&
+        docs.some((d) => d.kind === "psf_certificate")
+      : business.psfMember === false
+        ? business.psfApply !== true || (PsfApplicationInput.safeParse(psfCandidate(psf, true, askPsfGender)).success && psfBusinessIssue(psf) === null)
+        : true);
   // The rows Documents asks for, by the kind the org will carry (ADR-075 S5).
   const documentKind: BusinessKind | null = kind && kind !== "broker" ? registrationForKind(kind).businessKind : null;
   const docsState = documentsReady(documentKind, docs);
@@ -836,7 +898,8 @@ export default function RegisterWizard({
       role,
       capacity,
       ...(sendPersonal ? { personal: personalCandidate(personal, identityOnFile !== null) } : {}),
-      business: businessCandidate(business, role, kind, legalName, docs, branches, psf, documentOnFile !== null),
+      // The PSF application names the ID checked on You (2026-11-02): asked once, never again on Business.
+      business: businessCandidate(business, role, kind, legalName, docs, branches, psf, true, askPsfGender),
       ...(capacity === "on_behalf_of"
         ? {
             intendedOwner: {
@@ -852,7 +915,7 @@ export default function RegisterWizard({
   /** Where an issue at `key` is answered, so a refusal sends the person there. */
   const stepForIssue = (key: string): StepId => {
     if (key.startsWith("business.certificates")) return "documents";
-    if (key.startsWith("personal") || key.startsWith("capacity") || key.startsWith("intendedOwner")) return "you";
+    if (key.startsWith("personal")) return "you";
     return "business";
   };
 
@@ -867,8 +930,18 @@ export default function RegisterWizard({
     setFormError("");
     const i = order.indexOf(step);
     if (step === "business" && !psfReady) {
-      const parsed = PsfApplicationInput.safeParse(psfCandidate(psf, documentOnFile !== null));
+      if (business.psfMember === true) {
+        setFormError(
+          business.psfMembershipNumber.trim() && !looksLikePsfNumber(business.psfMembershipNumber)
+            ? "That does not look like a PSF membership number. Type it in full, as on your card, or leave it empty."
+            : "Add a photo or scan of your PSF membership card.",
+        );
+        return;
+      }
+      const parsed = PsfApplicationInput.safeParse(psfCandidate(psf, true, askPsfGender));
       if (!parsed.success) setErrors(prefix("psf", issuesToErrors(parsed.error.issues)));
+      const issue = psfBusinessIssue(psf);
+      if (parsed.success && issue) setErrors({ [`psf.${issue.field}`]: issue.message });
       setFormError("Some of the PSF application needs fixing.");
       return;
     }
@@ -894,7 +967,7 @@ export default function RegisterWizard({
     if (!parsed.success) {
       const found = issuesToErrors(parsed.error.issues);
       setErrors(found);
-      setFormError(`Something needs fixing: ${Object.values(found)[0] ?? "check your answers"}. Use Edit on Review to go back to it.`);
+      setFormError(`Something needs fixing: ${Object.values(found)[0] ?? "check your answers"}. Use Change on Review to go back to it.`);
       return null;
     }
     return createRegistration(parsed.data, idempotencyKey);
@@ -1100,26 +1173,17 @@ export default function RegisterWizard({
 
   /** "Apply now": what the wizard already knows goes into PSF's form. */
   const seedPsf = () => {
-    const verifiedPerson = identity?.onFile ?? null;
-    const names = verifiedPerson ? splitFullName(verifiedPerson.fullName) : personal;
+    // The business part alone (2026-11-03): the name, place and contact person come from the
+    // registration and You at submit. The tier is the person's choice.
     setPsf((p) => ({
       ...p,
-      // The tier is the person's choice: the first in PSF's list is its dearest.
-      companyName: p.companyName || legalName,
-      streetAddress: p.streetAddress || business.address.street.trim() || locLine || "",
       companyType: registry?.companyType ?? p.companyType,
-      firstName: p.firstName || names.firstName,
-      lastName: p.lastName || [names.middleName, names.lastName].filter(Boolean).join(" "),
-      gender: p.gender || (personal.gender === "male" || personal.gender === "female" ? personal.gender : ""),
-      phoneE164: p.phoneE164 || personal.phoneE164 || profile?.phoneE164 || "",
-      email: p.email || user?.email || "",
-      dateOfBirth: p.dateOfBirth || verifiedPerson?.dateOfBirth || personal.dateOfBirth || profile?.dateOfBirth || "",
     }));
   };
 
   // --- render ------------------------------------------------------------------
   const kindEntry = kind ? (REGISTRATION_KINDS.find((k) => k.value === kind) ?? null) : null;
-  const summaryKindLabel = summary ? BUSINESS_KIND_LABEL[summary.businessKind] : null;
+  const summaryKindLabel = summary?.businessKind ? BUSINESS_KIND_LABEL[summary.businessKind] : null;
   const kindLabel = kindEntry?.label ?? summaryKindLabel ?? "business";
   // Mid sentence, with its article: "Registration fee for an apartment".
   const kindPhrase = kindInSentence(summary?.businessKind ?? documentKind);
@@ -1144,7 +1208,6 @@ export default function RegisterWizard({
 
   const SECTION_TITLE: Record<SectionId, string> = {
     tin: "Business name and TIN",
-    owner: "You and the company",
     id: "Your identity",
     intended: "The owner",
     cls: "Classification",
@@ -1156,10 +1219,11 @@ export default function RegisterWizard({
   const sectionSummary = (id: SectionId): string => {
     switch (id) {
       case "tin":
-        return `${legalName || "Not named"} · TIN ${formatTin(tin)} · ${capacity === "owner" ? "you own or direct it" : "you register it for the owner"}`;
-      case "owner":
+        return `${legalName || "Not named"} · TIN ${formatTin(tin)} · ${
+          capacity === "owner" ? (isDirector ? "you're listed as a director" : "you own or direct it") : "you register it for the owner"
+        }`;
       case "id":
-        return [registrantName || "You", idLine, id === "owner" && isDirector ? "a director" : null].filter(Boolean).join(" · ");
+        return [registrantName || "You", idLine].filter(Boolean).join(" · ");
       case "intended":
         return `${intendedOwner.name.trim()} · ${intendedOwner.email.trim()} · claims it after approval`;
       case "cls":
@@ -1176,22 +1240,40 @@ export default function RegisterWizard({
   };
   const sectionChecked = (id: SectionId): string | null => {
     if (id === "tin") return verdict?.result === "verified" ? "Checked by RRA" : null;
-    if (id === "owner" || id === "id") return checkedBy;
+    if (id === "id") return checkedBy;
     if (id === "upi") return "Format checked";
     return null;
   };
   const editSection = (id: SectionId) => {
     setFormError("");
-    if (id === "tin") {
-      setTinCheck(null);
-      setTinConfirmed(false);
-      setCarryOnPending(false);
-    } else if (id === "owner" || id === "id") setIdConfirmed(false);
+    // Change reopens a section with its answers kept: the TIN's check stays until the TIN itself changes.
+    if (id === "tin") setTinConfirmed(false);
+    else if (id === "id") setIdConfirmed(false);
     else if (id === "intended") setIntendedConfirmed(false);
     else if (id === "loc") setLocSaved(false);
     else if (id === "fr") setFrConfirmed(false);
     else if (id === "upi") setUpiConfirmed(false);
     else if (id === "cls") changeKind();
+  };
+
+  /**
+   * Back from a step: the step before it, or from You, the first step, the business type. Never disabled while
+   * the answers can still change, so an earlier answer is always one press away.
+   */
+  const stepBack = (): void => {
+    const i = order.indexOf(step);
+    if (i > 0) goTo(order[i - 1]!);
+    else {
+      // The business type, asked over You; Back from it returns here.
+      setFormError("");
+      setChoosingKind(true);
+    }
+  };
+  /** Back from an open section: the section before it, reopened with its answers, or the step before. */
+  const sectionBack = (id: SectionId): void => {
+    const prev = previousSection(sectionOrder(path, step), id);
+    if (prev) editSection(prev);
+    else stepBack();
   };
 
   const tinView: TinView = tinChecking ? { kind: "checking" } : verdict ? { kind: "result", verdict } : { kind: "idle" };
@@ -1216,27 +1298,28 @@ export default function RegisterWizard({
             onAskInjishi={() => {
               if (!openAssistant()) window.location.assign("/help");
             }}
+            isDirector={isDirector}
+            onPrepareForOwner={prepareForOwner}
             onNext={confirmTin}
+            onBack={() => sectionBack("tin")}
+            onChangeTin={reopenTin}
             error={errors["business.legalName"] ?? errors["business.tin"]}
             online={online}
           />
         );
-      case "owner":
       case "id":
         return (
           <SectionIdentity
-            path={path}
             identity={identity}
             profileComplete={profile?.complete === true && !editingProfile}
             draft={personal}
             onDraftChange={setPersonal}
             onIdentity={onIdentity}
             needsExtras={!personalOk}
-            isDirector={id === "owner" ? isDirector : null}
             errors={errors}
-            onPrepareForOwner={prepareForOwner}
             onEditProfile={editStoredProfile}
             onNext={confirmId}
+            onBack={() => sectionBack("id")}
             online={online}
           />
         );
@@ -1248,7 +1331,11 @@ export default function RegisterWizard({
               RRA&apos;s directors for this TIN. The claim link goes to their email.
             </p>
             <IntendedOwnerFields title="Who owns it" value={intendedOwner} onChange={setIntendedOwner} errors={errors} />
-            <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="ghost" onClick={() => sectionBack("intended")}>
+                <ArrowLeft size={16} aria-hidden />
+                Back
+              </Button>
               <Button onClick={confirmIntended}>Next</Button>
             </div>
           </>
@@ -1262,10 +1349,19 @@ export default function RegisterWizard({
             errors={errors}
             errorPrefix="business.address"
             onSave={() => setLocSaved(true)}
+            onBack={() => sectionBack("loc")}
           />
         );
       case "fr":
-        return <SectionFranchise draft={business} onChange={setBusiness} errors={errors} onNext={confirmFranchise} />;
+        return (
+          <SectionFranchise
+            draft={business}
+            onChange={setBusiness}
+            errors={errors}
+            onNext={confirmFranchise}
+            onBack={() => sectionBack("fr")}
+          />
+        );
       case "upi":
         return (
           <SectionProperty
@@ -1276,6 +1372,7 @@ export default function RegisterWizard({
               setErrors({});
               setUpiConfirmed(true);
             }}
+            onBack={() => sectionBack("upi")}
           />
         );
       case "cls":
@@ -1284,7 +1381,8 @@ export default function RegisterWizard({
   };
 
   // Overview rows, in the artboard's order.
-  const franchisee = business.franchiseRole === "franchisee";
+  // No franchise agreement is asked for while the question is off (2026-11-03).
+  const franchisee = bizSections.includes("fr") && business.franchiseRole === "franchisee";
   const docLabel = (d: DocumentDraft) =>
     documentRows(documentKind, { franchisee }).find((r) => r.kind === d.kind)?.label ?? d.filename;
   const docsText = docs.length
@@ -1295,7 +1393,7 @@ export default function RegisterWizard({
       ? `A member${business.psfMembershipNumber.trim() ? `, number ${business.psfMembershipNumber.trim()}` : ""}`
       : business.psfMember === false
         ? business.psfApply === true
-          ? `Applying${tiers?.find((t) => t.code === psf.requestedTierCode)?.nameEn ? `: ${tiers.find((t) => t.code === psf.requestedTierCode)!.nameEn}` : ""}. Sent to PSF after approval`
+          ? `Applying${tiers?.find((t) => t.code === psf.requestedTierCode)?.nameEn ? `: ${tiers.find((t) => t.code === psf.requestedTierCode)!.nameEn}` : ""}. Filed with this registration`
           : "Not a member, not applying now"
         : "Not answered";
   // Mid sentence: "checked", but PSF and ID keep their capitals.
@@ -1315,11 +1413,21 @@ export default function RegisterWizard({
           { title: "Business type", value: kindLabel, step: "business" },
           {
             title: "The business",
-            value: `${legalName} · TIN ${formatTin(tin)}${verdict?.result === "verified" ? " · checked by RRA" : " · RRA checks it after payment"}`,
+            value: `${legalName} · TIN ${formatTin(tin)}${verdict?.result === "verified" ? " · checked by RRA" : " · RRA checks it after payment"}${
+              path !== "helper" && isDirector ? " · you're listed as a director" : ""
+            }`,
             step: "business",
           },
+          ...(path === "helper"
+            ? [
+                {
+                  title: "The owner",
+                  value: `${intendedOwner.name.trim()} · ${intendedOwner.email.trim()} · claims it after approval`,
+                  step: "business" as const,
+                },
+              ]
+            : []),
           { title: "Location", value: locLine ?? "Not chosen", step: "business" },
-          { title: "Franchise", value: franchiseLine(business), step: "business" },
           {
             title: "Branches",
             value: branches.length
@@ -1328,31 +1436,22 @@ export default function RegisterWizard({
             step: "business",
           },
           { title: "PSF", value: psfText, step: "business" },
-          path === "helper"
-            ? { title: "You", value: youRow, step: "you" }
-            : { title: "You", value: `${youRow}${isDirector ? ", a director" : ""}`, step: "you" },
-          ...(path === "helper"
-            ? [
-                {
-                  title: "The owner",
-                  value: `${intendedOwner.name.trim()} · ${intendedOwner.email.trim()} · claims it after approval`,
-                  step: "you" as const,
-                },
-              ]
-            : []),
+          { title: "You", value: youRow, step: "you" },
           { title: "Documents", value: docsText, step: "documents" },
         ];
 
+  // No kind arrived, or Change was pressed: the kind is asked before You and Business, whichever is open.
+  const pickingKind = summary === null && (choosingKind || !kind);
   // How this stack checks an ID: a National ID by its number with NIDA, unless that check is off here.
   const idLead =
     identity && identity.nationalIdMode !== "off"
       ? "Check your National ID with NIDA, or scan your passport, then take a selfie."
       : "Scan your ID, then take a selfie.";
   const LEAD: Record<StepId, string> = {
-    business: choosingKind || !kind
-      ? "Pick the one that fits. It decides the documents we ask for."
-      : landlord
-        ? "Tell us about the property and where it is."
+    business: landlord
+      ? "Tell us about the property and where it is."
+      : path === "helper"
+        ? "Check the TIN with RRA, name the owner, then say where the business is. The owner claims it once Injishi approves it."
         : "Check the TIN with RRA, then say where the business is.",
     you:
       path === "helper"
@@ -1364,20 +1463,32 @@ export default function RegisterWizard({
   };
 
   let primary: StepPrimary | null = { label: "Continue", icon: <ArrowRight size={16} aria-hidden />, onPress: next };
-  if (step === "business") {
-    if (choosingKind || !kindOk) {
-      // What is actually missing: a kind, Other's description, or the Next under it.
-      const why =
-        kind === null
-          ? "Pick a business type to continue."
-          : kind === "other"
-            ? business.accommodationClassOther.trim() === ""
-              ? "Say what kind of place it is to continue."
-              : "Press Next under your description to continue."
-            : "Press the business type that fits to continue.";
-      primary = { ...primary, disabled: true, why };
+  if (pickingKind) {
+    // What is actually missing: a kind, Other's description, or the Next under it.
+    const why =
+      kind === null
+        ? "Pick a business type to continue."
+        : kind === "other"
+          ? business.accommodationClassOther.trim() === ""
+            ? "Say what kind of place it is to continue."
+            : "Press Next under your description to continue."
+          : "Press the business type that fits to continue.";
+    primary = { ...primary, disabled: true, why };
+  } else if (step === "business") {
+    if (!kindOk) {
+      primary = { ...primary, disabled: true, why: "Say what kind of place it is to continue." };
     } else if (!businessDone) {
       primary = { ...primary, disabled: true, why: "Finish the sections above to continue." };
+    } else if (!psfReady && business.psfMember === true) {
+      // Said on the footer too (2026-11-02): a member's missing card left a live Continue with no reason beside it.
+      primary = {
+        ...primary,
+        disabled: true,
+        why:
+          business.psfMembershipNumber.trim() && !looksLikePsfNumber(business.psfMembershipNumber)
+            ? "Fix the PSF membership number, or leave it empty, to continue."
+            : "Add your PSF membership card to continue.",
+      };
     }
   } else if (step === "you" && !youDone) {
     primary = { ...primary, disabled: true, why: "Finish the sections above to continue." };
@@ -1412,13 +1523,16 @@ export default function RegisterWizard({
   const stepIndex = Math.max(0, order.indexOf(step));
   // The artboard ticks and opens only what has been reached (`reachedIndex`, above): a step whose answers are
   // all optional is complete before anyone has seen it.
-  const rail: RailStep[] = order.map((id, i) => ({
-    id,
-    title: STEP_TITLE[id],
-    status: id === step ? "active" : complete(id) && visited.has(id) ? "complete" : "inactive",
-    // Once the registration exists, only what is left to do can be opened.
-    locked: summary !== null ? id !== "review" && id !== "pay" : i > Math.min(openable, reachedIndex),
-  }));
+  const rail: RailStep[] = order.map((id) => {
+    const why = railLock(order, id, { current: step, openable, reached: reachedIndex, created: summary !== null, paid });
+    return {
+      id,
+      title: STEP_TITLE[id],
+      status: id === step ? "active" : complete(id) && visited.has(id) ? "complete" : "inactive",
+      locked: why !== null,
+      why,
+    };
+  });
 
   let body: ReactNode;
   if (screen === "resume") {
@@ -1467,16 +1581,13 @@ export default function RegisterWizard({
         }
       >
         <SectionIdentity
-          path="landlord"
           identity={identity}
           profileComplete={profile?.complete === true && !editingProfile}
           draft={personal}
           onDraftChange={setPersonal}
           onIdentity={onIdentity}
           needsExtras={!personalOk}
-          isDirector={null}
           errors={errors}
-          onPrepareForOwner={() => undefined}
           onEditProfile={editStoredProfile}
           onNext={checkBrokerDetails}
           hideNext={brokerDetailsOk}
@@ -1507,7 +1618,7 @@ export default function RegisterWizard({
               state={(sectionState[id] as "done" | "open") ?? "open"}
               summary={sectionSummary(id)}
               checkedBy={sectionChecked(id)}
-              editText={id === "cls" ? "Change" : "Edit"}
+              editText="Change"
               onEdit={summary === null ? () => editSection(id) : null}
             >
               {sectionBody(id)}
@@ -1518,9 +1629,17 @@ export default function RegisterWizard({
     body = (
       <StepFrame
         position={{ n: stepIndex + 1, of: order.length }}
-        title={STEP_TITLE[step]}
-        lead={LEAD[step]}
-        onBack={stepIndex > 0 && !(summary !== null && step === "review") ? () => goTo(order[stepIndex - 1]!) : null}
+        title={pickingKind ? "What kind of business?" : STEP_TITLE[step]}
+        lead={pickingKind ? "Pick the one that fits. It decides the documents we ask for." : LEAD[step]}
+        onBack={
+          pickingKind
+            ? kind !== null && kind !== "broker" && (kind !== "other" || business.accommodationClassOther.trim() !== "")
+              ? () => setChoosingKind(false)
+              : null
+            : summary !== null && step === "review"
+              ? null
+              : stepBack
+        }
         primary={primary}
       >
         {formError ? (
@@ -1542,7 +1661,7 @@ export default function RegisterWizard({
           </Callout>
         ) : null}
 
-        {step === "business" && (choosingKind || !kind) ? (
+        {pickingKind ? (
           <StepType
             kind={kind}
             other={business.accommodationClassOther}
@@ -1553,7 +1672,7 @@ export default function RegisterWizard({
           />
         ) : null}
 
-        {step === "business" && !(choosingKind || !kind) ? (
+        {step === "business" && !pickingKind ? (
           <>
             {sectionList(bizSections)}
             {!landlord && businessDone ? (
@@ -1574,19 +1693,50 @@ export default function RegisterWizard({
                   setTiersFailed(false);
                   setTierRetry((n) => n + 1);
                 }}
-                documentLine={documentOnFile}
+                documentLine={documentOnFile ?? "The ID you check on the next step, You. Nothing to type here."}
+                catalogue={catalogue}
+                askGender={askPsfGender}
+                card={docs.find((d) => d.kind === "psf_certificate") ?? null}
+                onCardChange={(card) => setDocs((d) => [...d.filter((x) => x.kind !== "psf_certificate"), ...(card ? [card] : [])])}
                 errors={errors}
               />
             ) : null}
           </>
         ) : null}
 
-        {step === "you" ? sectionList(youSections) : null}
+        {/* Business came first, so RRA could not yet say whether this ID is one of the TIN's directors. It is
+            asked again once the ID is on file (`onIdentity`), and a No is said here, with the way on. */}
+        {step === "you" && !pickingKind && summary === null && capacity === "owner" && isDirector === false ? (
+          <Callout tone="warning" icon={<CircleAlert size={16} aria-hidden />} title="You're not listed as a director" role="alert">
+            <p>
+              RRA does not list your ID among the directors for TIN {formatTin(tin)}. Register it for the owner
+              instead: you name them, and they claim it with their own ID once Injishi approves it.
+            </p>
+            <div className="mt-3">
+              <Button
+                onClick={() => {
+                  prepareForOwner();
+                  goTo("business");
+                }}
+              >
+                Register it for the owner instead
+              </Button>
+            </div>
+          </Callout>
+        ) : null}
+
+        {step === "you" && !pickingKind ? sectionList(youSections) : null}
 
         {step === "documents" ? (
           <StepDocuments kind={documentKind} franchisee={franchisee} docs={docs} onDocsChange={setDocs} errors={errors} online={online} />
         ) : null}
 
+        {summary !== null && !paid && (step === "review" || step === "pay") ? (
+          <Callout tone="info" icon={<Lock size={16} aria-hidden />} title="Your answers are locked">
+            The registration was created when you first pressed Pay, so You, Business and Documents can&apos;t be
+            changed here. To change one, contact support before you pay.
+          </Callout>
+        ) : null}
         {step === "review" ? (
           <StepReview
             rows={rows}
@@ -1837,6 +1987,7 @@ function businessCandidate(
   branches: BranchDraft[],
   psf: PsfDraft,
   documentOnFile: boolean,
+  askPsfGender = false,
 ): unknown {
   const address = addressFromDraft(d.address);
   const certificates = docs.map((c) => ({
@@ -1867,8 +2018,9 @@ function businessCandidate(
     chamberOfTourismMember: d.chamberOfTourismMember === true,
     psfMember: member,
     ...(member && number ? { psfMembershipNumber: number } : {}),
-    ...(d.psfMember === false && d.psfApply === true ? { psfApplication: psfCandidate(psf, documentOnFile) } : {}),
-    ...(franchiseCandidate(d) ? { franchise: franchiseCandidate(d) } : {}),
+    ...(d.psfMember === false && d.psfApply === true ? { psfApplication: psfCandidate(psf, documentOnFile, askPsfGender) } : {}),
+    // The franchise question is not asked for now (2026-11-03): an answer left in an older saved draft is
+    // not sent either. `franchiseCandidate(d)` goes back here when the section does.
     address,
     certificates,
     branches: branches.map((b) => ({ name: b.name.trim(), address: addressFromDraft(b.address) })),
@@ -1931,4 +2083,17 @@ function prefix(p: string, errors: Record<string, string>): Record<string, strin
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(errors)) out[`${p}.${k}`] = v;
   return out;
+}
+
+/**
+ * What the PSF application's business part still owes beyond its contract (2026-11-03): the sector, the
+ * kind of business and the association, as the /psf form requires them.
+ */
+function psfBusinessIssue(d: PsfDraft): { field: string; message: string } | null {
+  if (!d.clusterCode) return { field: "clusterCode", message: "Pick the business's sector." };
+  if (!d.subsectorId) return { field: "subsectorId", message: "Pick the kind of business, or choose Other and type it." };
+  if (d.subsectorId === PSF_TYPE_IT && d.subsectorOther.trim().length < 2) return { field: "subsectorOther", message: "Name the kind of business." };
+  if (!d.associationCode) return { field: "associationCode", message: "Pick the association the business belongs to." };
+  if (isOtherAssociation(d.associationCode) && d.associationOther.trim().length < 2) return { field: "associationOther", message: "Name your association." };
+  return null;
 }

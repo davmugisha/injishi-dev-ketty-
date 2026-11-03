@@ -5,13 +5,13 @@ import { NotFoundException } from '@nestjs/common';
 import type { ListingService } from '../../listing/application/listing.service';
 import type { GuestOrderingService } from '../../outlets/application/guest-ordering.service';
 import type { OrderPaymentService } from '../../outlets/application/order-payment.service';
-import type { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
-import type { PaymentTransactionsRepository } from '../../payments/infrastructure/payment-transactions.repository';
+import type { PaymentCompensationService } from '../../pay/application/payment-compensation.service';
+import type { PaymentTransactionsRepository } from '../../pay/infrastructure/payment-transactions.repository';
 import {
   PaymentUnavailableError,
   type PaymentPort,
   type PaymentReceipt,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import type {
   PaymentAttemptRepository,
   PaymentAttemptRow,
@@ -19,6 +19,8 @@ import type {
 import { SoldOutAfterCaptureError, type BookingService } from './booking.service';
 import { PaymentAttemptService } from './payment-attempt.service';
 import type { RegistrationFees } from '../domain/registration-fees';
+import type { BookingChangeRepository } from '../infrastructure/booking-change.repository';
+import type { BrokerGroupRepository } from '../infrastructure/broker-group.repository';
 
 /**
  * The wait between "we asked" and "they paid" (ADR-047 D-j).
@@ -41,13 +43,16 @@ describe('PaymentAttemptService', () => {
     purpose: 'booking',
     serviceOrderId: null,
     subscriptionInvoiceId: null,
+    bookingChangeId: null,
+    brokerGroupId: null,
     roomTypeId: '44444444-4444-4444-4444-444444444444',
     checkIn: '2026-11-02',
     checkOut: '2026-11-05',
     guests: 2,
     nonRefundable: false,
     attemptFingerprint: 'abc123',
-    amountRwf: 94_500,
+    // 45,000 x 2 guests x 3 nights: what the stay prices at, so it books.
+    amountRwf: 270_000,
     adapterRef: 'mock_escrow_capture_tok-1',
     network: 'mtn_momo',
     payerMasked: '078•••456',
@@ -62,7 +67,7 @@ describe('PaymentAttemptService', () => {
     adapterRef: row.adapterRef!,
     mode: 'mock',
     replayed: false,
-    amountRwf: 94_500,
+    amountRwf: 270_000,
     currency: 'RWF',
     occurredAt: new Date(),
     settlement: 'settled',
@@ -77,6 +82,8 @@ describe('PaymentAttemptService', () => {
       claimWins?: boolean;
       feeOutcome?: 'settled' | 'already_settled' | 'not_payable';
       unsettledFees?: PaymentAttemptRow[];
+      change?: Record<string, unknown> | null;
+      applyOutcome?: { kind: 'applied'; changeId: string } | { kind: 'sold_out' } | { kind: 'stale' };
     } = {},
   ): {
     service: PaymentAttemptService;
@@ -89,6 +96,8 @@ describe('PaymentAttemptService', () => {
       claimConfirmed: Mock;
       markDuplicateFee: Mock;
       findUnsettledFees: Mock;
+      findChangeAttempt: Mock;
+      markChangeRefused: Mock;
     };
     compensations: { enqueue: Mock };
     bookings: { writeBooking: Mock; settledForAttempt: Mock };
@@ -96,6 +105,7 @@ describe('PaymentAttemptService', () => {
     payments: { fetchTransaction: Mock };
     transactions: { linkAttempt: Mock; markExpired: Mock; markParked: Mock };
     registrations: { orgOfRegistrationInvoice: Mock; settleFeeFromPayment: Mock };
+    changes: { abandon: Mock; findChange: Mock; apply: Mock };
   } {
     const attempts = {
       findForGuest: vi
@@ -110,6 +120,8 @@ describe('PaymentAttemptService', () => {
       claimConfirmed: vi.fn().mockResolvedValue(overrides.claimWins ?? true),
       markDuplicateFee: vi.fn().mockResolvedValue(true),
       findUnsettledFees: vi.fn().mockResolvedValue(overrides.unsettledFees ?? []),
+      findChangeAttempt: vi.fn().mockResolvedValue(overrides.row === undefined ? row : overrides.row),
+      markChangeRefused: vi.fn().mockResolvedValue(true),
     };
 
     const payments = {
@@ -123,6 +135,7 @@ describe('PaymentAttemptService', () => {
     };
 
     const listings = {
+      stayRate: vi.fn(async (rt: { nightlyRateRwf: number | null }) => ({ nightlyRateRwf: rt.nightlyRateRwf ?? 0, discountPct: 0, closedOn: null, minNights: 1, maxNights: 90 })),
       findBookableRoomType: vi.fn().mockResolvedValue(
         overrides.roomTypeMissing
           ? null
@@ -170,6 +183,14 @@ describe('PaymentAttemptService', () => {
       settleFeeFromPayment: vi.fn().mockResolvedValue(overrides.feeOutcome ?? 'settled'),
     };
 
+    const changes = {
+      abandon: vi.fn().mockResolvedValue(undefined),
+      findChange: vi.fn().mockResolvedValue(overrides.change ?? null),
+      apply: vi.fn().mockResolvedValue(overrides.applyOutcome ?? { kind: 'applied', changeId: 'change-1' }),
+    };
+
+    const brokerGroups = { markFailed: vi.fn().mockResolvedValue(true), group: vi.fn(), writeBookings: vi.fn() };
+
     const service = new PaymentAttemptService(
       attempts as unknown as PaymentAttemptRepository,
       listings as unknown as ListingService,
@@ -180,9 +201,11 @@ describe('PaymentAttemptService', () => {
       guestOrders as unknown as GuestOrderingService,
       transactions as unknown as PaymentTransactionsRepository,
       registrations as unknown as RegistrationFees,
+      changes as unknown as BookingChangeRepository,
+      brokerGroups as unknown as BrokerGroupRepository,
     );
 
-    return { service, attempts, compensations, bookings, orderPayments, payments, transactions, registrations };
+    return { service, attempts, compensations, bookings, orderPayments, payments, transactions, registrations, changes };
   }
 
   it('refuses an attempt token that is not the caller’s', async () => {
@@ -209,6 +232,26 @@ describe('PaymentAttemptService', () => {
     expect(written.input.checkIn).toBe('2026-11-02');
     expect(written.input.guests).toBe(2);
     expect(written.idempotencyKey).toBe(row.idempotencyKey);
+  });
+
+  it('books a prompt started under the old 5% fee at what it captured', async () => {
+    // 270,000 for the stay plus the 5% the guest paid before 2026-10-29.
+    const { service, bookings } = build({ row: { ...row, amountRwf: 283_500 }, fetch: { ...settled, amountRwf: 283_500 } });
+
+    const status = await service.poll('tok-1', GUEST);
+
+    expect(status.state).toBe('confirmed');
+    expect(bookings.writeBooking.mock.calls[0][0].breakdown.grossRwf).toBe(283_500);
+  });
+
+  it('refunds a prompt whose room changed price while the guest approved it', async () => {
+    const { service, bookings } = build({ row: { ...row, amountRwf: 250_000 }, fetch: { ...settled, amountRwf: 250_000 } });
+
+    const status = await service.poll('tok-1', GUEST);
+
+    expect(status.state).toBe('refused');
+    expect(status.failureReason).toMatch(/price of that room changed/);
+    expect(bookings.writeBooking).not.toHaveBeenCalled();
   });
 
   it('stays prompting while the customer has not answered', async () => {
@@ -592,6 +635,84 @@ describe('PaymentAttemptService', () => {
     it('answers 404 for a token that is not the registrant’s', async () => {
       const { service } = build({ row: null });
       await expect(service.pollRegistrationFee('tok-fee', GUEST)).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('a reservation change paid by MoMo (0120)', () => {
+    const changeRow: PaymentAttemptRow = {
+      ...row,
+      attemptToken: 'tok-change',
+      idempotencyKey: `${WORKSPACE}:booking-change:change-1:tok-change`,
+      purpose: 'booking_change',
+      bookingChangeId: 'change-1',
+      bookingId: 'booking-1',
+      roomTypeId: null,
+      checkIn: null,
+      checkOut: null,
+      guests: null,
+      amountRwf: 60_000,
+    };
+    const awaiting = {
+      id: 'change-1',
+      bookingId: 'booking-1',
+      workspaceId: WORKSPACE,
+      status: 'awaiting_payment',
+      fromCheckIn: '2026-11-01',
+      fromCheckOut: '2026-11-03',
+      fromRoomTypeId: 'rt-1',
+      fromAdults: 2,
+      fromChildren: 0,
+      toCheckIn: '2026-11-01',
+      toCheckOut: '2026-11-04',
+      toRoomTypeId: 'rt-1',
+      toAdults: 2,
+      toChildren: 0,
+      fromNightlyRwf: 60_000,
+      toNightlyRwf: 60_000,
+      paidRoomRwf: 120_000,
+      newRoomRwf: 180_000,
+      differenceRwf: 60_000,
+      actorUserId: 'desk-1',
+    };
+
+    it('applies the change once the money lands, holding the payment in escrow', async () => {
+      const { service, changes, attempts } = build({ row: changeRow, change: awaiting });
+      attempts.findByKey.mockResolvedValue(changeRow);
+      const result = await service.pollBookingChange('tok-change', WORKSPACE);
+      expect(result).toMatchObject({ state: 'confirmed', changeId: 'change-1' });
+      expect(changes.apply).toHaveBeenCalledWith(
+        expect.objectContaining({
+          changeId: 'change-1',
+          settlement: 'momo',
+          payment: expect.objectContaining({ amountRwf: 60_000, idempotencyKey: changeRow.idempotencyKey }),
+        }),
+      );
+    });
+
+    it('refunds the guest in full when the room sold out before the money landed', async () => {
+      const { service, changes, attempts, compensations } = build({
+        row: changeRow,
+        change: awaiting,
+        applyOutcome: { kind: 'sold_out' },
+      });
+      attempts.findByKey.mockResolvedValue(changeRow);
+      const result = await service.pollBookingChange('tok-change', WORKSPACE);
+      expect(result.state).toBe('refused');
+      expect(changes.abandon).toHaveBeenCalledWith('change-1');
+      expect(attempts.markChangeRefused).toHaveBeenCalled();
+      expect(compensations.enqueue).toHaveBeenCalledWith(expect.objectContaining({ kind: 'refund', amountRwf: 60_000 }));
+    });
+
+    it('drops the change when the guest declines the prompt', async () => {
+      const { service, changes } = build({ row: changeRow, change: awaiting, fetch: null });
+      await service.pollBookingChange('tok-change', WORKSPACE);
+      expect(changes.abandon).toHaveBeenCalledWith('change-1');
+      expect(changes.apply).not.toHaveBeenCalled();
+    });
+
+    it('answers another workspace’s token as not found', async () => {
+      const { service } = build({ row: null });
+      await expect(service.pollBookingChange('tok-change', WORKSPACE)).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

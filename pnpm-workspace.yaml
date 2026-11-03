@@ -21,20 +21,6 @@ minimumReleaseAgeExclude:
   - react-resizable-panels@4.14.5
   - zod@4.6.7
   - '@gravity-ui/icons@2.22.1'
-  - '@expo/cli@57.0.29'
-  - '@expo/fingerprint@0.20.14'
-  - '@expo/inline-modules@0.1.8'
-  - '@expo/local-build-cache-provider@57.0.9'
-  - '@expo/prebuild-config@57.0.18'
-  - '@expo/ui@57.0.23'
-  - babel-preset-expo@57.0.15
-  - expo-modules-autolinking@57.0.15
-  - expo-modules-core@57.0.22
-  - expo-modules-jsi@57.1.2
-  - expo-router@57.0.26
-  - expo-splash-screen@57.0.10
-  - expo@57.0.28
-  - expo-network@57.0.3
 # Slow/flaky networks: be patient with large tarballs (next, swc, turbo).
 fetchRetries: 6
 fetchTimeout: 300000
@@ -64,9 +50,10 @@ allowBuilds:
 # later install, token or not, reuses it without running the postinstall.
 sideEffectsCache: false
 
-# One set of React type definitions for the whole workspace. The Expo app runs React 19.2 (React Native's
-# renderer pins it) while the web app runs 19.3; their runtimes stay separate, but two @types/react copies
-# make HeroUI's declarations and the web code disagree, so every member type-checks against 19.3.0.
+# One set of React type definitions for the whole workspace. The Expo app runs React 19.3.0 (React Native's
+# renderer pins the exact version) while the web apps run 19.3.1; their runtimes stay separate, but two
+# @types/react copies make HeroUI's declarations and the web code disagree, so every member type-checks
+# against 19.3.0.
 overrides:
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0

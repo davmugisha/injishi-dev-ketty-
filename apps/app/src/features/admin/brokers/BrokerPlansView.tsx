@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Toast, toast } from "@heroui/react";
+import { Toast, toast } from "@heroui/react";
 import {
   type AdminBrokerSubscription,
   BROKER_PAY_METHOD_LABEL,
@@ -9,24 +9,21 @@ import {
   type BrokerPlanStatus,
 } from "@injishi/contracts";
 import {
-  ActionButton,
   type DataColumn,
   DataTable,
   EmptyBlock,
-  FilterTabs,
   FormDialog,
   formatDay,
   formatMoney,
-  ListToolbar,
+  IconAction,
   MoneyInput,
   PageContent,
-  PageHeader,
-  SearchBar,
   StatusChip,
   type StatusTone,
 } from "@injishi/ui";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { TextInput } from "@/features/rentals/fields";
 import { setBrokerPlanPrice } from "./actions";
 
@@ -53,17 +50,18 @@ const ENDED: BrokerPlanStatus[] = ["cancelled", "expired"];
  * price applies to the next payment; a month already paid keeps its price.
  */
 export function BrokerPlansView({
+  view,
   plans,
   subscriptions,
   canEdit,
 }: {
+  /** The Subscriptions tab or the Plan prices tab. */
+  view: "subscriptions" | "prices";
   plans: BrokerPlan[];
   subscriptions: AdminBrokerSubscription[];
   canEdit: boolean;
 }) {
   const [editing, setEditing] = useState<BrokerPlan | null>(null);
-  const [tab, setTab] = useState<Tab>("all");
-  const [q, setQ] = useState("");
   const holding = (code: BrokerPlanCode) =>
     subscriptions.filter((s) => s.plan === code && (s.status === "active" || s.status === "past_due")).length;
   const count = (t: Tab) =>
@@ -72,12 +70,6 @@ export function BrokerPlansView({
       : t === "ended"
         ? subscriptions.filter((s) => ENDED.includes(s.status)).length
         : subscriptions.filter((s) => s.status === t).length;
-  const needle = q.trim().toLowerCase();
-  const rows = subscriptions.filter((s) => {
-    if (tab === "ended" ? !ENDED.includes(s.status) : tab !== "all" && s.status !== tab) return false;
-    if (!needle) return true;
-    return `${s.brokerName ?? ""} ${s.area}`.toLowerCase().includes(needle);
-  });
   const planName = (code: BrokerPlanCode) => plans.find((p) => p.code === code)?.name ?? code;
 
   const columns: DataColumn<AdminBrokerSubscription>[] = [
@@ -138,73 +130,103 @@ export function BrokerPlansView({
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
-      <PageHeader title="Broker plans" />
-      <ul className="grid gap-4 sm:grid-cols-3">
-        {plans.map((p) => {
-          const held = holding(p.code);
-          return (
-            <li key={p.code} className="flex">
-              <Card className="w-full gap-4 p-5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex min-w-0 flex-col">
-                    <span className="font-semibold">{p.name}</span>
-                    <span className="text-sm text-muted">{COVERS[p.code]}</span>
-                  </div>
-                  {p.active ? null : <StatusChip tone="default">Off</StatusChip>}
-                </div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-3xl font-semibold tracking-tight tabular">
-                    {p.priceRwf === 0 ? "Free" : formatMoney(p.priceRwf)}
-                  </span>
-                  {p.priceRwf > 0 ? <span className="text-sm text-muted">a month</span> : null}
-                </div>
-                <div className="mt-auto flex items-center justify-between gap-3 border-t border-separator pt-3">
-                  <span className="text-sm text-muted">
-                    {held} {held === 1 ? "broker" : "brokers"}
-                  </span>
-                  {canEdit && p.code !== "district" ? (
-                    <ActionButton size="sm" icon="PencilToSquare" onPress={() => setEditing(p)}>
-                      Change price
-                    </ActionButton>
-                  ) : null}
-                </div>
-              </Card>
-            </li>
-          );
-        })}
-      </ul>
-
-      <ListToolbar
-        tabs={
-          <FilterTabs
-            label="Subscriptions by status"
-            name="Status"
-            selectedKey={tab}
-            onSelectionChange={(k) => setTab(k as Tab)}
-            tabs={[
-              { id: "all", label: "All", count: count("all") },
-              { id: "active", label: "Active", count: count("active") },
-              { id: "past_due", label: "In grace", count: count("past_due") },
-              { id: "ended", label: "Ended", count: count("ended") },
-            ]}
-          />
-        }
-      >
-        <SearchBar label="Search subscriptions" placeholder="Broker or area" value={q} onChange={setQ} />
-      </ListToolbar>
-      <DataTable
-        label="Broker subscriptions"
-        rows={rows}
-        rowKey={(s) => s.id}
-        columns={columns}
-        defaultSort={{ column: "period", direction: "descending" }}
-        mobile={{
-          title: (s) => s.brokerName ?? "No name yet",
-          description: (s) => `${planName(s.plan)} · ${s.area} · ${formatMoney(s.paidRwf)}`,
-          trailing: (s) => <StatusChip tone={STATUS[s.status].tone}>{STATUS[s.status].label}</StatusChip>,
-        }}
-        empty={<EmptyBlock icon="CreditCard" title={needle ? "No subscription matches" : "No subscriptions yet"} />}
-      />
+      <AreaHeader />
+      {view === "prices" ? (
+        <DataTable<BrokerPlan>
+          label="Plan prices"
+          noun={{ one: "plan", many: "plans" }}
+          rows={plans}
+          rowKey={(p) => p.code}
+          columns={[
+            {
+              id: "plan",
+              header: "Plan",
+              isRowHeader: true,
+              cell: (p) => (
+                <span className="flex flex-col">
+                  <span className="font-medium">{p.name}</span>
+                  <span className="text-xs text-muted">{COVERS[p.code]}</span>
+                </span>
+              ),
+            },
+            {
+              id: "price",
+              header: "Price a month",
+              align: "end",
+              sortValue: (p) => p.priceRwf,
+              cell: (p) => (p.priceRwf === 0 ? "Free" : formatMoney(p.priceRwf)),
+            },
+            {
+              id: "brokers",
+              header: "Brokers on it",
+              align: "end",
+              sortValue: (p) => holding(p.code),
+              cell: (p) => <span className="tabular">{holding(p.code)}</span>,
+            },
+            {
+              id: "status",
+              header: "Status",
+              cell: (p) => <StatusChip tone={p.active ? "success" : "default"}>{p.active ? "On" : "Off"}</StatusChip>,
+            },
+          ]}
+          rowActions={
+            canEdit
+              ? (p) =>
+                  p.code !== "district" ? (
+                    <IconAction
+                      icon="PencilToSquare"
+                      label={`Change the ${p.name} price`}
+                      onPress={() => setEditing(p)}
+                    />
+                  ) : null
+              : undefined
+          }
+          mobile={{
+            title: (p) => p.name,
+            description: (p) => `${COVERS[p.code]} · ${holding(p.code)} brokers`,
+            trailing: (p) => (
+              <span className="font-medium tabular">{p.priceRwf === 0 ? "Free" : formatMoney(p.priceRwf)}</span>
+            ),
+          }}
+          empty={<EmptyBlock icon="CreditCard" title="No plans yet" />}
+        />
+      ) : (
+        <DataTable
+          label="Broker subscriptions"
+          noun={{ one: "subscription", many: "subscriptions" }}
+          rows={subscriptions}
+          rowKey={(s) => s.id}
+          columns={columns}
+          defaultSort={{ column: "period", direction: "descending" }}
+          search={{ placeholder: "Broker or area", text: (s) => `${s.brokerName ?? ""} ${s.area}` }}
+          filters={[
+            {
+              id: "status",
+              name: "Status",
+              options: [
+                { id: "all", label: "All", count: count("all") },
+                { id: "active", label: "Active", count: count("active") },
+                { id: "past_due", label: "In grace", count: count("past_due") },
+                { id: "ended", label: "Ended", count: count("ended") },
+              ],
+              match: (s, v) => (v === "ended" ? ENDED.includes(s.status) : s.status === v),
+            },
+            {
+              id: "plan",
+              name: "Plan",
+              icon: "CreditCard",
+              options: [{ id: "all", label: "All" }, ...plans.map((p) => ({ id: p.code, label: p.name }))],
+              match: (s, v) => s.plan === v,
+            },
+          ]}
+          mobile={{
+            title: (s) => s.brokerName ?? "No name yet",
+            description: (s) => `${planName(s.plan)} · ${s.area} · ${formatMoney(s.paidRwf)}`,
+            trailing: (s) => <StatusChip tone={STATUS[s.status].tone}>{STATUS[s.status].label}</StatusChip>,
+          }}
+          empty={<EmptyBlock icon="CreditCard" title="No subscriptions yet" />}
+        />
+      )}
 
       {editing ? <PriceDialog plan={editing} onClose={() => setEditing(null)} /> : null}
     </PageContent>
@@ -223,7 +245,6 @@ function PriceDialog({ plan, onClose }: { plan: BrokerPlan; onClose: () => void 
       isOpen
       onOpenChange={(open) => (open ? undefined : onClose())}
       title={`${plan.name} price`}
-      description="Applies to the next payment. Months already paid keep their price."
       submitLabel="Save price"
       isPending={pending}
       formError={formError}
@@ -266,7 +287,6 @@ function PriceDialog({ plan, onClose }: { plan: BrokerPlan; onClose: () => void 
         }}
         multiline
         isRequired
-        description="Kept in the audit log."
         errorMessage={errors.reason || null}
       />
     </FormDialog>

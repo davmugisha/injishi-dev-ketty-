@@ -82,13 +82,13 @@ export declare const HrCatalogItem: z.ZodObject<{
     id: string;
     title: string;
     kind?: "warning" | "suspension" | "dismissal" | undefined;
-    tone?: "ok" | "neutral" | "info" | "warn" | "bad" | undefined;
+    tone?: "neutral" | "info" | "ok" | "warn" | "bad" | undefined;
 }, {
     status: "active" | "archived";
     id: string;
     title: string;
     kind?: "warning" | "suspension" | "dismissal" | undefined;
-    tone?: "ok" | "neutral" | "info" | "warn" | "bad" | undefined;
+    tone?: "neutral" | "info" | "ok" | "warn" | "bad" | undefined;
 }>;
 export type HrCatalogItem = z.infer<typeof HrCatalogItem>;
 export declare const HrCatalogList: z.ZodObject<{
@@ -105,13 +105,13 @@ export declare const HrCatalogList: z.ZodObject<{
         id: string;
         title: string;
         kind?: "warning" | "suspension" | "dismissal" | undefined;
-        tone?: "ok" | "neutral" | "info" | "warn" | "bad" | undefined;
+        tone?: "neutral" | "info" | "ok" | "warn" | "bad" | undefined;
     }, {
         status: "active" | "archived";
         id: string;
         title: string;
         kind?: "warning" | "suspension" | "dismissal" | undefined;
-        tone?: "ok" | "neutral" | "info" | "warn" | "bad" | undefined;
+        tone?: "neutral" | "info" | "ok" | "warn" | "bad" | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     items: {
@@ -119,7 +119,7 @@ export declare const HrCatalogList: z.ZodObject<{
         id: string;
         title: string;
         kind?: "warning" | "suspension" | "dismissal" | undefined;
-        tone?: "ok" | "neutral" | "info" | "warn" | "bad" | undefined;
+        tone?: "neutral" | "info" | "ok" | "warn" | "bad" | undefined;
     }[];
 }, {
     items: {
@@ -127,7 +127,7 @@ export declare const HrCatalogList: z.ZodObject<{
         id: string;
         title: string;
         kind?: "warning" | "suspension" | "dismissal" | undefined;
-        tone?: "ok" | "neutral" | "info" | "warn" | "bad" | undefined;
+        tone?: "neutral" | "info" | "ok" | "warn" | "bad" | undefined;
     }[];
 }>;
 export type HrCatalogList = z.infer<typeof HrCatalogList>;
@@ -138,11 +138,11 @@ export declare const CreateHrCatalogItemRequest: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     title: string;
     kind?: "warning" | "suspension" | "dismissal" | undefined;
-    tone?: "ok" | "neutral" | "info" | "warn" | "bad" | undefined;
+    tone?: "neutral" | "info" | "ok" | "warn" | "bad" | undefined;
 }, {
     title: string;
     kind?: "warning" | "suspension" | "dismissal" | undefined;
-    tone?: "ok" | "neutral" | "info" | "warn" | "bad" | undefined;
+    tone?: "neutral" | "info" | "ok" | "warn" | "bad" | undefined;
 }>;
 export type CreateHrCatalogItemRequest = z.infer<typeof CreateHrCatalogItemRequest>;
 export declare const UpdateHrCatalogItemRequest: z.ZodEffects<z.ZodObject<{
@@ -154,22 +154,22 @@ export declare const UpdateHrCatalogItemRequest: z.ZodEffects<z.ZodObject<{
     status?: "active" | "archived" | undefined;
     kind?: "warning" | "suspension" | "dismissal" | undefined;
     title?: string | undefined;
-    tone?: "ok" | "neutral" | "info" | "warn" | "bad" | undefined;
+    tone?: "neutral" | "info" | "ok" | "warn" | "bad" | undefined;
 }, {
     status?: "active" | "archived" | undefined;
     kind?: "warning" | "suspension" | "dismissal" | undefined;
     title?: string | undefined;
-    tone?: "ok" | "neutral" | "info" | "warn" | "bad" | undefined;
+    tone?: "neutral" | "info" | "ok" | "warn" | "bad" | undefined;
 }>, {
     status?: "active" | "archived" | undefined;
     kind?: "warning" | "suspension" | "dismissal" | undefined;
     title?: string | undefined;
-    tone?: "ok" | "neutral" | "info" | "warn" | "bad" | undefined;
+    tone?: "neutral" | "info" | "ok" | "warn" | "bad" | undefined;
 }, {
     status?: "active" | "archived" | undefined;
     kind?: "warning" | "suspension" | "dismissal" | undefined;
     title?: string | undefined;
-    tone?: "ok" | "neutral" | "info" | "warn" | "bad" | undefined;
+    tone?: "neutral" | "info" | "ok" | "warn" | "bad" | undefined;
 }>;
 export type UpdateHrCatalogItemRequest = z.infer<typeof UpdateHrCatalogItemRequest>;
 export declare const HrSettings: z.ZodObject<{
@@ -225,7 +225,7 @@ export declare const PayAccount: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "active" | "retired";
     id: string;
-    kind: "bank" | "momo";
+    kind: "momo" | "bank";
     createdAt: string;
     isPrimary: boolean;
     bankName: string | null;
@@ -236,7 +236,7 @@ export declare const PayAccount: z.ZodObject<{
 }, {
     status: "active" | "retired";
     id: string;
-    kind: "bank" | "momo";
+    kind: "momo" | "bank";
     createdAt: string;
     isPrimary: boolean;
     bankName: string | null;
@@ -261,7 +261,7 @@ export declare const PayAccountList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "active" | "retired";
         id: string;
-        kind: "bank" | "momo";
+        kind: "momo" | "bank";
         createdAt: string;
         isPrimary: boolean;
         bankName: string | null;
@@ -272,7 +272,7 @@ export declare const PayAccountList: z.ZodObject<{
     }, {
         status: "active" | "retired";
         id: string;
-        kind: "bank" | "momo";
+        kind: "momo" | "bank";
         createdAt: string;
         isPrimary: boolean;
         bankName: string | null;
@@ -285,7 +285,7 @@ export declare const PayAccountList: z.ZodObject<{
     accounts: {
         status: "active" | "retired";
         id: string;
-        kind: "bank" | "momo";
+        kind: "momo" | "bank";
         createdAt: string;
         isPrimary: boolean;
         bankName: string | null;
@@ -298,7 +298,7 @@ export declare const PayAccountList: z.ZodObject<{
     accounts: {
         status: "active" | "retired";
         id: string;
-        kind: "bank" | "momo";
+        kind: "momo" | "bank";
         createdAt: string;
         isPrimary: boolean;
         bankName: string | null;
@@ -500,12 +500,12 @@ export declare const EmployeeDocument: z.ZodObject<{
     };
     title: string;
     updatedAt: string;
+    dueOn: string | null;
     requestId: string | null;
     rejectReason: string | null;
     remindDaysBefore: number | null;
     formats: ("pdf" | "jpg" | "png" | "heic")[];
     maxMb: number;
-    dueOn: string | null;
     versions: {
         status: "submitted" | "approved" | "rejected";
         id: string;
@@ -526,12 +526,12 @@ export declare const EmployeeDocument: z.ZodObject<{
     };
     title: string;
     updatedAt: string;
+    dueOn: string | null;
     requestId: string | null;
     rejectReason: string | null;
     remindDaysBefore: number | null;
     formats: ("pdf" | "jpg" | "png" | "heic")[];
     maxMb: number;
-    dueOn: string | null;
     versions: {
         status: "submitted" | "approved" | "rejected";
         id: string;
@@ -603,12 +603,12 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         };
         title: string;
         updatedAt: string;
+        dueOn: string | null;
         requestId: string | null;
         rejectReason: string | null;
         remindDaysBefore: number | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
-        dueOn: string | null;
         versions: {
             status: "submitted" | "approved" | "rejected";
             id: string;
@@ -629,12 +629,12 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         };
         title: string;
         updatedAt: string;
+        dueOn: string | null;
         requestId: string | null;
         rejectReason: string | null;
         remindDaysBefore: number | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
-        dueOn: string | null;
         versions: {
             status: "submitted" | "approved" | "rejected";
             id: string;
@@ -657,12 +657,12 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         };
         title: string;
         updatedAt: string;
+        dueOn: string | null;
         requestId: string | null;
         rejectReason: string | null;
         remindDaysBefore: number | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
-        dueOn: string | null;
         versions: {
             status: "submitted" | "approved" | "rejected";
             id: string;
@@ -685,12 +685,12 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         };
         title: string;
         updatedAt: string;
+        dueOn: string | null;
         requestId: string | null;
         rejectReason: string | null;
         remindDaysBefore: number | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
-        dueOn: string | null;
         versions: {
             status: "submitted" | "approved" | "rejected";
             id: string;
@@ -728,8 +728,6 @@ export declare const DocumentRequestSummary: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     id: string;
-    title: string;
-    createdAt: string;
     description: string | null;
     counts: {
         submitted: number;
@@ -737,13 +735,13 @@ export declare const DocumentRequestSummary: z.ZodObject<{
         rejected: number;
         requested: number;
     };
+    title: string;
+    createdAt: string;
+    dueOn: string | null;
     formats: ("pdf" | "jpg" | "png" | "heic")[];
     maxMb: number;
-    dueOn: string | null;
 }, {
     id: string;
-    title: string;
-    createdAt: string;
     description: string | null;
     counts: {
         submitted: number;
@@ -751,9 +749,11 @@ export declare const DocumentRequestSummary: z.ZodObject<{
         rejected: number;
         requested: number;
     };
+    title: string;
+    createdAt: string;
+    dueOn: string | null;
     formats: ("pdf" | "jpg" | "png" | "heic")[];
     maxMb: number;
-    dueOn: string | null;
 }>;
 export type DocumentRequestSummary = z.infer<typeof DocumentRequestSummary>;
 export declare const DocumentRequestList: z.ZodObject<{
@@ -784,8 +784,6 @@ export declare const DocumentRequestList: z.ZodObject<{
         }>;
     }, "strip", z.ZodTypeAny, {
         id: string;
-        title: string;
-        createdAt: string;
         description: string | null;
         counts: {
             submitted: number;
@@ -793,13 +791,13 @@ export declare const DocumentRequestList: z.ZodObject<{
             rejected: number;
             requested: number;
         };
+        title: string;
+        createdAt: string;
+        dueOn: string | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
-        dueOn: string | null;
     }, {
         id: string;
-        title: string;
-        createdAt: string;
         description: string | null;
         counts: {
             submitted: number;
@@ -807,15 +805,15 @@ export declare const DocumentRequestList: z.ZodObject<{
             rejected: number;
             requested: number;
         };
+        title: string;
+        createdAt: string;
+        dueOn: string | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
-        dueOn: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     requests: {
         id: string;
-        title: string;
-        createdAt: string;
         description: string | null;
         counts: {
             submitted: number;
@@ -823,15 +821,15 @@ export declare const DocumentRequestList: z.ZodObject<{
             rejected: number;
             requested: number;
         };
+        title: string;
+        createdAt: string;
+        dueOn: string | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
-        dueOn: string | null;
     }[];
 }, {
     requests: {
         id: string;
-        title: string;
-        createdAt: string;
         description: string | null;
         counts: {
             submitted: number;
@@ -839,9 +837,11 @@ export declare const DocumentRequestList: z.ZodObject<{
             rejected: number;
             requested: number;
         };
+        title: string;
+        createdAt: string;
+        dueOn: string | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
-        dueOn: string | null;
     }[];
 }>;
 export type DocumentRequestList = z.infer<typeof DocumentRequestList>;
@@ -1579,6 +1579,7 @@ export declare const DisciplinaryAction: z.ZodObject<{
         title: string;
     };
     id: string;
+    description: string;
     startsOn: string;
     employee: {
         employeeId: string;
@@ -1587,7 +1588,6 @@ export declare const DisciplinaryAction: z.ZodObject<{
     };
     unit: "days" | "hours" | null;
     createdAt: string;
-    description: string;
     createdByName: string | null;
     hasFile: boolean;
 }, {
@@ -1598,6 +1598,7 @@ export declare const DisciplinaryAction: z.ZodObject<{
         title: string;
     };
     id: string;
+    description: string;
     startsOn: string;
     employee: {
         employeeId: string;
@@ -1606,7 +1607,6 @@ export declare const DisciplinaryAction: z.ZodObject<{
     };
     unit: "days" | "hours" | null;
     createdAt: string;
-    description: string;
     createdByName: string | null;
     hasFile: boolean;
 }>;
@@ -1655,6 +1655,7 @@ export declare const DisciplinaryActionList: z.ZodObject<{
             title: string;
         };
         id: string;
+        description: string;
         startsOn: string;
         employee: {
             employeeId: string;
@@ -1663,7 +1664,6 @@ export declare const DisciplinaryActionList: z.ZodObject<{
         };
         unit: "days" | "hours" | null;
         createdAt: string;
-        description: string;
         createdByName: string | null;
         hasFile: boolean;
     }, {
@@ -1674,6 +1674,7 @@ export declare const DisciplinaryActionList: z.ZodObject<{
             title: string;
         };
         id: string;
+        description: string;
         startsOn: string;
         employee: {
             employeeId: string;
@@ -1682,7 +1683,6 @@ export declare const DisciplinaryActionList: z.ZodObject<{
         };
         unit: "days" | "hours" | null;
         createdAt: string;
-        description: string;
         createdByName: string | null;
         hasFile: boolean;
     }>, "many">;
@@ -1695,6 +1695,7 @@ export declare const DisciplinaryActionList: z.ZodObject<{
             title: string;
         };
         id: string;
+        description: string;
         startsOn: string;
         employee: {
             employeeId: string;
@@ -1703,7 +1704,6 @@ export declare const DisciplinaryActionList: z.ZodObject<{
         };
         unit: "days" | "hours" | null;
         createdAt: string;
-        description: string;
         createdByName: string | null;
         hasFile: boolean;
     }[];
@@ -1716,6 +1716,7 @@ export declare const DisciplinaryActionList: z.ZodObject<{
             title: string;
         };
         id: string;
+        description: string;
         startsOn: string;
         employee: {
             employeeId: string;
@@ -1724,7 +1725,6 @@ export declare const DisciplinaryActionList: z.ZodObject<{
         };
         unit: "days" | "hours" | null;
         createdAt: string;
-        description: string;
         createdByName: string | null;
         hasFile: boolean;
     }[];
@@ -1740,32 +1740,32 @@ export declare const CreateDisciplinaryActionRequest: z.ZodEffects<z.ZodObject<{
     startsOn: z.ZodString;
     fileKey: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
-    startsOn: string;
     description: string;
+    startsOn: string;
     employeeIds: string[];
     typeId: string;
     length?: number | null | undefined;
     unit?: "days" | "hours" | null | undefined;
     fileKey?: string | null | undefined;
 }, {
-    startsOn: string;
     description: string;
+    startsOn: string;
     employeeIds: string[];
     typeId: string;
     length?: number | null | undefined;
     unit?: "days" | "hours" | null | undefined;
     fileKey?: string | null | undefined;
 }>, {
-    startsOn: string;
     description: string;
+    startsOn: string;
     employeeIds: string[];
     typeId: string;
     length?: number | null | undefined;
     unit?: "days" | "hours" | null | undefined;
     fileKey?: string | null | undefined;
 }, {
-    startsOn: string;
     description: string;
+    startsOn: string;
     employeeIds: string[];
     typeId: string;
     length?: number | null | undefined;
@@ -1818,6 +1818,7 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
             title: string;
         };
         id: string;
+        description: string;
         startsOn: string;
         employee: {
             employeeId: string;
@@ -1826,7 +1827,6 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
         };
         unit: "days" | "hours" | null;
         createdAt: string;
-        description: string;
         createdByName: string | null;
         hasFile: boolean;
     }, {
@@ -1837,6 +1837,7 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
             title: string;
         };
         id: string;
+        description: string;
         startsOn: string;
         employee: {
             employeeId: string;
@@ -1845,7 +1846,6 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
         };
         unit: "days" | "hours" | null;
         createdAt: string;
-        description: string;
         createdByName: string | null;
         hasFile: boolean;
     }>, "many">;
@@ -1860,6 +1860,7 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
             title: string;
         };
         id: string;
+        description: string;
         startsOn: string;
         employee: {
             employeeId: string;
@@ -1868,7 +1869,6 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
         };
         unit: "days" | "hours" | null;
         createdAt: string;
-        description: string;
         createdByName: string | null;
         hasFile: boolean;
     }[];
@@ -1882,6 +1882,7 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
             title: string;
         };
         id: string;
+        description: string;
         startsOn: string;
         employee: {
             employeeId: string;
@@ -1890,7 +1891,6 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
         };
         unit: "days" | "hours" | null;
         createdAt: string;
-        description: string;
         createdByName: string | null;
         hasFile: boolean;
     }[];

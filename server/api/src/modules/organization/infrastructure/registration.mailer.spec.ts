@@ -47,12 +47,15 @@ function fakeRepo(over: {
   fieldVerifier?: string | null;
   owners?: Recipient[];
   facts?: unknown;
+  domain?: string;
+  awaitingClaim?: boolean;
 } = {}): OrganizationRepository {
   return {
     registrationMailFacts: async () =>
       over.facts === undefined
         ? {
             legalName: 'Kigali Hills Guest House',
+            domain: over.domain ?? 'hospitality',
             tin: '123456789',
             districtId: 102,
             districtName: 'Gasabo',
@@ -66,6 +69,7 @@ function fakeRepo(over: {
     districtsByProvince: async (ids: readonly number[]) =>
       new Map(ids.includes(1) ? [[1, [101, 102, 103]]] : []),
     latestFieldVerifierId: async () => over.fieldVerifier ?? null,
+    isAwaitingOwnerClaim: async () => over.awaitingClaim ?? false,
     holdsOrgRole: async (_org: string, userId: string) =>
       (over.members ?? []).includes(userId),
   } as unknown as OrganizationRepository;
@@ -102,11 +106,43 @@ describe('RegistrationMailer · registrant mails', () => {
     expect(port.sent[0]?.text).toContain('https://www.injishi.com/register');
   });
 
-  it('links the approval mail to the workspace setup screen', async () => {
+  it('links the approval mail to the workspace setup screen, on the app', async () => {
     const port = recorder();
     await new RegistrationMailer(port, configFrom({}), fakeRepo()).approved(ORG, false);
     expect(port.sent).toHaveLength(1);
-    expect(port.sent[0]?.text).toContain(`http://localhost:3000/w/${WS}/setup`);
+    expect(port.sent[0]?.text).toContain(`http://localhost:3002/w/${WS}/setup`);
+  });
+
+  it('links a residence approval to the rentals setup', async () => {
+    const port = recorder();
+    await new RegistrationMailer(port, configFrom({}), fakeRepo({ domain: 'residence' })).approved(ORG, false);
+    expect(port.sent[0]?.text).toContain('http://localhost:3002/residence/setup');
+  });
+
+  it('invites a paid hospitality business to set up while in review, once', async () => {
+    const port = recorder();
+    await new RegistrationMailer(
+      port,
+      configFrom({ APP_URL: 'https://app.injishi.com' }),
+      fakeRepo(),
+    ).submitted(ORG, false);
+    expect(port.sent).toHaveLength(1);
+    expect(port.sent[0]?.subject).toBe('Set up Kigali Hills Guest House while we review it');
+    expect(port.sent[0]?.text).toContain(`https://app.injishi.com/w/${WS}/setup`);
+  });
+
+  it('sends the plain submitted mail to a resubmission, a residence and an unclaimed OBO registration', async () => {
+    for (const [repo, resubmitted] of [
+      [fakeRepo(), true],
+      [fakeRepo({ domain: 'residence' }), false],
+      [fakeRepo({ awaitingClaim: true }), false],
+    ] as const) {
+      const port = recorder();
+      await new RegistrationMailer(port, configFrom({}), repo).submitted(ORG, resubmitted);
+      expect(port.sent).toHaveLength(1);
+      expect(port.sent[0]?.subject).toBe('Registration submitted — Kigali Hills Guest House');
+      expect(port.sent[0]?.text).not.toContain('/setup');
+    }
   });
 
   it('does not link an OBO approval to setup', async () => {
@@ -148,8 +184,8 @@ describe('RegistrationMailer · officer mails', () => {
     });
     await new RegistrationMailer(port, configFrom({}), repo).queueEntered(ORG, 'business_field_verifier');
     expect(port.sent.map((m) => m.to).sort()).toEqual(['gasabo@example.test', 'kigali@example.test']);
-    expect(port.sent[0]?.subject).toBe('Field verification needed — Kigali Hills Guest House');
-    expect(port.sent[0]?.text).toContain('http://localhost:3000/oversight/verifier/queue');
+    expect(port.sent[0]?.subject).toBe('Documents to review — Kigali Hills Guest House');
+    expect(port.sent[0]?.text).toContain('http://localhost:3002/officer');
   });
 
   it('never mails the approval queue to the officer who field verified the business', async () => {
@@ -165,7 +201,7 @@ describe('RegistrationMailer · officer mails', () => {
     });
     await new RegistrationMailer(port, configFrom({}), repo).queueEntered(ORG, 'business_approver');
     expect(port.sent.map((m) => m.to)).toEqual(['claudine@example.test']);
-    expect(port.sent[0]?.text).toContain('/oversight/approver/queue');
+    expect(port.sent[0]?.text).toContain('http://localhost:3002/officer');
   });
 });
 

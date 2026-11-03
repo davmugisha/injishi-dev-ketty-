@@ -1,16 +1,17 @@
-import { type PhoneAppId, type PhoneTab, screenByPath, screenHref, tabbars } from "@injishi/data";
-import { Link, usePathname } from "expo-router";
+import { Link } from "expo-router";
 import type { ReactNode } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "./icon";
 
-const APP_LABEL: Record<PhoneAppId, string> = {
-  housekeeper: "Staff app",
-  supervisor: "Supervisor app",
-  technician: "Technician app",
-  guest: "Guest app",
-};
+/** One tab of a phone app's bar: what it says, its glyph and where it goes. */
+export interface TabItem {
+  key: string;
+  label: string;
+  /** A name from `icons.json`. */
+  icon: string;
+  href: string;
+}
 
 /** Header row of a phone screen (artifact: .ij-phone-top). */
 export function PhoneTop({ children }: { children: ReactNode }) {
@@ -31,31 +32,43 @@ export function PhoneBody({ children }: { children: ReactNode }) {
   );
 }
 
-/** Bottom tab bar of a phone app (artifact: .ij-tabbar); the current tab follows the route. */
-export function TabBar({ app }: { app: PhoneAppId }) {
-  const pathname = usePathname();
+/**
+ * Bottom tab bar of a phone app (artifact: .ij-tabbar). The caller gives the tabs and which one is
+ * current: the staff layout from `@injishi/data`'s bars, the guest layout from its own list (mobile
+ * spec 0005, D-am), so every bar shares one look and the guest files import no demo data.
+ */
+export function TabBar({
+  label,
+  tabs,
+  current,
+}: {
+  label: string;
+  tabs: readonly TabItem[];
+  current: string | undefined;
+}) {
   const insets = useSafeAreaInsets();
-  const tabs: PhoneTab[] = tabbars[app];
-  const screen = screenByPath(pathname);
-  const current = tabs.some((t) => t.board === screen?.board) ? screen?.board : screen?.tabCurrent;
   return (
     <View
       accessibilityRole="tablist"
-      accessibilityLabel={APP_LABEL[app]}
+      accessibilityLabel={label}
       className="flex-row justify-around border-t border-separator bg-surface px-2 pt-1.5"
       style={{ paddingBottom: Math.max(insets.bottom, 22) }}
     >
       {tabs.map((t) => {
-        const active = t.board === current;
+        const active = t.key === current;
         return (
-          <Link key={t.board} href={screenHref(t.board) as never} asChild>
+          <Link key={t.key} href={t.href as never} asChild>
             <Pressable
               accessibilityRole="tab"
+              accessibilityLabel={t.label}
               accessibilityState={{ selected: active }}
               className="min-h-12 flex-1 items-center justify-center gap-0.5 rounded-[14px]"
             >
               <Icon name={t.icon} size={22} tone={active ? "accent" : "muted"} />
-              <Text className={`text-[11px] font-medium ${active ? "text-accent-soft-foreground" : "text-muted"}`}>
+              <Text
+                maxFontSizeMultiplier={1.5}
+                className={`text-[11px] font-medium ${active ? "text-accent-soft-foreground" : "text-muted"}`}
+              >
                 {t.label}
               </Text>
             </Pressable>

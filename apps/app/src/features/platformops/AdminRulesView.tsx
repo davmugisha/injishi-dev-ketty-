@@ -58,7 +58,6 @@ export function AdminRulesView({ data }: { data: AdminRulesData }) {
       <PageHeader
         eyebrow="Platform › Rules and catalogs · Production"
         title="Rules and Catalogs"
-        description="Everything here is versioned and effective-dated. Drafts never change production until the named approvers sign off."
         actions={
           <LinkButton href={screenHref("AdminAudit")} variant="secondary">
             <ClockArrowRotateLeft />

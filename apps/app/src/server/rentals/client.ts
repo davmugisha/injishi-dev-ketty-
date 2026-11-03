@@ -13,6 +13,7 @@ import type {
   PayoutAccountList,
   PayoutList,
   RentalPropertyList,
+  RentalsMoney,
   RentalsOverview,
   RentalsSetupView,
   RentalsSummary,
@@ -48,6 +49,19 @@ export const landlordScope = cache(async (): Promise<LandlordScope | null> => {
   return { api, workspace, permissions: workspace.permissions };
 });
 
+/**
+ * One hospitality business the person holds, by its workspace, or null: a host
+ * is paid out through the same payout accounts as a landlord (0116), so the
+ * Getting paid screen and its writes reuse the rentals ones with this scope.
+ */
+export const hostScope = cache(async (workspaceId: string): Promise<LandlordScope | null> => {
+  const [account, api] = await Promise.all([currentAccount(), currentApi()]);
+  const workspace = account?.workspaces.find(
+    (w) => w.workspaceId === workspaceId && w.kind === "business" && w.domain === "hospitality",
+  );
+  return workspace ? { api, workspace, permissions: workspace.permissions } : null;
+});
+
 async function scope(): Promise<LandlordScope> {
   const s = await landlordScope();
   if (!s) throw new NoRentalsBusinessError();
@@ -76,6 +90,7 @@ export async function orNull<T>(read: Promise<T>): Promise<T | null> {
 
 export const rentalsSummary = cache(() => get<RentalsSummary>("/api/v1/ops/rentals/summary"));
 export const rentalsOverview = cache(() => get<RentalsOverview>("/api/v1/ops/rentals/overview"));
+export const rentalsMoney = cache(() => get<RentalsMoney>("/api/v1/ops/rentals/money"));
 export const rentalsSetup = cache(() => get<RentalsSetupView>("/api/v1/ops/rentals/setup"));
 export const rentalsProfile = cache(() => get<LandlordProfileView>("/api/v1/ops/rentals/profile"));
 export const payoutAccounts = cache(() => get<PayoutAccountList>("/api/v1/ops/payout-accounts"));

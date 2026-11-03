@@ -7,7 +7,8 @@ import { LinkButton, TextLink } from "@injishi/ui";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { BrandPalm } from "@/components/brand";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { type SignInState, signInAs, startSignIn } from "@/lib/auth-actions";
+import { type SignInState, signInAs, signInAsDemoEmail, startSignIn } from "@/lib/auth-actions";
+import type { DemoRosterPerson } from "@/server/auth";
 import { GoogleButton } from "./GoogleButton";
 import { HeroCarousel } from "./HeroCarousel";
 import { ForgotPasswordForm, PasswordSignInForm } from "./PasswordSignIn";
@@ -122,6 +123,7 @@ function resetLabel(iso: string): string {
 
 export function SignInView({
   personas,
+  roster = [],
   next,
   highlight,
   demo,
@@ -129,6 +131,8 @@ export function SignInView({
   notice,
 }: {
   personas: Persona[];
+  /** The API's demo roster (`GET /api/v1/demo/personas`) less those `personas` already lists. */
+  roster?: DemoRosterPerson[];
   /** Where to go once signed in: a screen here, or a page on web (`return-to.ts`). */
   next: string;
   highlight: string | null;
@@ -145,7 +149,7 @@ export function SignInView({
   // Email code by default; a password only for those who set one (tenants), offered to every address.
   const [mode, setMode] = useState<"code" | "password" | "forgot">("code");
   const [saved, setSaved] = useState<string | null>(null);
-  const useEmail = (value: string) => {
+  const fillEmail = (value: string) => {
     setMode("code");
     setEmail(value);
     inputRef.current?.focus();
@@ -245,7 +249,8 @@ export function SignInView({
             </>
           )}
 
-          {demo ? (
+          {/* Only with someone to list: a demo database without its seeds has nobody to offer. */}
+          {demo && (personas.length > 0 || roster.length > 0) ? (
             <Card className="w-full gap-3 p-4" aria-labelledby="demo-h">
               <div className="flex items-center justify-between gap-3">
                 <h2 id="demo-h" className="text-[15px] font-semibold">
@@ -280,7 +285,7 @@ export function SignInView({
                         persona={p}
                         next={next}
                         highlighted={highlight === p.id}
-                        onUseEmail={useEmail}
+                        onUseEmail={fillEmail}
                       />
                     ))}
                     {open.map((o) => (
@@ -296,6 +301,40 @@ export function SignInView({
                   </section>
                 );
               })}
+
+              {roster.length ? (
+                <section className="flex flex-col gap-2.5 pt-1" aria-label="More demo people">
+                  <h3 className="pt-1 text-xs font-semibold tracking-wider text-muted uppercase">More demo people</h3>
+                  <p className="text-[13px] leading-[18px] text-muted">
+                    The people the API&rsquo;s demo seeds create, the PSF District, Provincial and National Managers among them.
+                  </p>
+                  {roster.map((r) => (
+                    <Card key={r.email} variant="transparent" className="gap-1.5 p-3.5 ring-1 ring-border">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="font-semibold">{r.name}</span>
+                        <span className="truncate text-xs text-muted">{r.email}</span>
+                      </div>
+                      {r.headline ? <span className="text-[14px] font-medium">{r.headline}</span> : null}
+                      {r.roles.length ? <span className="text-xs text-muted">{r.roles.join(" · ")}</span> : null}
+                      <div className="flex items-center gap-3 pt-1">
+                        <form action={signInAsDemoEmail.bind(null, r.email, next)} className="flex-1">
+                          <Button type="submit" fullWidth className="rounded-full">
+                            Sign in as {r.name.split(" ")[0]}
+                          </Button>
+                        </form>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-[13px] underline underline-offset-2"
+                          onPress={() => fillEmail(r.email)}
+                        >
+                          Use this email
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </section>
+              ) : null}
             </Card>
           ) : null}
         </div>

@@ -160,8 +160,8 @@ export default async function DestinationPage({
               Nothing is listed in {place.name} yet.
             </p>
             <p className="max-w-read text-sm text-muted-foreground">
-              Injishi lists a place only after it has passed verification: an RRA TIN check, then a
-              visit from a district officer. Own a guesthouse, lodge or apartment in {place.name}? It
+              Injishi lists a place only after it has passed verification: an RRA TIN check, then an
+              officer's online review of its documents. Own a guesthouse, lodge or apartment in {place.name}? It
               could be the first one here.
             </p>
             <div className="flex flex-wrap gap-3">

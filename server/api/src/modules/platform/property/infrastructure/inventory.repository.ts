@@ -6,6 +6,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 
 import {
+  cells,
   districts,
   listings,
   orgs,
@@ -16,6 +17,8 @@ import {
   roomTypes,
   rooms,
   sectors,
+  villages,
+  workspaces,
 } from '../../../../database/drizzle/schema';
 import {
   randomSlugSuffix,
@@ -71,14 +74,39 @@ export interface PropertyRow {
   districtName: string | null;
   sectorId: number | null;
   sectorName: string | null;
+  cellId: number | null;
+  cellName: string | null;
+  villageId: number | null;
+  villageName: string | null;
   addressText: string | null;
   checkInTime: string | null;
   checkOutTime: string | null;
   houseRules: string | null;
+  // 0117: the check-in window's end, the front desk, languages and the house rules as choices.
+  checkInUntil: string | null;
+  frontDesk: string | null;
+  frontDeskOpens: string | null;
+  frontDeskCloses: string | null;
+  languages: string[];
+  whatsapp: string | null;
+  directions: string | null;
+  minCheckInAge: number | null;
+  childrenPolicy: string | null;
+  petsPolicy: string | null;
+  smokingPolicy: string | null;
+  partiesPolicy: string | null;
+  quietFrom: string | null;
+  quietUntil: string | null;
+  internet: string | null;
+  parking: string | null;
+  cribs: string | null;
+  cribPriceRwf: number | null;
   locationPrivacy: boolean;
   timezone: string;
   contactPhone: string | null;
   contactEmail: string | null;
+  latitude: string | null;
+  longitude: string | null;
   slug: string | null;
   listingStatus: 'draft' | 'published';
   publishedAt: Date | null;
@@ -87,6 +115,29 @@ export interface PropertyRow {
   branchCode: string | null;
   archivedAt: Date | null;
 }
+
+/** 0117: the policy columns, read and written under the contract's own names (`propertyPolicyFields`). */
+const POLICY_COLUMNS = {
+  checkInUntil: properties.checkInUntil,
+  frontDesk: properties.frontDesk,
+  frontDeskOpens: properties.frontDeskOpens,
+  frontDeskCloses: properties.frontDeskCloses,
+  languages: properties.languages,
+  whatsapp: properties.whatsapp,
+  directions: properties.directions,
+  minCheckInAge: properties.minCheckInAge,
+  childrenPolicy: properties.childrenPolicy,
+  petsPolicy: properties.petsPolicy,
+  smokingPolicy: properties.smokingPolicy,
+  partiesPolicy: properties.partiesPolicy,
+  quietFrom: properties.quietFrom,
+  quietUntil: properties.quietUntil,
+  internet: properties.internet,
+  parking: properties.parking,
+  cribs: properties.cribs,
+  cribPriceRwf: properties.cribPriceRwf,
+};
+const POLICY_KEYS = Object.keys(POLICY_COLUMNS) as (keyof typeof POLICY_COLUMNS)[];
 
 /**
  * The select shape both property reads share. A module constant rather than a
@@ -105,14 +156,21 @@ const PROPERTY_COLUMNS = {
   districtName: districts.name,
   sectorId: properties.sectorId,
   sectorName: sectors.name,
+  cellId: cells.id,
+  cellName: cells.name,
+  villageId: properties.villageId,
+  villageName: villages.name,
   addressText: properties.addressText,
   checkInTime: properties.checkInTime,
   checkOutTime: properties.checkOutTime,
   houseRules: properties.houseRules,
+  ...POLICY_COLUMNS,
   locationPrivacy: properties.locationPrivacy,
   timezone: properties.timezone,
   contactPhone: properties.contactPhone,
   contactEmail: properties.contactEmail,
+  latitude: properties.latitude,
+  longitude: properties.longitude,
   slug: properties.slug,
   listingStatus: listings.status,
   publishedAt: listings.publishedAt,
@@ -141,6 +199,36 @@ export class InventoryRepository {
    * Returns null when the sector does not exist, which the caller turns into a
    * 422 rather than writing a property with a dangling address.
    */
+  /** The sector a village sits in, through its cell; null when there is no such village. */
+  async sectorForVillage(villageId: number): Promise<number | null> {
+    const [row] = await this.db
+      .select({ sectorId: cells.sectorId })
+      .from(villages)
+      .innerJoin(cells, eq(cells.id, villages.cellId))
+      .where(eq(villages.id, villageId))
+      .limit(1);
+    return row?.sectorId ?? null;
+  }
+
+  /** 0118: the workspace's business's star grade, and whether an officer has confirmed it. */
+  async starGradeFor(workspaceId: string): Promise<{ grade: number | null; verifiedAt: Date | null } | null> {
+    const [row] = await this.db
+      .select({ grade: orgs.eacStarGrade, verifiedAt: orgs.starGradeVerifiedAt })
+      .from(workspaces)
+      .innerJoin(orgs, eq(orgs.id, workspaces.orgId))
+      .where(eq(workspaces.id, workspaceId))
+      .limit(1);
+    return row ?? null;
+  }
+
+  /** 0118: the business says its grade; saying it again withdraws any confirmation. */
+  async setStarGrade(workspaceId: string, grade: number | null): Promise<void> {
+    await this.db
+      .update(orgs)
+      .set({ eacStarGrade: grade, starGradeVerifiedAt: null, starGradeVerifiedBy: null, updatedAt: new Date() })
+      .where(sql`${orgs.id} = (select ${workspaces.orgId} from ${workspaces} where ${workspaces.id} = ${workspaceId})`);
+  }
+
   async districtForSector(sectorId: number): Promise<number | null> {
     const [row] = await this.db
       .select({ districtId: sectors.districtId })
@@ -190,6 +278,7 @@ export class InventoryRepository {
         name: r.name,
         sectorId: r.sectorId,
         districtId: input.districtId,
+        villageId: r.villageId ?? null,
         street: r.street ?? null,
         isHeadOffice,
         description: r.description ?? null,
@@ -246,6 +335,7 @@ export class InventoryRepository {
     if (r.checkInTime !== undefined) patch.checkInTime = r.checkInTime;
     if (r.checkOutTime !== undefined) patch.checkOutTime = r.checkOutTime;
     if (r.houseRules !== undefined) patch.houseRules = r.houseRules;
+    for (const key of POLICY_KEYS) if (r[key] !== undefined) patch[key] = r[key];
     if (r.locationPrivacy !== undefined) {
       patch.locationPrivacy = r.locationPrivacy;
     }
@@ -256,6 +346,15 @@ export class InventoryRepository {
       patch.sectorId = r.sectorId;
       patch.districtId = input.districtId;
     }
+    // A village belongs to one sector, so a new sector without a village clears
+    // the old one rather than leaving it filed somewhere it is not.
+    if (r.villageId !== undefined) patch.villageId = r.villageId;
+    // The map point, both halves together (numeric columns take strings).
+    if (r.latitude !== undefined && r.longitude !== undefined) {
+      patch.latitude = r.latitude === null ? null : String(r.latitude);
+      patch.longitude = r.longitude === null ? null : String(r.longitude);
+    }
+    else if (r.sectorId !== undefined) patch.villageId = null;
 
     try {
       await this.db.transaction(async (tx) => {
@@ -267,6 +366,7 @@ export class InventoryRepository {
             checkInTime: properties.checkInTime,
             checkOutTime: properties.checkOutTime,
             houseRules: properties.houseRules,
+            ...POLICY_COLUMNS,
             locationPrivacy: properties.locationPrivacy,
             contactPhone: properties.contactPhone,
             contactEmail: properties.contactEmail,
@@ -321,6 +421,8 @@ export class InventoryRepository {
       .from(properties)
       .leftJoin(listings, eq(listings.propertyId, properties.id))
       .leftJoin(sectors, eq(sectors.id, properties.sectorId))
+      .leftJoin(villages, eq(villages.id, properties.villageId))
+      .leftJoin(cells, eq(cells.id, villages.cellId))
       .leftJoin(districts, eq(districts.id, properties.districtId))
       .leftJoin(provinces, eq(provinces.id, districts.provinceId))
       .where(eq(properties.id, propertyId))
@@ -345,6 +447,8 @@ export class InventoryRepository {
       .from(properties)
       .leftJoin(listings, eq(listings.propertyId, properties.id))
       .leftJoin(sectors, eq(sectors.id, properties.sectorId))
+      .leftJoin(villages, eq(villages.id, properties.villageId))
+      .leftJoin(cells, eq(cells.id, villages.cellId))
       .leftJoin(districts, eq(districts.id, properties.districtId))
       .leftJoin(provinces, eq(provinces.id, districts.provinceId))
       .where(
@@ -373,7 +477,19 @@ export class InventoryRepository {
       domain: 'hospitality' | 'residence';
       status: 'active' | 'archived';
       basePriceRwf: number | null;
+      priceBasis: 'per_person' | 'per_unit' | 'per_item';
       sellableRoomCount: number;
+      // 0117: what the room is and who may sleep there.
+      maxGuests: number | null;
+      maxAdults: number | null;
+      maxChildren: number | null;
+      roomCategory: string | null;
+      beds: { type: string; count: number }[] | null;
+      sizeM2: number | null;
+      bathroom: 'private' | 'shared' | null;
+      singleGuestPriceRwf: number | null;
+      extraBedsMax: number | null;
+      extraBedPriceRwf: number | null;
     }[]
   > {
     const rows = await this.db
@@ -383,6 +499,17 @@ export class InventoryRepository {
         domain: roomTypes.domain,
         status: roomTypes.status,
         basePriceRwf: roomTypes.basePriceRwf,
+        priceBasis: roomTypes.priceBasis,
+        maxGuests: roomTypes.maxGuests,
+        maxAdults: roomTypes.maxAdults,
+        maxChildren: roomTypes.maxChildren,
+        roomCategory: roomTypes.roomCategory,
+        beds: roomTypes.beds,
+        sizeM2: roomTypes.sizeM2,
+        bathroom: roomTypes.bathroom,
+        singleGuestPriceRwf: roomTypes.singleGuestPriceRwf,
+        extraBedsMax: roomTypes.extraBedsMax,
+        extraBedPriceRwf: roomTypes.extraBedPriceRwf,
         sellableRoomCount: sql<number>`count(${rooms.id}) filter (where ${rooms.status} = 'available')`,
       })
       .from(roomTypes)
@@ -399,14 +526,24 @@ export class InventoryRepository {
         roomTypes.domain,
         roomTypes.status,
         roomTypes.basePriceRwf,
+        roomTypes.priceBasis,
       )
       .orderBy(roomTypes.name);
+    // Grouped by the primary key, so every other room type column is functionally dependent on it.
 
-    return rows.map((r) => ({
-      ...r,
-      basePriceRwf: r.basePriceRwf ?? null,
-      sellableRoomCount: Number(r.sellableRoomCount),
-    }));
+    // `room_types.domain` shares `domain_kind`, but a PSF business (`enterprise`)
+    // never has a room type; the guard only narrows the type to say so.
+    return rows
+      .filter((r): r is typeof r & { domain: 'hospitality' | 'residence' } => r.domain !== 'enterprise')
+      .map((r) => ({
+        ...r,
+        basePriceRwf: r.basePriceRwf ?? null,
+        singleGuestPriceRwf: r.singleGuestPriceRwf ?? null,
+        extraBedPriceRwf: r.extraBedPriceRwf ?? null,
+        // The column's CHECK constraint holds it to these two.
+        bathroom: (r.bathroom as 'private' | 'shared' | null) ?? null,
+        sellableRoomCount: Number(r.sellableRoomCount),
+      }));
   }
 
   /** Room type and sellable room counts for a whole workspace, in one query. */
@@ -530,7 +667,7 @@ export class InventoryRepository {
   }
 
   /**
-   * The three publish facts, on the pool or on a transaction handle.
+   * The publish facts, on the pool or on a transaction handle.
    *
    * ## Four small queries, and NOT one with correlated subqueries
    *
@@ -559,11 +696,31 @@ export class InventoryRepository {
     propertyId: string,
   ): Promise<PublishFacts | null> {
     const [property] = await handle
-      .select({ sectorId: properties.sectorId })
+      .select({
+        sectorId: properties.sectorId,
+        registrationStatus: orgs.registrationStatus,
+        rdbEntityGroup: orgs.rdbEntityGroup,
+        checkInTime: properties.checkInTime,
+        frontDesk: properties.frontDesk,
+        languages: properties.languages,
+      })
       .from(properties)
+      .innerJoin(orgs, eq(orgs.id, properties.orgId))
       .where(eq(properties.id, propertyId))
       .limit(1);
     if (!property) return null;
+
+    // 0117: a stay's room type says its beds and who may sleep there before a guest can book it.
+    const [unfurnished] = await handle
+      .select({ count: sql<number>`count(*)` })
+      .from(roomTypes)
+      .where(
+        and(
+          eq(roomTypes.propertyId, propertyId),
+          eq(roomTypes.status, 'active'),
+          sql`(${roomTypes.beds} is null or jsonb_array_length(${roomTypes.beds}) = 0 or ${roomTypes.maxAdults} is null)`,
+        ),
+      );
 
     const [active] = await handle
       .select({ count: sql<number>`count(*)` })
@@ -600,11 +757,31 @@ export class InventoryRepository {
       .from(propertyPhotos)
       .where(eq(propertyPhotos.propertyId, propertyId));
 
+    // 0118: every room type of a stay has a photograph of its own.
+    const [unphotographed] = await handle
+      .select({ count: sql<number>`count(*)` })
+      .from(roomTypes)
+      .where(
+        and(
+          eq(roomTypes.propertyId, propertyId),
+          eq(roomTypes.status, 'active'),
+          sql`not exists (select 1 from ${propertyPhotos} where ${propertyPhotos.roomTypeId} = ${roomTypes.id})`,
+        ),
+      );
+
     return {
+      orgActive: property.registrationStatus === 'active',
       sectorId: property.sectorId,
       activeRoomTypeCount: Number(active?.count ?? 0),
       pricedRoomTypeCount: Number(priced?.count ?? 0),
       photoCount: Number(photos?.count ?? 0),
+      // A bar or coffee shop is listed, not booked: it has no desk, check-in or beds to declare.
+      isStay: property.rdbEntityGroup !== 'restaurant_bar_nightclub',
+      hasCheckInTime: property.checkInTime !== null,
+      hasFrontDesk: property.frontDesk !== null,
+      languageCount: property.languages.length,
+      roomTypesWithoutBeds: Number(unfurnished?.count ?? 0),
+      roomTypesWithoutPhoto: Number(unphotographed?.count ?? 0),
     };
   }
 

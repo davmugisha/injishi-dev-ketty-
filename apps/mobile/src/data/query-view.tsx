@@ -9,7 +9,10 @@ import { ErrorView, Icon, Text } from "@/components/ui";
 import { kigaliTime } from "@/lib/kigali";
 import { ApiError } from "./fetch";
 
-type AnyQuery = Pick<UseQueryResult<unknown>, "data" | "error" | "fetchStatus" | "isRefetchError" | "dataUpdatedAt" | "refetch">;
+type AnyQuery = Pick<
+  UseQueryResult<unknown>,
+  "data" | "error" | "fetchStatus" | "isRefetchError" | "dataUpdatedAt" | "refetch"
+>;
 
 export type QueryViewProps<T> = {
   query: AnyQuery;
@@ -19,18 +22,32 @@ export type QueryViewProps<T> = {
   loading: ReactNode;
   /** Shown when the query holds a copy the screen will not use (from an earlier day) and cannot refresh it. */
   outOfDate?: ReactNode;
+  /** The last line under "Can't connect"; by default, that writes are kept and sent later. Null for none. */
+  offlineNote?: string | null;
   children: (data: T) => ReactNode;
 };
 
-export function QueryView<T>({ query, data, loading, outOfDate, children }: QueryViewProps<T>) {
+/** What "Can't connect" adds by default: true wherever writes go through the outbox. */
+const OUTBOX_NOTE = "Anything you do is still saved on this phone and sent later.";
+
+export function QueryView<T>({ query, data, loading, outOfDate, offlineNote, children }: QueryViewProps<T>) {
   if (data !== undefined) return <>{children(data)}</>;
   if (query.data !== undefined && outOfDate) return <>{query.fetchStatus === "fetching" ? loading : outOfDate}</>;
-  if (query.error) return <QueryError error={query.error} onRetry={() => void query.refetch()} />;
+  if (query.error)
+    return <QueryError error={query.error} onRetry={() => void query.refetch()} offlineNote={offlineNote} />;
   return <>{loading}</>;
 }
 
 /** The error, worded by cause: no answer is "Can't connect"; a refusal or a body that does not match is not. */
-export function QueryError({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+export function QueryError({
+  error,
+  onRetry,
+  offlineNote = OUTBOX_NOTE,
+}: {
+  error: unknown;
+  onRetry: () => void;
+  offlineNote?: string | null;
+}) {
   // The session takes over for these two: it opens sign in or the step up.
   if (error instanceof ApiError && (error.kind === "signedOut" || error.kind === "stepUp")) return null;
   if (error instanceof ApiError && error.kind === "failed" && !error.parse) {
@@ -40,7 +57,7 @@ export function QueryError({ error, onRetry }: { error: unknown; onRetry: () => 
         title="Can't connect"
         body="Injishi didn't answer. Check your signal, then try again."
         onRetry={onRetry}
-        footnote="Anything you do is still saved on this phone and sent later."
+        footnote={offlineNote ?? undefined}
       />
     );
   }

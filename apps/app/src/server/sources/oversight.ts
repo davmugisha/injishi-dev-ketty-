@@ -19,7 +19,8 @@ type OversightRole =
   | "business_field_verifier"
   | "business_approver"
   | "tax_compliance_officer"
-  | "psf_membership_officer";
+  | "psf_membership_officer"
+  | "psf_business_officer";
 
 /** One grant from GET /api/v1/me/oversight (OversightConsoleGrant). */
 interface ApiConsole {
@@ -102,6 +103,7 @@ interface ApiDecision {
   legalName: string;
   stage: "tin_verified" | "field_verified";
   decision: "passed" | "rejected";
+  oversightRole?: OversightRole;
   reasonCode: RejectionCode | null;
   notes: string | null;
   governmentBodyCode: string;
@@ -162,10 +164,11 @@ const CLASS_LABEL: Record<string, string> = {
 };
 
 const ROLE_LABEL: Record<OversightRole, string> = {
-  business_field_verifier: "Field verification",
+  business_field_verifier: "Document review",
   business_approver: "Approval",
   tax_compliance_officer: "Tax compliance",
-  psf_membership_officer: "PSF membership",
+  psf_membership_officer: "PSF membership · registration review",
+  psf_business_officer: "PSF membership · read only",
 };
 
 // ── The desk: what this officer holds and what waits on them, read once per request ─────────────────
@@ -176,6 +179,8 @@ export interface Desk {
   verification: ApiQueueItem[] | null;
   /** Null when this person holds no approver grant. */
   approval: ApiQueueItem[] | null;
+  /** Null unless this person is a PSF District Manager, whose review is one step (0119). */
+  review: ApiQueueItem[] | null;
 }
 
 const desks = new WeakMap<SourceContext, Promise<Desk>>();
@@ -188,15 +193,21 @@ export function readDesk(ctx: SourceContext): Promise<Desk> {
   if (!read) {
     read = (async () => {
       const { consoles } = await ctx.api.get<{ consoles: ApiConsole[] }>("/api/v1/me/oversight");
-      const [verification, approval] = await Promise.all([
+      const [verification, approval, psfReview] = await Promise.all([
         holds(consoles, "business_field_verifier")
           ? ctx.api.get<ApiQueueItem[]>("/api/v1/oversight/verification-queue")
           : Promise.resolve(null),
         holds(consoles, "business_approver")
           ? ctx.api.get<ApiQueueItem[]>("/api/v1/oversight/approval-queue")
           : Promise.resolve(null),
+        holds(consoles, "psf_membership_officer")
+          ? ctx.api.get<ApiQueueItem[]>("/api/v1/oversight/review-queue")
+          : Promise.resolve(null),
       ]);
-      return { consoles, verification, approval };
+      // Someone who is also a field verifier sees a first-gate case once, as theirs to verify.
+      const listed = new Set((verification ?? []).map((i) => i.orgId));
+      const review = psfReview ? psfReview.filter((i) => !listed.has(i.orgId)) : null;
+      return { consoles, verification, approval, review };
     })();
     desks.set(ctx, read);
   }
@@ -326,9 +337,9 @@ function approvalCase(item: ApiQueueItem, now: Date): O.QueueCase {
     slaLabel: "No deadline is recorded for this stage",
     status: blocked ? "Awaiting another officer" : "Awaiting your approval",
     statusTone: blocked ? "default" : "warning",
-    who: blocked ? "Verified by you" : "Field verified",
+    who: blocked ? "Checked by you" : "Documents checked",
     facts: [
-      { label: "Field verified", value: when(item.waitingSince) },
+      { label: "Documents checked", value: when(item.waitingSince) },
       idLine(item),
       { label: "Documents", value: documentsLine(item) },
       { label: "Registered by", value: registrantLine(item) },
@@ -354,6 +365,23 @@ function approvalCase(item: ApiQueueItem, now: Date): O.QueueCase {
   };
 }
 
+/** A first-gate case a PSF District Manager decides alone: their Reviewed approves it (0119). */
+function reviewCase(item: ApiQueueItem, now: Date): O.QueueCase {
+  return {
+    ...verificationCase(item, now),
+    status: "Waiting for your review",
+    who: "PSF District Manager",
+    duty: {
+      tone: "success",
+      title: "Your review is the decision",
+      description:
+        "Read each document, then mark the business reviewed. That approves it; rejecting returns it to the owner with your reason.",
+    },
+    cta: "Review",
+    foot: "Marking it reviewed activates the business unless an owner it was registered for has yet to claim it.",
+  };
+}
+
 async function cases(ctx: SourceContext): Promise<O.QueueCase[]> {
   const desk = await readDesk(ctx);
   const oldestFirst = (a: ApiQueueItem, b: ApiQueueItem) => a.waitingSince.localeCompare(b.waitingSince);
@@ -362,6 +390,10 @@ async function cases(ctx: SourceContext): Promise<O.QueueCase[]> {
       .slice()
       .sort(oldestFirst)
       .map((i) => verificationCase(i, ctx.now)),
+    ...(desk.review ?? [])
+      .slice()
+      .sort(oldestFirst)
+      .map((i) => reviewCase(i, ctx.now)),
     ...(desk.approval ?? [])
       .slice()
       .sort(oldestFirst)
@@ -404,11 +436,12 @@ function caseDocument(d: ApiDocument): O.CaseDocument {
 async function caseFile(ctx: SourceContext, orgId: string): Promise<O.CaseFile | undefined> {
   const desk = await readDesk(ctx);
   const inField = desk.verification?.find((i) => i.orgId === orgId);
-  const inApproval = inField ? undefined : desk.approval?.find((i) => i.orgId === orgId);
-  const item = inField ?? inApproval;
+  const inReview = inField ? undefined : desk.review?.find((i) => i.orgId === orgId);
+  const inApproval = inField || inReview ? undefined : desk.approval?.find((i) => i.orgId === orgId);
+  const item = inField ?? inReview ?? inApproval;
   if (!item) return undefined;
   const list = await ctx.api.get<ApiDocumentList>(`/api/v1/oversight/registrations/${orgId}/documents`);
-  const gate = inField ? "field" : "approval";
+  const gate = inField ? "field" : inReview ? "review" : "approval";
   const documents = list.documents.map(caseDocument);
   const checks: O.CaseCheck[] = list.documents.map((d) => ({
     id: d.id,
@@ -417,10 +450,10 @@ async function caseFile(ctx: SourceContext, orgId: string): Promise<O.CaseFile |
     how: d.certificateNumber ? `Number ${d.certificateNumber} against the file` : "Open the file and read it",
     recorded: d.checkedAt ? `${d.checkedByName ?? "An officer"} · ${when(d.checkedAt)}` : null,
   }));
-  const verifiedLine = inApproval ? [{ label: "Field verified", value: when(item.waitingSince) }] : [];
+  const verifiedLine = inApproval ? [{ label: "Documents checked", value: when(item.waitingSince) }] : [];
   return {
     id: item.orgId,
-    queue: gate === "field" ? "Verification queue" : "Approval queue",
+    queue: gate === "field" ? "Verification queue" : gate === "review" ? "Review queue" : "Approval queue",
     stage: "review",
     business: item.legalName,
     owner: item.onBehalfOf ? (item.intendedOwnerName ?? "the owner") : (item.registrantName ?? "the owner"),
@@ -429,7 +462,13 @@ async function caseFile(ctx: SourceContext, orgId: string): Promise<O.CaseFile |
     due: "no deadline recorded",
     slaLeft: `${daysLabel(daysSince(item.waitingSince, ctx.now))} in this stage`,
     assigned:
-      gate === "field" ? "Field verification" : item.blockedBySeparationOfDuties ? "Verified by you" : "Approval",
+      gate === "field"
+        ? "Document review"
+        : gate === "review"
+          ? "Your review"
+          : item.blockedBySeparationOfDuties
+            ? "Checked by you"
+            : "Approval",
     facts: [
       { label: "Legal name", value: item.legalName },
       idLine(item),
@@ -460,7 +499,7 @@ async function caseFile(ctx: SourceContext, orgId: string): Promise<O.CaseFile |
             {
               id: "verified",
               status: "success" as const,
-              title: "Field verification recorded",
+              title: "Document review recorded",
               detail: when(item.waitingSince),
             },
           ]
@@ -468,7 +507,12 @@ async function caseFile(ctx: SourceContext, orgId: string): Promise<O.CaseFile |
       {
         id: "waiting",
         status: "current" as const,
-        title: gate === "field" ? "Waiting for field verification" : "Waiting for approval",
+        title:
+          gate === "field"
+            ? "Waiting for field verification"
+            : gate === "review"
+              ? "Waiting for your review"
+              : "Waiting for approval",
         detail: `Since ${when(item.waitingSince)}`,
       },
     ],
@@ -485,17 +529,24 @@ async function caseFile(ctx: SourceContext, orgId: string): Promise<O.CaseFile |
 
 async function decisions(ctx: SourceContext): Promise<O.OfficerDecision[]> {
   const desk = await readDesk(ctx);
-  if (!holds(desk.consoles, "business_field_verifier") && !holds(desk.consoles, "business_approver")) return [];
+  if (
+    !holds(desk.consoles, "business_field_verifier") &&
+    !holds(desk.consoles, "business_approver") &&
+    !holds(desk.consoles, "psf_membership_officer")
+  )
+    return [];
   const { items } = await ctx.api.get<{ items: ApiDecision[] }>("/api/v1/oversight/decisions");
   return items.slice(0, 6).map((d) => {
-    const gate = d.stage === "tin_verified" ? "field verification" : "approval";
+    const oneStep = d.oversightRole === "psf_membership_officer";
+    const gate = oneStep ? "review" : d.stage === "tin_verified" ? "field verification" : "approval";
     const passed = d.decision === "passed";
     return {
       id: d.reviewId,
+      ...(oneStep ? { href: `/psf/register/${d.orgId}` } : {}),
       status: passed ? "success" : "danger",
       icon: passed ? "Check" : "Xmark",
       title: passed
-        ? `${d.legalName} · ${d.stage === "tin_verified" ? "field verified" : "approved"}`
+        ? `${d.legalName} · ${oneStep ? "reviewed and approved" : d.stage === "tin_verified" ? "field verified" : "approved"}`
         : `${d.legalName} · rejected at ${gate}`,
       detail: [
         when(d.decidedAt),
@@ -510,27 +561,34 @@ async function decisions(ctx: SourceContext): Promise<O.OfficerDecision[]> {
 
 async function kpis(ctx: SourceContext): Promise<O.QueueKpi[]> {
   const desk = await readDesk(ctx);
-  const all = [...(desk.verification ?? []), ...(desk.approval ?? [])];
-  const mine = (desk.approval ?? []).filter((i) => !i.blockedBySeparationOfDuties).length;
+  const all = [...(desk.verification ?? []), ...(desk.review ?? []), ...(desk.approval ?? [])];
+  const mine = (desk.approval ?? []).filter((i) => !i.blockedBySeparationOfDuties).length + (desk.review?.length ?? 0);
   const oldest = all.reduce<ApiQueueItem | null>((o, i) => (!o || i.waitingSince < o.waitingSince ? i : o), null);
   const unread = all.reduce((n, i) => n + i.uncheckedDocumentCount, 0);
   const verification = desk.verification?.length ?? 0;
   const approval = desk.approval?.length ?? 0;
+  const review = desk.review?.length ?? 0;
   return [
     {
       id: "open",
       label: "Open cases",
       value: all.length,
       format: { style: "decimal" },
-      foot: `${verification} verification · ${approval} approval`,
+      foot: desk.review
+        ? `${review} to review${verification + approval ? ` · ${verification + approval} other` : ""}`
+        : `${verification} verification · ${approval} approval`,
       dueSoon: false,
     },
     {
       id: "yours",
-      label: "Waiting on your approval",
+      label: desk.review ? "Waiting on your decision" : "Waiting on your approval",
       value: mine,
       format: { style: "decimal" },
-      foot: desk.approval ? "Cases you did not verify" : "You hold no approver grant",
+      foot: desk.review
+        ? "Your review approves the business"
+        : desk.approval
+          ? "Cases you did not verify"
+          : "You hold no approver grant",
       dueSoon: mine > 0,
     },
     {
@@ -555,7 +613,10 @@ async function kpis(ctx: SourceContext): Promise<O.QueueKpi[]> {
 async function mandateFacts(ctx: SourceContext): Promise<O.MandateFact[]> {
   const { consoles } = await readDesk(ctx);
   const business = consoles.filter(
-    (c) => c.oversightRole === "business_field_verifier" || c.oversightRole === "business_approver",
+    (c) =>
+      c.oversightRole === "business_field_verifier" ||
+      c.oversightRole === "business_approver" ||
+      c.oversightRole === "psf_membership_officer",
   );
   const first = business[0] ?? consoles[0];
   if (!first) return [];
@@ -586,10 +647,15 @@ async function mandateStates(ctx: SourceContext): Promise<O.MandateState[]> {
   const scope = [...new Set(desk.consoles.map((c) => c.scopeLabel))].join(", ") || "your jurisdiction";
   const v = desk.verification?.length ?? 0;
   const a = desk.approval?.length ?? 0;
+  const r = desk.review?.length ?? 0;
   const waiting =
-    v + a === 0
+    v + a + r === 0
       ? `Nothing waits on you in ${scope}.`
-      : [v > 0 ? `${v} waiting on a field visit` : null, a > 0 ? `${a} waiting on approval` : null]
+      : [
+          r > 0 ? `${r} waiting on your review` : null,
+          v > 0 ? `${v} waiting on document review` : null,
+          a > 0 ? `${a} waiting on approval` : null,
+        ]
           .filter(Boolean)
           .join(" · ");
   return [
@@ -629,3 +695,31 @@ export const sources = defineSources({
     parity: "shape",
   },
 });
+
+/** Every decision this officer made or that was routed to them, for the Decisions tab (2026-10-30). */
+export async function decisionRows(ctx: SourceContext): Promise<
+  {
+    id: string;
+    orgId: string;
+    business: string;
+    gate: string;
+    passed: boolean;
+    reason: string | null;
+    notes: string | null;
+    decidedAt: string;
+  }[]
+> {
+  const desk = await readDesk(ctx);
+  if (!holds(desk.consoles, "business_field_verifier") && !holds(desk.consoles, "business_approver")) return [];
+  const { items } = await ctx.api.get<{ items: ApiDecision[] }>("/api/v1/oversight/decisions");
+  return items.map((d) => ({
+    id: d.reviewId,
+    orgId: d.orgId,
+    business: d.legalName,
+    gate: d.stage === "tin_verified" ? "Field verification" : "Approval",
+    passed: d.decision === "passed",
+    reason: d.reasonCode ? REJECTION_REASONS[d.reasonCode] : null,
+    notes: d.notes,
+    decidedAt: d.decidedAt,
+  }));
+}

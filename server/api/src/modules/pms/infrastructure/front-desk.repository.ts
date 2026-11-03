@@ -74,6 +74,8 @@ export interface CheckInSubject {
   propertyId: string | null;
   status: string;
   guestUserId: string | null;
+  /** The name on the booking itself: a broker's guest (0126), who has no account. Null otherwise. */
+  guestName?: string | null;
   /** The booking's own reference, written on the prepayment line. */
   reference: string;
   checkIn: string;
@@ -83,6 +85,11 @@ export interface CheckInSubject {
   paymentStatus: string | null;
   /** What has already gone back to the guest, which the prepayment line nets off. */
   refundRwf: number | null;
+  /**
+   * The room money paid, once a desk change has recorded it (0120): the prepayment line credits this,
+   * because after a change the nightly charge times the nights is the new price, not what was paid.
+   */
+  paidRoomRwf?: number | null;
   /**
    * The property's checkout hour (`HH:MM:SS`), which the stay's planned exit
    * is set to. Optional so a caller that never needed it still type checks.
@@ -161,7 +168,7 @@ export class FrontDeskRepository {
       .select({
         roomId: guestStays.roomId,
         stayId: guestStays.id,
-        guestName: sql<string | null>`coalesce(${accountName}, ${guestStays.guestName})`,
+        guestName: sql<string | null>`coalesce(${accountName}, nullif(btrim(${guestStays.guestName}), ''), (SELECT nullif(btrim(si.full_name), '') FROM stay_identities si WHERE si.guest_stay_id = ${guestStays.id}))`,
         entryAt: guestStays.entryAt,
       })
       .from(guestStays)
@@ -287,12 +294,14 @@ export class FrontDeskRepository {
         propertyId: roomTypes.propertyId,
         status: bookings.status,
         guestUserId: bookings.guestUserId,
+        guestName: bookings.guestName,
         reference: bookings.reference,
         checkIn: bookings.checkIn,
         checkOut: bookings.checkOut,
         lockedNightlyRateRwf: bookings.lockedNightlyRateRwf,
         paymentStatus: bookings.paymentStatus,
         refundRwf: bookings.refundRwf,
+        paidRoomRwf: bookings.paidRoomRwf,
         checkOutTime: properties.checkOutTime,
       })
       .from(bookings)
@@ -508,7 +517,7 @@ export class FrontDeskRepository {
         roomId: guestStays.roomId,
         propertyId: rooms.propertyId,
         roomLabel: rooms.label,
-        guestName: sql<string | null>`coalesce(${accountName}, ${guestStays.guestName})`,
+        guestName: sql<string | null>`coalesce(${accountName}, nullif(btrim(${guestStays.guestName}), ''), (SELECT nullif(btrim(si.full_name), '') FROM stay_identities si WHERE si.guest_stay_id = ${guestStays.id}))`,
         lifecycle: guestStays.lifecycle,
         entryAt: guestStays.entryAt,
         plannedExitAt: guestStays.plannedExitAt,

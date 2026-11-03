@@ -69,7 +69,6 @@ export function GlobalSearchView({ data }: { persona: Persona; data: SearchData 
       <PageHeader
         eyebrow="Monday 12 October 2026 · Isangano Lakeside Hotel · Morning shift"
         title="Today"
-        description="Sarah Kimani is at the desk. 8 more guests arrive today and 3 of their rooms are still being cleaned."
         actions={
           <LinkButton href={screenHref("WalkIn")}>
             <PersonPlus className="size-4" />

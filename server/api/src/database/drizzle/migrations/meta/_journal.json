@@ -729,6 +729,216 @@
       "when": 1793329766650,
       "tag": "0103_identity_national_id_registry",
       "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1793329826650,
+      "tag": "0104_hr_checklists",
+      "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1793329886650,
+      "tag": "0105_psf_any_business",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1793329946650,
+      "tag": "0106_psf_public_path",
+      "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1793330006650,
+      "tag": "0107_psf_association_other",
+      "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1793330066650,
+      "tag": "0108_psf_subsectors",
+      "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1793330126650,
+      "tag": "0109_psf_paid_before_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1793330186650,
+      "tag": "0110_psf_tier_fees",
+      "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "7",
+      "when": 1793330246650,
+      "tag": "0111_psf_branches",
+      "breakpoints": true
+    },
+    {
+      "idx": 112,
+      "version": "7",
+      "when": 1793330306650,
+      "tag": "0112_psf_no_refunds",
+      "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1793330366650,
+      "tag": "0113_org_logo",
+      "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1793330426650,
+      "tag": "0114_psf_membership_payment_purpose",
+      "breakpoints": true
+    },
+    {
+      "idx": 115,
+      "version": "7",
+      "when": 1793330486650,
+      "tag": "0115_psf_membership_form_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1793330546650,
+      "tag": "0116_hotel_guest_registrations",
+      "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1793330606650,
+      "tag": "0117_room_type_price_basis",
+      "breakpoints": true
+    },
+    {
+      "idx": 118,
+      "version": "7",
+      "when": 1793330666650,
+      "tag": "0118_booking_completed_and_host_payout",
+      "breakpoints": true
+    },
+    {
+      "idx": 119,
+      "version": "7",
+      "when": 1793330726650,
+      "tag": "0119_hotel_setup_details",
+      "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1793330786650,
+      "tag": "0120_hotel_setup_phase_two",
+      "breakpoints": true
+    },
+    {
+      "idx": 121,
+      "version": "7",
+      "when": 1793330846650,
+      "tag": "0121_psf_one_step_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 122,
+      "version": "7",
+      "when": 1793330906650,
+      "tag": "0122_booking_changes",
+      "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1793330966650,
+      "tag": "0123_psf_membership_claims",
+      "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1793361976503,
+      "tag": "0124_desk_reservations",
+      "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1793626259101,
+      "tag": "0125_broker_hotel_deals",
+      "breakpoints": true
+    },
+    {
+      "idx": 126,
+      "version": "7",
+      "when": 1793627415875,
+      "tag": "0126_broker_bookings",
+      "breakpoints": true
+    },
+    {
+      "idx": 127,
+      "version": "7",
+      "when": 1793628900000,
+      "tag": "0127_psf_membership_renewals",
+      "breakpoints": true
+    },
+    {
+      "idx": 128,
+      "version": "7",
+      "when": 1793630007229,
+      "tag": "0128_broker_commissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1793632000000,
+      "tag": "0129_psf_business_officer",
+      "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1793638000000,
+      "tag": "0130_identity_scan_without_selfie",
+      "breakpoints": true
+    },
+    {
+      "idx": 131,
+      "version": "7",
+      "when": 1793638725928,
+      "tag": "0131_psf_claim_without_number",
+      "breakpoints": true
+    },
+    {
+      "idx": 132,
+      "version": "7",
+      "when": 1793639900000,
+      "tag": "0132_psf_bde_and_card_holders",
+      "breakpoints": true
+    },
+    {
+      "idx": 133,
+      "version": "7",
+      "when": 1793674375226,
+      "tag": "0133_people_roles",
+      "breakpoints": true
     }
   ]
 }

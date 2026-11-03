@@ -36,10 +36,8 @@ const draft = (over) => ({
 });
 
 describe("the question", () => {
-  test("follows Location for a business with a TIN, and a residence is not asked", () => {
-    assert.deepEqual(sectionOrder("owner", "business").slice(-2), ["loc", "fr"]);
-    assert.deepEqual(sectionOrder("helper", "business").slice(-2), ["loc", "fr"]);
-    assert.ok(!sectionOrder("landlord", "business").includes("fr"));
+  test("is not asked for now (2026-11-03, the owner), on any path", () => {
+    for (const path of ["owner", "helper", "landlord"]) assert.ok(!sectionOrder(path, "business").includes("fr"));
   });
 
   test("the section offers the three answers the ADR words", () => {

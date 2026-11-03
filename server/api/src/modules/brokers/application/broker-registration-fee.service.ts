@@ -14,7 +14,7 @@ import {
   PaymentUnavailableError,
   maskDestination,
   type PaymentPort,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 
 /** A prompt nobody answered in this long is given up on, as rent's are. */
 const PROMPT_EXPIRES_MS = 10 * 60_000;

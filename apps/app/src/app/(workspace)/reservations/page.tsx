@@ -9,9 +9,12 @@ import { ReservationsView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PmsMount } from "@/features/pms/pms-mount";
+import { StayBookingsView } from "@/features/pms/stays/StayBookingsView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { dayNumber, deskPropertyName } from "@/server/sources/frontdesk";
+import { can, staysScope, staysSummary } from "@/server/stays/client";
+import { bookingRows, deskRooms, deskRoomTypes, readDesk } from "@/server/stays/desk";
 
 export const metadata: Metadata = { title: screens.Reservations.pageTitle };
 
@@ -22,6 +25,24 @@ export default async function ReservationsPage({
   searchParams: Promise<{ booking?: string; view?: string }>;
 }) {
   const persona = await requirePersona("Reservations");
+  // A real stay business gets one table of its bookings, all live; `?booking=` opens one.
+  if (await staysSummary()) {
+    const [board, scope, { booking }] = await Promise.all([readDesk(), staysScope(), searchParams]);
+    return (
+      <StayBookingsView
+        rows={bookingRows(board)}
+        rooms={deskRooms(board)}
+        roomTypes={deskRoomTypes(board)}
+        today={board.today}
+        openRef={booking ?? null}
+        can={{
+          approve: scope ? can(scope, "reservation.approve") : false,
+          checkIn: scope ? can(scope, "stay.checkin") : false,
+          assign: scope ? can(scope, "reservation.assign") : false,
+        }}
+      />
+    );
+  }
   const [bookings, views, summaries, requests] = await Promise.all([
     getCollection<Reservation>("frontdesk.reservations"),
     getCollection<ReservationView>("frontdesk.reservationViews"),

@@ -141,6 +141,10 @@ export type TypedIdentityRequest = z.infer<typeof TypedIdentityRequest>;
  */
 export const NationalIdCheckRequest = z.object({
     documentNumber: RwandanNationalId,
-    selfieKey: PhotoKey,
+    /**
+     * Optional since 2026-11-02 (the owner's decision): without one, NIDA is asked by the number alone,
+     * its details fill the form, and the document reviewer confirms the ID before approving.
+     */
+    selfieKey: PhotoKey.optional(),
 });
 export type NationalIdCheckRequest = z.infer<typeof NationalIdCheckRequest>;

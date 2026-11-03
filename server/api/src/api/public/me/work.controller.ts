@@ -12,6 +12,7 @@ import {
   type MyAttendanceRequestList,
   type MyMonthlySummary,
   type MyRoster,
+  type MyShiftOptions,
   type MyShiftRequestList,
   type MyTeam,
   type MyTeamAttendance,
@@ -117,6 +118,15 @@ export class MeWorkController {
     @CurrentUser() user: SessionUser,
   ): Promise<MyShiftRequestList> {
     return this.work.shiftRequests(user.id, employeeId);
+  }
+
+  /** The shifts and colleagues a request of the caller's own may name. */
+  @Get(':employeeId/shift-options')
+  shiftOptions(
+    @Param('employeeId', ParseUUIDPipe) employeeId: string,
+    @CurrentUser() user: SessionUser,
+  ): Promise<MyShiftOptions> {
+    return this.work.shiftOptions(user.id, employeeId);
   }
 
   @Post(':employeeId/shift-requests')

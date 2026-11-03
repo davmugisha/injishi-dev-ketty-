@@ -195,9 +195,9 @@ export declare const PhoneFoundItem: z.ZodObject<{
     status: string;
     id: string;
     reference: string;
+    description: string;
     category: string;
     roomLabel: string | null;
-    description: string;
     foundLocation: string;
     foundSpot: string | null;
     foundAt: string;
@@ -207,9 +207,9 @@ export declare const PhoneFoundItem: z.ZodObject<{
     status: string;
     id: string;
     reference: string;
+    description: string;
     category: string;
     roomLabel: string | null;
-    description: string;
     foundLocation: string;
     foundSpot: string | null;
     foundAt: string;
@@ -395,9 +395,9 @@ export declare const HousekeepingPhone: z.ZodObject<{
         status: string;
         id: string;
         reference: string;
+        description: string;
         category: string;
         roomLabel: string | null;
-        description: string;
         foundLocation: string;
         foundSpot: string | null;
         foundAt: string;
@@ -407,9 +407,9 @@ export declare const HousekeepingPhone: z.ZodObject<{
         status: string;
         id: string;
         reference: string;
+        description: string;
         category: string;
         roomLabel: string | null;
-        description: string;
         foundLocation: string;
         foundSpot: string | null;
         foundAt: string;
@@ -417,6 +417,11 @@ export declare const HousekeepingPhone: z.ZodObject<{
         photoCount: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
+    places: {
+        name: string;
+        spaceId: string;
+        floor: number | null;
+    }[];
     propertyId: string;
     supervisor: {
         name: string;
@@ -460,18 +465,13 @@ export declare const HousekeepingPhone: z.ZodObject<{
         countedAt: string;
     }[];
     myFloors: number[];
-    places: {
-        name: string;
-        spaceId: string;
-        floor: number | null;
-    }[];
     foundItems: {
         status: string;
         id: string;
         reference: string;
+        description: string;
         category: string;
         roomLabel: string | null;
-        description: string;
         foundLocation: string;
         foundSpot: string | null;
         foundAt: string;
@@ -479,6 +479,11 @@ export declare const HousekeepingPhone: z.ZodObject<{
         photoCount: number;
     }[];
 }, {
+    places: {
+        name: string;
+        spaceId: string;
+        floor: number | null;
+    }[];
     propertyId: string;
     supervisor: {
         name: string;
@@ -522,18 +527,13 @@ export declare const HousekeepingPhone: z.ZodObject<{
         countedAt: string;
     }[];
     myFloors: number[];
-    places: {
-        name: string;
-        spaceId: string;
-        floor: number | null;
-    }[];
     foundItems: {
         status: string;
         id: string;
         reference: string;
+        description: string;
         category: string;
         roomLabel: string | null;
-        description: string;
         foundLocation: string;
         foundSpot: string | null;
         foundAt: string;

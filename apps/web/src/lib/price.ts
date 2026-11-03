@@ -40,6 +40,8 @@ export function formatRateNumber(amountRwf: number | null): string | null {
  */
 export function shortBasis(basis: string): string {
   if (/person/i.test(basis)) return "per person / night";
+  if (/^each$/i.test(basis.trim())) return "each";
   if (/apartment/i.test(basis)) return "per apartment / night";
+  if (/^per night$/i.test(basis.trim())) return "per night, whole place";
   return "per room / night";
 }

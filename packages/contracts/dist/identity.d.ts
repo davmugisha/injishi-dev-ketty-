@@ -298,8 +298,6 @@ export declare const IdentityScanResult: z.ZodObject<{
     message: string | null;
     attempt: number;
     reason: "expired" | "unavailable" | "revoked" | "not_authentic" | "face_mismatch" | "unreadable" | "not_found" | null;
-    outcome: "machine_passed" | "machine_failed" | "manual_needed";
-    mayContinue: boolean;
     fields: {
         documentType: "national_id" | "passport";
         issuingCountry: string;
@@ -311,12 +309,12 @@ export declare const IdentityScanResult: z.ZodObject<{
         checked: boolean;
         source?: "document" | "registry" | "typed" | undefined;
     } | null;
+    outcome: "machine_passed" | "machine_failed" | "manual_needed";
+    mayContinue: boolean;
 }, {
     message: string | null;
     attempt: number;
     reason: "expired" | "unavailable" | "revoked" | "not_authentic" | "face_mismatch" | "unreadable" | "not_found" | null;
-    outcome: "machine_passed" | "machine_failed" | "manual_needed";
-    mayContinue: boolean;
     fields: {
         documentType: "national_id" | "passport";
         issuingCountry: string;
@@ -328,6 +326,8 @@ export declare const IdentityScanResult: z.ZodObject<{
         checked: boolean;
         source?: "document" | "registry" | "typed" | undefined;
     } | null;
+    outcome: "machine_passed" | "machine_failed" | "manual_needed";
+    mayContinue: boolean;
 }>;
 export type IdentityScanResult = z.infer<typeof IdentityScanResult>;
 /**
@@ -397,13 +397,17 @@ export type TypedIdentityRequest = z.infer<typeof TypedIdentityRequest>;
  */
 export declare const NationalIdCheckRequest: z.ZodObject<{
     documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
-    selfieKey: z.ZodString;
+    /**
+     * Optional since 2026-11-02 (the owner's decision): without one, NIDA is asked by the number alone,
+     * its details fill the form, and the document reviewer confirms the ID before approving.
+     */
+    selfieKey: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     documentNumber: string;
-    selfieKey: string;
+    selfieKey?: string | undefined;
 }, {
     documentNumber: string;
-    selfieKey: string;
+    selfieKey?: string | undefined;
 }>;
 export type NationalIdCheckRequest = z.infer<typeof NationalIdCheckRequest>;
 //# sourceMappingURL=identity.d.ts.map

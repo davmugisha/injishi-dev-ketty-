@@ -3,7 +3,7 @@ import { Module } from '@nestjs/common';
 import { AdminSharedModule } from '../admin-shared.module';
 import { AdminConfigurationController } from '../configuration/configuration.controller';
 import { ConfigurationAdminService } from '../configuration/configuration.service';
-import { PaymentsModule } from '../../../modules/payments/payments.module';
+import { PaymentsModule } from '../../../modules/pay/payments.module';
 import { AdminFinanceController } from './finance.controller';
 import { AdminMoneyOverridesController, AdminMoneyQueueController } from './money-queue.controller';
 import { FinanceAdminService } from './finance.service';

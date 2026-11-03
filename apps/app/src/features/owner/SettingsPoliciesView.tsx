@@ -140,7 +140,6 @@ export function SettingsPoliciesView({ data }: { data: SettingsPoliciesData }) {
       <PageHeader
         eyebrow={<>Settings · {propertyName}</>}
         title="Policies"
-        description="Rules your team and guests work with. Changes are versioned and start on their effective date; existing bookings keep the terms they were sold with."
         actions={
           <>
             <Select

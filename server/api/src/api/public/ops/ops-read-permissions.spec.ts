@@ -11,6 +11,7 @@ import {
 } from '../../../shared/auth/workspace.guard';
 import { OpsAmenitiesController } from './amenities.controller';
 import { OpsAttendanceController } from './attendance.controller';
+import { OpsChecklistsController } from './checklists.controller';
 import { OpsDepartmentsController } from './departments.controller';
 import { OpsDisciplinaryActionsController } from './disciplinary-actions.controller';
 import { OpsDocumentRequestsController } from './document-requests.controller';
@@ -161,6 +162,7 @@ const CONTROLLERS: Ctor[] = [
   OpsDocumentsController,
   OpsDocumentRequestsController,
   OpsPoliciesController,
+  OpsChecklistsController,
   OpsStaffAnnouncementsController,
   OpsDisciplinaryActionsController,
   OpsOrgChartController,
@@ -329,6 +331,9 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // assignment reads below did not widen: finance sees bookings, not the room
   // plan.
   '/ops/reservations/:id/assignments': ['owner', 'manager', 'receptionist'],
+  // The desk's change form and its poll of a MoMo request for the difference (0120): whoever may change it.
+  '/ops/reservations/:id/change': ['owner', 'manager', 'receptionist'],
+  '/ops/reservations/:id/change/attempts/:token': ['owner', 'manager', 'receptionist'],
   '/ops/room-assignments': ['owner', 'manager', 'receptionist'],
   '/ops/tickets': ['owner', 'manager', 'housekeeper'],
   '/ops/revenue': ['owner', 'manager', 'finance'],
@@ -395,6 +400,9 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // (`attendance.record`) reads the house rules and announcements too.
   '/ops/hr/catalog/:kind': ['owner', 'manager', 'receptionist', 'hr'],
   '/ops/hr/settings': ['owner', 'manager', 'receptionist', 'hr'],
+  // Checklists are read by whoever reads files; the desk reads neither.
+  '/ops/hr/checklist-templates': ['owner', 'manager', 'hr'],
+  '/ops/hr/checklist-board': ['owner', 'manager', 'hr'],
   '/ops/policies': ['owner', 'manager', 'receptionist', 'hr'],
   '/ops/policies/:id/files/:index': ['owner', 'manager', 'receptionist', 'hr'],
   '/ops/staff-announcements': ['owner', 'manager', 'receptionist', 'hr'],
@@ -495,6 +503,7 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // permission; the month's figures under the money reads.
   '/ops/rentals/summary': ['owner', 'manager', 'finance'],
   '/ops/rentals/overview': ['owner', 'manager', 'finance'],
+  '/ops/rentals/money': ['owner', 'manager', 'finance'],
   '/ops/properties': ['owner', 'manager', 'finance'],
   '/ops/units/:id/media': ['owner', 'manager', 'finance'],
   // Rent (WP 1.6a): the roll, charges, payments, reminders and the month's

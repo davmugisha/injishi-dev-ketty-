@@ -81,12 +81,17 @@ export class PropertyPhotosService {
       );
     }
 
+    if (request.roomTypeId && !(await this.repo.roomTypeOnProperty(request.roomTypeId, propertyId))) {
+      throw new BadRequestException('That room type is not on this property.');
+    }
+
     await this.repo.attach({
       propertyId,
       objectKey: request.objectKey,
       position: request.position ?? null,
       isCover: request.isCover ?? false,
       caption: request.caption ?? null,
+      roomTypeId: request.roomTypeId ?? null,
     });
     return this.withUrls(await this.repo.listForProperty(propertyId));
   }
@@ -181,6 +186,7 @@ export class PropertyPhotosService {
         position: row.position,
         isCover: row.isCover,
         caption: row.caption,
+        roomTypeId: row.roomTypeId,
         url: await this.storage.signedUrl(row.objectKey),
       })),
     );

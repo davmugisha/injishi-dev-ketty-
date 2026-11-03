@@ -8,13 +8,16 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
+  STAFF_GRANT_STEP_UP_SECONDS,
   STAFF_PERMISSION_LABEL,
+  STAFF_STEP_UP_STALE,
   staffAllows,
   staffRequiresStepUp,
   type StaffAccess,
   type StaffPermission,
 } from '@injishi/contracts';
 
+import { REQUIRE_FRESH_STEP_UP } from './require-fresh-step-up.decorator';
 import { REQUIRE_STAFF_PERMISSION } from './require-staff-permission.decorator';
 import { TwoFactorService, type TwoFactorRefusal } from './two-factor.service';
 import { WorkspaceService } from './workspace.service';
@@ -198,6 +201,25 @@ export class StaffGuard implements CanActivate {
       throw new ForbiddenException(
         `Your staff role cannot ${STAFF_PERMISSION_LABEL[required]}.`,
       );
+    }
+
+    // A grant asks for a RECENT code (2026-11-02, `@RequireFreshStepUp`).
+    // After the permission, so a staffer who may not grant at all is told so
+    // rather than asked for a code that would open nothing.
+    const fresh = this.reflector.getAllAndOverride<boolean | undefined>(
+      REQUIRE_FRESH_STEP_UP,
+      [context.getHandler(), context.getClass()],
+    );
+    if (
+      fresh &&
+      !(await this.twoFactor.verifiedWithin(sessionId, STAFF_GRANT_STEP_UP_SECONDS))
+    ) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Confirm it is you: enter a new code we email you, then try again.',
+        code: STAFF_STEP_UP_STALE,
+      });
     }
 
     request.staff = access;

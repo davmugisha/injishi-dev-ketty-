@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 
 import { isWorkerProcess } from '../../shared/process/process-role';
-import { EbmModule } from '../ebm/ebm.module';
+import { EbmModule } from '../platform/fiscal/ebm.module';
+import { GuestsModule } from '../guests/guests.module';
 import { ListingModule } from '../listing/listing.module';
 import { MailerModule } from '../mailer/mailer.module';
 import { OperationsModule } from '../operations/operations.module';
 import { OutletsModule } from '../outlets/outlets.module';
 import { OrganizationModule } from '../organization/organization.module';
-import { PaymentsModule } from '../payments/payments.module';
+import { PaymentsModule } from '../pay/payments.module';
 import { AvailabilityService } from './application/availability.service';
 import { PaymentAttemptService } from './application/payment-attempt.service';
 import { RegistrationFeePaymentService } from './application/registration-fee-payment.service';
@@ -15,7 +16,15 @@ import { REGISTRATION_FEES } from './domain/registration-fees';
 import { RegistrationService } from '../organization/application/registration.service';
 import { PaymentAttemptRepository } from './infrastructure/payment-attempt.repository';
 import { BookingApprovalService } from './application/booking-approval.service';
+import { BrokerGroupBookingService } from './application/broker-group-booking.service';
+import { BrokerGroupRepository } from './infrastructure/broker-group.repository';
 import { BookingCancellationService } from './application/booking-cancellation.service';
+import { BookingChangeService } from './application/booking-change.service';
+import { DeskReservationService } from './application/desk-reservation.service';
+import { DeskReservationRepository } from './infrastructure/desk-reservation.repository';
+import { StayCompletionService } from './application/stay-completion.service';
+import { BookingChangeRepository } from './infrastructure/booking-change.repository';
+import { StayCompletionRepository } from './infrastructure/stay-completion.repository';
 import { BookingDecisionService } from './application/booking-decision.service';
 import { BookingLifecycleService } from './application/booking-lifecycle.service';
 import { BookingNotificationsService } from './application/booking-notifications.service';
@@ -39,6 +48,8 @@ import { PayerNumberPurgeRepository } from './infrastructure/payer-number-purge.
 import { FolioService } from './application/folio.service';
 import { FrontDeskBoardService } from './application/front-desk-board.service';
 import { FrontDeskService } from './application/front-desk.service';
+import { StaysOverviewService } from './application/stays-overview.service';
+import { StaysOverviewRepository } from './infrastructure/stays-overview.repository';
 import { HousekeepingBoardService } from './application/housekeeping-board.service';
 import { HousekeepingService } from './application/housekeeping.service';
 import { LostFoundService } from './application/lost-found.service';
@@ -111,10 +122,15 @@ import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
      * until it is here. `AuthModule` imports it the same way for `OtpMailer`.
      */
     MailerModule,
+    // Check-in files the guests in the guest register (0115): `HotelGuestFilingService`.
+    GuestsModule,
   ],
   providers: [
     BookingRepository,
     BookingService,
+    // A broker's groups of rooms under a deal (0126): written at once, or when their one MoMo payment lands.
+    BrokerGroupRepository,
+    BrokerGroupBookingService,
     // What is left to sell, per night. It depends on ListingService for the
     // room type, which is why the visibility rule (active room, published
     // listing) is enforced without this service restating it.
@@ -126,6 +142,11 @@ import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
     BookingCancellationService,
     BookingLifecycleService,
     OperatorReservationsService,
+    // The desk's changes to a confirmed reservation: dates, room type, party (0120).
+    BookingChangeRepository,
+    BookingChangeService,
+    DeskReservationService,
+    DeskReservationRepository,
     // The guest's own read of their own bookings. Its own repository, so the
     // 34 KB write-path one does not grow a thirteenth concern.
     GuestTripsRepository,
@@ -179,6 +200,12 @@ import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
      */
     FrontDeskRepository,
     FrontDeskService,
+    // A stay business's overview: the week's arrivals, stays and money (2026-10-29).
+    StaysOverviewService,
+    StaysOverviewRepository,
+    // Check out settles the stay: the host's payout and any credit left on the bill (0117, 0121).
+    StayCompletionRepository,
+    StayCompletionService,
     // The front desk's day in one read (interface real-data, frontdesk leaf).
     FrontDeskBoardRepository,
     FrontDeskBoardService,
@@ -227,6 +254,8 @@ import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
   ],
   exports: [
     BookingService,
+    // For the brokers module, which resolves the broker and their running deal and hands over (0126).
+    BrokerGroupBookingService,
     // Exported for `AvailabilityController` in `PublicApiModule`.
     AvailabilityService,
     // Exported for `BookingsController`, which serves the guest's poll.
@@ -236,6 +265,11 @@ import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
     BookingApprovalService,
     BookingCancellationService,
     OperatorReservationsService,
+    // Exported for `OperatorReservationsController`'s change routes (0120).
+    BookingChangeService,
+    DeskReservationService,
+    // Exported for the stay's completion, which refunds a change's unspent credit at check out.
+    BookingChangeRepository,
     // Exported for `MeController`, which is the only caller and lives in
     // `PublicApiModule`.
     GuestTripsService,
@@ -244,6 +278,7 @@ import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
     FrontDeskBoardService,
     SelfCheckInService,
     FrontDeskService,
+    StaysOverviewService,
     FolioService,
     RevenueService,
     RoomAssignmentService,

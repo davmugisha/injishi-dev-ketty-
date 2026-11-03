@@ -22,7 +22,7 @@ import { StaffRole } from "./primitives";
  * resolved from roles, exactly as the org side resolves its 21.
  */
 /** What an admin action needs. A permission absent from the union is denied. */
-export declare const StaffPermission: z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>;
+export declare const StaffPermission: z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.user.suspend", "admin.role.view", "admin.business.member.manage", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>;
 export type StaffPermission = z.infer<typeof StaffPermission>;
 /**
  * Every permission a set of staff roles holds, as a stable sorted list.
@@ -42,10 +42,72 @@ export declare const STAFF_PERMISSION_LABEL: Readonly<Record<StaffPermission, st
  * Each writes a request row and waits for a different `super_admin`. The
  * database `CHECK` on the request table is the control; this list is what lets
  * a route and a screen know the wait is coming before they start.
+ *
+ * Only `admin.money.override` has that request table. `admin.user.role.grant`
+ * is single signer by owner decision (ADR-053, confirmed 2026-11-02): its
+ * routes demand a step-up under ten minutes old instead
+ * (`STAFF_GRANT_STEP_UP_SECONDS`), and no custom role can carry it.
  */
 export declare const TWO_PERSON_STAFF_PERMISSIONS: readonly StaffPermission[];
 /** Does completing this power need a second `super_admin` to approve it? */
 export declare function needsSecondSigner(permission: StaffPermission): boolean;
+/**
+ * A custom role is a NAMED BUNDLE OF THE PERMISSIONS ABOVE, made by a super
+ * admin from the console. It never adds a power: the list it chooses from is
+ * `StaffPermission.options`, which is code, and every route still asks for one
+ * of those by name through `@RequireStaffPermission`. A permission stored on a
+ * custom role that the code no longer defines is dropped when access is
+ * resolved (`staffPermissionsForGrants`), so a stale row can never be a power.
+ *
+ * The five built-in roles stay in code (`STAFF_ROLE_PERMISSIONS`) and are shown
+ * read only: they cannot be edited, archived or deleted.
+ */
+/**
+ * Permissions that may never be put in a custom role (owner decision,
+ * 2026-11-02). They hand out authority, act as somebody else, move money
+ * without the usual checks, or change how the whole platform runs, so they stay
+ * with `super_admin` alone. The database refuses them too
+ * (`staff_custom_role_permissions_not_reserved`).
+ */
+export declare const RESERVED_STAFF_PERMISSIONS: readonly StaffPermission[];
+/** May this permission go into a custom role? */
+export declare function isReservedStaffPermission(permission: StaffPermission): boolean;
+/** The areas a role editor and the matrix group permissions under, in display order. */
+export declare const StaffPermissionArea: z.ZodEnum<["observe", "businesses", "people", "brokers", "money", "compliance", "platform", "training"]>;
+export type StaffPermissionArea = z.infer<typeof StaffPermissionArea>;
+export declare const STAFF_PERMISSION_AREA_LABEL: Readonly<Record<StaffPermissionArea, string>>;
+/** Which area each permission sits in. Typed by `StaffPermission`, so a new one must be placed. */
+export declare const STAFF_PERMISSION_AREA: Readonly<Record<StaffPermission, StaffPermissionArea>>;
+/** One plain sentence per permission, for the role editor and the matrix. */
+export declare const STAFF_PERMISSION_DESCRIPTION: Readonly<Record<StaffPermission, string>>;
+/** The permissions in an area, in canonical order. */
+export declare function staffPermissionsInArea(area: StaffPermissionArea): StaffPermission[];
+/** The permissions a built-in role holds, in canonical order. For the matrix. */
+export declare function builtInRolePermissions(role: StaffRole): StaffPermission[];
+/**
+ * Every permission a staffer holds from their built-in roles AND their custom
+ * roles, as a stable sorted list.
+ *
+ * Custom role permissions arrive as stored strings. Anything the code does not
+ * define, and anything reserved, is dropped here rather than trusted: the
+ * database is a record of what was chosen, the code is what a power IS.
+ */
+export declare function staffPermissionsForGrants(roles: readonly StaffRole[], customPermissions: readonly string[]): StaffPermission[];
+/**
+ * The permissions in `wanted` that `held` does not cover. Empty means the
+ * actor may hand all of them out: nobody grants a power they do not hold.
+ */
+export declare function permissionsBeyond(held: readonly StaffPermission[], wanted: readonly StaffPermission[]): StaffPermission[];
+/**
+ * How recent the emailed step-up must be for a grant (owner decision,
+ * 2026-11-02): ten minutes. The console already demands the code once per
+ * session; a grant asks again when the last code is older than this, so the
+ * person granting is shown to hold the mailbox at the moment of granting.
+ * Role grants stay single signer (ADR-053); this is the control in its place.
+ */
+export declare const STAFF_GRANT_STEP_UP_SECONDS = 600;
+/** The refusal code a grant route answers when the step-up is too old. */
+export declare const STAFF_STEP_UP_STALE = "step_up_stale";
 /**
  * What `GET /api/v1/me/staff` answers: whether the caller is platform staff,
  * and what that gets them.
@@ -99,7 +161,21 @@ export declare const StaffAccess: z.ZodObject<{
     /** The roles held. Empty for everyone who is not staff. */
     roles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance", "trainer"]>, "many">;
     /** The union of those roles' powers, already resolved. Empty for non-staff. */
-    permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>, "many">;
+    permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.user.suspend", "admin.role.view", "admin.business.member.manage", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>, "many">;
+    /**
+     * The custom roles held (2026-11-02), by id and name. Optional so an older
+     * API stays parseable; their powers are already in `permissions`.
+     */
+    customRoles: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        name: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        id: string;
+    }, {
+        name: string;
+        id: string;
+    }>, "many">>;
     /**
      * The step-up, as `GET /api/v1/me/staff` reports it, so the console can send
      * a staffer to the code screen BEFORE it renders rather than after a page's
@@ -129,17 +205,25 @@ export declare const StaffAccess: z.ZodObject<{
         required: boolean;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
-    roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
     isStaff: boolean;
+    roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
+    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+    customRoles?: {
+        name: string;
+        id: string;
+    }[] | undefined;
     twoFactor?: {
         verified: boolean;
         required: boolean;
     } | undefined;
 }, {
-    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
-    roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
     isStaff: boolean;
+    roles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
+    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+    customRoles?: {
+        name: string;
+        id: string;
+    }[] | undefined;
     twoFactor?: {
         verified: boolean;
         required: boolean;

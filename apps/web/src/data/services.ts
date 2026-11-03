@@ -78,7 +78,7 @@ export const FAQ: FaqEntry[] = [
   {
     question: "How do I pay, and in what currency?",
     answer:
-      "You pay in Rwandan francs (RWF) with mobile money: MTN MoMo or Airtel Money. Card payments are not offered yet. Your party's total, including Injishi's service fee, shows before you pay, with nothing added after.",
+      "You pay in Rwandan francs (RWF) with mobile money: MTN MoMo or Airtel Money. Card payments are not offered yet. Your party's total is the room rate the host set, shown before you pay, with nothing added after.",
   },
   {
     question: "Can I book a long stay or lease?",

@@ -27,6 +27,10 @@ import {
 } from '../../../shared/database/database.module';
 import {
   adminUsers,
+  signInEvents,
+  staffCustomRoles,
+  userStaffCustomRoles,
+  userSuspensions,
   bookings,
   districts,
   governmentBodies,
@@ -45,6 +49,26 @@ import {
   users,
   verifiedIdentities,
 } from '../../../database/drizzle/schema';
+import { StaffRole as StaffRoleEnum, type Domain } from '@injishi/contracts';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The directory's sort (2026-11-02). Newest first when none is asked for; nulls last either way. */
+function orderFor(query: AdminUserListQuery): SQL[] {
+  const dir = query.dir === 'asc' ? sql`asc` : sql`desc`;
+  switch (query.sort) {
+    case 'name':
+      return [sql`lower(coalesce(nullif(btrim(${users.name}), ''), ${users.email})) ${query.dir === 'desc' ? sql`desc` : sql`asc`}`];
+    case 'email':
+      return [sql`lower(${users.email}) ${query.dir === 'desc' ? sql`desc` : sql`asc`}`];
+    case 'lastSignInAt':
+      return [sql`${lastSignIn} ${dir} nulls last`];
+    case 'createdAt':
+      return [sql`${users.createdAt} ${dir}`];
+    default:
+      return [desc(users.createdAt)];
+  }
+}
 
 /** One row of the directory before its side tables are attached. */
 export interface AdminUserBaseRow {
@@ -58,7 +82,16 @@ export interface AdminUserBaseRow {
   nationalId: string | null;
   profileTwoFactorEnrolled: boolean | null;
   staffTwoFactorEnrolled: boolean | null;
+  /** A live suspension (2026-11-02). */
+  suspended: boolean;
+  lastSignInAt: Date | null;
   createdAt: Date;
+}
+
+export interface AdminUserCustomRoleRow {
+  userId: string;
+  id: string;
+  name: string;
 }
 
 export interface AdminUserRoleRow {
@@ -70,7 +103,7 @@ export interface AdminUserMembershipRow {
   userId: string;
   orgId: string;
   orgName: string;
-  domain: 'hospitality' | 'residence';
+  domain: Domain;
   orgRole: OrgRole;
   payoutLocked: boolean | null;
 }
@@ -105,6 +138,14 @@ export interface AdminUnclaimedStayRow {
   identityCaptured: boolean;
   isVerified: boolean;
 }
+
+/** A live suspension on this account. */
+const isSuspended = sql<boolean>`exists (select 1 from ${userSuspensions} where ${userSuspensions.userId} = ${users.id} and ${userSuspensions.liftedAt} is null)`;
+/** The newest recorded sign in. */
+const lastSignIn = sql<Date | null>`(select max(${signInEvents.occurredAt}) from ${signInEvents} where ${signInEvents.userId} = ${users.id})`;
+const isStaff = sql`exists (select 1 from ${adminUsers} where ${adminUsers.userId} = ${users.id} and ${adminUsers.revokedAt} is null)`;
+const isOfficial = sql`exists (select 1 from ${oversightAssignments} where ${oversightAssignments.userId} = ${users.id} and ${oversightAssignments.revokedAt} is null)`;
+const isMember = sql`exists (select 1 from ${orgMemberships} where ${orgMemberships.userId} = ${users.id} and ${orgMemberships.status} = 'active')`;
 
 /**
  * The only place the Users section touches Drizzle.
@@ -158,6 +199,33 @@ export class AdminUsersRepository {
     const kyc = this.kycFilter(query.kyc);
     if (kyc) clauses.push(kyc);
 
+    // Kind, status and role (2026-11-02). Each is an EXISTS on the live rows,
+    // so a revoked grant, an ended post or a lifted suspension never counts.
+    if (query.kind === 'staff') clauses.push(isStaff);
+    if (query.kind === 'official') clauses.push(isOfficial);
+    if (query.kind === 'business') clauses.push(isMember);
+    if (query.kind === 'guest') clauses.push(sql`not ${isStaff} and not ${isOfficial} and not ${isMember}`);
+
+    if (query.status === 'suspended') clauses.push(isSuspended);
+    if (query.status === 'invited') clauses.push(sql`not ${isSuspended} and ${users.emailVerified} = false`);
+    if (query.status === 'active') clauses.push(sql`not ${isSuspended} and ${users.emailVerified} = true`);
+
+    if (query.role) {
+      if (StaffRoleEnum.safeParse(query.role).success) {
+        clauses.push(
+          sql`exists (select 1 from ${adminUsers} where ${adminUsers.userId} = ${users.id} and ${adminUsers.revokedAt} is null and ${query.role} = any(${adminUsers.staffRoles}))`,
+        );
+      } else if (UUID.test(query.role)) {
+        clauses.push(
+          sql`exists (select 1 from ${userStaffCustomRoles} where ${userStaffCustomRoles.userId} = ${users.id} and ${userStaffCustomRoles.revokedAt} is null and ${userStaffCustomRoles.roleId} = ${query.role})`,
+        );
+      } else {
+        // An unknown role matches nobody, rather than being ignored and
+        // answering everybody under a filter the staffer thinks is applied.
+        clauses.push(sql`false`);
+      }
+    }
+
     return clauses.length ? and(...clauses) : undefined;
   }
 
@@ -195,6 +263,21 @@ export class AdminUsersRepository {
     limit: number,
     offset: number,
   ): Promise<AdminUserBaseRow[]> {
+    return this.baseRows(this.userFilter(query), limit, offset, orderFor(query));
+  }
+
+  /** One account's directory row, or none: the person page (`GET /admin/users/:userId`). */
+  async userById(userId: string): Promise<AdminUserBaseRow | null> {
+    const [row] = await this.baseRows(eq(users.id, userId), 1);
+    return row ?? null;
+  }
+
+  private baseRows(
+    where: SQL | undefined,
+    limit: number,
+    offset = 0,
+    order: SQL[] = [desc(users.createdAt)],
+  ): Promise<AdminUserBaseRow[]> {
     return this.db
       .select({
         id: users.id,
@@ -212,6 +295,8 @@ export class AdminUsersRepository {
         >`coalesce(${identityDocuments.documentNumber}, ${userProfiles.nationalId})`,
         profileTwoFactorEnrolled: userProfiles.twoFactorEnrolled,
         staffTwoFactorEnrolled: adminUsers.twoFactorEnrolled,
+        suspended: isSuspended,
+        lastSignInAt: lastSignIn,
         createdAt: users.createdAt,
       })
       .from(users)
@@ -230,13 +315,30 @@ export class AdminUsersRepository {
         adminUsers,
         and(eq(adminUsers.userId, users.id), isNull(adminUsers.revokedAt)),
       )
-      .where(this.userFilter(query))
+      .where(where)
       // `id` breaks the tie, so two accounts created in the same transaction
       // cannot swap places between page 1 and page 2 and hide one of
       // themselves from a staffer paging through.
-      .orderBy(desc(users.createdAt), users.id)
+      .orderBy(...order, users.id)
       .limit(limit)
       .offset(offset);
+  }
+
+  /** Live custom roles (on live roles) for the people on this page. */
+  customRolesFor(userIds: string[]): Promise<AdminUserCustomRoleRow[]> {
+    if (userIds.length === 0) return Promise.resolve([]);
+    return this.db
+      .select({ userId: userStaffCustomRoles.userId, id: staffCustomRoles.id, name: staffCustomRoles.name })
+      .from(userStaffCustomRoles)
+      .innerJoin(staffCustomRoles, eq(staffCustomRoles.id, userStaffCustomRoles.roleId))
+      .where(
+        and(
+          inArray(userStaffCustomRoles.userId, userIds),
+          isNull(userStaffCustomRoles.revokedAt),
+          isNull(staffCustomRoles.archivedAt),
+        ),
+      )
+      .orderBy(staffCustomRoles.name);
   }
 
   /** Active global roles for the people on this page. */

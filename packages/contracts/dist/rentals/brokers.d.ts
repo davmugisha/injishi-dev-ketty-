@@ -228,12 +228,12 @@ export declare const LeaseBrokerView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string | null;
     id: string;
+    phone: string | null;
     rating: {
         stars: number;
         comment: string | null;
         ratedAt: string;
     } | null;
-    phone: string | null;
     fee: {
         status: "void" | "paid" | "owed";
         amountRwf: number;
@@ -251,12 +251,12 @@ export declare const LeaseBrokerView: z.ZodObject<{
 }, {
     name: string | null;
     id: string;
+    phone: string | null;
     rating: {
         stars: number;
         comment: string | null;
         ratedAt: string;
     } | null;
-    phone: string | null;
     fee: {
         status: "void" | "paid" | "owed";
         amountRwf: number;
@@ -791,6 +791,7 @@ export declare const LandlordPlacementList: z.ZodObject<{
     paidRwf: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     paidRwf: number;
+    owedRwf: number;
     placements: {
         status: "initiated" | "converted" | "abandoned" | "unavailable";
         broker: {
@@ -841,9 +842,9 @@ export declare const LandlordPlacementList: z.ZodObject<{
             };
         } | null;
     }[];
-    owedRwf: number;
 }, {
     paidRwf: number;
+    owedRwf: number;
     placements: {
         status: "initiated" | "converted" | "abandoned" | "unavailable";
         broker: {
@@ -894,7 +895,6 @@ export declare const LandlordPlacementList: z.ZodObject<{
             };
         } | null;
     }[];
-    owedRwf: number;
 }>;
 export type LandlordPlacementList = z.infer<typeof LandlordPlacementList>;
 /** A broker the landlord can name on a lease (`GET /ops/rentals/brokers?q=`). */

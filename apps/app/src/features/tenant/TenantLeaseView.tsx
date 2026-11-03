@@ -5,20 +5,17 @@ import type { LeaseContractView, LeaseEventView, TenancyDetail } from "@injishi/
 import {
   ActionButton,
   ActionLink,
-  DateText,
   EmptyBlock,
   EventTimeline,
   formatDay,
   Icon,
-  KeyValueList,
-  Money,
   PageContent,
-  PageHeader,
   SectionCard,
   StatusChip,
 } from "@injishi/ui";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { ContractDocument } from "../leases/ContractDocument";
 import { SigningPanel } from "../leases/SigningPanel";
 import { contractOf, placeWords, tenantPdfHref, timelineOf } from "../leases/shared";
@@ -59,11 +56,11 @@ export function TenantLeaseView({
     router.replace(pathname, { scroll: false });
   }, [openSign, tenancy.needsMySignature, contract, pathname, router]);
 
-  const t = tenancy.terms;
+  const _t = tenancy.terms;
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
-      <PageHeader
+      <AreaHeader
         eyebrow={placeWords(tenancy)}
         title={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -73,13 +70,7 @@ export function TenantLeaseView({
             </StatusChip>
           </span>
         }
-        description={
-          tenancy.needsMySignature
-            ? `${tenancy.landlord.name} signed it. Read it through, then sign.`
-            : tenancy.status === "pending_signature"
-              ? "Waiting for your landlord."
-              : undefined
-        }
+        description={tenancy.needsMySignature ? `${tenancy.landlord.name} signed it` : undefined}
         actions={
           <>
             {tenancy.currentVersion ? (
@@ -107,7 +98,7 @@ export function TenantLeaseView({
           {doc ? (
             <ContractDocument contract={doc} />
           ) : (
-            <EmptyBlock size="sm" icon="FileText" title="No contract text to show" description="Open the PDF." />
+            <EmptyBlock size="sm" icon="FileText" title="No contract text to show" />
           )}
         </SectionCard>
         <div className="flex min-w-0 flex-col gap-5">
@@ -131,22 +122,6 @@ export function TenantLeaseView({
                 ))}
               </ul>
             )}
-          </SectionCard>
-          <SectionCard
-            title="Deposit"
-            actions={
-              tenancy.charges.depositStatus ? (
-                <StatusChip kind="deposit" status={tenancy.charges.depositStatus} />
-              ) : null
-            }
-          >
-            <KeyValueList
-              items={[
-                { label: "Agreed", value: <Money value={t.depositRwf} /> },
-                { label: "Due", value: <DateText value={t.startDate} style="long" /> },
-                { label: "Held by", value: tenancy.landlord.name },
-              ]}
-            />
           </SectionCard>
           <TenantBrokerCard tenancy={tenancy} />
           <SectionCard title="Timeline">

@@ -11,9 +11,9 @@ import {
   PaymentUnavailableError,
   type PaymentPort,
   type PaymentReceipt,
-} from '../../payments/domain/payment-port';
-import { MockPaymentAdapter } from '../../payments/infrastructure/mock-payment.adapter';
-import { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
+} from '../../pay/domain/payment-port';
+import { MockPaymentAdapter } from '../../pay/infrastructure/mock-payment.adapter';
+import { PaymentCompensationService } from '../../pay/application/payment-compensation.service';
 import {
   BookingRepository,
   DuplicateAttemptError,
@@ -23,8 +23,8 @@ import {
 import { BookingService } from './booking.service';
 import { BookingNotificationsService } from './booking-notifications.service';
 import { PaymentAttemptService } from './payment-attempt.service';
-import type { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
-import { PaymentSeam, resolvePaymentSeam } from '../../payments/domain/payment-seam';
+import type { EbmSaleTrigger } from '../../platform/fiscal/application/ebm-sale-trigger.service';
+import { PaymentSeam, resolvePaymentSeam } from '../../pay/domain/payment-seam';
 
 /**
  * Unit scope: the money ORDERING (ADR-020 A1) around a mocked repository and a
@@ -63,6 +63,7 @@ describe('BookingService money ordering', () => {
     approvalPolicy: null,
     cancellationTier: 'flexible',
     nonrefundableEligible: false,
+    priceBasis: 'per_person',
     // ARI (ADR-047 wave E). Null is "the host set none", which every consumer
     // reads as one night rather than inventing a longer minimum.
     minStay: null,
@@ -101,7 +102,7 @@ describe('BookingService money ordering', () => {
       chargeOneTimeFee: Mock;
       fetchTransaction: Mock;
     };
-    listings: { findBookableRoomType: Mock };
+    listings: { findBookableRoomType: Mock; stayRate: Mock };
     compensations: { enqueue: Mock };
     attempts: {
       claimHold: Mock;
@@ -174,6 +175,7 @@ describe('BookingService money ordering', () => {
 
     const listings = {
       findBookableRoomType: vi.fn().mockResolvedValue(roomType),
+      stayRate: vi.fn(async (rt: { nightlyRateRwf: number | null }) => ({ nightlyRateRwf: rt.nightlyRateRwf ?? 0, discountPct: 0, closedOn: null, minNights: 1, maxNights: 90 })),
     };
 
     const compensations = {
@@ -288,8 +290,8 @@ describe('BookingService money ordering', () => {
     await service.create(input, GUEST_ID);
 
     // Priced per person (owner decision, 2026-09-15): 45,000 x 2 guests x
-    // 2 nights = 180,000, plus the 5% guest service fee.
-    expect(payments.captureEscrow.mock.calls[0][0].amountRwf).toBe(189_000);
+    // 2 nights = 180,000, and no guest service fee on top (2026-10-29).
+    expect(payments.captureEscrow.mock.calls[0][0].amountRwf).toBe(180_000);
   });
 
   it('charges each guest, so a bigger party costs more', async () => {
@@ -299,7 +301,33 @@ describe('BookingService money ordering', () => {
 
     // The same stay for one guest is half of the party of two above, which is
     // the whole point: the total used to be identical for both.
-    expect(payments.captureEscrow.mock.calls[0][0].amountRwf).toBe(94_500);
+    expect(payments.captureEscrow.mock.calls[0][0].amountRwf).toBe(90_000);
+  });
+
+  it('charges a villa or apartment per night, whatever the party (2026-10-29)', async () => {
+    const { service, listings, payments } = build();
+    listings.findBookableRoomType.mockResolvedValue({ ...roomType, priceBasis: 'per_unit' });
+
+    await service.create(input, GUEST_ID);
+
+    // 45,000 x 2 nights for the whole place: the two guests do not multiply it.
+    expect(payments.captureEscrow.mock.calls[0][0].amountRwf).toBe(90_000);
+  });
+
+  it('refuses a stay shorter than the room type minimum, before any charge', async () => {
+    const { service, listings, payments } = build();
+    listings.findBookableRoomType.mockResolvedValue({ ...roomType, minStay: 3 });
+
+    await expect(service.create(input, GUEST_ID)).rejects.toThrow(/at least 3 nights/);
+    expect(payments.captureEscrow).not.toHaveBeenCalled();
+  });
+
+  it("refuses to book a venue's menu item, before any hold or charge", async () => {
+    const { service, listings, payments } = build();
+    listings.findBookableRoomType.mockResolvedValue({ ...roomType, priceBasis: 'per_item', bookingMode: null });
+
+    await expect(service.create(input, GUEST_ID)).rejects.toThrow(/cannot be booked|can be booked/);
+    expect(payments.captureEscrow).not.toHaveBeenCalled();
   });
 
   /**
@@ -438,7 +466,7 @@ describe('BookingService money ordering', () => {
       findByAttemptKey: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockRejectedValue(new Error('database is on fire')),
     };
-    const listings = { findBookableRoomType: vi.fn().mockResolvedValue(roomType) };
+    const listings = { findBookableRoomType: vi.fn().mockResolvedValue(roomType), stayRate: vi.fn(async (rt: { nightlyRateRwf: number | null }) => ({ nightlyRateRwf: rt.nightlyRateRwf ?? 0, discountPct: 0, closedOn: null, minNights: 1, maxNights: 90 })), };
     const compensations = {
       enqueue: vi.fn().mockResolvedValue(undefined),
       cancel: vi.fn().mockResolvedValue(undefined),
@@ -537,7 +565,7 @@ describe('BookingService money ordering', () => {
 
     expect(bookingOf(result).nonRefundable).toBe(false);
     // And the discount is therefore not applied to what is charged.
-    expect(payments.captureEscrow.mock.calls[0][0].amountRwf).toBe(189_000);
+    expect(payments.captureEscrow.mock.calls[0][0].amountRwf).toBe(180_000);
   });
   // --- The settlement branch (ADR-020 D-b, AC-4, AC-26) ---------------------
 
@@ -657,7 +685,7 @@ describe('BookingService money ordering', () => {
 
     expect(bookingOf(result).reference).toBe('BK-ABC123');
     // The same number, recomputed from the locked rate rather than re-quoted.
-    expect(bookingOf(result).breakdown.grossRwf).toBe(94_500);
+    expect(bookingOf(result).breakdown.grossRwf).toBe(90_000);
     expect(payments.captureEscrow).not.toHaveBeenCalled();
     expect(repo.create).not.toHaveBeenCalled();
   });

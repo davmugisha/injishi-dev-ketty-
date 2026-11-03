@@ -1,29 +1,26 @@
 "use client";
 
-import { Card } from "@heroui/react";
+import { Button, Input, Label, TextField } from "@heroui/react";
 import type { AdminOrgRow, OrgRegistrationStatus } from "@injishi/contracts";
 import {
   DataTable,
   DateText,
   EmptyBlock,
   EventTimeline,
-  FilterTabs,
   FlowStepper,
-  formatNumber,
   KeyValueList,
-  KpiStrip,
   LoadingBlock,
   PageContent,
-  PageHeader,
-  SearchBar,
   SidePanel,
   StatusChip,
   type StatusTone,
   type TimelineEvent,
 } from "@injishi/ui";
 import { useEffect, useState } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import type { RegistrationEvent } from "@/server/admin/registrations";
-import { loadRegistrationTimeline } from "./actions";
+import type { StarGradeState } from "@/server/admin/registrations";
+import { decideStarGradeAction, loadRegistrationTimeline, loadStarGrade } from "./actions";
 
 /** Where a registration stands, in the order it moves: paid, a field visit, a second officer's approval. */
 type Stage = "unpaid" | "visit" | "approval" | "active" | "rejected" | "suspended";
@@ -50,7 +47,7 @@ const STAGE_WORDS: Record<Stage, { label: string; tone: StatusTone }> = {
 
 const STEPS = [
   { id: "paid", title: "Registered and paid", description: "The business" },
-  { id: "visit", title: "Field visit", description: "Field verification officer" },
+  { id: "visit", title: "Document review", description: "Document review officer" },
   { id: "approval", title: "Approval", description: "A second officer" },
   { id: "active", title: "Active", description: "Can use Injishi" },
 ];
@@ -93,7 +90,7 @@ function eventWords(e: RegistrationEvent): TimelineEvent {
       id: e.id,
       at: e.occurredAt,
       title: passed ? "Field visit verified" : "Refused at the field visit",
-      detail: [by || "Field verification officer", e.reason].filter(Boolean).join(" · "),
+      detail: [by || "Document review officer", e.reason].filter(Boolean).join(" · "),
       tone: passed ? "success" : "danger",
     };
   }
@@ -107,6 +104,73 @@ function eventWords(e: RegistrationEvent): TimelineEvent {
     };
   }
   return { id: e.id, at: e.occurredAt, title: e.eventType.replace(/[._]/g, " "), detail: by || undefined };
+}
+
+/**
+ * 0118: the star grade a stay said, confirmed here once checked against its RDB grading certificate. Guests see
+ * stars only from then; a lapsed or mismatched certificate is withdrawn the same way. Both take a reason.
+ */
+function StarGradeSection({ orgId }: { orgId: string }) {
+  const [state, setState] = useState<StarGradeState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void loadStarGrade(orgId).then((r) => {
+      if (!live) return;
+      if (r.ok) setState(r.value);
+      else setError(r.error);
+    });
+    return () => {
+      live = false;
+    };
+  }, [orgId]);
+  if (!state) return error ? <p className="text-sm text-danger">{error}</p> : null;
+  if (state.grade === null) return null;
+  const decide = async (confirm: boolean) => {
+    setBusy(true);
+    setError(null);
+    const r = await decideStarGradeAction(orgId, confirm, reason);
+    setBusy(false);
+    if (r.ok) {
+      setState(r.value);
+      setReason("");
+    } else setError(r.error);
+  };
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="text-sm font-semibold">Star grade</h3>
+      <p className="m-0 text-sm">
+        {`${state.grade} stars, `}
+        {state.verifiedAt ? (
+          <>
+            confirmed <DateText value={state.verifiedAt} style="long" />. Guests see it.
+          </>
+        ) : (
+          "said by the business, not yet checked. Guests see no stars until it is confirmed."
+        )}
+      </p>
+      <TextField value={reason} onChange={setReason} fullWidth>
+        <Label>Why</Label>
+        <Input
+          placeholder={state.verifiedAt ? "The grading certificate has expired" : "RDB grading certificate checked, valid to 2027"}
+        />
+      </TextField>
+      <div className="flex flex-wrap gap-2">
+        {state.verifiedAt ? (
+          <Button variant="secondary" isDisabled={busy || reason.trim().length < 4} onPress={() => void decide(false)}>
+            Withdraw the confirmation
+          </Button>
+        ) : (
+          <Button isDisabled={busy || reason.trim().length < 4} onPress={() => void decide(true)}>
+            Confirm the grade
+          </Button>
+        )}
+      </div>
+      {error ? <p className="m-0 text-sm text-danger">{error}</p> : null}
+    </section>
+  );
 }
 
 function RegistrationPanel({ org, onClose }: { org: AdminOrgRow; onClose: () => void }) {
@@ -163,6 +227,7 @@ function RegistrationPanel({ org, onClose }: { org: AdminOrgRow; onClose: () => 
             { label: "Registered", value: <DateText value={org.createdAt} style="long" /> },
           ]}
         />
+        {org.domain === "hospitality" ? <StarGradeSection orgId={org.id} /> : null}
         <section className="flex flex-col gap-2">
           <h3 className="text-sm font-semibold">History</h3>
           {error ? (
@@ -187,173 +252,100 @@ function RegistrationPanel({ org, onClose }: { org: AdminOrgRow; onClose: () => 
  * approval, active), filtered by stage and searched by name or UPI, with each one's history in a panel.
  * Real records only, read from the admin API.
  */
-export function RegistrationsView({ orgs, total }: { orgs: AdminOrgRow[]; total: number }) {
-  const [tab, setTab] = useState<Tab>("all");
-  const [q, setQ] = useState("");
+export function RegistrationsView({ orgs }: { orgs: AdminOrgRow[] }) {
   const [open, setOpen] = useState<AdminOrgRow | null>(null);
   const count = (t: Tab) => orgs.filter((o) => inTab(t, STAGE[o.registrationStatus])).length;
-  const needle = q.trim().toLowerCase();
-  const rows = orgs.filter(
-    (o) =>
-      inTab(tab, STAGE[o.registrationStatus]) &&
-      (!needle ||
-        o.legalName.toLowerCase().includes(needle) ||
-        (o.upi ?? "").includes(needle) ||
-        (o.tin ?? "").includes(needle)),
-  );
   return (
     <PageContent>
-      <PageHeader title="Registrations" description={`${formatNumber(total)} businesses`} />
-      <KpiStrip
+      <AreaHeader />
+      <DataTable<AdminOrgRow>
         label="Registrations"
-        items={[
+        rows={orgs}
+        rowKey={(o) => o.id}
+        noun={{ one: "business", many: "businesses" }}
+        search={{ placeholder: "Name, UPI or TIN", text: (o) => `${o.legalName} ${o.upi ?? ""} ${o.tin ?? ""}` }}
+        filters={[
           {
-            id: "visit",
-            label: "Field visit",
-            value: count("visit"),
-            format: "count",
-            icon: "MapPin",
-            status: count("visit") > 0 ? "warning" : undefined,
-            footnote: "Waiting for an officer",
-          },
-          {
-            id: "approval",
-            label: "Approval",
-            value: count("approval"),
-            format: "count",
-            icon: "ShieldCheck",
-            footnote: "Waiting for a second officer",
-          },
-          {
-            id: "active",
-            label: "Active",
-            value: count("active"),
-            format: "count",
-            icon: "CircleCheck",
-            footnote: "Approved and running",
-          },
-          {
-            id: "closed",
-            label: "Rejected or suspended",
-            value: count("closed"),
-            format: "count",
-            icon: "CircleXmark",
-            footnote: "Not running",
+            id: "stage",
+            name: "Stage",
+            options: TABS.map((t) => ({ id: t, label: TAB_LABEL[t], count: count(t) })),
+            match: (o, v) => inTab(v as Tab, STAGE[o.registrationStatus]),
           },
         ]}
-      />
-      <Card className="flex min-w-0 flex-col gap-3 p-4">
-        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-          <FilterTabs
-            label="Registrations by stage"
-            name="Stage"
-            selectedKey={tab}
-            onSelectionChange={(k) => setTab(k as Tab)}
-            tabs={TABS.map((t) => ({ id: t, label: TAB_LABEL[t], count: count(t) }))}
-          />
-          <SearchBar
-            label="Search registrations"
-            placeholder="Name, UPI or TIN"
-            defaultValue={q}
-            onSubmit={setQ}
-            onChange={setQ}
-          />
-        </div>
-        <DataTable<AdminOrgRow>
-          label="Registrations"
-          rows={rows}
-          rowKey={(o) => o.id}
-          onRowAction={setOpen}
-          defaultSort={{ column: "registered", direction: "descending" }}
-          empty={
-            <EmptyBlock
-              icon="Briefcase"
-              title={needle || tab !== "all" ? "No registrations match" : "No registrations yet"}
-              description={
-                needle || tab !== "all"
-                  ? "Clear the search or pick another stage."
-                  : "Businesses appear here as they register."
-              }
-            />
-          }
-          columns={[
-            {
-              id: "name",
-              header: "Business",
-              isRowHeader: true,
-              sortValue: (o) => o.legalName,
-              cell: (o) => (
-                <div className="flex min-w-0 flex-col text-sm">
-                  <span className="truncate font-medium">{o.legalName}</span>
-                  <span className="truncate text-xs text-muted">{kindWords(o)}</span>
+        onRowAction={setOpen}
+        defaultSort={{ column: "registered", direction: "descending" }}
+        empty={<EmptyBlock icon="Briefcase" title="No registrations yet" />}
+        columns={[
+          {
+            id: "name",
+            header: "Business",
+            isRowHeader: true,
+            sortValue: (o) => o.legalName,
+            cell: (o) => (
+              <div className="flex min-w-0 flex-col text-sm">
+                <span className="truncate font-medium">{o.legalName}</span>
+                <span className="truncate text-xs text-muted">{kindWords(o)}</span>
+              </div>
+            ),
+          },
+          {
+            id: "district",
+            header: "District",
+            hideBelow: "xl",
+            sortValue: (o) => o.districtName ?? "",
+            cell: (o) => o.districtName ?? "Not given",
+          },
+          {
+            id: "progress",
+            header: "Progress",
+            hideBelow: "lg",
+            cell: (o) => {
+              const at = STEP_INDEX[STAGE[o.registrationStatus]];
+              const bad = STAGE[o.registrationStatus] === "rejected" || STAGE[o.registrationStatus] === "suspended";
+              return (
+                <div className="flex items-center gap-1" role="img" aria-label={`${Math.min(at, 4)} of 4 steps done`}>
+                  {STEPS.map((s, i) => (
+                    <span key={s.id} className="flex items-center gap-1">
+                      {i > 0 ? <span aria-hidden className="h-px w-3 bg-separator" /> : null}
+                      <span
+                        aria-hidden
+                        title={s.title}
+                        className={`size-2.5 rounded-full ${
+                          bad && i === at ? "bg-danger" : i < at ? "bg-success" : i === at ? "bg-accent" : "bg-default"
+                        }`}
+                      />
+                    </span>
+                  ))}
                 </div>
-              ),
+              );
             },
-            {
-              id: "district",
-              header: "District",
-              hideBelow: "xl",
-              sortValue: (o) => o.districtName ?? "",
-              cell: (o) => o.districtName ?? "Not given",
-            },
-            {
-              id: "progress",
-              header: "Progress",
-              hideBelow: "lg",
-              cell: (o) => {
-                const at = STEP_INDEX[STAGE[o.registrationStatus]];
-                const bad = STAGE[o.registrationStatus] === "rejected" || STAGE[o.registrationStatus] === "suspended";
-                return (
-                  <div className="flex items-center gap-1" role="img" aria-label={`${Math.min(at, 4)} of 4 steps done`}>
-                    {STEPS.map((s, i) => (
-                      <span key={s.id} className="flex items-center gap-1">
-                        {i > 0 ? <span aria-hidden className="h-px w-3 bg-separator" /> : null}
-                        <span
-                          aria-hidden
-                          title={s.title}
-                          className={`size-2.5 rounded-full ${
-                            bad && i === at
-                              ? "bg-danger"
-                              : i < at
-                                ? "bg-success"
-                                : i === at
-                                  ? "bg-accent"
-                                  : "bg-default"
-                          }`}
-                        />
-                      </span>
-                    ))}
-                  </div>
-                );
-              },
-            },
-            {
-              id: "status",
-              header: "Status",
-              sortValue: (o) => o.registrationStatus,
-              cell: (o) => {
-                const w = STAGE_WORDS[STAGE[o.registrationStatus]];
-                return <StatusChip tone={w.tone}>{w.label}</StatusChip>;
-              },
-            },
-            {
-              id: "registered",
-              header: "Registered",
-              align: "end",
-              sortValue: (o) => o.createdAt,
-              cell: (o) => <DateText value={o.createdAt} />,
-            },
-          ]}
-          mobile={{
-            title: (o) => o.legalName,
-            description: (o) => `${kindWords(o)} · ${o.districtName ?? ""}`,
-            trailing: (o) => {
+          },
+          {
+            id: "status",
+            header: "Status",
+            sortValue: (o) => o.registrationStatus,
+            cell: (o) => {
               const w = STAGE_WORDS[STAGE[o.registrationStatus]];
               return <StatusChip tone={w.tone}>{w.label}</StatusChip>;
             },
-          }}
-        />
-      </Card>
+          },
+          {
+            id: "registered",
+            header: "Registered",
+            align: "end",
+            sortValue: (o) => o.createdAt,
+            cell: (o) => <DateText value={o.createdAt} />,
+          },
+        ]}
+        mobile={{
+          title: (o) => o.legalName,
+          description: (o) => `${kindWords(o)} · ${o.districtName ?? ""}`,
+          trailing: (o) => {
+            const w = STAGE_WORDS[STAGE[o.registrationStatus]];
+            return <StatusChip tone={w.tone}>{w.label}</StatusChip>;
+          },
+        }}
+      />
       {open ? <RegistrationPanel org={open} onClose={() => setOpen(null)} /> : null}
     </PageContent>
   );

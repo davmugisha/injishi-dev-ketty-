@@ -1,11 +1,13 @@
 import { screens } from "@injishi/data";
 import type { CheckoutCase, CheckoutLedgerLine } from "@injishi/data/fixtures/stays";
 import { CheckoutView, type MomoState, type ReceiptOutcome } from "@injishi/product-pms/web";
+import { ActionLink, EmptyBlock, PageContent, PageHeader } from "@injishi/ui";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
+import { holdsSampleData } from "@/server/sample-data";
 
 export const metadata: Metadata = { title: screens.Checkout.pageTitle };
 
@@ -19,16 +21,37 @@ const MOMO: MomoState[] = ["idle", "pending", "unknown", "verified"];
 export default async function CheckoutPage({
   searchParams,
 }: {
-  searchParams: Promise<{ receipt?: string; momo?: string }>;
+  searchParams: Promise<{ receipt?: string; momo?: string; stay?: string }>;
 }) {
   const persona = await requirePersona("Checkout");
+  const { receipt, momo, stay } = await searchParams;
+  // A guest checks out on their bill, where the cash, the charges and the button are. The desk names the
+  // stay; this page used to open on whoever was due out first, whichever guest was chosen.
+  if (stay) redirect(`/stays/${encodeURIComponent(stay)}`);
   const [checkouts, ledger] = await Promise.all([
     getCollection<CheckoutCase>("stays.checkouts"),
     getCollection<CheckoutLedgerLine>("stays.checkoutLedger"),
   ]);
   const checkout = checkouts[0];
-  if (!checkout) notFound();
-  const { receipt, momo } = await searchParams;
+  // Nobody left to check out, which is where the desk lands right after the last checkout of the day.
+  if (!checkout) {
+    return (
+      <PageContent>
+        <PageHeader title={screens.Checkout.pageTitle} />
+        <EmptyBlock
+          icon="CircleCheck"
+          title="Nobody is due out"
+          description="Every guest due to leave has checked out. A guest leaving early checks out from their stay's page."
+          action={
+            <ActionLink href="/front-desk" icon="ArrowLeft">
+              Front desk
+            </ActionLink>
+          }
+        />
+      </PageContent>
+    );
+  }
+  if (!(await holdsSampleData())) redirect(`/stays/${encodeURIComponent(checkout.stayId)}`);
   return (
     <PmsMount>
       <CheckoutView

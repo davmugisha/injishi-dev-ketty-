@@ -21,14 +21,12 @@ import {
   Button,
   Card,
   Chip,
-  Input,
   Label,
   ProgressBar,
   SearchField,
   Table,
   Tag,
   TagGroup,
-  TextField,
   Toast,
   toast,
 } from "@heroui/react";
@@ -38,6 +36,7 @@ import { useMemo, useState, useTransition } from "react";
 import type { BookingRequest, Reservation, ReservationsSummary, ReservationView } from "../../model/frontdesk.ts";
 import type { Persona } from "../../model/shared.ts";
 import { useBoardHref, usePmsActions } from "../mount.tsx";
+import { ReservationChange } from "./reservation-change.tsx";
 import { ChoiceSelect, plural } from "./shared.tsx";
 
 interface ReservationsData {
@@ -83,11 +82,6 @@ function dayLabel(n: number): string {
   return `${d.getUTCDate()} ${MONTH_SHORT[d.getUTCMonth()]}`;
 }
 
-/** "12 Oct 2026" for a day number. */
-function dayLabelYear(n: number): string {
-  return n < 1000 ? `${n} Oct 2026` : `${dayLabel(n)} ${new Date(n * 86_400_000).getUTCFullYear()}`;
-}
-
 /** The saved views, read against the day the list was read on. */
 function savedFilters(today: number): Record<ReservationView["id"], (r: Reservation) => boolean> {
   return {
@@ -99,18 +93,29 @@ function savedFilters(today: number): Record<ReservationView["id"], (r: Reservat
   };
 }
 
-/** The arrival date presets: the fixtures' own, or the same three cut from the live list's today. */
+/**
+ * The arrival date presets: the fixtures' own, or windows cut from the live
+ * desk's today. Default is the same horizon the front-desk board loads
+ * (about four months ahead) — a 3-week window was hiding confirmed Amen
+ * bookings that checked in later.
+ */
 function datePresets(summary: ReservationsSummary, today: number): ReservationsSummary["dateRanges"] {
   if (today === FIXTURE_TODAY) return summary.dateRanges;
   return [
     {
-      id: "month",
-      label: `Arriving ${dayLabel(today - 3)} – ${dayLabel(today + 19)}`,
-      from: today - 3,
-      to: today + 19,
+      id: "upcoming",
+      label: `Arriving ${dayLabel(today - 1)} – ${dayLabel(today + 120)}`,
+      from: today - 1,
+      to: today + 120,
     },
     { id: "today", label: `Arriving ${dayLabel(today)}`, from: today, to: today },
     { id: "week", label: `Arriving ${dayLabel(today)} – ${dayLabel(today + 6)}`, from: today, to: today + 6 },
+    {
+      id: "month",
+      label: `Arriving ${dayLabel(today)} – ${dayLabel(today + 30)}`,
+      from: today,
+      to: today + 30,
+    },
   ];
 }
 
@@ -220,7 +225,6 @@ export function ReservationsView({
       <PageHeader
         eyebrow={`Front office · ${data.property}`}
         title="Reservations"
-        description="Find, change and approve bookings. Refunds follow the booking's policy and are paid out by Payments, not from the desk."
         actions={
           <>
             <Segment
@@ -560,10 +564,6 @@ function BookingInspector({
   const cxAfter = outcome
     ? `${outcome.refund > 0 ? `${formatRwf(outcome.refund)} back to the guest's wallet` : "No refund due"} · ${formatRwf(outcome.kept)} kept. ${outcome.rule}`
     : "Cancelled.";
-  const change = b.change ?? {
-    arrival: dayLabelYear(b.arrivalDay),
-    departure: dayLabelYear(b.arrivalDay + b.nights),
-  };
   const noShow = b.noShowQuote ?? null;
 
   return (
@@ -713,42 +713,15 @@ function BookingInspector({
         </Alert>
       ) : null}
       {canChange && mode === "modify" ? (
-        <Card variant="secondary" className="gap-3 p-3.5">
-          <span className="font-semibold">Change dates</span>
-          <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(130px,100%),1fr))]">
-            <TextField defaultValue={change.arrival} className="flex flex-col gap-1">
-              <Label>Arrival</Label>
-              <Input className="tabular" />
-            </TextField>
-            <TextField defaultValue={change.departure} className="flex flex-col gap-1">
-              <Label>Departure</Label>
-              <Input className="tabular" />
-            </TextField>
-          </div>
-          {/* Nothing checks the new dates (no route changes a booking's dates), so nothing claims they are free. */}
-          <Chip size="sm" variant="soft" color="default" className="self-start">
-            <CircleInfo className="size-3" />
-            <Chip.Label>Availability for new dates is not checked here</Chip.Label>
-          </Chip>
-          <p className="text-xs text-muted">
-            New nights are priced at today's published rate; the cancellation policy stays at the booking's version.
-            Upgrades and rate overrides go to your general manager.
-          </p>
-          <div className="flex justify-end gap-2">
-            <Button size="sm" variant="secondary" onPress={() => setMode("view")}>
-              Back
-            </Button>
-            <Button
-              size="sm"
-              onPress={() =>
-                // Changing dates reprices the stay and moves money; no route does it yet, so nothing is changed.
-                toast.warning("Changing dates is not available yet. Cancel and rebook, or ask your general manager.")
-              }
-            >
-              Save change
-            </Button>
-          </div>
-        </Card>
+        // The platform prices the change and settles the difference as the owner decided (0120).
+        <ReservationChange
+          bookingRef={b.id}
+          onBack={() => setMode("view")}
+          onDone={() => {
+            onActed();
+            setMode("view");
+          }}
+        />
       ) : null}
       {k === "noshow" && mode === "noshow" ? (
         <Card variant="secondary" className="gap-2.5 p-3.5">

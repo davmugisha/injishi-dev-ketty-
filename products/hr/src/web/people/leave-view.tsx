@@ -25,23 +25,25 @@ import {
   Toast,
   toast,
 } from "@heroui/react";
-import { EmptyState, Segment, Stepper, Widget } from "@heroui-pro/react";
+import { EmptyState, Segment, Stepper } from "@heroui-pro/react";
 import {
+  AgendaCalendar,
   formatNumber,
   GateChip,
   KeyValueList,
   LinkButton,
   PageContent,
   PageHeader,
+  type ScheduleKind,
   StatusDot,
   type Tone,
   toneColor,
 } from "@injishi/ui";
-import { type CSSProperties, useOptimistic, useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import type { LeaveBalance, LeaveCalendarEntry, LeaveRequest, LeaveStep, LeaveType } from "../../model/people.ts";
 import type { Persona } from "../../model/shared.ts";
 import { useBoardHref, useHrActions } from "../mount.tsx";
-import { addDays, dayOfMonth, rangeLong, weekdayIndex } from "./days.ts";
+import { addDays, rangeLong } from "./days.ts";
 import { firstName, initials } from "./parts.tsx";
 
 interface LeaveData {
@@ -78,10 +80,12 @@ function stepChip(r: LeaveRequest, step: LeaveStep) {
   return { ...s, label: step === "hr" ? "With you" : s.label, dots: [null, s.dots[1]] as [Tone | null, Tone | null] };
 }
 
-/** Calendar: the 21 days from today (a request's `cal` counts its first day from today). */
+/** Calendar: from today (a request's `cal` counts its first day from today), on the Agenda. */
 const CAL_LENGTH = 21;
-const CAL_DOW = ["M", "T", "W", "T", "F", "S", "S"];
-const CAL_GRID: CSSProperties = { gridTemplateColumns: "150px repeat(21, minmax(min(24px, 100%), 1fr))" };
+const LEAVE_KINDS: ScheduleKind[] = [
+  { id: "approved", label: "Approved", color: "var(--chart-3)" },
+  { id: "pending", label: "Pending", color: "var(--chart-3)", tentative: true },
+];
 
 type Decision = { id: string; decision: "approved" | "declined"; reason: string | null };
 
@@ -366,58 +370,35 @@ export function LeaveView({
             ))}
           </Tabs>
 
-          <Widget aria-labelledby="cal-h">
-            <Widget.Header>
-              <Widget.Title id="cal-h">Leave Calendar · {calRange}</Widget.Title>
-              <Widget.Legend>
-                <Widget.LegendItem color="var(--chart-3)">Approved</Widget.LegendItem>
-                <Widget.LegendItem
-                  color="transparent"
-                  className="[&>*:first-child]:shadow-[inset_0_0_0_1.5px_var(--chart-3)]"
-                >
-                  Pending
-                </Widget.LegendItem>
-              </Widget.Legend>
-            </Widget.Header>
-            <Widget.Content className="flex flex-col gap-1.5 overflow-x-auto">
-              <div role="img" aria-label={calAria} className="flex min-w-[690px] flex-col gap-1.5">
-                <div className="grid gap-0.5 text-[11px] leading-[13px] text-muted" style={CAL_GRID}>
-                  <span className="self-end">Weeks start Monday</span>
-                  {calDays.map((d) => (
-                    <span
-                      key={d}
-                      className={`rounded-md py-0.5 text-center ${weekdayIndex(d) >= 5 ? "bg-surface-secondary" : ""}`}
-                    >
-                      <span className="block">{CAL_DOW[weekdayIndex(d)]}</span>
-                      <span className="block font-semibold tabular">{dayOfMonth(d)}</span>
-                    </span>
-                  ))}
-                </div>
-                {calRows.map((c) => (
-                  <div key={c.id} className="grid items-center gap-0.5" style={CAL_GRID}>
-                    <span className="truncate text-xs font-medium">{c.name}</span>
-                    <span
-                      className={`flex h-[22px] items-center overflow-hidden rounded-[7px] px-2 text-[11px] font-medium whitespace-nowrap ${
-                        c.approved
-                          ? "bg-[var(--chart-3)] text-accent-foreground"
-                          : "text-foreground shadow-[inset_0_0_0_1.5px_var(--chart-3)]"
-                      }`}
-                      style={{ gridColumn: `${c.cal[0] + 1} / span ${c.cal[1]}` }}
-                      title={`${c.name} · ${c.label}`}
-                    >
-                      {c.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              {next ? (
-                <p className="text-xs text-muted">
-                  Next: {next.name}, {next.homeType.toLowerCase()} {next.dates},{" "}
-                  {stepOf(next) === "lm" ? `with ${next.lm}` : "with you"}.
-                </p>
-              ) : null}
-            </Widget.Content>
-          </Widget>
+          <section aria-labelledby="cal-h" className="flex flex-col gap-2">
+            <h2 id="cal-h" className="text-base font-semibold">
+              Leave calendar
+            </h2>
+            <AgendaCalendar
+              label={calAria}
+              today={today}
+              defaultView="month"
+              views={["week", "month"]}
+              kinds={LEAVE_KINDS}
+              events={calRows.map((c) => ({
+                id: c.id,
+                kind: c.approved ? "approved" : "pending",
+                title: `${c.name} · ${c.label}`,
+                start: addDays(today, c.cal[0]),
+                end: addDays(today, c.cal[0] + c.cal[1] - 1),
+              }))}
+              onSelect={(e) => {
+                if (requests.some((r) => r.id === e.id)) setSel(e.id);
+              }}
+              hint={
+                next
+                  ? `Next: ${next.name}, ${next.homeType.toLowerCase()} ${next.dates}, ${
+                      stepOf(next) === "lm" ? `with ${next.lm}` : "with you"
+                    }.`
+                  : undefined
+              }
+            />
+          </section>
         </div>
 
         <Card

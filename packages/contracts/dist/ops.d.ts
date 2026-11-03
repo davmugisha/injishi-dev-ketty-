@@ -544,6 +544,12 @@ export declare const StayRegistrationDetails: z.ZodObject<{
     fullName: z.ZodOptional<z.ZodString>;
     documentType: z.ZodOptional<z.ZodEnum<["national_id", "passport", "other"]>>;
     idNumber: z.ZodOptional<z.ZodString>;
+    /**
+     * ISO-3166-1 alpha-2, as on the document. It decides who the stay is
+     * reported to (0114): every guest goes to the local leaders where the
+     * hotel is, and a guest from abroad to DGIE too.
+     */
+    nationality: z.ZodOptional<z.ZodString>;
     /** Home address, free text: Rwandan and foreign addresses do not share a shape. */
     addressText: z.ZodOptional<z.ZodString>;
     /**
@@ -566,6 +572,7 @@ export declare const StayRegistrationDetails: z.ZodObject<{
     email?: string | undefined;
     phone?: string | undefined;
     idNumber?: string | undefined;
+    nationality?: string | undefined;
     invite?: boolean | undefined;
 }, {
     documentType?: "national_id" | "passport" | "other" | undefined;
@@ -574,6 +581,7 @@ export declare const StayRegistrationDetails: z.ZodObject<{
     email?: string | undefined;
     phone?: string | undefined;
     idNumber?: string | undefined;
+    nationality?: string | undefined;
     invite?: boolean | undefined;
 }>;
 export type StayRegistrationDetails = z.infer<typeof StayRegistrationDetails>;
@@ -766,6 +774,12 @@ export declare const CheckInRequest: z.ZodObject<{
         fullName: z.ZodOptional<z.ZodString>;
         documentType: z.ZodOptional<z.ZodEnum<["national_id", "passport", "other"]>>;
         idNumber: z.ZodOptional<z.ZodString>;
+        /**
+         * ISO-3166-1 alpha-2, as on the document. It decides who the stay is
+         * reported to (0114): every guest goes to the local leaders where the
+         * hotel is, and a guest from abroad to DGIE too.
+         */
+        nationality: z.ZodOptional<z.ZodString>;
         /** Home address, free text: Rwandan and foreign addresses do not share a shape. */
         addressText: z.ZodOptional<z.ZodString>;
         /**
@@ -788,6 +802,7 @@ export declare const CheckInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     }, {
         documentType?: "national_id" | "passport" | "other" | undefined;
@@ -796,6 +811,7 @@ export declare const CheckInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
@@ -806,6 +822,7 @@ export declare const CheckInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     } | undefined;
     nightlyRateRwf?: number | undefined;
@@ -818,6 +835,7 @@ export declare const CheckInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     } | undefined;
     nightlyRateRwf?: number | undefined;
@@ -876,6 +894,12 @@ export declare const WalkInRequest: z.ZodObject<{
         fullName: z.ZodOptional<z.ZodString>;
         documentType: z.ZodOptional<z.ZodEnum<["national_id", "passport", "other"]>>;
         idNumber: z.ZodOptional<z.ZodString>;
+        /**
+         * ISO-3166-1 alpha-2, as on the document. It decides who the stay is
+         * reported to (0114): every guest goes to the local leaders where the
+         * hotel is, and a guest from abroad to DGIE too.
+         */
+        nationality: z.ZodOptional<z.ZodString>;
         /** Home address, free text: Rwandan and foreign addresses do not share a shape. */
         addressText: z.ZodOptional<z.ZodString>;
         /**
@@ -898,6 +922,7 @@ export declare const WalkInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     }, {
         documentType?: "national_id" | "passport" | "other" | undefined;
@@ -906,6 +931,7 @@ export declare const WalkInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
@@ -918,6 +944,7 @@ export declare const WalkInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     } | undefined;
     nightlyRateRwf?: number | undefined;
@@ -932,6 +959,7 @@ export declare const WalkInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     } | undefined;
     nightlyRateRwf?: number | undefined;
@@ -1225,6 +1253,7 @@ export declare const OperatorTicket: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
+    description: string | null;
     title: string;
     createdAt: string;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
@@ -1233,12 +1262,12 @@ export declare const OperatorTicket: z.ZodObject<{
     leaseId: string | null;
     unitLabel: string | null;
     raisedByName: string | null;
-    description: string | null;
     priority: "low" | "normal" | "high" | "urgent";
     noteCount: number;
 }, {
     status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
+    description: string | null;
     title: string;
     createdAt: string;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
@@ -1247,7 +1276,6 @@ export declare const OperatorTicket: z.ZodObject<{
     leaseId: string | null;
     unitLabel: string | null;
     raisedByName: string | null;
-    description: string | null;
     priority: "low" | "normal" | "high" | "urgent";
     noteCount: number;
 }>;
@@ -1271,6 +1299,7 @@ export declare const OperatorTicketList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
+        description: string | null;
         title: string;
         createdAt: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
@@ -1279,12 +1308,12 @@ export declare const OperatorTicketList: z.ZodObject<{
         leaseId: string | null;
         unitLabel: string | null;
         raisedByName: string | null;
-        description: string | null;
         priority: "low" | "normal" | "high" | "urgent";
         noteCount: number;
     }, {
         status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
+        description: string | null;
         title: string;
         createdAt: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
@@ -1293,7 +1322,6 @@ export declare const OperatorTicketList: z.ZodObject<{
         leaseId: string | null;
         unitLabel: string | null;
         raisedByName: string | null;
-        description: string | null;
         priority: "low" | "normal" | "high" | "urgent";
         noteCount: number;
     }>, "many">;
@@ -1301,6 +1329,7 @@ export declare const OperatorTicketList: z.ZodObject<{
     tickets: {
         status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
+        description: string | null;
         title: string;
         createdAt: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
@@ -1309,7 +1338,6 @@ export declare const OperatorTicketList: z.ZodObject<{
         leaseId: string | null;
         unitLabel: string | null;
         raisedByName: string | null;
-        description: string | null;
         priority: "low" | "normal" | "high" | "urgent";
         noteCount: number;
     }[];
@@ -1317,6 +1345,7 @@ export declare const OperatorTicketList: z.ZodObject<{
     tickets: {
         status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
+        description: string | null;
         title: string;
         createdAt: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
@@ -1325,7 +1354,6 @@ export declare const OperatorTicketList: z.ZodObject<{
         leaseId: string | null;
         unitLabel: string | null;
         raisedByName: string | null;
-        description: string | null;
         priority: "low" | "normal" | "high" | "urgent";
         noteCount: number;
     }[];
@@ -1491,27 +1519,27 @@ export declare const OperatorRentCharge: z.ZodObject<{
     dueDate: z.ZodNullable<z.ZodString>;
     paidAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "paid" | "due" | "overdue";
+    status: "due" | "paid" | "overdue";
     id: string;
     amountRwf: number | null;
+    paidAt: string | null;
     leaseId: string;
     unitLabel: string | null;
     tenantName: string | null;
     periodMonth: string;
     paidAmountRwf: number | null;
     dueDate: string | null;
-    paidAt: string | null;
 }, {
-    status: "paid" | "due" | "overdue";
+    status: "due" | "paid" | "overdue";
     id: string;
     amountRwf: number | null;
+    paidAt: string | null;
     leaseId: string;
     unitLabel: string | null;
     tenantName: string | null;
     periodMonth: string;
     paidAmountRwf: number | null;
     dueDate: string | null;
-    paidAt: string | null;
 }>;
 export type OperatorRentCharge = z.infer<typeof OperatorRentCharge>;
 export declare const OperatorRentRoll: z.ZodObject<{
@@ -1528,53 +1556,53 @@ export declare const OperatorRentRoll: z.ZodObject<{
         dueDate: z.ZodNullable<z.ZodString>;
         paidAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "paid" | "due" | "overdue";
+        status: "due" | "paid" | "overdue";
         id: string;
         amountRwf: number | null;
+        paidAt: string | null;
         leaseId: string;
         unitLabel: string | null;
         tenantName: string | null;
         periodMonth: string;
         paidAmountRwf: number | null;
         dueDate: string | null;
-        paidAt: string | null;
     }, {
-        status: "paid" | "due" | "overdue";
+        status: "due" | "paid" | "overdue";
         id: string;
         amountRwf: number | null;
+        paidAt: string | null;
         leaseId: string;
         unitLabel: string | null;
         tenantName: string | null;
         periodMonth: string;
         paidAmountRwf: number | null;
         dueDate: string | null;
-        paidAt: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     charges: {
-        status: "paid" | "due" | "overdue";
+        status: "due" | "paid" | "overdue";
         id: string;
         amountRwf: number | null;
+        paidAt: string | null;
         leaseId: string;
         unitLabel: string | null;
         tenantName: string | null;
         periodMonth: string;
         paidAmountRwf: number | null;
         dueDate: string | null;
-        paidAt: string | null;
     }[];
 }, {
     charges: {
-        status: "paid" | "due" | "overdue";
+        status: "due" | "paid" | "overdue";
         id: string;
         amountRwf: number | null;
+        paidAt: string | null;
         leaseId: string;
         unitLabel: string | null;
         tenantName: string | null;
         periodMonth: string;
         paidAmountRwf: number | null;
         dueDate: string | null;
-        paidAt: string | null;
     }[];
 }>;
 export type OperatorRentRoll = z.infer<typeof OperatorRentRoll>;
@@ -2284,7 +2312,7 @@ export declare const OperatorFolio: z.ZodObject<{
     bookingId: string | null;
     roomLabel: string | null;
     folioNumber: string;
-    folioType: "guest" | "master" | "group" | "house";
+    folioType: "guest" | "group" | "master" | "house";
     guestStayId: string | null;
     balanceRwf: number;
     folioSequence: number;
@@ -2298,7 +2326,7 @@ export declare const OperatorFolio: z.ZodObject<{
     bookingId: string | null;
     roomLabel: string | null;
     folioNumber: string;
-    folioType: "guest" | "master" | "group" | "house";
+    folioType: "guest" | "group" | "master" | "house";
     guestStayId: string | null;
     balanceRwf: number;
     folioSequence: number;
@@ -2334,7 +2362,7 @@ export declare const OperatorFolioList: z.ZodObject<{
         bookingId: string | null;
         roomLabel: string | null;
         folioNumber: string;
-        folioType: "guest" | "master" | "group" | "house";
+        folioType: "guest" | "group" | "master" | "house";
         guestStayId: string | null;
         balanceRwf: number;
         folioSequence: number;
@@ -2348,7 +2376,7 @@ export declare const OperatorFolioList: z.ZodObject<{
         bookingId: string | null;
         roomLabel: string | null;
         folioNumber: string;
-        folioType: "guest" | "master" | "group" | "house";
+        folioType: "guest" | "group" | "master" | "house";
         guestStayId: string | null;
         balanceRwf: number;
         folioSequence: number;
@@ -2364,7 +2392,7 @@ export declare const OperatorFolioList: z.ZodObject<{
         bookingId: string | null;
         roomLabel: string | null;
         folioNumber: string;
-        folioType: "guest" | "master" | "group" | "house";
+        folioType: "guest" | "group" | "master" | "house";
         guestStayId: string | null;
         balanceRwf: number;
         folioSequence: number;
@@ -2380,7 +2408,7 @@ export declare const OperatorFolioList: z.ZodObject<{
         bookingId: string | null;
         roomLabel: string | null;
         folioNumber: string;
-        folioType: "guest" | "master" | "group" | "house";
+        folioType: "guest" | "group" | "master" | "house";
         guestStayId: string | null;
         balanceRwf: number;
         folioSequence: number;
@@ -2421,8 +2449,8 @@ export declare const OperatorFolioCharge: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     id: string;
     amountRwf: number;
-    departmentName: string | null;
     description: string | null;
+    departmentName: string | null;
     chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
     departmentId: string | null;
     quantity: number;
@@ -2439,8 +2467,8 @@ export declare const OperatorFolioCharge: z.ZodObject<{
 }, {
     id: string;
     amountRwf: number;
-    departmentName: string | null;
     description: string | null;
+    departmentName: string | null;
     chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
     departmentId: string | null;
     quantity: number;
@@ -2501,8 +2529,8 @@ export declare const OperatorFolioDetail: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         amountRwf: number;
-        departmentName: string | null;
         description: string | null;
+        departmentName: string | null;
         chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
@@ -2519,8 +2547,8 @@ export declare const OperatorFolioDetail: z.ZodObject<{
     }, {
         id: string;
         amountRwf: number;
-        departmentName: string | null;
         description: string | null;
+        departmentName: string | null;
         chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
@@ -2544,8 +2572,8 @@ export declare const OperatorFolioDetail: z.ZodObject<{
     charges: {
         id: string;
         amountRwf: number;
-        departmentName: string | null;
         description: string | null;
+        departmentName: string | null;
         chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
@@ -2561,7 +2589,7 @@ export declare const OperatorFolioDetail: z.ZodObject<{
         postedAt: string;
     }[];
     folioNumber: string;
-    folioType: "guest" | "master" | "group" | "house";
+    folioType: "guest" | "group" | "master" | "house";
     guestStayId: string | null;
     balanceRwf: number;
     folioSequence: number;
@@ -2577,8 +2605,8 @@ export declare const OperatorFolioDetail: z.ZodObject<{
     charges: {
         id: string;
         amountRwf: number;
-        departmentName: string | null;
         description: string | null;
+        departmentName: string | null;
         chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
@@ -2594,7 +2622,7 @@ export declare const OperatorFolioDetail: z.ZodObject<{
         postedAt: string;
     }[];
     folioNumber: string;
-    folioType: "guest" | "master" | "group" | "house";
+    folioType: "guest" | "group" | "master" | "house";
     guestStayId: string | null;
     balanceRwf: number;
     folioSequence: number;
@@ -2692,8 +2720,8 @@ export declare const PostChargeResult: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         amountRwf: number;
-        departmentName: string | null;
         description: string | null;
+        departmentName: string | null;
         chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
@@ -2710,8 +2738,8 @@ export declare const PostChargeResult: z.ZodObject<{
     }, {
         id: string;
         amountRwf: number;
-        departmentName: string | null;
         description: string | null;
+        departmentName: string | null;
         chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
@@ -2737,8 +2765,8 @@ export declare const PostChargeResult: z.ZodObject<{
     charges: {
         id: string;
         amountRwf: number;
-        departmentName: string | null;
         description: string | null;
+        departmentName: string | null;
         chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
@@ -2754,7 +2782,7 @@ export declare const PostChargeResult: z.ZodObject<{
         postedAt: string;
     }[];
     folioNumber: string;
-    folioType: "guest" | "master" | "group" | "house";
+    folioType: "guest" | "group" | "master" | "house";
     guestStayId: string | null;
     balanceRwf: number;
     folioSequence: number;
@@ -2771,8 +2799,8 @@ export declare const PostChargeResult: z.ZodObject<{
     charges: {
         id: string;
         amountRwf: number;
-        departmentName: string | null;
         description: string | null;
+        departmentName: string | null;
         chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
@@ -2788,7 +2816,7 @@ export declare const PostChargeResult: z.ZodObject<{
         postedAt: string;
     }[];
     folioNumber: string;
-    folioType: "guest" | "master" | "group" | "house";
+    folioType: "guest" | "group" | "master" | "house";
     guestStayId: string | null;
     balanceRwf: number;
     folioSequence: number;
@@ -2915,8 +2943,8 @@ export declare const CloseFolioResult: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         amountRwf: number;
-        departmentName: string | null;
         description: string | null;
+        departmentName: string | null;
         chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
@@ -2933,8 +2961,8 @@ export declare const CloseFolioResult: z.ZodObject<{
     }, {
         id: string;
         amountRwf: number;
-        departmentName: string | null;
         description: string | null;
+        departmentName: string | null;
         chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
@@ -2976,8 +3004,8 @@ export declare const CloseFolioResult: z.ZodObject<{
     charges: {
         id: string;
         amountRwf: number;
-        departmentName: string | null;
         description: string | null;
+        departmentName: string | null;
         chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
@@ -2993,7 +3021,7 @@ export declare const CloseFolioResult: z.ZodObject<{
         postedAt: string;
     }[];
     folioNumber: string;
-    folioType: "guest" | "master" | "group" | "house";
+    folioType: "guest" | "group" | "master" | "house";
     guestStayId: string | null;
     balanceRwf: number;
     folioSequence: number;
@@ -3015,8 +3043,8 @@ export declare const CloseFolioResult: z.ZodObject<{
     charges: {
         id: string;
         amountRwf: number;
-        departmentName: string | null;
         description: string | null;
+        departmentName: string | null;
         chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
@@ -3032,7 +3060,7 @@ export declare const CloseFolioResult: z.ZodObject<{
         postedAt: string;
     }[];
     folioNumber: string;
-    folioType: "guest" | "master" | "group" | "house";
+    folioType: "guest" | "group" | "master" | "house";
     guestStayId: string | null;
     balanceRwf: number;
     folioSequence: number;
@@ -3353,8 +3381,8 @@ export declare const OperatorTeamMember: z.ZodObject<{
     orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
     joinedAt: string;
     removedAt: string | null;
-    branchIds: string[] | null;
     lastActiveAt: string | null;
+    branchIds: string[] | null;
     identityVerified: boolean;
 }, {
     status: string;
@@ -3364,8 +3392,8 @@ export declare const OperatorTeamMember: z.ZodObject<{
     orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
     joinedAt: string;
     removedAt: string | null;
-    branchIds: string[] | null;
     lastActiveAt: string | null;
+    branchIds: string[] | null;
     identityVerified: boolean;
 }>;
 export type OperatorTeamMember = z.infer<typeof OperatorTeamMember>;
@@ -3425,8 +3453,8 @@ export declare const OperatorTeamList: z.ZodObject<{
         orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
         joinedAt: string;
         removedAt: string | null;
-        branchIds: string[] | null;
         lastActiveAt: string | null;
+        branchIds: string[] | null;
         identityVerified: boolean;
     }, {
         status: string;
@@ -3436,8 +3464,8 @@ export declare const OperatorTeamList: z.ZodObject<{
         orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
         joinedAt: string;
         removedAt: string | null;
-        branchIds: string[] | null;
         lastActiveAt: string | null;
+        branchIds: string[] | null;
         identityVerified: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -3449,8 +3477,8 @@ export declare const OperatorTeamList: z.ZodObject<{
         orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
         joinedAt: string;
         removedAt: string | null;
-        branchIds: string[] | null;
         lastActiveAt: string | null;
+        branchIds: string[] | null;
         identityVerified: boolean;
     }[];
 }, {
@@ -3462,8 +3490,8 @@ export declare const OperatorTeamList: z.ZodObject<{
         orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
         joinedAt: string;
         removedAt: string | null;
-        branchIds: string[] | null;
         lastActiveAt: string | null;
+        branchIds: string[] | null;
         identityVerified: boolean;
     }[];
 }>;
@@ -3839,31 +3867,31 @@ export declare const RaiseTicketRequest: z.ZodEffects<z.ZodObject<{
     priority: z.ZodOptional<z.ZodEnum<["low", "normal", "high", "urgent"]>>;
 }, "strip", z.ZodTypeAny, {
     title: string;
+    description?: string | undefined;
     category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     roomId?: string | undefined;
     leaseId?: string | undefined;
-    description?: string | undefined;
     priority?: "low" | "normal" | "high" | "urgent" | undefined;
 }, {
     title: string;
+    description?: string | undefined;
     category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     roomId?: string | undefined;
     leaseId?: string | undefined;
-    description?: string | undefined;
     priority?: "low" | "normal" | "high" | "urgent" | undefined;
 }>, {
     title: string;
+    description?: string | undefined;
     category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     roomId?: string | undefined;
     leaseId?: string | undefined;
-    description?: string | undefined;
     priority?: "low" | "normal" | "high" | "urgent" | undefined;
 }, {
     title: string;
+    description?: string | undefined;
     category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     roomId?: string | undefined;
     leaseId?: string | undefined;
-    description?: string | undefined;
     priority?: "low" | "normal" | "high" | "urgent" | undefined;
 }>;
 export type RaiseTicketRequest = z.infer<typeof RaiseTicketRequest>;
@@ -4085,8 +4113,8 @@ export declare const OperatorServiceItem: z.ZodObject<{
     status: "active" | "archived" | "out_of_stock";
     name: string;
     id: string;
-    priceRwf: number;
     description: string | null;
+    priceRwf: number;
     departmentId: string;
     taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
     serviceCategoryId: string;
@@ -4114,8 +4142,8 @@ export declare const OperatorServiceItem: z.ZodObject<{
     status: "active" | "archived" | "out_of_stock";
     name: string;
     id: string;
-    priceRwf: number;
     description: string | null;
+    priceRwf: number;
     departmentId: string;
     taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
     serviceCategoryId: string;
@@ -4218,8 +4246,8 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         status: "active" | "archived" | "out_of_stock";
         name: string;
         id: string;
-        priceRwf: number;
         description: string | null;
+        priceRwf: number;
         departmentId: string;
         taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
         serviceCategoryId: string;
@@ -4247,8 +4275,8 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         status: "active" | "archived" | "out_of_stock";
         name: string;
         id: string;
-        priceRwf: number;
         description: string | null;
+        priceRwf: number;
         departmentId: string;
         taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
         serviceCategoryId: string;
@@ -4281,8 +4309,8 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         status: "active" | "archived" | "out_of_stock";
         name: string;
         id: string;
-        priceRwf: number;
         description: string | null;
+        priceRwf: number;
         departmentId: string;
         taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
         serviceCategoryId: string;
@@ -4325,8 +4353,8 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         status: "active" | "archived" | "out_of_stock";
         name: string;
         id: string;
-        priceRwf: number;
         description: string | null;
+        priceRwf: number;
         departmentId: string;
         taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
         serviceCategoryId: string;
@@ -4442,8 +4470,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             status: "active" | "archived" | "out_of_stock";
             name: string;
             id: string;
-            priceRwf: number;
             description: string | null;
+            priceRwf: number;
             departmentId: string;
             taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
             serviceCategoryId: string;
@@ -4471,8 +4499,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             status: "active" | "archived" | "out_of_stock";
             name: string;
             id: string;
-            priceRwf: number;
             description: string | null;
+            priceRwf: number;
             departmentId: string;
             taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
             serviceCategoryId: string;
@@ -4505,8 +4533,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             status: "active" | "archived" | "out_of_stock";
             name: string;
             id: string;
-            priceRwf: number;
             description: string | null;
+            priceRwf: number;
             departmentId: string;
             taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
             serviceCategoryId: string;
@@ -4549,8 +4577,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             status: "active" | "archived" | "out_of_stock";
             name: string;
             id: string;
-            priceRwf: number;
             description: string | null;
+            priceRwf: number;
             departmentId: string;
             taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
             serviceCategoryId: string;
@@ -4595,8 +4623,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             status: "active" | "archived" | "out_of_stock";
             name: string;
             id: string;
-            priceRwf: number;
             description: string | null;
+            priceRwf: number;
             departmentId: string;
             taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
             serviceCategoryId: string;
@@ -4641,8 +4669,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             status: "active" | "archived" | "out_of_stock";
             name: string;
             id: string;
-            priceRwf: number;
             description: string | null;
+            priceRwf: number;
             departmentId: string;
             taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
             serviceCategoryId: string;
@@ -5104,12 +5132,12 @@ export declare const OperatorServiceOrder: z.ZodObject<{
             }[];
         }[];
     }[];
+    paidAt: string | null;
     createdAt: string;
     totalRwf: number;
     roomId: string | null;
     roomLabel: string | null;
     departmentName: string | null;
-    paidAt: string | null;
     departmentId: string;
     outletId: string | null;
     fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
@@ -5141,12 +5169,12 @@ export declare const OperatorServiceOrder: z.ZodObject<{
             }[];
         }[];
     }[];
+    paidAt: string | null;
     createdAt: string;
     totalRwf: number;
     roomId: string | null;
     roomLabel: string | null;
     departmentName: string | null;
-    paidAt: string | null;
     departmentId: string;
     outletId: string | null;
     fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
@@ -5270,12 +5298,12 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
                 }[];
             }[];
         }[];
+        paidAt: string | null;
         createdAt: string;
         totalRwf: number;
         roomId: string | null;
         roomLabel: string | null;
         departmentName: string | null;
-        paidAt: string | null;
         departmentId: string;
         outletId: string | null;
         fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
@@ -5307,12 +5335,12 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
                 }[];
             }[];
         }[];
+        paidAt: string | null;
         createdAt: string;
         totalRwf: number;
         roomId: string | null;
         roomLabel: string | null;
         departmentName: string | null;
-        paidAt: string | null;
         departmentId: string;
         outletId: string | null;
         fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
@@ -5346,12 +5374,12 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
                 }[];
             }[];
         }[];
+        paidAt: string | null;
         createdAt: string;
         totalRwf: number;
         roomId: string | null;
         roomLabel: string | null;
         departmentName: string | null;
-        paidAt: string | null;
         departmentId: string;
         outletId: string | null;
         fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
@@ -5385,12 +5413,12 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
                 }[];
             }[];
         }[];
+        paidAt: string | null;
         createdAt: string;
         totalRwf: number;
         roomId: string | null;
         roomLabel: string | null;
         departmentName: string | null;
-        paidAt: string | null;
         departmentId: string;
         outletId: string | null;
         fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
@@ -5666,12 +5694,12 @@ export declare const MarkOrderPaidCashResult: z.ZodObject<{
             }[];
         }[];
     }[];
+    paidAt: string | null;
     createdAt: string;
     totalRwf: number;
     roomId: string | null;
     roomLabel: string | null;
     departmentName: string | null;
-    paidAt: string | null;
     departmentId: string;
     outletId: string | null;
     emissionId: string | null;
@@ -5704,12 +5732,12 @@ export declare const MarkOrderPaidCashResult: z.ZodObject<{
             }[];
         }[];
     }[];
+    paidAt: string | null;
     createdAt: string;
     totalRwf: number;
     roomId: string | null;
     roomLabel: string | null;
     departmentName: string | null;
-    paidAt: string | null;
     departmentId: string;
     outletId: string | null;
     emissionId: string | null;
@@ -5783,8 +5811,8 @@ export declare const UpdateServiceItemRequest: z.ZodEffects<z.ZodObject<{
     }>, "many">>>;
     status: z.ZodOptional<z.ZodOptional<z.ZodEnum<["active", "out_of_stock", "archived"]>>>;
     name: z.ZodOptional<z.ZodString>;
-    priceRwf: z.ZodOptional<z.ZodNumber>;
     description: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    priceRwf: z.ZodOptional<z.ZodNumber>;
     taxCode: z.ZodOptional<z.ZodOptional<z.ZodEnum<["TAX_A", "TAX_B", "TAX_C", "TAX_D"]>>>;
     fulfillmentType: z.ZodOptional<z.ZodOptional<z.ZodEnum<["in_room_delivery", "pickup", "appointment", "onsite", "instant"]>>>;
     prepTimeMinutes: z.ZodOptional<z.ZodOptional<z.ZodNumber>>;
@@ -5806,8 +5834,8 @@ export declare const UpdateServiceItemRequest: z.ZodEffects<z.ZodObject<{
     }[] | undefined;
     status?: "active" | "archived" | "out_of_stock" | undefined;
     name?: string | undefined;
-    priceRwf?: number | undefined;
     description?: string | undefined;
+    priceRwf?: number | undefined;
     taxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
     fulfillmentType?: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant" | undefined;
     prepTimeMinutes?: number | undefined;
@@ -5829,8 +5857,8 @@ export declare const UpdateServiceItemRequest: z.ZodEffects<z.ZodObject<{
     }[] | undefined;
     status?: "active" | "archived" | "out_of_stock" | undefined;
     name?: string | undefined;
-    priceRwf?: number | undefined;
     description?: string | undefined;
+    priceRwf?: number | undefined;
     taxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
     fulfillmentType?: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant" | undefined;
     prepTimeMinutes?: number | undefined;
@@ -5852,8 +5880,8 @@ export declare const UpdateServiceItemRequest: z.ZodEffects<z.ZodObject<{
     }[] | undefined;
     status?: "active" | "archived" | "out_of_stock" | undefined;
     name?: string | undefined;
-    priceRwf?: number | undefined;
     description?: string | undefined;
+    priceRwf?: number | undefined;
     taxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
     fulfillmentType?: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant" | undefined;
     prepTimeMinutes?: number | undefined;
@@ -5875,8 +5903,8 @@ export declare const UpdateServiceItemRequest: z.ZodEffects<z.ZodObject<{
     }[] | undefined;
     status?: "active" | "archived" | "out_of_stock" | undefined;
     name?: string | undefined;
-    priceRwf?: number | undefined;
     description?: string | undefined;
+    priceRwf?: number | undefined;
     taxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
     fulfillmentType?: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant" | undefined;
     prepTimeMinutes?: number | undefined;

@@ -4,8 +4,15 @@ import { z } from "zod";
  * Enum members mirror the Postgres enums in
  * server/api/src/database/drizzle/schema.ts EXACTLY — do not fork.
  */
-/** Property domain branch. `residence` never appears in public Explore. */
-export declare const Domain: z.ZodEnum<["hospitality", "residence"]>;
+/**
+ * Property domain branch. `residence` never appears in public Explore.
+ *
+ * `enterprise` is a business of any sector (a factory, a trader, a service)
+ * that registers on Injishi to join the Private Sector Federation through it.
+ * It lists nothing, so it never appears in Explore either, and it has no rooms,
+ * no leases and no officer visit: its registration ends at the fee.
+ */
+export declare const Domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
 export type Domain = z.infer<typeof Domain>;
 /** Adapter mock/live mode — every money/compliance figure carries one. */
 export declare const AdapterMode: z.ZodEnum<["mock", "live"]>;
@@ -60,7 +67,7 @@ export type DocumentType = z.infer<typeof DocumentType>;
  * registration/approval pipeline branches on it. The government BODY is a
  * separate admin-managed catalog (add one without a migration).
  */
-export declare const OversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell"]>;
+export declare const OversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell", "psf_business_officer"]>;
 export type OversightRole = z.infer<typeof OversightRole>;
 /**
  * Region scope of an oversight assignment (Decision B). Sector, cell and

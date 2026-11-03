@@ -1,7 +1,8 @@
 import { screens } from "@injishi/data";
 import type { ExceptionGroup, FinanceException, FinanceKpi, ResolvedException } from "@injishi/data/fixtures/finance";
+import { FinanceHomeView, type QueryOutcome } from "@injishi/product-finance/web";
 import type { Metadata } from "next";
-import { FinanceHomeView, type QueryOutcome } from "@/features/finance/FinanceHomeView";
+import { FinanceMount } from "@/features/finance/finance-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -19,5 +20,9 @@ export default async function FinanceHomePage({ searchParams }: { searchParams: 
   ]);
   const { queryOutcome } = await searchParams;
   const outcome = OUTCOMES.find((o) => o === queryOutcome) ?? "successful";
-  return <FinanceHomeView data={{ groups, exceptions, kpis, resolved }} queryOutcome={outcome} />;
+  return (
+    <FinanceMount>
+      <FinanceHomeView data={{ groups, exceptions, kpis, resolved }} queryOutcome={outcome} />
+    </FinanceMount>
+  );
 }

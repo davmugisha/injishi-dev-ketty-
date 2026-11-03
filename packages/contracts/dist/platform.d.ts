@@ -19,20 +19,20 @@ export type PlatformEnvironmentName = z.infer<typeof PlatformEnvironmentName>;
 export declare const IntegrationMode: z.ZodEnum<["off", "mock", "live"]>;
 export type IntegrationMode = z.infer<typeof IntegrationMode>;
 /** What a collection pays for (073-gtbank-payments AC-2). */
-export declare const PaymentPurposeName: z.ZodEnum<["booking", "service_order", "registration_fee", "rent", "subscription"]>;
+export declare const PaymentPurposeName: z.ZodEnum<["booking", "service_order", "registration_fee", "rent", "subscription", "psf_membership"]>;
 export type PaymentPurposeName = z.infer<typeof PaymentPurposeName>;
 export declare const PaymentRules: z.ZodObject<{
     networks: z.ZodArray<z.ZodEnum<["mtn_momo", "airtel_money"]>, "many">;
     maxCollectionRwf: z.ZodNullable<z.ZodNumber>;
-    livePurposes: z.ZodArray<z.ZodEnum<["booking", "service_order", "registration_fee", "rent", "subscription"]>, "many">;
+    livePurposes: z.ZodArray<z.ZodEnum<["booking", "service_order", "registration_fee", "rent", "subscription", "psf_membership"]>, "many">;
 }, "strip", z.ZodTypeAny, {
     networks: ("mtn_momo" | "airtel_money")[];
     maxCollectionRwf: number | null;
-    livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent")[];
+    livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent" | "psf_membership")[];
 }, {
     networks: ("mtn_momo" | "airtel_money")[];
     maxCollectionRwf: number | null;
-    livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent")[];
+    livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent" | "psf_membership")[];
 }>;
 export type PaymentRules = z.infer<typeof PaymentRules>;
 export declare const PlatformInfo: z.ZodObject<{
@@ -97,15 +97,15 @@ export declare const PlatformInfo: z.ZodObject<{
     paymentRules: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         networks: z.ZodArray<z.ZodEnum<["mtn_momo", "airtel_money"]>, "many">;
         maxCollectionRwf: z.ZodNullable<z.ZodNumber>;
-        livePurposes: z.ZodArray<z.ZodEnum<["booking", "service_order", "registration_fee", "rent", "subscription"]>, "many">;
+        livePurposes: z.ZodArray<z.ZodEnum<["booking", "service_order", "registration_fee", "rent", "subscription", "psf_membership"]>, "many">;
     }, "strip", z.ZodTypeAny, {
         networks: ("mtn_momo" | "airtel_money")[];
         maxCollectionRwf: number | null;
-        livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent")[];
+        livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent" | "psf_membership")[];
     }, {
         networks: ("mtn_momo" | "airtel_money")[];
         maxCollectionRwf: number | null;
-        livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent")[];
+        livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent" | "psf_membership")[];
     }>>>;
 }, "strip", z.ZodTypeAny, {
     environment: "production" | "demo";
@@ -117,7 +117,7 @@ export declare const PlatformInfo: z.ZodObject<{
     paymentRules?: {
         networks: ("mtn_momo" | "airtel_money")[];
         maxCollectionRwf: number | null;
-        livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent")[];
+        livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent" | "psf_membership")[];
     } | null | undefined;
 }, {
     environment: "production" | "demo";
@@ -129,7 +129,7 @@ export declare const PlatformInfo: z.ZodObject<{
     paymentRules?: {
         networks: ("mtn_momo" | "airtel_money")[];
         maxCollectionRwf: number | null;
-        livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent")[];
+        livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent" | "psf_membership")[];
     } | null | undefined;
 }>;
 export type PlatformInfo = z.infer<typeof PlatformInfo>;

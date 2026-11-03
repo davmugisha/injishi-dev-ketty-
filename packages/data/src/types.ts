@@ -21,6 +21,7 @@ export type PersonaId =
   | "broker"
   | "officer"
   | "psf"
+  | "psfdbo"
   | "ops";
 
 /** Personas whose home is the desktop workspace (sidebar app shell). */
@@ -37,6 +38,7 @@ export type WorkspacePersonaId =
   | "broker"
   | "officer"
   | "psf"
+  | "psfdbo"
   | "ops";
 
 /** Phone apps (portrait, bottom tab bar). */
@@ -131,9 +133,31 @@ export interface NavItem {
   label: string;
   icon: IconName;
   board: BoardId;
+  /**
+   * Where the item goes, when that is not the board's own route: a page addressed by the business it is about
+   * (`/w/<workspaceId>/setup`). It also decides when the item is the current one. The board still names the
+   * screen for search and access.
+   */
+  href?: string;
   chip?: string;
   /** Chip rendered as an alert (danger) count. */
   alert?: boolean;
+  /**
+   * The area's pages, shown as tabs at the top of each of them (Units, Leases, Faults, Move-outs). The item
+   * links to the first; it is current on any of them. A single page needs none.
+   */
+  tabs?: NavTab[];
+}
+
+/** One page of a sidebar area, as a tab. */
+export interface NavTab {
+  id: string;
+  label: string;
+  board: BoardId;
+  /** A count on the tab ("2" leases to sign). */
+  chip?: string;
+  /** Screens opened from this page that keep its tab current (a lease record under Leases). */
+  also?: BoardId[];
 }
 
 export interface NavGroup {

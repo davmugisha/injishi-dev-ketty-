@@ -12,8 +12,15 @@ tracker), not this file.
 
 | Environment in Dokploy | Ships | Compose file | Dokploy appName | Hosts (domain rows) |
 | --- | --- | --- | --- | --- |
-| `production` (the default; Dokploy refuses to rename it) | db, redis, minio, api, worker, **web**, **app** | [`docker-compose.dokploy.yml`](docker-compose.dokploy.yml) | `injishi-production-igxxsu` | `www.`, `api.` and `app.injishi.com` |
-| `Staging` | db, redis, minio, mailpit, api, worker, **app**. No web | [`docker-compose.staging.yml`](docker-compose.staging.yml) | `injishi-staging-crwyau` | `api-staging.` and `app-staging.injishi.com` |
+| `production` (the default; Dokploy refuses to rename it) | db, redis, minio, api, worker, **web**, **app** | [`docker-compose.dokploy.yml`](docker-compose.dokploy.yml) | `injishi-production-igxxsu-k793z7` | `www.`, `api.` and `app.injishi.com` |
+| `Staging` | db, redis, minio, mailpit, mock-apis, api, worker, **web**, **app** | [`docker-compose.staging.yml`](docker-compose.staging.yml) | `injishi-staging-crwyau` | `www-staging.`, `api-staging.` and `app-staging.injishi.com` |
+
+Production was torn down on 2026-10-30 (it held no users or businesses) and
+recreated on 2026-11-03 as a new compose service. Dokploy appends its own
+suffix to an appName and ignores a rename, so the old `injishi-production-igxxsu`
+came back as `injishi-production-igxxsu-k793z7`; the compose project, its
+volumes and the `-p` in its command all carry that name. Staging has served
+web on `www-staging` since the same day.
 
 Hosts a domain row cannot express stay as Traefik labels in the compose file:
 the apex's permanent redirect to `www`, production's `storage` reads only rule,
@@ -27,21 +34,27 @@ staging](#developer-access-to-staging) owns them.
 
 **How a deploy runs.** Each service's source is the GitHub provider
 `hangaasoftwares.app`, repository `hangaasoftwares/injishi`. **Each tracks its
-own branch**: production `deploy/dokploy-environments`, staging
-`deploy/staging` (since 2026-10-24; both tracked `deploy/dokploy-environments`
-until then, so a staging change could only ship by redeploying production).
-Dokploy has **auto deploy ON** for both (`autoDeploy: true`, trigger `push`,
-read from the API on 2026-10-24), although this paragraph said off: a push to
-a tracked branch deploys that stack. Deploy by hand is the **Deploy** button,
-or `compose.deploy` through the API. Each service carries a custom command
-that builds ONE image at a time and then starts the stack, because three Next
-builds at once do not fit this host's memory:
+own branch**: production `deploy/production` (since 2026-11-03; the deleted
+service tracked `deploy/dokploy-environments`), staging `deploy/staging`
+(since 2026-10-24; both tracked `deploy/dokploy-environments` until then, so a
+staging change could only ship by redeploying production). **Staging has auto
+deploy ON** (`autoDeploy: true`, trigger `push`): a push to `deploy/staging`
+deploys it, although on 2026-10-30 a push started nothing within 90 seconds, so
+check `deployment.allByCompose` and deploy by hand when it does not.
+**Production has auto deploy OFF**: a release is moving `deploy/production` to
+the commit, then the **Deploy** button or `compose.deploy` through the API.
+Each service carries a custom command that builds ONE image at a time and then
+starts the stack, because three Next builds at once do not fit this host's
+memory:
 
 ```text
 compose -p <appName> --env-file ./infra/docker/.env -f <compose file> build api
-  && docker compose ... build web && docker compose ... build app        (staging: no web)
+  && docker compose ... build web && docker compose ... build app
   && docker compose ... up -d --remove-orphans
 ```
+
+Never deploy both stacks at once: two of these builds side by side do not fit
+either.
 
 **A deploy that builds is slow here, and quiet.** On 2 vCPU and 3.8 GB, while
 swapping, the first production build took 80 minutes (api 14, web 24, app 41).
@@ -57,14 +70,26 @@ command back.
 them to `infra/docker/.env` in its clone. The names are those of
 [`dokploy.env.example`](dokploy.env.example) and
 [`dokploy-staging.env.example`](dokploy-staging.env.example). Staging's add
-`API_HOST`, `APP_HOST`, `STORAGE_HOST` and `MAIL_HOST` in place of
+`WEB_HOST`, `API_HOST`, `APP_HOST`, `STORAGE_HOST` and `MAIL_HOST` (each defaulting to its `-staging.injishi.com` host) in place of
 `STAGING_DOMAIN`. The values generated at setup are also kept root only in
 `/root/dokploy-setup/` on the host. Never share a secret between the two.
 
 **Staging lives under injishi.com by the owner's choice**, which the next
 section's rule warns against. Production's `.injishi.com` session cookie
-reaches `api-staging` and `app-staging`. Staging cannot verify it, and its own
-API cookie is host only. The staging compose header says so.
+reaches every staging host, and staging cannot verify it. **Since 2026-11-03
+staging's own cookie is on `.injishi.com` too** (`AUTH_COOKIE_DOMAIN`, the
+owner's choice), because a host only cookie on `api-staging` never reached
+`www-staging`, so nobody could test a signed-in web page. Both stacks now
+write the same cookie name on the same domain: signing in to one signs a
+browser out of the other, and production's hosts receive staging tokens they
+cannot verify and treat as signed out. A staging cookie name of its own ends
+both and is a code change. The staging compose header says so.
+
+**`www-staging` asks not to be indexed.** Web's `robots.ts` admits every
+crawler, which is right for production and wrong for a copy of the marketplace
+on a staging host, so the `www-staging` domain row carries the Traefik
+middleware `injishi-staging-noindex@docker` (an `X-Robots-Tag: noindex,
+nofollow` response header, declared by labels on staging's `web`).
 
 **The demo is retired.** The `www-demo.injishi.com` stack, its Dokploy project
 and its nightly `demo-recover` workflow (now disabled) are gone. The
@@ -137,10 +162,11 @@ the API's `GET /api/v1/platform` instead.
 | `admin-demo.injishi.com` | demo | demo `app` | `ADMIN_ALLOWED_IPS`; its root goes to `/admin` |
 | `storage-demo.injishi.com` | demo | demo `minio` | Public, reads only, as production's |
 | `mail-demo.injishi.com` | demo | demo `mailpit` (inbox, port 8025) | `ADMIN_ALLOWED_IPS`. SMTP (1025) is never routed |
-| `app.<STAGING_DOMAIN>` | staging | staging `app` | Behind the same allowlist |
-| `api.<STAGING_DOMAIN>` | staging | staging `api` | |
-| `storage.<STAGING_DOMAIN>` | staging | staging `minio` | IP allowlist, then reads only, as production |
-| `mail.<STAGING_DOMAIN>` | staging | staging `mailpit` (inbox, port 8025) | IP allowlist. The inbox where testers read sign in codes; SMTP (1025) is never routed |
+| `www-staging.injishi.com` | staging | staging `web` (a Dokploy domain row, port 3000) | Public, `X-Robots-Tag: noindex` (`injishi-staging-noindex@docker`). `/sign-in` hands off to `app-staging` |
+| `app-staging.injishi.com` | staging | staging `app` (a Dokploy domain row, port 3002) | Public; a stranger cannot sign in, because every code goes to staging's Mailpit |
+| `api-staging.injishi.com` | staging | staging `api` (a Dokploy domain row, port 8000) | |
+| `storage-staging.injishi.com` | staging | staging `minio` | Signed S3 requests only (a label router) |
+| `mail-staging.injishi.com` | staging | staging `mailpit` (inbox, port 8025) | `MAILPIT_UI_PASSWORD`. The inbox where testers read sign in codes |
 
 The operator app has its own host in every stack (`NEXT_PUBLIC_PMS_URL`). Its
 screens live at its root (`/residence`, `/owner`, `/officer`, `/admin`, ...),
@@ -500,7 +526,7 @@ claim invitation is the first such mail. Each compose file sets it from the same
 host its frontends' `NEXT_PUBLIC_WEB_URL` is built from, so nothing extra goes in
 an env file: production `https://${WEB_HOST:-www.injishi.com}`, demo
 `https://${WEB_HOST:-www-demo.injishi.com}`, staging
-`https://www.${STAGING_DOMAIN}`. It must be an origin with no path. The API
+`https://${WEB_HOST:-www-staging.injishi.com}`. It must be an origin with no path. The API
 refuses to boot under `NODE_ENV=production` without it, exactly as it does
 without `SMTP_URL`.
 

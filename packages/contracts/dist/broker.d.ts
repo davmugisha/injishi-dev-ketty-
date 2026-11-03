@@ -18,13 +18,13 @@ export declare const BrokerContact: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string | null;
     email: string | null;
-    revealedAt: string;
     phone: string | null;
+    revealedAt: string;
 }, {
     name: string | null;
     email: string | null;
-    revealedAt: string;
     phone: string | null;
+    revealedAt: string;
 }>;
 export type BrokerContact = z.infer<typeof BrokerContact>;
 /** The broker's placement on a unit, when they started one. */
@@ -105,13 +105,13 @@ export declare const BrokerHome: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string | null;
         email: string | null;
-        revealedAt: string;
         phone: string | null;
+        revealedAt: string;
     }, {
         name: string | null;
         email: string | null;
-        revealedAt: string;
         phone: string | null;
+        revealedAt: string;
     }>>;
     placement: z.ZodNullable<z.ZodObject<{
         id: z.ZodString;
@@ -124,15 +124,16 @@ export declare const BrokerHome: z.ZodObject<{
         id: string;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    kitchen: "none" | "own" | "shared" | null;
+    kitchen: "shared" | "none" | "own" | null;
     district: string | null;
     sector: string | null;
     districtId: number | null;
+    feeRwf: number;
     contact: {
         name: string | null;
         email: string | null;
-        revealedAt: string;
         phone: string | null;
+        revealedAt: string;
     } | null;
     propertyName: string;
     unitLabel: string;
@@ -151,7 +152,6 @@ export declare const BrokerHome: z.ZodObject<{
     sizeSqm: number | null;
     rentRwf: number;
     depositRwf: number | null;
-    feeRwf: number;
     photos: string[];
     video: {
         url: string;
@@ -166,15 +166,16 @@ export declare const BrokerHome: z.ZodObject<{
         id: string;
     } | null;
 }, {
-    kitchen: "none" | "own" | "shared" | null;
+    kitchen: "shared" | "none" | "own" | null;
     district: string | null;
     sector: string | null;
     districtId: number | null;
+    feeRwf: number;
     contact: {
         name: string | null;
         email: string | null;
-        revealedAt: string;
         phone: string | null;
+        revealedAt: string;
     } | null;
     propertyName: string;
     unitLabel: string;
@@ -193,7 +194,6 @@ export declare const BrokerHome: z.ZodObject<{
     sizeSqm: number | null;
     rentRwf: number;
     depositRwf: number | null;
-    feeRwf: number;
     photos: string[];
     video: {
         url: string;
@@ -319,13 +319,13 @@ export declare const BrokerHomes: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             name: string | null;
             email: string | null;
-            revealedAt: string;
             phone: string | null;
+            revealedAt: string;
         }, {
             name: string | null;
             email: string | null;
-            revealedAt: string;
             phone: string | null;
+            revealedAt: string;
         }>>;
         placement: z.ZodNullable<z.ZodObject<{
             id: z.ZodString;
@@ -338,15 +338,16 @@ export declare const BrokerHomes: z.ZodObject<{
             id: string;
         }>>;
     }, "strip", z.ZodTypeAny, {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         district: string | null;
         sector: string | null;
         districtId: number | null;
+        feeRwf: number;
         contact: {
             name: string | null;
             email: string | null;
-            revealedAt: string;
             phone: string | null;
+            revealedAt: string;
         } | null;
         propertyName: string;
         unitLabel: string;
@@ -365,7 +366,6 @@ export declare const BrokerHomes: z.ZodObject<{
         sizeSqm: number | null;
         rentRwf: number;
         depositRwf: number | null;
-        feeRwf: number;
         photos: string[];
         video: {
             url: string;
@@ -380,15 +380,16 @@ export declare const BrokerHomes: z.ZodObject<{
             id: string;
         } | null;
     }, {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         district: string | null;
         sector: string | null;
         districtId: number | null;
+        feeRwf: number;
         contact: {
             name: string | null;
             email: string | null;
-            revealedAt: string;
             phone: string | null;
+            revealedAt: string;
         } | null;
         propertyName: string;
         unitLabel: string;
@@ -407,7 +408,6 @@ export declare const BrokerHomes: z.ZodObject<{
         sizeSqm: number | null;
         rentRwf: number;
         depositRwf: number | null;
-        feeRwf: number;
         photos: string[];
         video: {
             url: string;
@@ -485,15 +485,16 @@ export declare const BrokerHomes: z.ZodObject<{
         count: number;
     }[];
     homes: {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         district: string | null;
         sector: string | null;
         districtId: number | null;
+        feeRwf: number;
         contact: {
             name: string | null;
             email: string | null;
-            revealedAt: string;
             phone: string | null;
+            revealedAt: string;
         } | null;
         propertyName: string;
         unitLabel: string;
@@ -512,7 +513,6 @@ export declare const BrokerHomes: z.ZodObject<{
         sizeSqm: number | null;
         rentRwf: number;
         depositRwf: number | null;
-        feeRwf: number;
         photos: string[];
         video: {
             url: string;
@@ -548,15 +548,16 @@ export declare const BrokerHomes: z.ZodObject<{
         count: number;
     }[];
     homes: {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         district: string | null;
         sector: string | null;
         districtId: number | null;
+        feeRwf: number;
         contact: {
             name: string | null;
             email: string | null;
-            revealedAt: string;
             phone: string | null;
+            revealedAt: string;
         } | null;
         propertyName: string;
         unitLabel: string;
@@ -575,7 +576,6 @@ export declare const BrokerHomes: z.ZodObject<{
         sizeSqm: number | null;
         rentRwf: number;
         depositRwf: number | null;
-        feeRwf: number;
         photos: string[];
         video: {
             url: string;
@@ -603,21 +603,21 @@ export declare const BrokerReveal: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string | null;
         email: string | null;
-        revealedAt: string;
         phone: string | null;
+        revealedAt: string;
     }, {
         name: string | null;
         email: string | null;
-        revealedAt: string;
         phone: string | null;
+        revealedAt: string;
     }>;
     first: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     contact: {
         name: string | null;
         email: string | null;
-        revealedAt: string;
         phone: string | null;
+        revealedAt: string;
     };
     unitId: string;
     first: boolean;
@@ -625,8 +625,8 @@ export declare const BrokerReveal: z.ZodObject<{
     contact: {
         name: string | null;
         email: string | null;
-        revealedAt: string;
         phone: string | null;
+        revealedAt: string;
     };
     unitId: string;
     first: boolean;
@@ -1319,8 +1319,8 @@ export declare const BrokerEarnings: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     paidRwf: number;
-    owedRwf: number;
     paidThisYearRwf: number;
+    owedRwf: number;
     byMonth: {
         paidRwf: number;
         month: string;
@@ -1349,8 +1349,8 @@ export declare const BrokerEarnings: z.ZodObject<{
     }[];
 }, {
     paidRwf: number;
-    owedRwf: number;
     paidThisYearRwf: number;
+    owedRwf: number;
     byMonth: {
         paidRwf: number;
         month: string;
@@ -1435,8 +1435,8 @@ export declare const BrokerReviews: z.ZodObject<{
         raterName: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    breakdown: number[];
     count: number;
+    breakdown: number[];
     reviews: {
         propertyName: string | null;
         from: "landlord" | "tenant";
@@ -1448,8 +1448,8 @@ export declare const BrokerReviews: z.ZodObject<{
     average: number | null;
     placedCount: number;
 }, {
-    breakdown: number[];
     count: number;
+    breakdown: number[];
     reviews: {
         propertyName: string | null;
         from: "landlord" | "tenant";
@@ -1517,6 +1517,7 @@ export declare const BrokerSummary: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "active" | "suspended";
     name: string | null;
+    paidRwf: number;
     scope: {
         provinceId: number | null;
         districtId: number | null;
@@ -1529,15 +1530,15 @@ export declare const BrokerSummary: z.ZodObject<{
             plan: "country" | "province" | "district";
         } | null;
     };
-    paidRwf: number;
+    owedRwf: number;
     ratingAverage: number | null;
     ratingCount: number;
-    owedRwf: number;
     homesInScope: number;
     openPlacements: number;
 }, {
     status: "active" | "suspended";
     name: string | null;
+    paidRwf: number;
     scope: {
         provinceId: number | null;
         districtId: number | null;
@@ -1550,10 +1551,9 @@ export declare const BrokerSummary: z.ZodObject<{
             plan: "country" | "province" | "district";
         } | null;
     };
-    paidRwf: number;
+    owedRwf: number;
     ratingAverage: number | null;
     ratingCount: number;
-    owedRwf: number;
     homesInScope: number;
     openPlacements: number;
 }>;

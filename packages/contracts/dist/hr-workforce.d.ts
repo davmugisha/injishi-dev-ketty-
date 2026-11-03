@@ -287,13 +287,13 @@ export declare const ContractTerms: z.ZodObject<{
     status: "active" | "scheduled" | "ended";
     decidedAt: string;
     startsOn: string;
-    contractType: "permanent" | "fixed_term" | "casual";
-    contractId: string;
-    employeeId: string;
+    decidedByName: string | null;
     endsOn: string | null;
+    employeeId: string;
+    contractType: "permanent" | "fixed_term" | "casual";
     wageRwf: number;
     endReason: string | null;
-    decidedByName: string | null;
+    contractId: string;
     probationEndsOn: string | null;
     allowanceRwf: number;
     changeReason: string | null;
@@ -301,13 +301,13 @@ export declare const ContractTerms: z.ZodObject<{
     status: "active" | "scheduled" | "ended";
     decidedAt: string;
     startsOn: string;
-    contractType: "permanent" | "fixed_term" | "casual";
-    contractId: string;
-    employeeId: string;
+    decidedByName: string | null;
     endsOn: string | null;
+    employeeId: string;
+    contractType: "permanent" | "fixed_term" | "casual";
     wageRwf: number;
     endReason: string | null;
-    decidedByName: string | null;
+    contractId: string;
     probationEndsOn: string | null;
     allowanceRwf: number;
     changeReason: string | null;
@@ -322,12 +322,12 @@ export declare const PayAccountLabel: z.ZodObject<{
     /** The last three or four digits. */
     lastDigits: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    kind: "bank" | "momo";
+    kind: "momo" | "bank";
     employeeId: string;
     provider: string;
     lastDigits: string;
 }, {
-    kind: "bank" | "momo";
+    kind: "momo" | "bank";
     employeeId: string;
     provider: string;
     lastDigits: string;
@@ -355,13 +355,13 @@ export declare const HrCompensation: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         decidedAt: string;
         startsOn: string;
-        contractType: "permanent" | "fixed_term" | "casual";
-        contractId: string;
-        employeeId: string;
+        decidedByName: string | null;
         endsOn: string | null;
+        employeeId: string;
+        contractType: "permanent" | "fixed_term" | "casual";
         wageRwf: number;
         endReason: string | null;
-        decidedByName: string | null;
+        contractId: string;
         probationEndsOn: string | null;
         allowanceRwf: number;
         changeReason: string | null;
@@ -369,13 +369,13 @@ export declare const HrCompensation: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         decidedAt: string;
         startsOn: string;
-        contractType: "permanent" | "fixed_term" | "casual";
-        contractId: string;
-        employeeId: string;
+        decidedByName: string | null;
         endsOn: string | null;
+        employeeId: string;
+        contractType: "permanent" | "fixed_term" | "casual";
         wageRwf: number;
         endReason: string | null;
-        decidedByName: string | null;
+        contractId: string;
         probationEndsOn: string | null;
         allowanceRwf: number;
         changeReason: string | null;
@@ -389,12 +389,12 @@ export declare const HrCompensation: z.ZodObject<{
         /** The last three or four digits. */
         lastDigits: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        kind: "bank" | "momo";
+        kind: "momo" | "bank";
         employeeId: string;
         provider: string;
         lastDigits: string;
     }, {
-        kind: "bank" | "momo";
+        kind: "momo" | "bank";
         employeeId: string;
         provider: string;
         lastDigits: string;
@@ -404,19 +404,19 @@ export declare const HrCompensation: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         decidedAt: string;
         startsOn: string;
-        contractType: "permanent" | "fixed_term" | "casual";
-        contractId: string;
-        employeeId: string;
+        decidedByName: string | null;
         endsOn: string | null;
+        employeeId: string;
+        contractType: "permanent" | "fixed_term" | "casual";
         wageRwf: number;
         endReason: string | null;
-        decidedByName: string | null;
+        contractId: string;
         probationEndsOn: string | null;
         allowanceRwf: number;
         changeReason: string | null;
     }[];
     payAccounts: {
-        kind: "bank" | "momo";
+        kind: "momo" | "bank";
         employeeId: string;
         provider: string;
         lastDigits: string;
@@ -426,19 +426,19 @@ export declare const HrCompensation: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         decidedAt: string;
         startsOn: string;
-        contractType: "permanent" | "fixed_term" | "casual";
-        contractId: string;
-        employeeId: string;
+        decidedByName: string | null;
         endsOn: string | null;
+        employeeId: string;
+        contractType: "permanent" | "fixed_term" | "casual";
         wageRwf: number;
         endReason: string | null;
-        decidedByName: string | null;
+        contractId: string;
         probationEndsOn: string | null;
         allowanceRwf: number;
         changeReason: string | null;
     }[];
     payAccounts: {
-        kind: "bank" | "momo";
+        kind: "momo" | "bank";
         employeeId: string;
         provider: string;
         lastDigits: string;
@@ -524,22 +524,22 @@ export declare const HrChecklistItem: z.ZodObject<{
     sortOrder: number;
     title: string;
     detail: string | null;
-    checklist: "onboarding" | "offboarding";
     employeeId: string;
-    ownerOnly: boolean;
     doneAt: string | null;
     doneByName: string | null;
+    checklist: "onboarding" | "offboarding";
+    ownerOnly: boolean;
 }, {
     code: string;
     id: string;
     sortOrder: number;
     title: string;
     detail: string | null;
-    checklist: "onboarding" | "offboarding";
     employeeId: string;
-    ownerOnly: boolean;
     doneAt: string | null;
     doneByName: string | null;
+    checklist: "onboarding" | "offboarding";
+    ownerOnly: boolean;
 }>;
 export type HrChecklistItem = z.infer<typeof HrChecklistItem>;
 export declare const HrChecklistItemList: z.ZodObject<{
@@ -561,22 +561,22 @@ export declare const HrChecklistItemList: z.ZodObject<{
         sortOrder: number;
         title: string;
         detail: string | null;
-        checklist: "onboarding" | "offboarding";
         employeeId: string;
-        ownerOnly: boolean;
         doneAt: string | null;
         doneByName: string | null;
+        checklist: "onboarding" | "offboarding";
+        ownerOnly: boolean;
     }, {
         code: string;
         id: string;
         sortOrder: number;
         title: string;
         detail: string | null;
-        checklist: "onboarding" | "offboarding";
         employeeId: string;
-        ownerOnly: boolean;
         doneAt: string | null;
         doneByName: string | null;
+        checklist: "onboarding" | "offboarding";
+        ownerOnly: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     items: {
@@ -585,11 +585,11 @@ export declare const HrChecklistItemList: z.ZodObject<{
         sortOrder: number;
         title: string;
         detail: string | null;
-        checklist: "onboarding" | "offboarding";
         employeeId: string;
-        ownerOnly: boolean;
         doneAt: string | null;
         doneByName: string | null;
+        checklist: "onboarding" | "offboarding";
+        ownerOnly: boolean;
     }[];
 }, {
     items: {
@@ -598,11 +598,11 @@ export declare const HrChecklistItemList: z.ZodObject<{
         sortOrder: number;
         title: string;
         detail: string | null;
-        checklist: "onboarding" | "offboarding";
         employeeId: string;
-        ownerOnly: boolean;
         doneAt: string | null;
         doneByName: string | null;
+        checklist: "onboarding" | "offboarding";
+        ownerOnly: boolean;
     }[];
 }>;
 export type HrChecklistItemList = z.infer<typeof HrChecklistItemList>;
@@ -645,8 +645,8 @@ export declare const EmployeeDependant: z.ZodObject<{
     id: string;
     dateOfBirth: string | null;
     phone: string | null;
-    employeeId: string;
     sex: "female" | "male" | null;
+    employeeId: string;
     relation: "other" | "sibling" | "spouse" | "child" | "parent";
     isEmergencyContact: boolean;
     medicalDependant: boolean;
@@ -656,8 +656,8 @@ export declare const EmployeeDependant: z.ZodObject<{
     id: string;
     dateOfBirth: string | null;
     phone: string | null;
-    employeeId: string;
     sex: "female" | "male" | null;
+    employeeId: string;
     relation: "other" | "sibling" | "spouse" | "child" | "parent";
     isEmergencyContact: boolean;
     medicalDependant: boolean;
@@ -682,8 +682,8 @@ export declare const EmployeeDependantList: z.ZodObject<{
         id: string;
         dateOfBirth: string | null;
         phone: string | null;
-        employeeId: string;
         sex: "female" | "male" | null;
+        employeeId: string;
         relation: "other" | "sibling" | "spouse" | "child" | "parent";
         isEmergencyContact: boolean;
         medicalDependant: boolean;
@@ -693,8 +693,8 @@ export declare const EmployeeDependantList: z.ZodObject<{
         id: string;
         dateOfBirth: string | null;
         phone: string | null;
-        employeeId: string;
         sex: "female" | "male" | null;
+        employeeId: string;
         relation: "other" | "sibling" | "spouse" | "child" | "parent";
         isEmergencyContact: boolean;
         medicalDependant: boolean;
@@ -706,8 +706,8 @@ export declare const EmployeeDependantList: z.ZodObject<{
         id: string;
         dateOfBirth: string | null;
         phone: string | null;
-        employeeId: string;
         sex: "female" | "male" | null;
+        employeeId: string;
         relation: "other" | "sibling" | "spouse" | "child" | "parent";
         isEmergencyContact: boolean;
         medicalDependant: boolean;
@@ -719,8 +719,8 @@ export declare const EmployeeDependantList: z.ZodObject<{
         id: string;
         dateOfBirth: string | null;
         phone: string | null;
-        employeeId: string;
         sex: "female" | "male" | null;
+        employeeId: string;
         relation: "other" | "sibling" | "spouse" | "child" | "parent";
         isEmergencyContact: boolean;
         medicalDependant: boolean;

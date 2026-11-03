@@ -71,8 +71,8 @@ export declare const OrderableItem: z.ZodObject<{
     }[];
     name: string;
     id: string;
-    priceRwf: number;
     description: string | null;
+    priceRwf: number;
     prepTimeMinutes: number | null;
 }, {
     options: {
@@ -86,8 +86,8 @@ export declare const OrderableItem: z.ZodObject<{
     }[];
     name: string;
     id: string;
-    priceRwf: number;
     description: string | null;
+    priceRwf: number;
     prepTimeMinutes: number | null;
 }>;
 export type OrderableItem = z.infer<typeof OrderableItem>;
@@ -145,8 +145,8 @@ export declare const OrderableCategory: z.ZodObject<{
         }[];
         name: string;
         id: string;
-        priceRwf: number;
         description: string | null;
+        priceRwf: number;
         prepTimeMinutes: number | null;
     }, {
         options: {
@@ -160,8 +160,8 @@ export declare const OrderableCategory: z.ZodObject<{
         }[];
         name: string;
         id: string;
-        priceRwf: number;
         description: string | null;
+        priceRwf: number;
         prepTimeMinutes: number | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -179,8 +179,8 @@ export declare const OrderableCategory: z.ZodObject<{
         }[];
         name: string;
         id: string;
-        priceRwf: number;
         description: string | null;
+        priceRwf: number;
         prepTimeMinutes: number | null;
     }[];
 }, {
@@ -198,8 +198,8 @@ export declare const OrderableCategory: z.ZodObject<{
         }[];
         name: string;
         id: string;
-        priceRwf: number;
         description: string | null;
+        priceRwf: number;
         prepTimeMinutes: number | null;
     }[];
 }>;
@@ -280,8 +280,8 @@ export declare const OrderableOutlet: z.ZodObject<{
             }[];
             name: string;
             id: string;
-            priceRwf: number;
             description: string | null;
+            priceRwf: number;
             prepTimeMinutes: number | null;
         }, {
             options: {
@@ -295,8 +295,8 @@ export declare const OrderableOutlet: z.ZodObject<{
             }[];
             name: string;
             id: string;
-            priceRwf: number;
             description: string | null;
+            priceRwf: number;
             prepTimeMinutes: number | null;
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
@@ -314,8 +314,8 @@ export declare const OrderableOutlet: z.ZodObject<{
             }[];
             name: string;
             id: string;
-            priceRwf: number;
             description: string | null;
+            priceRwf: number;
             prepTimeMinutes: number | null;
         }[];
     }, {
@@ -333,8 +333,8 @@ export declare const OrderableOutlet: z.ZodObject<{
             }[];
             name: string;
             id: string;
-            priceRwf: number;
             description: string | null;
+            priceRwf: number;
             prepTimeMinutes: number | null;
         }[];
     }>, "many">;
@@ -358,12 +358,12 @@ export declare const OrderableOutlet: z.ZodObject<{
             }[];
             name: string;
             id: string;
-            priceRwf: number;
             description: string | null;
+            priceRwf: number;
             prepTimeMinutes: number | null;
         }[];
     }[];
-    outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+    outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
     orderingAccess: "both" | "in_house_only" | "walk_in_only";
     hours: Record<string, unknown> | null;
     chargeToRoom: boolean;
@@ -390,12 +390,12 @@ export declare const OrderableOutlet: z.ZodObject<{
             }[];
             name: string;
             id: string;
-            priceRwf: number;
             description: string | null;
+            priceRwf: number;
             prepTimeMinutes: number | null;
         }[];
     }[];
-    outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+    outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
     orderingAccess: "both" | "in_house_only" | "walk_in_only";
     hours: Record<string, unknown> | null;
     chargeToRoom: boolean;
@@ -478,8 +478,8 @@ export declare const OrderableList: z.ZodObject<{
                 }[];
                 name: string;
                 id: string;
-                priceRwf: number;
                 description: string | null;
+                priceRwf: number;
                 prepTimeMinutes: number | null;
             }, {
                 options: {
@@ -493,8 +493,8 @@ export declare const OrderableList: z.ZodObject<{
                 }[];
                 name: string;
                 id: string;
-                priceRwf: number;
                 description: string | null;
+                priceRwf: number;
                 prepTimeMinutes: number | null;
             }>, "many">;
         }, "strip", z.ZodTypeAny, {
@@ -512,8 +512,8 @@ export declare const OrderableList: z.ZodObject<{
                 }[];
                 name: string;
                 id: string;
-                priceRwf: number;
                 description: string | null;
+                priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
         }, {
@@ -531,8 +531,8 @@ export declare const OrderableList: z.ZodObject<{
                 }[];
                 name: string;
                 id: string;
-                priceRwf: number;
                 description: string | null;
+                priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
         }>, "many">;
@@ -556,12 +556,12 @@ export declare const OrderableList: z.ZodObject<{
                 }[];
                 name: string;
                 id: string;
-                priceRwf: number;
                 description: string | null;
+                priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
         }[];
-        outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+        outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         chargeToRoom: boolean;
@@ -588,12 +588,12 @@ export declare const OrderableList: z.ZodObject<{
                 }[];
                 name: string;
                 id: string;
-                priceRwf: number;
                 description: string | null;
+                priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
         }[];
-        outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+        outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         chargeToRoom: boolean;
@@ -622,12 +622,12 @@ export declare const OrderableList: z.ZodObject<{
                 }[];
                 name: string;
                 id: string;
-                priceRwf: number;
                 description: string | null;
+                priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
         }[];
-        outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+        outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         chargeToRoom: boolean;
@@ -656,12 +656,12 @@ export declare const OrderableList: z.ZodObject<{
                 }[];
                 name: string;
                 id: string;
-                priceRwf: number;
                 description: string | null;
+                priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
         }[];
-        outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+        outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         chargeToRoom: boolean;
@@ -1006,10 +1006,10 @@ export declare const GuestOrder: z.ZodObject<{
     status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
     cancellable: boolean;
+    paidAt: string | null;
     createdAt: string;
     propertyName: string;
     totalRwf: number;
-    paidAt: string | null;
     outletId: string;
     orderNumber: string;
     subtotalRwf: number;
@@ -1034,10 +1034,10 @@ export declare const GuestOrder: z.ZodObject<{
     status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
     cancellable: boolean;
+    paidAt: string | null;
     createdAt: string;
     propertyName: string;
     totalRwf: number;
-    paidAt: string | null;
     outletId: string;
     orderNumber: string;
     subtotalRwf: number;
@@ -1151,10 +1151,10 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         cancellable: boolean;
+        paidAt: string | null;
         createdAt: string;
         propertyName: string;
         totalRwf: number;
-        paidAt: string | null;
         outletId: string;
         orderNumber: string;
         subtotalRwf: number;
@@ -1179,10 +1179,10 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         cancellable: boolean;
+        paidAt: string | null;
         createdAt: string;
         propertyName: string;
         totalRwf: number;
-        paidAt: string | null;
         outletId: string;
         orderNumber: string;
         subtotalRwf: number;
@@ -1217,10 +1217,10 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         cancellable: boolean;
+        paidAt: string | null;
         createdAt: string;
         propertyName: string;
         totalRwf: number;
-        paidAt: string | null;
         outletId: string;
         orderNumber: string;
         subtotalRwf: number;
@@ -1254,10 +1254,10 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         cancellable: boolean;
+        paidAt: string | null;
         createdAt: string;
         propertyName: string;
         totalRwf: number;
-        paidAt: string | null;
         outletId: string;
         orderNumber: string;
         subtotalRwf: number;
@@ -1449,10 +1449,10 @@ export declare const PlaceOrderResult: z.ZodObject<{
             status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
             id: string;
             cancellable: boolean;
+            paidAt: string | null;
             createdAt: string;
             propertyName: string;
             totalRwf: number;
-            paidAt: string | null;
             outletId: string;
             orderNumber: string;
             subtotalRwf: number;
@@ -1477,10 +1477,10 @@ export declare const PlaceOrderResult: z.ZodObject<{
             status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
             id: string;
             cancellable: boolean;
+            paidAt: string | null;
             createdAt: string;
             propertyName: string;
             totalRwf: number;
-            paidAt: string | null;
             outletId: string;
             orderNumber: string;
             subtotalRwf: number;
@@ -1533,10 +1533,10 @@ export declare const PlaceOrderResult: z.ZodObject<{
         failureReason: string | null;
     } | null;
     cancellable: boolean;
+    paidAt: string | null;
     createdAt: string;
     propertyName: string;
     totalRwf: number;
-    paidAt: string | null;
     outletId: string;
     orderNumber: string;
     subtotalRwf: number;
@@ -1570,10 +1570,10 @@ export declare const PlaceOrderResult: z.ZodObject<{
         failureReason: string | null;
     } | null;
     cancellable: boolean;
+    paidAt: string | null;
     createdAt: string;
     propertyName: string;
     totalRwf: number;
-    paidAt: string | null;
     outletId: string;
     orderNumber: string;
     subtotalRwf: number;
@@ -1676,10 +1676,10 @@ export declare const GuestOrderList: z.ZodObject<{
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         cancellable: boolean;
+        paidAt: string | null;
         createdAt: string;
         propertyName: string;
         totalRwf: number;
-        paidAt: string | null;
         outletId: string;
         orderNumber: string;
         subtotalRwf: number;
@@ -1704,10 +1704,10 @@ export declare const GuestOrderList: z.ZodObject<{
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         cancellable: boolean;
+        paidAt: string | null;
         createdAt: string;
         propertyName: string;
         totalRwf: number;
-        paidAt: string | null;
         outletId: string;
         orderNumber: string;
         subtotalRwf: number;
@@ -1734,10 +1734,10 @@ export declare const GuestOrderList: z.ZodObject<{
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         cancellable: boolean;
+        paidAt: string | null;
         createdAt: string;
         propertyName: string;
         totalRwf: number;
-        paidAt: string | null;
         outletId: string;
         orderNumber: string;
         subtotalRwf: number;
@@ -1764,10 +1764,10 @@ export declare const GuestOrderList: z.ZodObject<{
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         cancellable: boolean;
+        paidAt: string | null;
         createdAt: string;
         propertyName: string;
         totalRwf: number;
-        paidAt: string | null;
         outletId: string;
         orderNumber: string;
         subtotalRwf: number;
@@ -1893,6 +1893,7 @@ export declare const GuestOrderDetail: z.ZodObject<{
     status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
     cancellable: boolean;
+    paidAt: string | null;
     createdAt: string;
     events: {
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
@@ -1900,7 +1901,6 @@ export declare const GuestOrderDetail: z.ZodObject<{
     }[];
     propertyName: string;
     totalRwf: number;
-    paidAt: string | null;
     outletId: string;
     orderNumber: string;
     subtotalRwf: number;
@@ -1925,6 +1925,7 @@ export declare const GuestOrderDetail: z.ZodObject<{
     status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
     cancellable: boolean;
+    paidAt: string | null;
     createdAt: string;
     events: {
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
@@ -1932,7 +1933,6 @@ export declare const GuestOrderDetail: z.ZodObject<{
     }[];
     propertyName: string;
     totalRwf: number;
-    paidAt: string | null;
     outletId: string;
     orderNumber: string;
     subtotalRwf: number;

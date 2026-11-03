@@ -10,12 +10,14 @@
  * sign in again; anything else surfaces as the error it is.
  */
 
+import { STATIC_COLLECTIONS } from "@injishi/data/collection-class";
 import type { Doc } from "@injishi/data/types";
 import * as fixtureStore from "@injishi/db";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { currentAccount, currentApi } from "@/lib/session";
 import { ApiError } from "./api";
+import { holdsSampleData } from "./sample-data";
 import { sourceContext } from "./sources/context";
 import { liveSources } from "./sources/index";
 import type { SourceContext } from "./sources/types";
@@ -35,10 +37,19 @@ async function live<T>(run: (ctx: SourceContext) => Promise<T>): Promise<T> {
   }
 }
 
+/**
+ * Whether a collection with no live source may come from the fixture store: always for product
+ * configuration (labels, rules), and for sample data only to the demo's own people (2026-10-30). A real
+ * person is never shown a stranger's records as their own, whatever the database is marked.
+ */
+async function fixturesShown(collection: string): Promise<boolean> {
+  return STATIC_COLLECTIONS.has(collection) || (await holdsSampleData());
+}
+
 /** All documents of a collection, in screen order. */
 export async function getCollection<T extends Doc>(collection: string): Promise<T[]> {
   const source = liveSources[collection];
-  if (!source) return fixtureStore.getCollection<T>(collection);
+  if (!source) return (await fixturesShown(collection)) ? fixtureStore.getCollection<T>(collection) : [];
   return live((ctx) => source.list(ctx) as Promise<T[]>);
 }
 
@@ -53,7 +64,7 @@ export async function getCollections<K extends string>(names: Record<K, string>)
 /** One document by id, or undefined. */
 export async function getDocument<T extends Doc>(collection: string, id: string): Promise<T | undefined> {
   const source = liveSources[collection];
-  if (!source) return fixtureStore.getDocument<T>(collection, id);
+  if (!source) return (await fixturesShown(collection)) ? fixtureStore.getDocument<T>(collection, id) : undefined;
   return live(async (ctx) => {
     if (source.get) return (await source.get(ctx, id)) as T | undefined;
     const all = (await source.list(ctx)) as T[];
