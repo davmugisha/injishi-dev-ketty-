@@ -80,6 +80,7 @@ export declare const PropertyPolicyEdit: z.ZodObject<{
     cribs: z.ZodOptional<z.ZodNullable<z.ZodEnum<["free", "charged", "none"]>>>;
     cribPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
+    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
     checkInUntil?: string | null | undefined;
     frontDesk?: "limited" | "none" | "24h" | null | undefined;
     frontDeskOpens?: string | null | undefined;
@@ -95,10 +96,10 @@ export declare const PropertyPolicyEdit: z.ZodObject<{
     quietFrom?: string | null | undefined;
     quietUntil?: string | null | undefined;
     internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
-    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
     cribs?: "none" | "free" | "charged" | null | undefined;
     cribPriceRwf?: number | null | undefined;
 }, {
+    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
     checkInUntil?: string | null | undefined;
     frontDesk?: "limited" | "none" | "24h" | null | undefined;
     frontDeskOpens?: string | null | undefined;
@@ -114,7 +115,6 @@ export declare const PropertyPolicyEdit: z.ZodObject<{
     quietFrom?: string | null | undefined;
     quietUntil?: string | null | undefined;
     internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
-    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
     cribs?: "none" | "free" | "charged" | null | undefined;
     cribPriceRwf?: number | null | undefined;
 }>;
@@ -140,6 +140,7 @@ export declare const PropertyPolicies: z.ZodObject<{
     cribs: z.ZodDefault<z.ZodNullable<z.ZodEnum<["free", "charged", "none"]>>>;
     cribPriceRwf: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
+    parking: "street" | "none" | "free_on_site" | "paid_on_site" | null;
     checkInUntil: string | null;
     frontDesk: "limited" | "none" | "24h" | null;
     frontDeskOpens: string | null;
@@ -155,10 +156,10 @@ export declare const PropertyPolicies: z.ZodObject<{
     quietFrom: string | null;
     quietUntil: string | null;
     internet: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null;
-    parking: "street" | "none" | "free_on_site" | "paid_on_site" | null;
     cribs: "none" | "free" | "charged" | null;
     cribPriceRwf: number | null;
 }, {
+    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
     checkInUntil?: string | null | undefined;
     frontDesk?: "limited" | "none" | "24h" | null | undefined;
     frontDeskOpens?: string | null | undefined;
@@ -174,7 +175,6 @@ export declare const PropertyPolicies: z.ZodObject<{
     quietFrom?: string | null | undefined;
     quietUntil?: string | null | undefined;
     internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
-    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
     cribs?: "none" | "free" | "charged" | null | undefined;
     cribPriceRwf?: number | null | undefined;
 }>;

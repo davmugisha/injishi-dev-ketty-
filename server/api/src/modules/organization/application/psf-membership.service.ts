@@ -110,6 +110,7 @@ import { PsfRenewalRepository } from '../infrastructure/psf-renewal.repository';
 import { PsfCertificatesService } from './psf-certificates.service';
 import {
   buildPsfApplicationRow,
+  type CompletePsfForm,
   toPsfApplicationView,
   toPsfMembershipView,
   toPsfTierView,
@@ -246,6 +247,8 @@ export class PsfMembershipService {
       matchedBy: 'officer',
       note: body.note?.trim() || null,
     });
+    // Its tracking page (2026-11-03): a docID, so its code and number find it and it can renew.
+    await this.ensureMemberRecord(claim.orgId).catch((e: unknown) => this.log.warn(`Member record for ${claim.orgId}: ${String(e)}`));
     // A business that had a card is a member now, with the certificate of one (2026-11-02).
     const certificate = await this.certificates?.pdfOrNull(claim.orgId);
     if (certificate) await this.mail.claimConfirmed(claim.orgId, membershipNumber, body.expiresOn, certificate);
@@ -331,6 +334,120 @@ export class PsfMembershipService {
       });
     }
     return { ...form, idDocument: onFile };
+  }
+
+  /**
+   * A docID for a member that came in as a card holder from Injishi's registration (2026-11-03): a claim
+   * PSF confirmed files no application, so the business had no tracking page, and its code and number
+   * found nothing. Its member record is filed here, as `card_holder`, from the business and the profile
+   * of the person who sent the card. Returns the docID, the one it already had, or null when there is
+   * no current membership or the profile lacks what PSF's form holds.
+   */
+  async ensureMemberRecord(orgId: string): Promise<string | null> {
+    const existing = await this.repo.latestDocId(orgId);
+    if (existing) return existing;
+    const [membership, claim, facts] = await Promise.all([
+      this.repo.currentMembership(orgId),
+      this.repo.latestConfirmedClaim(orgId),
+      this.repo.orgFacts(orgId),
+    ]);
+    if (!membership || !membership.tierCode || !claim || !facts) return null;
+    const tier = await this.repo.tier(membership.tierCode);
+    if (!tier) return null;
+    let form: CompletePsfForm;
+    try {
+      form = await this.completeForm(
+        await this.withIdDocument(
+          {
+            requestedTierCode: tier.code,
+            companyType: facts.registrationKind === 'rca' ? 'cooperative' : facts.registrationKind === 'rgb' ? 'ngo' : 'private_company',
+            ownership: 'rwandan_100',
+            businessActivity: psfBusinessActivityFor(facts.accommodationClass, facts.accommodationClassOther, null),
+            tradeDirection: 'none',
+            tradeCountries: [],
+            useDocumentOnFile: true,
+            consent: true,
+          },
+          claim.claimedByUserId,
+        ),
+        claim.claimedByUserId,
+        { legalName: facts.legalName, street: facts.addressText },
+        [],
+      );
+    } catch {
+      this.log.warn(`No member record for org ${orgId}: the card holder's profile lacks what PSF's form holds.`);
+      return null;
+    }
+    const row = buildPsfApplicationRow({
+      submittedByUserId: claim.claimedByUserId,
+      capacity: 'owner',
+      registrationType: facts.tin ? 'tin' : 'none',
+      registrationNumber: facts.tin,
+      tier,
+      form,
+      consentGivenAt: claim.claimedAt,
+      consentVersion: PSF_CONSENT_VERSION,
+      intake: 'card_holder',
+    });
+    await this.repo.insertApplication({
+      ...row,
+      orgId,
+      status: 'member',
+      declaredFeeRwf: null,
+      approvedMembershipNumber: membership.membershipNumber,
+      decidedAt: claim.decidedAt ?? new Date(),
+      decidedByUserId: claim.decidedByUserId ?? claim.claimedByUserId,
+      decisionBodyCode: 'PSF',
+      queuedAt: claim.claimedAt,
+    });
+    return row.docId;
+  }
+
+  /**
+   * The form complete (2026-11-03): Injishi's registration sends the business part alone, so the name
+   * and street come from the registration and the contact person from the person's own profile, the one
+   * You saved. Refused at the field still missing, under `at`, when neither holds it.
+   */
+  async completeForm(
+    form: PsfApplicationInput & { idDocument: PsfIdDocument },
+    userId: string,
+    business: { legalName: string; street: string | null },
+    at: (string | number)[],
+  ): Promise<CompletePsfForm> {
+    const person = await this.repo.personFacts(userId);
+    const names = person?.name ? splitPsfName(person.name) : null;
+    // The profile's answer, else the National ID's own (2026-11-03): its sixth digit is 8 for a man and 7
+    // for a woman, after the 1 and the birth year.
+    const fromId =
+      form.idDocument.documentType === 'national_id' && /^\d{16}$/.test(form.idDocument.documentNumber)
+        ? ({ '8': 'male', '7': 'female' } as const)[form.idDocument.documentNumber[5] as '7' | '8']
+        : undefined;
+    const gender = person?.gender === 'male' || person?.gender === 'female' ? person.gender : fromId;
+    const done = {
+      ...form,
+      companyName: form.companyName ?? business.legalName,
+      streetAddress: form.streetAddress ?? business.street ?? '',
+      contactRole: form.contactRole ?? ('owner' as const),
+      firstName: form.firstName ?? names?.firstName,
+      lastName: form.lastName ?? names?.lastName,
+      gender: form.gender ?? gender,
+      phoneE164: form.phoneE164 ?? person?.phoneE164 ?? undefined,
+      email: form.email ?? person?.email,
+      dateOfBirth: form.dateOfBirth ?? person?.dob ?? undefined,
+    };
+    const missing: [keyof typeof done, string][] = [
+      ['firstName', 'Give your name on You first.'],
+      ['lastName', 'Give your name on You first.'],
+      ['gender', 'Say your gender, as PSF’s form asks it.'],
+      ['phoneE164', 'Give your phone number on You first.'],
+      ['email', 'Give your email address on You first.'],
+      ['dateOfBirth', 'Give your date of birth on You first.'],
+    ];
+    const gap = missing.find(([k]) => !done[k]);
+    if (gap) {
+      throw new UnprocessableEntityException({ message: 'Validation failed', issues: [{ code: 'custom', path: [...at, gap[0]], message: gap[1] }] });
+    }
+    return done as CompletePsfForm;
   }
 
   // --- The applicant ---------------------------------------------------------
@@ -906,7 +1023,7 @@ export class PsfMembershipService {
           registrationType: registration.type,
           registrationNumber: registration.number,
           tier,
-          form: await this.withIdDocument(input, userId),
+          form: await this.completeForm(await this.withIdDocument(input, userId), userId, { legalName: facts.legalName, street: facts.addressText }, []),
           consentGivenAt: new Date(),
           consentVersion: PSF_CONSENT_VERSION,
         }),
@@ -1612,8 +1729,12 @@ export class PsfMembershipService {
     if (input.expiresOn < today || input.expiresOn > yearAhead) {
       throw issue('expiresOn', 'The end date on the card is from today to a year from now. An older card is lapsed: it joins as a new member.');
     }
-    const startsOn = input.startsOn ?? addDays(addYears(input.expiresOn, -1), 1);
-    if (input.expiresOn <= startsOn) throw issue('expiresOn', 'The membership ends after it starts.');
+    // Always exactly a year (2026-11-03): a start, when given, is the day after the same date a year before.
+    const yearStart = addDays(addYears(input.expiresOn, -1), 1);
+    if (input.startsOn && input.startsOn !== yearStart) {
+      throw issue('startsOn', `A card holder's year is one year: from ${yearStart} to ${input.expiresOn}.`);
+    }
+    const startsOn = yearStart;
     await this.assertNumberFree(input.membershipNumber, row.id);
     const done = await this.repo.approveCardHolder({
       applicationId: row.id,

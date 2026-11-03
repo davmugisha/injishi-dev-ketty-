@@ -738,6 +738,42 @@ export class PsfMembershipRepository {
     return row ?? null;
   }
 
+  /** The latest claim PSF confirmed for a business (2026-11-03): who sent the card, who confirmed it, when. */
+  async latestConfirmedClaim(orgId: string): Promise<{ claimedByUserId: string; decidedByUserId: string | null; decidedAt: Date | null; claimedAt: Date } | null> {
+    const [row] = await this.db
+      .select({
+        claimedByUserId: psfMembershipClaims.claimedByUserId,
+        decidedByUserId: psfMembershipClaims.decidedByUserId,
+        decidedAt: psfMembershipClaims.decidedAt,
+        claimedAt: psfMembershipClaims.claimedAt,
+      })
+      .from(psfMembershipClaims)
+      .where(and(eq(psfMembershipClaims.orgId, orgId), eq(psfMembershipClaims.status, 'confirmed')))
+      .orderBy(desc(psfMembershipClaims.decidedAt))
+      .limit(1);
+    // A claim always has its claimant; one without (a row from PSF's member list alone) files no record.
+    return row?.claimedByUserId ? { ...row, claimedByUserId: row.claimedByUserId } : null;
+  }
+
+  /** The business a current membership's number, or the business's code, names (2026-11-03); null when neither. */
+  async memberOrgOf(membershipNumber: string, businessCode: string | null): Promise<string | null> {
+    const [row] = await this.db
+      .select({ orgId: psfMemberships.orgId })
+      .from(psfMemberships)
+      .innerJoin(orgs, eq(orgs.id, psfMemberships.orgId))
+      .where(
+        and(
+          isNull(psfMemberships.endedAt),
+          sql`${psfMemberships.source} <> 'self_declared'`,
+          businessCode
+            ? or(sql`upper(${psfMemberships.membershipNumber}) = upper(${membershipNumber})`, eq(orgs.businessCode, businessCode))
+            : sql`upper(${psfMemberships.membershipNumber}) = upper(${membershipNumber})`,
+        ),
+      )
+      .limit(1);
+    return row?.orgId ?? null;
+  }
+
   /** The docID of the business's latest PSF application (2026-11-02), for its mails' links; null with none. */
   async latestDocId(orgId: string): Promise<string | null> {
     const [row] = await this.db
@@ -1036,6 +1072,8 @@ export class PsfMembershipRepository {
       .select({
         email: users.email,
         name: displayName(users, verifiedIdentities),
+        // The name You saved (2026-11-03), for a person whose ID was checked by its number alone.
+        profileName: userProfiles.displayName,
         phoneE164: userProfiles.phoneE164,
         dob: userProfiles.dob,
         gender: userProfiles.gender,
@@ -1060,7 +1098,7 @@ export class PsfMembershipRepository {
     const documentType = row.documentType ?? (row.nationalId ? 'national_id' : null);
     return {
       email: row.email,
-      name: row.name,
+      name: row.name?.trim() || row.profileName?.trim() || null,
       phoneE164: row.phoneE164,
       dob: row.dob,
       gender: row.gender,

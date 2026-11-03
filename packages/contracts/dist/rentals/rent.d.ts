@@ -415,8 +415,8 @@ export declare const LeasePaymentView: z.ZodObject<{
         propertyName: string;
     };
     createdAt: string;
-    leaseId: string;
     method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
+    leaseId: string;
     channel: "gateway" | "recorded";
     receiptNumber: string | null;
     paidOn: string | null;
@@ -463,8 +463,8 @@ export declare const LeasePaymentView: z.ZodObject<{
         propertyName: string;
     };
     createdAt: string;
-    leaseId: string;
     method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
+    leaseId: string;
     channel: "gateway" | "recorded";
     receiptNumber: string | null;
     paidOn: string | null;
@@ -606,8 +606,8 @@ export declare const LeasePaymentList: z.ZodObject<{
             propertyName: string;
         };
         createdAt: string;
-        leaseId: string;
         method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
+        leaseId: string;
         channel: "gateway" | "recorded";
         receiptNumber: string | null;
         paidOn: string | null;
@@ -654,8 +654,8 @@ export declare const LeasePaymentList: z.ZodObject<{
             propertyName: string;
         };
         createdAt: string;
-        leaseId: string;
         method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
+        leaseId: string;
         channel: "gateway" | "recorded";
         receiptNumber: string | null;
         paidOn: string | null;
@@ -704,8 +704,8 @@ export declare const LeasePaymentList: z.ZodObject<{
             propertyName: string;
         };
         createdAt: string;
-        leaseId: string;
         method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
+        leaseId: string;
         channel: "gateway" | "recorded";
         receiptNumber: string | null;
         paidOn: string | null;
@@ -754,8 +754,8 @@ export declare const LeasePaymentList: z.ZodObject<{
             propertyName: string;
         };
         createdAt: string;
-        leaseId: string;
         method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
+        leaseId: string;
         channel: "gateway" | "recorded";
         receiptNumber: string | null;
         paidOn: string | null;
@@ -2136,8 +2136,8 @@ export declare const TenantPaymentView: z.ZodObject<{
     expiresAt: string | null;
     failureReason: string | null;
     createdAt: string;
-    leaseId: string;
     method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
+    leaseId: string;
     channel: "gateway" | "recorded";
     receiptNumber: string | null;
     paidOn: string | null;
@@ -2162,8 +2162,8 @@ export declare const TenantPaymentView: z.ZodObject<{
     expiresAt: string | null;
     failureReason: string | null;
     createdAt: string;
-    leaseId: string;
     method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
+    leaseId: string;
     channel: "gateway" | "recorded";
     receiptNumber: string | null;
     paidOn: string | null;
@@ -2232,8 +2232,8 @@ export declare const TenantPaymentList: z.ZodObject<{
         expiresAt: string | null;
         failureReason: string | null;
         createdAt: string;
-        leaseId: string;
         method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
+        leaseId: string;
         channel: "gateway" | "recorded";
         receiptNumber: string | null;
         paidOn: string | null;
@@ -2258,8 +2258,8 @@ export declare const TenantPaymentList: z.ZodObject<{
         expiresAt: string | null;
         failureReason: string | null;
         createdAt: string;
-        leaseId: string;
         method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
+        leaseId: string;
         channel: "gateway" | "recorded";
         receiptNumber: string | null;
         paidOn: string | null;
@@ -2286,8 +2286,8 @@ export declare const TenantPaymentList: z.ZodObject<{
         expiresAt: string | null;
         failureReason: string | null;
         createdAt: string;
-        leaseId: string;
         method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
+        leaseId: string;
         channel: "gateway" | "recorded";
         receiptNumber: string | null;
         paidOn: string | null;
@@ -2314,8 +2314,8 @@ export declare const TenantPaymentList: z.ZodObject<{
         expiresAt: string | null;
         failureReason: string | null;
         createdAt: string;
-        leaseId: string;
         method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
+        leaseId: string;
         channel: "gateway" | "recorded";
         receiptNumber: string | null;
         paidOn: string | null;

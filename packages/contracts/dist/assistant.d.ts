@@ -2122,11 +2122,11 @@ export declare const AssistantUsageReport: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         modelRequests: number;
         estimatedCostUsd: number;
-        callerRole: "anonymous" | "signed_in" | "operator" | "staff";
+        callerRole: "staff" | "anonymous" | "signed_in" | "operator";
     }, {
         modelRequests: number;
         estimatedCostUsd: number;
-        callerRole: "anonymous" | "signed_in" | "operator" | "staff";
+        callerRole: "staff" | "anonymous" | "signed_in" | "operator";
     }>, "many">;
     byModel: z.ZodArray<z.ZodObject<{
         modelRequests: z.ZodNumber;
@@ -2197,7 +2197,7 @@ export declare const AssistantUsageReport: z.ZodObject<{
     byCallerRole: {
         modelRequests: number;
         estimatedCostUsd: number;
-        callerRole: "anonymous" | "signed_in" | "operator" | "staff";
+        callerRole: "staff" | "anonymous" | "signed_in" | "operator";
     }[];
     byModel: {
         modelRequests: number;
@@ -2259,7 +2259,7 @@ export declare const AssistantUsageReport: z.ZodObject<{
     byCallerRole: {
         modelRequests: number;
         estimatedCostUsd: number;
-        callerRole: "anonymous" | "signed_in" | "operator" | "staff";
+        callerRole: "staff" | "anonymous" | "signed_in" | "operator";
     }[];
     byModel: {
         modelRequests: number;

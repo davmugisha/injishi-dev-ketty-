@@ -624,9 +624,16 @@ export class PsfPublicService {
   async memberLookup(input: PsfMemberLookupRequest): Promise<PsfMemberLookupResult> {
     // A membership number, or the business's code (2026-11-02): both are printed, so either sends a code.
     const businessCode = normalizeBusinessCode(input.membershipNumber);
-    const found =
-      (await this.renewals.trackingByMembershipNumber(normalizePsfNumber(input.membershipNumber))) ??
-      (businessCode ? await this.renewals.trackingByBusinessCode(businessCode) : null);
+    const number = normalizePsfNumber(input.membershipNumber);
+    const lookUp = async (): Promise<{ docId: string; phoneE164: string | null } | null> =>
+      (await this.renewals.trackingByMembershipNumber(number)) ?? (businessCode ? await this.renewals.trackingByBusinessCode(businessCode) : null);
+    let found = await lookUp();
+    if (!found) {
+      // A member confirmed from its card at registration had no application to track (2026-11-03): its
+      // member record is filed now, once, and the lookup tried again.
+      const orgId = await this.psfRepo.memberOrgOf(number, businessCode);
+      if (orgId && (await this.psf.ensureMemberRecord(orgId))) found = await lookUp();
+    }
     if (!found) {
       return {
         status: 'not_found',

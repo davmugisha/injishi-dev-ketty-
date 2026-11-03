@@ -465,8 +465,6 @@ export declare const RentalPropertyView: z.ZodObject<{
     name: string;
     id: string;
     street: string | null;
-    located: boolean;
-    units: number;
     place: {
         province: {
             name: string;
@@ -489,12 +487,12 @@ export declare const RentalPropertyView: z.ZodObject<{
             id: number;
         } | null;
     };
+    units: number;
+    located: boolean;
 }, {
     name: string;
     id: string;
     street: string | null;
-    located: boolean;
-    units: number;
     place: {
         province: {
             name: string;
@@ -517,6 +515,8 @@ export declare const RentalPropertyView: z.ZodObject<{
             id: number;
         } | null;
     };
+    units: number;
+    located: boolean;
 }>;
 export type RentalPropertyView = z.infer<typeof RentalPropertyView>;
 /** `GET /ops/properties`: the business's buildings, the first made from the registration when there is none. */
@@ -628,8 +628,6 @@ export declare const RentalPropertyList: z.ZodObject<{
         name: string;
         id: string;
         street: string | null;
-        located: boolean;
-        units: number;
         place: {
             province: {
                 name: string;
@@ -652,12 +650,12 @@ export declare const RentalPropertyList: z.ZodObject<{
                 id: number;
             } | null;
         };
+        units: number;
+        located: boolean;
     }, {
         name: string;
         id: string;
         street: string | null;
-        located: boolean;
-        units: number;
         place: {
             province: {
                 name: string;
@@ -680,14 +678,14 @@ export declare const RentalPropertyList: z.ZodObject<{
                 id: number;
             } | null;
         };
+        units: number;
+        located: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     properties: {
         name: string;
         id: string;
         street: string | null;
-        located: boolean;
-        units: number;
         place: {
             province: {
                 name: string;
@@ -710,14 +708,14 @@ export declare const RentalPropertyList: z.ZodObject<{
                 id: number;
             } | null;
         };
+        units: number;
+        located: boolean;
     }[];
 }, {
     properties: {
         name: string;
         id: string;
         street: string | null;
-        located: boolean;
-        units: number;
         place: {
             province: {
                 name: string;
@@ -740,6 +738,8 @@ export declare const RentalPropertyList: z.ZodObject<{
                 id: number;
             } | null;
         };
+        units: number;
+        located: boolean;
     }[];
 }>;
 export type RentalPropertyList = z.infer<typeof RentalPropertyList>;
@@ -790,13 +790,13 @@ export declare const UnitPhotoView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     id: string;
     url: string;
-    position: number;
     caption: string | null;
+    position: number;
 }, {
     id: string;
     url: string;
-    position: number;
     caption: string | null;
+    position: number;
 }>;
 export type UnitPhotoView = z.infer<typeof UnitPhotoView>;
 export declare const UnitVideoView: z.ZodObject<{
@@ -810,17 +810,17 @@ export declare const UnitVideoView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     id: string;
     url: string;
+    updatedAt: string;
     posterUrl: string | null;
     durationS: number;
-    updatedAt: string;
     width: number | null;
     height: number | null;
 }, {
     id: string;
     url: string;
+    updatedAt: string;
     posterUrl: string | null;
     durationS: number;
-    updatedAt: string;
     width: number | null;
     height: number | null;
 }>;
@@ -838,13 +838,13 @@ export declare const UnitMediaView: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         url: string;
-        position: number;
         caption: string | null;
+        position: number;
     }, {
         id: string;
         url: string;
-        position: number;
         caption: string | null;
+        position: number;
     }>, "many">;
     video: z.ZodNullable<z.ZodObject<{
         id: z.ZodString;
@@ -857,17 +857,17 @@ export declare const UnitMediaView: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         url: string;
+        updatedAt: string;
         posterUrl: string | null;
         durationS: number;
-        updatedAt: string;
         width: number | null;
         height: number | null;
     }, {
         id: string;
         url: string;
+        updatedAt: string;
         posterUrl: string | null;
         durationS: number;
-        updatedAt: string;
         width: number | null;
         height: number | null;
     }>>;
@@ -876,15 +876,15 @@ export declare const UnitMediaView: z.ZodObject<{
     photos: {
         id: string;
         url: string;
-        position: number;
         caption: string | null;
+        position: number;
     }[];
     video: {
         id: string;
         url: string;
+        updatedAt: string;
         posterUrl: string | null;
         durationS: number;
-        updatedAt: string;
         width: number | null;
         height: number | null;
     } | null;
@@ -893,15 +893,15 @@ export declare const UnitMediaView: z.ZodObject<{
     photos: {
         id: string;
         url: string;
-        position: number;
         caption: string | null;
+        position: number;
     }[];
     video: {
         id: string;
         url: string;
+        updatedAt: string;
         posterUrl: string | null;
         durationS: number;
-        updatedAt: string;
         width: number | null;
         height: number | null;
     } | null;

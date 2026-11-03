@@ -646,6 +646,16 @@ export declare const HousekeepingBoard: z.ZodObject<{
         fromValue: string | null;
         toValue: string | null;
     }[];
+    staff: {
+        name: string;
+        id: string;
+        role: "supervisor" | "attendant";
+        userId: string;
+        section: string;
+        floors: number[];
+        shiftStartsAt: string;
+        shiftEndsAt: string;
+    }[];
     propertyName: string;
     escalations: {
         id: string;
@@ -657,16 +667,6 @@ export declare const HousekeepingBoard: z.ZodObject<{
         raisedAt: string;
         remindedAt: string | null;
         remindedByName: string | null;
-    }[];
-    staff: {
-        name: string;
-        id: string;
-        role: "supervisor" | "attendant";
-        userId: string;
-        section: string;
-        floors: number[];
-        shiftStartsAt: string;
-        shiftEndsAt: string;
     }[];
     rooms: {
         status: "available" | "maintenance" | "out_of_service";
@@ -739,6 +739,16 @@ export declare const HousekeepingBoard: z.ZodObject<{
         fromValue: string | null;
         toValue: string | null;
     }[];
+    staff: {
+        name: string;
+        id: string;
+        role: "supervisor" | "attendant";
+        userId: string;
+        section: string;
+        floors: number[];
+        shiftStartsAt: string;
+        shiftEndsAt: string;
+    }[];
     propertyName: string;
     escalations: {
         id: string;
@@ -750,16 +760,6 @@ export declare const HousekeepingBoard: z.ZodObject<{
         raisedAt: string;
         remindedAt: string | null;
         remindedByName: string | null;
-    }[];
-    staff: {
-        name: string;
-        id: string;
-        role: "supervisor" | "attendant";
-        userId: string;
-        section: string;
-        floors: number[];
-        shiftStartsAt: string;
-        shiftEndsAt: string;
     }[];
     rooms: {
         status: "available" | "maintenance" | "out_of_service";

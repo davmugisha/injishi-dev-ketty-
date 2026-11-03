@@ -499,8 +499,8 @@ export declare const EmployeeDocument: z.ZodObject<{
         jobPositionTitle: string | null;
     };
     title: string;
-    dueOn: string | null;
     updatedAt: string;
+    dueOn: string | null;
     requestId: string | null;
     rejectReason: string | null;
     remindDaysBefore: number | null;
@@ -525,8 +525,8 @@ export declare const EmployeeDocument: z.ZodObject<{
         jobPositionTitle: string | null;
     };
     title: string;
-    dueOn: string | null;
     updatedAt: string;
+    dueOn: string | null;
     requestId: string | null;
     rejectReason: string | null;
     remindDaysBefore: number | null;
@@ -602,8 +602,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         title: string;
-        dueOn: string | null;
         updatedAt: string;
+        dueOn: string | null;
         requestId: string | null;
         rejectReason: string | null;
         remindDaysBefore: number | null;
@@ -628,8 +628,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         title: string;
-        dueOn: string | null;
         updatedAt: string;
+        dueOn: string | null;
         requestId: string | null;
         rejectReason: string | null;
         remindDaysBefore: number | null;
@@ -656,8 +656,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         title: string;
-        dueOn: string | null;
         updatedAt: string;
+        dueOn: string | null;
         requestId: string | null;
         rejectReason: string | null;
         remindDaysBefore: number | null;
@@ -684,8 +684,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         title: string;
-        dueOn: string | null;
         updatedAt: string;
+        dueOn: string | null;
         requestId: string | null;
         rejectReason: string | null;
         remindDaysBefore: number | null;

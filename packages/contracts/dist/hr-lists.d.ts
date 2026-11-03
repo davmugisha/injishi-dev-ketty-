@@ -176,8 +176,8 @@ export declare const EmployeePage: z.ZodObject<{
         id: string;
         email: string | null;
         legalName: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         displayName: string;
         jobPositionTitle: string | null;
         view: "basic";
@@ -219,8 +219,8 @@ export declare const EmployeePage: z.ZodObject<{
         id: string;
         email: string | null;
         legalName: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         displayName: string;
         jobPositionTitle: string | null;
         view: "basic";
@@ -401,8 +401,8 @@ export declare const EmployeePage: z.ZodObject<{
         legalName: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         sex: "female" | "male" | null;
         displayName: string;
         jobPositionTitle: string | null;
@@ -469,8 +469,8 @@ export declare const EmployeePage: z.ZodObject<{
         legalName: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         sex: "female" | "male" | null;
         displayName: string;
         jobPositionTitle: string | null;
@@ -564,8 +564,8 @@ export declare const EmployeePage: z.ZodObject<{
         id: string;
         email: string | null;
         legalName: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         displayName: string;
         jobPositionTitle: string | null;
         view: "basic";
@@ -618,8 +618,8 @@ export declare const EmployeePage: z.ZodObject<{
         legalName: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         sex: "female" | "male" | null;
         displayName: string;
         jobPositionTitle: string | null;
@@ -693,8 +693,8 @@ export declare const EmployeePage: z.ZodObject<{
         id: string;
         email: string | null;
         legalName: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         displayName: string;
         jobPositionTitle: string | null;
         view: "basic";
@@ -747,8 +747,8 @@ export declare const EmployeePage: z.ZodObject<{
         legalName: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         sex: "female" | "male" | null;
         displayName: string;
         jobPositionTitle: string | null;

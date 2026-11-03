@@ -8,6 +8,7 @@ export * from "./code-input.tsx";
 export * from "./code-row.ts";
 export * from "./contact-fields.tsx";
 export * from "./countries.ts";
+export * from "./data-grid.tsx";
 export * from "./dashboard-period.ts";
 export * from "./data-table.tsx";
 export * from "./date.tsx";

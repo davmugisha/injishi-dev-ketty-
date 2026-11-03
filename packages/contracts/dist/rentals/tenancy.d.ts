@@ -61,14 +61,14 @@ export declare const TenancySignatureView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     role: "landlord" | "tenant";
     version: number;
-    signedAt: string;
     method: "email_code" | "password" | "legacy";
+    signedAt: string;
     typedName: string | null;
 }, {
     role: "landlord" | "tenant";
     version: number;
-    signedAt: string;
     method: "email_code" | "password" | "legacy";
+    signedAt: string;
     typedName: string | null;
 }>;
 export type TenancySignatureView = z.infer<typeof TenancySignatureView>;
@@ -454,14 +454,14 @@ export declare const TenancyDetail: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         role: "landlord" | "tenant";
         version: number;
-        signedAt: string;
         method: "email_code" | "password" | "legacy";
+        signedAt: string;
         typedName: string | null;
     }, {
         role: "landlord" | "tenant";
         version: number;
-        signedAt: string;
         method: "email_code" | "password" | "legacy";
+        signedAt: string;
         typedName: string | null;
     }>, "many">;
     /** Out for signature and the tenant has not signed yet: the lease page offers Sign. */
@@ -574,6 +574,7 @@ export declare const TenancyDetail: z.ZodObject<{
         phone: string | null;
     };
     createdAt: string;
+    updatedAt: string;
     charges: {
         balanceRwf: number;
         rentChargedRwf: number;
@@ -600,7 +601,6 @@ export declare const TenancyDetail: z.ZodObject<{
         otherTerms: string | null;
     };
     cancelReason: string | null;
-    cancelledAt: string | null;
     place: {
         province: string | null;
         district: string | null;
@@ -612,7 +612,7 @@ export declare const TenancyDetail: z.ZodObject<{
         unitLabel: string;
         blockCode: string | null;
     };
-    updatedAt: string;
+    cancelledAt: string | null;
     endedOn: string | null;
     currentVersion: {
         id: string;
@@ -624,8 +624,8 @@ export declare const TenancyDetail: z.ZodObject<{
     signatures: {
         role: "landlord" | "tenant";
         version: number;
-        signedAt: string;
         method: "email_code" | "password" | "legacy";
+        signedAt: string;
         typedName: string | null;
     }[];
     activatedAt: string | null;
@@ -657,6 +657,7 @@ export declare const TenancyDetail: z.ZodObject<{
         phone: string | null;
     };
     createdAt: string;
+    updatedAt: string;
     charges: {
         balanceRwf: number;
         rentChargedRwf: number;
@@ -683,7 +684,6 @@ export declare const TenancyDetail: z.ZodObject<{
         otherTerms: string | null;
     };
     cancelReason: string | null;
-    cancelledAt: string | null;
     place: {
         province: string | null;
         district: string | null;
@@ -695,7 +695,7 @@ export declare const TenancyDetail: z.ZodObject<{
         unitLabel: string;
         blockCode: string | null;
     };
-    updatedAt: string;
+    cancelledAt: string | null;
     endedOn: string | null;
     currentVersion: {
         id: string;
@@ -707,8 +707,8 @@ export declare const TenancyDetail: z.ZodObject<{
     signatures: {
         role: "landlord" | "tenant";
         version: number;
-        signedAt: string;
         method: "email_code" | "password" | "legacy";
+        signedAt: string;
         typedName: string | null;
     }[];
     activatedAt: string | null;

@@ -104,11 +104,11 @@ export declare const ListSortSchema: z.ZodObject<{
     field: z.ZodString;
     dir: z.ZodEnum<["asc", "desc"]>;
 }, "strip", z.ZodTypeAny, {
-    field: string;
     dir: "asc" | "desc";
+    field: string;
 }, {
-    field: string;
     dir: "asc" | "desc";
+    field: string;
 }>;
 export declare const LIST_PAGE_SIZES: readonly [10, 25, 50, 100];
 export declare const DEFAULT_PAGE_SIZE = 25;
@@ -134,19 +134,19 @@ export declare const ListQuery: z.ZodObject<{
         field: z.ZodString;
         dir: z.ZodEnum<["asc", "desc"]>;
     }, "strip", z.ZodTypeAny, {
-        field: string;
         dir: "asc" | "desc";
+        field: string;
     }, {
-        field: string;
         dir: "asc" | "desc";
+        field: string;
     }>, "many">>;
     groupBy: z.ZodOptional<z.ZodString>;
     page: z.ZodDefault<z.ZodNumber>;
     pageSize: z.ZodDefault<z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>>;
 }, "strip", z.ZodTypeAny, {
     sort: {
-        field: string;
         dir: "asc" | "desc";
+        field: string;
     }[];
     page: number;
     pageSize: 10 | 100 | 50 | 25;
@@ -159,8 +159,8 @@ export declare const ListQuery: z.ZodObject<{
     groupBy?: string | undefined;
 }, {
     sort?: {
-        field: string;
         dir: "asc" | "desc";
+        field: string;
     }[] | undefined;
     q?: string | undefined;
     page?: number | undefined;
@@ -356,11 +356,11 @@ export declare const SavedViewConfig: z.ZodObject<{
         field: z.ZodString;
         dir: z.ZodEnum<["asc", "desc"]>;
     }, "strip", z.ZodTypeAny, {
-        field: string;
         dir: "asc" | "desc";
+        field: string;
     }, {
-        field: string;
         dir: "asc" | "desc";
+        field: string;
     }>, "many">>;
     groupBy: z.ZodOptional<z.ZodString>;
     pageSize: z.ZodDefault<z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>>;
@@ -368,8 +368,8 @@ export declare const SavedViewConfig: z.ZodObject<{
     view: z.ZodDefault<z.ZodEnum<["list", "card", "kanban"]>>;
 }, "strip", z.ZodTypeAny, {
     sort: {
-        field: string;
         dir: "asc" | "desc";
+        field: string;
     }[];
     pageSize: 10 | 100 | 50 | 25;
     view: "card" | "list" | "kanban";
@@ -383,8 +383,8 @@ export declare const SavedViewConfig: z.ZodObject<{
     columns?: string[] | undefined;
 }, {
     sort?: {
-        field: string;
         dir: "asc" | "desc";
+        field: string;
     }[] | undefined;
     q?: string | undefined;
     pageSize?: 10 | 100 | 50 | 25 | undefined;
@@ -422,11 +422,11 @@ export declare const SavedView: z.ZodObject<{
             field: z.ZodString;
             dir: z.ZodEnum<["asc", "desc"]>;
         }, "strip", z.ZodTypeAny, {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }, {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }>, "many">>;
         groupBy: z.ZodOptional<z.ZodString>;
         pageSize: z.ZodDefault<z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>>;
@@ -434,8 +434,8 @@ export declare const SavedView: z.ZodObject<{
         view: z.ZodDefault<z.ZodEnum<["list", "card", "kanban"]>>;
     }, "strip", z.ZodTypeAny, {
         sort: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[];
         pageSize: 10 | 100 | 50 | 25;
         view: "card" | "list" | "kanban";
@@ -449,8 +449,8 @@ export declare const SavedView: z.ZodObject<{
         columns?: string[] | undefined;
     }, {
         sort?: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[] | undefined;
         q?: string | undefined;
         pageSize?: 10 | 100 | 50 | 25 | undefined;
@@ -474,8 +474,8 @@ export declare const SavedView: z.ZodObject<{
     shared: boolean;
     config: {
         sort: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[];
         pageSize: 10 | 100 | 50 | 25;
         view: "card" | "list" | "kanban";
@@ -489,18 +489,18 @@ export declare const SavedView: z.ZodObject<{
         columns?: string[] | undefined;
     };
     authorName: string | null;
+    updatedAt: string;
     isDefault: boolean;
     listKey: string;
     mine: boolean;
-    updatedAt: string;
 }, {
     name: string;
     id: string;
     shared: boolean;
     config: {
         sort?: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[] | undefined;
         q?: string | undefined;
         pageSize?: 10 | 100 | 50 | 25 | undefined;
@@ -514,10 +514,10 @@ export declare const SavedView: z.ZodObject<{
         columns?: string[] | undefined;
     };
     authorName: string | null;
+    updatedAt: string;
     isDefault: boolean;
     listKey: string;
     mine: boolean;
-    updatedAt: string;
 }>;
 export type SavedView = z.infer<typeof SavedView>;
 export declare const SavedViewList: z.ZodObject<{
@@ -545,11 +545,11 @@ export declare const SavedViewList: z.ZodObject<{
                 field: z.ZodString;
                 dir: z.ZodEnum<["asc", "desc"]>;
             }, "strip", z.ZodTypeAny, {
-                field: string;
                 dir: "asc" | "desc";
+                field: string;
             }, {
-                field: string;
                 dir: "asc" | "desc";
+                field: string;
             }>, "many">>;
             groupBy: z.ZodOptional<z.ZodString>;
             pageSize: z.ZodDefault<z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>>;
@@ -557,8 +557,8 @@ export declare const SavedViewList: z.ZodObject<{
             view: z.ZodDefault<z.ZodEnum<["list", "card", "kanban"]>>;
         }, "strip", z.ZodTypeAny, {
             sort: {
-                field: string;
                 dir: "asc" | "desc";
+                field: string;
             }[];
             pageSize: 10 | 100 | 50 | 25;
             view: "card" | "list" | "kanban";
@@ -572,8 +572,8 @@ export declare const SavedViewList: z.ZodObject<{
             columns?: string[] | undefined;
         }, {
             sort?: {
-                field: string;
                 dir: "asc" | "desc";
+                field: string;
             }[] | undefined;
             q?: string | undefined;
             pageSize?: 10 | 100 | 50 | 25 | undefined;
@@ -597,8 +597,8 @@ export declare const SavedViewList: z.ZodObject<{
         shared: boolean;
         config: {
             sort: {
-                field: string;
                 dir: "asc" | "desc";
+                field: string;
             }[];
             pageSize: 10 | 100 | 50 | 25;
             view: "card" | "list" | "kanban";
@@ -612,18 +612,18 @@ export declare const SavedViewList: z.ZodObject<{
             columns?: string[] | undefined;
         };
         authorName: string | null;
+        updatedAt: string;
         isDefault: boolean;
         listKey: string;
         mine: boolean;
-        updatedAt: string;
     }, {
         name: string;
         id: string;
         shared: boolean;
         config: {
             sort?: {
-                field: string;
                 dir: "asc" | "desc";
+                field: string;
             }[] | undefined;
             q?: string | undefined;
             pageSize?: 10 | 100 | 50 | 25 | undefined;
@@ -637,10 +637,10 @@ export declare const SavedViewList: z.ZodObject<{
             columns?: string[] | undefined;
         };
         authorName: string | null;
+        updatedAt: string;
         isDefault: boolean;
         listKey: string;
         mine: boolean;
-        updatedAt: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     views: {
@@ -649,8 +649,8 @@ export declare const SavedViewList: z.ZodObject<{
         shared: boolean;
         config: {
             sort: {
-                field: string;
                 dir: "asc" | "desc";
+                field: string;
             }[];
             pageSize: 10 | 100 | 50 | 25;
             view: "card" | "list" | "kanban";
@@ -664,10 +664,10 @@ export declare const SavedViewList: z.ZodObject<{
             columns?: string[] | undefined;
         };
         authorName: string | null;
+        updatedAt: string;
         isDefault: boolean;
         listKey: string;
         mine: boolean;
-        updatedAt: string;
     }[];
 }, {
     views: {
@@ -676,8 +676,8 @@ export declare const SavedViewList: z.ZodObject<{
         shared: boolean;
         config: {
             sort?: {
-                field: string;
                 dir: "asc" | "desc";
+                field: string;
             }[] | undefined;
             q?: string | undefined;
             pageSize?: 10 | 100 | 50 | 25 | undefined;
@@ -691,10 +691,10 @@ export declare const SavedViewList: z.ZodObject<{
             columns?: string[] | undefined;
         };
         authorName: string | null;
+        updatedAt: string;
         isDefault: boolean;
         listKey: string;
         mine: boolean;
-        updatedAt: string;
     }[];
 }>;
 export type SavedViewList = z.infer<typeof SavedViewList>;
@@ -721,11 +721,11 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
             field: z.ZodString;
             dir: z.ZodEnum<["asc", "desc"]>;
         }, "strip", z.ZodTypeAny, {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }, {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }>, "many">>;
         groupBy: z.ZodOptional<z.ZodString>;
         pageSize: z.ZodDefault<z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>>;
@@ -733,8 +733,8 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
         view: z.ZodDefault<z.ZodEnum<["list", "card", "kanban"]>>;
     }, "strip", z.ZodTypeAny, {
         sort: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[];
         pageSize: 10 | 100 | 50 | 25;
         view: "card" | "list" | "kanban";
@@ -748,8 +748,8 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
         columns?: string[] | undefined;
     }, {
         sort?: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[] | undefined;
         q?: string | undefined;
         pageSize?: 10 | 100 | 50 | 25 | undefined;
@@ -769,8 +769,8 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
     shared: boolean;
     config: {
         sort: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[];
         pageSize: 10 | 100 | 50 | 25;
         view: "card" | "list" | "kanban";
@@ -789,8 +789,8 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
     name: string;
     config: {
         sort?: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[] | undefined;
         q?: string | undefined;
         pageSize?: 10 | 100 | 50 | 25 | undefined;
@@ -830,11 +830,11 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             field: z.ZodString;
             dir: z.ZodEnum<["asc", "desc"]>;
         }, "strip", z.ZodTypeAny, {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }, {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }>, "many">>;
         groupBy: z.ZodOptional<z.ZodString>;
         pageSize: z.ZodDefault<z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>>;
@@ -842,8 +842,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
         view: z.ZodDefault<z.ZodEnum<["list", "card", "kanban"]>>;
     }, "strip", z.ZodTypeAny, {
         sort: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[];
         pageSize: 10 | 100 | 50 | 25;
         view: "card" | "list" | "kanban";
@@ -857,8 +857,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
         columns?: string[] | undefined;
     }, {
         sort?: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[] | undefined;
         q?: string | undefined;
         pageSize?: 10 | 100 | 50 | 25 | undefined;
@@ -878,8 +878,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
     shared?: boolean | undefined;
     config?: {
         sort: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[];
         pageSize: 10 | 100 | 50 | 25;
         view: "card" | "list" | "kanban";
@@ -898,8 +898,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
     shared?: boolean | undefined;
     config?: {
         sort?: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[] | undefined;
         q?: string | undefined;
         pageSize?: 10 | 100 | 50 | 25 | undefined;
@@ -918,8 +918,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
     shared?: boolean | undefined;
     config?: {
         sort: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[];
         pageSize: 10 | 100 | 50 | 25;
         view: "card" | "list" | "kanban";
@@ -938,8 +938,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
     shared?: boolean | undefined;
     config?: {
         sort?: {
-            field: string;
             dir: "asc" | "desc";
+            field: string;
         }[] | undefined;
         q?: string | undefined;
         pageSize?: 10 | 100 | 50 | 25 | undefined;

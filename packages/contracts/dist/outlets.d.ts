@@ -256,12 +256,12 @@ export declare const OutletTenancySummary: z.ZodObject<{
     hostPropertyId: z.ZodString;
     tenantOrgId: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    status: "active" | "ended" | "requested" | "invited";
+    status: "active" | "invited" | "ended" | "requested";
     id: string;
     hostPropertyId: string;
     tenantOrgId: string;
 }, {
-    status: "active" | "ended" | "requested" | "invited";
+    status: "active" | "invited" | "ended" | "requested";
     id: string;
     hostPropertyId: string;
     tenantOrgId: string;
@@ -340,12 +340,12 @@ export declare const OperatorOutlet: z.ZodObject<{
         hostPropertyId: z.ZodString;
         tenantOrgId: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        status: "active" | "ended" | "requested" | "invited";
+        status: "active" | "invited" | "ended" | "requested";
         id: string;
         hostPropertyId: string;
         tenantOrgId: string;
     }, {
-        status: "active" | "ended" | "requested" | "invited";
+        status: "active" | "invited" | "ended" | "requested";
         id: string;
         hostPropertyId: string;
         tenantOrgId: string;
@@ -372,7 +372,7 @@ export declare const OperatorOutlet: z.ZodObject<{
     amenityCode: string | null;
     departmentId: string;
     guestVisible: boolean;
-    outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
+    outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
     orderingAccess: "both" | "in_house_only" | "walk_in_only";
     hours: Record<string, unknown> | null;
     relationshipType: "franchise" | "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "revenue_share";
@@ -388,7 +388,7 @@ export declare const OperatorOutlet: z.ZodObject<{
     } | null;
     taxEntityOrgId: string;
     tenancy: {
-        status: "active" | "ended" | "requested" | "invited";
+        status: "active" | "invited" | "ended" | "requested";
         id: string;
         hostPropertyId: string;
         tenantOrgId: string;
@@ -414,7 +414,7 @@ export declare const OperatorOutlet: z.ZodObject<{
     amenityCode: string | null;
     departmentId: string;
     guestVisible: boolean;
-    outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
+    outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
     orderingAccess: "both" | "in_house_only" | "walk_in_only";
     hours: Record<string, unknown> | null;
     relationshipType: "franchise" | "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "revenue_share";
@@ -430,7 +430,7 @@ export declare const OperatorOutlet: z.ZodObject<{
     } | null;
     taxEntityOrgId: string;
     tenancy: {
-        status: "active" | "ended" | "requested" | "invited";
+        status: "active" | "invited" | "ended" | "requested";
         id: string;
         hostPropertyId: string;
         tenantOrgId: string;
@@ -512,12 +512,12 @@ export declare const OperatorOutletList: z.ZodObject<{
             hostPropertyId: z.ZodString;
             tenantOrgId: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            status: "active" | "ended" | "requested" | "invited";
+            status: "active" | "invited" | "ended" | "requested";
             id: string;
             hostPropertyId: string;
             tenantOrgId: string;
         }, {
-            status: "active" | "ended" | "requested" | "invited";
+            status: "active" | "invited" | "ended" | "requested";
             id: string;
             hostPropertyId: string;
             tenantOrgId: string;
@@ -544,7 +544,7 @@ export declare const OperatorOutletList: z.ZodObject<{
         amenityCode: string | null;
         departmentId: string;
         guestVisible: boolean;
-        outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
+        outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         relationshipType: "franchise" | "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "revenue_share";
@@ -560,7 +560,7 @@ export declare const OperatorOutletList: z.ZodObject<{
         } | null;
         taxEntityOrgId: string;
         tenancy: {
-            status: "active" | "ended" | "requested" | "invited";
+            status: "active" | "invited" | "ended" | "requested";
             id: string;
             hostPropertyId: string;
             tenantOrgId: string;
@@ -586,7 +586,7 @@ export declare const OperatorOutletList: z.ZodObject<{
         amenityCode: string | null;
         departmentId: string;
         guestVisible: boolean;
-        outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
+        outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         relationshipType: "franchise" | "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "revenue_share";
@@ -602,7 +602,7 @@ export declare const OperatorOutletList: z.ZodObject<{
         } | null;
         taxEntityOrgId: string;
         tenancy: {
-            status: "active" | "ended" | "requested" | "invited";
+            status: "active" | "invited" | "ended" | "requested";
             id: string;
             hostPropertyId: string;
             tenantOrgId: string;
@@ -636,7 +636,7 @@ export declare const OperatorOutletList: z.ZodObject<{
         amenityCode: string | null;
         departmentId: string;
         guestVisible: boolean;
-        outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
+        outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         relationshipType: "franchise" | "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "revenue_share";
@@ -652,7 +652,7 @@ export declare const OperatorOutletList: z.ZodObject<{
         } | null;
         taxEntityOrgId: string;
         tenancy: {
-            status: "active" | "ended" | "requested" | "invited";
+            status: "active" | "invited" | "ended" | "requested";
             id: string;
             hostPropertyId: string;
             tenantOrgId: string;
@@ -681,7 +681,7 @@ export declare const OperatorOutletList: z.ZodObject<{
         amenityCode: string | null;
         departmentId: string;
         guestVisible: boolean;
-        outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
+        outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         relationshipType: "franchise" | "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "revenue_share";
@@ -697,7 +697,7 @@ export declare const OperatorOutletList: z.ZodObject<{
         } | null;
         taxEntityOrgId: string;
         tenancy: {
-            status: "active" | "ended" | "requested" | "invited";
+            status: "active" | "invited" | "ended" | "requested";
             id: string;
             hostPropertyId: string;
             tenantOrgId: string;
@@ -769,7 +769,7 @@ export declare const CreateOutletRequest: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     departmentId: string;
-    outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
+    outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
     orderingAccess: "both" | "in_house_only" | "walk_in_only";
     relationshipType: "franchise" | "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "revenue_share";
     address?: {
@@ -798,7 +798,7 @@ export declare const CreateOutletRequest: z.ZodObject<{
 }, {
     name: string;
     departmentId: string;
-    outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
+    outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
     address?: {
         lat: number;
         lng: number;
@@ -901,7 +901,7 @@ export declare const UpdateOutletRequest: z.ZodEffects<z.ZodObject<{
     amenityCode?: string | null | undefined;
     departmentId?: string | undefined;
     guestVisible?: boolean | undefined;
-    outletKind?: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center" | undefined;
+    outletKind?: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center" | undefined;
     orderingAccess?: "both" | "in_house_only" | "walk_in_only" | undefined;
     hours?: {
         sun?: [string, string] | [string, string][] | undefined;
@@ -929,7 +929,7 @@ export declare const UpdateOutletRequest: z.ZodEffects<z.ZodObject<{
     amenityCode?: string | null | undefined;
     departmentId?: string | undefined;
     guestVisible?: boolean | undefined;
-    outletKind?: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center" | undefined;
+    outletKind?: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center" | undefined;
     orderingAccess?: "both" | "in_house_only" | "walk_in_only" | undefined;
     hours?: {
         sun?: [string, string] | [string, string][] | undefined;
@@ -957,7 +957,7 @@ export declare const UpdateOutletRequest: z.ZodEffects<z.ZodObject<{
     amenityCode?: string | null | undefined;
     departmentId?: string | undefined;
     guestVisible?: boolean | undefined;
-    outletKind?: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center" | undefined;
+    outletKind?: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center" | undefined;
     orderingAccess?: "both" | "in_house_only" | "walk_in_only" | undefined;
     hours?: {
         sun?: [string, string] | [string, string][] | undefined;
@@ -985,7 +985,7 @@ export declare const UpdateOutletRequest: z.ZodEffects<z.ZodObject<{
     amenityCode?: string | null | undefined;
     departmentId?: string | undefined;
     guestVisible?: boolean | undefined;
-    outletKind?: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center" | undefined;
+    outletKind?: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center" | undefined;
     orderingAccess?: "both" | "in_house_only" | "walk_in_only" | undefined;
     hours?: {
         sun?: [string, string] | [string, string][] | undefined;
@@ -1026,14 +1026,14 @@ export declare const FacilityOutlet: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     id: string;
-    outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
+    outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
     orderingAccess: "both" | "in_house_only" | "walk_in_only";
     hours: Record<string, unknown> | null;
     operatorLabel: string | null;
 }, {
     name: string;
     id: string;
-    outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
+    outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
     orderingAccess: "both" | "in_house_only" | "walk_in_only";
     hours: Record<string, unknown> | null;
     operatorLabel: string | null;
@@ -1070,14 +1070,14 @@ export declare const PropertyFacility: z.ZodEffects<z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string;
         id: string;
-        outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
+        outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         operatorLabel: string | null;
     }, {
         name: string;
         id: string;
-        outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
+        outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         operatorLabel: string | null;
@@ -1092,7 +1092,7 @@ export declare const PropertyFacility: z.ZodEffects<z.ZodObject<{
     outlet: {
         name: string;
         id: string;
-        outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
+        outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         operatorLabel: string | null;
@@ -1107,7 +1107,7 @@ export declare const PropertyFacility: z.ZodEffects<z.ZodObject<{
     outlet: {
         name: string;
         id: string;
-        outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
+        outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         operatorLabel: string | null;
@@ -1122,7 +1122,7 @@ export declare const PropertyFacility: z.ZodEffects<z.ZodObject<{
     outlet: {
         name: string;
         id: string;
-        outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
+        outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         operatorLabel: string | null;
@@ -1137,7 +1137,7 @@ export declare const PropertyFacility: z.ZodEffects<z.ZodObject<{
     outlet: {
         name: string;
         id: string;
-        outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
+        outletKind: "other" | "pool" | "restaurant" | "parking" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "gift_shop" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         operatorLabel: string | null;

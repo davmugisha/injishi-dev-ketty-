@@ -386,6 +386,7 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
         cellId?: number | undefined;
         villageId?: number | undefined;
     };
+    associationCode: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
     ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
@@ -403,16 +404,15 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
         };
     }[];
     registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-    associationCode: string;
     ownerGroups: ("women" | "youth" | "pwd")[];
+    associationOther?: string | undefined;
+    subsectorId?: string | undefined;
+    subsectorOther?: string | undefined;
     website?: string | undefined;
     ownershipOther?: string | undefined;
     tradeGoods?: string | undefined;
     tin?: string | undefined;
     registrationNumber?: string | undefined;
-    subsectorId?: string | undefined;
-    subsectorOther?: string | undefined;
-    associationOther?: string | undefined;
     logoObjectKey?: string | undefined;
 }, {
     address: {
@@ -423,13 +423,16 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
         villageId?: number | undefined;
         street?: string | undefined;
     };
+    associationCode: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
     ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     legalName: string;
     registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-    associationCode: string;
+    associationOther?: string | undefined;
+    subsectorId?: string | undefined;
+    subsectorOther?: string | undefined;
     website?: string | undefined;
     ownershipOther?: string | undefined;
     tradeGoods?: string | undefined;
@@ -447,9 +450,6 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
     }[] | undefined;
     registrationNumber?: string | undefined;
     ownerGroups?: ("women" | "youth" | "pwd")[] | undefined;
-    subsectorId?: string | undefined;
-    subsectorOther?: string | undefined;
-    associationOther?: string | undefined;
     logoObjectKey?: string | undefined;
 }>, {
     address: {
@@ -460,6 +460,7 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
         cellId?: number | undefined;
         villageId?: number | undefined;
     };
+    associationCode: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
     ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
@@ -477,16 +478,15 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
         };
     }[];
     registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-    associationCode: string;
     ownerGroups: ("women" | "youth" | "pwd")[];
+    associationOther?: string | undefined;
+    subsectorId?: string | undefined;
+    subsectorOther?: string | undefined;
     website?: string | undefined;
     ownershipOther?: string | undefined;
     tradeGoods?: string | undefined;
     tin?: string | undefined;
     registrationNumber?: string | undefined;
-    subsectorId?: string | undefined;
-    subsectorOther?: string | undefined;
-    associationOther?: string | undefined;
     logoObjectKey?: string | undefined;
 }, {
     address: {
@@ -497,13 +497,16 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
         villageId?: number | undefined;
         street?: string | undefined;
     };
+    associationCode: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
     ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     legalName: string;
     registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-    associationCode: string;
+    associationOther?: string | undefined;
+    subsectorId?: string | undefined;
+    subsectorOther?: string | undefined;
     website?: string | undefined;
     ownershipOther?: string | undefined;
     tradeGoods?: string | undefined;
@@ -521,9 +524,6 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
     }[] | undefined;
     registrationNumber?: string | undefined;
     ownerGroups?: ("women" | "youth" | "pwd")[] | undefined;
-    subsectorId?: string | undefined;
-    subsectorOther?: string | undefined;
-    associationOther?: string | undefined;
     logoObjectKey?: string | undefined;
 }>;
 export type PsfPublicBusiness = z.infer<typeof PsfPublicBusiness>;
@@ -678,6 +678,7 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
             cellId?: number | undefined;
             villageId?: number | undefined;
         };
+        associationCode: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
@@ -695,16 +696,15 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
             };
         }[];
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-        associationCode: string;
         ownerGroups: ("women" | "youth" | "pwd")[];
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tin?: string | undefined;
         registrationNumber?: string | undefined;
-        subsectorId?: string | undefined;
-        subsectorOther?: string | undefined;
-        associationOther?: string | undefined;
         logoObjectKey?: string | undefined;
     }, {
         address: {
@@ -715,13 +715,16 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
+        associationCode: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         legalName: string;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-        associationCode: string;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
@@ -739,9 +742,6 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         }[] | undefined;
         registrationNumber?: string | undefined;
         ownerGroups?: ("women" | "youth" | "pwd")[] | undefined;
-        subsectorId?: string | undefined;
-        subsectorOther?: string | undefined;
-        associationOther?: string | undefined;
         logoObjectKey?: string | undefined;
     }>, {
         address: {
@@ -752,6 +752,7 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
             cellId?: number | undefined;
             villageId?: number | undefined;
         };
+        associationCode: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
@@ -769,16 +770,15 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
             };
         }[];
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-        associationCode: string;
         ownerGroups: ("women" | "youth" | "pwd")[];
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tin?: string | undefined;
         registrationNumber?: string | undefined;
-        subsectorId?: string | undefined;
-        subsectorOther?: string | undefined;
-        associationOther?: string | undefined;
         logoObjectKey?: string | undefined;
     }, {
         address: {
@@ -789,13 +789,16 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
+        associationCode: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         legalName: string;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-        associationCode: string;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
@@ -813,9 +816,6 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         }[] | undefined;
         registrationNumber?: string | undefined;
         ownerGroups?: ("women" | "youth" | "pwd")[] | undefined;
-        subsectorId?: string | undefined;
-        subsectorOther?: string | undefined;
-        associationOther?: string | undefined;
         logoObjectKey?: string | undefined;
     }>;
     membership: z.ZodObject<{
@@ -876,6 +876,7 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
             cellId?: number | undefined;
             villageId?: number | undefined;
         };
+        associationCode: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
@@ -893,16 +894,15 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
             };
         }[];
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-        associationCode: string;
         ownerGroups: ("women" | "youth" | "pwd")[];
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tin?: string | undefined;
         registrationNumber?: string | undefined;
-        subsectorId?: string | undefined;
-        subsectorOther?: string | undefined;
-        associationOther?: string | undefined;
         logoObjectKey?: string | undefined;
     };
     consent: true;
@@ -930,13 +930,16 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
+        associationCode: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         legalName: string;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-        associationCode: string;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
@@ -954,9 +957,6 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         }[] | undefined;
         registrationNumber?: string | undefined;
         ownerGroups?: ("women" | "youth" | "pwd")[] | undefined;
-        subsectorId?: string | undefined;
-        subsectorOther?: string | undefined;
-        associationOther?: string | undefined;
         logoObjectKey?: string | undefined;
     };
     consent: true;
@@ -984,6 +984,7 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
             cellId?: number | undefined;
             villageId?: number | undefined;
         };
+        associationCode: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
@@ -1001,16 +1002,15 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
             };
         }[];
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-        associationCode: string;
         ownerGroups: ("women" | "youth" | "pwd")[];
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tin?: string | undefined;
         registrationNumber?: string | undefined;
-        subsectorId?: string | undefined;
-        subsectorOther?: string | undefined;
-        associationOther?: string | undefined;
         logoObjectKey?: string | undefined;
     };
     consent: true;
@@ -1038,13 +1038,16 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
             villageId?: number | undefined;
             street?: string | undefined;
         };
+        associationCode: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         legalName: string;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
-        associationCode: string;
+        associationOther?: string | undefined;
+        subsectorId?: string | undefined;
+        subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
@@ -1062,9 +1065,6 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         }[] | undefined;
         registrationNumber?: string | undefined;
         ownerGroups?: ("women" | "youth" | "pwd")[] | undefined;
-        subsectorId?: string | undefined;
-        subsectorOther?: string | undefined;
-        associationOther?: string | undefined;
         logoObjectKey?: string | undefined;
     };
     consent: true;

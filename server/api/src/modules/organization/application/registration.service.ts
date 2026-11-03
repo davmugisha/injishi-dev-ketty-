@@ -484,12 +484,28 @@ export class RegistrationService {
     // THE PSF PATH: the sector a business names must still be on PSF's list,
     // read before anything is written like a tier is. A hotel is filed under
     // PSF's hospitality association by default, while PSF lists one.
+    // A hotel applying to PSF names its sector, kind of business and association, as the PSF form asks
+    // (2026-11-03); without them it is filed under the hospitality association.
+    const picked = b.domain === 'hospitality' ? b.psfApplication : undefined;
+    const pickedAssociation = picked?.associationCode ? await this.psf.associationForRegistration(picked.associationCode) : null;
+    if (pickedAssociation && picked?.subsectorId) {
+      await this.psf.subsectorForRegistration(picked.subsectorId, pickedAssociation.clusterCode, b.address.districtId);
+    }
     const psfAssociationCode =
       b.domain === 'enterprise'
         ? (await this.psf.associationForRegistration(b.associationCode)).code
-        : b.domain === 'hospitality' && (await this.psf.associationOffered(HOTEL_ASSOCIATION))
-          ? HOTEL_ASSOCIATION
-          : null;
+        : pickedAssociation
+          ? pickedAssociation.code
+          : b.domain === 'hospitality' && (await this.psf.associationOffered(HOTEL_ASSOCIATION))
+            ? HOTEL_ASSOCIATION
+            : null;
+    const psfPicks = pickedAssociation
+      ? {
+          psfAssociationOther: picked?.associationOther ?? null,
+          psfSubsectorId: picked?.subsectorId ?? null,
+          psfSubsectorOther: picked?.subsectorOther ?? null,
+        }
+      : {};
 
     // ADR-056 AC-6: an application a No carries is filed in the create
     // transaction below, so the form someone filled cannot be lost between
@@ -500,8 +516,14 @@ export class RegistrationService {
         ? {
             tier: await this.psf.tierForFiling(b.psfApplication.requestedTierCode),
             // After `profiles.save` above, so a first-time registrant's
-            // document is already on file for "use the one on file".
-            form: await this.psf.withIdDocument(b.psfApplication, registrantUserId),
+            // document is already on file for "use the one on file", and the
+            // contact person You saved fills the rest (2026-11-03).
+            form: await this.psf.completeForm(
+              await this.psf.withIdDocument(b.psfApplication, registrantUserId),
+              registrantUserId,
+              { legalName: b.legalName, street: b.address.street ?? null },
+              ['business', 'psfApplication'],
+            ),
             tin: b.tin,
           }
         : null;
@@ -577,6 +599,7 @@ export class RegistrationService {
         tin,
         upi: b.domain === 'hospitality' ? (b.upi ?? null) : b.domain === 'residence' ? b.upi : null,
         psfAssociationCode,
+        ...psfPicks,
         ownerGroups: b.domain === 'enterprise' ? b.ownerGroups : [],
         registrationKind: b.domain === 'enterprise' ? b.registrationKind : null,
         registrationNumber:
