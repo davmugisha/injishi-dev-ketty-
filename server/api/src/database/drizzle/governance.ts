@@ -14,6 +14,7 @@ import {
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -36,6 +37,63 @@ export const adminUsers = pgTable('admin_users', {
   ...timestamps,
 });
 
+
+/**
+ * Custom staff roles (migration 0125, 2026-11-02): a named bundle of the staff
+ * permissions defined in `@injishi/contracts`. The permissions stay code; a
+ * row only chooses among them, and the reserved five are refused by a CHECK.
+ */
+export const staffCustomRoles = pgTable('staff_custom_roles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  key: text('key').notNull(),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  createdByUserId: uuid('created_by_user_id').references(() => users.id),
+  updatedByUserId: uuid('updated_by_user_id').references(() => users.id),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+  archivedByUserId: uuid('archived_by_user_id').references(() => users.id),
+  ...timestamps,
+});
+
+export const staffCustomRolePermissions = pgTable(
+  'staff_custom_role_permissions',
+  {
+    roleId: uuid('role_id')
+      .notNull()
+      .references(() => staffCustomRoles.id, { onDelete: 'cascade' }),
+    permission: text('permission').notNull(),
+  },
+  (t) => [primaryKey({ name: 'staff_custom_role_permissions_pk', columns: [t.roleId, t.permission] })],
+);
+
+/** Who holds which custom role. A revoked row stays, for the trail. */
+export const userStaffCustomRoles = pgTable('user_staff_custom_roles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  roleId: uuid('role_id')
+    .notNull()
+    .references(() => staffCustomRoles.id),
+  grantedByUserId: uuid('granted_by_user_id').references(() => users.id),
+  grantedAt: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  revokedByUserId: uuid('revoked_by_user_id').references(() => users.id),
+});
+
+/** An account that may not sign in, while `lifted_at` is null (migration 0125). */
+export const userSuspensions = pgTable('user_suspensions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  suspendedAt: timestamp('suspended_at', { withTimezone: true }).notNull().defaultNow(),
+  suspendedByUserId: uuid('suspended_by_user_id').references(() => users.id),
+  reason: text('reason').notNull(),
+  liftedAt: timestamp('lifted_at', { withTimezone: true }),
+  liftedByUserId: uuid('lifted_by_user_id').references(() => users.id),
+  liftReason: text('lift_reason'),
+});
 
 export const auditEvents = pgTable(
   'audit_events',

@@ -2,9 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdminOrgSubscription = exports.AdminInvoice = exports.AdminOrgPropertiesResponse = exports.AdminOrgProperty = exports.AdminOrgPeopleResponse = exports.AdminOrgMember = exports.AdminOrgDetail = exports.AdminOboListResponse = exports.AdminOboRow = exports.AdminOrgReviewQueueResponse = exports.AdminOrgReviewItem = exports.ReviewCoverage = exports.AdminOrgListResponse = exports.AdminOrgListQuery = exports.AdminOrgRow = exports.AdminOverview = exports.AdminQueueHealth = exports.AdminAdapterHealth = exports.AdminWorkQueueItem = exports.AdminDistrictDensity = exports.AdminRevenueLine = exports.AdminKpi = exports.AdminListMeta = exports.AdminKycState = exports.AdminTranslationStatus = exports.AdminAnnouncementState = exports.AdminEscalationState = exports.AdminEscalationType = exports.AdminEscalationSubjectType = exports.AdminSupportTicketState = exports.AdminDsrState = exports.AdminDsrRequestType = exports.AdminComplianceArtifactType = exports.AdminFlagScope = exports.AdminLedgerTxnKind = exports.AdminPlanBillingPeriod = exports.AdminPayoutStatus = exports.AdminInvoiceKind = exports.AdminInvoiceStatus = exports.AdminSubscriptionStatus = exports.AdminRegistrationBusinessType = exports.AdminRegistrationRejectionReason = exports.AdminRegistrationReviewDecision = exports.AdminOboClaimStatus = exports.AdminPlacementStatus = exports.AdminBrokerStatus = exports.AdminRecordDataClass = exports.AdminAuditSubjectType = exports.AdminAdapterStatus = exports.AdminAdapterName = void 0;
 exports.AdminSavedScope = exports.AdminAnalyticsSeries = exports.AdminAnnouncementResponse = exports.AdminAnnouncement = exports.AdminModeration = exports.AdminEscalation = exports.AdminSupportTicketDetail = exports.AdminSupportTicket = exports.AdminModeratedReview = exports.AdminEnvironments = exports.AdminSystemHealth = exports.AdminCompliance = exports.AdminDsrRow = exports.AdminComplianceArtifact = exports.AdminFeeSchedule = exports.AdminSubscriptionPlan = exports.AdminRegistrationFee = exports.AdminConfiguration = exports.AdminFeatureFlag = exports.AdminConfigEntry = exports.AdminReconRunResponse = exports.AdminReconRun = exports.AdminFailedChargeResponse = exports.AdminFailedCharge = exports.AdminPayoutResponse = exports.AdminPayoutQuery = exports.AdminLedgerResponse = exports.AdminRevealListResponse = exports.AdminRevealEvent = exports.AdminBrokerListResponse = exports.AdminBrokerRow = exports.AdminUnclaimedStaysResponse = exports.AdminUnclaimedStay = exports.AdminUserListResponse = exports.AdminUserListQuery = exports.AdminUserRow = exports.CreateOversightGrantRequest = exports.AdminOversightGrant = exports.AdminUserMembership = exports.AdminOboAuditResponse = exports.AdminAccessLogResponse = exports.AdminAccessLogRow = exports.AdminAuditResponse = exports.AdminAuditQuery = exports.AdminAuditRow = exports.AdminOrgTimelineResponse = exports.AdminTimelineEvent = exports.AdminOrgMoney = exports.AdminLedgerRow = exports.AdminPayout = void 0;
-exports.AdminClaimCodeReissued = exports.AdminSessionsRevoked = exports.AdminBrokerStatusChange = exports.AdminTinRecheckResult = exports.AdminOrgStatusChange = exports.AdminClaimCode = exports.AdminTinCheckResult = exports.UpdateGovernmentBodyRequest = exports.CreateGovernmentBodyRequest = exports.GovernmentBody = exports.AppendRegistrationFeeRequest = exports.AdminMemberChange = exports.AdminChangeMemberRoleRequest = exports.AdminAddMemberRequest = exports.AdminStaffRolesResponse = exports.AdminSetStaffRolesRequest = exports.AdminCreateUserResponse = exports.AdminCreateUserRequest = exports.AdminPersonDetail = exports.AdminActionRequest = exports.AdminPagedReasonQuery = exports.AdminReasonQuery = exports.AdminLocalization = exports.AdminEmailTemplate = exports.AdminTranslationEntry = exports.AdminAnalytics = void 0;
+exports.AdminActivityResponse = exports.AdminActivityItem = exports.AdminSessionEnded = exports.AdminSignInsResponse = exports.AdminDevice = exports.AdminSignIn = exports.AdminInvitationResent = exports.AdminSuspensionChange = exports.AdminCustomRoleAssignment = exports.AdminAssignCustomRoleRequest = exports.AdminRoleHolders = exports.AdminRoleHolder = exports.AdminCustomRoleChange = exports.AdminUpdateCustomRoleRequest = exports.AdminCreateCustomRoleRequest = exports.AdminStaffRoleCatalog = exports.AdminBuiltInRole = exports.AdminCustomRole = exports.AdminInitialGrant = exports.AdminDisplayPhone = exports.AdminAccountKind = exports.AdminAccountStatus = exports.AdminClaimCodeReissued = exports.AdminSessionsRevoked = exports.AdminBrokerStatusChange = exports.AdminTinRecheckResult = exports.AdminOrgStatusChange = exports.AdminClaimCode = exports.AdminTinCheckResult = exports.UpdateGovernmentBodyRequest = exports.CreateGovernmentBodyRequest = exports.GovernmentBody = exports.AppendRegistrationFeeRequest = exports.AdminMemberChange = exports.AdminChangeMemberRoleRequest = exports.AdminAddMemberRequest = exports.AdminStaffRolesResponse = exports.AdminSetStaffRolesRequest = exports.AdminCreateUserResponse = exports.AdminCreateUserRequest = exports.AdminPersonDetail = exports.AdminActionRequest = exports.AdminPagedReasonQuery = exports.AdminReasonQuery = exports.AdminLocalization = exports.AdminEmailTemplate = exports.AdminTranslationEntry = exports.AdminAnalytics = void 0;
 const zod_1 = require("zod");
 const psf_1 = require("./psf");
+const phone_1 = require("./phone");
+const staff_authz_1 = require("./staff-authz");
 const primitives_1 = require("./primitives");
 const rdb_1 = require("./rdb");
 /**
@@ -103,6 +105,8 @@ exports.AdminAuditSubjectType = zod_1.z.enum([
     "maintenance_ticket",
     "expense",
     "tax_declaration",
+    // People (migration 0125): a custom staff role made, changed or archived.
+    "staff_role",
 ]);
 /**
  * `record_data_class`. What class of another person's data a staff member read.
@@ -898,8 +902,14 @@ exports.AdminUserRow = zod_1.z.object({
     globalRoles: zod_1.z.array(primitives_1.GlobalRole),
     memberships: zod_1.z.array(exports.AdminUserMembership),
     staffRoles: zod_1.z.array(primitives_1.StaffRole),
+    /** Custom staff roles held (2026-11-02), by id and name. */
+    customRoles: zod_1.z.array(zod_1.z.object({ id: primitives_1.Uuid, name: zod_1.z.string() })),
     oversight: exports.AdminOversightGrant.nullable(),
     twoFactorEnrolled: zod_1.z.boolean(),
+    /** `invited`: made here and never signed in. `suspended`: may not sign in. */
+    status: zod_1.z.lazy(() => exports.AdminAccountStatus),
+    /** The last time this person signed in, or null when never (or before sign ins were recorded). */
+    lastSignInAt: zod_1.z.string().nullable(),
     createdAt: zod_1.z.string(),
 });
 /** Query params for `GET /api/v1/admin/users`. */
@@ -908,6 +918,13 @@ exports.AdminUserListQuery = zod_1.z.object({
     q: zod_1.z.string().optional(),
     globalRole: primitives_1.GlobalRole.optional(),
     kyc: exports.AdminKycState.optional(),
+    /** What kind of account (2026-11-02). A person can be several kinds; this matches any who is this one. */
+    kind: zod_1.z.lazy(() => exports.AdminAccountKind).optional(),
+    status: zod_1.z.lazy(() => exports.AdminAccountStatus).optional(),
+    /** A built-in staff role (`ops`) or a custom role's id. */
+    role: zod_1.z.string().trim().max(64).optional(),
+    sort: zod_1.z.enum(["name", "email", "createdAt", "lastSignInAt"]).optional(),
+    dir: zod_1.z.enum(["asc", "desc"]).optional(),
     ...pageQuery,
 });
 exports.AdminUserListResponse = listOf(exports.AdminUserRow);
@@ -1476,12 +1493,21 @@ exports.AdminPersonDetail = exports.AdminUserRow.extend({
 exports.AdminCreateUserRequest = zod_1.z.object({
     email: zod_1.z.string().trim().toLowerCase().email("Use an email address like name@example.com."),
     name: zod_1.z.string().trim().min(2, "Give the person's name.").max(200),
+    /**
+     * A phone number to show on their profile (2026-11-02). Display only: it is
+     * not a proved number, so it never signs anyone in. Empty means none.
+     */
+    phone: zod_1.z.lazy(() => exports.AdminDisplayPhone).optional(),
+    /** A staff role to give them in the same step. A government or PSF post is appointed from Leaders. */
+    grant: zod_1.z.lazy(() => exports.AdminInitialGrant).optional(),
     reason: exports.AdminReasonQuery.shape.reason,
 });
 exports.AdminCreateUserResponse = zod_1.z.object({
     userId: primitives_1.Uuid,
     /** False when the address already had an account, which is returned instead. */
     created: zod_1.z.boolean(),
+    /** Whether the role asked for in `grant` was given. Absent when none was asked for. */
+    granted: zod_1.z.boolean().optional(),
 });
 /**
  * Set a person's platform staff roles (`PUT /api/v1/admin/users/:userId/staff-roles`).
@@ -1664,4 +1690,151 @@ exports.AdminClaimCodeReissued = zod_1.z.object({
     claimCode: exports.AdminClaimCode,
     ...AuditReceipt,
 });
+// ===========================================================================
+// People: accounts, custom staff roles, suspension, sign ins (2026-11-02)
+// ===========================================================================
+/** Where an account stands. */
+exports.AdminAccountStatus = zod_1.z.enum(["active", "invited", "suspended"]);
+/**
+ * What kind of account, for the People filter. `staff`: holds a live staff
+ * grant. `official`: holds a government or PSF post. `business`: works in a
+ * business. `guest`: none of those.
+ */
+exports.AdminAccountKind = zod_1.z.enum(["staff", "official", "business", "guest"]);
+/** A phone typed by staff: a Rwandan mobile is normalized to +250…, anything else kept as digits with a leading +. */
+exports.AdminDisplayPhone = zod_1.z
+    .string()
+    .trim()
+    .max(32)
+    .transform((raw) => {
+    if (raw === "")
+        return "";
+    const rw = (0, phone_1.normalizeRwPhone)(raw);
+    if (rw)
+        return rw;
+    const digits = raw.replace(/[^0-9]/g, "");
+    return raw.startsWith("+") || raw.startsWith("00") ? `+${digits.replace(/^00/, "")}` : digits;
+})
+    .refine((v) => v === "" || /^\+?[0-9]{7,15}$/.test(v), "Enter a phone number like 0788 123 456 or +256 772 123 456.");
+/** The staff role given when an account is made: a built-in role or a custom one. */
+exports.AdminInitialGrant = zod_1.z.discriminatedUnion("kind", [
+    zod_1.z.object({ kind: zod_1.z.literal("staff_role"), role: primitives_1.StaffRole }),
+    zod_1.z.object({ kind: zod_1.z.literal("custom_role"), roleId: primitives_1.Uuid }),
+]);
+/** A custom role's name: short, and not one of the built-in names. */
+const CustomRoleName = zod_1.z
+    .string()
+    .trim()
+    .min(2, "Give the role a name.")
+    .max(60, "Keep the name under 60 characters.");
+/** A custom staff role as the console reads it. */
+exports.AdminCustomRole = zod_1.z.object({
+    id: primitives_1.Uuid,
+    key: zod_1.z.string(),
+    name: zod_1.z.string(),
+    description: zod_1.z.string(),
+    permissions: zod_1.z.array(staff_authz_1.StaffPermission),
+    holderCount: zod_1.z.number().int().nonnegative(),
+    archivedAt: zod_1.z.string().nullable(),
+    createdAt: zod_1.z.string(),
+    updatedAt: zod_1.z.string(),
+});
+/** A built-in role, read only. */
+exports.AdminBuiltInRole = zod_1.z.object({
+    role: primitives_1.StaffRole,
+    name: zod_1.z.string(),
+    permissions: zod_1.z.array(staff_authz_1.StaffPermission),
+    holderCount: zod_1.z.number().int().nonnegative(),
+});
+/** `GET /api/v1/admin/staff-roles`: every role, built in and custom, which is also the matrix. */
+exports.AdminStaffRoleCatalog = zod_1.z.object({
+    builtIn: zod_1.z.array(exports.AdminBuiltInRole),
+    custom: zod_1.z.array(exports.AdminCustomRole),
+});
+/** `POST /api/v1/admin/staff-roles`. */
+exports.AdminCreateCustomRoleRequest = zod_1.z.object({
+    name: CustomRoleName,
+    description: zod_1.z.string().trim().max(300, "Keep the description under 300 characters.").default(""),
+    permissions: zod_1.z.array(staff_authz_1.StaffPermission).min(1, "Choose at least one permission.").max(64),
+    reason: exports.AdminReasonQuery.shape.reason,
+});
+/** `PUT /api/v1/admin/staff-roles/:roleId`: the whole role, replaced. */
+exports.AdminUpdateCustomRoleRequest = exports.AdminCreateCustomRoleRequest;
+/** What a role write did. */
+exports.AdminCustomRoleChange = zod_1.z.object({
+    role: exports.AdminCustomRole,
+    ...AuditReceipt,
+});
+/** One person holding a role. */
+exports.AdminRoleHolder = zod_1.z.object({
+    userId: primitives_1.Uuid,
+    name: zod_1.z.string().nullable(),
+    email: zod_1.z.string(),
+    grantedAt: zod_1.z.string().nullable(),
+});
+exports.AdminRoleHolders = zod_1.z.object({ items: zod_1.z.array(exports.AdminRoleHolder) });
+/** `POST /api/v1/admin/users/:userId/custom-roles`. */
+exports.AdminAssignCustomRoleRequest = zod_1.z.object({
+    roleId: primitives_1.Uuid,
+    reason: exports.AdminReasonQuery.shape.reason,
+});
+/** What a custom role assignment or revoke did. */
+exports.AdminCustomRoleAssignment = zod_1.z.object({
+    userId: primitives_1.Uuid,
+    roleId: primitives_1.Uuid,
+    held: zod_1.z.boolean(),
+    ...AuditReceipt,
+});
+/** `POST /api/v1/admin/users/:userId/suspend` and `/reactivate`. */
+exports.AdminSuspensionChange = zod_1.z.object({
+    userId: primitives_1.Uuid,
+    status: exports.AdminAccountStatus,
+    endedSessions: zod_1.z.number().int().nonnegative(),
+    ...AuditReceipt,
+});
+/** `POST /api/v1/admin/users/:userId/resend-invitation`. */
+exports.AdminInvitationResent = zod_1.z.object({
+    userId: primitives_1.Uuid,
+    ...AuditReceipt,
+});
+/** One sign in, from `sign_in_events`. */
+exports.AdminSignIn = zod_1.z.object({
+    occurredAt: zod_1.z.string(),
+    /** How they signed in, in words: "Email code", "Password", "Google", "Phone code". */
+    method: zod_1.z.string(),
+    ipAddress: zod_1.z.string().nullable(),
+    userAgent: zod_1.z.string().nullable(),
+});
+/** One live session: a device that is signed in now. */
+exports.AdminDevice = zod_1.z.object({
+    sessionId: primitives_1.Uuid,
+    signedInAt: zod_1.z.string(),
+    lastActiveAt: zod_1.z.string(),
+    expiresAt: zod_1.z.string(),
+    ipAddress: zod_1.z.string().nullable(),
+    userAgent: zod_1.z.string().nullable(),
+});
+/** `GET /api/v1/admin/users/:userId/sign-ins`. A PII read, so it takes a reason. */
+exports.AdminSignInsResponse = zod_1.z.object({
+    signIns: zod_1.z.array(exports.AdminSignIn),
+    devices: zod_1.z.array(exports.AdminDevice),
+});
+/** `DELETE /api/v1/admin/users/:userId/sessions/:sessionId`. */
+exports.AdminSessionEnded = zod_1.z.object({
+    userId: primitives_1.Uuid,
+    sessionId: primitives_1.Uuid,
+    ...AuditReceipt,
+});
+/** One audit row about, or by, a person. */
+exports.AdminActivityItem = zod_1.z.object({
+    id: primitives_1.Uuid,
+    occurredAt: zod_1.z.string(),
+    eventType: zod_1.z.string(),
+    /** `about`: done to this person. `by`: done by them. */
+    direction: zod_1.z.enum(["about", "by"]),
+    actorName: zod_1.z.string().nullable(),
+    reason: zod_1.z.string().nullable(),
+});
+/** `GET /api/v1/admin/users/:userId/activity`. */
+exports.AdminActivityResponse = zod_1.z.object({ items: zod_1.z.array(exports.AdminActivityItem) });
 //# sourceMappingURL=admin.js.map

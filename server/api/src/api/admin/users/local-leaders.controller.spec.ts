@@ -40,6 +40,7 @@ function guardFor(resolved: StaffAccess, steppedUp = true): StaffGuard {
   const twoFactor = {
     assertSatisfied: vi.fn().mockResolvedValue(undefined),
     stateFor: vi.fn().mockResolvedValue({ verified: steppedUp }),
+    verifiedWithin: vi.fn().mockResolvedValue(steppedUp),
   } as unknown as TwoFactorService;
   return new StaffGuard(workspaces, twoFactor, new Reflector());
 }

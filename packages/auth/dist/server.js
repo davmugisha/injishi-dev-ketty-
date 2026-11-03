@@ -2,7 +2,7 @@ import { expo } from "@better-auth/expo";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { bearer, emailOTP } from "better-auth/plugins";
-import { isAPIError } from "better-auth/api";
+import { APIError, isAPIError } from "better-auth/api";
 import { AUTH_BASE_PATH, OTP_EXPIRY_SECONDS, OTP_LENGTH, OTP_MAX_ATTEMPTS, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, SESSION_EXPIRES_IN_SECONDS, SESSION_UPDATE_AGE_SECONDS, } from "./options.js";
 import { injishiPhone, otpSendCap, } from "./phone.js";
 import { credentialGuard, passwordGate } from "./password-gate.js";
@@ -78,6 +78,8 @@ function logAsBetterAuthWould(error, logger) {
  * mailbox with a code, and ADR-039 AC-11 forbids a phone session from skipping
  * the emailed step-up.
  */
+/** The refusal code a suspended account's sign in answers. */
+export const ACCOUNT_SUSPENDED = "ACCOUNT_SUSPENDED";
 export const STEPPED_UP_PATHS = new Set([
     "/sign-in/email-otp",
     "/sign-in/email",
@@ -177,6 +179,12 @@ export function createAuth(config) {
                 create: {
                     before: async (session, ctx) => {
                         const path = ctx && typeof ctx.path === "string" ? ctx.path : "";
+                        if (config.maySignIn && !(await config.maySignIn(session.userId))) {
+                            throw new APIError("FORBIDDEN", {
+                                code: ACCOUNT_SUSPENDED,
+                                message: "This account is suspended. Contact Injishi support.",
+                            });
+                        }
                         if (!STEPPED_UP_PATHS.has(path)) {
                             return { data: session };
                         }
@@ -186,6 +194,22 @@ export function createAuth(config) {
                                 twoFactorVerifiedAt: new Date(),
                             },
                         };
+                    },
+                    after: async (session, ctx) => {
+                        if (!config.onSignIn)
+                            return;
+                        try {
+                            await config.onSignIn({
+                                userId: session.userId,
+                                sessionId: session.id,
+                                path: ctx && typeof ctx.path === "string" ? ctx.path : "",
+                                ipAddress: session.ipAddress ?? null,
+                                userAgent: session.userAgent ?? null,
+                            });
+                        }
+                        catch {
+                            // The history is a record, not a gate.
+                        }
                     },
                 },
             },

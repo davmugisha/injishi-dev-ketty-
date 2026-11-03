@@ -1154,6 +1154,8 @@ export const auditSubjectTypeEnum = pgEnum('audit_subject_type', [
   'maintenance_ticket',
   'expense',
   'tax_declaration',
+  // People (migration 0125): a custom staff role made, changed or archived.
+  'staff_role',
 ]);
 
 export const recordDataClassEnum = pgEnum('record_data_class', [
