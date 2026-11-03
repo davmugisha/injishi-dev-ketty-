@@ -38,6 +38,13 @@
 // agent's user. pnpm's store is shared by all injishi builds on the agent
 // (GitHub's `cache: pnpm`).
 
+import groovy.transform.Field
+
+// What each ci job concluded (for ci-complete), and which jobs
+// scripts/ci-changes.mjs selected.
+@Field Map ciResults = [:]
+@Field Map ciFlags = [:]
+
 pipeline {
   agent { label 'docker' }
 
@@ -101,7 +108,8 @@ step 'Work out what changed'
 # scripts/ci-changes.mjs writes its name=value answers to $GITHUB_OUTPUT.
 export GITHUB_OUTPUT="$JOB_TMP/outputs"
 : > "$GITHUB_OUTPUT"
-node scripts/ci-changes.mjs "$CI_BASE" HEAD
+# Jenkins drops a variable whose value is empty, so an unknown base arrives unset.
+node scripts/ci-changes.mjs "${CI_BASE:-}" HEAD
 ''', [env: ["CI_BASE=${env.CI_BASE ?: ''}"]])
           if (ciResults['changes'] == 'success') {
             ciFlags = keyValues(readFile(file: "${env.CI_TMP}/changes/outputs"))
@@ -711,22 +719,22 @@ db_args=(--detach --name "$SVC_DB" --label "injishi-ci=$CI_NAME")
 db_args+=(--env POSTGRES_USER=injishi --env POSTGRES_PASSWORD=injishi --env POSTGRES_DB=injishi)
 db_args+=(--health-cmd "pg_isready -U injishi" --health-interval 5s --health-timeout 5s --health-retries 20)
 docker run "${db_args[@]}" postgres:17-alpine >/dev/null
-if [ -n "$SVC_REDIS" ]; then
+if [ -n "${SVC_REDIS:-}" ]; then
   redis_args=(--detach --name "$SVC_REDIS" --label "injishi-ci=$CI_NAME" --network "container:$SVC_DB")
   redis_args+=(--health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 20)
   docker run "${redis_args[@]}" redis:7-alpine >/dev/null
 fi
 healthy "$SVC_DB"
-if [ -n "$SVC_REDIS" ]; then healthy "$SVC_REDIS"; fi
+if [ -n "${SVC_REDIS:-}" ]; then healthy "$SVC_REDIS"; fi
 '''
       body(db)
     } finally {
       sh '''#!/bin/bash
-for c in "$SVC_DB" $SVC_REDIS; do
+for c in "$SVC_DB" ${SVC_REDIS:-}; do
   printf '\\n==> service container %s, last 200 lines\\n' "$c"
   docker logs --tail 200 "$c" 2>&1 || true
 done
-docker rm -fv "$SVC_DB" $SVC_REDIS >/dev/null 2>&1 || true
+docker rm -fv "$SVC_DB" ${SVC_REDIS:-} >/dev/null 2>&1 || true
 '''
     }
   }
