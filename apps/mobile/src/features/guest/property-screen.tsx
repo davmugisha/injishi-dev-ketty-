@@ -280,7 +280,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-/** A stay's rooms, cheapest first, each priced on the card's basis with its booking mode and refund rule. */
+/** A stay's rooms, cheapest first, each priced on its own basis with its booking mode and refund rule. */
 function Rooms({ rooms }: { rooms: ExploreRoom[] }) {
   if (rooms.length === 0) return null;
   return (
@@ -302,7 +302,7 @@ function Rooms({ rooms }: { rooms: ExploreRoom[] }) {
                 {facts}
               </Text>
               <Text role="callout" tone="muted">
-                {r.priceRwf === null ? (
+                {r.priceRwf === null || r.priceBasis === null ? (
                   "Price on request"
                 ) : (
                   <>

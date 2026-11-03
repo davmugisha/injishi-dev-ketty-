@@ -5,7 +5,7 @@ import type {
   RoomTypeSummary,
   SitemapProperty,
 } from '@injishi/contracts';
-import { maxNightsFor, stayNightlyRate } from '@injishi/contracts';
+import { isStayPriceBasis, maxNightsFor, stayNightlyRate } from '@injishi/contracts';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 
 import { StorageService } from '../../storage/application/storage.service';
@@ -136,6 +136,13 @@ export class ListingService {
     // the domain — not the `booking_mode` column, which a residence row should
     // not be carrying in the first place (see `seed-content.mjs`).
     if (room.roomType.domain !== 'hospitality') {
+      throw new NotFoundException('That room is no longer offered.');
+    }
+    // A menu item (`per_item`, a bar's or coffee shop's offering since migration 0117) is listed, never
+    // booked, and `BookingService.create` refuses it. Until 2026-11-03 this read still priced one, so a
+    // hand-edited link reached a quote and a checkout that could never complete (mobile spec 0005,
+    // AC-34). The same 404, for the same reason as above.
+    if (!isStayPriceBasis(room.roomType.priceBasis)) {
       throw new NotFoundException('That room is no longer offered.');
     }
     const { coverPhotoId, ...property } = room.property;

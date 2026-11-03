@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ExplorePage = exports.ExploreUnit = exports.ExploreRoom = exports.ExplorePlaces = exports.ExplorePlace = exports.ExplorePlacesQuery = exports.ExploreSearchResult = exports.ExploreCard = exports.ExplorePhoto = exports.ExploreSearchQuery = exports.ExplorePlaceRef = exports.EXPLORE_SHARE_ORIGIN = exports.EXPLORE_MAX_PAGE_SIZE = exports.EXPLORE_PAGE_SIZE = exports.EXPLORE_MAX_FACTS = exports.EXPLORE_FACT_ORDER = exports.STORED_ACCOMMODATION_CLASSES = exports.EXPLORE_TYPES = exports.EXPLORE_TYPE_LABEL = exports.ExploreType = exports.ExplorePriceBasis = exports.ExploreSort = exports.ExploreMode = void 0;
+exports.noPartyPriceBasis = noPartyPriceBasis;
 exports.exploreTypeOf = exploreTypeOf;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
@@ -21,8 +22,20 @@ const rdb_1 = require("./rdb");
 exports.ExploreMode = zod_1.z.enum(["stays", "homes"]);
 /** Top rated (weighted by review count), or by the price the card shows. */
 exports.ExploreSort = zod_1.z.enum(["top_rated", "price_asc", "price_desc"]);
-/** What a price covers: the whole party a night, one person a night (no party yet), or a home a month. */
-exports.ExplorePriceBasis = zod_1.z.enum(["party_night", "person_night", "month"]);
+/**
+ * What a price covers (mobile spec 0005, D-j): the party a night ("a night for 2"); with no party
+ * yet, a room or a whole place a night ("a night", a room priced `per_unit`) or one person a night
+ * ("a person, a night", `per_person`); or a home a month.
+ */
+exports.ExplorePriceBasis = zod_1.z.enum(["party_night", "unit_night", "person_night", "month"]);
+/**
+ * The basis a stay's price is shown on before a party is set, from how its room is counted
+ * (`chargedGuests`): a room priced per room or a whole place is its own price a night, a room priced
+ * per person is one person's. A menu item (`per_item`) is never a stay and never reaches explore.
+ */
+function noPartyPriceBasis(roomBasis) {
+    return roomBasis === "per_unit" ? "unit_night" : "person_night";
+}
 /** The chips a guest filters stays by, drawn from the business's registered class (D-i). */
 exports.ExploreType = zod_1.z.enum(["hotel", "lodge", "guest_house", "tented_camp", "apartment", "villa", "stay", "home"]);
 exports.EXPLORE_TYPE_LABEL = {
@@ -176,15 +189,22 @@ exports.ExplorePlace = zod_1.z.object({
     ref: exports.ExplorePlaceRef,
 });
 exports.ExplorePlaces = zod_1.z.object({ places: zod_1.z.array(exports.ExplorePlace).max(8) });
-/** A room type on a stay's page, priced on the same basis as the card. */
+/**
+ * A room type on a stay's page, priced by the card's rule for that one room (D-j): its own basis,
+ * so a hotel room reads "a night" and a room priced per person "a person, a night".
+ */
 exports.ExploreRoom = zod_1.z.object({
     id: primitives_1.Uuid,
     name: zod_1.z.string().min(1),
-    /** How many people it sleeps; null when the host has not said. */
+    /**
+     * How many people it sleeps: `DEFAULT_CAPACITY` (4) when the host has not said, the figure the
+     * booking refuses a larger party by. Nullable only for older answers.
+     */
     sleeps: zod_1.z.number().int().positive().nullable(),
     roomCount: zod_1.z.number().int().nonnegative(),
+    /** Null, with a null basis, when the room has no price yet ("Price on request"). */
     priceRwf: primitives_1.RwfAmount.nullable(),
-    priceBasis: exports.ExplorePriceBasis,
+    priceBasis: exports.ExplorePriceBasis.nullable(),
     bookingMode: booking_1.BookingMode.nullable(),
     approvalWindowHours: zod_1.z.number().int().positive().nullable(),
     cancellationTier: booking_1.CancellationTier.nullable(),
@@ -223,11 +243,11 @@ exports.ExplorePage = zod_1.z.object({
     facts: zod_1.z.array(zod_1.z.object({ code: zod_1.z.string(), label: zod_1.z.string() })).max(exports.EXPLORE_MAX_FACTS),
     /** Every amenity it lists, labelled. */
     facilities: zod_1.z.array(zod_1.z.object({ code: zod_1.z.string(), label: zod_1.z.string() })),
-    /** Stays: every active room type, cheapest first. Null for homes. */
+    /** Stays: every active room type a guest can book (never a `per_item` menu item), cheapest first, ties by id. Null for homes. */
     rooms: zod_1.z.array(exports.ExploreRoom).nullable(),
     /** Homes: every listed unit, cheapest first. Null for stays. */
     units: zod_1.z.array(exports.ExploreUnit).nullable(),
-    /** Stays: rooms over every active room type, for "Hotel · 42 rooms". */
+    /** Stays: rooms over every active room type a guest can book, for "Hotel · 42 rooms". */
     roomCount: zod_1.z.number().int().nonnegative(),
     business: zod_1.z.object({
         legalName: zod_1.z.string(),
