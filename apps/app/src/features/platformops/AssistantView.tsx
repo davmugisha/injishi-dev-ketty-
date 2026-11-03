@@ -106,7 +106,6 @@ export function AssistantView({ data, handoff = false }: { data: AssistantData; 
       <PageHeader
         eyebrow="Injishi assistant · Isangano Lakeside Hotel"
         title="Assistant"
-        description="Answers come only from Injishi records you can already open, and show their sources. It can propose a change; only you can approve it."
         actions={
           <Button
             variant="secondary"

@@ -1,12 +1,7 @@
 "use client";
 
-import { ErrorBlock, PageContent, PageHeader } from "@injishi/ui";
+import { AreaError } from "@/components/shell/WorkspaceNav";
 
-export default function FaultsError({ reset }: { error: Error; reset: () => void }) {
-  return (
-    <PageContent>
-      <PageHeader title="Faults" />
-      <ErrorBlock title="Couldn't load the faults" onRetry={reset} />
-    </PageContent>
-  );
+export default function PageError({ reset }: { error: Error; reset: () => void }) {
+  return <AreaError heading="Faults" title="Couldn't load the faults" onRetry={reset} />;
 }

@@ -55,7 +55,6 @@ export function RatesInventoryView({
       <PageHeader
         eyebrow="Isangano Lakeside Hotel · Commercial"
         title="Rates & Inventory"
-        description="What you sell and on which terms. Every change is effective-dated and saved with a reason."
         actions={
           <>
             <LinkButton href={screenHref("AvailabilityCalendar")} variant="secondary">

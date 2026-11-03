@@ -149,7 +149,7 @@ export declare const ListQuery: z.ZodObject<{
         dir: "asc" | "desc";
     }[];
     page: number;
-    pageSize: 10 | 50 | 100 | 25;
+    pageSize: 10 | 100 | 50 | 25;
     filters: {
         field: string;
         op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
@@ -164,7 +164,7 @@ export declare const ListQuery: z.ZodObject<{
     }[] | undefined;
     q?: string | undefined;
     page?: number | undefined;
-    pageSize?: 10 | 50 | 100 | 25 | undefined;
+    pageSize?: 10 | 100 | 50 | 25 | undefined;
     filters?: {
         field: string;
         op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
@@ -271,7 +271,7 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
     items: T["_output"][];
     total: number;
     page: number;
-    pageSize: 10 | 50 | 100 | 25;
+    pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
         key: string | null;
@@ -289,7 +289,7 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
     items: T["_input"][];
     total: number;
     page: number;
-    pageSize: 10 | 50 | 100 | 25;
+    pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
         key: string | null;
@@ -371,7 +371,7 @@ export declare const SavedViewConfig: z.ZodObject<{
         field: string;
         dir: "asc" | "desc";
     }[];
-    pageSize: 10 | 50 | 100 | 25;
+    pageSize: 10 | 100 | 50 | 25;
     view: "card" | "list" | "kanban";
     filters: {
         field: string;
@@ -387,7 +387,7 @@ export declare const SavedViewConfig: z.ZodObject<{
         dir: "asc" | "desc";
     }[] | undefined;
     q?: string | undefined;
-    pageSize?: 10 | 50 | 100 | 25 | undefined;
+    pageSize?: 10 | 100 | 50 | 25 | undefined;
     view?: "card" | "list" | "kanban" | undefined;
     filters?: {
         field: string;
@@ -437,7 +437,7 @@ export declare const SavedView: z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
         view: "card" | "list" | "kanban";
         filters: {
             field: string;
@@ -453,7 +453,7 @@ export declare const SavedView: z.ZodObject<{
             dir: "asc" | "desc";
         }[] | undefined;
         q?: string | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
         view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
@@ -477,7 +477,7 @@ export declare const SavedView: z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
         view: "card" | "list" | "kanban";
         filters: {
             field: string;
@@ -503,7 +503,7 @@ export declare const SavedView: z.ZodObject<{
             dir: "asc" | "desc";
         }[] | undefined;
         q?: string | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
         view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
@@ -560,7 +560,7 @@ export declare const SavedViewList: z.ZodObject<{
                 field: string;
                 dir: "asc" | "desc";
             }[];
-            pageSize: 10 | 50 | 100 | 25;
+            pageSize: 10 | 100 | 50 | 25;
             view: "card" | "list" | "kanban";
             filters: {
                 field: string;
@@ -576,7 +576,7 @@ export declare const SavedViewList: z.ZodObject<{
                 dir: "asc" | "desc";
             }[] | undefined;
             q?: string | undefined;
-            pageSize?: 10 | 50 | 100 | 25 | undefined;
+            pageSize?: 10 | 100 | 50 | 25 | undefined;
             view?: "card" | "list" | "kanban" | undefined;
             filters?: {
                 field: string;
@@ -600,7 +600,7 @@ export declare const SavedViewList: z.ZodObject<{
                 field: string;
                 dir: "asc" | "desc";
             }[];
-            pageSize: 10 | 50 | 100 | 25;
+            pageSize: 10 | 100 | 50 | 25;
             view: "card" | "list" | "kanban";
             filters: {
                 field: string;
@@ -626,7 +626,7 @@ export declare const SavedViewList: z.ZodObject<{
                 dir: "asc" | "desc";
             }[] | undefined;
             q?: string | undefined;
-            pageSize?: 10 | 50 | 100 | 25 | undefined;
+            pageSize?: 10 | 100 | 50 | 25 | undefined;
             view?: "card" | "list" | "kanban" | undefined;
             filters?: {
                 field: string;
@@ -652,7 +652,7 @@ export declare const SavedViewList: z.ZodObject<{
                 field: string;
                 dir: "asc" | "desc";
             }[];
-            pageSize: 10 | 50 | 100 | 25;
+            pageSize: 10 | 100 | 50 | 25;
             view: "card" | "list" | "kanban";
             filters: {
                 field: string;
@@ -680,7 +680,7 @@ export declare const SavedViewList: z.ZodObject<{
                 dir: "asc" | "desc";
             }[] | undefined;
             q?: string | undefined;
-            pageSize?: 10 | 50 | 100 | 25 | undefined;
+            pageSize?: 10 | 100 | 50 | 25 | undefined;
             view?: "card" | "list" | "kanban" | undefined;
             filters?: {
                 field: string;
@@ -736,7 +736,7 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
         view: "card" | "list" | "kanban";
         filters: {
             field: string;
@@ -752,7 +752,7 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
             dir: "asc" | "desc";
         }[] | undefined;
         q?: string | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
         view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
@@ -772,7 +772,7 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
         view: "card" | "list" | "kanban";
         filters: {
             field: string;
@@ -793,7 +793,7 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
             dir: "asc" | "desc";
         }[] | undefined;
         q?: string | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
         view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
@@ -845,7 +845,7 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
         view: "card" | "list" | "kanban";
         filters: {
             field: string;
@@ -861,7 +861,7 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             dir: "asc" | "desc";
         }[] | undefined;
         q?: string | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
         view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
@@ -881,7 +881,7 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
         view: "card" | "list" | "kanban";
         filters: {
             field: string;
@@ -902,7 +902,7 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             dir: "asc" | "desc";
         }[] | undefined;
         q?: string | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
         view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
@@ -921,7 +921,7 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
         view: "card" | "list" | "kanban";
         filters: {
             field: string;
@@ -942,7 +942,7 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             dir: "asc" | "desc";
         }[] | undefined;
         q?: string | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
         view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;

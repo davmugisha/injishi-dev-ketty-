@@ -13,17 +13,13 @@ export default async function AdminBusinessesPage() {
   await requirePersona("AdminBusinesses");
   try {
     const list = await adminRegistrations();
-    return <RegistrationsView orgs={list.items} total={list.meta.total} />;
+    return <RegistrationsView orgs={list.items} />;
   } catch (error) {
     if (error instanceof ApiError && error.forbidden) {
       return (
         <PageContent>
-          <PageHeader title="Registrations" />
-          <EmptyBlock
-            icon="ShieldKeyhole"
-            title="Your staff role cannot see businesses"
-            description="Ask a super admin for access to businesses."
-          />
+          <PageHeader title="Businesses" />
+          <EmptyBlock icon="ShieldKeyhole" title="Your staff role cannot see businesses" />
         </PageContent>
       );
     }

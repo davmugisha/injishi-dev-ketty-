@@ -5,4 +5,5 @@
 export const THEME = { light: "mouve-light", dark: "mouve-dark" } as const;
 
 /** Runs before next-themes reads storage: rewrites ids saved before the rename. */
-export const THEME_MIGRATION = `try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")localStorage.setItem("theme","mouve-"+t)}catch(e){}`;
+/** It also marks a dark page `.dark` before paint, where the design tokens keep their dark roles. */
+export const THEME_MIGRATION = `try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")localStorage.setItem("theme","mouve-"+t);if(localStorage.getItem("theme")==="mouve-dark")document.documentElement.classList.add("dark")}catch(e){}`;

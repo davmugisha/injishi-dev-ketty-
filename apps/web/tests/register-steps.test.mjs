@@ -31,6 +31,8 @@ const {
   clampToOpenable,
   documentRows,
   missingRequired,
+  railLock,
+  previousSection,
 } = steps;
 
 describe("the steps", () => {
@@ -93,6 +95,57 @@ describe("the progress opens only what has been reached", () => {
 
   test("everything complete: the last step", () => {
     assert.equal(openableThrough(order, () => true), order.length - 1);
+  });
+});
+
+describe("going back and changing an answer (2026-10-30)", () => {
+  const order = stepOrder();
+  const at = (current, extra = {}) => ({ current, openable: 0, reached: 0, created: false, paid: false, ...extra });
+
+  test("every step up to the one on screen opens, even when an earlier one is no longer complete", () => {
+    // On Review, the TIN was changed: Business is the first step owing an answer, yet You and Business open.
+    for (const id of ["you", "business", "documents", "review"]) {
+      assert.equal(railLock(order, id, at("review", { openable: 1, reached: 3 })), null, id);
+    }
+    assert.equal(railLock(order, "pay", at("review", { openable: 1, reached: 3 })), "Not reached yet");
+    assert.equal(railLock(order, "documents", at("you", { openable: 1, reached: 3 })), "Finish the steps before it first");
+  });
+
+  test("a step ahead opens once reached and everything before it is complete", () => {
+    assert.equal(railLock(order, "documents", at("you", { openable: 3, reached: 3 })), null);
+    assert.equal(railLock(order, "documents", at("you", { openable: 3, reached: 1 })), "Not reached yet");
+  });
+
+  test("created on the first Pay press: only Review and Pay open, and the rail says why", () => {
+    const created = at("pay", { openable: 4, reached: 4, created: true });
+    assert.equal(railLock(order, "review", created), null);
+    assert.equal(railLock(order, "pay", created), null);
+    assert.match(railLock(order, "business", created), /support/);
+  });
+
+  test("paid: nothing before Pay opens, and the rail says changes go through support", () => {
+    const paid = at("pay", { openable: 4, reached: 4, created: true, paid: true });
+    assert.equal(railLock(order, "pay", paid), null);
+    for (const id of ["you", "business", "documents", "review"]) {
+      assert.equal(railLock(order, id, paid), "Paid. Changes go through support.");
+    }
+  });
+
+  test("Back from a section reopens the one before it, passing over Classification", () => {
+    const owner = sectionOrder("owner", "business");
+    assert.equal(previousSection(owner, "tin"), null);
+    assert.equal(previousSection(owner, "loc"), "tin");
+    assert.equal(previousSection(owner, "fr"), "loc");
+    assert.equal(previousSection(sectionOrder("helper", "business"), "loc"), "intended");
+    assert.equal(previousSection(sectionOrder("landlord", "business"), "loc"), "upi");
+    assert.equal(previousSection(sectionOrder("owner", "you"), "id"), null);
+  });
+
+  test("the wizard locks the rail with railLock and backs out of sections with previousSection", () => {
+    const src = readFileSync(resolve(REGISTER, "register-wizard.tsx"), "utf8");
+    assert.match(src, /railLock\(order, id,/);
+    assert.match(src, /previousSection\(sectionOrder\(path, step\), id\)/);
+    assert.doesNotMatch(src, /editText=\{id === "cls"/);
   });
 });
 

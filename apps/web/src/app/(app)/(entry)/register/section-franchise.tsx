@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@injishi/web-ui";
+import { ArrowLeft } from "lucide-react";
 
 import type { BusinessDraft } from "./business-draft";
 import { COUNTRY_OPTIONS } from "./country-options";
@@ -22,12 +23,21 @@ export function SectionFranchise({
   onChange,
   errors,
   onNext,
+  onBack = null,
 }: {
   draft: BusinessDraft;
   onChange: (next: BusinessDraft) => void;
   errors: Record<string, string>;
   onNext: () => void;
+  /** Back: the section before, reopened with its answers, or the step before. */
+  onBack?: (() => void) | null;
 }) {
+  const back = onBack ? (
+    <Button variant="ghost" onClick={onBack}>
+      <ArrowLeft size={16} aria-hidden />
+      Back
+    </Button>
+  ) : null;
   const role = draft.franchiseRole;
   const pick = (next: string) => onChange({ ...draft, franchiseRole: next as BusinessDraft["franchiseRole"] });
 
@@ -113,7 +123,8 @@ export function SectionFranchise({
         </div>
       ) : null}
 
-      <div>
+      <div className="flex flex-wrap items-center gap-2">
+        {back}
         <Button onClick={onNext} disabled={role === ""}>
           Next
         </Button>

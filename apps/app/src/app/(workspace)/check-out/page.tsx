@@ -3,9 +3,11 @@ import type { CheckoutCase, CheckoutLedgerLine } from "@injishi/data/fixtures/st
 import { CheckoutView, type MomoState, type ReceiptOutcome } from "@injishi/product-pms/web";
 import { ActionLink, EmptyBlock, PageContent, PageHeader } from "@injishi/ui";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
+import { holdsSampleData } from "@/server/sample-data";
 
 export const metadata: Metadata = { title: screens.Checkout.pageTitle };
 
@@ -19,9 +21,13 @@ const MOMO: MomoState[] = ["idle", "pending", "unknown", "verified"];
 export default async function CheckoutPage({
   searchParams,
 }: {
-  searchParams: Promise<{ receipt?: string; momo?: string }>;
+  searchParams: Promise<{ receipt?: string; momo?: string; stay?: string }>;
 }) {
   const persona = await requirePersona("Checkout");
+  const { receipt, momo, stay } = await searchParams;
+  // A guest checks out on their bill, where the cash, the charges and the button are. The desk names the
+  // stay; this page used to open on whoever was due out first, whichever guest was chosen.
+  if (stay) redirect(`/stays/${encodeURIComponent(stay)}`);
   const [checkouts, ledger] = await Promise.all([
     getCollection<CheckoutCase>("stays.checkouts"),
     getCollection<CheckoutLedgerLine>("stays.checkoutLedger"),
@@ -45,7 +51,7 @@ export default async function CheckoutPage({
       </PageContent>
     );
   }
-  const { receipt, momo } = await searchParams;
+  if (!(await holdsSampleData())) redirect(`/stays/${encodeURIComponent(checkout.stayId)}`);
   return (
     <PmsMount>
       <CheckoutView

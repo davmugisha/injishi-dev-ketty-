@@ -206,7 +206,6 @@ export function ListingView({ persona, data }: { persona: Persona; data: Listing
       <PageHeader
         eyebrow={<>{draft.property} · Marketplace and direct booking page</>}
         title="Listing"
-        description="What guests see before they book. Edits stay as a draft until every publish check passes."
         actions={
           <>
             <Chip color="warning" variant="soft">

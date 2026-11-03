@@ -127,6 +127,8 @@ export function registerPerson(documentNumber: string): DemoPerson | null {
 
   const seed = digest(documentNumber);
   const year = Number(documentNumber.slice(1, 5));
+  // Digits 2–5 are the birth year: a year no living person was born in is no one on the register.
+  if (year < 1900 || year > new Date().getUTCFullYear()) return null;
   const gender =
     documentNumber[5] === '8' ? 'male' : documentNumber[5] === '7' ? 'female' : null;
   const given = gender === 'female' ? FEMALE_NAMES : MALE_NAMES;

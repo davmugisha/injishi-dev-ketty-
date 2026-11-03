@@ -158,7 +158,6 @@ export function ReconciliationView({ data }: { data: ReconciliationData }) {
       <PageHeader
         eyebrow="Reconcile & comply · Run RR-1012-01 · started 06:05"
         title="Reconciliation · 11 Oct Statement"
-        description="GT Bank statement and settlement files against the payment ledger, folios and fiscal receipts."
         actions={
           <>
             <span className="text-xs text-muted tabular">

@@ -6,11 +6,13 @@ import { MessagesLive } from "@/features/messages/MessagesLive";
 import { sampleCollectionsByBoard } from "@/lib/coverage.generated";
 import { openToRealPeople } from "@/lib/real-screens";
 import { currentAccount } from "@/lib/session";
+import { adminNav } from "@/server/admin/nav";
 import { brokerNav } from "@/server/broker/nav";
 import { businessNav } from "@/server/business/nav";
 import { officerNav, officerPersona } from "@/server/oversight/nav";
 import { landlordScope } from "@/server/rentals/client";
 import { landlordNav } from "@/server/rentals/nav";
+import { staysNav } from "@/server/stays/nav";
 import { tenantNav } from "@/server/tenant/nav";
 
 /**
@@ -61,10 +63,35 @@ function withOversightNav(nav: NavGroup[], persona: { id: string; access?: reado
         items: items.map((i) => ({ ...i, id: `psf-${i.id}` })),
       });
     }
-  } else if (allowed.has("OfficerHome")) {
+  } else if (allowed.has("OfficerHome") && persona.id !== "officer") {
     extras.push({
       label: "Oversight",
       items: [{ id: "officer-home", label: "Registrations", icon: "ShieldCheck", board: "OfficerHome" }],
+    });
+  }
+  // The other roles this person holds (server/auth.ts `withHats`): one group each, under their own.
+  if (allowed.has("LeaderGuests") && persona.id !== "officer") {
+    extras.push({
+      label: "Local guests",
+      items: [
+        { id: "hat-leader-guests", label: "Guests", icon: "PersonPlus", board: "LeaderGuests" },
+        { id: "hat-leader-reports", label: "Reports", icon: "ChartColumn", board: "LeaderReports" },
+      ],
+    });
+  }
+  if (allowed.has("TenantHome") && persona.id !== "tenant" && persona.id !== "landlord") {
+    extras.push({
+      label: "Where you rent",
+      items: [{ id: "hat-tenant", label: "My home", icon: "House", board: "TenantHome" }],
+    });
+  }
+  if (allowed.has("BrokerWork") && persona.id !== "broker") {
+    extras.push({
+      label: "Broker",
+      items: [
+        { id: "hat-broker", label: "Broker home", icon: "Briefcase", board: "BrokerWork" },
+        { id: "hat-broker-placements", label: "Placements", icon: "FileText", board: "BrokerPlacements" },
+      ],
     });
   }
   return extras.length ? [...nav, ...extras] : nav;
@@ -77,6 +104,10 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
   if (!persona) redirect("/sign-in");
   // A landlord's sidebar follows their permissions and the business's counts (server/rentals/nav.ts).
   // An officer's or local leader's sidebar follows the seats they hold (server/oversight/nav.ts).
+  const stays =
+    persona.id === "owner" || persona.id === "manager"
+      ? await staysNav(persona.id === "manager" ? "ManagerToday" : "OwnerHome")
+      : null;
   let nav =
     persona.id === "landlord"
       ? await landlordNav()
@@ -89,14 +120,17 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
             : persona.id === "broker"
               ? await brokerNav()
               : persona.id === "ops"
-                ? realScreensOnly(navigationFor("ops"))
-                : personaByEmail(account.user.email)?.id === persona.id
-                  ? navigationFor(persona.id)
-                  : ((BUSINESS_SHELLS.has(persona.id) ? await businessNav(account) : null) ??
-                    // A real person's sidebar lists only the screens that show their own records.
-                    withoutSampleCounts(navigationFor(persona.id))
-                      .map((g) => ({ ...g, items: g.items.filter((i) => openToRealPeople(i.board)) }))
-                      .filter((g) => g.items.length > 0));
+                ? adminNav()
+                : // A stay business's menu follows how it is run (server/stays/nav.ts).
+                  stays
+                  ? stays
+                  : personaByEmail(account.user.email)?.id === persona.id
+                    ? navigationFor(persona.id)
+                    : ((BUSINESS_SHELLS.has(persona.id) ? await businessNav(account) : null) ??
+                      // A real person's sidebar lists only the screens that show their own records.
+                      withoutSampleCounts(navigationFor(persona.id))
+                        .map((g) => ({ ...g, items: g.items.filter((i) => openToRealPeople(i.board)) }))
+                        .filter((g) => g.items.length > 0));
   if (nav.length === 0) {
     // Phone/tablet personas visiting a desktop screen they may open: home plus "what to try".
     nav = [
@@ -118,7 +152,13 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
   const shown = persona.id === "officer" || persona.id === "psf" ? await officerPersona(persona) : persona;
   nav = withOversightNav(nav, persona);
   return (
-    <WorkspaceShell persona={shown} nav={nav} altNav={altNav} demo={personaByEmail(account.user.email)?.id === persona.id}>
+    <WorkspaceShell
+      persona={shown}
+      nav={nav}
+      altNav={altNav}
+      live={stays !== null}
+      demo={personaByEmail(account.user.email)?.id === persona.id}
+    >
       {children}
       {/* Message counts in the sidebar follow new lines live (P3.4). */}
       {persona.id === "landlord" ? (

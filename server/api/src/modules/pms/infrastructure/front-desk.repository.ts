@@ -166,7 +166,7 @@ export class FrontDeskRepository {
       .select({
         roomId: guestStays.roomId,
         stayId: guestStays.id,
-        guestName: sql<string | null>`coalesce(${accountName}, ${guestStays.guestName})`,
+        guestName: sql<string | null>`coalesce(${accountName}, nullif(btrim(${guestStays.guestName}), ''), (SELECT nullif(btrim(si.full_name), '') FROM stay_identities si WHERE si.guest_stay_id = ${guestStays.id}))`,
         entryAt: guestStays.entryAt,
       })
       .from(guestStays)
@@ -514,7 +514,7 @@ export class FrontDeskRepository {
         roomId: guestStays.roomId,
         propertyId: rooms.propertyId,
         roomLabel: rooms.label,
-        guestName: sql<string | null>`coalesce(${accountName}, ${guestStays.guestName})`,
+        guestName: sql<string | null>`coalesce(${accountName}, nullif(btrim(${guestStays.guestName}), ''), (SELECT nullif(btrim(si.full_name), '') FROM stay_identities si WHERE si.guest_stay_id = ${guestStays.id}))`,
         lifecycle: guestStays.lifecycle,
         entryAt: guestStays.entryAt,
         plannedExitAt: guestStays.plannedExitAt,

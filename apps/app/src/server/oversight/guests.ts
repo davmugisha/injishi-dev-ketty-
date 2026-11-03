@@ -40,7 +40,17 @@ export const leaderSummary = cache(async (): Promise<LeaderSummary | null> => {
 
 export async function leaderGuests(query: Partial<LeaderGuestQuery>): Promise<LeaderGuestPage | null> {
   const api = await currentApi();
-  return leaderOnly(api.get<LeaderGuestPage>("/api/v1/oversight/guests", { query: clean(query) }));
+  try {
+    return await leaderOnly(api.get<LeaderGuestPage>("/api/v1/oversight/guests", { query: clean(query) }));
+  } catch (error) {
+    // An API from before the "all" list (2026-10-30) refuses it: ask for its default list instead.
+    if (error instanceof ApiError && error.status === 400 && query.tab === "all") {
+      return leaderOnly(
+        api.get<LeaderGuestPage>("/api/v1/oversight/guests", { query: clean({ ...query, tab: undefined }) }),
+      );
+    }
+    throw error;
+  }
 }
 
 /** One guest in the leader's area, or null when it is not theirs to read (404) or they hold no post. */

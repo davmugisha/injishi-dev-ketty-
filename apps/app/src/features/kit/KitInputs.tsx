@@ -1,9 +1,10 @@
 "use client";
 
-import { FieldError, Input, Label, TextField } from "@heroui/react";
+import { FieldError, Input, Label, TextField, toast } from "@heroui/react";
 import { stock } from "@injishi/data/media";
 import {
   ActionButton,
+  AgendaCalendar,
   BoundedDatePicker,
   CodeInput,
   CountrySelect,
@@ -24,10 +25,9 @@ import {
   PlacePicker,
   placeLine,
   presetPeriod,
-  RentCalendar,
-  type RentDayItem,
   ResendCodeButton,
   readVideo,
+  type ScheduleEvent,
   SectionCard,
   SidePanel,
   SignaturePad,
@@ -707,39 +707,55 @@ function StaticPlace({ chain, loader }: { chain: PlaceChain; loader: ReturnType<
 
 export function CalendarSection({ today }: { today: string }) {
   const items = useMemo(() => rentDays(today), [today]);
-  const [open, setOpen] = useState<RentDayItem | null>(null);
+  const events = useMemo<ScheduleEvent[]>(
+    () =>
+      items.map((i) => ({
+        id: i.id,
+        kind: i.status,
+        title: i.title,
+        start: i.day,
+        details: [
+          { label: "Amount", value: <Money value={i.amount} /> },
+          { label: "Due", value: <DateText value={i.day} style="long" /> },
+        ],
+      })),
+    [items],
+  );
+  // A timed entry: it sits in the hours of the day and week views, and can be dragged or stretched.
+  const [visit, setVisit] = useState<ScheduleEvent>({
+    id: "visit",
+    kind: "open",
+    title: "Plumber visit",
+    start: today,
+    time: "10:00",
+    endTime: "11:30",
+    movable: true,
+    resizable: true,
+  });
+  const change = async (_e: ScheduleEvent, next: { start: string; time: string | null; endTime: string | null }) => {
+    setVisit((v) => ({ ...v, start: next.start, time: next.time ?? v.time, endTime: next.endTime ?? v.endTime }));
+    return null;
+  };
   return (
     <Section
       id="calendar"
-      title="Rent calendar"
-      description="Due days with a dot per state, and the chosen day's rent. Days are Kigali days."
+      title="Calendar"
+      description="The Pro Agenda: day, week and month; choose a slot to create; drag or stretch a timed entry."
     >
-      <SectionCard title="Rent in the next 30 days">
-        <RentCalendar items={items} today={today} onItemPress={setOpen} />
-      </SectionCard>
-      <div className="max-w-md">
-        <Specimen label="Narrow: the day's list goes under the month">
-          <SectionCard>
-            <RentCalendar items={items} today={today} defaultSelectedDay={addDays(today, 7)} />
-          </SectionCard>
-        </Specimen>
-      </div>
-      <SidePanel
-        isOpen={open !== null}
-        onOpenChange={(o) => (o ? undefined : setOpen(null))}
-        title={open ? `${open.title}` : ""}
-        description={open ? String(open.detail ?? "") : undefined}
-        headerExtra={open ? <StatusChip kind="charge" status={open.status} /> : null}
-      >
-        {open ? (
-          <KeyValueList
-            items={[
-              { label: "Amount", value: <Money value={open.amount} /> },
-              { label: "Due", value: <DateText value={open.day} style="long" /> },
-            ]}
-          />
-        ) : null}
-      </SidePanel>
+      <AgendaCalendar
+        label="Rent calendar"
+        today={today}
+        events={[...events, visit]}
+        onCreate={(day, time) => toast(`New entry on ${day} at ${time}`)}
+        onMove={change}
+        onResize={change}
+        hint="Choose a time in a day or week to add an entry"
+        kinds={[
+          { id: "open", label: "Due", color: "var(--accent)", tentative: true },
+          { id: "overdue", label: "Overdue", color: "var(--danger)" },
+          { id: "paid", label: "Paid", color: "var(--success)" },
+        ]}
+      />
     </Section>
   );
 }

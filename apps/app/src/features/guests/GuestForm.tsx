@@ -42,6 +42,8 @@ export interface GuestFormProps {
   buildings?: readonly GuestBuilding[];
   /** Editing a registration before arrival. */
   initial?: HostGuest | null;
+  /** A new registration's arrival day, from a day chosen on the calendar. */
+  arrivalDefault?: string | null;
   /** Saves the request (a server action calling the API); field errors come back in words. */
   onSave: (request: Request) => Promise<GuestSaveResult>;
   onClose: () => void;
@@ -64,6 +66,7 @@ export function GuestFormPanel({
   window = {},
   buildings,
   initial,
+  arrivalDefault = null,
   onSave,
   onClose,
 }: GuestFormProps) {
@@ -81,7 +84,7 @@ export function GuestFormPanel({
   const [originCountry, setOriginCountry] = useState<string | null>(
     initial?.origin.kind === "country" ? initial.origin.countryCode : null,
   );
-  const [arrivalOn, setArrivalOn] = useState<string | null>(initial?.arrivalOn ?? null);
+  const [arrivalOn, setArrivalOn] = useState<string | null>(initial?.arrivalOn ?? arrivalDefault);
   const [departureOn, setDepartureOn] = useState<string | null>(initial?.departureOn ?? null);
   const [propertyId, setPropertyId] = useState<string | null>(
     initial?.propertyId ?? (buildings?.length === 1 ? (buildings[0]?.id ?? null) : null),

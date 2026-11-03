@@ -1,21 +1,24 @@
 "use client";
 
-import { Button, Modal, Spinner, TextArea, TextField, Tooltip } from "@heroui/react";
-import { ChatAttachment } from "@heroui-pro/react/chat-attachment";
+import { Avatar, Button, Dropdown, Label, Modal } from "@heroui/react";
 import {
-  type KeyboardEvent,
-  type PointerEvent,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+  ChatAttachment,
+  ChatAttachmentGroup,
+  ChatAttachmentInput,
+  ChatConversation,
+  ChatListView,
+  ChatLoader,
+  ChatMessage,
+  PromptInput,
+  Segment,
+} from "@heroui-pro/react";
+import { type PointerEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { initialsOf } from "./cells.tsx";
 import { Icon } from "./icon.tsx";
 import { fileSize, messageClock, messageDay, placeMessages, unreadStart, voiceClock } from "./message-groups.ts";
 import { PhotoGallery } from "./photo-gallery.tsx";
+import { EmptyBlock } from "./states.tsx";
+import { SearchBar } from "./table.tsx";
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
@@ -72,22 +75,35 @@ export interface ChatThreadProps {
   placeholder?: string;
   /** Shown when there are no lines yet. */
   empty?: ReactNode;
-  /** What the file picker offers (`accept`). */
+  /** What the file picker offers (`accept`). Without it the composer takes text only. */
   accept?: string;
   /** What is wrong with these files, in words, or null (the same rule the API keeps). */
   checkFiles?: (
     files: readonly { mime: string; sizeBytes: number; name: string }[],
     voiceDurationS?: number | null,
   ) => string | null;
-  /** The longest voice note, in seconds. */
+  /** The longest voice note, in seconds; 0 turns voice notes off. */
   maxVoiceSeconds?: number;
+  /** The lines are on their way: a skeleton in their place. */
+  isLoading?: boolean;
+  /** Who is typing now, when the live line says so. */
+  typing?: string | null;
+  /** Saved replies the composer offers (a business's templates), by group (a language). */
+  suggestions?: readonly ChatSuggestion[];
   className?: string;
+}
+
+/** A saved reply: pressing it puts its words in the composer. */
+export interface ChatSuggestion {
+  id: string;
+  label: string;
+  text: string;
+  /** "English", "Kinyarwanda". */
+  group?: string;
 }
 
 /** A finger or mouse held this long on the microphone records until it lets go; shorter is a click. */
 const HOLD_MS = 350;
-/** Within this many pixels of the bottom counts as "at the newest line". */
-const NEAR_BOTTOM_PX = 96;
 
 /** The type a browser records voice in, best first: Opus in WebM or Ogg, AAC in MP4 (Safari). */
 function recorderType(): string | undefined {
@@ -101,37 +117,6 @@ function extensionFor(mime: string): string {
   if (mime.includes("ogg")) return "ogg";
   if (mime.includes("mp4")) return "m4a";
   return "webm";
-}
-
-/* ------------------------------------------------------------------ pieces */
-
-function Ticks({ receipt }: { receipt: ChatLine["receipt"] }) {
-  if (!receipt) return null;
-  if (receipt === "sending")
-    return (
-      <span className="inline-flex items-center gap-1 text-muted" title="Sending">
-        <Icon name="Clock" className="size-3.5" />
-        <span className="sr-only">Sending</span>
-      </span>
-    );
-  if (receipt === "failed")
-    return (
-      <span className="inline-flex items-center gap-1 text-danger" title="Not sent">
-        <Icon name="CircleExclamation" className="size-3.5" />
-        <span className="sr-only">Not sent</span>
-      </span>
-    );
-  return receipt === "read" ? (
-    <span className="inline-flex text-accent" title="Read">
-      <Icon name="CheckDouble" className="size-3.5" />
-      <span className="sr-only">Read</span>
-    </span>
-  ) : (
-    <span className="inline-flex text-muted" title="Sent">
-      <Icon name="Check" className="size-3.5" />
-      <span className="sr-only">Sent</span>
-    </span>
-  );
 }
 
 /** Bar heights for a voice note's waveform, steady for the same note (from its address), 0.25 to 1. */
@@ -240,27 +225,40 @@ export function VoiceNote({ url, durationS, mine }: { url: string; durationS: nu
   );
 }
 
-/** A document on a message: an icon, the name and size, compact; opens or downloads from the app's own origin. */
-function FileCard({ file, mine }: { file: ChatFile; mine: boolean }) {
-  const kind = file.mime === "application/pdf" ? "PDF" : (file.filename?.split(".").pop()?.toUpperCase() ?? null);
+/* ------------------------------------------------------------------ pieces */
+
+function Ticks({ receipt }: { receipt: ChatLine["receipt"] }) {
+  if (!receipt || receipt === "failed") return null;
+  const [icon, words, tone] =
+    receipt === "sending"
+      ? (["Clock", "Sending", "text-muted"] as const)
+      : receipt === "read"
+        ? (["CheckDouble", "Read", "text-accent"] as const)
+        : (["Check", "Sent", "text-muted"] as const);
+  return (
+    <span className={cx("inline-flex", tone)} title={words}>
+      <Icon name={icon} className="size-3.5" />
+      <span className="sr-only">{words}</span>
+    </span>
+  );
+}
+
+/** A document on a message (Pro ChatAttachment as a file card); opens from the app's own origin. */
+function FileCard({ file }: { file: ChatFile }) {
   return (
     <a
       href={file.url}
       target="_blank"
       rel="noreferrer"
-      className={cx(
-        "flex w-60 max-w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-foreground no-underline transition-colors focus-visible:outline-2 focus-visible:outline-focus",
-        mine ? "bg-surface/70 hover:bg-surface" : "bg-surface hover:bg-surface/70",
-      )}
+      className="block max-w-full rounded-[var(--inner-radius)] text-foreground no-underline focus-visible:outline-2 focus-visible:outline-focus"
+      aria-label={`Open ${file.filename ?? "the document"}${file.sizeBytes ? `, ${fileSize(file.sizeBytes)}` : ""}`}
     >
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent">
-        <Icon name={file.mime === "application/pdf" ? "FileText" : "File"} />
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm font-medium">{file.filename ?? "Document"}</span>
-        <span className="text-xs text-muted">{[kind, fileSize(file.sizeBytes)].filter(Boolean).join(" · ")}</span>
-      </span>
-      <Icon name="ArrowDownToLine" className="shrink-0 text-muted" />
+      <ChatAttachment
+        mimeType={file.mime}
+        name={file.filename ?? "Document"}
+        size={file.sizeBytes ?? undefined}
+        mediaType="document"
+      />
     </a>
   );
 }
@@ -308,24 +306,30 @@ interface Pending {
   preview: string | null;
 }
 
+/**
+ * The composer (Pro PromptInput): the words, files picked or dropped (ChatAttachmentInput, shown as
+ * ChatAttachments with Remove), a hold-or-click voice note, and Send. Enter sends, Shift+Enter breaks a line.
+ */
 function Composer({
   onSend,
   placeholder,
   accept,
   checkFiles,
   maxVoiceSeconds,
+  suggestions,
 }: {
   onSend: (draft: ChatDraft) => Promise<void>;
   placeholder: string;
   accept?: string;
   checkFiles?: ChatThreadProps["checkFiles"];
   maxVoiceSeconds: number;
+  suggestions?: readonly ChatSuggestion[];
 }) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<Pending[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const picker = useRef<HTMLInputElement>(null);
-  const area = useRef<HTMLTextAreaElement>(null);
+  const takesFiles = Boolean(accept);
+  const takesVoice = takesFiles && maxVoiceSeconds > 0;
 
   // Voice: idle, held (records while pressed), locked (a click: records until Stop or Send).
   const [rec, setRec] = useState<"idle" | "held" | "locked">("idle");
@@ -351,20 +355,11 @@ function Composer({
     [],
   );
 
-  // The box grows with what is typed, up to six lines.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-measured whenever the text changes
-  useLayoutEffect(() => {
-    const el = area.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-  }, [text]);
-
-  const add = (list: FileList | null) => {
-    if (!list || list.length === 0) return;
+  const add = (list: File[]) => {
+    if (list.length === 0) return;
     const next = [
       ...files,
-      ...Array.from(list).map((file) => ({
+      ...list.map((file) => ({
         key: `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`,
         file,
         preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
@@ -393,7 +388,6 @@ function Composer({
       setText("");
       setFiles([]);
     }
-    area.current?.focus();
     try {
       await onSend(draft);
     } catch (cause) {
@@ -402,13 +396,6 @@ function Composer({
   };
 
   const sendTyped = () => void send({ body: text.trim(), files: files.map((p) => p.file) });
-
-  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-      e.preventDefault();
-      sendTyped();
-    }
-  };
 
   // --- voice ---
   // The recorder's stop handler sends with the composer as it is then, not as it was when recording began.
@@ -501,126 +488,108 @@ function Composer({
   const recording = rec !== "idle";
   const canSend = text.trim().length > 0 || files.length > 0;
 
-  return (
-    <div className="flex flex-col gap-2 border-t border-separator bg-surface px-3 pt-2.5 pb-3 sm:px-4">
-      {error ? (
-        <p role="alert" className="flex items-center gap-1.5 text-xs text-danger">
-          <Icon name="CircleExclamation" className="size-3.5 shrink-0" />
-          {error}
-        </p>
-      ) : null}
+  const shellBody = (
+    <>
       {files.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {files.map((p) => (
-            <ChatAttachment
-              key={p.key}
-              mimeType={p.file.type}
-              name={p.file.name}
-              size={p.file.size}
-              src={p.preview ?? undefined}
-            >
-              <ChatAttachment.Preview />
-              <ChatAttachment.Info />
-              <ChatAttachment.Remove
-                aria-label={`Remove ${p.file.name}`}
-                onPress={() => {
-                  if (p.preview) URL.revokeObjectURL(p.preview);
-                  setFiles(files.filter((f) => f.key !== p.key));
-                }}
-              />
-            </ChatAttachment>
-          ))}
-        </div>
+        <PromptInput.Attachments>
+          <ChatAttachmentGroup>
+            {files.map((p) => (
+              <ChatAttachment
+                key={p.key}
+                mimeType={p.file.type}
+                name={p.file.name}
+                size={p.file.size}
+                src={p.preview ?? undefined}
+              >
+                <ChatAttachment.Preview />
+                <ChatAttachment.Info />
+                <ChatAttachment.Remove
+                  aria-label={`Remove ${p.file.name}`}
+                  onPress={() => {
+                    if (p.preview) URL.revokeObjectURL(p.preview);
+                    setFiles(files.filter((f) => f.key !== p.key));
+                  }}
+                />
+              </ChatAttachment>
+            ))}
+          </ChatAttachmentGroup>
+        </PromptInput.Attachments>
       ) : null}
-      <div className="flex items-end gap-1.5">
-        <input
-          ref={picker}
-          type="file"
-          multiple
-          accept={accept}
-          className="sr-only"
-          tabIndex={-1}
-          aria-hidden="true"
-          data-chat-files=""
-          onChange={(e) => {
-            add(e.currentTarget.files);
-            e.currentTarget.value = "";
-          }}
-        />
+      <PromptInput.Content>
         {recording ? (
-          <div
-            className="flex min-h-10 flex-1 items-center gap-3 rounded-xl bg-danger-soft px-3 text-sm text-danger-soft-foreground"
-            aria-live="polite"
-          >
+          <div className="flex min-h-10 items-center gap-3 px-1 text-sm text-danger" aria-live="polite">
             <span className="size-2.5 animate-pulse rounded-full bg-danger" aria-hidden="true" />
-            <span className="tabular font-medium">{voiceClock(seconds)}</span>
-            <span className="text-xs">
-              {rec === "held" ? "Recording. Let go to send." : `Recording, up to ${voiceClock(maxVoiceSeconds)}`}
-            </span>
+            <span className="font-medium tabular">{voiceClock(seconds)}</span>
+            <span className="text-xs text-muted">{rec === "held" ? "Let go to send" : "Recording"}</span>
           </div>
         ) : (
-          <>
-            <Tooltip delay={400}>
-              <Button
-                isIconOnly
-                variant="ghost"
-                aria-label="Attach photos or files"
-                onPress={() => picker.current?.click()}
-                className="shrink-0"
-              >
-                <Icon name="Paperclip" />
-              </Button>
-              <Tooltip.Content>Attach photos or files</Tooltip.Content>
-            </Tooltip>
-            <TextField aria-label="Message" value={text} onChange={setText} className="min-w-0 flex-1">
-              <TextArea
-                ref={area}
-                rows={1}
-                placeholder={placeholder}
-                onKeyDown={onKeyDown}
-                className="max-h-40 min-h-10 w-full resize-none py-2"
-              />
-            </TextField>
-          </>
+          <PromptInput.TextArea aria-label="Message" placeholder={placeholder} rows={1} />
         )}
-        {recording ? (
-          <>
-            <Button
-              variant="ghost"
-              onPress={() => stopRecording(false)}
-              aria-label="Cancel the voice note"
-              className="shrink-0"
-            >
-              <Icon name="TrashBin" />
-              <span className="max-sm:sr-only">Cancel</span>
-            </Button>
-            {rec === "locked" ? (
-              <Button
-                variant="primary"
-                onPress={() => stopRecording(true)}
-                aria-label="Send the voice note"
-                className="shrink-0"
-              >
-                <Icon name="PaperPlane" />
-                Send
+      </PromptInput.Content>
+      <PromptInput.Toolbar>
+        <PromptInput.ToolbarStart>
+          {takesFiles && !recording ? (
+            <ChatAttachmentInput.Trigger
+              aria-label="Attach photos or files"
+              render={(props) => (
+                <PromptInput.Action {...props} tooltip="Attach photos or files">
+                  <Icon name="Paperclip" />
+                </PromptInput.Action>
+              )}
+            />
+          ) : null}
+          {suggestions && suggestions.length > 0 && !recording ? (
+            <Dropdown>
+              <PromptInput.Action aria-label="Saved replies" tooltip="Saved replies">
+                <Icon name="FileText" />
+              </PromptInput.Action>
+              <Dropdown.Popover placement="top start" className="max-h-80 min-w-56 overflow-y-auto">
+                <Dropdown.Menu
+                  aria-label="Saved replies"
+                  onAction={(key) => {
+                    const hit = suggestions.find((x) => x.id === String(key));
+                    if (hit) setText(hit.text);
+                  }}
+                >
+                  {[...new Set(suggestions.map((x) => x.group ?? ""))].map((group) => (
+                    <Dropdown.Section key={group || "all"} aria-label={group || "Replies"}>
+                      {suggestions
+                        .filter((x) => (x.group ?? "") === group)
+                        .map((x) => (
+                          <Dropdown.Item key={x.id} id={x.id} textValue={x.label}>
+                            <Label>{group ? `${x.label} (${group})` : x.label}</Label>
+                          </Dropdown.Item>
+                        ))}
+                    </Dropdown.Section>
+                  ))}
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+          ) : null}
+        </PromptInput.ToolbarStart>
+        <PromptInput.ToolbarEnd className="gap-1.5">
+          {recording ? (
+            <>
+              <Button size="sm" variant="ghost" onPress={() => stopRecording(false)} aria-label="Cancel the voice note">
+                <Icon name="TrashBin" />
+                <span className="max-sm:sr-only">Cancel</span>
               </Button>
-            ) : null}
-          </>
-        ) : canSend || text.length > 0 || files.length > 0 ? (
-          <Button
-            isIconOnly
-            variant="primary"
-            aria-label="Send"
-            onPress={sendTyped}
-            isDisabled={!canSend}
-            className="shrink-0"
-          >
-            <Icon name="PaperPlane" />
-          </Button>
-        ) : (
-          <Tooltip delay={400}>
+              {rec === "locked" ? (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onPress={() => stopRecording(true)}
+                  aria-label="Send the voice note"
+                >
+                  <Icon name="PaperPlane" />
+                  Send
+                </Button>
+              ) : null}
+            </>
+          ) : takesVoice && !canSend ? (
             <Button
               isIconOnly
+              size="sm"
               variant="secondary"
               aria-label="Record a voice note: hold to talk, or click to start and stop"
               onPointerDown={onMicDown}
@@ -631,28 +600,68 @@ function Composer({
                   void startRecording().then((ok) => ok && setRec("locked"));
                 }
               }}
-              className="shrink-0 touch-none select-none"
+              className="touch-none select-none"
               data-chat-mic=""
             >
               <Icon name="Microphone" />
             </Button>
-            <Tooltip.Content>Hold to record, or click to start</Tooltip.Content>
-          </Tooltip>
+          ) : (
+            <PromptInput.Send isDisabled={!canSend} aria-label="Send" />
+          )}
+        </PromptInput.ToolbarEnd>
+      </PromptInput.Toolbar>
+    </>
+  );
+
+  return (
+    <div className="flex flex-col gap-1.5 border-t border-separator bg-surface px-3 pt-2.5 pb-3 sm:px-4">
+      {error ? (
+        <p role="alert" className="flex items-center gap-1.5 text-xs text-danger">
+          <Icon name="CircleExclamation" className="size-3.5 shrink-0" />
+          {error}
+        </p>
+      ) : null}
+      <PromptInput
+        value={text}
+        onValueChange={setText}
+        onSubmit={sendTyped}
+        status={error ? "error" : "ready"}
+        layout="inline"
+        variant="secondary"
+        maxHeight={160}
+      >
+        {takesFiles ? (
+          <ChatAttachmentInput accept={accept} onFilesSelected={add}>
+            <ChatAttachmentInput.Dropzone
+              render={(props) => <PromptInput.Shell {...props}>{shellBody}</PromptInput.Shell>}
+            />
+          </ChatAttachmentInput>
+        ) : (
+          <PromptInput.Shell>{shellBody}</PromptInput.Shell>
         )}
-      </div>
+      </PromptInput>
     </div>
   );
 }
 
 /* ----------------------------------------------------------------- thread */
 
+function Divider({ children, accent }: { children: ReactNode; accent?: boolean }) {
+  return (
+    <div className="my-3 flex items-center gap-3">
+      <span className={cx("h-px flex-1", accent ? "bg-accent/40" : "bg-separator")} />
+      <span className={cx("text-xs font-medium", accent ? "text-accent" : "text-muted")}>{children}</span>
+      <span className={cx("h-px flex-1", accent ? "bg-accent/40" : "bg-separator")} />
+    </div>
+  );
+}
+
 /**
- * A conversation (rentals P3.4): bubbles grouped by sender (lines within five minutes sit under one
- * time and one name), day dividers (Today, Yesterday, the date), photos that open in the zoomable
- * gallery, documents as cards, voice notes with a player and their length, a "New messages" line,
- * delivered and read ticks on our lines, and a composer with files, photos, a hold-or-click voice
- * recorder and Enter to send. It stays at the newest line while photos load and while new lines
- * arrive, unless the reader scrolled up to read older ones (then a button takes them back down).
+ * A conversation, the same for every role (HeroUI Pro chat): a ChatConversation viewport that stays at
+ * the newest line, ChatMessage.User bubbles for our lines and ChatMessage.Assistant rows (with the
+ * sender's avatar once per group) for theirs, day dividers and a "New messages" line, photos that open
+ * in the zoomable gallery, documents as ChatAttachments, voice notes with a player, sent and read
+ * ticks, Retry on a line that failed, a skeleton while loading, and the PromptInput composer.
  * Reads and sends are the caller's: the kit never calls the API.
  */
 export function ChatThread({
@@ -670,12 +679,12 @@ export function ChatThread({
   accept,
   checkFiles,
   maxVoiceSeconds = 120,
+  isLoading = false,
+  typing,
+  suggestions,
   className,
 }: ChatThreadProps) {
   const scroller = useRef<HTMLDivElement>(null);
-  const content = useRef<HTMLDivElement>(null);
-  const atBottom = useRef(true);
-  const [showJump, setShowJump] = useState(false);
   const [gallery, setGallery] = useState<{ files: readonly ChatFile[]; start: number } | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [now, setNow] = useState<string | undefined>(undefined);
@@ -683,7 +692,6 @@ export function ChatThread({
   useEffect(() => setNow(new Date().toISOString()), []);
 
   // The unread line is fixed when the conversation opens, so it does not jump as it is read.
-  // The parent keys this component by conversation, so this runs once per opened conversation.
   const [unreadId] = useState(() =>
     unreadStart(
       lines.map((l) => ({
@@ -709,60 +717,6 @@ export function ChatThread({
     [lines],
   );
 
-  const toBottom = useCallback((smooth = false) => {
-    const el = scroller.current;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
-    atBottom.current = true;
-    setShowJump(false);
-  }, []);
-
-  // Opening: at the "New messages" line when there is one, else at the newest line.
-  const opened = useRef(false);
-  useLayoutEffect(() => {
-    if (opened.current || lines.length === 0) return;
-    opened.current = true;
-    const el = scroller.current;
-    const mark = unreadId ? el?.querySelector<HTMLElement>(`[data-line="${unreadId}"]`) : null;
-    if (el && mark) {
-      el.scrollTop = Math.max(0, mark.offsetTop - 64);
-      atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
-      setShowJump(!atBottom.current);
-    } else toBottom();
-  }, [lines.length, unreadId, toBottom]);
-
-  // A new line at the end: follow it when the reader was at the bottom, or when it is ours.
-  const lastId = lines.at(-1)?.id;
-  const lastMine = lines.at(-1)?.side === "me";
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the newest line changes
-  useLayoutEffect(() => {
-    if (!opened.current) return;
-    if (atBottom.current || lastMine) toBottom(true);
-    else setShowJump(true);
-  }, [lastId]);
-
-  // Photos and players load after the lines are drawn and grow them: stay at the newest line meanwhile.
-  useEffect(() => {
-    const box = content.current;
-    if (!box || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => {
-      if (atBottom.current) {
-        const el = scroller.current;
-        if (el) el.scrollTop = el.scrollHeight;
-      }
-    });
-    ro.observe(box);
-    return () => ro.disconnect();
-  }, []);
-
-  const onScroll = () => {
-    const el = scroller.current;
-    if (!el) return;
-    const near = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
-    atBottom.current = near;
-    if (near) setShowJump(false);
-  };
-
   const older = async () => {
     const el = scroller.current;
     if (!el || !onLoadOlder || loadingOlder) return;
@@ -781,25 +735,33 @@ export function ChatThread({
 
   return (
     <div className={cx("relative flex min-h-0 flex-1 flex-col", className)}>
-      <div
+      <ChatConversation
         ref={scroller}
-        onScroll={onScroll}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 sm:px-5"
+        initial="instant"
+        className="min-h-0 flex-1 px-3 sm:px-5"
         role="log"
         aria-label="Conversation"
         aria-live="polite"
         aria-relevant="additions"
       >
-        <div ref={content} className="flex min-h-full flex-col justify-end py-4">
-          {hasOlder ? (
+        <ChatConversation.Content className="flex min-h-full max-w-none flex-col justify-end gap-0 py-4">
+          {isLoading ? (
+            <div className="flex flex-col gap-4">
+              <ChatLoader.Skeleton label="Loading the conversation" />
+              <ChatLoader.Skeleton />
+            </div>
+          ) : null}
+          {hasOlder && !isLoading ? (
             <div className="flex justify-center pb-3">
               <Button size="sm" variant="ghost" onPress={older} isPending={loadingOlder}>
-                {loadingOlder ? <Spinner size="sm" color="current" /> : <Icon name="ChevronUp" />}
+                <Icon name="ChevronUp" />
                 Earlier messages
               </Button>
             </div>
           ) : null}
-          {lines.length === 0 ? <div className="flex flex-1 items-center justify-center py-10">{empty}</div> : null}
+          {lines.length === 0 && !isLoading ? (
+            <div className="flex flex-1 items-center justify-center py-10">{empty}</div>
+          ) : null}
           {lines.map((line, i) => {
             const place = places[i] ?? { newDay: false, first: true, last: true };
             const mine = line.side === "me";
@@ -808,120 +770,116 @@ export function ChatThread({
             const voice = line.attachments.find((a) => a.kind === "audio");
             // One to one: the header names the other side, so only a teammate's own lines carry a name.
             const showName = place.first && mine && line.senderName && selfName && line.senderName !== selfName;
+            const media = photos.length > 0 || docs.length > 0;
+            const bubble = (
+              <ChatMessage.Bubble
+                className={cx(
+                  "flex max-w-full flex-col gap-1 overflow-hidden",
+                  mine ? "bg-accent-soft text-accent-soft-foreground" : "bg-default",
+                  media ? "p-1" : voice ? "px-2 py-1.5" : "",
+                  line.receipt === "sending" && "opacity-80",
+                )}
+              >
+                {photos.length > 0 ? (
+                  <Photos files={photos} onOpen={(start) => setGallery({ files: photos, start })} />
+                ) : null}
+                {voice ? <VoiceNote url={voice.url} durationS={line.voiceDurationS} mine={mine} /> : null}
+                {docs.length > 0 ? (
+                  <ChatMessage.Media>
+                    {docs.map((d) => (
+                      <FileCard key={d.id} file={d} />
+                    ))}
+                  </ChatMessage.Media>
+                ) : null}
+                {line.body || line.fault ? (
+                  <ChatMessage.Content
+                    className={cx(
+                      "flex flex-col gap-1 whitespace-pre-wrap break-words text-inherit",
+                      media && "px-2 pt-0.5 pb-1",
+                    )}
+                  >
+                    {line.fault ? (
+                      <a
+                        href={line.fault.href}
+                        className="inline-flex items-center gap-1.5 self-start rounded-md bg-surface/70 px-2 py-0.5 text-xs font-medium text-foreground no-underline hover:underline"
+                      >
+                        <Icon name="Wrench" className="size-3.5" />
+                        {line.fault.label}
+                      </a>
+                    ) : null}
+                    {line.body ? <span>{line.body}</span> : null}
+                  </ChatMessage.Content>
+                ) : null}
+              </ChatMessage.Bubble>
+            );
+            const foot =
+              line.receipt === "failed" ? (
+                <ChatMessage.Actions className="items-center gap-1 text-xs text-danger opacity-100">
+                  <Icon name="CircleExclamation" className="size-3.5" />
+                  <span className="pr-1">Not sent</span>
+                  {onRetry ? (
+                    <ChatMessage.Action aria-label="Send again" tooltip="Send again" onPress={() => onRetry(line.id)}>
+                      <Icon name="ArrowRotateRight" className="size-3.5" />
+                    </ChatMessage.Action>
+                  ) : null}
+                  {onDiscard ? (
+                    <ChatMessage.Action aria-label="Remove" tooltip="Remove" onPress={() => onDiscard(line.id)}>
+                      <Icon name="TrashBin" className="size-3.5" />
+                    </ChatMessage.Action>
+                  ) : null}
+                </ChatMessage.Actions>
+              ) : place.last || line.receipt === "sending" ? (
+                <span className="mt-1 flex items-center gap-1 px-1 text-xs text-muted tabular">
+                  <time dateTime={line.createdAt}>{messageClock(line.createdAt)}</time>
+                  {mine ? <Ticks receipt={line.receipt ?? null} /> : null}
+                </span>
+              ) : null;
             return (
               <div key={line.id} data-line={line.id} className="flex flex-col">
-                {place.newDay ? (
-                  <div className="my-3 flex items-center gap-3">
-                    <span className="h-px flex-1 bg-separator" />
-                    <span className="text-xs font-medium text-muted">{messageDay(line.createdAt, now)}</span>
-                    <span className="h-px flex-1 bg-separator" />
-                  </div>
-                ) : null}
-                {line.id === unreadId ? (
-                  <div className="my-3 flex items-center gap-3">
-                    <span className="h-px flex-1 bg-accent/40" />
-                    <span className="text-xs font-semibold text-accent">New messages</span>
-                    <span className="h-px flex-1 bg-accent/40" />
-                  </div>
-                ) : null}
+                {place.newDay ? <Divider>{messageDay(line.createdAt, now)}</Divider> : null}
+                {line.id === unreadId ? <Divider accent>New messages</Divider> : null}
                 {line.side === "system" ? (
                   <p className="my-2 self-center rounded-full bg-default px-3 py-1 text-center text-xs text-muted">
                     {line.body}
                   </p>
-                ) : (
-                  <div
-                    className={cx("flex flex-col", mine ? "items-end" : "items-start", place.first ? "mt-3" : "mt-0.5")}
-                  >
+                ) : mine ? (
+                  <ChatMessage.User className={cx("gap-0", place.first ? "mt-3" : "mt-0.5")}>
                     {showName ? (
                       <span className="mb-1 px-1 text-xs font-medium text-muted">{line.senderName}</span>
                     ) : null}
-                    <div
-                      className={cx(
-                        "flex max-w-[85%] flex-col gap-1 overflow-hidden rounded-xl sm:max-w-[68%]",
-                        mine ? "bg-accent-soft text-accent-soft-foreground" : "bg-default text-foreground",
-                        mine ? (place.last ? "rounded-br-sm" : "") : place.last ? "rounded-bl-sm" : "",
-                        photos.length > 0 || docs.length > 0 ? "p-1" : voice ? "px-2 py-1.5" : "px-3 py-2",
-                        line.receipt === "sending" ? "opacity-80" : "",
-                      )}
-                    >
-                      {photos.length > 0 ? (
-                        <Photos files={photos} onOpen={(start) => setGallery({ files: photos, start })} />
-                      ) : null}
-                      {voice ? <VoiceNote url={voice.url} durationS={line.voiceDurationS} mine={mine} /> : null}
-                      {docs.map((d) => (
-                        <FileCard key={d.id} file={d} mine={mine} />
-                      ))}
-                      {line.body || line.fault ? (
-                        <div
-                          className={cx(
-                            "flex flex-col gap-1 text-sm leading-relaxed whitespace-pre-wrap break-words",
-                            photos.length > 0 || docs.length > 0 ? "px-2 pt-0.5 pb-1" : "",
-                          )}
-                        >
-                          {line.fault ? (
-                            <a
-                              href={line.fault.href}
-                              className="inline-flex items-center gap-1.5 self-start rounded-md bg-surface/70 px-2 py-0.5 text-xs font-medium text-foreground no-underline hover:underline"
-                            >
-                              <Icon name="Wrench" className="size-3.5" />
-                              {line.fault.label}
-                            </a>
-                          ) : null}
-                          {line.body ? <span>{line.body}</span> : null}
-                        </div>
-                      ) : null}
+                    <div className="flex max-w-[85%] flex-col items-end sm:max-w-[68%]">
+                      {bubble}
+                      {foot}
                     </div>
-                    {line.receipt === "failed" ? (
-                      <span className="mt-1 flex items-center gap-2 px-1 text-xs text-danger">
-                        <Icon name="CircleExclamation" className="size-3.5" />
-                        Not sent
-                        {onRetry ? (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onPress={() => onRetry(line.id)}
-                            className="h-7 px-2 text-xs"
-                          >
-                            <Icon name="ArrowRotateRight" className="size-3.5" />
-                            Retry
-                          </Button>
-                        ) : null}
-                        {onDiscard ? (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onPress={() => onDiscard(line.id)}
-                            className="h-7 px-2 text-xs text-muted"
-                          >
-                            Remove
-                          </Button>
-                        ) : null}
-                      </span>
-                    ) : place.last || line.receipt === "sending" ? (
-                      <span className="mt-1 flex items-center gap-1 px-1 text-xs tabular text-muted">
-                        <time dateTime={line.createdAt}>{messageClock(line.createdAt)}</time>
-                        {mine ? <Ticks receipt={line.receipt ?? null} /> : null}
-                      </span>
-                    ) : null}
-                  </div>
+                  </ChatMessage.User>
+                ) : (
+                  <ChatMessage.Assistant className={cx("py-0", place.first ? "mt-3" : "mt-0.5")}>
+                    <ChatMessage.Avatar
+                      show={place.first}
+                      alt={line.senderName ?? "Them"}
+                      fallback={initialsOf(line.senderName ?? "?")}
+                    />
+                    <ChatMessage.Body className="items-start gap-0 pe-0">
+                      <div className="flex max-w-[85%] flex-col items-start sm:max-w-[68%]">
+                        {bubble}
+                        {foot}
+                      </div>
+                    </ChatMessage.Body>
+                  </ChatMessage.Assistant>
                 )}
               </div>
             );
           })}
-        </div>
-      </div>
-      {showJump ? (
-        <Button
-          isIconOnly
-          size="sm"
-          variant="secondary"
-          aria-label="Go to the newest message"
-          onPress={() => toBottom(true)}
-          className="absolute right-4 bottom-24 z-10 rounded-full shadow-md"
-        >
-          <Icon name="ArrowDown" />
-        </Button>
-      ) : null}
+          {typing ? (
+            <div className="mt-3 flex items-center gap-2 text-xs text-muted">
+              <ChatLoader.Dots label={`${typing} is typing`} />
+              <span>{typing} is typing</span>
+            </div>
+          ) : null}
+        </ChatConversation.Content>
+        <ChatConversation.ScrollAnchor />
+        <ChatConversation.ScrollButton aria-label="Go to the newest message" />
+      </ChatConversation>
       {closedReason ? (
         <p className="flex items-center gap-2 border-t border-separator px-4 py-3 text-sm text-muted">
           <Icon name="Lock" className="shrink-0" />
@@ -929,14 +887,12 @@ export function ChatThread({
         </p>
       ) : (
         <Composer
-          onSend={async (d) => {
-            atBottom.current = true;
-            await onSend(d);
-          }}
+          onSend={onSend}
           placeholder={placeholder}
           accept={accept}
           checkFiles={checkFiles}
           maxVoiceSeconds={maxVoiceSeconds}
+          suggestions={suggestions}
         />
       )}
       <Modal.Backdrop isOpen={gallery !== null} onOpenChange={(open) => (open ? undefined : setGallery(null))}>
@@ -960,5 +916,241 @@ export function ChatThread({
         </Modal.Container>
       </Modal.Backdrop>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ inbox */
+
+/** One conversation in an inbox list. */
+export interface ChatInboxRow {
+  id: string;
+  name: string;
+  /** Beside the name: the unit, the room. */
+  tag?: string | null;
+  /** The last line, or what the conversation is about. */
+  preview?: string | null;
+  /** When the last line came (ISO), for "14:05", "Yesterday", "Tue 20 Oct". */
+  at?: string | null;
+  unread?: number;
+  /** The words a search finds it by. */
+  search?: readonly (string | null | undefined)[];
+  /** Which filter beyond All and Unread it belongs to ("brokers"). */
+  group?: string;
+}
+
+/** "14:05" today, "Yesterday", "28 Oct" before. */
+function when(iso: string | null | undefined, now: string | undefined): string {
+  if (!iso) return "";
+  const day = messageDay(iso, now);
+  if (day === "Today") return messageClock(iso);
+  if (day === "Yesterday") return day;
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Africa/Kigali" }).format(
+    new Date(iso),
+  );
+}
+
+/**
+ * Every role's inbox (HeroUI Pro ChatListView): the conversations with a search and All / Unread
+ * filters on the left, the open one on the right. On a phone one pane shows at a time, with Back.
+ */
+export function ChatInbox({
+  rows,
+  selectedId,
+  onSelect,
+  onBack,
+  searchPlaceholder = "Search",
+  groups,
+  header,
+  children,
+  className,
+}: {
+  rows: readonly ChatInboxRow[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  /** Back to the list on a phone. */
+  onBack: () => void;
+  searchPlaceholder?: string;
+  /** More filters beside All and Unread, by `row.group` ("Brokers"). */
+  groups?: readonly { id: string; label: string }[];
+  /** The open conversation's header (who, about what, links). */
+  header?: ReactNode;
+  /** The open conversation (a ChatThread), or nothing. */
+  children?: ReactNode;
+  className?: string;
+}) {
+  const [q, setQ] = useState("");
+  const [show, setShow] = useState("all");
+  const [now, setNow] = useState<string | undefined>(undefined);
+  useEffect(() => setNow(new Date().toISOString()), []);
+  const needle = q.trim().toLowerCase();
+  const shown = rows.filter(
+    (r) =>
+      (show === "all" || (show === "unread" ? (r.unread ?? 0) > 0 : r.group === show)) &&
+      (!needle || [r.name, r.tag, ...(r.search ?? [])].some((v) => v?.toLowerCase().includes(needle))),
+  );
+  const filters = [
+    { id: "all", label: "All", count: rows.length },
+    { id: "unread", label: "Unread", count: rows.filter((r) => (r.unread ?? 0) > 0).length },
+    ...(groups ?? [])
+      .map((g) => ({ ...g, count: rows.filter((r) => r.group === g.id).length }))
+      .filter((g) => g.count > 0),
+  ];
+  const open = selectedId !== null && children;
+  return (
+    <div
+      className={cx(
+        "grid h-[min(780px,calc(100dvh-12rem))] min-h-[520px] grid-cols-1 overflow-hidden rounded-[var(--surface-radius)] border border-separator bg-surface md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]",
+        className,
+      )}
+    >
+      <section
+        aria-label="Conversations"
+        className={cx("flex min-h-0 flex-col border-separator md:border-r", open ? "max-md:hidden" : "")}
+      >
+        <div className="flex flex-col gap-2 border-b border-separator p-3">
+          <SearchBar
+            label="Search conversations"
+            value={q}
+            onChange={setQ}
+            placeholder={searchPlaceholder}
+            className="md:w-full"
+          />
+          {rows.length > 0 ? (
+            <Segment
+              aria-label="Show"
+              size="sm"
+              selectedKey={show}
+              onSelectionChange={(k) => setShow(String(k))}
+              className="w-full"
+            >
+              {filters.map((f) => (
+                <Segment.Item key={f.id} id={f.id} className="flex-1">
+                  {f.label}
+                  {f.count > 0 ? <span className="tabular"> {f.count}</span> : null}
+                </Segment.Item>
+              ))}
+            </Segment>
+          ) : null}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
+          <ChatListView
+            aria-label="Conversations"
+            items={shown}
+            selectionMode="single"
+            selectionBehavior="replace"
+            selectedKeys={selectedId ? [selectedId] : []}
+            onAction={(key) => onSelect(String(key))}
+            onSelectionChange={(keys) => {
+              const k = keys === "all" ? null : [...keys][0];
+              if (k != null) onSelect(String(k));
+            }}
+            className="bg-transparent p-0"
+            renderEmptyState={() => (
+              <EmptyBlock
+                size="sm"
+                icon={rows.length === 0 ? "Comments" : "Magnifier"}
+                title={rows.length === 0 ? "No conversations yet" : "No conversation matches"}
+              />
+            )}
+          >
+            {(r) => {
+              const unread = (r.unread ?? 0) > 0;
+              return (
+                <ChatListView.Item id={r.id} textValue={r.name} className="h-auto rounded-lg px-2.5 py-2">
+                  <ChatListView.ItemContent className="items-center gap-3">
+                    <Avatar size="sm" variant="soft" color={unread ? "accent" : "default"} className="shrink-0">
+                      <Avatar.Fallback>{initialsOf(r.name)}</Avatar.Fallback>
+                    </Avatar>
+                    <ChatListView.Text className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="flex items-baseline gap-2">
+                        <ChatListView.Title
+                          className={cx("min-w-0 truncate text-sm", unread ? "font-semibold" : "font-medium")}
+                        >
+                          {r.name}
+                        </ChatListView.Title>
+                        {r.tag ? <span className="shrink-0 text-xs text-muted">{r.tag}</span> : null}
+                      </span>
+                      <ChatListView.Preview
+                        className={cx("truncate text-xs", unread ? "text-foreground" : "text-muted")}
+                      >
+                        {r.preview ?? "No messages yet"}
+                      </ChatListView.Preview>
+                    </ChatListView.Text>
+                  </ChatListView.ItemContent>
+                  <ChatListView.Meta className="flex shrink-0 flex-col items-end gap-1 self-start pt-0.5">
+                    <span className={cx("text-xs tabular", unread ? "font-medium text-accent" : "text-muted")}>
+                      {when(r.at, now)}
+                    </span>
+                    {unread ? (
+                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-semibold text-accent-foreground tabular">
+                        {r.unread}
+                        <span className="sr-only"> unread</span>
+                      </span>
+                    ) : null}
+                  </ChatListView.Meta>
+                </ChatListView.Item>
+              );
+            }}
+          </ChatListView>
+        </div>
+      </section>
+      <section aria-label="Conversation" className={cx("flex min-h-0 min-w-0 flex-col", open ? "" : "max-md:hidden")}>
+        {open ? (
+          <>
+            <header className="flex items-center gap-3 border-b border-separator px-3 py-2.5 sm:px-4">
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                aria-label="All conversations"
+                onPress={onBack}
+                className="md:hidden"
+              >
+                <Icon name="ArrowLeft" />
+              </Button>
+              <div className="flex min-w-0 flex-1 items-center gap-3">{header}</div>
+            </header>
+            {children}
+          </>
+        ) : (
+          <div className="flex flex-1 items-center justify-center p-6">
+            <EmptyBlock icon="Comments" title={rows.length === 0 ? "No conversations yet" : "Pick a conversation"} />
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+/** The header line of an open conversation: avatar, name, a chip, what it is about, and a link. */
+export function ChatHeader({
+  name,
+  about,
+  chip,
+  status,
+  action,
+}: {
+  name: string;
+  about?: ReactNode;
+  chip?: ReactNode;
+  /** A small live dot or state beside the name. */
+  status?: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <>
+      <Avatar size="sm" variant="soft" className="shrink-0">
+        <Avatar.Fallback>{initialsOf(name)}</Avatar.Fallback>
+      </Avatar>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <h2 className="flex min-w-0 items-center gap-2 text-sm font-semibold">
+          <span className="truncate">{name}</span>
+          {chip}
+          {status}
+        </h2>
+        {about ? <span className="truncate text-xs text-muted">{about}</span> : null}
+      </div>
+      {action}
+    </>
   );
 }

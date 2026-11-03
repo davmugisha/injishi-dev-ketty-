@@ -340,7 +340,11 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
   /** Record cash: exactly the amount typed, one key per press. Prompts to a phone have no route. */
   const takePayment = () => {
     const amount = pAmount;
-    if (!amount || !T || T.blocked || busy) return;
+    if (!amount || busy) return;
+    if (!T || T.blocked) {
+      toast.danger(T ? `${T.label} is not available at the desk yet. Take cash.` : "Choose how the guest pays.");
+      return;
+    }
     if (T.id !== "cash") {
       unavailable(`A ${T.label} payment request from the desk`);
       return;

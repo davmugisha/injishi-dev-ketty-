@@ -62,7 +62,6 @@ export function AdminMoneyView({ data }: { data: AdminMoneyData }) {
           </>
         }
         title="Platform Money"
-        description="Append-only, balanced postings for Injishi’s own money: subscriptions, fees, broker credits and vendor bills. Tenant money settles directly to each merchant and never passes through this ledger."
         actions={
           <>
             <span className="text-xs text-muted">Exports: Platform finance only</span>

@@ -41,7 +41,6 @@ export function SettingsBusinessView({ data, businessName }: { data: SettingsBus
       <PageHeader
         eyebrow={`Settings · ${businessName}`}
         title="Business Structure"
-        description="How the business is organised. Tax and fiscal details belong to each legal entity, separate from property branding."
         actions={
           <>
             <Button

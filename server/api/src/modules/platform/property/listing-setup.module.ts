@@ -5,6 +5,8 @@ import { AmenitiesService } from './application/amenities.service';
 import { InventoryService } from './application/inventory.service';
 import { PropertyPhotosService } from './application/property-photos.service';
 import { RatePlansService } from './application/rate-plans.service';
+import { RatesCalendarService } from './application/rates-calendar.service';
+import { RatesCalendarRepository } from './infrastructure/rates-calendar.repository';
 import { RoomTypesService } from './application/room-types.service';
 import { RoomsService } from './application/rooms.service';
 import { SetupProgressService } from './application/setup-progress.service';
@@ -55,6 +57,8 @@ import { SetupProgressRepository } from './infrastructure/setup-progress.reposit
     PropertyPhotosService,
     RatePlansRepository,
     RatePlansService,
+    RatesCalendarService,
+    RatesCalendarRepository,
     RoomTypesRepository,
     RoomTypesService,
     // The physical rooms and units, and the setup checklist's counts
@@ -70,6 +74,7 @@ import { SetupProgressRepository } from './infrastructure/setup-progress.reposit
     InventoryService,
     PropertyPhotosService,
     RatePlansService,
+    RatesCalendarService,
     RoomTypesService,
     RoomsService,
     SetupProgressService,

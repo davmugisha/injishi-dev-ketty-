@@ -131,7 +131,6 @@ export function DistrictAdminView({ data }: { data: DistrictAdminData }) {
       <PageHeader
         eyebrow="Rubavu District · Administration"
         title="Bodies and Officers"
-        description="Who may act for which institution, where, and until when. A new assignment starts only after the District signatory approves it and Injishi verifies the mandate."
         actions={
           <Button
             onPress={() => {

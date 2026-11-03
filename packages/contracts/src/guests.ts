@@ -3,7 +3,7 @@ import { z } from "zod";
 import { isKnownCountry } from "./countries";
 import { normalizeRwPhone } from "./phone";
 import { OversightRole, OversightScopeLevel, Uuid } from "./primitives";
-import { CalendarDay, daysBetween, guestStayProblem, isIsoDate } from "./rentals/dates";
+import { CalendarDay, addDays, daysBetween, guestStayProblem, isIsoDate } from "./rentals/dates";
 import { PersonName, defaultIdKind, idNumberProblem, normaliseIdNumber } from "./rentals/identity";
 import { IdKind } from "./rentals/vocab";
 
@@ -265,6 +265,141 @@ export const GUEST_RELATIONSHIPS: ReadonlyArray<{ code: string; label: string; n
 /** The relationship that asks for its own words. */
 export const OTHER_RELATIONSHIP = "other";
 
+// --- The type of place a guest stays at ---------------------------------------------------
+
+/**
+ * The type of place, as a leader's filter and column name it: a hotel desk files its guests from the business
+ * (`orgs.business_kind`), a tenant or landlord from a residence. A motel counts as a hotel, a tented camp as
+ * a lodge and a villa as apartments; the exact kind is still shown (`guestPlaceKindLabel`).
+ */
+export const GUEST_PLACE_TYPES = ["hotel", "lodge", "guest_house", "apartment", "residence", "other"] as const;
+export const GuestPlaceType = z.enum(GUEST_PLACE_TYPES);
+export type GuestPlaceType = z.infer<typeof GuestPlaceType>;
+
+export const GUEST_PLACE_TYPE_LABEL: Readonly<Record<GuestPlaceType, string>> = {
+  hotel: "Hotel",
+  lodge: "Lodge",
+  guest_house: "Guest house",
+  apartment: "Apartments",
+  residence: "Residence",
+  other: "Other",
+};
+
+/** The business kinds each type of place covers (a residence is any tenant's or landlord's guest). */
+export const GUEST_PLACE_TYPE_KINDS: Readonly<Record<Exclude<GuestPlaceType, "residence" | "other">, readonly string[]>> = {
+  hotel: ["hotel", "motel"],
+  lodge: ["lodge", "tented_camp"],
+  guest_house: ["guest_house"],
+  apartment: ["apartment", "villa"],
+};
+
+const PLACE_KIND_LABEL: Readonly<Record<string, string>> = {
+  hotel: "Hotel",
+  motel: "Motel",
+  lodge: "Lodge",
+  tented_camp: "Tented camp",
+  guest_house: "Guest house",
+  apartment: "Apartments",
+  villa: "Villa",
+};
+
+/** The type of place from who filed the guest and the business's kind. */
+export function guestPlaceTypeOf(hostKind: GuestHostKind, businessKind: string | null | undefined): GuestPlaceType {
+  if (hostKind !== "hotel") return "residence";
+  for (const [type, kinds] of Object.entries(GUEST_PLACE_TYPE_KINDS)) {
+    if (businessKind && kinds.includes(businessKind)) return type as GuestPlaceType;
+  }
+  return "other";
+}
+
+/** The place's own kind in words: "Motel", "Tented camp", "Residence". */
+export function guestPlaceKindLabel(hostKind: GuestHostKind, businessKind: string | null | undefined): string {
+  if (hostKind !== "hotel") return GUEST_PLACE_TYPE_LABEL.residence;
+  return (businessKind && PLACE_KIND_LABEL[businessKind]) || "Hotel or lodging";
+}
+
+// --- The leader's date and stay filters ----------------------------------------------------
+
+/** When guests arrived, relative to the Kigali day: a shared link keeps meaning "today". */
+export const GuestArrived = z.enum(["today", "yesterday", "last_7_days", "this_month"]);
+export type GuestArrived = z.infer<typeof GuestArrived>;
+export const GUEST_ARRIVED_LABEL: Readonly<Record<GuestArrived, string>> = {
+  today: "Today",
+  yesterday: "Yesterday",
+  last_7_days: "Last 7 days",
+  this_month: "This month",
+};
+
+/** The days a preset covers, first and last included. */
+export function guestArrivedRange(preset: GuestArrived, today: string): { from: string; to: string } {
+  switch (preset) {
+    case "today":
+      return { from: today, to: today };
+    case "yesterday": {
+      const day = addDays(today, -1);
+      return { from: day, to: day };
+    }
+    case "last_7_days":
+      return { from: addDays(today, -6), to: today };
+    case "this_month":
+      return { from: `${today.slice(0, 7)}-01`, to: today };
+  }
+}
+
+/** When guests leave: today, or within the next 7 days (today included). */
+export const GuestLeaving = z.enum(["today", "next_7_days"]);
+export type GuestLeaving = z.infer<typeof GuestLeaving>;
+export const GUEST_LEAVING_LABEL: Readonly<Record<GuestLeaving, string>> = {
+  today: "Today",
+  next_7_days: "Next 7 days",
+};
+
+/** How long the stay is, in nights from arrival to departure. */
+export const GuestLength = z.enum(["under_3", "week", "month"]);
+export type GuestLength = z.infer<typeof GuestLength>;
+export const GUEST_LENGTH_LABEL: Readonly<Record<GuestLength, string>> = {
+  under_3: "Under 3 nights",
+  week: "1 week or more",
+  month: "1 month or more",
+};
+/** The nights each length covers: `min` and `max` included. */
+export const GUEST_LENGTH_NIGHTS: Readonly<Record<GuestLength, { min?: number; max?: number }>> = {
+  under_3: { max: 2 },
+  week: { min: 7 },
+  month: { min: 30 },
+};
+
+/** Does a stay of so many nights fall in a length? */
+export function guestLengthHolds(length: GuestLength, nights: number): boolean {
+  const { min, max } = GUEST_LENGTH_NIGHTS[length];
+  return (min === undefined || nights >= min) && (max === undefined || nights <= max);
+}
+
+/**
+ * Who reads a console: local government (every guest, Rwandan or foreign) or DGIE (guests from abroad only).
+ * A person holding posts in both reads as local government, the wider of the two.
+ */
+export const LeaderAudience = z.enum(["local", "dgie"]);
+export type LeaderAudience = z.infer<typeof LeaderAudience>;
+
+export function leaderAudienceOf(roles: readonly LeaderRole[]): LeaderAudience {
+  return roles.length > 0 && roles.every((r) => LEADER_ROLE_CHAIN[r] === "dgie") ? "dgie" : "local";
+}
+
+/**
+ * Where a guest stays, in two lines for a list or a file: the place (the business, or the landlord's
+ * building), and who hosted them there (the room, the tenant and their unit, or the landlord).
+ */
+export function guestHostLines(g: {
+  host: { kind: GuestHostKind; name: string };
+  place: { name: string; room: string | null };
+}): { place: string; detail: string } {
+  const room = g.place.room;
+  if (g.host.kind === "hotel") return { place: g.place.name, detail: room ? (/^room\b/i.test(room) ? room : `Room ${room}`) : "" };
+  const who = g.host.kind === "tenant" ? `Tenant ${g.host.name}` : `Landlord ${g.host.name}`;
+  return { place: g.place.name, detail: room ? `${who}, unit ${room}` : who };
+}
+
 // --- Field rules ------------------------------------------------------------------
 
 /**
@@ -479,7 +614,8 @@ export type GuestRelationship = z.infer<typeof GuestRelationship>;
 
 // --- The leader's console ---------------------------------------------------------------
 
-export const LeaderGuestTab = z.enum(["arriving", "staying", "left", "flagged"]);
+/** `all` (the default): every guest in the area, nothing chosen for the leader. */
+export const LeaderGuestTab = z.enum(["all", "arriving", "staying", "left", "flagged"]);
 export type LeaderGuestTab = z.infer<typeof LeaderGuestTab>;
 
 const AreaId = z.coerce.number().int().positive();
@@ -492,20 +628,60 @@ export type LeaderArrivingWhen = z.infer<typeof LeaderArrivingWhen>;
 export const ReportOrigin = z.enum(["nationals", "international"]);
 export type ReportOrigin = z.infer<typeof ReportOrigin>;
 
-export const LeaderGuestQuery = z.object({
-  tab: LeaderGuestTab.default("arriving"),
-  when: LeaderArrivingWhen.default("soon"),
-  sectorId: AreaId.optional(),
-  cellId: AreaId.optional(),
-  villageId: AreaId.optional(),
-  q: z.string().trim().max(80).optional(),
+/**
+ * The guest filters the list, its downloads and the reports share, each read on the server: the type of
+ * place, how long the stay is, and who they are to the host.
+ */
+const sharedGuestFilters = {
   /** Rwandan guests, or guests of another nationality. */
   origin: ReportOrigin.optional(),
   /** One nationality (ISO 3166-1 alpha-2). */
   nationality: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Pick a country.").optional(),
-  page: z.coerce.number().int().min(1).max(1000).default(1),
-});
+  /** One relationship code (`guest_relationships`), or `hotel_guest`. */
+  relationship: z.string().trim().min(1).max(40).optional(),
+  placeType: GuestPlaceType.optional(),
+  length: GuestLength.optional(),
+};
+
+export const LeaderGuestQuery = z
+  .object({
+    tab: LeaderGuestTab.default("all"),
+    when: LeaderArrivingWhen.default("soon"),
+    sectorId: AreaId.optional(),
+    cellId: AreaId.optional(),
+    villageId: AreaId.optional(),
+    q: z.string().trim().max(80).optional(),
+    ...sharedGuestFilters,
+    /** Arrived today, yesterday, in the last 7 days or this month (Kigali days). */
+    arrived: GuestArrived.optional(),
+    /** Arrived between two days, both included: a custom range, in place of `arrived`. */
+    arrivedFrom: CalendarDay.optional(),
+    arrivedTo: CalendarDay.optional(),
+    /** In the area on this day: arrived on or before it, leaving on or after it. */
+    presentOn: CalendarDay.optional(),
+    leaving: GuestLeaving.optional(),
+    page: z.coerce.number().int().min(1).max(1000).default(1),
+  })
+  .superRefine((v, ctx) => {
+    if (v.arrivedFrom && v.arrivedTo && isIsoDate(v.arrivedFrom) && isIsoDate(v.arrivedTo) && v.arrivedTo < v.arrivedFrom) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["arrivedTo"], message: "The end can't be before the start." });
+    }
+  });
 export type LeaderGuestQuery = z.infer<typeof LeaderGuestQuery>;
+
+/** The guest filters that narrow a list or report, as an address keeps them: the list's, then the report's. */
+export const GUEST_LIST_FILTER_KEYS = [
+  "origin",
+  "nationality",
+  "relationship",
+  "placeType",
+  "length",
+  "arrived",
+  "arrivedFrom",
+  "arrivedTo",
+  "presentOn",
+  "leaving",
+] as const;
 
 export const FlagGuestRequest = z.object({
   note: z
@@ -544,7 +720,21 @@ export const LeaderGuest = z.object({
   departureOn: z.string(),
   nights: z.number().int(),
   stay: GuestStay,
-  host: z.object({ kind: GuestHostKind, name: z.string(), phone: z.string().nullable() }),
+  host: z.object({
+    kind: GuestHostKind,
+    /** The tenant or the landlord who filed the guest; for a hotel, the business. */
+    name: z.string(),
+    phone: z.string().nullable(),
+  }),
+  /** Where they stay: the type of place, its own kind in words, the business or building, the room or unit. */
+  place: z.object({
+    type: GuestPlaceType,
+    kindLabel: z.string(),
+    name: z.string(),
+    room: z.string().nullable(),
+  }),
+  /** When the desk checked the guest in (a hotel stay), or null. */
+  checkedInAt: z.string().nullable(),
   home: z.object({
     propertyName: z.string(),
     unitLabel: z.string().nullable(),
@@ -585,6 +775,10 @@ export const LeaderFilters = z.object({
   villages: z.array(z.object({ id: z.number().int(), name: z.string(), cellId: z.number().int() })),
   /** The nationalities among the guests in the leader's area (in the place chosen), most guests first. */
   nationalities: z.array(z.object({ code: z.string(), name: z.string(), count: z.number().int() })).default([]),
+  /** The types of place among those guests, most first. */
+  placeTypes: z.array(z.object({ type: GuestPlaceType, label: z.string(), count: z.number().int() })).default([]),
+  /** Who those guests are to their hosts, most first. */
+  relationships: z.array(z.object({ code: z.string(), label: z.string(), count: z.number().int() })).default([]),
 });
 export type LeaderFilters = z.infer<typeof LeaderFilters>;
 
@@ -611,6 +805,8 @@ export type LeaderCounts = z.infer<typeof LeaderCounts>;
 
 export const LeaderSummary = z.object({
   leader: z.object({ name: z.string().nullable(), email: z.string() }),
+  /** Local government (every guest) or DGIE (guests from abroad only): what the screens and files show. */
+  audience: LeaderAudience.default("local"),
   scopes: z.array(LeaderScope),
   filters: LeaderFilters,
   counts: LeaderCounts,
@@ -639,12 +835,7 @@ export const GuestReportQuery = z
     sectorId: AreaId.optional(),
     cellId: AreaId.optional(),
     villageId: AreaId.optional(),
-    /** By nationality: Rwandan guests, or guests of any other nationality. */
-    origin: ReportOrigin.optional(),
-    /** One nationality (ISO 3166-1 alpha-2). */
-    nationality: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Pick a country.").optional(),
-    /** One relationship code (`guest_relationships`). */
-    relationship: z.string().trim().min(1).max(40).optional(),
+    ...sharedGuestFilters,
     /** Only guests a leader flagged. */
     flagged: z.enum(["only"]).optional(),
   })
@@ -660,9 +851,43 @@ export type GuestReportQuery = z.infer<typeof GuestReportQuery>;
 export const ReportBucket = z.enum(["day", "week", "month"]);
 export type ReportBucket = z.infer<typeof ReportBucket>;
 
+/** How long stays are, in bands a chart reads at a glance. */
+export const STAY_BANDS = ["same_day", "short", "days", "weeks", "month"] as const;
+export const StayBand = z.enum(STAY_BANDS);
+export type StayBand = z.infer<typeof StayBand>;
+export const STAY_BAND_LABEL: Readonly<Record<StayBand, string>> = {
+  same_day: "Same day",
+  short: "1 to 2 nights",
+  days: "3 to 6 nights",
+  weeks: "1 to 4 weeks",
+  month: "A month or more",
+};
+export function stayBandOf(nights: number): StayBand {
+  if (nights <= 0) return "same_day";
+  if (nights <= 2) return "short";
+  if (nights <= 6) return "days";
+  if (nights <= 29) return "weeks";
+  return "month";
+}
+
+/** When a guest was reported, against their arrival day (Kigali): ahead, on the day, or late. */
+export const ReportTiming = z.enum(["before", "same_day", "after"]);
+export type ReportTiming = z.infer<typeof ReportTiming>;
+export const REPORT_TIMING_LABEL: Readonly<Record<ReportTiming, string>> = {
+  before: "Before arrival",
+  same_day: "On arrival day",
+  after: "After arrival",
+};
+export function reportTimingOf(reportedOn: string, arrivalOn: string): ReportTiming {
+  if (reportedOn < arrivalOn) return "before";
+  return reportedOn === arrivalOn ? "same_day" : "after";
+}
+
 export const GuestReport = z.object({
   period: z.object({ from: z.string(), to: z.string() }),
   generatedAt: z.string(),
+  /** Local government (every guest) or DGIE (guests from abroad only): which charts and columns it has. */
+  audience: LeaderAudience.default("local"),
   leader: z.object({ name: z.string().nullable(), email: z.string() }),
   scopes: z.array(LeaderScope),
   /** The narrowing applied inside the leader's area, in words, or null. */
@@ -682,10 +907,37 @@ export const GuestReport = z.object({
     /** Guests staying today, whatever the period. */
     stayingNow: z.number().int(),
     fromAbroad: z.number().int(),
+    /** Rwandan guests: registered less those from abroad. */
+    nationals: z.number().int().default(0),
+    /** How many nationalities the period's guests hold. */
+    nationalities: z.number().int().default(0),
     flagged: z.number().int(),
     /** Mean nights per stay, one decimal; null with no guests. */
     averageNights: z.number().nullable(),
   }),
+  /**
+   * Guests in the area on each day of the period (arrived on or before it, not yet gone), and how many of
+   * them are from abroad: who was here, not only who arrived.
+   */
+  presentByDay: z
+    .array(z.object({ day: z.string(), label: z.string(), total: z.number().int(), fromAbroad: z.number().int() }))
+    .default([]),
+  /** Arrivals by type of place, with those from abroad and the mean stay there. */
+  byPlaceType: z
+    .array(
+      z.object({
+        type: GuestPlaceType,
+        label: z.string(),
+        count: z.number().int(),
+        fromAbroad: z.number().int(),
+        averageNights: z.number().nullable(),
+      }),
+    )
+    .default([]),
+  /** How long the stays are, in bands. */
+  stayBands: z.array(z.object({ band: StayBand, label: z.string(), count: z.number().int() })).default([]),
+  /** When the guests were reported against their arrival day. */
+  timing: z.array(z.object({ timing: ReportTiming, label: z.string(), count: z.number().int() })).default([]),
   /** The level the area table breaks down by: one below the widest post. */
   areaLevel: z.enum(["sector", "cell", "village"]),
   byArea: z.array(z.object({ id: z.number().int(), name: z.string(), registered: z.number().int(), fromAbroad: z.number().int(), flagged: z.number().int() })),
@@ -714,8 +966,20 @@ export const GuestReport = z.object({
       }),
     )
     .default([]),
-  /** Homes with the most guests, by address: never a person's name. */
-  topHomes: z.array(z.object({ address: z.string(), unitLabel: z.string().nullable(), guests: z.number().int() })),
+  /**
+   * Homes and places with the most guests: the business or building by name and type, its address and the
+   * unit, never a person's name.
+   */
+  topHomes: z.array(
+    z.object({
+      name: z.string().default(""),
+      placeLabel: z.string().default(""),
+      address: z.string(),
+      unitLabel: z.string().nullable(),
+      guests: z.number().int(),
+      fromAbroad: z.number().int().default(0),
+    }),
+  ),
   /** Records older than the retention period are purged; their counts are folded into the totals. */
   purged: z.object({ before: z.string(), registered: z.number().int(), fromAbroad: z.number().int(), flagged: z.number().int() }).nullable(),
 });

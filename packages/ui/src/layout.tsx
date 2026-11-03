@@ -5,26 +5,38 @@ import { type Tone, toneBg } from "./tone.ts";
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
 /**
- * The heading block of a page: an optional eyebrow, the title, one helper line, and the page's actions
- * (`secondary` or `ghost` buttons, the one main action `primary`). On a phone the actions
- * wrap under the title.
+ * The heading block of a page: an optional eyebrow, the title, a short status line only when it truly
+ * helps, the page's actions (`secondary` or `ghost` buttons, the one main action `primary`), and the
+ * area's tabs under it. On a phone the actions wrap under the title.
  */
 export function PageHeader({
   eyebrow,
   title,
   description,
   actions,
+  tabs,
   size = "title",
   className,
 }: {
   eyebrow?: ReactNode;
   title: ReactNode;
+  /** A short status ("Waiting for your landlord"), never an explanation of the page. */
   description?: ReactNode;
   actions?: ReactNode;
+  /** The area's tabs (`AreaTabs`), under the title row. */
+  tabs?: ReactNode;
   /** "hello" for a home screen's greeting, "title" for every other page. */
   size?: "hello" | "title";
   className?: string;
 }) {
+  if (tabs) {
+    return (
+      <div className={cx("flex min-w-0 flex-col gap-3", className)}>
+        <PageHeader eyebrow={eyebrow} title={title} description={description} actions={actions} size={size} />
+        {tabs}
+      </div>
+    );
+  }
   return (
     <header className={cx("flex flex-wrap items-end gap-x-4 gap-y-3", className)}>
       <div className="flex min-w-0 flex-1 basis-72 flex-col gap-1">
