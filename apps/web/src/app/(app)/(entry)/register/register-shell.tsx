@@ -294,6 +294,7 @@ export function StepCard({
   title,
   lead,
   chip,
+  level = "h1",
   children,
   footer,
 }: {
@@ -301,9 +302,12 @@ export function StepCard({
   title: ReactNode;
   lead?: ReactNode;
   chip?: ReactNode;
+  /** h2 when the page already has its h1 above the card (the shell's heading). */
+  level?: "h1" | "h2";
   children?: ReactNode;
   footer?: ReactNode;
 }) {
+  const Heading = level;
   return (
     <section
       aria-labelledby={id}
@@ -311,9 +315,9 @@ export function StepCard({
     >
       <div className="flex flex-col gap-2">
         {chip ? <div className="flex">{chip}</div> : null}
-        <h1 id={id} className="text-2xl font-bold tracking-tight">
+        <Heading id={id} className={cn("font-bold tracking-tight", level === "h1" ? "text-2xl" : "text-xl")}>
           {title}
-        </h1>
+        </Heading>
         {lead ? <p className="text-sm text-muted-foreground sm:text-base">{lead}</p> : null}
       </div>
       {children ? <div className="flex flex-col gap-5">{children}</div> : null}

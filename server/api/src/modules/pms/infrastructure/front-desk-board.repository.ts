@@ -170,6 +170,7 @@ export class FrontDeskBoardRepository {
       SELECT b.id, b.reference, b.guest_user_id,
              -- The account's name, else the name the desk took from the ID at
              -- check in: a guest who signed up with only an email code has none.
+             -- Last, the booking's own name: a broker's guest (0126) has no account.
              coalesce(nullif(btrim(u.name), ''),
                       (SELECT nullif(btrim(d.guest_name), '') FROM booking_desk_details d WHERE d.booking_id = b.id),
                       (SELECT coalesce(nullif(btrim(s2.guest_name), ''), nullif(btrim(si.full_name), ''))
@@ -177,9 +178,11 @@ export class FrontDeskBoardRepository {
                 LEFT JOIN stay_identities si ON si.guest_stay_id = s2.id
                WHERE s2.booking_id = b.id
                ORDER BY s2.entry_at DESC
-               LIMIT 1)) AS guest_name,
+               LIMIT 1),
+                      nullif(btrim(b.guest_name), '')) AS guest_name,
              coalesce(up.phone_e164,
-                      (SELECT d.guest_phone FROM booking_desk_details d WHERE d.booking_id = b.id)) AS guest_phone,
+                      (SELECT d.guest_phone FROM booking_desk_details d WHERE d.booking_id = b.id),
+                      b.guest_phone) AS guest_phone,
              b.check_in::text AS check_in, b.check_out::text AS check_out,
              b.guest_count, b.adults, b.children,
              b.room_type_id, rt.name AS room_type_name,
@@ -373,7 +376,8 @@ export class FrontDeskBoardRepository {
           SELECT ra.booking_id, b.reference,
                  coalesce(nullif(btrim(u.name), ''),
                           (SELECT nullif(btrim(d.guest_name), '') FROM booking_desk_details d
-                            WHERE d.booking_id = b.id)) AS guest_name
+                            WHERE d.booking_id = b.id),
+                          nullif(btrim(b.guest_name), '')) AS guest_name
             FROM room_assignments ra
             JOIN bookings b ON b.id = ra.booking_id
             LEFT JOIN users u ON u.id = b.guest_user_id

@@ -747,7 +747,7 @@ export declare const PosOrderLine: z.ZodObject<{
     voidReason: z.ZodNullable<z.ZodString>;
     stationId: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "draft" | "sent" | "voided";
+    status: "sent" | "draft" | "voided";
     name: string;
     id: string;
     grossRwf: number;
@@ -771,7 +771,7 @@ export declare const PosOrderLine: z.ZodObject<{
     stationId: string | null;
     voidReason: string | null;
 }, {
-    status: "draft" | "sent" | "voided";
+    status: "sent" | "draft" | "voided";
     name: string;
     id: string;
     grossRwf: number;
@@ -992,7 +992,7 @@ export declare const PosOrder: z.ZodObject<{
         voidReason: z.ZodNullable<z.ZodString>;
         stationId: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "draft" | "sent" | "voided";
+        status: "sent" | "draft" | "voided";
         name: string;
         id: string;
         grossRwf: number;
@@ -1016,7 +1016,7 @@ export declare const PosOrder: z.ZodObject<{
         stationId: string | null;
         voidReason: string | null;
     }, {
-        status: "draft" | "sent" | "voided";
+        status: "sent" | "draft" | "voided";
         name: string;
         id: string;
         grossRwf: number;
@@ -1164,7 +1164,7 @@ export declare const PosOrder: z.ZodObject<{
     guestNote: string | null;
     cancelReason: string | null;
     lines: {
-        status: "draft" | "sent" | "voided";
+        status: "sent" | "draft" | "voided";
         name: string;
         id: string;
         grossRwf: number;
@@ -1245,7 +1245,7 @@ export declare const PosOrder: z.ZodObject<{
     guestNote: string | null;
     cancelReason: string | null;
     lines: {
-        status: "draft" | "sent" | "voided";
+        status: "sent" | "draft" | "voided";
         name: string;
         id: string;
         grossRwf: number;
@@ -1373,7 +1373,7 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         voidReason: z.ZodNullable<z.ZodString>;
         stationId: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "draft" | "sent" | "voided";
+        status: "sent" | "draft" | "voided";
         name: string;
         id: string;
         grossRwf: number;
@@ -1397,7 +1397,7 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         stationId: string | null;
         voidReason: string | null;
     }, {
-        status: "draft" | "sent" | "voided";
+        status: "sent" | "draft" | "voided";
         name: string;
         id: string;
         grossRwf: number;
@@ -1815,6 +1815,7 @@ export declare const PosShift: z.ZodObject<{
     id: string;
     openedAt: string;
     closedAt: string | null;
+    closeNote: string | null;
     reviewedByName: string | null;
     reviewNote: string | null;
     paidOutRwf: number;
@@ -1835,7 +1836,6 @@ export declare const PosShift: z.ZodObject<{
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
     }[];
     tipsRwf: number;
-    closeNote: string | null;
     handoverNote: string | null;
     movements: {
         status: "approved" | "rejected" | "pending_approval";
@@ -1852,6 +1852,7 @@ export declare const PosShift: z.ZodObject<{
     id: string;
     openedAt: string;
     closedAt: string | null;
+    closeNote: string | null;
     reviewedByName: string | null;
     reviewNote: string | null;
     paidOutRwf: number;
@@ -1872,7 +1873,6 @@ export declare const PosShift: z.ZodObject<{
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
     }[];
     tipsRwf: number;
-    closeNote: string | null;
     handoverNote: string | null;
     movements: {
         status: "approved" | "rejected" | "pending_approval";

@@ -192,6 +192,8 @@ exports.OVERSIGHT_ROLE_SCOPES = {
     // managers watch above them (`OVERSIGHT_ROLE_POSTING.psf_membership_officer`).
     // This said country only, so the one who decides could not be appointed.
     psf_membership_officer: ["country", "province", "district"],
+    // A BDE reads one district (2026-11-02).
+    psf_business_officer: ["district"],
 };
 /**
  * The chain a registration goes along, in order: local government's village leader, cell executive

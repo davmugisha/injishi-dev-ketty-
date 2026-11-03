@@ -85,6 +85,11 @@ export function oversightQueueLink(appUrl: string): string {
   return new URL('/officer', appUrl).toString();
 }
 
+/** One business's registration in the officer's console (2026-11-02): the case the mail is about. */
+export function oversightCaseLink(appUrl: string, orgId: string): string {
+  return new URL(`/officer/cases/${encodeURIComponent(orgId)}`, appUrl).toString();
+}
+
 // ---------------------------------------------------------------------------
 // Registrant mails
 // ---------------------------------------------------------------------------

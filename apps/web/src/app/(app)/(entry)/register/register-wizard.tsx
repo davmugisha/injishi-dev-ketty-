@@ -579,7 +579,7 @@ export default function RegisterWizard({
     setChoosingKind(true);
     setFormError("");
     setScreen("steps");
-    setStep(youDone ? "business" : "you");
+    setStep("business");
   };
 
   // --- Business: the TIN ---------------------------------------------------------
@@ -834,10 +834,13 @@ export default function RegisterWizard({
   const psfReady =
     path === "landlord" ||
     (business.psfMember === true
-      ? !business.psfMembershipNumber.trim() || looksLikePsfNumber(business.psfMembershipNumber)
-      : business.psfMember !== false) ||
-    business.psfApply !== true ||
-    PsfApplicationInput.safeParse(psfCandidate(psf, documentOnFile !== null)).success;
+      ? // A member sends its card (2026-11-02), and its number if it knows it: PSF reads the number off
+        // the card otherwise.
+        (!business.psfMembershipNumber.trim() || looksLikePsfNumber(business.psfMembershipNumber)) &&
+        docs.some((d) => d.kind === "psf_certificate")
+      : business.psfMember === false
+        ? business.psfApply !== true || PsfApplicationInput.safeParse(psfCandidate(psf, true)).success
+        : true);
   // The rows Documents asks for, by the kind the org will carry (ADR-075 S5).
   const documentKind: BusinessKind | null = kind && kind !== "broker" ? registrationForKind(kind).businessKind : null;
   const docsState = documentsReady(documentKind, docs);
@@ -875,7 +878,8 @@ export default function RegisterWizard({
       role,
       capacity,
       ...(sendPersonal ? { personal: personalCandidate(personal, identityOnFile !== null) } : {}),
-      business: businessCandidate(business, role, kind, legalName, docs, branches, psf, documentOnFile !== null),
+      // The PSF application names the ID checked on You (2026-11-02): asked once, never again on Business.
+      business: businessCandidate(business, role, kind, legalName, docs, branches, psf, true),
       ...(capacity === "on_behalf_of"
         ? {
             intendedOwner: {
@@ -906,7 +910,15 @@ export default function RegisterWizard({
     setFormError("");
     const i = order.indexOf(step);
     if (step === "business" && !psfReady) {
-      const parsed = PsfApplicationInput.safeParse(psfCandidate(psf, documentOnFile !== null));
+      if (business.psfMember === true) {
+        setFormError(
+          business.psfMembershipNumber.trim() && !looksLikePsfNumber(business.psfMembershipNumber)
+            ? "That does not look like a PSF membership number. Type it in full, as on your card, or leave it empty."
+            : "Add a photo or scan of your PSF membership card.",
+        );
+        return;
+      }
+      const parsed = PsfApplicationInput.safeParse(psfCandidate(psf, true));
       if (!parsed.success) setErrors(prefix("psf", issuesToErrors(parsed.error.issues)));
       setFormError("Some of the PSF application needs fixing.");
       return;
@@ -1356,7 +1368,8 @@ export default function RegisterWizard({
   };
 
   // Overview rows, in the artboard's order.
-  const franchisee = business.franchiseRole === "franchisee";
+  // No franchise agreement is asked for while the question is off (2026-11-03).
+  const franchisee = bizSections.includes("fr") && business.franchiseRole === "franchisee";
   const docLabel = (d: DocumentDraft) =>
     documentRows(documentKind, { franchisee }).find((r) => r.kind === d.kind)?.label ?? d.filename;
   const docsText = docs.length
@@ -1377,14 +1390,13 @@ export default function RegisterWizard({
     ? [{ title: "Registering", value: `${kindLabel} · ${summary.legalName}`, step: null }]
     : landlord
       ? [
-          { title: "You", value: youRow, step: "you" },
           { title: "Business type", value: kindLabel, step: "business" },
           { title: "The property", value: `${business.legalName.trim()} · UPI ${business.upi.trim()}`, step: "business" },
           { title: "Location", value: locLine ?? "Not chosen", step: "business" },
+          { title: "You", value: youRow, step: "you" },
           { title: "Documents", value: docsText, step: "documents" },
         ]
       : [
-          { title: "You", value: youRow, step: "you" },
           { title: "Business type", value: kindLabel, step: "business" },
           {
             title: "The business",
@@ -1403,7 +1415,6 @@ export default function RegisterWizard({
               ]
             : []),
           { title: "Location", value: locLine ?? "Not chosen", step: "business" },
-          { title: "Franchise", value: franchiseLine(business), step: "business" },
           {
             title: "Branches",
             value: branches.length
@@ -1412,6 +1423,7 @@ export default function RegisterWizard({
             step: "business",
           },
           { title: "PSF", value: psfText, step: "business" },
+          { title: "You", value: youRow, step: "you" },
           { title: "Documents", value: docsText, step: "documents" },
         ];
 
@@ -1454,6 +1466,16 @@ export default function RegisterWizard({
       primary = { ...primary, disabled: true, why: "Say what kind of place it is to continue." };
     } else if (!businessDone) {
       primary = { ...primary, disabled: true, why: "Finish the sections above to continue." };
+    } else if (!psfReady && business.psfMember === true) {
+      // Said on the footer too (2026-11-02): a member's missing card left a live Continue with no reason beside it.
+      primary = {
+        ...primary,
+        disabled: true,
+        why:
+          business.psfMembershipNumber.trim() && !looksLikePsfNumber(business.psfMembershipNumber)
+            ? "Fix the PSF membership number, or leave it empty, to continue."
+            : "Add your PSF membership card to continue.",
+      };
     }
   } else if (step === "you" && !youDone) {
     primary = { ...primary, disabled: true, why: "Finish the sections above to continue." };
@@ -1658,11 +1680,34 @@ export default function RegisterWizard({
                   setTiersFailed(false);
                   setTierRetry((n) => n + 1);
                 }}
-                documentLine={documentOnFile}
+                documentLine={documentOnFile ?? "The ID you check on the next step, You. Nothing to type here."}
+                card={docs.find((d) => d.kind === "psf_certificate") ?? null}
+                onCardChange={(card) => setDocs((d) => [...d.filter((x) => x.kind !== "psf_certificate"), ...(card ? [card] : [])])}
                 errors={errors}
               />
             ) : null}
           </>
+        ) : null}
+
+        {/* Business came first, so RRA could not yet say whether this ID is one of the TIN's directors. It is
+            asked again once the ID is on file (`onIdentity`), and a No is said here, with the way on. */}
+        {step === "you" && !pickingKind && summary === null && capacity === "owner" && isDirector === false ? (
+          <Callout tone="warning" icon={<CircleAlert size={16} aria-hidden />} title="You're not listed as a director" role="alert">
+            <p>
+              RRA does not list your ID among the directors for TIN {formatTin(tin)}. Register it for the owner
+              instead: you name them, and they claim it with their own ID once Injishi approves it.
+            </p>
+            <div className="mt-3">
+              <Button
+                onClick={() => {
+                  prepareForOwner();
+                  goTo("business");
+                }}
+              >
+                Register it for the owner instead
+              </Button>
+            </div>
+          </Callout>
         ) : null}
 
         {step === "you" && !pickingKind ? sectionList(youSections) : null}
@@ -1958,7 +2003,8 @@ function businessCandidate(
     psfMember: member,
     ...(member && number ? { psfMembershipNumber: number } : {}),
     ...(d.psfMember === false && d.psfApply === true ? { psfApplication: psfCandidate(psf, documentOnFile) } : {}),
-    ...(franchiseCandidate(d) ? { franchise: franchiseCandidate(d) } : {}),
+    // The franchise question is not asked for now (2026-11-03): an answer left in an older saved draft is
+    // not sent either. `franchiseCandidate(d)` goes back here when the section does.
     address,
     certificates,
     branches: branches.map((b) => ({ name: b.name.trim(), address: addressFromDraft(b.address) })),

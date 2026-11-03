@@ -4,15 +4,17 @@ import { useEffect, useState } from "react";
 import { Button } from "@injishi/web-ui";
 
 import { fetchPlatform, isDemo, offersGoogle, registrationFeeMode, type RegistrationFeeMode } from "@/data/platform";
-import type { MobileMoneyNetwork } from "@injishi/contracts";
+import { registerHeadingFor, type MobileMoneyNetwork } from "@injishi/contracts";
 import { useOnline } from "@/hooks/use-online";
 import { useSessionUser } from "@/lib/session";
 import { gateView, nextReconnectDelay } from "@/lib/session-reconnect";
 
 import { EmailPanel } from "./email-panel";
+import { RegisterRail, type RailStep } from "./register-rail";
 import { RegisterShell, StepCard, StepSkeleton } from "./register-shell";
+import { STEP_ORDER, STEP_TITLE } from "./register-steps";
 import RegisterWizard from "./register-wizard";
-import { findRegistrationKind, type RegistrationKind } from "./registration-kinds";
+import { findRegistrationKind, registrationForKind, type RegistrationKind } from "./registration-kinds";
 
 /**
  * The front door of business registration (FL01): who is registering.
@@ -135,16 +137,34 @@ export default function RegisterGate({
     );
   }
 
-  // Not signed in (yet): the shell with the kind they chose on `/host`, which
-  // Change takes them back to, and no rail, because nothing is walked until
-  // they are who they say they are.
+  // Not signed in (yet): the same frame the form draws, so the email reads as
+  // the start of its first step and not a page in front of it. The h1 names
+  // the type, Change beside it goes back to the `/host` chooser, and the rail
+  // shows all five steps with the first on screen and nothing past it open. A
+  // broker has no steps, so it keeps the bare shell.
   const kindLabel = initialKind ? (findRegistrationKind(initialKind)?.label ?? null) : null;
+  const walks = initialKind !== "broker";
+  const heading = walks
+    ? {
+        title: initialKind ? registerHeadingFor(registrationForKind(initialKind).businessKind) : "List your business",
+        sub: null,
+      }
+    : null;
+  const rail: RailStep[] = STEP_ORDER.map((id) => ({
+    id,
+    title: STEP_TITLE[id],
+    status: id === STEP_ORDER[0] ? "active" : "inactive",
+    locked: id !== STEP_ORDER[0],
+  }));
   return (
     <RegisterShell
       kindLabel={kindLabel}
       demo={demo === true}
       changeKindHref="/host#host-chooser-title"
+      carried={walks && initialKind !== null}
+      heading={heading}
       exit={{ label: "Exit", href: "/host" }}
+      rail={walks && view === "anonymous" ? <RegisterRail steps={rail} onGo={() => {}} /> : null}
     >
       {view === "checking" ? (
         <StepSkeleton />
@@ -153,6 +173,7 @@ export default function RegisterGate({
           demo={demo}
           googleReturn={google ? here : null}
           fallbackHref={signInHref}
+          position={walks ? { n: 1, of: STEP_ORDER.length, title: STEP_TITLE[STEP_ORDER[0]!] } : null}
           onSignedIn={async () => (await refresh()).status === "authenticated"}
         />
       ) : view === "reconnecting" ? (

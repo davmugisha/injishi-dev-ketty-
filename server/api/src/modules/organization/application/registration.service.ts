@@ -103,6 +103,8 @@ const STAGE_FOR_ROLE: Readonly<
   dgie_national: null,
   dgie_village: null,
   dgie_cell: null,
+  // A PSF BDE (Business Development & Empowerment) reads the PSF console only (2026-11-02).
+  psf_business_officer: null,
   // A PSF District Manager decides the first gate in one step (0119): their
   // Reviewed approves the business. Membership keeps its own queue (ADR-056).
   psf_membership_officer: 'tin_verified',
@@ -528,6 +530,13 @@ export class RegistrationService {
     // refused for that.
     await this.assertDocuments(businessKind, b.certificates, registrantUserId);
     await this.assertPsfNumber(b.domain === 'hospitality' && b.psfMember ? (b.psfMembershipNumber ?? null) : null);
+    // A member sends its card, with or without the number (2026-11-02): it is what PSF checks the claim against.
+    if (b.domain === 'hospitality' && b.psfMember && !b.certificates.some((c) => c.kind === 'psf_certificate')) {
+      throw new UnprocessableEntityException({
+        message: 'Validation failed',
+        issues: [{ code: 'custom', path: ['business', 'psfCard'], message: 'Add a photo or scan of your PSF membership card.' }],
+      });
+    }
 
     try {
       const created = await this.orgs.createRegistration({

@@ -635,6 +635,8 @@ export const paymentAttempts = pgTable(
      * foreign key to `booking_changes` is written in that migration (hospitality.ts imports this file).
      */
     bookingChangeId: uuid('booking_change_id'),
+    /** Set on a `broker_group` attempt: the broker's group of rooms it pays for (0126). FK in the SQL. */
+    brokerGroupId: uuid('broker_group_id'),
 
     // --- the stay this attempt is for, because no booking exists yet ---
     // Null on a `service_order` attempt, which has no stay.

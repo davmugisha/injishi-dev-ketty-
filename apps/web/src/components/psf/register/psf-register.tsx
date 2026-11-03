@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Check, Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import type { PsfCatalogue, PsfFeesView, PsfPublicSubmitResult, PsfTier } from "@injishi/contracts";
 import { Button } from "@injishi/web-ui";
 
@@ -21,6 +21,7 @@ import {
   toRequest,
   validateBusiness,
   validateMembership,
+  validatePlace,
   validateReview,
   validateYou,
   type Errors,
@@ -30,13 +31,18 @@ import {
 import { RegisterDone } from "./register-done";
 import { StepBusiness } from "./step-business";
 import { StepMembership } from "./step-membership";
+import { StepPlace } from "./step-place";
 import { StepReview } from "./step-review";
 import { StepYou } from "./step-you";
 
 /**
- * Join PSF (the public PSF path, 2026-10-19): one form, four steps, no account.
+ * Join PSF (the public PSF path, 2026-10-19): one form, five steps, no account.
  *
- * You → Your business → Membership → Check and pay. Each step is checked
+ * Your business → Where it trades → You → Membership → Check and pay. The
+ * business comes first, its TIN at the top, and where it trades is a step of
+ * its own so neither is long (2026-11-02); the ID check follows, so its 30-minute
+ * token is fresh for the payment, and the logo, which uploads under that
+ * token, is asked for on the last step. Each step is checked
  * against the same contract schemas the API validates with before it lets the
  * person on, so a refusal at the end is rare; when the server does refuse a
  * field, the form goes back to the step that asked for it and puts the message
@@ -45,7 +51,7 @@ import { StepYou } from "./step-you";
 export function PsfRegister() {
   const [draft, setDraft] = useState<PsfDraft>(EMPTY_DRAFT);
   const [loaded, setLoaded] = useState(false);
-  const [step, setStep] = useState<StepKey>("you");
+  const [step, setStep] = useState<StepKey>("business");
   const [reached, setReached] = useState<number>(0);
   const [errors, setErrors] = useState<Errors>({});
   /** Steps the person has tried to leave: from then on their messages follow the answers live. */
@@ -103,7 +109,15 @@ export function PsfRegister() {
   };
 
   const validate = (key: StepKey): Errors =>
-    key === "you" ? validateYou(draft) : key === "business" ? validateBusiness(draft) : key === "membership" ? validateMembership(draft, tiers ?? [], fees) : validateReview(draft);
+    key === "you"
+      ? validateYou(draft)
+      : key === "business"
+        ? validateBusiness(draft)
+        : key === "place"
+          ? validatePlace(draft)
+          : key === "membership"
+            ? validateMembership(draft, tiers ?? [], fees)
+            : validateReview(draft);
 
   // Once a step has been tried, each answer re-checks it: a message goes the
   // moment its field is right, and stays while it is still wrong.
@@ -166,6 +180,7 @@ export function PsfRegister() {
           feePaid={done.feePaid}
           feeProblem={done.feeProblem}
           districtName={draft.placeNames.district}
+          cardHolder={draft.cardHolder}
         />
       </div>
     );
@@ -191,7 +206,7 @@ export function PsfRegister() {
           {/* Mobile: a bar. Desktop: the rail. */}
           <div className="mt-6 lg:hidden">
             <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold">{STEPS[index]!.title}</span>
+              <span className="font-semibold">{step === "review" && draft.cardHolder ? "Check and send" : STEPS[index]!.title}</span>
               <span className="text-muted-foreground">
                 Step {index + 1} of {STEPS.length}
               </span>
@@ -232,12 +247,6 @@ export function PsfRegister() {
               );
             })}
           </ol>
-          <div className="mt-8 hidden rounded-card border border-border p-4 text-xs text-muted-foreground lg:block">
-            <p className="flex items-center gap-1.5 font-semibold text-foreground">
-              <Lock size={13} aria-hidden /> Who sees your details
-            </p>
-            <p className="mt-1.5">The PSF officers for your district and province, and PSF’s national office. Nobody else.</p>
-          </div>
         </aside>
 
         <main className="min-w-0">
@@ -248,8 +257,10 @@ export function PsfRegister() {
               <StepYou draft={draft} onChange={change} errors={errors} />
             ) : step === "business" ? (
               <StepBusiness draft={draft} onChange={change} errors={errors} catalogue={catalogue} />
+            ) : step === "place" ? (
+              <StepPlace draft={draft} onChange={change} errors={errors} />
             ) : step === "membership" ? (
-              <StepMembership draft={draft} onChange={change} errors={errors} tiers={tiers} fees={fees} districtName={draft.placeNames.district} />
+              <StepMembership draft={draft} onChange={change} errors={errors} tiers={tiers} fees={fees} districtName={draft.placeNames.district} checkToken={draft.applicant?.checkToken ?? null} />
             ) : (
               <StepReview draft={draft} onChange={change} errors={errors} tiers={tiers} catalogue={catalogue} goTo={go} />
             )}
@@ -268,7 +279,11 @@ export function PsfRegister() {
               ) : null}
               <span className="grow" />
               <Button variant="primary" size="lg" onClick={() => void next()} pending={busy} disabled={busy || (step === "you" && !draft.applicant)}>
-                {step === "review" ? `Pay ${total ? rwf(total) : "and send"}${total ? " and send" : ""}` : "Continue"}
+                {step === "review"
+                  ? draft.cardHolder
+                    ? "Send to PSF"
+                    : `Pay ${total ? rwf(total) : "and send"}${total ? " and send" : ""}`
+                  : "Continue"}
                 {step === "review" ? null : <ArrowRight size={16} aria-hidden />}
               </Button>
             </div>

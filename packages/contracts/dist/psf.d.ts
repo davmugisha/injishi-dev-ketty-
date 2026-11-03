@@ -131,7 +131,11 @@ export declare const PSF_OUT_OF_SCOPE_MESSAGE = "This business is outside the re
  * path refuses with 422 a grant that breaks its role's entry.
  *
  * A PSF membership officer may be posted for the whole country, a province or
- * one district, and sees exactly the businesses of that region.
+ * one district, and sees exactly the businesses of that region. Injishi's admin
+ * posts only the Province Managers (2026-11-02); each Province
+ * Manager posts its districts' District Managers, and a District Manager its
+ * district's BDEs, from the PSF console's Team screen, so neither is offered to
+ * admin here.
  */
 export declare const OVERSIGHT_ROLE_POSTING: Readonly<Partial<Record<OversightRole, {
     governmentBodyCode: string;
@@ -832,7 +836,7 @@ export declare const PsfFiledForm: z.ZodObject<{
     website: z.ZodNullable<z.ZodString>;
     streetAddress: z.ZodString;
     companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
-    ownership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+    ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
     ownershipOther: z.ZodNullable<z.ZodString>;
     businessActivity: z.ZodString;
     tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
@@ -855,7 +859,7 @@ export declare const PsfFiledForm: z.ZodObject<{
     streetAddress: string;
     website: string | null;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-    ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     ownershipOther: string | null;
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
@@ -877,7 +881,7 @@ export declare const PsfFiledForm: z.ZodObject<{
     streetAddress: string;
     website: string | null;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-    ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     ownershipOther: string | null;
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
@@ -963,7 +967,7 @@ export declare const PsfApplication: z.ZodObject<{
         website: z.ZodNullable<z.ZodString>;
         streetAddress: z.ZodString;
         companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
-        ownership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+        ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
         ownershipOther: z.ZodNullable<z.ZodString>;
         businessActivity: z.ZodString;
         tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
@@ -986,7 +990,7 @@ export declare const PsfApplication: z.ZodObject<{
         streetAddress: string;
         website: string | null;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         ownershipOther: string | null;
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
@@ -1008,7 +1012,7 @@ export declare const PsfApplication: z.ZodObject<{
         streetAddress: string;
         website: string | null;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         ownershipOther: string | null;
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
@@ -1057,7 +1061,7 @@ export declare const PsfApplication: z.ZodObject<{
         streetAddress: string;
         website: string | null;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         ownershipOther: string | null;
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
@@ -1106,7 +1110,7 @@ export declare const PsfApplication: z.ZodObject<{
         streetAddress: string;
         website: string | null;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         ownershipOther: string | null;
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
@@ -1135,7 +1139,7 @@ export declare const PsfApplicationPrefill: z.ZodObject<{
     businessActivity: z.ZodOptional<z.ZodString>;
     website: z.ZodOptional<z.ZodString>;
     companyType: z.ZodOptional<z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>>;
-    ownership: z.ZodOptional<z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>>;
+    ownership: z.ZodOptional<z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>>;
     ownershipOther: z.ZodOptional<z.ZodString>;
     tradeDirection: z.ZodOptional<z.ZodEnum<["none", "export", "import", "both"]>>;
     tradeGoods: z.ZodOptional<z.ZodString>;
@@ -1157,7 +1161,7 @@ export declare const PsfApplicationPrefill: z.ZodObject<{
     streetAddress?: string | undefined;
     website?: string | undefined;
     companyType?: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader" | undefined;
-    ownership?: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative" | undefined;
+    ownership?: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative" | undefined;
     ownershipOther?: string | undefined;
     businessActivity?: string | undefined;
     tradeDirection?: "none" | "export" | "import" | "both" | undefined;
@@ -1177,7 +1181,7 @@ export declare const PsfApplicationPrefill: z.ZodObject<{
     streetAddress?: string | undefined;
     website?: string | undefined;
     companyType?: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader" | undefined;
-    ownership?: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative" | undefined;
+    ownership?: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative" | undefined;
     ownershipOther?: string | undefined;
     businessActivity?: string | undefined;
     tradeDirection?: "none" | "export" | "import" | "both" | undefined;
@@ -1341,7 +1345,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             website: z.ZodNullable<z.ZodString>;
             streetAddress: z.ZodString;
             companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
-            ownership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+            ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
             ownershipOther: z.ZodNullable<z.ZodString>;
             businessActivity: z.ZodString;
             tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
@@ -1364,7 +1368,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             streetAddress: string;
             website: string | null;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             ownershipOther: string | null;
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
@@ -1386,7 +1390,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             streetAddress: string;
             website: string | null;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             ownershipOther: string | null;
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
@@ -1438,7 +1442,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             streetAddress: string;
             website: string | null;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             ownershipOther: string | null;
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
@@ -1488,7 +1492,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             streetAddress: string;
             website: string | null;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             ownershipOther: string | null;
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
@@ -1555,7 +1559,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             website: z.ZodNullable<z.ZodString>;
             streetAddress: z.ZodString;
             companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
-            ownership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+            ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
             ownershipOther: z.ZodNullable<z.ZodString>;
             businessActivity: z.ZodString;
             tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
@@ -1578,7 +1582,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             streetAddress: string;
             website: string | null;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             ownershipOther: string | null;
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
@@ -1600,7 +1604,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             streetAddress: string;
             website: string | null;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             ownershipOther: string | null;
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
@@ -1649,7 +1653,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             streetAddress: string;
             website: string | null;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             ownershipOther: string | null;
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
@@ -1698,7 +1702,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             streetAddress: string;
             website: string | null;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             ownershipOther: string | null;
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
@@ -1721,7 +1725,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         businessActivity: z.ZodOptional<z.ZodString>;
         website: z.ZodOptional<z.ZodString>;
         companyType: z.ZodOptional<z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>>;
-        ownership: z.ZodOptional<z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>>;
+        ownership: z.ZodOptional<z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>>;
         ownershipOther: z.ZodOptional<z.ZodString>;
         tradeDirection: z.ZodOptional<z.ZodEnum<["none", "export", "import", "both"]>>;
         tradeGoods: z.ZodOptional<z.ZodString>;
@@ -1743,7 +1747,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         streetAddress?: string | undefined;
         website?: string | undefined;
         companyType?: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader" | undefined;
-        ownership?: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative" | undefined;
+        ownership?: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative" | undefined;
         ownershipOther?: string | undefined;
         businessActivity?: string | undefined;
         tradeDirection?: "none" | "export" | "import" | "both" | undefined;
@@ -1763,7 +1767,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         streetAddress?: string | undefined;
         website?: string | undefined;
         companyType?: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader" | undefined;
-        ownership?: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative" | undefined;
+        ownership?: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative" | undefined;
         ownershipOther?: string | undefined;
         businessActivity?: string | undefined;
         tradeDirection?: "none" | "export" | "import" | "both" | undefined;
@@ -1835,7 +1839,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             streetAddress: string;
             website: string | null;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             ownershipOther: string | null;
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
@@ -1885,7 +1889,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             streetAddress: string;
             website: string | null;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             ownershipOther: string | null;
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
@@ -1910,7 +1914,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         streetAddress?: string | undefined;
         website?: string | undefined;
         companyType?: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader" | undefined;
-        ownership?: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative" | undefined;
+        ownership?: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative" | undefined;
         ownershipOther?: string | undefined;
         businessActivity?: string | undefined;
         tradeDirection?: "none" | "export" | "import" | "both" | undefined;
@@ -1982,7 +1986,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             streetAddress: string;
             website: string | null;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             ownershipOther: string | null;
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
@@ -2032,7 +2036,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             streetAddress: string;
             website: string | null;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             ownershipOther: string | null;
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
@@ -2057,7 +2061,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         streetAddress?: string | undefined;
         website?: string | undefined;
         companyType?: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader" | undefined;
-        ownership?: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative" | undefined;
+        ownership?: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative" | undefined;
         ownershipOther?: string | undefined;
         businessActivity?: string | undefined;
         tradeDirection?: "none" | "export" | "import" | "both" | undefined;
@@ -2127,7 +2131,7 @@ export declare const AdminPsfApplication: z.ZodObject<Omit<{
         website: z.ZodNullable<z.ZodString>;
         streetAddress: z.ZodString;
         companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
-        ownership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+        ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
         ownershipOther: z.ZodNullable<z.ZodString>;
         businessActivity: z.ZodString;
         tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
@@ -2150,7 +2154,7 @@ export declare const AdminPsfApplication: z.ZodObject<Omit<{
         streetAddress: string;
         website: string | null;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         ownershipOther: string | null;
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
@@ -2172,7 +2176,7 @@ export declare const AdminPsfApplication: z.ZodObject<Omit<{
         streetAddress: string;
         website: string | null;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         ownershipOther: string | null;
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
@@ -2324,7 +2328,7 @@ export declare const AdminOrgPsf: z.ZodObject<{
             website: z.ZodNullable<z.ZodString>;
             streetAddress: z.ZodString;
             companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
-            ownership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+            ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
             ownershipOther: z.ZodNullable<z.ZodString>;
             businessActivity: z.ZodString;
             tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
@@ -2347,7 +2351,7 @@ export declare const AdminOrgPsf: z.ZodObject<{
             streetAddress: string;
             website: string | null;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             ownershipOther: string | null;
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
@@ -2369,7 +2373,7 @@ export declare const AdminOrgPsf: z.ZodObject<{
             streetAddress: string;
             website: string | null;
             companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-            ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
             ownershipOther: string | null;
             businessActivity: string;
             tradeDirection: "none" | "export" | "import" | "both";
@@ -2525,7 +2529,7 @@ export declare const CreatePsfApplicationRequest: z.ZodEffects<z.ZodObject<{
     streetAddress: z.ZodString;
     website: z.ZodOptional<z.ZodString>;
     companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
-    ownership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+    ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
     ownershipOther: z.ZodOptional<z.ZodString>;
     businessActivity: z.ZodString;
     tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
@@ -2567,7 +2571,7 @@ export declare const CreatePsfApplicationRequest: z.ZodEffects<z.ZodObject<{
     companyName: string;
     streetAddress: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-    ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     tradeCountries: string[];
@@ -2596,7 +2600,7 @@ export declare const CreatePsfApplicationRequest: z.ZodEffects<z.ZodObject<{
     companyName: string;
     streetAddress: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-    ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -2625,7 +2629,7 @@ export declare const CreatePsfApplicationRequest: z.ZodEffects<z.ZodObject<{
     companyName: string;
     streetAddress: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-    ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     tradeCountries: string[];
@@ -2654,7 +2658,7 @@ export declare const CreatePsfApplicationRequest: z.ZodEffects<z.ZodObject<{
     companyName: string;
     streetAddress: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-    ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
     businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     contactRole: "owner" | "managing_director" | "ceo" | "chairman";
@@ -2751,8 +2755,27 @@ export declare const PsfBranchDecisionRequest: z.ZodEffects<z.ZodObject<{
     note?: string | undefined;
 }>;
 export type PsfBranchDecisionRequest = z.infer<typeof PsfBranchDecisionRequest>;
+/**
+ * Where an application was sent from (2026-11-02): the public PSF form (no account, tracked by docID),
+ * or Injishi's business registration, which files one when the business chooses to apply.
+ */
+export declare const PsfApplicationOrigin: z.ZodEnum<["psf_form", "registration"]>;
+export type PsfApplicationOrigin = z.infer<typeof PsfApplicationOrigin>;
+export declare const PSF_APPLICATION_ORIGIN_LABEL: Readonly<Record<PsfApplicationOrigin, string>>;
+/**
+ * How a business came in (2026-11-02, 0132): a new application, or a holder of an old PSF card, with
+ * no number or certificate in the new module, joining it. A card holder pays nothing now, is given a
+ * new number, and keeps the year on its card.
+ */
+export declare const PsfApplicationIntake: z.ZodEnum<["new", "card_holder"]>;
+export type PsfApplicationIntake = z.infer<typeof PsfApplicationIntake>;
+export declare const PSF_APPLICATION_INTAKE_LABEL: Readonly<Record<PsfApplicationIntake, string>>;
 export declare const PsfQueueItem: z.ZodObject<{
     applicationId: z.ZodString;
+    /** New, or a card holder joining the new module (2026-11-02). */
+    intake: z.ZodDefault<z.ZodEnum<["new", "card_holder"]>>;
+    /** Where it was sent from: the public PSF form, or Injishi's business registration. */
+    origin: z.ZodDefault<z.ZodEnum<["psf_form", "registration"]>>;
     orgId: z.ZodString;
     businessName: z.ZodString;
     businessCode: z.ZodNullable<z.ZodString>;
@@ -2806,6 +2829,8 @@ export declare const PsfQueueItem: z.ZodObject<{
     associationName: string | null;
     canDecide: boolean;
     applicationId: string;
+    intake: "new" | "card_holder";
+    origin: "registration" | "psf_form";
     businessName: string;
     waitingDays: number;
     docId: string | null;
@@ -2833,6 +2858,8 @@ export declare const PsfQueueItem: z.ZodObject<{
     docId: string | null;
     clusterName?: string | null | undefined;
     subsectorName?: string | null | undefined;
+    intake?: "new" | "card_holder" | undefined;
+    origin?: "registration" | "psf_form" | undefined;
     paidRwf?: number | null | undefined;
     headOfficeInScope?: boolean | undefined;
     branchesPending?: number | undefined;
@@ -2842,6 +2869,10 @@ export type PsfQueueItem = z.infer<typeof PsfQueueItem>;
 export declare const PsfQueuePage: z.ZodObject<{
     items: z.ZodArray<z.ZodObject<{
         applicationId: z.ZodString;
+        /** New, or a card holder joining the new module (2026-11-02). */
+        intake: z.ZodDefault<z.ZodEnum<["new", "card_holder"]>>;
+        /** Where it was sent from: the public PSF form, or Injishi's business registration. */
+        origin: z.ZodDefault<z.ZodEnum<["psf_form", "registration"]>>;
         orgId: z.ZodString;
         businessName: z.ZodString;
         businessCode: z.ZodNullable<z.ZodString>;
@@ -2895,6 +2926,8 @@ export declare const PsfQueuePage: z.ZodObject<{
         associationName: string | null;
         canDecide: boolean;
         applicationId: string;
+        intake: "new" | "card_holder";
+        origin: "registration" | "psf_form";
         businessName: string;
         waitingDays: number;
         docId: string | null;
@@ -2922,6 +2955,8 @@ export declare const PsfQueuePage: z.ZodObject<{
         docId: string | null;
         clusterName?: string | null | undefined;
         subsectorName?: string | null | undefined;
+        intake?: "new" | "card_holder" | undefined;
+        origin?: "registration" | "psf_form" | undefined;
         paidRwf?: number | null | undefined;
         headOfficeInScope?: boolean | undefined;
         branchesPending?: number | undefined;
@@ -2948,6 +2983,8 @@ export declare const PsfQueuePage: z.ZodObject<{
         associationName: string | null;
         canDecide: boolean;
         applicationId: string;
+        intake: "new" | "card_holder";
+        origin: "registration" | "psf_form";
         businessName: string;
         waitingDays: number;
         docId: string | null;
@@ -2979,6 +3016,8 @@ export declare const PsfQueuePage: z.ZodObject<{
         docId: string | null;
         clusterName?: string | null | undefined;
         subsectorName?: string | null | undefined;
+        intake?: "new" | "card_holder" | undefined;
+        origin?: "registration" | "psf_form" | undefined;
         paidRwf?: number | null | undefined;
         headOfficeInScope?: boolean | undefined;
         branchesPending?: number | undefined;
@@ -3047,7 +3086,7 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         website: z.ZodNullable<z.ZodString>;
         streetAddress: z.ZodString;
         companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
-        ownership: z.ZodEnum<["foreign_100", "rwandan_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+        ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
         ownershipOther: z.ZodNullable<z.ZodString>;
         businessActivity: z.ZodString;
         tradeDirection: z.ZodEnum<["none", "export", "import", "both"]>;
@@ -3070,7 +3109,7 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         streetAddress: string;
         website: string | null;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         ownershipOther: string | null;
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
@@ -3092,7 +3131,7 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         streetAddress: string;
         website: string | null;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         ownershipOther: string | null;
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
@@ -3109,6 +3148,10 @@ export declare const PsfOfficerApplication: z.ZodObject<{
     }>;
 } & {
     orgId: z.ZodString;
+    /** New, or a card holder joining the new module (2026-11-02): confirmed with dates, no fee. */
+    intake: z.ZodDefault<z.ZodEnum<["new", "card_holder"]>>;
+    /** Where it was sent from: the public PSF form, or Injishi's business registration. */
+    origin: z.ZodDefault<z.ZodEnum<["psf_form", "registration"]>>;
     businessName: z.ZodString;
     districtName: z.ZodNullable<z.ZodString>;
     registrationStatus: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
@@ -3236,7 +3279,7 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         streetAddress: string;
         website: string | null;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         ownershipOther: string | null;
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
@@ -3262,6 +3305,8 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         associationName: string | null;
     };
     canDecide: boolean;
+    intake: "new" | "card_holder";
+    origin: "registration" | "psf_form";
     businessName: string;
     waitingDays: number;
     docId: string | null;
@@ -3306,7 +3351,7 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         streetAddress: string;
         website: string | null;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
-        ownership: "other" | "foreign_100" | "rwandan_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
         ownershipOther: string | null;
         businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
@@ -3347,6 +3392,8 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         note: string | null;
         canDecide: boolean;
     }[] | undefined;
+    intake?: "new" | "card_holder" | undefined;
+    origin?: "registration" | "psf_form" | undefined;
     headOfficeInScope?: boolean | undefined;
     decidesHere?: boolean | undefined;
     paidBeforeReview?: boolean | undefined;
@@ -3362,12 +3409,19 @@ export declare const PsfApproveRequest: z.ZodObject<{
     membershipNumber: z.ZodString;
     feeRwf: z.ZodOptional<z.ZodEffects<z.ZodNumber, number, number>>;
     note: z.ZodOptional<z.ZodString>;
+    /** A card holder's year, as its card shows it (2026-11-02). Required for a card holder, unused otherwise. */
+    startsOn: z.ZodOptional<z.ZodString>;
+    expiresOn: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     membershipNumber: string;
+    expiresOn?: string | undefined;
+    startsOn?: string | undefined;
     note?: string | undefined;
     feeRwf?: number | undefined;
 }, {
     membershipNumber: string;
+    expiresOn?: string | undefined;
+    startsOn?: string | undefined;
     note?: string | undefined;
     feeRwf?: number | undefined;
 }>;
@@ -3422,6 +3476,13 @@ export declare const PsfBusinessesQuery: z.ZodObject<{
     association: z.ZodOptional<z.ZodString>;
     tier: z.ZodOptional<z.ZodString>;
     standing: z.ZodOptional<z.ZodEnum<["not_applied", "claimed", "applied", "awaiting_payment", "member", "lapsed", "declined"]>>;
+    /** `due`: a current membership inside its renewal window, 60 days before it ends, or past it (2026-11-02). */
+    renewal: z.ZodOptional<z.ZodEnum<["due"]>>;
+    /**
+     * `due`: an application sent and not paid (2026-11-02): the public form's payment at submit that did not go
+     * through, or an approval still to pay. Such a business is not on the register otherwise.
+     */
+    payment: z.ZodOptional<z.ZodEnum<["due"]>>;
     group: z.ZodOptional<z.ZodEnum<["women", "youth", "pwd"]>>;
     tin: z.ZodOptional<z.ZodEnum<["with", "without"]>>;
     kind: z.ZodOptional<z.ZodEnum<["enterprise", "hospitality"]>>;
@@ -3432,12 +3493,14 @@ export declare const PsfBusinessesQuery: z.ZodObject<{
     kind?: "hospitality" | "enterprise" | undefined;
     tin?: "with" | "without" | undefined;
     cursor?: string | undefined;
+    payment?: "due" | undefined;
     q?: string | undefined;
     subsector?: string | undefined;
     cluster?: string | undefined;
     association?: string | undefined;
     tier?: string | undefined;
     standing?: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed" | undefined;
+    renewal?: "due" | undefined;
     group?: "women" | "youth" | "pwd" | undefined;
 }, {
     province?: number | undefined;
@@ -3445,12 +3508,14 @@ export declare const PsfBusinessesQuery: z.ZodObject<{
     kind?: "hospitality" | "enterprise" | undefined;
     tin?: "with" | "without" | undefined;
     cursor?: string | undefined;
+    payment?: "due" | undefined;
     q?: string | undefined;
     subsector?: string | undefined;
     cluster?: string | undefined;
     association?: string | undefined;
     tier?: string | undefined;
     standing?: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed" | undefined;
+    renewal?: "due" | undefined;
     group?: "women" | "youth" | "pwd" | undefined;
 }>;
 export type PsfBusinessesQuery = z.infer<typeof PsfBusinessesQuery>;
@@ -3487,6 +3552,33 @@ export declare const PsfBusinessRow: z.ZodObject<{
      * its head office, and its decision, are another district's.
      */
     headOfficeInScope: z.ZodDefault<z.ZodBoolean>;
+    /** The unpaid application, when one is waiting for its payment (2026-11-02): what is owed and who to reach. */
+    paymentDue: z.ZodDefault<z.ZodNullable<z.ZodObject<{
+        amountRwf: z.ZodNullable<z.ZodNumber>;
+        since: z.ZodString;
+        docId: z.ZodNullable<z.ZodString>;
+        contactName: z.ZodString;
+        phoneE164: z.ZodNullable<z.ZodString>;
+        email: z.ZodNullable<z.ZodString>;
+        /** The last payment reminder an officer sent; one a day at most. */
+        lastRemindedAt: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        amountRwf: number | null;
+        phoneE164: string | null;
+        email: string | null;
+        docId: string | null;
+        since: string;
+        contactName: string;
+        lastRemindedAt: string | null;
+    }, {
+        amountRwf: number | null;
+        phoneE164: string | null;
+        email: string | null;
+        docId: string | null;
+        since: string;
+        contactName: string;
+        lastRemindedAt: string | null;
+    }>>>;
 }, "strip", z.ZodTypeAny, {
     domain: "hospitality" | "residence" | "enterprise";
     districtName: string | null;
@@ -3513,6 +3605,15 @@ export declare const PsfBusinessRow: z.ZodObject<{
     openApplicationId: string | null;
     lastPaidAt: string | null;
     branchCount: number;
+    paymentDue: {
+        amountRwf: number | null;
+        phoneE164: string | null;
+        email: string | null;
+        docId: string | null;
+        since: string;
+        contactName: string;
+        lastRemindedAt: string | null;
+    } | null;
 }, {
     domain: "hospitality" | "residence" | "enterprise";
     districtName: string | null;
@@ -3539,8 +3640,38 @@ export declare const PsfBusinessRow: z.ZodObject<{
     headOfficeInScope?: boolean | undefined;
     lastPaidAt?: string | null | undefined;
     branchCount?: number | undefined;
+    paymentDue?: {
+        amountRwf: number | null;
+        phoneE164: string | null;
+        email: string | null;
+        docId: string | null;
+        since: string;
+        contactName: string;
+        lastRemindedAt: string | null;
+    } | null | undefined;
 }>;
 export type PsfBusinessRow = z.infer<typeof PsfBusinessRow>;
+/** `POST /oversight/psf/payment-reminders`: remind one business, or every one waiting in the region. */
+export declare const PsfPaymentReminderRequest: z.ZodObject<{
+    orgId: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    orgId?: string | undefined;
+}, {
+    orgId?: string | undefined;
+}>;
+export type PsfPaymentReminderRequest = z.infer<typeof PsfPaymentReminderRequest>;
+export declare const PsfPaymentReminderResult: z.ZodObject<{
+    sent: z.ZodNumber;
+    /** Reminded within the last day already, so not again. */
+    skipped: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    sent: number;
+    skipped: number;
+}, {
+    sent: number;
+    skipped: number;
+}>;
+export type PsfPaymentReminderResult = z.infer<typeof PsfPaymentReminderResult>;
 /** One branch on a business's page, wherever it is: every officer who opens the business sees them all. */
 export declare const PsfBusinessBranch: z.ZodObject<{
     id: z.ZodString;
@@ -3609,6 +3740,33 @@ export declare const PsfBusinessesPage: z.ZodObject<{
          * its head office, and its decision, are another district's.
          */
         headOfficeInScope: z.ZodDefault<z.ZodBoolean>;
+        /** The unpaid application, when one is waiting for its payment (2026-11-02): what is owed and who to reach. */
+        paymentDue: z.ZodDefault<z.ZodNullable<z.ZodObject<{
+            amountRwf: z.ZodNullable<z.ZodNumber>;
+            since: z.ZodString;
+            docId: z.ZodNullable<z.ZodString>;
+            contactName: z.ZodString;
+            phoneE164: z.ZodNullable<z.ZodString>;
+            email: z.ZodNullable<z.ZodString>;
+            /** The last payment reminder an officer sent; one a day at most. */
+            lastRemindedAt: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            amountRwf: number | null;
+            phoneE164: string | null;
+            email: string | null;
+            docId: string | null;
+            since: string;
+            contactName: string;
+            lastRemindedAt: string | null;
+        }, {
+            amountRwf: number | null;
+            phoneE164: string | null;
+            email: string | null;
+            docId: string | null;
+            since: string;
+            contactName: string;
+            lastRemindedAt: string | null;
+        }>>>;
     }, "strip", z.ZodTypeAny, {
         domain: "hospitality" | "residence" | "enterprise";
         districtName: string | null;
@@ -3635,6 +3793,15 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         openApplicationId: string | null;
         lastPaidAt: string | null;
         branchCount: number;
+        paymentDue: {
+            amountRwf: number | null;
+            phoneE164: string | null;
+            email: string | null;
+            docId: string | null;
+            since: string;
+            contactName: string;
+            lastRemindedAt: string | null;
+        } | null;
     }, {
         domain: "hospitality" | "residence" | "enterprise";
         districtName: string | null;
@@ -3661,6 +3828,15 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         headOfficeInScope?: boolean | undefined;
         lastPaidAt?: string | null | undefined;
         branchCount?: number | undefined;
+        paymentDue?: {
+            amountRwf: number | null;
+            phoneE164: string | null;
+            email: string | null;
+            docId: string | null;
+            since: string;
+            contactName: string;
+            lastRemindedAt: string | null;
+        } | null | undefined;
     }>, "many">;
     nextCursor: z.ZodNullable<z.ZodString>;
     /** How many businesses match the filters, across every page. */
@@ -3692,6 +3868,15 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         openApplicationId: string | null;
         lastPaidAt: string | null;
         branchCount: number;
+        paymentDue: {
+            amountRwf: number | null;
+            phoneE164: string | null;
+            email: string | null;
+            docId: string | null;
+            since: string;
+            contactName: string;
+            lastRemindedAt: string | null;
+        } | null;
     }[];
     nextCursor: string | null;
     total: number;
@@ -3722,6 +3907,15 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         headOfficeInScope?: boolean | undefined;
         lastPaidAt?: string | null | undefined;
         branchCount?: number | undefined;
+        paymentDue?: {
+            amountRwf: number | null;
+            phoneE164: string | null;
+            email: string | null;
+            docId: string | null;
+            since: string;
+            contactName: string;
+            lastRemindedAt: string | null;
+        } | null | undefined;
     }[];
     nextCursor: string | null;
     total: number;
@@ -3752,8 +3946,14 @@ export declare const PsfRegisterSummary: z.ZodObject<{
     total: z.ZodNumber;
     members: z.ZodNumber;
     waiting: z.ZodNumber;
-    /** Fees paid this calendar year through Injishi, in RWF. */
+    /** Fees paid this calendar year through Injishi, in RWF: new memberships and renewals. */
     paidThisYearRwf: z.ZodNumber;
+    /** Members inside their renewal window, 60 days before the end date (2026-11-02). */
+    renewalDue: z.ZodDefault<z.ZodNumber>;
+    /** Renewals paid this calendar year. */
+    renewedThisYear: z.ZodDefault<z.ZodNumber>;
+    /** Applications sent and not paid (2026-11-02). */
+    awaitingPayment: z.ZodDefault<z.ZodNumber>;
     byCluster: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
@@ -3816,6 +4016,9 @@ export declare const PsfRegisterSummary: z.ZodObject<{
     members: number;
     waiting: number;
     paidThisYearRwf: number;
+    renewalDue: number;
+    renewedThisYear: number;
+    awaitingPayment: number;
     byCluster: {
         count: number;
         key: string;
@@ -3864,6 +4067,9 @@ export declare const PsfRegisterSummary: z.ZodObject<{
         label: string;
         letters: string;
     }[];
+    renewalDue?: number | undefined;
+    renewedThisYear?: number | undefined;
+    awaitingPayment?: number | undefined;
 }>;
 export type PsfRegisterSummary = z.infer<typeof PsfRegisterSummary>;
 /**
@@ -4330,7 +4536,10 @@ export declare const PsfMembershipClaim: z.ZodObject<{
     businessCode: z.ZodNullable<z.ZodString>;
     tin: z.ZodNullable<z.ZodString>;
     districtName: z.ZodNullable<z.ZodString>;
-    membershipNumber: z.ZodString;
+    /** The OLD number it typed from its card, when it did; null when it sent the card alone (2026-11-02). */
+    membershipNumber: z.ZodNullable<z.ZodString>;
+    /** The next number in its district's run (2026-11-02): every card holder gets a new one. */
+    suggestedMembershipNumber: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     status: z.ZodEnum<["claimed", "confirmed", "rejected"]>;
     claimedAt: z.ZodString;
     claimedByName: z.ZodNullable<z.ZodString>;
@@ -4367,8 +4576,9 @@ export declare const PsfMembershipClaim: z.ZodObject<{
     decidedAt: string | null;
     orgId: string;
     businessCode: string | null;
-    membershipNumber: string;
+    membershipNumber: string | null;
     decisionNote: string | null;
+    suggestedMembershipNumber: string | null;
     claimedAt: string;
     claimedByName: string | null;
     decidedByName: string | null;
@@ -4389,7 +4599,7 @@ export declare const PsfMembershipClaim: z.ZodObject<{
     decidedAt: string | null;
     orgId: string;
     businessCode: string | null;
-    membershipNumber: string;
+    membershipNumber: string | null;
     decisionNote: string | null;
     claimedAt: string;
     claimedByName: string | null;
@@ -4402,6 +4612,7 @@ export declare const PsfMembershipClaim: z.ZodObject<{
         tierCode: string | null;
         tinMatches: boolean;
     } | null;
+    suggestedMembershipNumber?: string | null | undefined;
 }>;
 export type PsfMembershipClaim = z.infer<typeof PsfMembershipClaim>;
 export declare const PsfClaimsQuery: z.ZodObject<{
@@ -4420,7 +4631,10 @@ export declare const PsfClaimsPage: z.ZodObject<{
         businessCode: z.ZodNullable<z.ZodString>;
         tin: z.ZodNullable<z.ZodString>;
         districtName: z.ZodNullable<z.ZodString>;
-        membershipNumber: z.ZodString;
+        /** The OLD number it typed from its card, when it did; null when it sent the card alone (2026-11-02). */
+        membershipNumber: z.ZodNullable<z.ZodString>;
+        /** The next number in its district's run (2026-11-02): every card holder gets a new one. */
+        suggestedMembershipNumber: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         status: z.ZodEnum<["claimed", "confirmed", "rejected"]>;
         claimedAt: z.ZodString;
         claimedByName: z.ZodNullable<z.ZodString>;
@@ -4457,8 +4671,9 @@ export declare const PsfClaimsPage: z.ZodObject<{
         decidedAt: string | null;
         orgId: string;
         businessCode: string | null;
-        membershipNumber: string;
+        membershipNumber: string | null;
         decisionNote: string | null;
+        suggestedMembershipNumber: string | null;
         claimedAt: string;
         claimedByName: string | null;
         decidedByName: string | null;
@@ -4479,7 +4694,7 @@ export declare const PsfClaimsPage: z.ZodObject<{
         decidedAt: string | null;
         orgId: string;
         businessCode: string | null;
-        membershipNumber: string;
+        membershipNumber: string | null;
         decisionNote: string | null;
         claimedAt: string;
         claimedByName: string | null;
@@ -4492,6 +4707,7 @@ export declare const PsfClaimsPage: z.ZodObject<{
             tierCode: string | null;
             tinMatches: boolean;
         } | null;
+        suggestedMembershipNumber?: string | null | undefined;
     }>, "many">;
     counts: z.ZodObject<{
         claimed: z.ZodNumber;
@@ -4526,8 +4742,9 @@ export declare const PsfClaimsPage: z.ZodObject<{
         decidedAt: string | null;
         orgId: string;
         businessCode: string | null;
-        membershipNumber: string;
+        membershipNumber: string | null;
         decisionNote: string | null;
+        suggestedMembershipNumber: string | null;
         claimedAt: string;
         claimedByName: string | null;
         decidedByName: string | null;
@@ -4559,7 +4776,7 @@ export declare const PsfClaimsPage: z.ZodObject<{
         decidedAt: string | null;
         orgId: string;
         businessCode: string | null;
-        membershipNumber: string;
+        membershipNumber: string | null;
         decisionNote: string | null;
         claimedAt: string;
         claimedByName: string | null;
@@ -4572,6 +4789,7 @@ export declare const PsfClaimsPage: z.ZodObject<{
             tierCode: string | null;
             tinMatches: boolean;
         } | null;
+        suggestedMembershipNumber?: string | null | undefined;
     }[];
     counts: {
         rejected: number;
@@ -4590,24 +4808,33 @@ export declare const ConfirmPsfClaimRequest: z.ZodEffects<z.ZodObject<{
     startsOn: z.ZodString;
     expiresOn: z.ZodString;
     note: z.ZodOptional<z.ZodString>;
+    /**
+     * The NEW number PSF gives the card holder in the new module (2026-11-02, the owner's decision):
+     * every card holder gets one, whatever its old card shows. The dialog suggests the district's next.
+     */
+    membershipNumber: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     expiresOn: string;
     tierCode: string;
+    membershipNumber: string;
     startsOn: string;
     note?: string | undefined;
 }, {
     expiresOn: string;
     tierCode: string;
+    membershipNumber: string;
     startsOn: string;
     note?: string | undefined;
 }>, {
     expiresOn: string;
     tierCode: string;
+    membershipNumber: string;
     startsOn: string;
     note?: string | undefined;
 }, {
     expiresOn: string;
     tierCode: string;
+    membershipNumber: string;
     startsOn: string;
     note?: string | undefined;
 }>;
@@ -4694,13 +4921,13 @@ export declare const PsfMemberListResult: z.ZodObject<{
     confirmedClaims: z.ZodNumber;
     skipped: z.ZodArray<z.ZodString, "many">;
 }, "strip", z.ZodTypeAny, {
+    skipped: string[];
     rows: number;
     confirmedClaims: number;
-    skipped: string[];
 }, {
+    skipped: string[];
     rows: number;
     confirmedClaims: number;
-    skipped: string[];
 }>;
 export type PsfMemberListResult = z.infer<typeof PsfMemberListResult>;
 //# sourceMappingURL=psf.d.ts.map

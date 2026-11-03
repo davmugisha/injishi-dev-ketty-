@@ -277,7 +277,7 @@ export function SectionTin({
                 checked={capPick === "owner"}
                 icon={<User size={20} aria-hidden />}
                 title="I own or direct this business"
-                description="You confirm it with your own ID, checked against RRA's directors."
+                description="You add your own ID in the next step, and we check it against RRA's directors."
                 onSelect={() => onCapPick("owner")}
               />
               <ChoiceTile

@@ -81,6 +81,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -105,6 +106,8 @@ import {
   type PsfTierRow,
 } from '../infrastructure/psf-membership.repository';
 import { PsfReportRepository } from '../infrastructure/psf-report.repository';
+import { PsfRenewalRepository } from '../infrastructure/psf-renewal.repository';
+import { PsfCertificatesService } from './psf-certificates.service';
 import {
   buildPsfApplicationRow,
   toPsfApplicationView,
@@ -148,6 +151,10 @@ export class PsfMembershipService {
     private readonly config: ConfigService,
     /** The next membership number in a district's run, for the approve dialog. */
     private readonly report: PsfReportRepository,
+    /** Paid renewals, for a business's page (2026-11-02). */
+    private readonly renewals: PsfRenewalRepository,
+    /** The member's certificate, sent with the confirmed claim (2026-11-02). Absent in unit harnesses. */
+    @Optional() private readonly certificates?: PsfCertificatesService,
   ) {}
 
   /** Whether a number is already another business's current membership (0121). */
@@ -165,8 +172,17 @@ export class PsfMembershipService {
       this.repo.memberListSummary(),
     ]);
     const count = (s: string): number => counts.find((c) => c.status === s)?.n ?? 0;
+    // Every card holder gets a NEW number (2026-11-02): the next in its district's run, once per district.
+    const year = Number(kigaliToday().slice(0, 4));
+    const next = new Map<number, string>();
+    for (const r of rows) {
+      if (r.status !== 'claimed' || r.districtId === null || next.has(r.districtId)) continue;
+      const letters = districtLetters(r.districtId, r.districtName);
+      next.set(r.districtId, formatPsfMembershipNumber(letters, year, (await this.report.lastMembershipNumber(letters, year)) + 1));
+    }
     return {
       items: rows.map((r) => ({
+        suggestedMembershipNumber: r.status === 'claimed' && r.districtId !== null ? (next.get(r.districtId) ?? null) : null,
         id: r.id,
         orgId: r.orgId,
         legalName: r.legalName,
@@ -199,7 +215,7 @@ export class PsfMembershipService {
   /** The claim, if it is open and in the officer's region; refused otherwise. */
   private async openClaimInScope(grants: OversightGrant[], id: string): Promise<PsfClaimInScope> {
     const claim = await this.repo.claim(id);
-    if (!claim || !covers(await this.scopeOf(grants), claim.districtId)) {
+    if (!claim || !covers(await this.editScopeOf(grants), claim.districtId)) {
       throw new NotFoundException('That claim is not in your region.');
     }
     if (claim.status !== 'claimed') throw new ConflictException('That claim has already been decided.');
@@ -212,10 +228,17 @@ export class PsfMembershipService {
     if (!(await this.repo.tierCodes()).includes(body.tierCode)) {
       throw new BadRequestException('That tier is not one of PSF\'s.');
     }
+    // Every card holder gets a NEW number in the new module (2026-11-02, the owner's decision), whatever its
+    // old card shows: the officer gives it, the dialog suggesting the district's next.
+    const membershipNumber = body.membershipNumber.trim();
+    const numberIssue = (message: string): UnprocessableEntityException =>
+      new UnprocessableEntityException({ message: 'Validation failed', issues: [{ code: 'custom', path: ['membershipNumber'], message }] });
+    if (!membershipNumber) throw numberIssue('Give the new membership number.');
+    if (await this.numberHeldByAnotherBusiness(membershipNumber)) throw numberIssue('That number is another business’s PSF membership.');
     await this.repo.confirmClaim({
       claimId: claim.id,
       orgId: claim.orgId,
-      membershipNumber: claim.membershipNumber,
+      membershipNumber,
       tierCode: body.tierCode,
       startsOn: body.startsOn,
       expiresOn: body.expiresOn,
@@ -223,7 +246,10 @@ export class PsfMembershipService {
       matchedBy: 'officer',
       note: body.note?.trim() || null,
     });
-    await this.mail.claimConfirmed(claim.orgId, claim.membershipNumber, body.expiresOn);
+    // A business that had a card is a member now, with the certificate of one (2026-11-02).
+    const certificate = await this.certificates?.pdfOrNull(claim.orgId);
+    if (certificate) await this.mail.claimConfirmed(claim.orgId, membershipNumber, body.expiresOn, certificate);
+    else await this.mail.claimConfirmed(claim.orgId, membershipNumber, body.expiresOn);
   }
 
   /** Reject a claim with the reason the business is told. */
@@ -232,7 +258,7 @@ export class PsfMembershipService {
     if (!(await this.repo.rejectClaim(claim.id, userId, body.reason))) {
       throw new ConflictException('That claim has already been decided.');
     }
-    await this.mail.claimRejected(claim.orgId, claim.membershipNumber, body.reason);
+    await this.mail.claimRejected(claim.orgId, claim.membershipNumber ?? 'sent with your card', body.reason);
   }
 
   /**
@@ -430,6 +456,8 @@ export class PsfMembershipService {
     const scope = await this.scopeOf(grants);
     const districtId = area.district ?? (scope !== null && scope.length === 1 ? scope[0]! : null);
     if (districtId !== null && scope !== null && !scope.includes(districtId)) throw new ForbiddenException(PSF_OUT_OF_SCOPE_MESSAGE);
+    // A BDE reads the prices, and sets none (2026-11-02).
+    const editScope = await this.editScopeOf(grants);
     const [tiers, rows, districtName] = await Promise.all([
       this.repo.tiers(true),
       this.repo.tierFees(districtId),
@@ -438,8 +466,8 @@ export class PsfMembershipService {
     return {
       districtId,
       districtName,
-      canEditNational: scope === null,
-      canEditDistrict: districtId !== null && this.canEditSubsector(scope, districtId),
+      canEditNational: editScope === null,
+      canEditDistrict: districtId !== null && this.canEditSubsector(editScope, districtId),
       rows: tiers.map((t) => {
         const own = districtId === null ? undefined : rows.find((r) => r.tierCode === t.code && r.districtId === districtId);
         const national = rows.find((r) => r.tierCode === t.code && r.districtId === null);
@@ -468,7 +496,7 @@ export class PsfMembershipService {
 
   /** Set or clear a band's price for a place the officer may price. */
   async setTierFee(officerUserId: string, grants: OversightGrant[], input: SetPsfTierFeeRequest): Promise<PsfOfficerFeesView> {
-    const scope = await this.scopeOf(grants);
+    const scope = await this.editScopeOf(grants);
     if (!this.canEditSubsector(scope, input.districtId)) {
       throw new ForbiddenException(
         input.districtId === null ? 'Only a national PSF officer sets the national prices. Set your district’s instead.' : PSF_OUT_OF_SCOPE_MESSAGE,
@@ -520,7 +548,7 @@ export class PsfMembershipService {
     grants: OversightGrant[],
     input: CreatePsfFormFieldRequest,
   ): Promise<PsfFormFieldsOfficerView> {
-    if ((await this.scopeOf(grants)) !== null) {
+    if ((await this.editScopeOf(grants)) !== null) {
       throw new ForbiddenException('Only the PSF National Manager configures the membership form.');
     }
     try {
@@ -547,7 +575,7 @@ export class PsfMembershipService {
     id: string,
     input: UpdatePsfFormFieldRequest,
   ): Promise<PsfFormFieldsOfficerView> {
-    if ((await this.scopeOf(grants)) !== null) {
+    if ((await this.editScopeOf(grants)) !== null) {
       throw new ForbiddenException('Only the PSF National Manager configures the membership form.');
     }
     const existing = await this.repo.formField(id);
@@ -589,7 +617,7 @@ export class PsfMembershipService {
   }
 
   async subsectorsForOfficer(grants: OversightGrant[], area: PsfAreaQuery = {}): Promise<PsfSubsectorsView> {
-    const scope = await this.scopeOf(grants);
+    const scope = await this.editScopeOf(grants);
     const shown = await this.scopeFor(grants, area);
     const [clusters, associations, subsectors, places] = await Promise.all([
       this.repo.clusters(true),
@@ -625,7 +653,7 @@ export class PsfMembershipService {
   }
 
   async createSubsector(officerUserId: string, grants: OversightGrant[], input: CreatePsfSubsectorRequest): Promise<PsfSubsectorsView> {
-    const scope = await this.scopeOf(grants);
+    const scope = await this.editScopeOf(grants);
     if (!this.canEditSubsector(scope, input.districtId)) {
       throw new ForbiddenException(
         input.districtId === null
@@ -655,7 +683,7 @@ export class PsfMembershipService {
   ): Promise<PsfSubsectorsView> {
     const row = await this.repo.subsector(id);
     if (!row) throw new NotFoundException('Subtype not found.');
-    if (!this.canEditSubsector(await this.scopeOf(grants), row.districtId)) {
+    if (!this.canEditSubsector(await this.editScopeOf(grants), row.districtId)) {
       throw new ForbiddenException(row.districtId === null ? 'Only a national PSF officer changes the national list.' : PSF_OUT_OF_SCOPE_MESSAGE);
     }
     if (input.associationCodes) await this.assertSubsectorInput(row.clusterCode, input.associationCodes);
@@ -998,6 +1026,8 @@ export class PsfMembershipService {
         amountRwf: app.approvedFeeRwf,
         currency: 'RWF',
         workspaceId: input.scopeId,
+        // The public path has no workspace: its scope is the business itself.
+        withoutWorkspace: input.scopeId === input.orgId,
         memo: `PSF membership ${app.approvedMembershipNumber ?? ''} for ${input.legalName}`.trim(),
       });
     } catch (error) {
@@ -1008,6 +1038,12 @@ export class PsfMembershipService {
         throw new ServiceUnavailableException('We could not reach mobile money, and nothing was taken. Try again in a moment.');
       }
       throw error;
+    }
+    // A prompt still pending is asked about at the gateway (2026-11-02), as the renewal and the payment at
+    // submit are: the charge under the same key only ever answers pending, so Check payment could not settle.
+    if (receipt.settlement === 'pending') {
+      const asked = await this.payments.fetchTransaction(input.scopeId, receipt.adapterRef).catch(() => null);
+      if (asked?.settlement === 'settled') receipt = { ...receipt, ...asked, settlement: 'settled' };
     }
     if (receipt.settlement === 'pending') {
       throw new ConflictException({
@@ -1049,11 +1085,32 @@ export class PsfMembershipService {
    * `remitted_at IS NULL` for finance. Until PSF's account is configured
    * nothing is sent, and the log says so rather than pretending.
    */
-  private async remit(applicationId: string, workspaceId: string, amountRwf: number): Promise<void> {
+  private remit(applicationId: string, workspaceId: string, amountRwf: number): Promise<void> {
+    return this.passOn({
+      what: `application ${applicationId}`,
+      key: `${workspaceId}:psf-remittance:${applicationId}`,
+      workspaceId,
+      amountRwf,
+      record: (ref) => this.repo.recordRemittance(applicationId, ref),
+    });
+  }
+
+  /** A paid renewal's fee, passed on to PSF the same way (2026-11-02). */
+  remitRenewal(renewalId: string, orgId: string, amountRwf: number, record: (ref: string) => Promise<void>): Promise<void> {
+    return this.passOn({ what: `renewal ${renewalId}`, key: `${orgId}:psf-renewal-remittance:${renewalId}`, workspaceId: orgId, amountRwf, record });
+  }
+
+  private async passOn(input: {
+    what: string;
+    key: string;
+    workspaceId: string;
+    amountRwf: number;
+    record: (ref: string) => Promise<void>;
+  }): Promise<void> {
     const payee = psfPayee((key) => this.config.get<string>(key));
     if (!payee) {
       this.log.warn(
-        `PSF's payout account is not configured (PSF_PAYOUT_DESTINATION, PSF_PAYOUT_REF, PSF_PAYOUT_NAME, PSF_PAYOUT_ID_NUMBER, PSF_PAYOUT_PHONE); the fee on application ${applicationId} is held for PSF.`,
+        `PSF's payout account is not configured (PSF_PAYOUT_DESTINATION, PSF_PAYOUT_REF, PSF_PAYOUT_NAME, PSF_PAYOUT_ID_NUMBER, PSF_PAYOUT_PHONE); the fee on ${input.what} is held for PSF.`,
       );
       return;
     }
@@ -1061,21 +1118,22 @@ export class PsfMembershipService {
       const sent = await this.payments.payout({
         kind: 'payout',
         payee,
-        idempotencyKey: `${workspaceId}:psf-remittance:${applicationId}`,
-        amountRwf,
+        idempotencyKey: input.key,
+        amountRwf: input.amountRwf,
         currency: 'RWF',
-        workspaceId,
+        workspaceId: input.workspaceId,
         memo: 'PSF membership fee',
       });
-      if (sent.settlement === 'settled') await this.repo.recordRemittance(applicationId, sent.adapterRef);
+      if (sent.settlement === 'settled') await input.record(sent.adapterRef);
     } catch (error) {
       this.log.error(
-        `The fee on application ${applicationId} was not passed on to PSF: ${
+        `The fee on ${input.what} was not passed on to PSF: ${
           error instanceof Error ? error.message : 'unknown failure'
         }. The membership stands; the fee is held for PSF.`,
       );
     }
   }
+
 
   /**
    * Stamp an application's first entry into PSF's queue, and email the
@@ -1087,7 +1145,7 @@ export class PsfMembershipService {
     const stamped = await this.repo.markQueued(orgId);
     for (const id of stamped) {
       const app = await this.repo.applicationById(id);
-      if (app) await this.mail.queueEntered(orgId, app.requestedTierName);
+      if (app) await this.mail.queueEntered(orgId, id, app.requestedTierName, app.submittedByUserId ? 'registration' : 'psf_form');
     }
     return stamped.length;
   }
@@ -1132,13 +1190,25 @@ export class PsfMembershipService {
 
   // --- The officer's side (AC-10 to AC-14) -----------------------------------
 
-  /** The districts these grants cover: null for the country (`districtScopeOf`). */
+  /**
+   * The districts these grants READ: null for the country (`districtScopeOf`).
+   * A BDE's posting counts here (2026-11-02): it reads
+   * its district like a District Manager does.
+   */
   private async scopeOf(grants: OversightGrant[]): Promise<PsfScope> {
-    const own = grants.filter((g) => g.oversightRole === 'psf_membership_officer');
+    const own = grants.filter((g) => isPsfConsoleRole(g.oversightRole));
     const provinceIds = [
       ...new Set(own.filter((g) => g.scopeLevel === 'province' && g.provinceId !== null).map((g) => g.provinceId as number)),
     ];
     return districtScopeOf(own, await this.repo.districtsByProvince(provinceIds));
+  }
+
+  /**
+   * The districts these grants may CHANGE (fees, subtypes, form fields, claims,
+   * decisions): the District Manager's postings alone. A BDE's changes nothing.
+   */
+  private editScopeOf(grants: OversightGrant[]): Promise<PsfScope> {
+    return this.scopeOf(grants.filter((g) => g.oversightRole === 'psf_membership_officer'));
   }
 
   /**
@@ -1178,6 +1248,8 @@ export class PsfMembershipService {
     return {
       items: page.rows.map((r) => ({
         applicationId: r.applicationId,
+        origin: r.submittedByUserId ? ('registration' as const) : ('psf_form' as const),
+        intake: r.intake,
         orgId: r.orgId,
         businessName: r.businessName,
         businessCode: r.businessCode,
@@ -1227,14 +1299,23 @@ export class PsfMembershipService {
    * Outside the officer's region it does not exist.
    */
   async businessDetail(grants: OversightGrant[], orgId: string): Promise<PsfBusinessDetail> {
-    const scope = await this.scopeOf(grants);
+    return this.businessIn(await this.scopeOf(grants), orgId);
+  }
+
+  /** One business for Injishi's admin console, wherever it is (2026-11-02). */
+  businessAcrossRwanda(orgId: string): Promise<PsfBusinessDetail> {
+    return this.businessIn(null, orgId);
+  }
+
+  private async businessIn(scope: PsfScope, orgId: string): Promise<PsfBusinessDetail> {
     const page = await this.repo.registerPage(scope, { orgId }, undefined, 1);
     const row = page.rows[0];
     if (!row) throw new NotFoundException('This business is not in your region.');
-    const [history, newest, branches] = await Promise.all([
+    const [history, newest, branches, renewals] = await Promise.all([
       this.historyOf(orgId),
       this.repo.newestApplicationContact(orgId),
       this.repo.orgBranches(orgId),
+      this.renewals.paidOf(orgId),
     ]);
     return {
       business: {
@@ -1264,6 +1345,15 @@ export class PsfMembershipService {
           }
         : null,
       history,
+      renewals: renewals.map((r) => ({
+        paidAt: (r.paidAt ?? r.createdAt).toISOString(),
+        membershipNumber: r.membershipNumber,
+        tierName: r.tierName,
+        amountRwf: r.amountRwf,
+        startsOn: r.startsOn,
+        expiresOn: r.expiresOn,
+        reference: r.paymentRef,
+      })),
     };
   }
 
@@ -1315,6 +1405,9 @@ export class PsfMembershipService {
     }
     return {
       ...toPsfApplicationView(row),
+      // Nobody signed in: the public PSF form. A registrant: Injishi's business registration (2026-11-02).
+      origin: row.submittedByUserId ? 'registration' : 'psf_form',
+      intake: row.intake,
       orgId: row.orgId,
       businessName: row.businessName,
       districtName: row.districtName,
@@ -1391,7 +1484,7 @@ export class PsfMembershipService {
     branchId: string,
     input: PsfBranchDecisionRequest,
   ): Promise<PsfOfficerApplication> {
-    const scope = await this.scopeOf(grants);
+    const scope = await this.editScopeOf(grants);
     const row = await this.repo.officerApplication(officerUserId, scope, applicationId, true, true);
     const branch = row ? (await this.repo.branchesOf(row.id)).find((b) => b.id === branchId) : undefined;
     if (!row || !branch || !covers(scope, branch.districtId)) {
@@ -1424,7 +1517,7 @@ export class PsfMembershipService {
     grants: OversightGrant[],
     applicationId: string,
   ): Promise<PsfOfficerApplicationRow> {
-    const row = await this.repo.officerApplication(officerUserId, await this.scopeOf(grants), applicationId);
+    const row = await this.repo.officerApplication(officerUserId, await this.editScopeOf(grants), applicationId);
     if (!row || row.status !== 'submitted') {
       const app = await this.repo.applicationById(applicationId);
       if (app && app.status !== 'submitted') throw new ConflictException(PSF_NOT_OPEN_MESSAGE);
@@ -1437,7 +1530,7 @@ export class PsfMembershipService {
 
   /** The body the deciding officer sits at, copied onto the decision (D25). */
   private bodyOf(grants: OversightGrant[]): string {
-    return grants.find((g) => g.oversightRole === 'psf_membership_officer')?.governmentBodyCode ?? 'PSF';
+    return grants.find((g) => isPsfConsoleRole(g.oversightRole))?.governmentBodyCode ?? 'PSF';
   }
 
   /**
@@ -1453,6 +1546,8 @@ export class PsfMembershipService {
     input: PsfApproveRequest,
   ): Promise<PsfOfficerApplication> {
     const row = await this.decidable(officerUserId, grants, applicationId);
+    // A card holder (2026-11-02): a member at once, a new number and its card's year, no fee now.
+    if (row.intake === 'card_holder') return this.approveCardHolder(officerUserId, grants, row, input);
     // PSF approves only a business that has paid (2026-10-20): a paid
     // application becomes a member at once, and its fee goes on to PSF.
     if (row.paidAt) return this.approvePaid(officerUserId, grants, row, input);
@@ -1499,6 +1594,42 @@ export class PsfMembershipService {
         issues: [{ code: 'custom', path: ['membershipNumber'], message: 'That membership number is already given to another business.' }],
       });
     }
+  }
+
+  private async approveCardHolder(
+    officerUserId: string,
+    grants: OversightGrant[],
+    row: PsfOfficerApplicationRow,
+    input: PsfApproveRequest,
+  ): Promise<PsfOfficerApplication> {
+    const issue = (path: string, message: string): UnprocessableEntityException =>
+      new UnprocessableEntityException({ message: 'Validation failed', issues: [{ code: 'custom', path: [path], message }] });
+    // One date, the end the card shows (2026-11-02): from today to a year ahead. The year runs back from
+    // it, so the start is the day after the same date a year before, unless the officer gives one.
+    if (!input.expiresOn) throw issue('expiresOn', 'Give the date the card says the membership ends.');
+    const today = kigaliToday();
+    const yearAhead = addYears(today, 1);
+    if (input.expiresOn < today || input.expiresOn > yearAhead) {
+      throw issue('expiresOn', 'The end date on the card is from today to a year from now. An older card is lapsed: it joins as a new member.');
+    }
+    const startsOn = input.startsOn ?? addDays(addYears(input.expiresOn, -1), 1);
+    if (input.expiresOn <= startsOn) throw issue('expiresOn', 'The membership ends after it starts.');
+    await this.assertNumberFree(input.membershipNumber, row.id);
+    const done = await this.repo.approveCardHolder({
+      applicationId: row.id,
+      officerUserId,
+      bodyCode: this.bodyOf(grants),
+      membershipNumber: input.membershipNumber,
+      note: input.note ?? null,
+      startsOn,
+      expiresOn: input.expiresOn,
+    });
+    if (!done) throw new ConflictException(PSF_NOT_OPEN_MESSAGE);
+    // The news goes with the certificate, as for a claim PSF confirms.
+    const certificate = await this.certificates?.pdfOrNull(done.orgId);
+    if (certificate) await this.mail.claimConfirmed(done.orgId, input.membershipNumber, input.expiresOn, certificate);
+    else await this.mail.claimConfirmed(done.orgId, input.membershipNumber, input.expiresOn);
+    return this.decidedView(row.id, done.orgId, decidingDistricts(grants));
   }
 
   private async approvePaid(
@@ -1563,6 +1694,8 @@ export class PsfMembershipService {
     if (!app || !facts) throw new NotFoundException('Application not found.');
     return {
       ...toPsfApplicationView(app),
+      origin: app.submittedByUserId ? 'registration' : 'psf_form',
+      intake: app.intake,
       orgId,
       businessName: facts.legalName,
       districtName: facts.districtName,
@@ -1588,7 +1721,23 @@ export class PsfMembershipService {
    * filter outside the region finds nothing, because the region is a boundary.
    */
   async register(grants: OversightGrant[], query: PsfBusinessesQuery): Promise<PsfBusinessesPage> {
-    const scope = await this.scopeFor(grants, { province: query.province });
+    return this.registerIn(await this.scopeFor(grants, { province: query.province }), query);
+  }
+
+  /**
+   * The whole country's register, for Injishi's admin console (2026-11-02):
+   * membership status and renewals across every district. Staff permission is
+   * checked by the admin controller; there is no officer grant to narrow it.
+   */
+  registerAcrossRwanda(query: PsfBusinessesQuery): Promise<PsfBusinessesPage> {
+    return this.registerIn(null, query);
+  }
+
+  summaryAcrossRwanda(): Promise<PsfRegisterSummary> {
+    return this.summaryIn(null, 'Rwanda');
+  }
+
+  private async registerIn(scope: PsfScope, query: PsfBusinessesQuery): Promise<PsfBusinessesPage> {
     const page = await this.repo.registerPage(
       scope,
       {
@@ -1599,6 +1748,8 @@ export class PsfMembershipService {
         associationCode: query.association,
         tierCode: query.tier,
         standing: query.standing,
+        renewal: query.renewal,
+        payment: query.payment,
         group: query.group,
         tin: query.tin,
         kind: query.kind,
@@ -1613,25 +1764,65 @@ export class PsfMembershipService {
         registeredAt: r.registeredAt.toISOString(),
         lastPaidAt: r.lastPaidAt ? r.lastPaidAt.toISOString() : null,
         headOfficeInScope: covers(scope, r.districtId),
+        paymentDue: r.paymentDue
+          ? {
+              ...r.paymentDue,
+              since: new Date(r.paymentDue.since).toISOString(),
+              lastRemindedAt: r.paymentDue.lastRemindedAt ? new Date(r.paymentDue.lastRemindedAt).toISOString() : null,
+            }
+          : null,
       })),
       nextCursor: page.more && last ? encodeQueueCursor(last.registeredAt, last.orgId) : null,
       total: page.total,
     };
   }
 
+  /**
+   * Remind a business that its application waits for its payment (2026-11-02): an email when it gave
+   * one and a text, each with the link to pay. One business, or every one waiting in the officer's
+   * region; each at most once a day, so a press twice in a row sends nothing new.
+   */
+  async sendPaymentReminders(actorUserId: string, grants: OversightGrant[], orgId?: string): Promise<{ sent: number; skipped: number }> {
+    const scope = await this.editScopeOf(grants);
+    const page = await this.repo.registerPage(scope, { payment: 'due', orgId }, undefined, 500);
+    if (orgId && page.rows.length === 0) throw new NotFoundException('That business is not waiting for a payment in your region.');
+    const dayAgo = Date.now() - 24 * 3600 * 1000;
+    let sent = 0;
+    let skipped = 0;
+    for (const r of page.rows) {
+      const due = r.paymentDue;
+      if (!due) continue;
+      if (due.lastRemindedAt && new Date(due.lastRemindedAt).getTime() > dayAgo) {
+        skipped += 1;
+        continue;
+      }
+      await this.mail.paymentReminder(r.orgId, due.amountRwf);
+      await this.repo.recordPaymentReminder(r.orgId, actorUserId, r.districtId);
+      sent += 1;
+    }
+    return { sent, skipped };
+  }
+
   /** The officer's region at a glance, over the whole region. */
   async registerSummary(grants: OversightGrant[], area: PsfAreaQuery = {}): Promise<PsfRegisterSummary> {
-    const scope = await this.scopeFor(grants, area);
+    const [scope, regionLabel] = await Promise.all([this.scopeFor(grants, area), this.regionLabel(grants)]);
+    return this.summaryIn(scope, regionLabel);
+  }
+
+  private async summaryIn(scope: PsfScope, regionLabel: string): Promise<PsfRegisterSummary> {
     const year = Number(kigaliToday().slice(0, 4));
     // Midnight on 1 January in Kigali, which is UTC+2 all year.
     const yearStart = new Date(Date.UTC(year, 0, 1) - 2 * 3600 * 1000);
-    const [s, regionLabel] = await Promise.all([this.repo.registerSummary(scope, yearStart), this.regionLabel(grants)]);
+    const s = await this.repo.registerSummary(scope, yearStart);
     return {
       regionLabel,
       total: s.total,
       members: s.members,
       waiting: s.waiting,
       paidThisYearRwf: s.paidThisYearRwf,
+      renewalDue: s.renewalDue,
+      renewedThisYear: s.renewedThisYear,
+      awaitingPayment: s.awaitingPayment,
       byCluster: s.byCluster.map((c) => ({ key: c.key ?? 'none', label: c.label ?? 'Not classified', count: c.count })),
       byStanding: s.byStanding.map((r) => ({ key: r.key, label: PSF_STANDING_LABEL[r.key], count: r.count })),
       byGroup: s.byGroup.map((g) => ({ key: g.key, label: PSF_OWNER_GROUP_SHORT[g.key], count: g.count })),
@@ -1646,7 +1837,7 @@ export class PsfMembershipService {
 
   /** The officer's region in words: Rwanda, or the provinces and districts posted to. */
   private async regionLabel(grants: OversightGrant[]): Promise<string> {
-    const own = grants.filter((g) => g.oversightRole === 'psf_membership_officer');
+    const own = grants.filter((g) => isPsfConsoleRole(g.oversightRole));
     if (own.some((g) => g.scopeLevel === 'country')) return 'Rwanda';
     const districtIds = own.filter((g) => g.scopeLevel === 'district' && g.districtId !== null).map((g) => g.districtId as number);
     const provinceIds = own.filter((g) => g.scopeLevel === 'province' && g.provinceId !== null).map((g) => g.provinceId as number);
@@ -1669,6 +1860,11 @@ function decidingDistricts(grants: OversightGrant[]): number[] {
   return grants
     .filter((g) => g.oversightRole === 'psf_membership_officer' && g.scopeLevel === 'district' && g.districtId !== null)
     .map((g) => g.districtId as number);
+}
+
+/** The two postings that open the PSF console: a manager's, and a BDE's (2026-11-02). */
+export function isPsfConsoleRole(role: OversightGrant['oversightRole']): boolean {
+  return role === 'psf_membership_officer' || role === 'psf_business_officer';
 }
 
 /** Whether a region holds a district. Null scope is the whole country. */
@@ -1743,3 +1939,10 @@ function toFormFieldView(row: {
 function isUniqueViolation(error: unknown): boolean {
   const e = error as { code?: string; cause?: { code?: string } } | undefined;
   return e?.code === '23505' || e?.cause?.code === '23505';}
+
+/** A yyyy-mm-dd day moved by whole years; 29 February falls back to the 28th. */
+function addYears(day: string, years: number): string {
+  const [y, m, d] = day.split('-').map(Number) as [number, number, number];
+  const last = new Date(Date.UTC(y + years, m, 0)).getUTCDate();
+  return `${y + years}-${String(m).padStart(2, '0')}-${String(Math.min(d, last)).padStart(2, '0')}`;
+}

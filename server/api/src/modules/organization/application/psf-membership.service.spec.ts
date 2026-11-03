@@ -23,6 +23,7 @@ import {
 } from '../infrastructure/psf-membership.repository';
 import { buildPsfApplicationRow } from './psf-application-row';
 import type { PsfReportRepository } from '../infrastructure/psf-report.repository';
+import type { PsfRenewalRepository } from '../infrastructure/psf-renewal.repository';
 import { PsfMembershipService } from './psf-membership.service';
 
 type ClaimsHarness = { service: PsfMembershipService; repo: Record<string, Mock>; mail: Record<string, Mock> };
@@ -172,6 +173,7 @@ function setup(env: Record<string, string> = {}): {
     queueEntered: vi.fn().mockResolvedValue(undefined),
     approved: vi.fn().mockResolvedValue(undefined),
     member: vi.fn().mockResolvedValue(undefined),
+    claimConfirmed: vi.fn().mockResolvedValue(undefined),
     declined: vi.fn().mockResolvedValue(undefined),
     expiring: vi.fn().mockResolvedValue(undefined),
     expired: vi.fn().mockResolvedValue(undefined),
@@ -189,6 +191,8 @@ function setup(env: Record<string, string> = {}): {
   const payments = {
     chargeOneTimeFee: vi.fn().mockResolvedValue(receipt()),
     payout: vi.fn().mockResolvedValue(receipt({ adapterRef: 'mock_payout_1' })),
+    // The gateway asked again about a pending prompt: still pending unless a test says otherwise.
+    fetchTransaction: vi.fn().mockResolvedValue(null),
   };
   const service = new PsfMembershipService(
     repo as unknown as PsfMembershipRepository,
@@ -197,6 +201,7 @@ function setup(env: Record<string, string> = {}): {
     payments as unknown as PaymentPort,
     { get: (key: string) => env[key] } as unknown as ConfigService,
     { lastMembershipNumber: vi.fn().mockResolvedValue(0), membershipNumberTaken: vi.fn().mockResolvedValue(false) } as unknown as PsfReportRepository,
+    { paidOf: vi.fn().mockResolvedValue([]) } as unknown as PsfRenewalRepository,
   );
   // A decided application is read back for the officer; its detail is not under test here.
   vi
@@ -329,6 +334,41 @@ describe('PsfMembershipService · deciding (AC-11 to AC-14, the PSF path)', () =
     expect(repo.decline).not.toHaveBeenCalled();
   });
 
+  it('a card holder (2026-11-02) is a member at once: its new number and the year on its card, no fee', async () => {
+    const { repo, mail, service } = setup();
+    repo.officerApplication.mockResolvedValue({ id: APP, orgId: ORG, districtId: 103, status: 'submitted', officerHasStake: false, intake: 'card_holder', requestedTierName: 'Indatwa' });
+    repo.approveCardHolder = vi.fn().mockResolvedValue({ orgId: ORG, tierCode: TIER.code });
+    // The card's dates are required, and must run forwards.
+    await expect(service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/KIC/2026/0007' })).rejects.toBeInstanceOf(UnprocessableEntityException);
+    await expect(
+      service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/KIC/2026/0007', startsOn: '2026-05-01', expiresOn: '2026-01-01' }),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    await service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/KIC/2026/0007', startsOn: '2026-05-01', expiresOn: '2027-04-30' });
+    expect(repo.approveCardHolder).toHaveBeenCalledWith(
+      expect.objectContaining({ applicationId: APP, membershipNumber: 'PSF/KIC/2026/0007', startsOn: '2026-05-01', expiresOn: '2027-04-30' }),
+    );
+    // Never the paying path: no approval waiting for a fee.
+    expect(repo.approve).not.toHaveBeenCalled();
+    expect(mail.claimConfirmed).toHaveBeenCalledWith(ORG, 'PSF/KIC/2026/0007', '2027-04-30');
+  });
+
+  it('a card holder is confirmed with one date, the end on its card, within a year from today', async () => {
+    vi.useFakeTimers({ now: new Date('2026-11-03T08:00:00Z'), toFake: ['Date'] });
+    try {
+      const { repo, service } = setup();
+      repo.officerApplication.mockResolvedValue({ id: APP, orgId: ORG, districtId: 103, status: 'submitted', officerHasStake: false, intake: 'card_holder', requestedTierName: 'Indatwa' });
+      repo.approveCardHolder = vi.fn().mockResolvedValue({ orgId: ORG, tierCode: TIER.code });
+      // More than a year ahead, or already past: refused.
+      await expect(service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/KIC/2026/0008', expiresOn: '2027-11-04' })).rejects.toBeInstanceOf(UnprocessableEntityException);
+      await expect(service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/KIC/2026/0008', expiresOn: '2026-11-02' })).rejects.toBeInstanceOf(UnprocessableEntityException);
+      // The year runs back from the end date.
+      await service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/KIC/2026/0008', expiresOn: '2026-11-11' });
+      expect(repo.approveCardHolder).toHaveBeenCalledWith(expect.objectContaining({ startsOn: '2025-11-12', expiresOn: '2026-11-11' }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('an officer with a stake is refused 403 and nothing is written', async () => {
     const { repo, service } = setup();
     repo.officerApplication.mockResolvedValue({ id: APP, orgId: ORG, districtId: 103, status: 'submitted', officerHasStake: true });
@@ -437,6 +477,17 @@ describe('PsfMembershipService · paying (the PSF path)', () => {
     expect(refusal).toBeInstanceOf(ConflictException);
     expect(JSON.stringify((refusal as ConflictException).getResponse())).toContain('payment_pending');
     expect(repo.recordPayment).not.toHaveBeenCalled();
+  });
+
+  it('Check payment settles a prompt the person has since approved (2026-11-02)', async () => {
+    const { repo, payments, service } = setup();
+    repo.applicationById.mockResolvedValue(APPROVED);
+    const settled = await payments.chargeOneTimeFee();
+    payments.chargeOneTimeFee.mockResolvedValue({ ...settled, settlement: 'pending' });
+    payments.fetchTransaction.mockResolvedValue(settled);
+    await service.pay(ORG, 'u-owner', APP, PHONE);
+    expect(payments.fetchTransaction).toHaveBeenCalledWith(expect.any(String), settled.adapterRef);
+    expect(repo.recordPayment).toHaveBeenCalledTimes(1);
   });
 
   it('an unreachable provider is a 503 that says nothing was taken', async () => {
@@ -555,6 +606,8 @@ describe('membership claims (0121): a typed number is a claim until PSF confirms
       rejectClaim: vi.fn().mockResolvedValue(true),
       upsertMemberList: vi.fn().mockResolvedValue(undefined),
       claimsTheListConfirms: vi.fn().mockResolvedValue([]),
+      // The new number PSF gives (2026-11-02) is free unless a test says otherwise.
+      currentHolderOf: vi.fn().mockResolvedValue(null),
       ...over,
     };
     const mail = { claimConfirmed: vi.fn().mockResolvedValue(undefined), claimRejected: vi.fn().mockResolvedValue(undefined) };
@@ -565,13 +618,14 @@ describe('membership claims (0121): a typed number is a claim until PSF confirms
       {} as unknown as PaymentPort,
       { get: () => undefined } as unknown as ConfigService,
       {} as unknown as PsfReportRepository,
+      {} as unknown as PsfRenewalRepository,
     );
     return { service, repo, mail };
   }
 
   it('confirms a claim with the tier and dates PSF gives, as the officer, and tells the business', async () => {
     const { service, repo, mail } = claimsService();
-    await service.confirmClaim(OFFICER, [grant], 'c1', { tierCode: 'indatwa_10k', startsOn: '2026-01-01', expiresOn: '2027-01-01' });
+    await service.confirmClaim(OFFICER, [grant], 'c1', { tierCode: 'indatwa_10k', startsOn: '2026-01-01', expiresOn: '2027-01-01', membershipNumber: 'PSF-123-456' });
     expect(repo.confirmClaim).toHaveBeenCalledWith(
       expect.objectContaining({ claimId: 'c1', tierCode: 'indatwa_10k', decidedByUserId: OFFICER, matchedBy: 'officer' }),
     );
@@ -583,11 +637,11 @@ describe('membership claims (0121): a typed number is a claim until PSF confirms
       claim: vi.fn().mockResolvedValue({ id: 'c1', orgId: 'o1', membershipNumber: 'X-12', status: 'claimed', districtId: 303 }),
     });
     await expect(
-      elsewhere.service.confirmClaim(OFFICER, [grant], 'c1', { tierCode: 'indatwa_10k', startsOn: '2026-01-01', expiresOn: '2027-01-01' }),
+      elsewhere.service.confirmClaim(OFFICER, [grant], 'c1', { tierCode: 'indatwa_10k', startsOn: '2026-01-01', expiresOn: '2027-01-01', membershipNumber: 'PSF-123-456' }),
     ).rejects.toThrow('not in your region');
     const { service, repo } = claimsService();
     await expect(
-      service.confirmClaim(OFFICER, [grant], 'c1', { tierCode: 'made_up', startsOn: '2026-01-01', expiresOn: '2027-01-01' }),
+      service.confirmClaim(OFFICER, [grant], 'c1', { tierCode: 'made_up', startsOn: '2026-01-01', expiresOn: '2027-01-01', membershipNumber: 'PSF-123-456' }),
     ).rejects.toThrow("not one of PSF's");
     expect(repo.confirmClaim).not.toHaveBeenCalled();
   });

@@ -27,7 +27,8 @@ export interface PsfCertificateFacts {
   membershipNumber: string;
   startsOn: string;
   expiresOn: string;
-  docId: string;
+  /** Null for a member PSF confirmed from its card (2026-11-02): no application, so no docID; its code stands in. */
+  docId: string | null;
   /** Who decided: "PSF Gasabo district office". */
   issuedBy: string;
   /** The tracking page, which the QR opens. */
@@ -148,8 +149,9 @@ export async function renderPsfCertificate(f: PsfCertificateFacts): Promise<Buff
   // What this paper is, and its docID, top right.
   const right = W - 60;
   spaced(page, 'MEMBERSHIP CERTIFICATE', right, H - 72, sans, 7.5, INK, 2.4, 'right');
-  spaced(page, `DOCID ${f.docId}`, right, H - 87, sans, 7.5, INK, 2.4, 'right');
-  page.drawLine({ start: { x: right - spacedWidth(sans, `DOCID ${f.docId}`, 7.5, 2.4), y: H - 98 }, end: { x: right - spacedWidth(sans, `DOCID ${f.docId}`, 7.5, 2.4) + 46, y: H - 98 }, thickness: 1.2, color: SAGE });
+  const ref = f.docId ? `DOCID ${f.docId}` : `NO. ${f.membershipNumber}`;
+  spaced(page, ref, right, H - 87, sans, 7.5, INK, 2.4, 'right');
+  page.drawLine({ start: { x: right - spacedWidth(sans, ref, 7.5, 2.4), y: H - 98 }, end: { x: right - spacedWidth(sans, ref, 7.5, 2.4) + 46, y: H - 98 }, thickness: 1.2, color: SAGE });
 
   // The certificate itself.
   spaced(page, 'PRIVATE SECTOR FEDERATION', W / 2, H - 152, sansBold, 10, GREEN, 4.2, 'center');

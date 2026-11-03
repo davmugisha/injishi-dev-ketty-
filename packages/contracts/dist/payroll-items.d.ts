@@ -1669,8 +1669,8 @@ export declare const ContractRow: z.ZodObject<{
         jobPositionTitle: string | null;
     };
     noticeDays: number | null;
-    contractType: string;
     endsOn: string | null;
+    contractType: string;
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
     employeeNumber: string;
@@ -1686,8 +1686,8 @@ export declare const ContractRow: z.ZodObject<{
         jobPositionTitle: string | null;
     };
     noticeDays: number | null;
-    contractType: string;
     endsOn: string | null;
+    contractType: string;
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
     employeeNumber: string;

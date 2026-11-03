@@ -9,6 +9,7 @@ import {
   LEADER_ROLE_BODY,
   LEADER_ROLE_LABEL,
   OVERSIGHT_ROLE_LABEL,
+  OVERSIGHT_ROLE_POSTING,
   OVERSIGHT_ROLE_SCOPES,
   type OversightRole,
   type OversightScopeLevel,
@@ -58,8 +59,10 @@ export const ROLE_CHOICES: { id: OversightRole; label: string; description: stri
   { id: "tax_compliance_officer", label: OVERSIGHT_ROLE_LABEL.tax_compliance_officer, description: "Tax compliance" },
   {
     id: "psf_membership_officer",
-    label: OVERSIGHT_ROLE_LABEL.psf_membership_officer,
-    description: "PSF membership: a district manager decides, province and national managers oversee",
+    label: "PSF Province Manager",
+    // 2026-11-02: Injishi appoints PSF's Province Managers only; each appoints its districts' District
+    // Managers from the PSF console's Team screen; each District Manager appoints its BDEs.
+    description: "Oversees PSF membership in one province, and appoints its District Managers",
   },
 ];
 
@@ -81,9 +84,14 @@ function defaultBody(role: OversightRole, bodies: readonly GovernmentBody[]): st
   return bodies.find((b) => b.code === wanted && b.active)?.code ?? bodies.find((b) => b.active)?.code ?? "";
 }
 
+/** The levels admin may post a role at: a posting rule narrows the role's own (PSF: province or country). */
+function levelsFor(role: OversightRole): readonly OversightScopeLevel[] {
+  return OVERSIGHT_ROLE_POSTING[role]?.scopeLevels ?? OVERSIGHT_ROLE_SCOPES[role];
+}
+
 function defaultLevel(role: OversightRole): OversightScopeLevel {
-  const allowed = OVERSIGHT_ROLE_SCOPES[role];
-  return allowed.includes("district") ? "district" : (allowed[0] ?? "country");
+  const allowed = levelsFor(role);
+  return allowed.includes("district") ? "district" : allowed.includes("province") ? "province" : (allowed[0] ?? "country");
 }
 
 /** "Kamatamu cell, Kacyiru sector, Gasabo": the place down to the level, each level named, no province. */
@@ -156,7 +164,8 @@ export function AppointPanel({
 
   // Editing a field takes its error away; Appoint checks everything again.
   const clear = (field: string): void => setErrors((e) => (e[field] ? { ...e, [field]: "" } : e));
-  const allowed = role ? OVERSIGHT_ROLE_SCOPES[role] : [];
+  // No role picked yet (main): no levels. A PSF post keeps its own posting levels (this branch).
+  const allowed = role ? levelsFor(role) : [];
   const depth: PlaceLevel | null = !role || level === "country" ? null : (level as PlaceLevel);
   const area = depth ? areaWords(chain, level) : "the whole country";
 

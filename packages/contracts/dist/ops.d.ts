@@ -1519,7 +1519,7 @@ export declare const OperatorRentCharge: z.ZodObject<{
     dueDate: z.ZodNullable<z.ZodString>;
     paidAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "paid" | "due" | "overdue";
+    status: "due" | "paid" | "overdue";
     id: string;
     amountRwf: number | null;
     paidAt: string | null;
@@ -1530,7 +1530,7 @@ export declare const OperatorRentCharge: z.ZodObject<{
     paidAmountRwf: number | null;
     dueDate: string | null;
 }, {
-    status: "paid" | "due" | "overdue";
+    status: "due" | "paid" | "overdue";
     id: string;
     amountRwf: number | null;
     paidAt: string | null;
@@ -1556,7 +1556,7 @@ export declare const OperatorRentRoll: z.ZodObject<{
         dueDate: z.ZodNullable<z.ZodString>;
         paidAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "paid" | "due" | "overdue";
+        status: "due" | "paid" | "overdue";
         id: string;
         amountRwf: number | null;
         paidAt: string | null;
@@ -1567,7 +1567,7 @@ export declare const OperatorRentRoll: z.ZodObject<{
         paidAmountRwf: number | null;
         dueDate: string | null;
     }, {
-        status: "paid" | "due" | "overdue";
+        status: "due" | "paid" | "overdue";
         id: string;
         amountRwf: number | null;
         paidAt: string | null;
@@ -1580,7 +1580,7 @@ export declare const OperatorRentRoll: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     charges: {
-        status: "paid" | "due" | "overdue";
+        status: "due" | "paid" | "overdue";
         id: string;
         amountRwf: number | null;
         paidAt: string | null;
@@ -1593,7 +1593,7 @@ export declare const OperatorRentRoll: z.ZodObject<{
     }[];
 }, {
     charges: {
-        status: "paid" | "due" | "overdue";
+        status: "due" | "paid" | "overdue";
         id: string;
         amountRwf: number | null;
         paidAt: string | null;

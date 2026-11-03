@@ -169,6 +169,7 @@ exports.OVERSIGHT_ROLE_LABEL = {
     business_field_verifier: "Document reviewer",
     tax_compliance_officer: "Tax compliance officer",
     psf_membership_officer: "PSF District Manager",
+    psf_business_officer: "PSF Business Development & Empowerment (BDE)",
     village_leader: "Village leader",
     dasso: "Sector DASSO",
     cell_executive: "Cell executive secretary",

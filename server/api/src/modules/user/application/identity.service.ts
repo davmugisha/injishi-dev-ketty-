@@ -286,6 +286,8 @@ export class IdentityService {
     if (current.kycStatus === 'verified') {
       throw new ConflictException('Your ID is already checked. There is nothing to check again.');
     }
+    // No selfie (2026-11-02, the owner's decision): the number alone, and the reviewer confirms.
+    if (!input.selfieKey) return this.checkNationalIdByNumber(userId, input.documentNumber);
     if (this.registry.mode === 'off') {
       throw new ConflictException('National IDs are checked by scanning the card here. Scan the front of your card.');
     }
@@ -381,6 +383,78 @@ export class IdentityService {
       fields: null,
       attempt,
       mayContinue: mayContinue(outcome, attempt),
+    };
+  }
+
+  /**
+   * A National ID checked by its NUMBER alone (2026-11-02, the owner's decision: no selfie). NIDA's
+   * details fill the registration and are held `pending`: nothing here proves the person holds the
+   * card, so the document reviewer confirms the ID before approving. One try, kept like a scan.
+   */
+  private async checkNationalIdByNumber(userId: string, documentNumber: string): Promise<IdentityScanResult> {
+    if (this.register.mode === 'off') {
+      throw new ConflictException('National IDs are checked by scanning the card here. Scan the front of your card.');
+    }
+    const found = await this.lookupSafely(documentNumber);
+    if (
+      found.status === 'found' &&
+      (await this.repo.heldByAnother(userId, { documentType: 'national_id', documentNumber, issuingCountry: 'RW' }))
+    ) {
+      throw new ConflictException(DUPLICATE_MESSAGE);
+    }
+    const outcome: IdentityScanOutcome = found.status === 'found' ? 'manual_needed' : 'machine_failed';
+    const reason: IdentityScanReason | null = found.status === 'found' ? null : found.status === 'not_found' ? 'not_found' : 'unavailable';
+    const attempt = await this.repo.recordScan({
+      userId,
+      documentType: 'national_id',
+      checkKind: 'national_id_registry',
+      frontObjectKey: null,
+      selfieObjectKey: null,
+      outcome,
+      reason,
+      adapterMode: this.register.mode,
+    });
+    if (found.status !== 'found') {
+      return {
+        outcome,
+        reason,
+        message: failureMessage(reason!, 'national_id', 'registry'),
+        fields: null,
+        attempt,
+        mayContinue: mayContinue(outcome, attempt),
+      };
+    }
+    const person = found.person;
+    try {
+      await this.repo.recordTyped(userId, {
+        fullName: person.fullName,
+        dateOfBirth: person.dateOfBirth,
+        documentType: 'national_id',
+        documentNumber,
+        issuingCountry: 'RW',
+        method: REGISTRY_METHOD,
+      });
+    } catch (error) {
+      if (error instanceof DuplicateIdentityDocumentError) throw new ConflictException(DUPLICATE_MESSAGE);
+      throw error;
+    }
+    return {
+      outcome,
+      reason: null,
+      message: 'NIDA found your National ID. The document reviewer confirms it before your business is approved.',
+      fields: {
+        fullName: person.fullName,
+        dateOfBirth: person.dateOfBirth,
+        gender: person.gender,
+        documentType: 'national_id',
+        documentNumberMasked: maskIdentifier(documentNumber),
+        issuingCountry: 'RW',
+        generated: found.generated,
+        checked: false,
+        source: 'registry',
+      },
+      attempt,
+      mayContinue: false,
     };
   }
 

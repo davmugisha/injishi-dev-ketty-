@@ -30,6 +30,8 @@ const {
   isInPsfQueueState,
   isPsfApplicant,
   normalizeBusinessCode,
+  newBusinessCode,
+  businessCodeCheck,
   oversightConsoleFor,
   psfFeeProblem,
   psfStartingFee,
@@ -186,9 +188,10 @@ describe("the officer's decisions (AC-11, AC-12)", () => {
 });
 
 describe("the membership officer's posting and console (AC-10)", () => {
-  test("is PSF, for the country, a province or a district, and opens the membership console", () => {
+  test("is PSF, appointed by admin for a province only, and opens the membership console", () => {
     assert.equal(OversightRole.options.includes("psf_membership_officer"), true);
-    assert.deepEqual(OVERSIGHT_ROLE_POSTING.psf_membership_officer.scopeLevels, ["country", "province", "district"]);
+    // Admin appoints Province Managers (2026-11-02); they appoint District Managers, who appoint BDEs.
+    assert.deepEqual(OVERSIGHT_ROLE_POSTING.psf_membership_officer.scopeLevels, ["province"]);
     assert.equal(OVERSIGHT_ROLE_POSTING.psf_membership_officer.governmentBodyCode, "PSF");
     assert.equal(oversightConsoleFor("psf_membership_officer"), "membership");
   });
@@ -376,5 +379,18 @@ describe("business codes (KIC0001)", () => {
     assert.equal(formatBusinessCode("KIC", 10000), "KIC10000");
     assert.equal(normalizeBusinessCode(" kic-0001 "), "KIC0001");
     assert.equal(normalizeBusinessCode("Gahaya"), null);
+  });
+
+  test("a new code (2026-11-02) is random, with a check that catches a typo or a swap", () => {
+    const bytes = (n) => Uint8Array.from({ length: n }, (_, i) => i * 7 + 3);
+    const code = newBusinessCode("GIS", bytes);
+    assert.match(code, /^GIS-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{2}$/);
+    assert.equal(normalizeBusinessCode(code.toLowerCase().replace(/-/g, " ")), code);
+    const body = code.slice(4, 8);
+    const typo = `GIS-${body[0] === "A" ? "B" : "A"}${body.slice(1)}-${code.slice(9)}`;
+    assert.equal(normalizeBusinessCode(typo), null);
+    const swap = `GIS-${body[1]}${body[0]}${body.slice(2)}-${code.slice(9)}`;
+    if (body[0] !== body[1]) assert.equal(normalizeBusinessCode(swap), null);
+    assert.equal(businessCodeCheck("GIS", body), code.slice(9));
   });
 });

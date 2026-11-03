@@ -44,10 +44,10 @@ export async function scanIdentity(
  * GTBank), with a selfie uploaded first. No code goes to any phone. The number
  * goes to the server and nowhere else: it is never kept in the draft.
  */
-export async function checkNationalId(documentNumber: string, selfieKey: string): Promise<ApiResult<IdentityScanResult>> {
+export async function checkNationalId(documentNumber: string, selfieKey?: string): Promise<ApiResult<IdentityScanResult>> {
   const res = await apiFetch<unknown>("/api/v1/me/identity/national-id", {
     method: "POST",
-    body: { documentNumber, selfieKey },
+    body: selfieKey ? { documentNumber, selfieKey } : { documentNumber },
   });
   if (res.status !== "ok") return res;
   const parsed = IdentityScanResult.safeParse(res.data);

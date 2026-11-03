@@ -194,10 +194,10 @@ export class FrontDeskService {
       bookingId: booking.id,
       workspaceId: ws.workspaceId,
       guestUserId: booking.guestUserId,
-      // The name the desk typed from the ID. Readers still prefer the account's
-      // name; this is what they fall back to when the account has none, which
-      // is every guest who signed up with only an email code.
-      guestName: body.guest?.fullName?.trim() || null,
+      // The name the desk typed from the ID (main). Readers still prefer the account's name; this is what
+      // they fall back to when the account has none, which is every guest who signed up with only an email
+      // code. With none typed, a broker's guest (0126) has no account, so the booking's own name goes on.
+      guestName: body.guest?.fullName?.trim() || (booking.guestUserId ? null : (booking.guestName ?? null)),
       roomId: room.id,
       // The planned exit is the booking's own checkout date at the property's
       // checkout hour, on the Kigali clock. Read from the booking rather than

@@ -195,13 +195,13 @@ export declare const RentalsMonthFigure: z.ZodObject<{
     spentRwf: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     month: string;
-    expectedRwf: number;
     collectedRwf: number;
+    expectedRwf: number;
     spentRwf: number;
 }, {
     month: string;
-    expectedRwf: number;
     collectedRwf: number;
+    expectedRwf: number;
     spentRwf: number;
 }>;
 export type RentalsMonthFigure = z.infer<typeof RentalsMonthFigure>;
@@ -272,13 +272,13 @@ export declare const RentalsOverview: z.ZodObject<{
         spentRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         month: string;
-        expectedRwf: number;
         collectedRwf: number;
+        expectedRwf: number;
         spentRwf: number;
     }, {
         month: string;
-        expectedRwf: number;
         collectedRwf: number;
+        expectedRwf: number;
         spentRwf: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -299,8 +299,8 @@ export declare const RentalsOverview: z.ZodObject<{
     units: number;
     months: {
         month: string;
-        expectedRwf: number;
         collectedRwf: number;
+        expectedRwf: number;
         spentRwf: number;
     }[];
     properties: number;
@@ -328,8 +328,8 @@ export declare const RentalsOverview: z.ZodObject<{
     units: number;
     months: {
         month: string;
-        expectedRwf: number;
         collectedRwf: number;
+        expectedRwf: number;
         spentRwf: number;
     }[];
     properties: number;

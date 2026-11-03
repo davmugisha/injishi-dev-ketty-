@@ -40,6 +40,10 @@ export interface PeriodCounts {
   approved: number;
   declined: number;
   newMembers: number;
+  /** Memberships renewed (paid) in the period (2026-11-02). */
+  renewed: number;
+  /** Holders of an old PSF card brought into the new module in the period (2026-11-02). */
+  cardHolders: number;
   membershipFeesRwf: number;
   decisionDays: number[];
 }
@@ -93,9 +97,17 @@ export class PsfReportRepository {
         count(*) FILTER (WHERE a.decided_at >= ${from} AND a.decided_at < ${to} AND a.status IN ('approved', 'member'))::int AS approved,
         count(*) FILTER (WHERE a.decided_at >= ${from} AND a.decided_at < ${to} AND a.status = 'declined')::int AS declined,
         count(*) FILTER (WHERE a.paid_at >= ${from} AND a.paid_at < ${to})::int AS members,
+        count(*) FILTER (WHERE a.intake = 'card_holder' AND a.status = 'member' AND a.decided_at >= ${from} AND a.decided_at < ${to})::int AS card_apps,
         coalesce(sum(a.paid_amount_rwf) FILTER (WHERE a.paid_at >= ${from} AND a.paid_at < ${to}), 0)::bigint AS fees
         FROM psf_membership_applications a JOIN orgs o ON o.id = a.org_id
        WHERE ${s}`);
+    // Renewals paid, and card holders PSF confirmed from a registration (0121 claims), in the period.
+    const [more] = await this.many<Record<string, unknown>>(sql`
+      SELECT
+        (SELECT count(*) FROM psf_membership_renewals r JOIN orgs o ON o.id = r.org_id
+          WHERE ${s} AND r.status = 'paid' AND r.paid_at >= ${from} AND r.paid_at < ${to})::int AS renewed,
+        (SELECT count(*) FROM psf_membership_claims c JOIN orgs o ON o.id = c.org_id
+          WHERE ${s} AND c.status = 'confirmed' AND c.decided_at >= ${from} AND c.decided_at < ${to})::int AS card_claims`);
     const days = await this.many<{ d: number }>(sql`
       SELECT extract(epoch FROM (a.decided_at - ${WAIT_FROM})) / 86400.0 AS d
         FROM psf_membership_applications a JOIN orgs o ON o.id = a.org_id
@@ -106,6 +118,8 @@ export class PsfReportRepository {
       approved: n(apps?.approved),
       declined: n(apps?.declined),
       newMembers: n(apps?.members),
+      renewed: n(more?.renewed),
+      cardHolders: n(apps?.card_apps) + n(more?.card_claims),
       membershipFeesRwf: n(apps?.fees),
       decisionDays: days.map((r) => Math.max(0, Number(r.d))),
     };

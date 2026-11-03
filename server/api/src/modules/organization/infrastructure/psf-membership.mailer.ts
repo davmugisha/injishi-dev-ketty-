@@ -2,6 +2,7 @@ import { PSF_DECLINE_REASON_LABEL, isPsfApplicant, type PsfDeclineReason } from 
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { resolveAppUrl } from '../../../shared/config/app-url';
 import { resolveWebUrl } from '../../../shared/config/web-url';
 import { MAILER_PORT, type MailerPort } from '../../mailer/domain/mailer-port';
 import {
@@ -12,11 +13,14 @@ import {
   psfClaimConfirmedMail,
   psfClaimRejectedMail,
   psfExpiredMail,
+  psfRenewedMail,
+  psfPaymentReminderMail,
   psfExpiringMail,
   psfMemberMail,
   psfMembershipLink,
   psfOfficerQueueMail,
-  psfQueueLink,
+  psfApplicationLink,
+  psfCardLink,
   psfTrackLink,
 } from '../domain/psf-mail';
 import { SMS_PORT, type SmsPort } from '../../sms/domain/sms-port';
@@ -38,6 +42,7 @@ export class PsfMembershipMailer {
 
   private readonly logger = new Logger(PsfMembershipMailer.name);
   private readonly webUrl: string;
+  private readonly appUrl: string;
 
   constructor(
     @Inject(MAILER_PORT) private readonly mailer: MailerPort,
@@ -49,6 +54,7 @@ export class PsfMembershipMailer {
       webUrl: config.get<string>('WEB_URL'),
       nodeEnv: config.get<string>('NODE_ENV'),
     });
+    this.appUrl = resolveAppUrl({ appUrl: config.get<string>('APP_URL'), nodeEnv: config.get<string>('NODE_ENV') });
   }
 
   received(orgId: string, tierName: string, withPsf: boolean): Promise<void> {
@@ -112,12 +118,14 @@ export class PsfMembershipMailer {
   }
 
   /** A claimed number PSF confirmed (0121). */
-  claimConfirmed(orgId: string, membershipNumber: string, expiresOn: string): Promise<void> {
+  claimConfirmed(orgId: string, membershipNumber: string, expiresOn: string, certificate?: Buffer): Promise<void> {
     return this.toApplicants(
       orgId,
       'membership claim confirmed',
       (to, legalName, link) => psfClaimConfirmedMail({ to, legalName, membershipNumber, expiresOn, link }),
       (legalName) => `PSF confirmed membership ${membershipNumber} for ${legalName}, until ${expiresOn}.`,
+      // The member's certificate goes with the news (2026-11-02), as it does for a paid application.
+      certificate ? [certificateAttachment(membershipNumber, certificate)] : undefined,
     );
   }
 
@@ -128,6 +136,30 @@ export class PsfMembershipMailer {
       'membership claim rejected',
       (to, legalName, link) => psfClaimRejectedMail({ to, legalName, membershipNumber, reason, link }),
       (legalName) => `PSF could not confirm membership ${membershipNumber} for ${legalName}: ${reason}`,
+    );
+  }
+
+  /** An officer's reminder that an application still waits for its payment (2026-11-02), with the link to pay. */
+  paymentReminder(orgId: string, amountRwf: number | null): Promise<void> {
+    return this.toApplicants(
+      orgId,
+      'payment reminder',
+      (to, legalName, link) => psfPaymentReminderMail({ to, legalName, amountRwf, link }),
+      (legalName, docId, link) =>
+        `PSF: the application for ${legalName} (${docId}) waits for its payment${amountRwf ? ` of RWF ${amountRwf.toLocaleString('en-US')}` : ''}. Pay here: ${link}`,
+    );
+  }
+
+  /** A paid renewal (2026-11-02): the membership carries on, no decision needed. */
+  renewed(
+    orgId: string,
+    d: { membershipNumber: string; tierName: string; amountRwf: number; startsOn: string; expiresOn: string; paymentReference: string },
+  ): Promise<void> {
+    return this.toApplicants(
+      orgId,
+      'membership renewed',
+      (to, legalName, link) => psfRenewedMail({ to, legalName, link, ...d }),
+      (legalName) => `PSF: ${legalName} (${d.membershipNumber}) is renewed until ${d.expiresOn}. Thank you.`,
     );
   }
 
@@ -145,7 +177,7 @@ export class PsfMembershipMailer {
    * per application (AC-9). A district officer hears of their own district's
    * applications only, and a country officer of all of them.
    */
-  queueEntered(orgId: string, tierName: string): Promise<void> {
+  queueEntered(orgId: string, applicationId: string, tierName: string, origin: 'psf_form' | 'registration'): Promise<void> {
     return this.guarded('queue entered', orgId, async () => {
       const facts = await this.repo.orgFacts(orgId);
       if (!facts) return;
@@ -156,7 +188,8 @@ export class PsfMembershipMailer {
         );
         return;
       }
-      const link = psfQueueLink(this.webUrl);
+      // The application itself, in the PSF console (2026-11-02): the queue on web was the wrong portal.
+      const link = psfApplicationLink(this.appUrl, applicationId);
       for (const email of emails) {
         await this.deliver(
           email,
@@ -165,6 +198,7 @@ export class PsfMembershipMailer {
             legalName: facts.legalName,
             districtName: facts.districtName,
             tierName,
+            origin,
             link,
           }),
           'queue entered',
@@ -185,6 +219,7 @@ export class PsfMembershipMailer {
     what: string,
     build: (to: Addressee, legalName: string, link: string) => RegistrationMail,
     text?: (legalName: string, docId: string, link: string) => string,
+    attachments?: MailAttachment[],
   ): Promise<void> {
     return this.guarded(what, orgId, async () => {
       const facts = await this.repo.orgFacts(orgId);
@@ -194,9 +229,12 @@ export class PsfMembershipMailer {
         isPsfApplicant({ userId: o.userId, domain: facts.domain, orgRole: 'owner', obo: facts.obo }),
       );
       if (recipients.length > 0) {
-        const link = psfMembershipLink(this.webUrl, await this.repo.workspaceIdFor(orgId));
+        // Its tracking page when it has a docID (paying, renewing and the certificate live there), else
+        // Compliance in the app (2026-11-02): the old web link opened nothing.
+        const docId = await this.repo.latestDocId(orgId);
+        const link = docId ? psfTrackLink(this.webUrl, docId) : psfMembershipLink(this.appUrl);
         for (const r of recipients) {
-          await this.deliver(r.email, build({ name: r.name }, facts.legalName, link), what, orgId);
+          await this.deliver(r.email, build({ name: r.name }, facts.legalName, link), what, orgId, attachments);
         }
         return;
       }
@@ -207,7 +245,7 @@ export class PsfMembershipMailer {
       }
       const link = psfTrackLink(this.webUrl, applicant.docId);
       if (applicant.email) {
-        await this.deliver(applicant.email, build({ name: applicant.name }, facts.legalName, link), what, orgId);
+        await this.deliver(applicant.email, build({ name: applicant.name }, facts.legalName, link), what, orgId, attachments);
       }
       if (applicant.phoneE164 && text) {
         try {
@@ -222,6 +260,11 @@ export class PsfMembershipMailer {
         }
       }
     });
+  }
+
+  /** The member's card, which the certificate's QR code opens (2026-11-02). */
+  cardLink(membershipNumber: string): string {
+    return psfCardLink(this.webUrl, membershipNumber);
   }
 
   /** The tracking page for a docID, as every PSF mail and text links it. */
@@ -245,7 +288,7 @@ export class PsfMembershipMailer {
         this.mailer.send({
           to,
           ...mail,
-          attachments: [{ filename: `PSF-certificate-${d.membershipNumber.replace(/[^A-Za-z0-9-]+/g, '-')}.pdf`, content: pdf, contentType: 'application/pdf' }],
+          attachments: [certificateAttachment(d.membershipNumber, pdf)],
         }),
         new Promise<never>((_resolve, reject) => {
           timer = setTimeout(() => reject(new Error('mail transport did not respond')), PsfMembershipMailer.SEND_TIMEOUT_MS);
@@ -269,11 +312,11 @@ export class PsfMembershipMailer {
     }
   }
 
-  private async deliver(to: string, mail: RegistrationMail, what: string, orgId: string): Promise<void> {
+  private async deliver(to: string, mail: RegistrationMail, what: string, orgId: string, attachments?: MailAttachment[]): Promise<void> {
     let timer: NodeJS.Timeout | undefined;
     try {
       await Promise.race([
-        this.mailer.send({ to, ...mail }),
+        this.mailer.send({ to, ...mail, ...(attachments ? { attachments } : {}) }),
         new Promise<never>((_resolve, reject) => {
           timer = setTimeout(
             () => reject(new Error(`mail transport did not respond within ${PsfMembershipMailer.SEND_TIMEOUT_MS}ms`)),
@@ -292,4 +335,15 @@ export class PsfMembershipMailer {
       if (timer) clearTimeout(timer);
     }
   }
+}
+
+type MailAttachment = { filename: string; content: Buffer; contentType: string };
+
+/** The certificate as every PSF mail attaches it. */
+export function certificateAttachment(membershipNumber: string, pdf: Buffer): MailAttachment {
+  return { filename: psfCertificateFilename(membershipNumber), content: pdf, contentType: 'application/pdf' };
+}
+
+export function psfCertificateFilename(membershipNumber: string): string {
+  return `PSF-certificate-${membershipNumber.replace(/[^A-Za-z0-9-]+/g, '-')}.pdf`;
 }

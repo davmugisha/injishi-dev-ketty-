@@ -47,6 +47,8 @@ export function buildPsfApplicationRow(input: {
   form: PsfApplicationInput & { idDocument: PsfIdDocument };
   consentGivenAt: Date;
   consentVersion: string;
+  /** A card holder joining the new module (2026-11-02), or a new application (the default). */
+  intake?: 'new' | 'card_holder';
 }): Omit<NewPsfApplication, 'orgId'> {
   const { form, tier } = input;
   const trading = form.tradeDirection !== 'none';
@@ -57,6 +59,7 @@ export function buildPsfApplicationRow(input: {
     applicantEmail: input.applicantEmail ?? null,
     submittedCapacity: input.capacity,
     status: 'submitted',
+    intake: input.intake ?? 'new',
     requestedTierCode: tier.code,
     quotedPriceKind: tier.priceKind,
     quotedFeeRwf: tier.annualFeeRwf,

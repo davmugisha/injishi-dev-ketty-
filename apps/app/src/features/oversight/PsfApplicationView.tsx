@@ -35,7 +35,7 @@ import {
  * decides it (`decidesHere`); a province or national manager reads it for reporting. Each branch is
  * admitted or declined by the District Manager of the branch's own district (`branch.canDecide`).
  */
-export function PsfApplicationView({ initial }: { initial: PsfOfficerApplication }) {
+export function PsfApplicationView({ initial, card = null }: { initial: PsfOfficerApplication; card?: { url: string; mime: string | null } | null }) {
   const [app, setApp] = useState(initial);
   const f = app.form;
   const place = [f.streetAddress, app.districtName].filter(Boolean).join(", ");
@@ -51,7 +51,9 @@ export function PsfApplicationView({ initial }: { initial: PsfOfficerApplication
       <PageHeader
         eyebrow={[app.docId, app.profile.businessCode, app.districtName].filter(Boolean).join(" · ")}
         title={app.businessName}
-        description={`${app.requestedTierName} · sent ${dayMonthYear(app.queuedAt ?? app.submittedAt)}${
+        description={`${app.intake === "card_holder" ? "Card holder · " : ""}${app.requestedTierName} · sent ${dayMonthYear(app.queuedAt ?? app.submittedAt)} from ${
+          app.origin === "psf_form" ? "the PSF form" : "Injishi registration"
+        }${
           app.status === "submitted" ? ` · waiting ${app.waitingDays} day${app.waitingDays === 1 ? "" : "s"}` : ""
         }`}
       />
@@ -130,7 +132,35 @@ export function PsfApplicationView({ initial }: { initial: PsfOfficerApplication
           </Card>
         </div>
 
-        <div className="lg:sticky lg:top-24 lg:order-2">
+        <div className="flex flex-col gap-4 lg:sticky lg:top-24 lg:order-2">
+          {/* A card holder's old PSF card (2026-11-02), shown beside the decision: read the dates off it. */}
+          {app.intake === "card_holder" ? (
+            <Card>
+              <Card.Header>
+                <Card.Title>The PSF card they sent</Card.Title>
+                <Card.Description>A card holder joining the new module: no fee now. Check it, then give a new number and the year it shows.</Card.Description>
+              </Card.Header>
+              <Card.Content className="flex flex-col gap-2">
+                {card ? (
+                  <>
+                    {card.mime === "application/pdf" ? (
+                      <iframe src={card.url} title="The PSF card" className="h-72 w-full rounded-lg border border-separator bg-default" />
+                    ) : (
+                      <a href={card.url} target="_blank" rel="noreferrer" title="Open the card full size">
+                        {/* A short-lived link to the stored card. */}
+                        <img src={card.url} alt="The PSF card the business sent" className="max-h-80 w-full rounded-lg border border-separator bg-default object-contain" />
+                      </a>
+                    )}
+                    <a href={card.url} target="_blank" rel="noreferrer" className="text-[13px] font-medium text-accent hover:underline">
+                      Open it full size
+                    </a>
+                  </>
+                ) : (
+                  <p className="text-[13px] text-muted">The card could not be opened just now. Reload the page to try again.</p>
+                )}
+              </Card.Content>
+            </Card>
+          ) : null}
           <DecisionPanel app={app} onDecided={setApp} />
         </div>
       </div>
@@ -141,6 +171,14 @@ export function PsfApplicationView({ initial }: { initial: PsfOfficerApplication
 function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecided: (a: PsfOfficerApplication) => void }) {
   const [mode, setMode] = useState<"approve" | "decline">("approve");
   const [number, setNumber] = useState(app.suggestedMembershipNumber ?? "");
+  // A card holder's year, read off its card (2026-11-02): one date, the end it shows, from today to a
+  // year ahead. The year runs back from it.
+  const cardHolder = app.intake === "card_holder";
+  const [expiresOn, setExpiresOn] = useState("");
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Kigali" }).format(new Date());
+  const yearAhead = shiftYears(today, 1);
+  const cardEndOk = expiresOn >= today && expiresOn <= yearAhead;
+  const startsOn = cardEndOk ? shiftDays(shiftYears(expiresOn, -1), 1) : "";
   const [reason, setReason] = useState<PsfDeclineReason>("details_incomplete");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -193,18 +231,29 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
   const decide = async () => {
     setBusy(true);
     setError(null);
-    const res = mode === "approve" ? await approvePsfAction(app.id, number) : await declinePsfAction(app.id, reason, note);
+    const res =
+      mode === "approve"
+        ? await approvePsfAction(app.id, number, cardHolder ? { expiresOn } : undefined)
+        : await declinePsfAction(app.id, reason, note);
     setBusy(false);
     if (!res.ok) return setError(res.error);
     onDecided(res.value);
-    toast.success(mode === "approve" ? `${app.businessName} is approved.` : `${app.businessName} was declined.`);
+    toast.success(
+      mode === "approve"
+        ? cardHolder
+          ? `${app.businessName} is a member, with its new number and certificate.`
+          : `${app.businessName} is approved.`
+        : `${app.businessName} was declined.`,
+    );
   };
 
   return (
     <Card>
       <Card.Header>
         <Card.Title>Your decision</Card.Title>
-        <Card.Description>{paid !== null ? `Paid ${rwf(paid)} when sent. Nothing is refunded.` : "Not paid yet."}</Card.Description>
+        <Card.Description>
+          {cardHolder ? "A card holder: nothing to pay now." : paid !== null ? `Paid ${rwf(paid)} when sent. Nothing is refunded.` : "Not paid yet."}
+        </Card.Description>
       </Card.Header>
       <Card.Content className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-2">
@@ -217,11 +266,30 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
         </div>
 
         {mode === "approve" ? (
-          <TextField fullWidth value={number} onChange={setNumber} className="gap-1">
-            <Label htmlFor="psf-number">PSF membership number</Label>
-            <Input id="psf-number" className="tabular" />
-            {app.suggestedMembershipNumber ? <Description>The next number for this district. Change it if PSF gave another.</Description> : null}
-          </TextField>
+          <>
+            <TextField fullWidth value={number} onChange={setNumber} className="gap-1">
+              <Label htmlFor="psf-number">{cardHolder ? "New PSF membership number" : "PSF membership number"}</Label>
+              <Input id="psf-number" className="tabular" />
+              {app.suggestedMembershipNumber ? (
+                <Description>
+                  {cardHolder ? "Every card holder gets a new number. This is the district's next." : "The next number for this district. Change it if PSF gave another."}
+                </Description>
+              ) : null}
+            </TextField>
+            {cardHolder ? (
+              <TextField fullWidth value={expiresOn} onChange={setExpiresOn} className="gap-1">
+                <Label htmlFor="psf-card-until">Valid until, as the card shows</Label>
+                <Input id="psf-card-until" type="date" min={today} max={yearAhead} />
+                <Description>
+                  {expiresOn && !cardEndOk
+                    ? `Pick a date from today to ${dayMonthYear(yearAhead)}. A card that ended before today has lapsed: it joins as a new member.`
+                    : cardEndOk
+                      ? `A member from ${dayMonthYear(startsOn)} to ${dayMonthYear(expiresOn)}.`
+                      : `From today to ${dayMonthYear(yearAhead)}. Their year runs back from it.`}
+                </Description>
+              </TextField>
+            ) : null}
+          </>
         ) : (
           <>
             <div className="flex flex-col gap-1">
@@ -256,10 +324,13 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
           fullWidth
           variant={mode === "approve" ? "primary" : "danger"}
           isPending={busy}
-          isDisabled={busy || (mode === "approve" ? !number.trim() : reason === "other" && !note.trim())}
+          isDisabled={
+            busy ||
+            (mode === "approve" ? !number.trim() || (cardHolder && !cardEndOk) : reason === "other" && !note.trim())
+          }
           onPress={() => void decide()}
         >
-          {mode === "approve" ? (paid !== null ? "Approve and make a member" : "Approve") : "Decline application"}
+          {mode === "approve" ? (cardHolder ? "Confirm and make a member" : paid !== null ? "Approve and make a member" : "Approve") : "Decline application"}
         </Button>
       </Card.Content>
     </Card>
@@ -365,4 +436,17 @@ function BranchRow({
       {error ? <p className="pl-6 text-[13px] text-danger">{error}</p> : null}
     </div>
   );
+}
+
+/** A yyyy-mm-dd day moved by whole years; 29 February falls back to the 28th. */
+function shiftYears(day: string, years: number): string {
+  const [y, m, d] = day.split("-").map(Number) as [number, number, number];
+  const last = new Date(Date.UTC(y + years, m, 0)).getUTCDate();
+  return `${y + years}-${String(m).padStart(2, "0")}-${String(Math.min(d, last)).padStart(2, "0")}`;
+}
+
+/** A yyyy-mm-dd day moved by whole days. */
+function shiftDays(day: string, days: number): string {
+  const [y, m, d] = day.split("-").map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }

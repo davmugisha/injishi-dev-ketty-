@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { OversightScopeLevel, RwfAmount, Uuid } from "./primitives";
 import { PsfBranchStatus, PsfBusinessBranch, PsfBusinessRow, PsfDeclineReason, PsfMembershipFamily, PsfPriceKind } from "./psf";
-import { CountryCode, EnterpriseRegistrationKind, NUMBERED_REGISTRATION_KINDS, PsfCompanyType, PsfContactRole, PsfGender, PsfOwnerGroup, PsfOwnership, PsfTradeDirection, RwandanNationalId, Tin } from "./registration";
+import { CountryCode, EnterpriseRegistrationKind, NUMBERED_REGISTRATION_KINDS, PsfCompanyType, PsfContactRole, PsfGender, PsfIdDocument, PsfOwnerGroup, PsfOwnership, PsfTradeDirection, RwandanNationalId, Tin } from "./registration";
 /**
  * THE PUBLIC PSF PATH (2026-10-19).
  *
@@ -86,12 +86,45 @@ export const PsfIdentityLookupResult = z.discriminatedUnion("status", [
         /** Where the code went, masked: `+250 78• ••• 545`. */
         sentTo: z.string(),
         expiresInSeconds: z.number().int(),
-        /** The demo's fixed code, so a walkthrough needs no phone. Null elsewhere. */
+        /**
+         * The code, when no text really goes: the demo's fixed code, or the one just made while SMS is the
+         * mock (a sample database). Null wherever a real text is sent.
+         */
         demoCode: z.string().nullable(),
     }),
     z.object({ status: z.enum(["not_found", "no_phone", "unavailable"]), message: z.string() }),
 ]);
 export type PsfIdentityLookupResult = z.infer<typeof PsfIdentityLookupResult>;
+/**
+ * Tracking by membership number (2026-11-02). The number is printed on the certificate, so it alone
+ * opens nothing: a code goes by text to the phone on file, and only the code read back answers the
+ * docID, which opens the tracking page as before. The docID alone keeps working.
+ */
+export const PsfMemberLookupRequest = z.object({
+    /** A membership number, or the business's code (2026-11-02): both are printed on the certificate. */
+    membershipNumber: z.string().trim().min(4, "Type the membership number or the business code, as on the certificate.").max(40),
+});
+export type PsfMemberLookupRequest = z.infer<typeof PsfMemberLookupRequest>;
+export const PsfMemberLookupResult = z.discriminatedUnion("status", [
+    z.object({
+        status: z.literal("code_sent"),
+        /** Carries the docID, the code's fingerprint and its expiry, signed: nothing is kept on the server. */
+        lookupToken: z.string(),
+        sentTo: z.string(),
+        expiresInSeconds: z.number().int(),
+        /** The code, when no text really goes (a test setup). Null wherever a real text is sent. */
+        demoCode: z.string().nullable(),
+    }),
+    z.object({ status: z.enum(["not_found", "no_phone", "unavailable"]), message: z.string() }),
+]);
+export type PsfMemberLookupResult = z.infer<typeof PsfMemberLookupResult>;
+export const PsfMemberLookupConfirm = z.object({
+    lookupToken: z.string().min(10).max(2000),
+    code: z.string().trim().regex(/^\d{6}$/, "Type the 6 digits from the text."),
+});
+export type PsfMemberLookupConfirm = z.infer<typeof PsfMemberLookupConfirm>;
+export const PsfMemberLookupConfirmed = z.object({ docId: z.string() });
+export type PsfMemberLookupConfirmed = z.infer<typeof PsfMemberLookupConfirmed>;
 /** `POST /psf/identity/confirm` */
 export const PsfIdentityConfirmRequest = z.object({
     checkId: Uuid,
@@ -132,14 +165,14 @@ export const MomoPhone = z
     .trim()
     .transform((v) => v.replace(/[\s-]/g, ""))
     .pipe(z.string().regex(/^\+2507\d{8}$/, "Give a Rwandan mobile money number, like +250788123456."));
-/** Where the business is. Unlike the hotel form, the street line is required: PSF's form asks for it. */
+/** Where the business is. The street line is optional (2026-11-02): the village places it, and not every plot has one. */
 export const PsfPublicAddress = z.object({
     provinceId: z.number().int().positive("Choose a province."),
     districtId: z.number().int().positive("Choose a district."),
     sectorId: z.number().int().positive("Choose a sector."),
     cellId: z.number().int().positive().optional(),
     villageId: z.number().int().positive().optional(),
-    street: text(200, "Give the street address, like KK 15 Ave."),
+    street: z.string().trim().max(200, "Keep the street address under 200 characters.").default(""),
 });
 export type PsfPublicAddress = z.infer<typeof PsfPublicAddress>;
 /**
@@ -251,6 +284,13 @@ export const PsfPublicMembership = z.object({
      * nobody is charged a figure the band does not allow.
      */
     declaredFeeRwf: RwfAmount.refine((n) => n > 0, "Give the amount you will pay.").optional(),
+    /**
+     * A holder of an old PSF card joining the new module (2026-11-02): no fee now, its card instead,
+     * which PSF checks before it gives a new number and a certificate.
+     */
+    intake: z.enum(["new", "card_holder"]).default("new"),
+    /** The card, uploaded under the form's ID check (`POST /psf/card-upload`). Required for a card holder. */
+    cardObjectKey: z.string().min(1).max(300).optional(),
 });
 export type PsfPublicMembership = z.infer<typeof PsfPublicMembership>;
 /** `POST /psf/applications`: the whole form, and the number the membership fee is charged to. */
@@ -259,10 +299,19 @@ export const PsfPublicSubmitRequest = z.object({
     business: PsfPublicBusiness,
     membership: PsfPublicMembership,
     contact: PsfPublicContact,
-    payerPhoneE164: MomoPhone,
+    /** The number the membership fee is charged to; a card holder pays nothing now and sends none. */
+    payerPhoneE164: MomoPhone.optional(),
     consent: z.literal(true, {
         errorMap: () => ({ message: "Tick the box to agree to share this with PSF." }),
     }),
+})
+    .superRefine((v, ctx) => {
+    if (v.membership.intake === "card_holder" && !v.membership.cardObjectKey) {
+        ctx.addIssue({ code: "custom", path: ["membership", "cardObjectKey"], message: "Add a photo or scan of your PSF card." });
+    }
+    if (v.membership.intake === "new" && !v.payerPhoneE164) {
+        ctx.addIssue({ code: "custom", path: ["payerPhoneE164"], message: "Give the mobile money number to pay from." });
+    }
 });
 export type PsfPublicSubmitRequest = z.infer<typeof PsfPublicSubmitRequest>;
 /**
@@ -271,6 +320,9 @@ export type PsfPublicSubmitRequest = z.infer<typeof PsfPublicSubmitRequest>;
  * back is the key the form sends as `business.logoObjectKey`.
  */
 export const PsfLogoUploadResult = z.object({ objectKey: z.string(), sizeBytes: z.number().int() });
+/** `POST /psf/card-upload` (2026-11-02): a card holder's old PSF card, uploaded under the form's ID check. */
+export const PsfCardUploadResult = z.object({ objectKey: z.string(), sizeBytes: z.number().int(), filename: z.string() });
+export type PsfCardUploadResult = z.infer<typeof PsfCardUploadResult>;
 export type PsfLogoUploadResult = z.infer<typeof PsfLogoUploadResult>;
 /** The header the logo upload carries the form's ID check token in. */
 export const PSF_CHECK_TOKEN_HEADER = "x-psf-check-token";
@@ -310,7 +362,7 @@ export const PSF_TRACK_STAGE_LABEL: Readonly<Record<PsfTrackStage, string>> = {
     declined: "Declined",
     withdrawn: "Withdrawn",
 };
-export const PsfTrackEventKind = z.enum(["submitted", "fee_paid", "code_issued", "in_review", "approved", "declined", "paid", "expired", "withdrawn"]);
+export const PsfTrackEventKind = z.enum(["submitted", "fee_paid", "code_issued", "in_review", "approved", "declined", "paid", "expired", "renewed", "withdrawn"]);
 export type PsfTrackEventKind = z.infer<typeof PsfTrackEventKind>;
 export const PsfTrackEvent = z.object({
     kind: PsfTrackEventKind,
@@ -326,15 +378,108 @@ export type PsfTrackEvent = z.infer<typeof PsfTrackEvent>;
  * before the fee was dropped (2026-10-23); nothing is refunded.
  */
 export const PsfPaymentLine = z.object({
-    kind: z.enum(["registration_fee", "membership_fee"]),
+    kind: z.enum(["registration_fee", "membership_fee", "membership_renewal"]),
     amountRwf: z.number().int(),
     at: z.string().nullable(),
     status: z.enum(["paid"]),
     reference: z.string().nullable(),
 });
 export type PsfPaymentLine = z.infer<typeof PsfPaymentLine>;
+// ---------------------------------------------------------------------------
+// The PSF team (2026-11-02): a Province Manager appoints its District Managers,
+// and a District Manager its district's BDEs
+// ---------------------------------------------------------------------------
+/** The two district posts: a Province Manager fills the first, a District Manager the second. */
+export const PsfTeamRole = z.enum(["district_manager", "business_officer"]);
+export type PsfTeamRole = z.infer<typeof PsfTeamRole>;
+export const PSF_TEAM_ROLE_LABEL: Readonly<Record<PsfTeamRole, string>> = {
+    district_manager: "District Manager",
+    business_officer: "Business Development & Empowerment (BDE)",
+};
+export const PSF_TEAM_ROLE_DESCRIPTION: Readonly<Record<PsfTeamRole, string>> = {
+    district_manager: "Decides membership applications and claims, and sets the district's fees and subtypes.",
+    business_officer: "Reads the district's applications, businesses, decisions and reports. Approvals come later.",
+};
+export const PsfTeamMember = z.object({
+    assignmentId: Uuid,
+    name: z.string().nullable(),
+    email: z.string(),
+    role: PsfTeamRole,
+    title: z.string().nullable(),
+    districtId: z.number().int(),
+    districtName: z.string().nullable(),
+    appointedAt: z.string(),
+    appointedByName: z.string().nullable(),
+    /** Their ID as typed at the appointment, masked ("National ID ending 5187"); null for an older one. */
+    idDocumentLine: z.string().nullable().default(null),
+});
+export type PsfTeamMember = z.infer<typeof PsfTeamMember>;
+/** `GET /oversight/psf/team`: the people in the caller's districts, and where the caller may appoint. */
+export const PsfTeamView = z.object({
+    /** May appoint and end: a Province or National Manager (District Managers), a District Manager (BDEs). */
+    canAppoint: z.boolean(),
+    /** The posts the caller fills (2026-11-02). */
+    appointRoles: z.array(PsfTeamRole).default([]),
+    /** The districts the caller may appoint in, by province. */
+    districts: z.array(z.object({ id: z.number().int(), name: z.string(), provinceName: z.string().nullable() })),
+    members: z.array(PsfTeamMember),
+});
+export type PsfTeamView = z.infer<typeof PsfTeamView>;
+export const AppointPsfTeamRequest = z.object({
+    email: z.string().trim().toLowerCase().email("Enter their email address."),
+    name: z.string().trim().min(2, "Enter their full name.").max(120, "That name is too long."),
+    role: PsfTeamRole,
+    /** The person's ID (2026-11-02): a National ID or a passport. */
+    idDocument: PsfIdDocument,
+    districtId: z.number().int().positive({ message: "Pick a district." }),
+    reason: z.string().trim().min(3, "Say why, in a few words.").max(500, "That reason is too long."),
+});
+export type AppointPsfTeamRequest = z.infer<typeof AppointPsfTeamRequest>;
+export const EndPsfTeamQuery = z.object({
+    reason: z.string().trim().min(3, "Say why, in a few words.").max(500, "That reason is too long."),
+});
+export type EndPsfTeamQuery = z.infer<typeof EndPsfTeamQuery>;
+/** How many days before the end date a membership may be renewed (2026-11-02). */
+export const PSF_RENEWAL_WINDOW_DAYS = 60;
+/**
+ * Renewing a membership (2026-11-02): a paid renewal renews at once, the year
+ * runs on from the old end date (or from the payment, once lapsed), and the
+ * band may change at the district's current price.
+ */
+export const PsfRenewalState = z.object({
+    /** Whether a renewal can be paid today. */
+    open: z.boolean(),
+    /** The first day it can be: 60 days before the end date. */
+    opensOn: z.string(),
+    /** Why it cannot be yet, in a sentence; null when open. */
+    reason: z.string().nullable(),
+    /** The year a renewal paid today buys. */
+    startsOn: z.string(),
+    expiresOn: z.string(),
+    /** The band held now, pre-picked. */
+    tierCode: z.string().nullable(),
+    /** A prompt sent and not yet approved. */
+    /** A prompt sent and not yet approved: its band, amount, and the phone it went to, masked (2026-11-02). */
+    pending: z
+        .object({ tierCode: z.string().default(""), tierName: z.string(), amountRwf: RwfAmount, phoneMasked: z.string().nullable().default(null) })
+        .nullable(),
+});
+export type PsfRenewalState = z.infer<typeof PsfRenewalState>;
+/** One paid renewal, for the tracking page and the officer. */
+export const PsfRenewalLine = z.object({
+    paidAt: z.string(),
+    membershipNumber: z.string(),
+    tierName: z.string(),
+    amountRwf: RwfAmount,
+    startsOn: z.string(),
+    expiresOn: z.string(),
+    reference: z.string().nullable(),
+});
+export type PsfRenewalLine = z.infer<typeof PsfRenewalLine>;
 export const PsfTrackView = z.object({
     docId: z.string(),
+    /** A card holder joining the new module (2026-11-02): nothing to pay, PSF confirms its card. */
+    intake: z.enum(["new", "card_holder"]).default("new"),
     stage: PsfTrackStage,
     submittedAt: z.string(),
     /** Whole days the application has waited on PSF; null when not under review. */
@@ -350,6 +495,8 @@ export const PsfTrackView = z.object({
         associationName: z.string().nullable(),
         ownerGroups: z.array(PsfOwnerGroup),
         registrationKind: EnterpriseRegistrationKind.nullable(),
+        /** The business's district, for the renewal's band prices. */
+        districtId: z.number().int().nullable().default(null),
         /** The business's logo, as an address under the API (`/v1/psf/track/:docId/logo`); null without one. */
         logoUrl: z.string().nullable().default(null),
         /** Each branch and where its own district's PSF office stands on it. */
@@ -371,6 +518,7 @@ export const PsfTrackView = z.object({
         .object({
         number: z.string(),
         tierName: z.string(),
+        tierCode: z.string().nullable().default(null),
         family: PsfMembershipFamily.nullable(),
         feeRwf: RwfAmount.nullable(),
         startsOn: z.string().nullable(),
@@ -385,11 +533,23 @@ export const PsfTrackView = z.object({
     payments: z.array(PsfPaymentLine),
     /** What the one payment at submit comes to while it is still due. */
     dueRwf: z.number().int().nullable(),
+    /** Renewing: null until the business is (or was) a member. */
+    renewal: PsfRenewalState.nullable().default(null),
+    /** Every paid renewal, newest first. */
+    renewals: z.array(PsfRenewalLine).default([]),
 });
 export type PsfTrackView = z.infer<typeof PsfTrackView>;
 /** `POST /psf/track/:docId/pay`, and `/pay-registration` for the payment at submit. */
 export const PsfTrackPayRequest = z.object({ phoneE164: MomoPhone });
 export type PsfTrackPayRequest = z.infer<typeof PsfTrackPayRequest>;
+/** `POST /psf/track/:docId/renew`: the band, the amount within it, and the phone to prompt. */
+export const PsfRenewRequest = z.object({
+    tierCode: z.string().min(1),
+    declaredFeeRwf: RwfAmount,
+    /** Absent to check the prompt already waiting for this band and amount: it goes to the same phone. */
+    phoneE164: MomoPhone.optional(),
+});
+export type PsfRenewRequest = z.infer<typeof PsfRenewRequest>;
 export const PsfTrackPayResult = z.object({
     status: z.enum(["paid", "pending", "declined"]),
     message: z.string().nullable(),
@@ -460,6 +620,9 @@ export const PsfReport = z.object({
         approved: PsfKpi,
         declined: PsfKpi,
         newMembers: PsfKpi,
+        /** Memberships renewed in the period, and old card holders brought into the new module (2026-11-02). */
+        renewed: PsfKpi.default({ value: 0, previous: 0 }),
+        cardHolders: PsfKpi.default({ value: 0, previous: 0 }),
         membershipFeesRwf: PsfKpi,
         medianDecisionDays: z.object({ value: z.number().nullable(), previous: z.number().nullable() }),
     }),
@@ -668,6 +831,8 @@ export const PsfBusinessDetail = z.object({
     history: PsfBusinessHistory,
     /** Every branch it listed, in any district (2026-10-23), with where each stands. */
     branches: z.array(PsfBusinessBranch).default([]),
+    /** Every paid renewal, newest first (2026-11-02). */
+    renewals: z.array(PsfRenewalLine).default([]),
 });
 export type PsfBusinessDetail = z.infer<typeof PsfBusinessDetail>;
 /**
@@ -814,3 +979,29 @@ export function resolvePsfTierFee(districtRwf: number | null, nationalRwf: numbe
         return { amountRwf: nationalRwf, source: "national" };
     return { amountRwf: bandRwf, source: "band" };
 }
+
+// ---------------------------------------------------------------------------
+// The member's card (2026-11-02): what the certificate's QR code opens
+// ---------------------------------------------------------------------------
+/**
+ * One membership, by its number, for anyone who scans a certificate: only
+ * what the certificate already prints, and whether it is still valid today.
+ */
+export const PsfMemberCard = z.object({
+    status: z.enum(["valid", "lapsed", "not_found"]),
+    card: z
+        .object({
+            businessName: z.string(),
+            businessCode: z.string().nullable(),
+            districtName: z.string().nullable(),
+            levelName: z.string(),
+            tierName: z.string(),
+            membershipNumber: z.string(),
+            startsOn: z.string().nullable(),
+            expiresOn: z.string().nullable(),
+        })
+        .nullable(),
+});
+export type PsfMemberCard = z.infer<typeof PsfMemberCard>;
+export const PsfMemberCardQuery = z.object({ number: z.string().trim().min(3).max(60) });
+export type PsfMemberCardQuery = z.infer<typeof PsfMemberCardQuery>;

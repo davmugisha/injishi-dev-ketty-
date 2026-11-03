@@ -21,6 +21,7 @@ export type PersonaId =
   | "broker"
   | "officer"
   | "psf"
+  | "psfdbo"
   | "ops";
 
 /** Personas whose home is the desktop workspace (sidebar app shell). */
@@ -37,6 +38,7 @@ export type WorkspacePersonaId =
   | "broker"
   | "officer"
   | "psf"
+  | "psfdbo"
   | "ops";
 
 /** Phone apps (portrait, bottom tab bar). */

@@ -121,7 +121,8 @@ export class StorageService {
     body: Buffer;
     mime: string;
     filename: string;
-    uploadedByUserId: string;
+    /** Null for a card sent from the public PSF form (2026-11-02), where nobody signs in. */
+    uploadedByUserId: string | null;
   }): Promise<StoredObjectView> {
     const mime = input.mime.split(';')[0].trim().toLowerCase();
     if (!CERTIFICATE_MIME_TYPES.includes(mime)) {

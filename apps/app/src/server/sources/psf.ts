@@ -33,6 +33,10 @@ export type PsfOwnerGroup = "women" | "youth" | "pwd";
 /** One row of GET /api/v1/oversight/psf-applications */
 export interface PsfQueueItem {
   applicationId: string;
+  /** Where it was sent from (2026-11-02): the public PSF form, or Injishi's business registration. */
+  origin: "psf_form" | "registration";
+  /** New, or a card holder joining the new module (2026-11-02). */
+  intake: "new" | "card_holder";
   orgId: string;
   businessName: string;
   businessCode: string | null;
@@ -81,6 +85,10 @@ export type PsfDeclineReason = "details_incomplete" | "not_eligible_for_tier" | 
 /** GET /api/v1/oversight/psf-applications/:id */
 export interface PsfOfficerApplication {
   id: string;
+  /** Where it was sent from (2026-11-02): the public PSF form, or Injishi's business registration. */
+  origin: "psf_form" | "registration";
+  /** New, or a card holder joining the new module (2026-11-02): confirmed with a new number and its card's year. */
+  intake: "new" | "card_holder";
   status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
   requestedTierName: string;
   declaredFeeRwf: number | null;
@@ -158,6 +166,49 @@ export function readPsfScope(ctx: SourceContext): Promise<PsfScope> {
   return ctx.api.get<PsfScope>("/api/v1/oversight/psf/scope");
 }
 
+/** GET /api/v1/oversight/psf/team: the contract's own shape. */
+export type PsfTeamView = import("@injishi/contracts").PsfTeamView;
+
+/** The District Managers and BDEs in the officer's districts, and where they may appoint. */
+export function readPsfTeam(ctx: SourceContext): Promise<PsfTeamView> {
+  return ctx.api.get<PsfTeamView>("/api/v1/oversight/psf/team");
+}
+
+/** GET /api/v1/oversight/psf/subsectors: the contract's own shape. */
+export type PsfSubsectorsView = import("@injishi/contracts").PsfSubsectorsView;
+
+/** Each sector's subtypes and associations, and the places this officer may add subtypes for. */
+export function readPsfSubsectors(ctx: SourceContext): Promise<PsfSubsectorsView> {
+  return ctx.api.get<PsfSubsectorsView>("/api/v1/oversight/psf/subsectors");
+}
+
+/** GET /api/v1/oversight/psf/fees: the contract's own shape. */
+export type PsfOfficerFeesView = import("@injishi/contracts").PsfOfficerFeesView;
+
+/**
+ * Each band's price for one district, or PSF's national prices. A district officer always gets their
+ * district; a province or national officer gets the district they name, or the national prices.
+ */
+export function readPsfFees(ctx: SourceContext, district?: number): Promise<PsfOfficerFeesView> {
+  return ctx.api.get<PsfOfficerFeesView>(`/api/v1/oversight/psf/fees${district ? `?district=${district}` : ""}`);
+}
+
+/** GET /api/v1/oversight/psf/decisions: the contract's own shape. */
+export type PsfDecisionsPage = import("@injishi/contracts").PsfDecisionsPage;
+
+/** Every membership the officer's region approved or declined, newest first, searched and narrowed. */
+export function readPsfDecisions(
+  ctx: SourceContext,
+  query: { q?: string; outcome?: "approved" | "declined"; cursor?: string } = {},
+): Promise<PsfDecisionsPage> {
+  const params = new URLSearchParams();
+  if (query.q?.trim()) params.set("q", query.q.trim());
+  if (query.outcome) params.set("outcome", query.outcome);
+  if (query.cursor) params.set("cursor", query.cursor);
+  const qs = params.toString();
+  return ctx.api.get<PsfDecisionsPage>(`/api/v1/oversight/psf/decisions${qs ? `?${qs}` : ""}`);
+}
+
 /** The queue, newest first, optionally searched (business, code or docID). */
 export function readPsfQueue(ctx: SourceContext, query: { q?: string } = {}): Promise<PsfQueuePage> {
   const params = new URLSearchParams();
@@ -192,6 +243,12 @@ export interface PsfRegisterSummary {
   members: number;
   waiting: number;
   paidThisYearRwf: number;
+  /** Members inside their renewal window, 60 days before the end date. */
+  renewalDue: number;
+  /** Renewals paid this calendar year. */
+  renewedThisYear: number;
+  /** Applications sent and not paid (2026-11-02). */
+  awaitingPayment: number;
   byCluster: PsfCount[];
   byStanding: PsfCount[];
   byGroup: PsfCount[];
@@ -217,8 +274,22 @@ export interface PsfBusinessRow {
   standing: PsfStanding;
   tierName: string | null;
   membershipNumber: string | null;
+  /** The current membership's last valid day, yyyy-mm-dd. */
+  expiresOn: string | null;
   openApplicationId: string | null;
   paidRwf: number;
+  /** When it last paid through Injishi: a fee or a renewal. */
+  lastPaidAt: string | null;
+  /** The unpaid application, when one waits for its payment (2026-11-02). */
+  paymentDue: {
+    amountRwf: number | null;
+    since: string;
+    docId: string | null;
+    contactName: string;
+    phoneE164: string | null;
+    email: string | null;
+    lastRemindedAt: string | null;
+  } | null;
   branchCount: number;
   headOfficeInScope: boolean;
 }
@@ -231,14 +302,35 @@ export interface PsfBusinessesPage {
 
 export { PSF_STANDING_LABEL } from "@injishi/contracts";
 
+/** What the Businesses screen narrows by (2026-11-02): its standing pills, and sector, tier, place, group, TIN. */
+export interface PsfBusinessesFilter {
+  q?: string;
+  standing?: PsfStanding;
+  renewal?: "due";
+  payment?: "due";
+  cluster?: string;
+  tier?: string;
+  district?: number;
+  group?: PsfOwnerGroup;
+  tin?: "with" | "without";
+}
+
 /** The register of businesses in the officer's region. */
 export function readPsfBusinesses(
   ctx: SourceContext,
-  query: { q?: string; standing?: PsfStanding } = {},
+  query: PsfBusinessesFilter & { cursor?: string } = {},
 ): Promise<PsfBusinessesPage> {
   const params = new URLSearchParams();
   if (query.q?.trim()) params.set("q", query.q.trim());
   if (query.standing) params.set("standing", query.standing);
+  if (query.renewal) params.set("renewal", query.renewal);
+  if (query.payment) params.set("payment", query.payment);
+  if (query.cluster) params.set("cluster", query.cluster);
+  if (query.tier) params.set("tier", query.tier);
+  if (query.district) params.set("district", String(query.district));
+  if (query.group) params.set("group", query.group);
+  if (query.tin) params.set("tin", query.tin);
+  if (query.cursor) params.set("cursor", query.cursor);
   const qs = params.toString();
   return ctx.api.get<PsfBusinessesPage>(`/api/v1/oversight/psf/businesses${qs ? `?${qs}` : ""}`);
 }

@@ -1491,22 +1491,22 @@ export declare const DeskReservationQuote: z.ZodObject<{
     totalRwf: number;
     available: boolean;
     problems: string[];
-    chargedNightlyRwf: number;
     freeRooms: {
         id: string;
         label: string;
     }[];
+    chargedNightlyRwf: number;
 }, {
     nightlyRateRwf: number;
     nights: number;
     totalRwf: number;
     available: boolean;
     problems: string[];
-    chargedNightlyRwf: number;
     freeRooms: {
         id: string;
         label: string;
     }[];
+    chargedNightlyRwf: number;
 }>;
 export type DeskReservationQuote = z.infer<typeof DeskReservationQuote>;
 export declare const DeskReservationRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<z.ZodObject<{

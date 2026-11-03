@@ -1,6 +1,8 @@
 "use client";
 
-import { Check, Crown, Info, MapPin, Medal, Sprout, Wallet, type LucideIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { BadgeCheck, Check, Crown, FileText, IdCard, Info, MapPin, Medal, Sprout, Upload, Wallet, type LucideIcon } from "lucide-react";
+import { Button } from "@injishi/web-ui";
 import {
   PSF_FAMILY_LABEL,
   PSF_OFFERED_FAMILIES,
@@ -9,7 +11,9 @@ import {
   type PsfTier,
 } from "@injishi/contracts";
 
-import { TextInput } from "@/app/(app)/(entry)/register/wizard-ui";
+import { Field, TextInput } from "@/app/(app)/(entry)/register/wizard-ui";
+import { apiResultMessage } from "@/lib/api";
+import { uploadPsfCard } from "@/data/psf";
 
 import { rwf, type Errors, type PsfDraft } from "./draft";
 
@@ -39,6 +43,7 @@ export function StepMembership({
   tiers,
   fees,
   districtName,
+  checkToken,
 }: {
   draft: PsfDraft;
   onChange: (next: Partial<PsfDraft>) => void;
@@ -47,6 +52,8 @@ export function StepMembership({
   /** PSF's prices in the business's district; null while they load. */
   fees: PsfFeesView | null;
   districtName: string;
+  /** The form's verified ID check, which the card upload goes under. */
+  checkToken: string | null;
 }) {
   const feeOf = (code: string) => fees?.fees.find((f) => f.tierCode === code) ?? null;
   const families = PSF_OFFERED_FAMILIES.map((family) => ({
@@ -72,8 +79,39 @@ export function StepMembership({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* New to PSF, or a holder of an old PSF card joining the new module (2026-11-02). */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Joining PSF">
+        {(
+          [
+            [false, "I am joining PSF", "Pick the level you can afford and pay the first year now.", Sprout],
+            [true, "I already have a PSF card", "From before Injishi, with no number or certificate here. Nothing to pay now.", IdCard],
+          ] as const
+        ).map(([value, title, text, Icon]) => {
+          const on = draft.cardHolder === value;
+          return (
+            <button
+              key={title}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => onChange({ cardHolder: value })}
+              className={[
+                "flex items-start gap-3 rounded-card border-2 p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                on ? "border-accent-brand bg-accent-brand/10" : "border-border bg-card hover:border-accent-brand/50",
+              ].join(" ")}
+            >
+              <Icon size={20} strokeWidth={1.7} aria-hidden className="mt-0.5 shrink-0 text-accent-text" />
+              <span>
+                <span className="block font-semibold">{title}</span>
+                <span className="mt-0.5 block text-sm text-muted-foreground">{text}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-2xl font-semibold tracking-tight">Choose your membership</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">{draft.cardHolder ? "The level on your card" : "Choose your membership"}</h2>
         {districtName ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">
             <MapPin size={12} aria-hidden /> Prices for {districtName}
@@ -166,8 +204,12 @@ export function StepMembership({
         </section>
       ) : null}
 
+      {draft.cardHolder ? (
+        <CardHolderPanel draft={draft} onChange={onChange} error={errors["membership.cardObjectKey"]} checkToken={checkToken} />
+      ) : null}
+
       {/* What it costs, and what it brings */}
-      {tier ? (
+      {tier && !draft.cardHolder ? (
         <section
           className={[
             "overflow-hidden rounded-card border bg-card",
@@ -224,5 +266,90 @@ export function StepMembership({
         </section>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * A card holder's card (2026-11-02): uploaded as soon as it is picked, under the form's ID check. PSF
+ * checks it, then gives a new membership number, the year the card shows, and the certificate.
+ */
+function CardHolderPanel({
+  draft,
+  onChange,
+  error,
+  checkToken,
+}: {
+  draft: PsfDraft;
+  onChange: (next: Partial<PsfDraft>) => void;
+  error?: string;
+  checkToken: string | null;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<{ url: string; pdf: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  useEffect(() => () => {
+    if (preview) URL.revokeObjectURL(preview.url);
+  }, [preview]);
+
+  const pick = async (file: File | undefined) => {
+    if (!file) return;
+    setProblem(null);
+    const pdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    if (!pdf && !["image/jpeg", "image/png", "image/webp"].includes(file.type)) return setProblem("Send the card as a PDF, JPEG or PNG.");
+    if (file.size > 10 * 1024 * 1024) return setProblem("The card must be 10 MB or smaller.");
+    if (!checkToken) return setProblem("Check your National ID first, then add your card.");
+    setBusy(true);
+    const res = await uploadPsfCard(checkToken, file);
+    setBusy(false);
+    if (res.status !== "ok") return setProblem(apiResultMessage(res));
+    setPreview({ url: URL.createObjectURL(file), pdf });
+    onChange({ cardObjectKey: res.data.objectKey, cardName: file.name });
+  };
+
+  return (
+    <section className="flex flex-col gap-4 rounded-card border border-border bg-card p-5">
+      <Field label="Your PSF card" hint="A photo or scan of the card, front side. PDF, JPEG or PNG, up to 10 MB." required error={problem ?? error}>
+        <div className="flex flex-wrap items-center gap-4">
+          {preview ? (
+            <a href={preview.url} target="_blank" rel="noreferrer" title="Open the card in full" className="shrink-0">
+              {preview.pdf ? (
+                <span className="flex h-20 w-28 items-center justify-center rounded-md bg-secondary text-muted-foreground ring-1 ring-border">
+                  <FileText size={28} aria-hidden />
+                </span>
+              ) : (
+                // A local object URL of the picked file: next/image has nothing to optimise here.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={preview.url} alt="Your PSF card" className="h-20 w-28 rounded-md object-cover ring-1 ring-border" />
+              )}
+            </a>
+          ) : null}
+          <div className="flex min-w-0 flex-col gap-2">
+            {draft.cardObjectKey ? <p className="truncate text-sm font-medium">{draft.cardName || "Card added"}</p> : null}
+            <Button variant="outline" onClick={() => input.current?.click()} pending={busy} disabled={busy}>
+              <Upload size={15} aria-hidden /> {draft.cardObjectKey ? "Change the card" : "Add your card"}
+            </Button>
+          </div>
+          <input
+            ref={input}
+            type="file"
+            accept="application/pdf,image/jpeg,image/png,image/webp"
+            className="sr-only"
+            onChange={(ev) => void pick(ev.target.files?.[0])}
+          />
+        </div>
+      </Field>
+      <ul className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+        <li className="flex gap-2">
+          <BadgeCheck size={15} aria-hidden className="mt-0.5 shrink-0 text-accent-text" /> Nothing to pay now: your year is the one on your card.
+        </li>
+        <li className="flex gap-2">
+          <BadgeCheck size={15} aria-hidden className="mt-0.5 shrink-0 text-accent-text" /> PSF checks your card, then gives you a new membership number and your certificate.
+        </li>
+        <li className="flex gap-2">
+          <BadgeCheck size={15} aria-hidden className="mt-0.5 shrink-0 text-accent-text" /> You renew here when your year ends.
+        </li>
+      </ul>
+    </section>
   );
 }

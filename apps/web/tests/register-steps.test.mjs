@@ -36,8 +36,8 @@ const {
 } = steps;
 
 describe("the steps", () => {
-  test("every path walks the same five: the person, then the business", () => {
-    assert.deepEqual(stepOrder().map((id) => STEP_TITLE[id]), ["You", "Business", "Documents", "Review", "Pay"]);
+  test("every path walks the same five: the business, then the person", () => {
+    assert.deepEqual(stepOrder().map((id) => STEP_TITLE[id]), ["Business", "You", "Documents", "Review", "Pay"]);
   });
 
   test("the role and capacity choose the path", () => {
@@ -50,10 +50,11 @@ describe("the steps", () => {
 
 describe("the sections of Business and You show in order", () => {
   test("which sections each step has, per path", () => {
-    assert.deepEqual(sectionOrder("owner", "business"), ["tin", "cls", "loc", "fr"]);
+    // No franchise question for now (2026-11-03).
+    assert.deepEqual(sectionOrder("owner", "business"), ["tin", "cls", "loc"]);
     // You is the person alone, on every path; the owner a helper names is the business's.
     assert.deepEqual(sectionOrder("owner", "you"), ["id"]);
-    assert.deepEqual(sectionOrder("helper", "business"), ["tin", "intended", "cls", "loc", "fr"]);
+    assert.deepEqual(sectionOrder("helper", "business"), ["tin", "intended", "cls", "loc"]);
     assert.deepEqual(sectionOrder("helper", "you"), ["id"]);
     assert.deepEqual(sectionOrder("landlord", "business"), ["upi", "loc"]);
     assert.deepEqual(sectionOrder("landlord", "you"), ["id"]);
@@ -83,13 +84,13 @@ describe("the sections of Business and You show in order", () => {
 describe("the progress opens only what has been reached", () => {
   const order = stepOrder();
   test("up to and including the first step not complete", () => {
-    assert.equal(openableThrough(order, (id) => id === "you"), 1);
+    assert.equal(openableThrough(order, (id) => id === "business"), 1);
     assert.equal(openableThrough(order, () => false), 0);
   });
 
   test("a step that stops being complete closes what follows it again", () => {
-    const done = new Set(["you", "business", "documents"]);
-    done.delete("business");
+    const done = new Set(["business", "you", "documents"]);
+    done.delete("you");
     assert.equal(openableThrough(order, (id) => done.has(id)), 1);
   });
 
@@ -135,7 +136,8 @@ describe("going back and changing an answer (2026-10-30)", () => {
     const owner = sectionOrder("owner", "business");
     assert.equal(previousSection(owner, "tin"), null);
     assert.equal(previousSection(owner, "loc"), "tin");
-    assert.equal(previousSection(owner, "fr"), "loc");
+    // No franchise section for now (2026-11-03): Location is the last of Business.
+    assert.equal(owner.at(-1), "loc");
     assert.equal(previousSection(sectionOrder("helper", "business"), "loc"), "intended");
     assert.equal(previousSection(sectionOrder("landlord", "business"), "loc"), "upi");
     assert.equal(previousSection(sectionOrder("owner", "you"), "id"), null);
@@ -150,14 +152,14 @@ describe("going back and changing an answer (2026-10-30)", () => {
 });
 
 describe("drafts (ADR-075 S9, AC-9)", () => {
-  test("the wizard opens on You", () => {
-    assert.equal(openingStep(), "you");
+  test("the wizard opens on Business", () => {
+    assert.equal(openingStep(), "business");
   });
 
-  test("a draft reopens on the step that was open, and one saved before ADR-075 on You", () => {
+  test("a draft reopens on the step that was open, and one saved before ADR-075 on Business", () => {
     assert.equal(resumeStep("documents"), "documents");
     assert.equal(resumeStep("pay"), "pay");
-    assert.equal(resumeStep(undefined), "you");
+    assert.equal(resumeStep(undefined), "business");
   });
 
   test("every step a draft can name is one of the five", async () => {
@@ -167,11 +169,11 @@ describe("drafts (ADR-075 S9, AC-9)", () => {
 
   test("it opens no step past the first one still owing an answer", () => {
     const order = stepOrder();
-    // You and Business complete: Documents is as far as it can open.
+    // Business and You complete: Documents is as far as it can open.
     assert.equal(clampToOpenable(order, "documents", 2), "documents");
     assert.equal(clampToOpenable(order, "review", 2), "documents");
     // The owner's National ID is never kept, so a helper's Business (where the owner is named) is owed again.
-    assert.equal(clampToOpenable(order, "documents", 1), "business");
+    assert.equal(clampToOpenable(order, "documents", 0), "business");
     assert.equal(clampToOpenable(order, "business", 4), "business");
   });
 });
@@ -246,7 +248,7 @@ describe("the wizard reads all of this from the module", () => {
     }
   });
   test("and keeps no second copy of the order", () => {
-    assert.doesNotMatch(wizard, /\["business",\s*"you"/);
+    assert.doesNotMatch(wizard, /\[\s*"business",\s*"you"/);
   });
   test("and asks for no agreement or signature before paying (AC-12)", () => {
     assert.doesNotMatch(wizard, /SignaturePad|acceptRegistrationContract|OPERATOR_CONTRACT_VERSION/);

@@ -18,6 +18,7 @@ export function RegisterDone({
   feePaid,
   feeProblem,
   districtName,
+  cardHolder = false,
 }: {
   docId: string;
   businessCode: string | null;
@@ -25,8 +26,16 @@ export function RegisterDone({
   feePaid: boolean;
   feeProblem: string | null;
   districtName: string;
+  /** A holder of an old PSF card (2026-11-02): nothing was paid, PSF checks the card. */
+  cardHolder?: boolean;
 }) {
-  const next = [
+  const next = cardHolder
+    ? [
+        { icon: ClipboardCheck, title: "PSF checks your card", body: `The PSF District Manager for ${districtName || "your district"} checks it, usually within a week.` },
+        { icon: BadgeCheck, title: "Confirmed: a new number", body: "You get a new membership number for the year on your card. We text you, and your certificate is on your tracking page." },
+        { icon: XCircle, title: "Not confirmed: PSF says why", body: "We text you the reason. You can apply as a new member instead." },
+      ]
+    : [
     { icon: ClipboardCheck, title: "PSF reviews it", body: `A PSF officer for ${districtName || "your district"} reads your application, usually within a week.` },
     { icon: BadgeCheck, title: "Approved: you are a member", body: "That day, for a year. We text you, and your certificate is on your tracking page." },
     { icon: XCircle, title: "Declined: PSF says why", body: "We text you the reason, and you can apply again. The membership fee is not refunded." },
@@ -42,7 +51,9 @@ export function RegisterDone({
         </h1>
         <p className="max-w-[52ch] text-muted-foreground">
           {feePaid
-            ? "Paid, and with PSF. Keep your docID: it is how you follow PSF's answer and print your certificate."
+            ? cardHolder
+              ? "With PSF, nothing to pay. Keep your docID: it is how you follow PSF's answer and print your certificate."
+              : "Paid, and with PSF. Keep your docID: it is how you follow PSF's answer and print your certificate."
             : "The payment did not go through, so PSF has not received your application yet. Your docID keeps everything you typed: pay from the tracking page."}
         </p>
       </div>

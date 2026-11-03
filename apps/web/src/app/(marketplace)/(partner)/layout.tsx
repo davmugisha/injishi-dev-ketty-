@@ -16,10 +16,11 @@ import psf from "./psf-theme.module.css";
  * no Injishi wordmark, no Explore or Saved, no host call to action, no
  * assistant (`AssistantWidget` stays quiet under /psf).
  *
- * MemberDesk is the name of this partner product (2026-10-23): the tab reads
- * "Register your business | PSF MemberDesk" where the root layout would add
- * "| Injishi", the footer says "Powered by MemberDesk", and a phone's "Add to
- * Home Screen" offers "PSF MemberDesk".
+ * PSF Membership Hub (PMH) is the name of this partner product (renamed from
+ * MemberDesk on 2026-11-02): the tab reads "Register for PSF | PSF Membership
+ * Hub (PMH)" where the root layout would add "| Injishi", the footer names it
+ * (with a small "Powered by Hangaa Softwares" under it), and a phone's "Add to Home Screen"
+ * offers "PMH", the short name, since a longer one is cut under the icon.
  *
  * NO `icons` KEY, by the rule in `lib/pwa-metadata.ts`: an explicit `icons`
  * anywhere discards the App Router icon files. A PSF tab icon, when PSF sends a
@@ -27,11 +28,11 @@ import psf from "./psf-theme.module.css";
  */
 export const metadata: Metadata = {
   title: {
-    default: "PSF MemberDesk",
-    template: "%s | PSF MemberDesk",
+    default: "PSF Membership Hub (PMH)",
+    template: "%s | PSF Membership Hub (PMH)",
   },
-  applicationName: "PSF MemberDesk",
-  appleWebApp: { capable: true, title: "PSF MemberDesk", statusBarStyle: "default" },
+  applicationName: "PSF Membership Hub (PMH)",
+  appleWebApp: { capable: true, title: "PMH", statusBarStyle: "default" },
 };
 
 export default function PartnerLayout({ children }: { children: React.ReactNode }) {

@@ -143,7 +143,7 @@ function BranchCard({
           />
         </Field>
       </div>
-      <Field label="Street address" required error={e("address.street")}>
+      <Field label="Street address" hint="Optional." error={e("address.street")}>
         <TextInput id={id("street")} className="w-full" value={branch.street} onChange={(ev) => onChange({ street: ev.target.value })} />
       </Field>
     </div>

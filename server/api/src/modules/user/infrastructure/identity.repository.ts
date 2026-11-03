@@ -159,7 +159,7 @@ export class IdentityRepository {
     /** `document_scan` (the default) or `national_id_registry`, which has no front photo. */
     checkKind?: 'document_scan' | 'national_id_registry';
     frontObjectKey: string | null;
-    selfieObjectKey: string;
+    selfieObjectKey: string | null;
     outcome: 'machine_passed' | 'machine_failed' | 'manual_needed';
     reason: string | null;
     adapterMode: 'mock' | 'sandbox' | 'live' | 'off';

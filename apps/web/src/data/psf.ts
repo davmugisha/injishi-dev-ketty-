@@ -1,6 +1,9 @@
 import {
   PSF_CHECK_TOKEN_HEADER,
+  PsfCardUploadResult,
   PsfLogoUploadResult,
+  PsfMemberLookupConfirmed,
+  PsfMemberLookupResult,
   PsfCatalogue,
   PsfIdentityLookupResult,
   PsfPublicSubmitResult,
@@ -12,6 +15,7 @@ import {
   type PsfIdentityConfirmRequest,
   type PsfIdentityLookupRequest,
   type PsfPublicSubmitRequest,
+  type PsfRenewRequest,
 } from "@injishi/contracts";
 import { API_URL, apiFetchParsed, type ApiResult } from "@/lib/api";
 
@@ -70,6 +74,25 @@ export function payPsfMembership(docId: string, phoneE164: string): Promise<ApiR
   });
 }
 
+/** Tracking by membership number (2026-11-02): a code goes to the phone on file. */
+export function lookupPsfMember(membershipNumber: string): Promise<ApiResult<PsfMemberLookupResult>> {
+  return apiFetchParsed(PsfMemberLookupResult, "/api/v1/psf/member-lookup", { method: "POST", body: { membershipNumber } });
+}
+
+/** The code read back answers the docID, which opens the tracking page. */
+export function confirmPsfMember(lookupToken: string, code: string): Promise<ApiResult<PsfMemberLookupConfirmed>> {
+  return apiFetchParsed(PsfMemberLookupConfirmed, "/api/v1/psf/member-lookup/confirm", { method: "POST", body: { lookupToken, code } });
+}
+
+/** Renew a membership (2026-11-02): the band, the amount within it, and the phone to prompt. */
+export function renewPsfMembership(docId: string, body: PsfRenewRequest): Promise<ApiResult<PsfTrackPayResult>> {
+  return apiFetchParsed(PsfTrackPayResult, `/api/v1/psf/track/${encodeURIComponent(docId)}/renew`, {
+    method: "POST",
+    body,
+    timeoutMs: 30_000,
+  });
+}
+
 /** The member's certificate as a PDF: a plain link, so the browser downloads it. */
 export function psfCertificateUrl(docId: string): string {
   return `${API_URL}/api/v1/psf/track/${encodeURIComponent(docId)}/certificate`;
@@ -109,6 +132,32 @@ export async function uploadPsfLogo(checkToken: string, file: File): Promise<Api
       return { status: "refused", message: body?.message ?? "That logo could not be uploaded.", httpStatus: res.status };
     }
     const parsed = PsfLogoUploadResult.safeParse(await res.json());
+    return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+  } catch {
+    return { status: "failed" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** A card holder's old PSF card (2026-11-02), under the form's ID check, like the logo. */
+export async function uploadPsfCard(checkToken: string, file: File): Promise<ApiResult<PsfCardUploadResult>> {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60_000);
+  try {
+    const res = await fetch(`${API_URL}/api/v1/psf/card-upload`, {
+      method: "POST",
+      body: form,
+      headers: { [PSF_CHECK_TOKEN_HEADER]: checkToken },
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as { message?: string } | null;
+      return { status: "refused", message: body?.message ?? "That card could not be uploaded.", httpStatus: res.status };
+    }
+    const parsed = PsfCardUploadResult.safeParse(await res.json());
     return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
   } catch {
     return { status: "failed" };

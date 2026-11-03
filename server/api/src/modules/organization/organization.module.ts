@@ -12,6 +12,7 @@ import { BrokerRegistrationService } from './application/broker-registration.ser
 import { CertificatesService } from './application/certificates.service';
 import { OwnerClaimService } from './application/owner-claim.service';
 import { PsfMembershipService } from './application/psf-membership.service';
+import { PsfCertificatesService } from './application/psf-certificates.service';
 import { PsfPublicService } from './application/psf-public.service';
 import { PsfReportService } from './application/psf-report.service';
 import { RegistrationDraftService } from './application/registration-draft.service';
@@ -27,6 +28,8 @@ import { OwnerClaimRepository } from './infrastructure/owner-claim.repository';
 import { PsfMembershipMailer } from './infrastructure/psf-membership.mailer';
 import { PsfMembershipRepository } from './infrastructure/psf-membership.repository';
 import { PsfPublicRepository } from './infrastructure/psf-public.repository';
+import { PsfRenewalRepository } from './infrastructure/psf-renewal.repository';
+import { PsfTeamService } from './application/psf-team.service';
 import { PsfReportRepository } from './infrastructure/psf-report.repository';
 import { RegistrationDraftRepository } from './infrastructure/registration-draft.repository';
 import { RegistrationMailer } from './infrastructure/registration.mailer';
@@ -102,10 +105,13 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     // repository's shared insert, so both doors file the same row.
     PsfMembershipRepository,
     PsfMembershipMailer,
+    PsfCertificatesService,
     PsfMembershipService,
     // The public PSF path (2026-10-19): register without an account, track by
     // docID. And the officer console's report and decision log.
     PsfPublicRepository,
+    PsfRenewalRepository,
+    PsfTeamService,
     PsfPublicService,
     PsfReportRepository,
     PsfReportService,
@@ -128,6 +134,8 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     RolePermissionsService,
     StaffInvitationService,
     PsfMembershipService,
+    PsfCertificatesService,
+    PsfTeamService,
     PsfPublicService,
     PsfReportService,
     CertificatesService,

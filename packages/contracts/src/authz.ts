@@ -1037,6 +1037,7 @@ export function oversightConsoleFor(role: OversightRole): "verification" | "appr
         case "tax_compliance_officer":
             return "tax";
         case "psf_membership_officer":
+        case "psf_business_officer":
             return "membership";
     }
 }
@@ -1149,6 +1150,7 @@ export function opposingGateRole(role: OversightRole): OversightRole | null {
         // Membership is not a registration gate either (ADR-056), so a PSF
         // field verifier may also hold it: they decide different things.
         case "psf_membership_officer":
+        case "psf_business_officer":
             return null;
         // A local leader reads guests; they gate no business at all.
         case "village_leader":

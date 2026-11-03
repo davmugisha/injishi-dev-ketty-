@@ -19,7 +19,8 @@ type OversightRole =
   | "business_field_verifier"
   | "business_approver"
   | "tax_compliance_officer"
-  | "psf_membership_officer";
+  | "psf_membership_officer"
+  | "psf_business_officer";
 
 /** One grant from GET /api/v1/me/oversight (OversightConsoleGrant). */
 interface ApiConsole {
@@ -167,6 +168,7 @@ const ROLE_LABEL: Record<OversightRole, string> = {
   business_approver: "Approval",
   tax_compliance_officer: "Tax compliance",
   psf_membership_officer: "PSF membership · registration review",
+  psf_business_officer: "PSF membership · read only",
 };
 
 // ── The desk: what this officer holds and what waits on them, read once per request ─────────────────

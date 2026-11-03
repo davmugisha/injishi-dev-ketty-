@@ -770,6 +770,9 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
             { id: "reviews", label: "Reviews", board: "BrokerReviews" },
           ],
         },
+        // Brokers and hotels (2026-11-02, this branch): deals with hotels, and rooms booked under them.
+        { id: "hotels", label: "Hotels", icon: "Briefcase", board: "BrokerHotels" },
+        { id: "bookings", label: "Bookings", icon: "Calendar", board: "BrokerBookings" },
         { id: "messages", label: "Messages", icon: "Comments", board: "BrokerMessages" },
       ],
     },
@@ -823,7 +826,7 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
       label: "To do",
       items: [
         { id: "apps", label: "Membership applications", icon: "FileText", board: "PsfConsole" },
-        { id: "claims", label: "Membership claims", icon: "CircleCheck", board: "PsfClaims" },
+        { id: "claims", label: "Card holders", icon: "CircleCheck", board: "PsfClaims" },
         { id: "registrations", label: "Business approvals", icon: "ShieldCheck", board: "OfficerHome" },
       ],
     },
@@ -852,6 +855,38 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
           board: "PsfReport",
           href: "/psf/report/approvals",
         },
+        { id: "r-economy", label: "District economy", icon: "Wallet", board: "PsfReport", href: "/psf/report/economy" },
+        { id: "r-members", label: "Member register", icon: "Persons", board: "PsfReport", href: "/psf/report/members" },
+      ],
+    },
+    {
+      label: "Settings",
+      items: [
+        { id: "fees", label: "Fees", icon: "CreditCard", board: "PsfFees" },
+        { id: "subtypes", label: "Subtypes", icon: "Tag", board: "PsfSubtypes" },
+        { id: "team", label: "Team", icon: "Persons", board: "PsfTeam" },
+      ],
+    },
+  ],
+  // A PSF BDE, Business Development & Empowerment (2026-11-02): the same portal, read only. No claims to decide and
+  // no business approvals, which are the District Manager's.
+  psfdbo: [
+    {
+      label: "To do",
+      items: [{ id: "apps", label: "Membership applications", icon: "FileText", board: "PsfConsole" }],
+    },
+    {
+      label: "Records",
+      items: [
+        { id: "register", label: "Businesses", icon: "FolderHouse", board: "PsfRegister" },
+        { id: "decisions", label: "Membership decisions", icon: "FileCheck", board: "PsfDecisions" },
+      ],
+    },
+    {
+      label: "Reports",
+      items: [
+        { id: "overview", label: "Overview", icon: "ChartColumn", board: "PsfReport", href: "/psf/report/overview" },
+        { id: "r-membership", label: "Membership activity", icon: "ChartPie", board: "PsfReport", href: "/psf/report/membership" },
         { id: "r-economy", label: "District economy", icon: "Wallet", board: "PsfReport", href: "/psf/report/economy" },
         { id: "r-members", label: "Member register", icon: "Persons", board: "PsfReport", href: "/psf/report/members" },
       ],
@@ -946,6 +981,12 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
           label: "Leaders and officers",
           icon: "Persons",
           board: "AdminLeaders",
+        },
+        {
+          id: "psf",
+          label: "PSF memberships",
+          icon: "ArrowsRotateRight",
+          board: "AdminPsf",
         },
         {
           id: "coverage",

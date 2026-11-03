@@ -1,11 +1,13 @@
 import {
   PSF_QUEUE_REGISTRATION_STATES,
+  PSF_RENEWAL_WINDOW_DAYS,
   type Domain,
   type EnterpriseRegistrationKind,
   type OrgRegistrationStatus,
   type OrgRole,
   type PsfBranchStatus,
   type PsfDeclineReason,
+  type PsfMembershipFamily,
   type PsfOwnerGroup,
   type PsfStanding,
 } from '@injishi/contracts';
@@ -14,6 +16,7 @@ import { and, asc, desc, eq, inArray, isNull, lt, or, sql, type SQL } from 'driz
 import { alias, type AnyPgColumn } from 'drizzle-orm/pg-core';
 
 import {
+  auditEvents,
   districts,
   identityDocuments,
   oboRegistrations,
@@ -28,6 +31,7 @@ import {
   psfMembershipFormFields,
   psfMemberList,
   psfMembershipClaims,
+  psfMembershipRenewals,
   psfMembershipTiers,
   psfMemberships,
   psfSubsectorAssociations,
@@ -68,6 +72,7 @@ export interface PsfClaimListRow
   legalName: string;
   businessCode: string | null;
   tin: string | null;
+  districtId: number | null;
   districtName: string | null;
   claimedByName: string | null;
   decidedByName: string | null;
@@ -183,13 +188,14 @@ export async function insertPsfApplication(
  */
 export async function fileMembershipClaim(
   tx: Tx | Database,
-  row: { orgId: string; membershipNumber: string; tin: string | null; claimedByUserId: string },
+  row: { orgId: string; membershipNumber: string | null; tin: string | null; claimedByUserId: string },
 ): Promise<{ confirmed: boolean }> {
   const [claim] = await tx
     .insert(psfMembershipClaims)
     .values({ orgId: row.orgId, membershipNumber: row.membershipNumber, claimedByUserId: row.claimedByUserId })
     .returning({ id: psfMembershipClaims.id });
-  if (!claim || !row.tin) return { confirmed: false };
+  // A claim with no number (its card only, 0131) waits for an officer, who types the number from the card.
+  if (!claim || !row.tin || !row.membershipNumber) return { confirmed: false };
   const [listed] = await tx
     .select()
     .from(psfMemberList)
@@ -296,6 +302,10 @@ export interface PsfApplicationWithNames extends PsfApplicationRow {
 /** One row of the officer's queue. */
 export interface PsfQueueRow {
   applicationId: string;
+  /** Null when it came through the public PSF form, with nobody signed in. */
+  submittedByUserId: string | null;
+  /** New, or a card holder joining the new module (0132). */
+  intake: 'new' | 'card_holder';
   orgId: string;
   businessName: string;
   businessCode: string | null;
@@ -372,6 +382,15 @@ export interface PsfBusinessRegisterRow {
   lastPaidAt: Date | null;
   /** Branches on its newest application (2026-10-23). */
   branchCount: number;
+  paymentDue: {
+    amountRwf: number | null;
+    since: string;
+    docId: string | null;
+    contactName: string;
+    phoneE164: string | null;
+    email: string | null;
+    lastRemindedAt: string | null;
+  } | null;
 }
 
 /** The register's filters, already validated and resolved. */
@@ -383,6 +402,10 @@ export interface PsfRegisterFilter {
   associationCode?: string;
   tierCode?: string;
   standing?: PsfStanding;
+  /** A current membership inside its renewal window (2026-11-02). */
+  renewal?: 'due';
+  /** An application sent and not paid (2026-11-02). */
+  payment?: 'due';
   group?: PsfOwnerGroup;
   tin?: 'with' | 'without';
   kind?: 'enterprise' | 'hospitality';
@@ -474,6 +497,18 @@ const ON_REGISTER_SQL = sql`${orgs.domain}::text IN ('enterprise', 'hospitality'
   AND ${orgs.registrationStatus} NOT IN ('pending_payment', 'rejected')`;
 
 /**
+ * The register, with the businesses still waiting for a payment (2026-11-02): read when the officer asks
+ * for those, or opens one, so a business whose payment at submit did not go through can be reached.
+ */
+const ON_REGISTER_OR_UNPAID_SQL = sql`${orgs.domain}::text IN ('enterprise', 'hospitality')
+  AND ${orgs.registrationStatus} <> 'rejected'`;
+
+/** A search pattern without the dashes and spaces people type inside a code, for the code's compact form. */
+function compactLike(like: string): string {
+  return like.replace(/[\s-]/g, '');
+}
+
+/**
  * The business on the outer row, named in full. Inside a correlated subquery an
  * interpolated `${orgs.id}` is NOT safe: Drizzle leaves column names unqualified
  * when a query reads one table, and a bare "id" inside `FROM psf_memberships m`
@@ -502,6 +537,42 @@ const STANDING_SQL = sql<PsfStanding>`(CASE
   ELSE 'not_applied'
 END)`;
 
+/**
+ * A current membership inside its renewal window: 60 days before its end date,
+ * or past it and not yet ended by the sweep (2026-11-02).
+ */
+const RENEWAL_DUE_SQL = sql`EXISTS (SELECT 1 FROM ${psfMemberships} m
+  WHERE m.org_id = ${ORG_ID} AND m.ended_at IS NULL
+    AND m.expires_on <= ((now() AT TIME ZONE 'Africa/Kigali')::date + ${PSF_RENEWAL_WINDOW_DAYS}::int))`;
+
+/**
+ * An application sent and not paid (2026-11-02): the public form's payment at submit that did not go
+ * through (the business still `pending_payment`), or an approval still to pay.
+ */
+const UNPAID_APPLICATION_WHERE = sql`a.org_id = "orgs"."id" AND a.paid_at IS NULL
+  AND ((a.status = 'submitted' AND "orgs"."registration_status" = 'pending_payment') OR a.status = 'approved')`;
+const PAYMENT_DUE_SQL = sql`EXISTS (SELECT 1 FROM ${psfMembershipApplications} a WHERE ${UNPAID_APPLICATION_WHERE})`;
+/** That application's amount, docID and contact, and the last reminder sent: one JSON value per row. */
+const PAYMENT_DUE_JSON = sql<{
+  amountRwf: number | null;
+  since: string;
+  docId: string | null;
+  contactName: string;
+  phoneE164: string | null;
+  email: string | null;
+  lastRemindedAt: string | null;
+} | null>`(SELECT json_build_object(
+    'amountRwf', coalesce(a.approved_fee_rwf, a.declared_fee_rwf),
+    'since', coalesce(a.decided_at, a.created_at),
+    'docId', a.doc_id,
+    'contactName', trim(a.first_name || ' ' || a.last_name),
+    'phoneE164', coalesce(a.applicant_phone_e164, a.phone_e164),
+    'email', coalesce(a.applicant_email, nullif(a.email, '')),
+    'lastRemindedAt', (SELECT max(e.occurred_at) FROM audit_events e
+                        WHERE e.subject_type = 'org' AND e.subject_id = "orgs"."id" AND e.event_type = 'psf.payment.reminded'))
+  FROM ${psfMembershipApplications} a WHERE ${UNPAID_APPLICATION_WHERE}
+  ORDER BY a.created_at DESC LIMIT 1)`;
+
 /** The current membership, or the open application, of the business on this row. */
 const CURRENT_MEMBERSHIP = sql`(SELECT m.id FROM ${psfMemberships} m
   WHERE m.org_id = ${ORG_ID} AND m.ended_at IS NULL LIMIT 1)`;
@@ -515,11 +586,13 @@ const PAID_RWF = sql<number>`(
   coalesce((SELECT sum(i.amount_rwf) FROM ${subscriptionInvoices} i
              WHERE i.org_id = ${ORG_ID} AND i.invoice_kind = 'registration_fee' AND i.status = 'paid'), 0)
   + coalesce((SELECT sum(a.paid_amount_rwf) FROM ${psfMembershipApplications} a WHERE a.org_id = ${ORG_ID} AND a.paid_at IS NOT NULL), 0)
+  + coalesce((SELECT sum(r.amount_rwf) FROM ${psfMembershipRenewals} r WHERE r.org_id = ${ORG_ID} AND r.status = 'paid'), 0)
 )::int`;
 const LAST_PAID_AT = sql<Date | null>`greatest(
   (SELECT max(i.updated_at) FROM ${subscriptionInvoices} i
     WHERE i.org_id = ${ORG_ID} AND i.invoice_kind = 'registration_fee' AND i.status = 'paid'),
-  (SELECT max(a.paid_at) FROM ${psfMembershipApplications} a WHERE a.org_id = ${ORG_ID})
+  (SELECT max(a.paid_at) FROM ${psfMembershipApplications} a WHERE a.org_id = ${ORG_ID}),
+  (SELECT max(r.paid_at) FROM ${psfMembershipRenewals} r WHERE r.org_id = ${ORG_ID} AND r.status = 'paid')
 )`;
 
 /**
@@ -576,6 +649,7 @@ export class PsfMembershipRepository {
         legalName: orgs.legalName,
         businessCode: orgs.businessCode,
         tin: orgs.tin,
+        districtId: orgs.districtId,
         districtName: districts.name,
         membershipNumber: psfMembershipClaims.membershipNumber,
         status: psfMembershipClaims.status,
@@ -626,6 +700,97 @@ export class PsfMembershipRepository {
     return row ?? null;
   }
 
+  /**
+   * What a member's certificate prints, from its current membership (2026-11-02): read for a member PSF
+   * confirmed from its card as for one that applied. The docID is its member application's, when it has one.
+   */
+  async memberCertificateFacts(orgId: string): Promise<{
+    legalName: string;
+    businessCode: string | null;
+    districtName: string | null;
+    logoObjectKey: string | null;
+    membershipNumber: string;
+    startsOn: string | null;
+    expiresOn: string | null;
+    tierFamily: PsfMembershipFamily;
+    docId: string | null;
+  } | null> {
+    const [row] = await this.db
+      .select({
+        legalName: orgs.legalName,
+        businessCode: orgs.businessCode,
+        districtName: districts.name,
+        logoObjectKey: orgs.logoObjectKey,
+        membershipNumber: psfMemberships.membershipNumber,
+        startsOn: psfMemberships.startsOn,
+        expiresOn: psfMemberships.expiresOn,
+        tierFamily: psfMembershipTiers.family,
+        docId: sql<string | null>`(SELECT a.doc_id FROM ${psfMembershipApplications} a
+          WHERE a.org_id = ${orgs.id} AND a.status = 'member' AND a.doc_id IS NOT NULL
+          ORDER BY a.decided_at DESC NULLS LAST LIMIT 1)`,
+      })
+      .from(psfMemberships)
+      .innerJoin(orgs, eq(orgs.id, psfMemberships.orgId))
+      .innerJoin(psfMembershipTiers, eq(psfMembershipTiers.code, psfMemberships.tierCode))
+      .leftJoin(districts, eq(districts.id, orgs.districtId))
+      .where(and(eq(psfMemberships.orgId, orgId), isNull(psfMemberships.endedAt)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  /** The docID of the business's latest PSF application (2026-11-02), for its mails' links; null with none. */
+  async latestDocId(orgId: string): Promise<string | null> {
+    const [row] = await this.db
+      .select({ docId: psfMembershipApplications.docId })
+      .from(psfMembershipApplications)
+      .where(and(eq(psfMembershipApplications.orgId, orgId), sql`${psfMembershipApplications.status} <> 'withdrawn'`))
+      .orderBy(desc(psfMembershipApplications.createdAt))
+      .limit(1);
+    return row?.docId ?? null;
+  }
+
+  /** The latest membership carrying a number, for its card (2026-11-02); ended ones included, to say lapsed. */
+  async memberCardByNumber(membershipNumber: string, businessCode: string | null = null): Promise<{
+    legalName: string;
+    businessCode: string | null;
+    districtName: string | null;
+    membershipNumber: string;
+    startsOn: string | null;
+    expiresOn: string | null;
+    endedAt: Date | null;
+    tierFamily: PsfMembershipFamily;
+    tierName: string;
+  } | null> {
+    const [row] = await this.db
+      .select({
+        legalName: orgs.legalName,
+        businessCode: orgs.businessCode,
+        districtName: districts.name,
+        membershipNumber: psfMemberships.membershipNumber,
+        startsOn: psfMemberships.startsOn,
+        expiresOn: psfMemberships.expiresOn,
+        endedAt: psfMemberships.endedAt,
+        tierFamily: psfMembershipTiers.family,
+        tierName: psfMembershipTiers.nameEn,
+      })
+      .from(psfMemberships)
+      .innerJoin(orgs, eq(orgs.id, psfMemberships.orgId))
+      .innerJoin(psfMembershipTiers, eq(psfMembershipTiers.code, psfMemberships.tierCode))
+      .leftJoin(districts, eq(districts.id, orgs.districtId))
+      // By its number, or by the business's code (2026-11-02): both are printed on the certificate.
+      .where(
+        and(
+          businessCode
+            ? or(sql`upper(${psfMemberships.membershipNumber}) = upper(${membershipNumber})`, eq(orgs.businessCode, businessCode))
+            : sql`upper(${psfMemberships.membershipNumber}) = upper(${membershipNumber})`,
+          sql`${psfMemberships.source} <> 'self_declared'`,
+        ),
+      )
+      .orderBy(sql`${psfMemberships.endedAt} IS NULL DESC`, desc(psfMemberships.createdAt))
+      .limit(1);
+    return row ?? null;
+  }
+
   async confirmClaim(c: Parameters<typeof confirmClaimRow>[1]): Promise<void> {
     await this.db.transaction((tx) => confirmClaimRow(tx, c).then(() => undefined));
   }
@@ -666,7 +831,7 @@ export class PsfMembershipRepository {
 
   /** Open claims PSF's list now confirms: number and TIN match, and the row has a tier and dates. */
   async claimsTheListConfirms(): Promise<PsfListedClaim[]> {
-    return this.db
+    const rows = await this.db
       .select({
         claimId: psfMembershipClaims.id,
         orgId: psfMembershipClaims.orgId,
@@ -686,6 +851,8 @@ export class PsfMembershipRepository {
           sql`${psfMemberList.tierCode} IS NOT NULL AND ${psfMemberList.startsOn} IS NOT NULL AND ${psfMemberList.expiresOn} IS NOT NULL`,
         ),
       );
+    // Matched on the number, so every row has one; a card-only claim (0131) never matches the list.
+    return rows.filter((r): r is typeof r & { membershipNumber: string } => r.membershipNumber !== null);
   }
 
   async memberListSummary(): Promise<{ rows: number; uploadedAt: Date | null }> {
@@ -1324,6 +1491,8 @@ export class PsfMembershipRepository {
         ? or(
             sql`${orgs.legalName} ILIKE ${like}`,
             sql`${orgs.businessCode} ILIKE ${like}`,
+            // A code typed without its dashes (2026-11-02): `gis4k7q92` finds `GIS-4K7Q-92`.
+            sql`replace(${orgs.businessCode}, '-', '') ILIKE ${compactLike(like)}`,
             sql`${psfMembershipApplications.docId} ILIKE ${like}`,
           )
         : undefined,
@@ -1337,6 +1506,8 @@ export class PsfMembershipRepository {
     const rows = await this.db
       .select({
         applicationId: psfMembershipApplications.id,
+        submittedByUserId: psfMembershipApplications.submittedByUserId,
+        intake: psfMembershipApplications.intake,
         orgId: orgs.id,
         businessName: orgs.legalName,
         businessCode: orgs.businessCode,
@@ -1736,6 +1907,61 @@ export class PsfMembershipRepository {
     });
   }
 
+  /**
+   * A card holder confirmed (2026-11-02): a member at once, under its new number and the year on its
+   * card, with no fee taken now. Guarded on `submitted`, so a race decides once.
+   */
+  async approveCardHolder(input: {
+    applicationId: string;
+    officerUserId: string;
+    bodyCode: string;
+    membershipNumber: string;
+    note: string | null;
+    startsOn: string;
+    expiresOn: string;
+  }): Promise<{ orgId: string; tierCode: string } | null> {
+    return this.db.transaction(async (tx) => {
+      const now = new Date();
+      const [moved] = await tx
+        .update(psfMembershipApplications)
+        .set({
+          status: 'member',
+          decidedAt: now,
+          decidedByUserId: input.officerUserId,
+          decisionBodyCode: input.bodyCode,
+          decisionNote: input.note,
+          approvedMembershipNumber: input.membershipNumber,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(psfMembershipApplications.id, input.applicationId),
+            eq(psfMembershipApplications.status, 'submitted'),
+            eq(psfMembershipApplications.intake, 'card_holder'),
+          ),
+        )
+        .returning({ orgId: psfMembershipApplications.orgId, tierCode: psfMembershipApplications.requestedTierCode });
+      if (!moved) return null;
+      await tx
+        .update(psfMemberships)
+        .set({ endedAt: now, updatedAt: now })
+        .where(and(eq(psfMemberships.orgId, moved.orgId), isNull(psfMemberships.endedAt)));
+      // PSF's own record of a member (`psf_record`): the shape check keeps its application id empty, so
+      // the membership stands on the card PSF checked; the application still says member, with the number.
+      await tx.insert(psfMemberships).values({
+        orgId: moved.orgId,
+        source: 'psf_record',
+        tierCode: moved.tierCode,
+        membershipNumber: input.membershipNumber,
+        startsOn: input.startsOn,
+        expiresOn: input.expiresOn,
+        recordedByUserId: input.officerUserId,
+      });
+      await tx.update(orgs).set({ psfMember: true, updatedAt: now }).where(eq(orgs.id, moved.orgId));
+      return moved;
+    });
+  }
+
   /** Everything the business has done with PSF through Injishi, for the officer's detail. */
   async businessHistory(orgId: string): Promise<{
     registeredAt: Date | null;
@@ -1844,7 +2070,9 @@ export class PsfMembershipRepository {
     const q = f.q?.trim();
     const like = q ? `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%` : null;
     return and(
-      ON_REGISTER_SQL,
+      // One business by id, or those waiting for a payment, are read past the register's own rule.
+      f.payment === 'due' || f.orgId ? ON_REGISTER_OR_UNPAID_SQL : ON_REGISTER_SQL,
+      f.payment === 'due' ? PAYMENT_DUE_SQL : undefined,
       // Its head office in the region, or one of its branches (2026-10-23).
       scope === null ? undefined : or(inScope(scope), hasBranchIn(scope)),
       f.orgId ? eq(orgs.id, f.orgId) : undefined,
@@ -1856,6 +2084,7 @@ export class PsfMembershipRepository {
       f.tin === 'with' ? sql`${orgs.tin} IS NOT NULL` : f.tin === 'without' ? sql`${orgs.tin} IS NULL` : undefined,
       f.kind ? sql`${orgs.domain}::text = ${f.kind}` : undefined,
       f.standing ? sql`${STANDING_SQL} = ${f.standing}` : undefined,
+      f.renewal === 'due' ? RENEWAL_DUE_SQL : undefined,
       f.tierCode
         ? sql`coalesce(
             (SELECT m.tier_code FROM ${psfMemberships} m WHERE m.org_id = ${ORG_ID} AND m.ended_at IS NULL LIMIT 1),
@@ -1867,6 +2096,8 @@ export class PsfMembershipRepository {
         ? or(
             sql`${orgs.legalName} ILIKE ${like}`,
             sql`${orgs.businessCode} ILIKE ${like}`,
+            // A code typed without its dashes (2026-11-02): `gis4k7q92` finds `GIS-4K7Q-92`.
+            sql`replace(${orgs.businessCode}, '-', '') ILIKE ${compactLike(like)}`,
             sql`${orgs.tin} ILIKE ${like}`,
           )
         : undefined,
@@ -1912,6 +2143,7 @@ export class PsfMembershipRepository {
         paidRwf: PAID_RWF.mapWith(Number),
         lastPaidAt: LAST_PAID_AT,
         branchCount: BRANCH_COUNT.mapWith(Number),
+        paymentDue: PAYMENT_DUE_JSON,
       })
       .from(orgs)
       .leftJoin(districts, eq(districts.id, orgs.districtId))
@@ -1956,6 +2188,9 @@ export class PsfMembershipRepository {
     members: number;
     waiting: number;
     paidThisYearRwf: number;
+    renewalDue: number;
+    renewedThisYear: number;
+    awaitingPayment: number;
     byCluster: { key: string | null; label: string | null; count: number }[];
     byStanding: { key: PsfStanding; count: number }[];
     byGroup: { key: PsfOwnerGroup; count: number }[];
@@ -1963,7 +2198,7 @@ export class PsfMembershipRepository {
   }> {
     const base = and(ON_REGISTER_SQL, inScope(scope));
 
-    const [byCluster, byStanding, byGroup, byDistrict, waitingRows, paidRows] = await Promise.all([
+    const [byCluster, byStanding, byGroup, byDistrict, waitingRows, paidRows, dueRows, renewedRows, unpaidRows] = await Promise.all([
       this.db
         .select({ key: psfClusters.code, label: psfClusters.nameEn, count: sql<number>`count(*)::int` })
         .from(orgs)
@@ -2008,6 +2243,16 @@ export class PsfMembershipRepository {
             sql`${psfMembershipApplications.paidAt} >= ${yearStart}`,
           ),
         ),
+      this.db.select({ n: sql<number>`count(*)::int` }).from(orgs).where(and(base, RENEWAL_DUE_SQL)),
+      this.db
+        .select({ n: sql<number>`count(*)::int`, sum: sql<number>`coalesce(sum(${psfMembershipRenewals.amountRwf}), 0)::bigint` })
+        .from(psfMembershipRenewals)
+        .innerJoin(orgs, eq(orgs.id, psfMembershipRenewals.orgId))
+        .where(and(inScope(scope), eq(psfMembershipRenewals.status, 'paid'), sql`${psfMembershipRenewals.paidAt} >= ${yearStart}`)),
+      this.db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(orgs)
+        .where(and(ON_REGISTER_OR_UNPAID_SQL, inScope(scope), PAYMENT_DUE_SQL)),
     ]);
 
     const standing = byStanding.map((r) => ({ key: r.key as PsfStanding, count: r.count }));
@@ -2019,12 +2264,26 @@ export class PsfMembershipRepository {
       total: byDistrict.reduce((n, r) => n + r.count, 0),
       members: standing.find((s) => s.key === 'member')?.count ?? 0,
       waiting: waitingRows[0]?.n ?? 0,
-      paidThisYearRwf: Number(paidRows[0]?.sum ?? 0),
+      paidThisYearRwf: Number(paidRows[0]?.sum ?? 0) + Number(renewedRows[0]?.sum ?? 0),
+      renewalDue: dueRows[0]?.n ?? 0,
+      awaitingPayment: unpaidRows[0]?.n ?? 0,
+      renewedThisYear: renewedRows[0]?.n ?? 0,
       byCluster,
       byStanding: standing,
       byGroup: groupRows.map((r) => ({ key: r.key, count: Number(r.count) })),
       byDistrict,
     };
+  }
+
+  /** A payment reminder, on the record: it is also how a second one the same day is held back. */
+  async recordPaymentReminder(orgId: string, actorUserId: string, districtId: number | null): Promise<void> {
+    await this.db.insert(auditEvents).values({
+      actorUserId,
+      subjectType: 'org',
+      subjectId: orgId,
+      eventType: 'psf.payment.reminded',
+      districtId,
+    });
   }
 
   /** District and province names, to say an officer's region in words. */
