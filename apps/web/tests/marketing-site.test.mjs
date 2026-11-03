@@ -7,8 +7,6 @@
  *
  * - `stayCount`: production opened with nothing listed and the home page
  *   printed "0 stays" ten times. A zero is never printed.
- * - `longWeekendIn`: "When to go" opened on the current month and, from the
- *   10th on, searched a weekend a YEAR away under a label with no year.
  * - `supportIntent`: the contact form is prefilled from a closed set of slugs,
  *   never from free text in a URL someone else can craft.
  * - the JSON-LD builders: no claim the page does not show (no rating, no
@@ -29,7 +27,6 @@ register("./ts-source-hook.mjs", import.meta.url);
 process.env.NEXT_PUBLIC_WEB_URL = "https://www.example.rw/";
 
 const { stayCount, OPENING_LINE } = await import("@/lib/stay-count");
-const { longWeekendIn, formatWeekendDay } = await import("@/lib/long-weekend");
 const { supportIntent, supportHref, SUPPORT_INTENTS } = await import("@/lib/support-intent");
 const structured = await import("@/lib/structured-data");
 const { GUIDES, readingMinutes } = await import("@/data/guides");
@@ -49,49 +46,6 @@ describe("stayCount", () => {
 
   test("the line that stands in for a zero says no number", () => {
     assert.doesNotMatch(OPENING_LINE, /\d/);
-  });
-});
-
-describe("longWeekendIn", () => {
-  const isFriday = (iso) => new Date(`${iso}T00:00:00Z`).getUTCDay() === 5;
-
-  test("the current month offers its next Friday, not one a year away", () => {
-    // 21 October 2026: the old rule (first Friday on or after the 10th) had
-    // passed, so it answered 15 October 2027.
-    const { checkIn, checkOut } = longWeekendIn(9, "2026-10-21");
-    assert.equal(checkIn, "2026-10-23");
-    assert.equal(checkOut, "2026-10-26");
-    assert.ok(isFriday(checkIn));
-  });
-
-  test("a later month this year offers the first Friday on or after the 10th", () => {
-    assert.deepEqual(longWeekendIn(11, "2026-10-21"), { checkIn: "2026-12-11", checkOut: "2026-12-14" });
-  });
-
-  test("an earlier month is next year's", () => {
-    assert.equal(longWeekendIn(6, "2026-10-21").checkIn.slice(0, 4), "2027");
-  });
-
-  test("when no Friday is left in the current month, it is next year's", () => {
-    const { checkIn } = longWeekendIn(9, "2026-10-31");
-    assert.equal(checkIn.slice(0, 7), "2027-10");
-    assert.ok(isFriday(checkIn));
-  });
-
-  test("never starts on or before today, and always in the month asked for", () => {
-    for (let month = 0; month < 12; month++) {
-      for (const today of ["2026-01-01", "2026-06-15", "2026-10-21", "2026-12-31"]) {
-        const { checkIn } = longWeekendIn(month, today);
-        assert.ok(checkIn > today, `${month} on ${today}: ${checkIn}`);
-        assert.equal(Number(checkIn.slice(5, 7)) - 1, month);
-        assert.ok(isFriday(checkIn));
-      }
-    }
-  });
-
-  test("a date in another year says the year, and one this year does not", () => {
-    assert.match(formatWeekendDay("2027-10-15", "2026-10-21"), /2027/);
-    assert.doesNotMatch(formatWeekendDay("2026-10-23", "2026-10-21"), /2026/);
   });
 });
 

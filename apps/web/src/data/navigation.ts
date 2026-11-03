@@ -16,29 +16,20 @@ export interface NavGroup {
 }
 
 /**
- * The three links in the middle of the site header.
+ * The three links in the middle of the site header, before its search icon,
+ * and at the top of the mobile drawer: Home, Explore, Services.
  *
- * "How it works" points at `/how-it-works`. `/support` is not orphaned — it is in
- * `FOOTER_COLUMNS` under "Company". Help is a thing
- * you go looking for; the bar's three slots name things you come here to do.
- *
- * **`/saved` IS GATED, and this is the one link here that is.** It is in
- * `PROTECTED_PREFIXES` in `proxy.ts`, so an anonymous visitor who presses
- * it lands on `/sign-in` rather than on a screen. That is a working flow — the
- * gate carries `?redirect=` straight back — but it means one of the three
- * always-visible links is a sign-in wall for everybody who has not signed in.
- * It is here on purpose; do not "fix" it by pointing it somewhere ungated, and
- * do not hide it for anonymous visitors either: the middle cluster would change
- * width the moment a session resolved, which is the jitter the header's own
- * `flex-1 basis-0` centring exists to prevent.
+ * None of them is gated, so the cluster is the same width signed in or out,
+ * which is what the header's `flex-1 basis-0` centring relies on. Saved and
+ * How it works left the bar on 2026-11-03; Saved is still in the mobile tab
+ * bar and How it works in the drawer and the footer.
  */
 export const PRIMARY_NAV: NavLink[] = [
+  { label: "Home", href: "/" },
   { label: "Explore", href: "/explore" },
-  { label: "Saved", href: "/saved" },
-  // Was "Services", a page of fictional hotels at invented prices, removed
-  // 2026-10-29. How it works is the page a first visitor to an unfamiliar
-  // marketplace actually needs.
-  { label: "How it works", href: "/how-it-works" },
+  // A placeholder until the Services page exists. The old `/services`, a page
+  // of fictional hotels at invented prices, was removed on 2026-10-29.
+  { label: "Services", href: "#" },
 ];
 
 /**

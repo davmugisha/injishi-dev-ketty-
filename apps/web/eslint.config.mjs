@@ -66,7 +66,7 @@ export default [
       // same reason apps/app and apps/mobile carve out their data palettes.
       'injishi/no-raw-color-classes': [
         'error',
-        { allowHexIn: ['/components/explore/explore-map-style.ts', '/components/home/journey-map.tsx'] },
+        { allowHexIn: ['/components/explore/explore-map-style.ts'] },
       ],
       'injishi/no-arbitrary-type-scale': ['error', { mobile: false }],
       'injishi/no-arbitrary-width': 'error',
