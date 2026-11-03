@@ -49,16 +49,6 @@ export function HomeHero() {
           </div>
         </div>
       </div>
-
-      {/* The Injishi outline mark, watermarked over the photograph at 10% —
-          the hero's signature since the first capture. Same placement as the
-          original `before:`: anchored to the bottom on phones, lifted above
-          the top edge at desktop and held to the wide measure. Above the
-          wash, under the copy. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute left-1/2 z-[4] h-[900px] w-full -translate-x-1/2 bg-[url(/assets/injishi-short-white-outline.svg)] bg-contain bg-center bg-no-repeat opacity-10 max-lg:bottom-0 lg:top-[-10%] lg:max-w-wide"
-      />
     </section>
   );
 }

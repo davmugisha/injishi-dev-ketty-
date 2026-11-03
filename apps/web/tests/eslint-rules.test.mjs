@@ -203,9 +203,11 @@ describe("injishi/ground-foreground-agreement", () => {
         // ADR-028 §7: success carries the same value in both blocks, read from
         // the tokens rather than named here, so this pair is stable. It was
         // `bg-accent text-white` until the 2026-10-26 re-sync of ADR-068 gave
-        // dark its own lighter accent with a dark label; that pair is invalid
-        // below now, which is the rule doing what §7 says it does.
+        // dark its own lighter accent; the 2026-11-03 sync made the accent one
+        // value again, so the accent pair below is stable again too, which is
+        // the rule doing what §7 says it does.
         `const c = <span className="bg-success text-ink" />;`,
+        `const c2 = <span className="bg-accent text-ink" />;`,
         // §5a allowed shape 1: the same half is present unprefixed too.
         `const d = <button className="bg-white hover:bg-white" />;`,
         `const e = <button className="bg-canvas hover:bg-white" />;`,
@@ -230,10 +232,10 @@ describe("injishi/ground-foreground-agreement", () => {
           errors: [{ messageId: "mirror" }],
         },
         {
-          // §7 read the other way: the accent differs between the blocks since
-          // the 2026-10-26 re-sync, so a fixed white label on it is stranded in
-          // dark, where the fill is a light teal.
-          code: `const a2 = <span className="bg-accent text-white" />;`,
+          // §7 read the other way: warning differs between the blocks since the
+          // 2026-11-03 sync (L 78.19 light, L 82.03 dark), so a fixed label on
+          // it is stranded in one of them.
+          code: `const a2 = <span className="bg-warning text-white" />;`,
           errors: [{ messageId: "mirror" }],
         },
         {

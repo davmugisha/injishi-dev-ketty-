@@ -44,7 +44,10 @@
  * failure. `accent` used to be the example: it held one value in both blocks
  * until the 2026-10-26 re-sync of ADR-068 gave dark its own lighter accent with
  * a dark label, and `bg-accent text-white` became a failure the same day with
- * no edit here. The rule resolves each
+ * no edit here. The 2026-11-03 sync (the design system "Injishi.hs") made the
+ * accent one value again, and the pair passed again, again with no edit here;
+ * `warning` (L 78.19 light, L 82.03 dark) is the tests' moving fill now. The
+ * rule resolves each
  * role's light and dark value from `@injishi/design-tokens` and compares them,
  * *"so this stays true if either value later changes."*
  *

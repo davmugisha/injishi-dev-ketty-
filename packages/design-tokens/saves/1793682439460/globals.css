@@ -1,0 +1,123 @@
+/*
+ * HeroUI Pro Theme
+ * Add this to your globals.css after importing @heroui/styles
+ * Only includes variables customized from the selected theme
+ * @see https://heroui.com/docs/react/getting-started/theming
+ */
+
+/*
+ * Font: Outfit
+ * Load this font in your app:
+ * <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet" />
+ */
+@import "@heroui-pro/react/themes/mouve";
+
+.mouve-light,
+[data-theme="mouve-light"],
+.mouve-dark,
+[data-theme="mouve-dark"] {
+  /* Border Radius */
+  --radius: 0.5rem;
+  --field-radius: 0.5rem;
+
+  /* Spacing */
+  --spacing: 0.265625rem;
+
+  /* Font */
+  --font-sans: "Outfit", sans-serif;
+  --font-heading: "Outfit", sans-serif;
+
+  /* Font Sizes */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: calc(1 / 0.8125);
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: calc(1.25 / 0.9375);
+  --text-base: 1.0625rem;
+  --text-base--line-height: calc(1.5 / 1.0625);
+  --text-lg: 1.1875rem;
+  --text-lg--line-height: calc(1.75 / 1.1875);
+  --text-xl: 1.375rem;
+  --text-xl--line-height: calc(1.75 / 1.375);
+  --text-2xl: 1.5625rem;
+  --text-2xl--line-height: calc(2 / 1.5625);
+  --text-3xl: 1.9375rem;
+  --text-3xl--line-height: calc(2.25 / 1.9375);
+  --text-4xl: 2.375rem;
+  --text-4xl--line-height: calc(2.5 / 2.375);
+  --text-5xl: 3.125rem;
+  --text-6xl: 3.875rem;
+  --text-7xl: 4.75rem;
+  --text-8xl: 6.375rem;
+  --text-9xl: 8.5rem;
+}
+
+.mouve-light,
+[data-theme="mouve-light"] {
+  /* Theme Colors */
+  --background: oklch(95.43% 0.0058 154.55);
+  --muted: oklch(58.00% 0.0140 150.84);
+  --scrollbar: oklch(82.00% 0.0093 150.84);
+  --surface: var(--white);
+  --surface-secondary: oklch(95.00% 0.0056 150.84);
+  --surface-tertiary: oklch(93.50% 0.0075 150.84);
+  --overlay: oklch(97.50% 0.0037 150.84);
+  --default: oklch(92.00% 0.0056 150.84);
+  --accent: oklch(73.29% 0.1934 150.84);
+  --accent-foreground: oklch(0.00% 0.0000 0.00);
+  --success-foreground: var(--black);
+  --warning-foreground: var(--black);
+  --field-background: oklch(97.00% 0.0028 150.84);
+  --field-border: oklch(88.00% 0.0093 150.84);
+  --border: oklch(88.00% 0.0070 150.84);
+  --separator: oklch(92.00% 0.0047 150.84);
+  --focus: oklch(73.29% 0.1934 150.84);
+  --backdrop: oklch(50.00% 0.0187 150.84 / 0.4);
+  --accent-hover: color-mix(in oklab, oklch(73.29% 0.1934 150.84) 90%, oklch(15% 0.0300 150.84) 10%);
+  --accent-soft: color-mix(in oklab, oklch(73.29% 0.1934 150.84) 15%, transparent);
+
+  /* Charts */
+  --chart-1: oklch(42.00% 0.1400 150.84);
+  --chart-2: oklch(50.00% 0.1600 150.84);
+  --chart-3: oklch(55.00% 0.1800 150.84);
+  --chart-4: oklch(65.00% 0.1400 150.84);
+  --chart-5: oklch(75.00% 0.1000 150.84);
+}
+
+.mouve-dark,
+[data-theme="mouve-dark"] {
+  color-scheme: dark;
+  /* Theme Colors */
+  --background: oklch(0.00% 0.0000 0.00);
+  --muted: oklch(65.00% 0.0093 150.84);
+  --scrollbar: oklch(35.00% 0.0093 150.84);
+  --surface: oklch(0.00% 0.0000 0.00);
+  --surface-secondary: oklch(24.00% 0.0093 150.84);
+  --surface-tertiary: oklch(27.00% 0.0093 150.84);
+  --overlay: oklch(20.00% 0.0093 150.84);
+  --default: oklch(26.00% 0.0093 150.84);
+  --accent: oklch(73.29% 0.1934 150.84);
+  --accent-foreground: oklch(0.00% 0.0000 0.00);
+  --success-foreground: var(--black);
+  --warning-foreground: var(--black);
+  --field-background: oklch(22.00% 0.0084 150.84);
+  --field-border: oklch(32.00% 0.0117 150.84);
+  --segment: oklch(28.00% 0.0117 150.84);
+  --border: oklch(30.00% 0.0093 150.84);
+  --separator: oklch(28.00% 0.0084 150.84);
+  --focus: oklch(73.29% 0.1934 150.84);
+  --accent-hover: color-mix(in oklab, oklch(73.29% 0.1934 150.84) 90%, oklch(15% 0.0300 150.84) 10%);
+  --accent-soft: color-mix(in oklab, oklch(73.29% 0.1934 150.84) 15%, transparent);
+
+  /* Charts */
+  --chart-1: oklch(50.00% 0.1200 150.84);
+  --chart-2: oklch(60.00% 0.1400 150.84);
+  --chart-3: oklch(70.00% 0.1600 150.84);
+  --chart-4: oklch(78.00% 0.1200 150.84);
+  --chart-5: oklch(85.00% 0.0800 150.84);
+}
+
+@layer base {
+  :where(h1, h2, h3, h4, h5, h6, [role="heading"]) {
+    font-family: var(--font-heading, var(--font-sans, sans-serif));
+  }
+}
