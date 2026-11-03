@@ -581,10 +581,19 @@ describe('PsfMembershipService · the form completed from You (2026-11-03)', () 
     });
   });
 
-  it('asks for gender at the field when the profile holds neither of the two PSF knows', async () => {
+  it('reads gender off a Rwandan National ID when the profile holds none: its sixth digit, 8 a man, 7 a woman', async () => {
+    const { repo, service } = setup();
+    repo.personFacts = vi.fn().mockResolvedValue({ ...person, gender: null });
+    const female = { ...bare, idDocument: { documentType: 'national_id' as const, documentNumber: '1200772121065189' } };
+    await expect(service.completeForm(female, 'u-owner', business, [])).resolves.toMatchObject({ gender: 'female' });
+    await expect(service.completeForm(bare, 'u-owner', business, [])).resolves.toMatchObject({ gender: 'male' });
+  });
+
+  it('asks for gender at the field when neither the profile nor the ID says it', async () => {
     const { repo, service } = setup();
     repo.personFacts = vi.fn().mockResolvedValue({ ...person, gender: 'prefer_not_to_say' });
-    const refusal = await service.completeForm(bare, 'u-owner', business, ['business', 'psfApplication']).catch((e: unknown) => e);
+    const passport = { ...bare, idDocument: { documentType: 'passport' as const, documentNumber: 'PC123456' } };
+    const refusal = await service.completeForm(passport, 'u-owner', business, ['business', 'psfApplication']).catch((e: unknown) => e);
     expect(refusal).toBeInstanceOf(UnprocessableEntityException);
     expect(JSON.stringify((refusal as UnprocessableEntityException).getResponse())).toContain('"business","psfApplication","gender"');
     // Given on the application, it is used.
