@@ -18,13 +18,13 @@ export declare const BrokerContact: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string | null;
     email: string | null;
-    revealedAt: string;
     phone: string | null;
+    revealedAt: string;
 }, {
     name: string | null;
     email: string | null;
-    revealedAt: string;
     phone: string | null;
+    revealedAt: string;
 }>;
 export type BrokerContact = z.infer<typeof BrokerContact>;
 /** The broker's placement on a unit, when they started one. */
@@ -105,13 +105,13 @@ export declare const BrokerHome: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string | null;
         email: string | null;
-        revealedAt: string;
         phone: string | null;
+        revealedAt: string;
     }, {
         name: string | null;
         email: string | null;
-        revealedAt: string;
         phone: string | null;
+        revealedAt: string;
     }>>;
     placement: z.ZodNullable<z.ZodObject<{
         id: z.ZodString;
@@ -132,8 +132,8 @@ export declare const BrokerHome: z.ZodObject<{
     contact: {
         name: string | null;
         email: string | null;
-        revealedAt: string;
         phone: string | null;
+        revealedAt: string;
     } | null;
     propertyName: string;
     unitLabel: string;
@@ -174,8 +174,8 @@ export declare const BrokerHome: z.ZodObject<{
     contact: {
         name: string | null;
         email: string | null;
-        revealedAt: string;
         phone: string | null;
+        revealedAt: string;
     } | null;
     propertyName: string;
     unitLabel: string;
@@ -319,13 +319,13 @@ export declare const BrokerHomes: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             name: string | null;
             email: string | null;
-            revealedAt: string;
             phone: string | null;
+            revealedAt: string;
         }, {
             name: string | null;
             email: string | null;
-            revealedAt: string;
             phone: string | null;
+            revealedAt: string;
         }>>;
         placement: z.ZodNullable<z.ZodObject<{
             id: z.ZodString;
@@ -346,8 +346,8 @@ export declare const BrokerHomes: z.ZodObject<{
         contact: {
             name: string | null;
             email: string | null;
-            revealedAt: string;
             phone: string | null;
+            revealedAt: string;
         } | null;
         propertyName: string;
         unitLabel: string;
@@ -388,8 +388,8 @@ export declare const BrokerHomes: z.ZodObject<{
         contact: {
             name: string | null;
             email: string | null;
-            revealedAt: string;
             phone: string | null;
+            revealedAt: string;
         } | null;
         propertyName: string;
         unitLabel: string;
@@ -493,8 +493,8 @@ export declare const BrokerHomes: z.ZodObject<{
         contact: {
             name: string | null;
             email: string | null;
-            revealedAt: string;
             phone: string | null;
+            revealedAt: string;
         } | null;
         propertyName: string;
         unitLabel: string;
@@ -556,8 +556,8 @@ export declare const BrokerHomes: z.ZodObject<{
         contact: {
             name: string | null;
             email: string | null;
-            revealedAt: string;
             phone: string | null;
+            revealedAt: string;
         } | null;
         propertyName: string;
         unitLabel: string;
@@ -603,21 +603,21 @@ export declare const BrokerReveal: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string | null;
         email: string | null;
-        revealedAt: string;
         phone: string | null;
+        revealedAt: string;
     }, {
         name: string | null;
         email: string | null;
-        revealedAt: string;
         phone: string | null;
+        revealedAt: string;
     }>;
     first: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     contact: {
         name: string | null;
         email: string | null;
-        revealedAt: string;
         phone: string | null;
+        revealedAt: string;
     };
     unitId: string;
     first: boolean;
@@ -625,8 +625,8 @@ export declare const BrokerReveal: z.ZodObject<{
     contact: {
         name: string | null;
         email: string | null;
-        revealedAt: string;
         phone: string | null;
+        revealedAt: string;
     };
     unitId: string;
     first: boolean;

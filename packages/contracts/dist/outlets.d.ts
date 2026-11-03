@@ -256,12 +256,12 @@ export declare const OutletTenancySummary: z.ZodObject<{
     hostPropertyId: z.ZodString;
     tenantOrgId: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    status: "active" | "ended" | "requested" | "invited";
+    status: "active" | "invited" | "ended" | "requested";
     id: string;
     hostPropertyId: string;
     tenantOrgId: string;
 }, {
-    status: "active" | "ended" | "requested" | "invited";
+    status: "active" | "invited" | "ended" | "requested";
     id: string;
     hostPropertyId: string;
     tenantOrgId: string;
@@ -340,12 +340,12 @@ export declare const OperatorOutlet: z.ZodObject<{
         hostPropertyId: z.ZodString;
         tenantOrgId: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        status: "active" | "ended" | "requested" | "invited";
+        status: "active" | "invited" | "ended" | "requested";
         id: string;
         hostPropertyId: string;
         tenantOrgId: string;
     }, {
-        status: "active" | "ended" | "requested" | "invited";
+        status: "active" | "invited" | "ended" | "requested";
         id: string;
         hostPropertyId: string;
         tenantOrgId: string;
@@ -388,7 +388,7 @@ export declare const OperatorOutlet: z.ZodObject<{
     } | null;
     taxEntityOrgId: string;
     tenancy: {
-        status: "active" | "ended" | "requested" | "invited";
+        status: "active" | "invited" | "ended" | "requested";
         id: string;
         hostPropertyId: string;
         tenantOrgId: string;
@@ -430,7 +430,7 @@ export declare const OperatorOutlet: z.ZodObject<{
     } | null;
     taxEntityOrgId: string;
     tenancy: {
-        status: "active" | "ended" | "requested" | "invited";
+        status: "active" | "invited" | "ended" | "requested";
         id: string;
         hostPropertyId: string;
         tenantOrgId: string;
@@ -512,12 +512,12 @@ export declare const OperatorOutletList: z.ZodObject<{
             hostPropertyId: z.ZodString;
             tenantOrgId: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            status: "active" | "ended" | "requested" | "invited";
+            status: "active" | "invited" | "ended" | "requested";
             id: string;
             hostPropertyId: string;
             tenantOrgId: string;
         }, {
-            status: "active" | "ended" | "requested" | "invited";
+            status: "active" | "invited" | "ended" | "requested";
             id: string;
             hostPropertyId: string;
             tenantOrgId: string;
@@ -560,7 +560,7 @@ export declare const OperatorOutletList: z.ZodObject<{
         } | null;
         taxEntityOrgId: string;
         tenancy: {
-            status: "active" | "ended" | "requested" | "invited";
+            status: "active" | "invited" | "ended" | "requested";
             id: string;
             hostPropertyId: string;
             tenantOrgId: string;
@@ -602,7 +602,7 @@ export declare const OperatorOutletList: z.ZodObject<{
         } | null;
         taxEntityOrgId: string;
         tenancy: {
-            status: "active" | "ended" | "requested" | "invited";
+            status: "active" | "invited" | "ended" | "requested";
             id: string;
             hostPropertyId: string;
             tenantOrgId: string;
@@ -652,7 +652,7 @@ export declare const OperatorOutletList: z.ZodObject<{
         } | null;
         taxEntityOrgId: string;
         tenancy: {
-            status: "active" | "ended" | "requested" | "invited";
+            status: "active" | "invited" | "ended" | "requested";
             id: string;
             hostPropertyId: string;
             tenantOrgId: string;
@@ -697,7 +697,7 @@ export declare const OperatorOutletList: z.ZodObject<{
         } | null;
         taxEntityOrgId: string;
         tenancy: {
-            status: "active" | "ended" | "requested" | "invited";
+            status: "active" | "invited" | "ended" | "requested";
             id: string;
             hostPropertyId: string;
             tenantOrgId: string;

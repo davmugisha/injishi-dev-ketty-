@@ -3381,8 +3381,8 @@ export declare const OperatorTeamMember: z.ZodObject<{
     orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
     joinedAt: string;
     removedAt: string | null;
-    branchIds: string[] | null;
     lastActiveAt: string | null;
+    branchIds: string[] | null;
     identityVerified: boolean;
 }, {
     status: string;
@@ -3392,8 +3392,8 @@ export declare const OperatorTeamMember: z.ZodObject<{
     orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
     joinedAt: string;
     removedAt: string | null;
-    branchIds: string[] | null;
     lastActiveAt: string | null;
+    branchIds: string[] | null;
     identityVerified: boolean;
 }>;
 export type OperatorTeamMember = z.infer<typeof OperatorTeamMember>;
@@ -3453,8 +3453,8 @@ export declare const OperatorTeamList: z.ZodObject<{
         orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
         joinedAt: string;
         removedAt: string | null;
-        branchIds: string[] | null;
         lastActiveAt: string | null;
+        branchIds: string[] | null;
         identityVerified: boolean;
     }, {
         status: string;
@@ -3464,8 +3464,8 @@ export declare const OperatorTeamList: z.ZodObject<{
         orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
         joinedAt: string;
         removedAt: string | null;
-        branchIds: string[] | null;
         lastActiveAt: string | null;
+        branchIds: string[] | null;
         identityVerified: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -3477,8 +3477,8 @@ export declare const OperatorTeamList: z.ZodObject<{
         orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
         joinedAt: string;
         removedAt: string | null;
-        branchIds: string[] | null;
         lastActiveAt: string | null;
+        branchIds: string[] | null;
         identityVerified: boolean;
     }[];
 }, {
@@ -3490,8 +3490,8 @@ export declare const OperatorTeamList: z.ZodObject<{
         orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
         joinedAt: string;
         removedAt: string | null;
-        branchIds: string[] | null;
         lastActiveAt: string | null;
+        branchIds: string[] | null;
         identityVerified: boolean;
     }[];
 }>;

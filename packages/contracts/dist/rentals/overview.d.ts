@@ -810,17 +810,17 @@ export declare const UnitVideoView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     id: string;
     url: string;
+    updatedAt: string;
     posterUrl: string | null;
     durationS: number;
-    updatedAt: string;
     width: number | null;
     height: number | null;
 }, {
     id: string;
     url: string;
+    updatedAt: string;
     posterUrl: string | null;
     durationS: number;
-    updatedAt: string;
     width: number | null;
     height: number | null;
 }>;
@@ -857,17 +857,17 @@ export declare const UnitMediaView: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         url: string;
+        updatedAt: string;
         posterUrl: string | null;
         durationS: number;
-        updatedAt: string;
         width: number | null;
         height: number | null;
     }, {
         id: string;
         url: string;
+        updatedAt: string;
         posterUrl: string | null;
         durationS: number;
-        updatedAt: string;
         width: number | null;
         height: number | null;
     }>>;
@@ -882,9 +882,9 @@ export declare const UnitMediaView: z.ZodObject<{
     video: {
         id: string;
         url: string;
+        updatedAt: string;
         posterUrl: string | null;
         durationS: number;
-        updatedAt: string;
         width: number | null;
         height: number | null;
     } | null;
@@ -899,9 +899,9 @@ export declare const UnitMediaView: z.ZodObject<{
     video: {
         id: string;
         url: string;
+        updatedAt: string;
         posterUrl: string | null;
         durationS: number;
-        updatedAt: string;
         width: number | null;
         height: number | null;
     } | null;

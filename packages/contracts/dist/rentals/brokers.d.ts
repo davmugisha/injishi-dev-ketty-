@@ -228,12 +228,12 @@ export declare const LeaseBrokerView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string | null;
     id: string;
+    phone: string | null;
     rating: {
         stars: number;
         comment: string | null;
         ratedAt: string;
     } | null;
-    phone: string | null;
     fee: {
         status: "void" | "paid" | "owed";
         amountRwf: number;
@@ -251,12 +251,12 @@ export declare const LeaseBrokerView: z.ZodObject<{
 }, {
     name: string | null;
     id: string;
+    phone: string | null;
     rating: {
         stars: number;
         comment: string | null;
         ratedAt: string;
     } | null;
-    phone: string | null;
     fee: {
         status: "void" | "paid" | "owed";
         amountRwf: number;

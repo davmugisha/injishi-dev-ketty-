@@ -147,9 +147,9 @@ export declare const ExpenseView: z.ZodObject<{
     createdAt: string;
     propertyName: string | null;
     category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+    method: "other" | "cash" | "momo" | "bank";
     ticketId: string | null;
     unitLabel: string | null;
-    method: "other" | "cash" | "momo" | "bank";
     propertyId: string | null;
     unitId: string | null;
     hasReceipt: boolean;
@@ -174,9 +174,9 @@ export declare const ExpenseView: z.ZodObject<{
     createdAt: string;
     propertyName: string | null;
     category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+    method: "other" | "cash" | "momo" | "bank";
     ticketId: string | null;
     unitLabel: string | null;
-    method: "other" | "cash" | "momo" | "bank";
     propertyId: string | null;
     unitId: string | null;
     hasReceipt: boolean;
@@ -276,9 +276,9 @@ export declare const ExpenseList: z.ZodObject<{
         createdAt: string;
         propertyName: string | null;
         category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+        method: "other" | "cash" | "momo" | "bank";
         ticketId: string | null;
         unitLabel: string | null;
-        method: "other" | "cash" | "momo" | "bank";
         propertyId: string | null;
         unitId: string | null;
         hasReceipt: boolean;
@@ -303,9 +303,9 @@ export declare const ExpenseList: z.ZodObject<{
         createdAt: string;
         propertyName: string | null;
         category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+        method: "other" | "cash" | "momo" | "bank";
         ticketId: string | null;
         unitLabel: string | null;
-        method: "other" | "cash" | "momo" | "bank";
         propertyId: string | null;
         unitId: string | null;
         hasReceipt: boolean;
@@ -366,9 +366,9 @@ export declare const ExpenseList: z.ZodObject<{
         createdAt: string;
         propertyName: string | null;
         category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+        method: "other" | "cash" | "momo" | "bank";
         ticketId: string | null;
         unitLabel: string | null;
-        method: "other" | "cash" | "momo" | "bank";
         propertyId: string | null;
         unitId: string | null;
         hasReceipt: boolean;
@@ -405,9 +405,9 @@ export declare const ExpenseList: z.ZodObject<{
         createdAt: string;
         propertyName: string | null;
         category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+        method: "other" | "cash" | "momo" | "bank";
         ticketId: string | null;
         unitLabel: string | null;
-        method: "other" | "cash" | "momo" | "bank";
         propertyId: string | null;
         unitId: string | null;
         hasReceipt: boolean;

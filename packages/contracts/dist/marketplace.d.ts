@@ -1428,8 +1428,8 @@ export declare const GuestContact: z.ZodObject<{
     name: string;
     address: string | null;
     email: string;
-    joinedAt: string;
     phone: string | null;
+    joinedAt: string;
     countryName: string;
     locale: "en" | "rw" | "fr";
     signInMethods: string[];
@@ -1438,8 +1438,8 @@ export declare const GuestContact: z.ZodObject<{
     name: string;
     address: string | null;
     email: string;
-    joinedAt: string;
     phone: string | null;
+    joinedAt: string;
     countryName: string;
     locale: "en" | "rw" | "fr";
     signInMethods: string[];

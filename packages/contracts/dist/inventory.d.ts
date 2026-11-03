@@ -1955,8 +1955,8 @@ export declare const PropertySetupCounts: z.ZodObject<{
     published: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     published: number;
-    roomTypes: number;
     staff: number;
+    roomTypes: number;
     rooms: number;
     amenities: number;
     departments: number;
@@ -1968,8 +1968,8 @@ export declare const PropertySetupCounts: z.ZodObject<{
     outlets: number;
 }, {
     published: number;
-    roomTypes: number;
     staff: number;
+    roomTypes: number;
     rooms: number;
     amenities: number;
     departments: number;
@@ -2022,8 +2022,8 @@ export declare const PropertySetupProgress: z.ZodObject<{
         published: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         published: number;
-        roomTypes: number;
         staff: number;
+        roomTypes: number;
         rooms: number;
         amenities: number;
         departments: number;
@@ -2035,8 +2035,8 @@ export declare const PropertySetupProgress: z.ZodObject<{
         outlets: number;
     }, {
         published: number;
-        roomTypes: number;
         staff: number;
+        roomTypes: number;
         rooms: number;
         amenities: number;
         departments: number;
@@ -2057,8 +2057,8 @@ export declare const PropertySetupProgress: z.ZodObject<{
     orgId: string;
     counts: {
         published: number;
-        roomTypes: number;
         staff: number;
+        roomTypes: number;
         rooms: number;
         amenities: number;
         departments: number;
@@ -2080,8 +2080,8 @@ export declare const PropertySetupProgress: z.ZodObject<{
     orgId: string;
     counts: {
         published: number;
-        roomTypes: number;
         staff: number;
+        roomTypes: number;
         rooms: number;
         amenities: number;
         departments: number;
