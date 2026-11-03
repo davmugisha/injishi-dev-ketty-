@@ -15,10 +15,11 @@ import { EMPTY_INTENT } from "@/lib/search-params";
 const TOP_RATED_SCORE = 9.3;
 
 /**
- * The home shelf's stay card.
+ * The district page's stay card (it was the home page shelf's until that shelf
+ * was removed on 2026-11-03).
  *
  * Explore's card is a quiet gallery tile because it sits in a grid of forty;
- * on the home page there are four, and each has to make the case for a click.
+ * a district page shows a handful, and each has to make the case for a click.
  * So this one is a framed card that lifts on hover: the photograph zooms, the
  * score sits on it, the facts carry icons, and the price block is the same
  * two lines on every card — the rate and its basis, then either the party's

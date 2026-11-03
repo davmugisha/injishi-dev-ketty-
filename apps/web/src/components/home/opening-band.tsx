@@ -6,12 +6,10 @@ import { supportHref } from "@/lib/support-intent";
 /**
  * The band the home page shows while nothing is listed yet.
  *
- * Production opened with an empty catalogue, and the shelf of stays that should
- * sit here returned nothing at all, so the page went from "when to go" straight
- * to "how a stay works" with no stay anywhere in between. This says what is
- * true instead: places are being verified, here is how, and here is what each
- * reader can do about it today. It is replaced by the shelf the moment one
- * property is public, with no flag to remember.
+ * Production opened with an empty catalogue, and the home page offered no stay
+ * anywhere. This says what is true instead: places are being verified, here is
+ * how, and here is what each reader can do about it today. It goes the moment
+ * one property is public, with no flag to remember.
  *
  * Product-true copy only. The verification steps are the registration
  * pipeline's own (RRA TIN check, then an online document review, D20), and
