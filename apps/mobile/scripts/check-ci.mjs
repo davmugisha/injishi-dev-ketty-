@@ -142,6 +142,9 @@ const STEPS = [
   ["lint", () => run("pnpm", ["run", "lint"])],
   ["test", () => run("pnpm", ["run", "test"])],
   ["bundle Android and iOS", exportBundles],
+  // Through pnpm exec rather than a package.json script: fingerprint-verdict.mjs reads any change to
+  // package.json as native.
+  ["the bundles carry no sample data", () => run("pnpm", ["exec", "node", "scripts/sample-data-check.mjs", "dist"])],
   ["android/ and ios/ are generated, not committed", nativeFoldersUncommitted],
   ["fingerprint.config.js loads with D-ab's values", fingerprintConfig],
   // Never fails: it prints a verdict and exits 0.

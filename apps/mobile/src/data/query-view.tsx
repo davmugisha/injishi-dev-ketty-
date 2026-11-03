@@ -9,6 +9,7 @@ import { ErrorView, Icon, Text } from "@/components/ui";
 import { kigaliTime } from "@/lib/kigali";
 import { ApiError } from "./fetch";
 import { queryState } from "./query-state";
+import { NotWiredError } from "./source";
 
 type AnyQuery = Pick<
   UseQueryResult<unknown>,
@@ -67,7 +68,10 @@ function CantConnect({ onRetry, offlineNote = OUTBOX_NOTE }: { onRetry: () => vo
   );
 }
 
-/** The error, worded by cause: no answer is "Can't connect"; a refusal or a body that does not match is not. */
+/**
+ * The error, worded by cause: no answer is "Can't connect"; a refusal or a body that does not match is
+ * not; a read with no real call yet is "Not connected yet".
+ */
 export function QueryError({
   error,
   onRetry,
@@ -79,6 +83,18 @@ export function QueryError({
 }) {
   // The session takes over for these two: it opens sign in or the step up.
   if (error instanceof ApiError && (error.kind === "signedOut" || error.kind === "stepUp")) return null;
+  // Api mode, and this screen has no real call yet (the proto-ui seam): retrying cannot help.
+  if (error instanceof NotWiredError) {
+    return (
+      <ErrorView
+        icon="PlugConnection"
+        title="Not connected yet"
+        body="This screen runs on sample data until it is wired to the API."
+        retryLabel="Check again"
+        onRetry={onRetry}
+      />
+    );
+  }
   if (error instanceof ApiError && error.kind === "failed" && !error.parse) {
     return <CantConnect onRetry={onRetry} offlineNote={offlineNote} />;
   }

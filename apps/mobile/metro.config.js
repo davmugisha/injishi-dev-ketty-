@@ -2,8 +2,9 @@
 // Uniwind must be the outermost wrapper.
 const { getDefaultConfig } = require("expo/metro-config");
 const { withUniwindConfig } = require("uniwind/metro");
+const { withoutSampleData } = require("./metro/sample-data");
 
-const config = getDefaultConfig(__dirname);
+const config = withoutSampleData(getDefaultConfig(__dirname));
 
 module.exports = withUniwindConfig(config, {
   cssEntryFile: "./src/global.css",

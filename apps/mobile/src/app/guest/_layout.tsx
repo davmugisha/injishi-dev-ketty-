@@ -1,14 +1,9 @@
-import { Redirect, Stack } from "expo-router";
-import { useSession } from "@/lib/session";
+import { AppStack } from "@/proto/app-stack";
 
-/**
- * The guest side (mobile spec 0005, D-ah): open to everyone, signed in or not. Only a signed in staff
- * persona is sent away, to its own app through the start route, so a housekeeper never lands in the
- * guest shell by a stale link. Screens that need an account check it themselves.
- */
+// A deep link to a screen or sheet of this app keeps the tabs underneath, so back stays in the app.
+export const unstable_settings = { anchor: "(tabs)" };
+
+/** The guest app: open to everyone, signed in or not: its tabs, the screens that cover the tab bar, and its sheets. */
 export default function GuestLayout() {
-  const { status, persona } = useSession();
-  if (status === "loading") return null;
-  if (persona && !(persona.app.kind === "phone" && persona.app.app === "guest")) return <Redirect href="/" />;
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return <AppStack app="guest" />;
 }
