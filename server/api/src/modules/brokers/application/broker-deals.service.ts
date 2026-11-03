@@ -26,7 +26,7 @@ const NO_HOTEL = 'That hotel is not open to you for a deal.';
 const NO_DEAL = 'There is no such deal.';
 
 /**
- * Broker deals with hotels (0124, 2026-11-02): a broker proposes commission
+ * Broker deals with hotels (0125, 2026-11-02): a broker proposes commission
  * terms to a hotel inside their plan's area, the hotel's owner accepts or
  * declines, and either side ends a running deal. No money moves here; the
  * commission on a stay is the next phase.
@@ -149,7 +149,7 @@ export class BrokerDealsService {
     return this.close(row, 'end', 'hotel', body, userId);
   }
 
-  // --- For bookings (0125) ----------------------------------------------------
+  // --- For bookings (0126) ----------------------------------------------------
 
   /** The broker behind a broker workspace, for the bookings service. */
   brokerFor(ws: WorkspaceAccess): Promise<BrokerSelfRow> {

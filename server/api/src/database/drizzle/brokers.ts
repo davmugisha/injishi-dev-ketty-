@@ -13,11 +13,11 @@
  *     row exists (`broker_registration_payments`);
  *   - ratings of a broker by the landlord and the tenant of a lease they
  *     brought (`broker_ratings`), one per lease and side;
- *   - a broker's commission deals with hotels (`broker_hotel_deals`, 0124);
- *   - a broker's groups of rooms booked under a deal (`broker_booking_groups`, 0125);
+ *   - a broker's commission deals with hotels (`broker_hotel_deals`, 0125);
+ *   - a broker's groups of rooms booked under a deal (`broker_booking_groups`, 0126);
  *   - the commission those stays earn, what was taken off the hotel's payouts for it, and the MoMo
  *     number the broker's share goes to (`broker_commissions`, `broker_commission_deductions`,
- *     `broker_payout_accounts`, 0127).
+ *     `broker_payout_accounts`, 0128).
  *
  * Statuses are enums built from `@injishi/contracts`. Money is whole francs;
  * plan periods are Kigali calendar days.
@@ -237,7 +237,7 @@ export const brokerDealKindEnum = pgEnum('broker_deal_kind', BrokerDealKind.opti
 export const brokerDealStatusEnum = pgEnum('broker_deal_status', BrokerDealStatus.options);
 
 /**
- * A broker's commission deal with a hotel (0124, 2026-11-02): the broker brings
+ * A broker's commission deal with a hotel (0125, 2026-11-02): the broker brings
  * bookings, the hotel pays a commission on the stays they become, and Injishi
  * takes 15% of it. A percent of each booking (`percent_bp`, basis points, so
  * 7.5% is 750) or one sum for a booking of at least `min_rooms` rooms
@@ -294,7 +294,7 @@ export const brokerBookingPaymentEnum = pgEnum('broker_booking_payment', BrokerB
 export const brokerGroupStatusEnum = pgEnum('broker_group_status', BrokerGroupStatus.options);
 
 /**
- * A broker's booking at a hotel (0125): one or many rooms under a running deal, each room its own booking
+ * A broker's booking at a hotel (0126): one or many rooms under a running deal, each room its own booking
  * (`bookings.broker_group_id`), written together. `rooms` keeps what was asked and its price, so a group
  * still waiting for its MoMo payment, or one that failed, says what it was for. Paid at the hotel, the
  * bookings are written at once; paid by MoMo, only when the payment lands.
@@ -342,7 +342,7 @@ export const brokerBookingGroups = pgTable(
 export const brokerCommissionStatusEnum = pgEnum('broker_commission_status', BrokerCommissionStatus.options);
 
 /**
- * A commission a broker earned (0127): one per booking on a percent deal (its percent of the room price for
+ * A commission a broker earned (0128): one per booking on a percent deal (its percent of the room price for
  * the nights stayed), one per group on a bulk deal (its sum, once the group's last room checked out). It is
  * collected from the hotel's payouts, oldest first (`collected_rwf` grows; `broker_commission_deductions`
  * says from which); once all of it is, the broker's share is paid out (`payout_id`).
@@ -393,7 +393,7 @@ export const brokerCommissions = pgTable(
   ],
 );
 
-/** What one stay's check-out gave towards one commission, and the hotel payout it came off (0127). */
+/** What one stay's check-out gave towards one commission, and the hotel payout it came off (0128). */
 export const brokerCommissionDeductions = pgTable(
   'broker_commission_deductions',
   {
@@ -416,7 +416,7 @@ export const brokerCommissionDeductions = pgTable(
   ],
 );
 
-/** The MoMo number a broker's share of commissions is paid to (0127). One per broker. */
+/** The MoMo number a broker's share of commissions is paid to (0128). One per broker. */
 export const brokerPayoutAccounts = pgTable(
   'broker_payout_accounts',
   {

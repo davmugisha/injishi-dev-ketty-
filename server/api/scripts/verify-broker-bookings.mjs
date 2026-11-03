@@ -1,4 +1,4 @@
-// Verify broker deals and broker bookings over HTTP (0124, 0125; 2026-11-02).
+// Verify broker deals and broker bookings over HTTP (0125, 0126; 2026-11-02).
 //
 // Every claim is a real request over a real session against a running API, with the database read on its
 // own to check what was WRITTEN, not only what was answered. It proves:
@@ -12,7 +12,7 @@
 //   - paid by MoMo, one prompt for the group; nothing is booked until it lands, then every room is booked
 //     with its own escrow share, and the shares add up to the one payment;
 //   - a broker never reads another broker's booking;
-//   - at check-out (0127): a pay-at-hotel stay earns 10% of the nights stayed and leaves it owed; a prepaid
+//   - at check-out (0128): a pay-at-hotel stay earns 10% of the nights stayed and leaves it owed; a prepaid
 //     stay's payout is its escrow less every commission the hotel owes, oldest first; a fully collected
 //     commission pays the broker 85%, held until they add a MoMo number and paid when they do.
 //

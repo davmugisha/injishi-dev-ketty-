@@ -1,6 +1,10 @@
 "use server";
 
 import type {
+  DeskReservationAsk,
+  DeskReservationQuote,
+  DeskReservationRequest,
+  DeskReservationResult,
   ReservationChangeAsk,
   ReservationChangeForm,
   ReservationChangeQuote,
@@ -14,14 +18,19 @@ import { requestContext } from "@/server/data";
 import {
   approveRequest,
   assignRoom,
+  type BookingMove,
   type CheckedIn,
   cancelReservation,
   changeReservation,
   checkIn,
+  createDeskBooking,
   declineRequest,
   type GuestCard,
   markNoShow,
+  moveBooking,
   pollReservationChange,
+  quoteBookingMove,
+  quoteDeskBooking,
   quoteReservationChange,
   type RefundOutcome,
   reservationChangeForm,
@@ -52,7 +61,16 @@ async function attempt<T>(run: () => Promise<T>): Promise<ActionResult<T>> {
   }
 }
 
-const DESK = ["/front-desk", "/reservations", "/check-in", "/check-out", "/walk-in", "/room-rack", "/messages"];
+const DESK = [
+  "/front-desk",
+  "/reservations",
+  "/calendar",
+  "/check-in",
+  "/check-out",
+  "/walk-in",
+  "/room-rack",
+  "/messages",
+];
 const refresh = () => {
   for (const path of DESK) revalidatePath(path);
   revalidatePath("/stays/[id]", "page");
@@ -165,5 +183,42 @@ export async function checkReservationChange(
   await requirePersona("Reservations");
   const result = await attempt(async () => pollReservationChange(await requestContext(), bookingRef, attemptToken));
   if (result.ok && result.value.status === "applied") refresh();
+  return result;
+}
+
+/** Calendar → a booking dragged to other nights or another room: what it would cost, nothing moves. */
+export async function previewBookingMove(
+  bookingRef: string,
+  move: BookingMove,
+): Promise<ActionResult<{ quote: ReservationChangeQuote | null; problems: string[] }>> {
+  await requirePersona("Reservations");
+  return attempt(async () => quoteBookingMove(await requestContext(), bookingRef, move));
+}
+
+/** Calendar → Move: the new nights or room; a higher price goes on the guest's bill. */
+export async function saveBookingMove(bookingRef: string, move: BookingMove): Promise<ActionResult> {
+  await requirePersona("Reservations");
+  const result = await attempt(async () => {
+    await moveBooking(await requestContext(), bookingRef, move);
+    return null;
+  });
+  if (result.ok) refresh();
+  return result;
+}
+
+/** New booking → the price for these nights and party, and the rooms free to hold. Nothing is written. */
+export async function quoteNewBooking(ask: DeskReservationAsk): Promise<ActionResult<DeskReservationQuote>> {
+  await requirePersona("Reservations");
+  return attempt(async () => quoteDeskBooking(await requestContext(), ask));
+}
+
+/** New booking → Book: a confirmed booking for any day from today, with its deposit on the bill. */
+export async function saveNewBooking(
+  request: DeskReservationRequest,
+  idempotencyKey: string,
+): Promise<ActionResult<DeskReservationResult>> {
+  await requirePersona("Reservations");
+  const result = await attempt(async () => createDeskBooking(await requestContext(), request, idempotencyKey));
+  if (result.ok) refresh();
   return result;
 }

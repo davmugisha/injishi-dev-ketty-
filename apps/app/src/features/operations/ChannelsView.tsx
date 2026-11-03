@@ -179,7 +179,6 @@ export function ChannelsView({ persona: _persona, data }: { persona: Persona; da
       <PageHeader
         eyebrow={`${settings.property} · Commercial`}
         title="Distribution"
-        description="Channels sell copies of Injishi inventory. Bookings, rates and availability stay owned here."
         actions={
           <>
             <LinkButton href={screenHref("Integrations")} variant="secondary">

@@ -39,7 +39,7 @@ const SHARE = `${Math.round(BROKER_COMMISSION_INJISHI_SHARE * 100)}%`;
 const EXAMPLE_BOOKING_RWF = 1_000_000;
 
 /**
- * Hotels (0124, 2026-11-02): the broker's commission deals with hotels. A hotel inside the plan's area can be
+ * Hotels (0125, 2026-11-02): the broker's commission deals with hotels. A hotel inside the plan's area can be
  * offered terms (a percent of each booking, or one sum for a bulk booking); its owner accepts or declines.
  * Injishi keeps 15% of every commission and the broker gets the rest. Booking for clients is the next phase.
  */

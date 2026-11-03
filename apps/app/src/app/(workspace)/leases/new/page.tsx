@@ -12,7 +12,11 @@ export const metadata: Metadata = { title: screens.LeaseNew.pageTitle };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** A new lease on a vacant unit; `?unit=<id>` picks the unit (from the Units page). */
-export default async function NewLeasePage({ searchParams }: { searchParams: Promise<{ unit?: string }> }) {
+export default async function NewLeasePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ unit?: string; start?: string }>;
+}) {
   await requirePersona("LeaseNew");
   const scope = await landlordScope();
   if (!scope) return <NoRentalsBusiness title="New lease" />;
@@ -33,7 +37,8 @@ export default async function NewLeasePage({ searchParams }: { searchParams: Pro
       </PageContent>
     );
   }
-  const { unit } = await searchParams;
+  const { unit, start } = await searchParams;
+  const today = kigaliToday();
   const [vacant, properties, profile] = await Promise.all([
     rentalUnits("vacant"),
     rentalProperties(),
@@ -47,8 +52,10 @@ export default async function NewLeasePage({ searchParams }: { searchParams: Pro
         .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))}
       properties={properties.properties}
       profile={profile}
-      today={kigaliToday()}
+      today={today}
       initialUnitId={unit && UUID.test(unit) ? unit : null}
+      // A day chosen on the calendar starts the lease there; never a day gone.
+      initialStart={start && /^\d{4}-\d{2}-\d{2}$/.test(start) && start >= today ? start : null}
       canSign={can(scope, "lease.sign")}
     />
   );

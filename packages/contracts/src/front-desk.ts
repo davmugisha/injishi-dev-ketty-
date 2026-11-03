@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { BookingMode, BookingStatus, CancellationTier, PaymentStatus } from "./booking";
 import { FolioStatus, HousekeepingStatus, OperatorReservationState, RoomStatus } from "./ops";
-import { Uuid } from "./primitives";
+import { DocumentType, RwfAmount, Uuid } from "./primitives";
 /**
  * The front desk's day, in one read (`GET /api/v1/ops/front-desk`).
  *
@@ -248,3 +248,100 @@ export const DeskMessageTemplate = z.object({
 export type DeskMessageTemplate = z.infer<typeof DeskMessageTemplate>;
 export const DeskMessageTemplateList = z.object({ templates: z.array(DeskMessageTemplate) });
 export type DeskMessageTemplateList = z.infer<typeof DeskMessageTemplateList>;
+
+/**
+ * THE DESK BOOKS A GUEST (`POST /api/v1/ops/reservations`, 0124): a phone call, a WhatsApp, an email or a
+ * walk in for a later day. One room type, one party, any nights from today. The guest needs no account:
+ * their name and phone are the booking's. A room may be held at once (`roomId`), or later ("No room yet").
+ * The price is the room type's for those nights unless the desk sets another, with a reason. A deposit the
+ * desk took (cash, or a MoMo payment the guest already made, by its reference) goes on the guest's bill.
+ */
+export const DeskReservationChannel = z.enum(["phone", "direct", "walk_in", "travel_agent", "corporate"]);
+export type DeskReservationChannel = z.infer<typeof DeskReservationChannel>;
+
+const HHMM = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a time like 14:30.");
+
+export const DeskReservationAsk = z
+    .object({
+        checkIn: IsoDate,
+        checkOut: IsoDate,
+        roomTypeId: Uuid,
+        adults: z.number().int().min(1).max(20),
+        children: z.number().int().min(0).max(20).default(0),
+        /** A nightly price other than the room type's, for the whole party. */
+        nightlyRateRwf: RwfAmount.optional(),
+    })
+    .refine((a) => a.checkOut > a.checkIn, { message: "Departure must be after arrival.", path: ["checkOut"] });
+export type DeskReservationAsk = z.infer<typeof DeskReservationAsk>;
+
+/** What the desk's booking would cost and whether the room type is free, before anything is written. */
+export const DeskReservationQuote = z.object({
+    nights: z.number().int(),
+    /** The room type's own nightly price for this party and these nights. */
+    nightlyRateRwf: RwfAmount,
+    /** What will be charged a night: the desk's price when it set one. */
+    chargedNightlyRwf: RwfAmount,
+    totalRwf: RwfAmount,
+    freeRooms: z.array(z.object({ id: Uuid, label: z.string() })),
+    available: z.boolean(),
+    problems: z.array(z.string()),
+});
+export type DeskReservationQuote = z.infer<typeof DeskReservationQuote>;
+
+export const DeskReservationRequest = z
+    .object({
+        checkIn: IsoDate,
+        checkOut: IsoDate,
+        roomTypeId: Uuid,
+        /** Hold this room for the stay now; without it the booking waits for a room. */
+        roomId: Uuid.optional(),
+        adults: z.number().int().min(1).max(20),
+        children: z.number().int().min(0).max(20).default(0),
+        guest: z.object({
+            fullName: z.string().trim().min(1, "Type the guest's name.").max(200),
+            phone: z.string().trim().min(8).max(20).optional(),
+            email: z.string().trim().email().max(200).optional(),
+            nationality: z.string().length(2).toUpperCase().optional(),
+            documentType: DocumentType.optional(),
+            idNumber: z.string().trim().min(1).max(40).optional(),
+        }),
+        channel: DeskReservationChannel,
+        eta: HHMM.optional(),
+        note: z.string().trim().max(500).optional(),
+        /** Held for the guest until then; past it, the nights are released. */
+        holdUntil: z.string().datetime({ offset: true }).optional(),
+        nightlyRateRwf: RwfAmount.optional(),
+        rateOverrideReason: z.string().trim().min(3, "Say why the price changed.").max(300).optional(),
+        deposit: z
+            .object({
+                method: z.enum(["cash", "mobile_money"]),
+                amountRwf: z.number().int().positive(),
+                reference: z.string().trim().max(120).optional(),
+            })
+            .optional(),
+    })
+    .refine((r) => r.checkOut > r.checkIn, { message: "Departure must be after arrival.", path: ["checkOut"] })
+    .refine((r) => r.nightlyRateRwf === undefined || !!r.rateOverrideReason, {
+        message: "Say why the price changed.",
+        path: ["rateOverrideReason"],
+    })
+    .refine((r) => r.deposit?.method !== "mobile_money" || !!r.deposit.reference, {
+        message: "Type the MoMo transaction reference.",
+        path: ["deposit", "reference"],
+    });
+export type DeskReservationRequest = z.infer<typeof DeskReservationRequest>;
+
+export const DeskReservationResult = z.object({
+    id: Uuid,
+    reference: z.string(),
+    checkIn: IsoDate,
+    checkOut: IsoDate,
+    totalRwf: RwfAmount,
+    /** The room held, when one was asked for and was free. */
+    roomLabel: z.string().nullable(),
+    /** Why the room asked for could not be held; the booking waits for a room. */
+    roomProblem: z.string().nullable(),
+    /** The folio the deposit went on, when one was taken. */
+    folioId: Uuid.nullable(),
+});
+export type DeskReservationResult = z.infer<typeof DeskReservationResult>;

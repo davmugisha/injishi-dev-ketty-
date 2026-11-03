@@ -12,7 +12,7 @@ import { BrokerGroupBookingService, type BrokerBookingContext } from '../../pms/
 import { BrokerDealsService } from './broker-deals.service';
 
 /**
- * A broker's bookings at hotels (0125, phase 2): the broker's door to `BrokerGroupBookingService`. Here the
+ * A broker's bookings at hotels (0126, phase 2): the broker's door to `BrokerGroupBookingService`. Here the
  * broker is resolved from their own workspace and the deal from what is running between them and the hotel;
  * the booking service never takes either from a request. A hotel without a running deal is not open for
  * booking, so a broker reads the rooms of a hotel only once it has accepted their terms.

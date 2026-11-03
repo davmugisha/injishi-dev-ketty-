@@ -40,7 +40,7 @@ export interface CompletedStay {
  * the business has none; the payouts pass (`PayoutsService.sweep`) sends a
  * queued one and releases a held one once an account is added.
  *
- * Injishi takes no commission of its own. A stay a broker booked (0127) earns
+ * Injishi takes no commission of its own. A stay a broker booked (0128) earns
  * its broker's commission here, and what the hotel owes its brokers, oldest
  * first, comes off this payout: the hotel is paid the rest.
  */
@@ -58,7 +58,7 @@ export class StayCompletionRepository {
         .returning({ id: bookings.id, reference: bookings.reference, workspaceId: bookings.workspaceId });
       if (!booking) return null;
 
-      // A broker's stay earns its commission now, paid at the hotel or not (0127). What the hotel owes is
+      // A broker's stay earns its commission now, paid at the hotel or not (0128). What the hotel owes is
       // collected below, from this payout or a later one.
       await brokerCommissions.earn(tx, bookingId, now);
 
@@ -142,7 +142,7 @@ export class StayCompletionRepository {
             .limit(1)
         : [];
 
-      // What the hotel owes its brokers comes off first, this stay's own commission included (0127).
+      // What the hotel owes its brokers comes off first, this stay's own commission included (0128).
       const collected = org
         ? await brokerCommissions.collect(tx, org.orgId, bookingId, amountRwf, now)
         : { remainingRwf: amountRwf, deductedRwf: 0 };

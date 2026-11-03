@@ -410,3 +410,8 @@
     animation: none;
   }
 }
+
+/* RoomTimeline: every room row is an Agenda all-day section, always open, so its collapse toggle goes. */
+.room-timeline .agenda__all-day-toggle {
+  display: none;
+}

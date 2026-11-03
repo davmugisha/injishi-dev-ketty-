@@ -44,7 +44,7 @@ function route(role: LeaderRole, over: Partial<RouteRow> = {}): RouteRow {
 
 type RepoMocks = Record<
   | 'holders' | 'find' | 'routesFor' | 'markNotified' | 'waitingRoutes' | 'currentWithRoles' | 'transaction' | 'relocate' | 'deliverWaiting'
-  | 'handOverWaiting' | 'areaNames' | 'releaseEnded',
+  | 'handOverWaiting' | 'areaNames' | 'releaseEnded' | 'rollHotelStays',
   Mock
 >;
 
@@ -74,6 +74,7 @@ function setup(posts: Partial<Record<LeaderRole, Holder[]>>): {
     routesFor: vi.fn(async () => [] as RouteRow[]),
     markNotified: vi.fn(async () => undefined),
     waitingRoutes: vi.fn(async () => [] as WaitingRouteRow[]),
+    rollHotelStays: vi.fn(async () => [] as string[]),
     currentWithRoles: vi.fn(async () => []),
     transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn({})),
     relocate: vi.fn(async () => undefined),

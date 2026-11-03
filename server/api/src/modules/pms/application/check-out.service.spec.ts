@@ -1,4 +1,5 @@
 import type { StayCompletionService } from './stay-completion.service';
+import type { NightAuditService } from './night-audit.service';
 import type { HotelGuestFilingService } from '../../guests/application/hotel-guest-filing.service';
 import { describe, expect, it, type Mock, vi } from 'vitest';
 
@@ -105,6 +106,7 @@ describe('FrontDeskService.checkOut: the departure note and the balance', () => 
     const close = vi.fn().mockResolvedValue(undefined);
     const releaseForBooking = vi.fn().mockResolvedValue(undefined);
     const completeBooking = vi.fn().mockResolvedValue(null);
+    const chargeOnDeparture = vi.fn().mockResolvedValue(0);
 
     const rooms = {
       findStay: vi.fn(() => Promise.resolve(reads.shift() ?? null)),
@@ -120,6 +122,7 @@ describe('FrontDeskService.checkOut: the departure note and the balance', () => 
       {} as unknown as SelfCheckInService,
       {} as unknown as HotelGuestFilingService,
       { completeBooking } as unknown as StayCompletionService,
+      { chargeOnDeparture } as unknown as NightAuditService,
     );
 
     return { service, closeStay, findFolioForStay, close, releaseForBooking, completeBooking };

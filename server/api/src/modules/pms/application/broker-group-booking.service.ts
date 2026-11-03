@@ -37,7 +37,7 @@ export interface BrokerBookingContext {
 }
 
 /**
- * A broker's bookings at a hotel (0125, phase 2). Under a running deal a broker books one room or many,
+ * A broker's bookings at a hotel (0126, phase 2). Under a running deal a broker books one room or many,
  * a guest's name on every room. Each room is priced exactly as a guest's own booking would be (the room
  * type's rate, the party, the nights; `computeBreakdown`), and confirmed at once when it is free.
  *

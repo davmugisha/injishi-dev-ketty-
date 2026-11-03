@@ -162,7 +162,7 @@ export const psfMembershipApplications = pgTable(
     // What the business said it would pay a year, inside its band. Null only
     // for a tier PSF prices itself, whose amount the officer names.
     declaredFeeRwf: amount('declared_fee_rwf'),
-    // How the business came in (0131): a new application, or a holder of an old PSF card joining the
+    // How the business came in (0132): a new application, or a holder of an old PSF card joining the
     // new module (no fee now, a new number, the year on its card).
     intake: text('intake').$type<'new' | 'card_holder'>().notNull().default('new'),
 
@@ -372,7 +372,7 @@ export const psfMembershipClaims = pgTable(
     orgId: uuid('org_id')
       .notNull()
       .references(() => orgs.id, { onDelete: 'cascade' }),
-    // Null when the member sent its card without the number (0130); the confirming officer types it.
+    // Null when the member sent its card without the number (0131); the confirming officer types it.
     membershipNumber: text('membership_number'),
     status: text('status').$type<'claimed' | 'confirmed' | 'rejected'>().notNull().default('claimed'),
     claimedByUserId: uuid('claimed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
@@ -515,7 +515,7 @@ export const psfMembershipFormFields = pgTable(
 export type PsfMembershipFormFieldRow = typeof psfMembershipFormFields.$inferSelect;
 
 /**
- * PSF membership renewals (2026-11-02, migration 0126): the next year paid on
+ * PSF membership renewals (2026-11-02, migration 0127): the next year paid on
  * the tracking page. A paid renewal renews at once, with no officer; the year
  * runs on from the old end date, or from the payment for a lapsed membership,
  * and the band may change. Early renewal extends the current membership row; a

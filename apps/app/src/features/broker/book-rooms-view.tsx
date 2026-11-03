@@ -63,7 +63,7 @@ function roomPrice(type: BrokerRoomType | undefined, adults: number, children: n
 }
 
 /**
- * Book rooms at a hotel under a running deal (0125): the dates, then one line per room with the guest's
+ * Book rooms at a hotel under a running deal (0126): the dates, then one line per room with the guest's
  * name on it, then how the group is paid. Paid at the hotel, the rooms are confirmed at once; paid by MoMo,
  * one prompt for the whole group goes to the phone, and the rooms are confirmed when it is approved.
  */

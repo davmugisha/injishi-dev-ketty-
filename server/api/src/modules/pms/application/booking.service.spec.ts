@@ -102,7 +102,7 @@ describe('BookingService money ordering', () => {
       chargeOneTimeFee: Mock;
       fetchTransaction: Mock;
     };
-    listings: { findBookableRoomType: Mock };
+    listings: { findBookableRoomType: Mock; stayRate: Mock };
     compensations: { enqueue: Mock };
     attempts: {
       claimHold: Mock;
@@ -175,6 +175,7 @@ describe('BookingService money ordering', () => {
 
     const listings = {
       findBookableRoomType: vi.fn().mockResolvedValue(roomType),
+      stayRate: vi.fn(async (rt: { nightlyRateRwf: number | null }) => ({ nightlyRateRwf: rt.nightlyRateRwf ?? 0, discountPct: 0, closedOn: null, minNights: 1, maxNights: 90 })),
     };
 
     const compensations = {
@@ -465,7 +466,7 @@ describe('BookingService money ordering', () => {
       findByAttemptKey: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockRejectedValue(new Error('database is on fire')),
     };
-    const listings = { findBookableRoomType: vi.fn().mockResolvedValue(roomType) };
+    const listings = { findBookableRoomType: vi.fn().mockResolvedValue(roomType), stayRate: vi.fn(async (rt: { nightlyRateRwf: number | null }) => ({ nightlyRateRwf: rt.nightlyRateRwf ?? 0, discountPct: 0, closedOn: null, minNights: 1, maxNights: 90 })), };
     const compensations = {
       enqueue: vi.fn().mockResolvedValue(undefined),
       cancel: vi.fn().mockResolvedValue(undefined),

@@ -10,7 +10,7 @@ import { can, hostScope, orNull } from "@/server/rentals/client";
 export const metadata: Metadata = { title: "Brokers" };
 
 /**
- * Brokers, for a hotel (0124, 2026-11-02): the commission deals brokers propose, answered by whoever holds
+ * Brokers, for a hotel (0125, 2026-11-02): the commission deals brokers propose, answered by whoever holds
  * `payout.manage` (the owner, by default), because a deal decides what the hotel is paid for the stays a
  * broker brings.
  */

@@ -92,12 +92,12 @@ export class PaymentAttemptService {
     @Inject(REGISTRATION_FEES) private readonly registrations: RegistrationFees,
     /** Applies a reservation change once the guest's MoMo payment of its difference lands (0120). */
     private readonly changes: BookingChangeRepository,
-    /** Writes a broker's group of rooms once its one MoMo payment lands (0125). */
+    /** Writes a broker's group of rooms once its one MoMo payment lands (0126). */
     private readonly brokerGroups: BrokerGroupRepository,
   ) {}
 
   /**
-   * ASK A BROKER TO PAY FOR A GROUP OF ROOMS (0125): one Request to Pay for the whole group, held in escrow
+   * ASK A BROKER TO PAY FOR A GROUP OF ROOMS (0126): one Request to Pay for the whole group, held in escrow
    * like a guest's own booking. The group row was written first, `awaiting_payment`, so a capture never
    * exists without what it pays for. Nothing is booked until the money lands (`completeBrokerGroup`). One
    * key per group and press, so a retried press is the same request at the provider.
@@ -1044,8 +1044,10 @@ export class PaymentAttemptService {
     }
 
     const nights = nightsBetween(checkIn, checkOut);
+    // Priced as the booking was quoted: day prices and the length of stay discount (2026-10-29).
+    const rate = await this.listings.stayRate(roomType, checkIn, checkOut);
     // A room priced per room charges one guest its one guest price, when it has one (0117).
-    const nightlyRateRwf = nightlyRateFor({ ...roomType, nightlyRateRwf: roomType.nightlyRateRwf }, guests);
+    const nightlyRateRwf = nightlyRateFor({ ...roomType, nightlyRateRwf: rate.nightlyRateRwf }, guests);
     // Priced as it was charged: a prompt started before the guest service fee
     // was dropped carried 5% on top (`breakdownAsCharged`), and the booking and
     // its escrow must record what the guest actually paid.
@@ -1149,7 +1151,7 @@ export class PaymentAttemptService {
     if (row.purpose === 'booking_change' && row.bookingChangeId) {
       await this.changes.abandon(row.bookingChangeId);
     }
-    // A broker's group waiting on this payment is not booked (0125).
+    // A broker's group waiting on this payment is not booked (0126).
     if (row.purpose === 'broker_group' && row.brokerGroupId) {
       await this.brokerGroups.markFailed(row.brokerGroupId, reason);
     }
@@ -1284,7 +1286,7 @@ function tokenFromKey(idempotencyKey: string): string {
   return idempotencyKey.slice(idempotencyKey.lastIndexOf(':') + 1);
 }
 
-/** The provider refused a broker group's payment outright: nothing was charged, and the group failed (0125). */
+/** The provider refused a broker group's payment outright: nothing was charged, and the group failed (0126). */
 export class BrokerGroupPaymentRefused extends Error {
   constructor(readonly reason: string) {
     super(reason);

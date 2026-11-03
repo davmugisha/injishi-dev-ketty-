@@ -1,7 +1,7 @@
 import type { BrokerDealStatus, BrokerDealTerms } from '@injishi/contracts';
 
 /**
- * The rules of a broker's deal with a hotel (0124, 2026-11-02), as pure
+ * The rules of a broker's deal with a hotel (0125, 2026-11-02), as pure
  * functions so each is tested on its own: how the terms are stored, what each
  * side may do from each status, and when a running deal has ended by its date.
  * Dates are Kigali calendar days, `YYYY-MM-DD`.

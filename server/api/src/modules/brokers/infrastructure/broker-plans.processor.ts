@@ -17,7 +17,7 @@ const EVERY_MS = 60 * 60_000;
  * settle plan payments the gateway settled, renew plans at their month's end,
  * give a failed renewal three days' grace and then put the broker back on
  * District, apply a cheaper plan chosen for next month, and send brokers their
- * share of hotel commissions (0127). Every part is
+ * share of hotel commissions (0128). Every part is
  * idempotent, so a repeat or an overlap changes nothing twice.
  */
 @Processor(QUEUES.brokerPlans)
@@ -43,7 +43,7 @@ export class BrokerPlansProcessor extends WorkerHost implements OnModuleInit {
       return;
     }
     await this.plans.sweep();
-    // Hotel commissions (0127): bulk sums of finished groups, and brokers' shares to their MoMo numbers.
+    // Hotel commissions (0128): bulk sums of finished groups, and brokers' shares to their MoMo numbers.
     await this.payouts.sweep();
   }
 

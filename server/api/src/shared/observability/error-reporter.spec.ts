@@ -170,6 +170,7 @@ describe('the money alarms, from their call sites', () => {
         create: vi.fn().mockRejectedValue(new NoAvailabilityError()),
       } as unknown as BookingRepository,
       {
+        stayRate: vi.fn(async (rt: { nightlyRateRwf: number | null }) => ({ nightlyRateRwf: rt.nightlyRateRwf ?? 0, discountPct: 0, closedOn: null, minNights: 1, maxNights: 90 })),
         findBookableRoomType: vi.fn().mockResolvedValue({
           id: '44444444-4444-4444-4444-444444444444',
           workspaceId: 'ws',

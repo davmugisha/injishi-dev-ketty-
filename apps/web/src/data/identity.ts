@@ -60,3 +60,14 @@ export async function putTypedIdentity(request: TypedIdentityRequest): Promise<A
   const parsed = IdentityStatus.safeParse(res.data);
   return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
 }
+
+/**
+ * "Use a different ID": drop the identity on file so another one can be
+ * checked. The server refuses once a business or broker record stands on it.
+ */
+export async function clearIdentity(): Promise<ApiResult<IdentityStatus>> {
+  const res = await apiFetch<unknown>("/api/v1/me/identity", { method: "DELETE" });
+  if (res.status !== "ok") return res;
+  const parsed = IdentityStatus.safeParse(res.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+}

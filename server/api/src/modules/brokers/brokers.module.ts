@@ -23,7 +23,7 @@ import { BrokersRepository } from './infrastructure/brokers.repository';
  * days' grace), the opted-in homes inside the plan's area, free reveals of a
  * landlord's contact, placements, recorded fees and ratings, and the
  * registration fee paid before the broker row exists, and commission deals
- * with hotels (0124): proposed by the broker, answered by the hotel's owner.
+ * with hotels (0125): proposed by the broker, answered by the hotel's owner.
  *
  * The landlord's side of brokers (the opt-in on a unit, the broker on a
  * lease, its fee record and ratings) lives in the rentals module. Mail goes

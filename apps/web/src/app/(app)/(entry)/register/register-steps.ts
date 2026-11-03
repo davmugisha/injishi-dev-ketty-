@@ -138,6 +138,42 @@ export function openableThrough(order: readonly StepId[], complete: (id: StepId)
   return first < 0 ? order.length - 1 : first;
 }
 
+/**
+ * Why a step on the rail cannot be opened, or null when it can (2026-10-30).
+ *
+ * - Paid: only Pay, where the receipt is, opens. Changes go through support.
+ * - Created on the first Pay press but not paid: the registration exists on the
+ *   server and no route changes its answers, so only Review and Pay open, and
+ *   the rail says why rather than greying the step out with nothing said.
+ * - Otherwise every step up to the one on screen opens (Back is never refused),
+ *   and a step ahead opens once reached and everything before it is complete.
+ */
+export function railLock(
+  order: readonly StepId[],
+  id: StepId,
+  at: { current: StepId; openable: number; reached: number; created: boolean; paid: boolean },
+): string | null {
+  if (at.paid) return id === "pay" ? null : "Paid. Changes go through support.";
+  if (at.created) return id === "review" || id === "pay" ? null : "Created when you pressed Pay. Changes go through support.";
+  const i = order.indexOf(id);
+  if (i <= order.indexOf(at.current)) return null;
+  if (i > at.reached) return "Not reached yet";
+  return i <= at.openable ? null : "Finish the steps before it first";
+}
+
+/**
+ * The section Back reopens from an open section: the one before it, passing over
+ * Classification, which asks nothing. Null on a step's first section, whose Back
+ * is the step's own.
+ */
+export function previousSection(ids: readonly SectionId[], id: SectionId): SectionId | null {
+  const i = ids.indexOf(id);
+  for (let j = i - 1; j >= 0; j--) {
+    if (ids[j] !== "cls") return ids[j] ?? null;
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Drafts (ADR-075 S9): where a person begins, and where a draft reopens
 // ---------------------------------------------------------------------------

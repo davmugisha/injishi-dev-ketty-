@@ -645,7 +645,7 @@ exports.PSF_APPLICATION_ORIGIN_LABEL = {
     registration: "Injishi registration",
 };
 /**
- * How a business came in (2026-11-02, 0131): a new application, or a holder of an old PSF card, with
+ * How a business came in (2026-11-02, 0132): a new application, or a holder of an old PSF card, with
  * no number or certificate in the new module, joining it. A card holder pays nothing now, is given a
  * new number, and keeps the year on its card.
  */

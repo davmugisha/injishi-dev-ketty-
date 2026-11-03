@@ -15,7 +15,7 @@ import { CurrentWorkspace, RequirePermission, WorkspaceGuard } from '../../../sh
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
- * The hotel's side of broker deals → /api/v1/ops/broker-deals (0124, 2026-11-02).
+ * The hotel's side of broker deals → /api/v1/ops/broker-deals (0125, 2026-11-02).
  *
  * Every route needs `payout.manage`: a deal decides what the hotel is paid for
  * the stays a broker brings, and only the owner holds it by default. Every deal
@@ -35,7 +35,7 @@ export class OpsBrokerDealsController {
     return this.deals.hotelDeals(workspace);
   }
 
-  /** What the hotel owes its brokers in commission, and what came off its payouts (0127). */
+  /** What the hotel owes its brokers in commission, and what came off its payouts (0128). */
   @Get('commissions')
   @RequirePermission('payout.manage')
   commissions(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerCommissionList> {

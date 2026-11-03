@@ -118,3 +118,53 @@ test("the relationships end with Other, which asks for words", () => {
   assert.deepEqual(last, { code: "other", label: "Other", needsDetail: true });
   assert.equal(new Set(GUEST_RELATIONSHIPS.map((r) => r.code)).size, GUEST_RELATIONSHIPS.length);
 });
+
+test("the type of place: a residence for a tenant or landlord, the business kind for a hotel desk", async () => {
+  const c = await import("../dist/index.js");
+  assert.equal(c.guestPlaceTypeOf("tenant", "residence"), "residence");
+  assert.equal(c.guestPlaceTypeOf("landlord", null), "residence");
+  assert.equal(c.guestPlaceTypeOf("hotel", "motel"), "hotel");
+  assert.equal(c.guestPlaceTypeOf("hotel", "tented_camp"), "lodge");
+  assert.equal(c.guestPlaceTypeOf("hotel", "villa"), "apartment");
+  assert.equal(c.guestPlaceTypeOf("hotel", "guest_house"), "guest_house");
+  assert.equal(c.guestPlaceTypeOf("hotel", null), "other");
+  assert.equal(c.guestPlaceKindLabel("hotel", "motel"), "Motel");
+  assert.equal(c.guestPlaceKindLabel("tenant", null), "Residence");
+});
+
+test("who hosted a guest, in two lines", async () => {
+  const c = await import("../dist/index.js");
+  const place = { name: "Amani Residences", room: "A-01" };
+  assert.deepEqual(c.guestHostLines({ host: { kind: "tenant", name: "Aline" }, place }), { place: "Amani Residences", detail: "Tenant Aline, unit A-01" });
+  assert.deepEqual(c.guestHostLines({ host: { kind: "landlord", name: "Emmanuel" }, place: { ...place, room: null } }).detail, "Landlord Emmanuel");
+  assert.equal(c.guestHostLines({ host: { kind: "hotel", name: "Umuco" }, place: { name: "Umuco", room: "12" } }).detail, "Room 12");
+  assert.equal(c.guestHostLines({ host: { kind: "hotel", name: "Umuco" }, place: { name: "Umuco", room: "Room 4" } }).detail, "Room 4");
+});
+
+test("the list's date and stay filters, read from the Kigali day", async () => {
+  const c = await import("../dist/index.js");
+  assert.deepEqual(c.guestArrivedRange("last_7_days", "2026-11-02"), { from: "2026-10-27", to: "2026-11-02" });
+  assert.deepEqual(c.guestArrivedRange("this_month", "2026-11-02"), { from: "2026-11-01", to: "2026-11-02" });
+  assert.equal(c.guestLengthHolds("under_3", 2), true);
+  assert.equal(c.guestLengthHolds("under_3", 3), false);
+  assert.equal(c.guestLengthHolds("week", 7), true);
+  assert.equal(c.guestLengthHolds("month", 29), false);
+  const q = c.LeaderGuestQuery.parse({ arrived: "today", placeType: "lodge", length: "week", leaving: "next_7_days", presentOn: "2026-10-30" });
+  assert.equal(q.tab, "all");
+  assert.equal(q.placeType, "lodge");
+  assert.equal(c.LeaderGuestQuery.safeParse({ placeType: "castle" }).success, false);
+  assert.equal(c.LeaderGuestQuery.safeParse({ arrivedFrom: "2026-10-10", arrivedTo: "2026-10-01" }).success, false);
+  assert.equal(GuestReportQuery.safeParse({ from: "2026-10-01", to: "2026-10-31", placeType: "residence", length: "month" }).success, true);
+});
+
+test("a console reads as DGIE only when every post is DGIE's", async () => {
+  const c = await import("../dist/index.js");
+  assert.equal(c.leaderAudienceOf(["dgie_village"]), "dgie");
+  assert.equal(c.leaderAudienceOf(["dgie_cell", "district_immigration"]), "dgie");
+  assert.equal(c.leaderAudienceOf(["village_leader", "dgie_village"]), "local");
+  assert.equal(c.leaderAudienceOf([]), "local");
+  assert.equal(c.stayBandOf(0), "same_day");
+  assert.equal(c.stayBandOf(30), "month");
+  assert.equal(c.reportTimingOf("2026-10-29", "2026-10-30"), "before");
+  assert.equal(c.reportTimingOf("2026-10-31", "2026-10-30"), "after");
+});

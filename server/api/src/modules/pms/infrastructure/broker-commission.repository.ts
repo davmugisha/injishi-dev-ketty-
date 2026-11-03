@@ -17,7 +17,7 @@ export function maskBrokerMomo(network: string, phone: string): string {
 const num = (v: unknown): number => Number(v ?? 0);
 
 /**
- * A broker's commission, inside the check-out's own transaction (0127). Every function takes the
+ * A broker's commission, inside the check-out's own transaction (0128). Every function takes the
  * transaction the stay's completion is running, so the commission, the hotel's smaller payout and what it
  * was smaller by are written together or not at all.
  */

@@ -116,7 +116,7 @@ export async function setHomeDistrict(districtId: number): Promise<ActionResult<
   );
 }
 
-// --- Hotel deals (0124) ---------------------------------------------------------------------------
+// --- Hotel deals (0125) ---------------------------------------------------------------------------
 
 const NO_HOTEL = "That hotel is not open to you for a deal any more.";
 const NO_DEAL = "That deal is not there any more.";
@@ -147,7 +147,7 @@ export async function closeDeal(id: string, move: "withdraw" | "end", note: stri
   );
 }
 
-// --- Bookings under a running deal (0125) ---------------------------------------------------------
+// --- Bookings under a running deal (0126) ---------------------------------------------------------
 
 /** The hotel's rooms for these dates, with their rates and how many are free. */
 export async function loadRooms(

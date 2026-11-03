@@ -431,6 +431,31 @@ export type BookableRoom = z.infer<typeof BookableRoom>;
  * one number per rule.
  */
 export declare const MAX_NIGHTS = 90;
+/**
+ * The longest stay a room type may allow when it lets by the week or the month (serviced apartments,
+ * 2026-10-29): its own `max_stay`, up to a year. Others keep `MAX_NIGHTS`.
+ */
+export declare const LONG_STAY_MAX_NIGHTS = 365;
+/** The most nights a room type takes in one booking. */
+export declare function maxNightsFor(roomTypeMaxStay: number | null | undefined): number;
+/** A week and more takes the weekly discount, four weeks and more the monthly one. */
+export declare const WEEKLY_FROM_NIGHTS = 7;
+export declare const MONTHLY_FROM_NIGHTS = 28;
+/**
+ * The nightly rate a stay is charged at (2026-10-29): each night at its own price (a price set for that
+ * day, else the room type's), averaged, less the weekly or monthly discount the stay is long enough for.
+ * The one rule the quote and the booking both use, so what a guest is shown is what they pay.
+ */
+export declare function stayNightlyRate(input: {
+    baseRwf: number;
+    /** One entry per night, in order; null where no day price is set. */
+    dayRatesRwf: readonly (number | null)[];
+    weeklyDiscountPct?: number | null;
+    monthlyDiscountPct?: number | null;
+}): {
+    nightlyRwf: number;
+    discountPct: number;
+};
 /** How far ahead a booking may be made. 18 months. */
 export declare const MAX_HORIZON_DAYS = 540;
 /** A room type with no stated capacity is not unlimited. */
@@ -1538,6 +1563,12 @@ export declare const CANCELLATION_TIERS: Record<CancellationTier, {
     beforePercent: number;
     afterPercent: number;
 }>;
+/**
+ * A tier in one sentence for the guest, from the same rules the refund is
+ * computed with (`CANCELLATION_TIERS`), so the words can never drift from the
+ * money. The web used to keep its own copy of these sentences.
+ */
+export declare function cancellationSummary(tier: CancellationTier | null, nonRefundable?: boolean): string;
 /** Who cancelled. A host cancellation always refunds in full (F-B11). */
 export declare const CancellationParty: z.ZodEnum<["guest", "host"]>;
 export type CancellationParty = z.infer<typeof CancellationParty>;

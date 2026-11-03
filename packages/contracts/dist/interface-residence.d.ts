@@ -265,7 +265,7 @@ export declare const ResidenceNoticeRow: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     message: string | null;
     id: string;
-    reasonCode: "other" | "terms" | "kigali" | "leaving" | "own-home" | null;
+    reasonCode: "other" | "terms" | "leaving" | "kigali" | "own-home" | null;
     leaseId: string;
     moveOutDate: string;
     filedVia: "email" | "app" | "letter" | "in_person" | null;
@@ -275,7 +275,7 @@ export declare const ResidenceNoticeRow: z.ZodObject<{
 }, {
     message: string | null;
     id: string;
-    reasonCode: "other" | "terms" | "kigali" | "leaving" | "own-home" | null;
+    reasonCode: "other" | "terms" | "leaving" | "kigali" | "own-home" | null;
     leaseId: string;
     moveOutDate: string;
     filedVia: "email" | "app" | "letter" | "in_person" | null;
@@ -1044,7 +1044,7 @@ export declare const ResidenceView: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         message: string | null;
         id: string;
-        reasonCode: "other" | "terms" | "kigali" | "leaving" | "own-home" | null;
+        reasonCode: "other" | "terms" | "leaving" | "kigali" | "own-home" | null;
         leaseId: string;
         moveOutDate: string;
         filedVia: "email" | "app" | "letter" | "in_person" | null;
@@ -1054,7 +1054,7 @@ export declare const ResidenceView: z.ZodObject<{
     }, {
         message: string | null;
         id: string;
-        reasonCode: "other" | "terms" | "kigali" | "leaving" | "own-home" | null;
+        reasonCode: "other" | "terms" | "leaving" | "kigali" | "own-home" | null;
         leaseId: string;
         moveOutDate: string;
         filedVia: "email" | "app" | "letter" | "in_person" | null;
@@ -1761,7 +1761,7 @@ export declare const ResidenceView: z.ZodObject<{
     notices: {
         message: string | null;
         id: string;
-        reasonCode: "other" | "terms" | "kigali" | "leaving" | "own-home" | null;
+        reasonCode: "other" | "terms" | "leaving" | "kigali" | "own-home" | null;
         leaseId: string;
         moveOutDate: string;
         filedVia: "email" | "app" | "letter" | "in_person" | null;
@@ -2017,7 +2017,7 @@ export declare const ResidenceView: z.ZodObject<{
     notices: {
         message: string | null;
         id: string;
-        reasonCode: "other" | "terms" | "kigali" | "leaving" | "own-home" | null;
+        reasonCode: "other" | "terms" | "leaving" | "kigali" | "own-home" | null;
         leaseId: string;
         moveOutDate: string;
         filedVia: "email" | "app" | "letter" | "in_person" | null;
@@ -2240,11 +2240,11 @@ export declare const GiveNoticeRequest: z.ZodObject<{
     reason: z.ZodEnum<["kigali", "leaving", "own-home", "terms", "other"]>;
     message: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    reason: "other" | "terms" | "kigali" | "leaving" | "own-home";
+    reason: "other" | "terms" | "leaving" | "kigali" | "own-home";
     moveOutDate: string;
     message?: string | undefined;
 }, {
-    reason: "other" | "terms" | "kigali" | "leaving" | "own-home";
+    reason: "other" | "terms" | "leaving" | "kigali" | "own-home";
     moveOutDate: string;
     message?: string | undefined;
 }>;

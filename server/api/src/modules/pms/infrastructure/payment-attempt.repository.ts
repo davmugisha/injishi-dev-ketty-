@@ -49,7 +49,7 @@ export interface PaymentAttemptRow {
   subscriptionInvoiceId: string | null;
   /** Set on a `booking_change` attempt: the reservation change whose difference it pays (0120). */
   bookingChangeId: string | null;
-  /** Set on a `broker_group` attempt: the broker's group of rooms it pays for (0125). */
+  /** Set on a `broker_group` attempt: the broker's group of rooms it pays for (0126). */
   brokerGroupId: string | null;
   /** The stay, on a `booking` attempt only; null on an order's. */
   roomTypeId: string | null;
@@ -294,7 +294,7 @@ export class PaymentAttemptRepository {
    * A confirmed change payment whose change could no longer be applied (0120): refunded in full, and
    * the attempt says why. Guarded on `confirmed`, so it happens once.
    */
-  /** A broker group's settled payment that bought nothing (its rooms sold out): refused, and refunded by the caller (0125). */
+  /** A broker group's settled payment that bought nothing (its rooms sold out): refused, and refunded by the caller (0126). */
   async markBrokerGroupRefused(id: string, failureReason: string): Promise<boolean> {
     const moved = await this.db
       .update(paymentAttempts)

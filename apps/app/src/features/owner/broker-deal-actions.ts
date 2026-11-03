@@ -1,7 +1,7 @@
 "use server";
 
 /**
- * The hotel's answers to brokers (0124, 2026-11-02): accept or decline a proposal, end a running deal. Each
+ * The hotel's answers to brokers (0125, 2026-11-02): accept or decline a proposal, end a running deal. Each
  * call is in the hotel's own business workspace; the API needs `payout.manage`, and a deal of another hotel
  * is not found.
  */

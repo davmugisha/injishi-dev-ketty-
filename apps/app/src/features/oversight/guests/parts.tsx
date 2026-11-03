@@ -182,3 +182,17 @@ export function stayRange(arrivalOn: string, departureOn: string): string {
   if (arrivalOn.slice(0, 7) === departureOn.slice(0, 7)) return `${a.getUTCDate()} to ${DAY_MONTH.format(b)}`;
   return `${DAY_MONTH.format(a)} to ${DAY_MONTH.format(b)}`;
 }
+
+const DAY_TIME = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: "Africa/Kigali",
+});
+
+/** An instant as the Kigali clock: "30 Oct, 12:57". */
+export function dayTime(iso: string): string {
+  return DAY_TIME.format(new Date(iso));
+}

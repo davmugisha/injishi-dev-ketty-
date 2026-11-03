@@ -56,7 +56,6 @@ export function AdminPeopleView({ data }: { data: AdminPeopleData }) {
       <PageHeader
         eyebrow="Platform › Staff and brokers"
         title="Staff and Brokers"
-        description="Injishi staff roles are their own universe: no business role opens this console, and no staff role can join a tenant’s Team & roles."
         actions={
           <Button variant="secondary">
             <PersonPlus />

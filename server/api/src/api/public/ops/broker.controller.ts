@@ -167,7 +167,7 @@ export class OpsBrokerController {
     return this.plans.setHomeDistrict(workspace, body);
   }
 
-  // --- Hotels (0124): commission deals with hotels inside the plan's area ------------------------
+  // --- Hotels (0125): commission deals with hotels inside the plan's area ------------------------
 
   @Get('hotels')
   hotels(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerHotels> {
@@ -217,7 +217,7 @@ export class OpsBrokerController {
     return this.deals.endByBroker(workspace, id, body, user.id);
   }
 
-  // --- Bookings (0125): rooms booked for clients under a running deal --------------------------------
+  // --- Bookings (0126): rooms booked for clients under a running deal --------------------------------
 
   /** The hotel's rooms for these dates, at their rates, with how many are free. Needs a running deal. */
   @Get('hotels/:orgId/rooms')
@@ -253,7 +253,7 @@ export class OpsBrokerController {
     return this.bookings.get(workspace, id);
   }
 
-  // --- Commission (0127): earned on hotel stays, paid to the broker's MoMo number ----------------------
+  // --- Commission (0128): earned on hotel stays, paid to the broker's MoMo number ----------------------
 
   @Get('commissions')
   commissions(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<BrokerCommissionList> {

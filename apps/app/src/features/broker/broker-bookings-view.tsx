@@ -40,7 +40,7 @@ export function GroupChip({ status }: { status: BrokerGroupStatus }) {
 const dates = (g: BrokerBookingGroup) =>
   `${formatDay(g.checkIn, "short")} – ${formatDay(g.checkOut, "short")} · ${g.nights} ${g.nights === 1 ? "night" : "nights"}`;
 
-/** Every group of rooms the broker booked (0125), newest first. */
+/** Every group of rooms the broker booked (0126), newest first. */
 export function BrokerBookingsView({
   data,
   commissions,

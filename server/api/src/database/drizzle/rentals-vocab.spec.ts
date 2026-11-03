@@ -173,7 +173,7 @@ const PAIRS: ReadonlyArray<readonly [string, { enumName: string; enumValues: rea
   ['broker_payment_status', brokerPaymentStatusEnum, BrokerPaymentStatus],
   ['broker_payment_kind', brokerPaymentKindEnum, BrokerPaymentKind],
   ['broker_fee_method', brokerFeeMethodEnum, BrokerFeeMethod],
-  // Brokers and hotels (2026-11-02): deals (0124), bookings (0125), commission (0127).
+  // Brokers and hotels (2026-11-02): deals (0125), bookings (0126), commission (0128).
   ['broker_deal_kind', brokerDealKindEnum, BrokerDealKind],
   ['broker_deal_status', brokerDealStatusEnum, BrokerDealStatus],
   ['broker_booking_payment', brokerBookingPaymentEnum, BrokerBookingPayment],

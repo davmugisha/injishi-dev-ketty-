@@ -128,7 +128,7 @@ function toHotel(r: Record<string, unknown>): HotelRow {
 }
 
 /**
- * Broker deals with hotels (0124). Every read starts from an id the service
+ * Broker deals with hotels (0125). Every read starts from an id the service
  * resolved (the broker from the broker workspace, the org from the business
  * workspace), and a hotel is read through the plan's area, so one outside it
  * is not found. Status moves are conditional on the status they leave, so two

@@ -4914,12 +4914,12 @@ export declare const PsfTierFee: z.ZodObject<{
     ceilingRwf: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     amountRwf: number | null;
-    source: "district" | "national" | "band";
+    source: "district" | "band" | "national";
     tierCode: string;
     ceilingRwf: number | null;
 }, {
     amountRwf: number | null;
-    source: "district" | "national" | "band";
+    source: "district" | "band" | "national";
     tierCode: string;
     ceilingRwf?: number | null | undefined;
 }>;
@@ -4952,12 +4952,12 @@ export declare const PsfFeesView: z.ZodObject<{
         ceilingRwf: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
     }, "strip", z.ZodTypeAny, {
         amountRwf: number | null;
-        source: "district" | "national" | "band";
+        source: "district" | "band" | "national";
         tierCode: string;
         ceilingRwf: number | null;
     }, {
         amountRwf: number | null;
-        source: "district" | "national" | "band";
+        source: "district" | "band" | "national";
         tierCode: string;
         ceilingRwf?: number | null | undefined;
     }>, "many">;
@@ -4965,7 +4965,7 @@ export declare const PsfFeesView: z.ZodObject<{
     districtId: number;
     fees: {
         amountRwf: number | null;
-        source: "district" | "national" | "band";
+        source: "district" | "band" | "national";
         tierCode: string;
         ceilingRwf: number | null;
     }[];
@@ -4973,7 +4973,7 @@ export declare const PsfFeesView: z.ZodObject<{
     districtId: number;
     fees: {
         amountRwf: number | null;
-        source: "district" | "national" | "band";
+        source: "district" | "band" | "national";
         tierCode: string;
         ceilingRwf?: number | null | undefined;
     }[];
@@ -5014,7 +5014,7 @@ export declare const PsfOfficerFeeRow: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
     priceKind: "minimum" | "fixed" | "range" | "set_by_psf";
-    source: "district" | "national" | "band";
+    source: "district" | "band" | "national";
     tierCode: string;
     tierName: string;
     updatedAt: string | null;
@@ -5028,7 +5028,7 @@ export declare const PsfOfficerFeeRow: z.ZodObject<{
 }, {
     family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
     priceKind: "minimum" | "fixed" | "range" | "set_by_psf";
-    source: "district" | "national" | "band";
+    source: "district" | "band" | "national";
     tierCode: string;
     tierName: string;
     updatedAt: string | null;
@@ -5067,7 +5067,7 @@ export declare const PsfOfficerFeesView: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
         priceKind: "minimum" | "fixed" | "range" | "set_by_psf";
-        source: "district" | "national" | "band";
+        source: "district" | "band" | "national";
         tierCode: string;
         tierName: string;
         updatedAt: string | null;
@@ -5081,7 +5081,7 @@ export declare const PsfOfficerFeesView: z.ZodObject<{
     }, {
         family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
         priceKind: "minimum" | "fixed" | "range" | "set_by_psf";
-        source: "district" | "national" | "band";
+        source: "district" | "band" | "national";
         tierCode: string;
         tierName: string;
         updatedAt: string | null;
@@ -5099,7 +5099,7 @@ export declare const PsfOfficerFeesView: z.ZodObject<{
     rows: {
         family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
         priceKind: "minimum" | "fixed" | "range" | "set_by_psf";
-        source: "district" | "national" | "band";
+        source: "district" | "band" | "national";
         tierCode: string;
         tierName: string;
         updatedAt: string | null;
@@ -5119,7 +5119,7 @@ export declare const PsfOfficerFeesView: z.ZodObject<{
     rows: {
         family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
         priceKind: "minimum" | "fixed" | "range" | "set_by_psf";
-        source: "district" | "national" | "band";
+        source: "district" | "band" | "national";
         tierCode: string;
         tierName: string;
         updatedAt: string | null;

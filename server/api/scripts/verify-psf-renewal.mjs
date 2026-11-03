@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verify PSF membership renewals (2026-11-02, migration 0126) end to end,
+// Verify PSF membership renewals (2026-11-02, migration 0127) end to end,
 // against a running demo API (the fixed code 123456) and its database:
 //
 //   R1. A public application is sent and paid, and the district's PSF officer

@@ -352,7 +352,7 @@ export const identityScans = pgTable(
     /** `document_scan` (a photo of the document and a selfie) or `national_id_registry` (a number and a selfie). */
     checkKind: text('check_kind').notNull().default('document_scan'),
     frontObjectKey: text('front_object_key'),
-    // Null for a National ID checked by its number alone (0129), with no selfie taken.
+    // Null for a National ID checked by its number alone (0130), with no selfie taken.
     selfieObjectKey: text('selfie_object_key'),
     outcome: identityScanOutcomeEnum('outcome').notNull(),
     /** Why a checker refused it; set exactly when the outcome is `machine_failed`. */
@@ -749,7 +749,7 @@ export const oversightAssignments = pgTable(
     cellId: integer('cell_id').references(() => cells.id),
     villageId: integer('village_id').references(() => villages.id),
     assignedByUserId: uuid('assigned_by_user_id').references(() => users.id),
-    // The appointed person's ID (0131), typed by whoever appointed a PSF District Manager or BDE.
+    // The appointed person's ID (0132), typed by whoever appointed a PSF District Manager or BDE.
     idDocumentType: text('id_document_type').$type<'national_id' | 'passport'>(),
     idDocumentNumber: text('id_document_number'),
     grantedAt: timestamp('granted_at', { withTimezone: true })

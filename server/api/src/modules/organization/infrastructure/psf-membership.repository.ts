@@ -194,7 +194,7 @@ export async function fileMembershipClaim(
     .insert(psfMembershipClaims)
     .values({ orgId: row.orgId, membershipNumber: row.membershipNumber, claimedByUserId: row.claimedByUserId })
     .returning({ id: psfMembershipClaims.id });
-  // A claim with no number (its card only, 0130) waits for an officer, who types the number from the card.
+  // A claim with no number (its card only, 0131) waits for an officer, who types the number from the card.
   if (!claim || !row.tin || !row.membershipNumber) return { confirmed: false };
   const [listed] = await tx
     .select()
@@ -304,7 +304,7 @@ export interface PsfQueueRow {
   applicationId: string;
   /** Null when it came through the public PSF form, with nobody signed in. */
   submittedByUserId: string | null;
-  /** New, or a card holder joining the new module (0131). */
+  /** New, or a card holder joining the new module (0132). */
   intake: 'new' | 'card_holder';
   orgId: string;
   businessName: string;
@@ -851,7 +851,7 @@ export class PsfMembershipRepository {
           sql`${psfMemberList.tierCode} IS NOT NULL AND ${psfMemberList.startsOn} IS NOT NULL AND ${psfMemberList.expiresOn} IS NOT NULL`,
         ),
       );
-    // Matched on the number, so every row has one; a card-only claim (0130) never matches the list.
+    // Matched on the number, so every row has one; a card-only claim (0131) never matches the list.
     return rows.filter((r): r is typeof r & { membershipNumber: string } => r.membershipNumber !== null);
   }
 

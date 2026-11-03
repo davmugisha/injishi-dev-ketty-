@@ -120,7 +120,7 @@ export function fewestFree(nights: readonly { freeUnits: number }[]): number {
 }
 
 /**
- * A broker's groups of rooms (0125). The write of a group's bookings is ONE transaction, as a single
+ * A broker's groups of rooms (0126). The write of a group's bookings is ONE transaction, as a single
  * booking's is: every room type in the group is locked (in id order, so two groups never deadlock), the
  * free rooms are counted under the lock, and every booking (and, paid by MoMo, its escrow share) is written
  * or none is. Live payment holds of other presses are counted, because a group claims none of its own.

@@ -3,7 +3,18 @@
  * slice of Rwanda's places, fake uploads, a sample video made in the browser, rent on a calendar. No
  * screen may import this: screens read the API (places from `/api/v1/geography/*`).
  */
-import type { PhotoItem, PlaceLevel, PlaceOption, RentDayItem, UploadProgress } from "@injishi/ui";
+import type { PhotoItem, PlaceLevel, PlaceOption, UploadProgress } from "@injishi/ui";
+
+/** A rent day for the gallery's schedule specimen. */
+export interface RentDayItem {
+  id: string;
+  day: string;
+  status: "paid" | "open" | "overdue";
+  title: string;
+  detail?: string;
+  amount: number;
+}
+
 import { addDays } from "./kit-data";
 
 // --- Places ------------------------------------------------------------------------------------------

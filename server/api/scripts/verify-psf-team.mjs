@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verify the PSF team (2026-11-02, migration 0128) against a running demo API
+// Verify the PSF team (2026-11-02, migration 0129) against a running demo API
 // (the fixed code 123456):
 //
 //   T1. Injishi's admin may not appoint a District Manager or a BDE, and does

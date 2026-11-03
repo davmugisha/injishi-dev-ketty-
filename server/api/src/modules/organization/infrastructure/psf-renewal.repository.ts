@@ -14,7 +14,7 @@ export type PsfRenewalRow = typeof psfMembershipRenewals.$inferSelect;
 export type PsfLatestMembership = typeof psfMemberships.$inferSelect & { tierName: string | null };
 
 /**
- * PSF membership renewals (2026-11-02, migration 0126). A renewal is one row
+ * PSF membership renewals (2026-11-02, migration 0127). A renewal is one row
  * per attempt; a paid one either extends the current membership (renewed
  * early) or opens a new one under the same number (renewed after it lapsed).
  */

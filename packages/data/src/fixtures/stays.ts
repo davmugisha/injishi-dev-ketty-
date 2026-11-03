@@ -235,8 +235,29 @@ export interface DeliveryLine {
 
 export type ThreadMessage =
   | { t: "day"; text: string }
-  | { t: "guest"; text: string; meta: string; lang?: string; file?: string; fileMeta?: string }
-  | { t: "staff"; text: string; meta: string; lang?: string; delivery: DeliveryLine[]; sms?: boolean }
+  | {
+      t: "guest";
+      text: string;
+      meta: string;
+      lang?: string;
+      file?: string;
+      fileMeta?: string;
+      /** The stored line's id and moment (ISO), when it was read from the API. */
+      id?: string;
+      at?: string;
+    }
+  | {
+      t: "staff";
+      text: string;
+      meta: string;
+      lang?: string;
+      delivery: DeliveryLine[];
+      sms?: boolean;
+      id?: string;
+      at?: string;
+      /** Who on the team wrote it. */
+      sender?: string | null;
+    }
   | { t: "note"; text: string; meta: string }
   | {
       t: "card";

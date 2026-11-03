@@ -3,7 +3,6 @@
  * and its links, commands, shell and photographs through `PmsProvider`; nothing here reads the API or knows a URL.
  */
 
-export { AvailabilityCalendarView } from "./commercial/availability-calendar-view.tsx";
 export { GroupsView } from "./commercial/groups-view.tsx";
 export { ListingView } from "./commercial/listing-view.tsx";
 export { PackagesView } from "./commercial/packages-view.tsx";

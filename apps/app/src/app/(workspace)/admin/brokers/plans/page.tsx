@@ -16,6 +16,7 @@ export default async function AdminBrokerPlansPage() {
     const [plans, subscriptions, access] = await Promise.all([brokerPlanList(), brokerSubscriptions(), staffAccess()]);
     return (
       <BrokerPlansView
+        view="subscriptions"
         plans={plans.plans}
         subscriptions={subscriptions.items}
         canEdit={access.permissions.includes("admin.fee.edit")}
@@ -26,11 +27,7 @@ export default async function AdminBrokerPlansPage() {
       return (
         <PageContent>
           <PageHeader title="Broker plans" />
-          <EmptyBlock
-            icon="ShieldKeyhole"
-            title="Your staff role cannot see broker plans"
-            description="Ask a super admin for access to brokers."
-          />
+          <EmptyBlock icon="ShieldKeyhole" title="Your staff role cannot see broker plans" />
         </PageContent>
       );
     }

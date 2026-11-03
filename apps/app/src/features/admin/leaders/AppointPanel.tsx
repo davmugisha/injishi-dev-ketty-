@@ -1,6 +1,6 @@
 "use client";
 
-import { Description, FieldError, Input, Label, TextArea, TextField, toast } from "@heroui/react";
+import { FieldError, Input, Label, TextArea, TextField, toast } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
 import {
   AppointOfficerRequest,
@@ -135,14 +135,15 @@ export function AppointPanel({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const startRole = prefill?.role ?? "village_leader";
+  // Nothing is chosen for the admin: a role comes from a coverage gap they pressed, or they pick it.
+  const startRole = prefill?.role ?? null;
   const [email, setEmail] = useState(prefill?.email ?? "");
   const [name, setName] = useState("");
-  const [role, setRole] = useState<OversightRole>(startRole);
-  const [level, setLevel] = useState<OversightScopeLevel>(defaultLevel(startRole));
+  const [role, setRole] = useState<OversightRole | null>(startRole);
+  const [level, setLevel] = useState<OversightScopeLevel>(startRole ? defaultLevel(startRole) : "country");
   const [chain, setChain] = useState<PlaceChain>(prefill?.chain ?? {});
-  const [body, setBody] = useState(defaultBody(startRole, bodies));
-  const [title, setTitle] = useState(roleLabel(startRole));
+  const [body, setBody] = useState(startRole ? defaultBody(startRole, bodies) : "");
+  const [title, setTitle] = useState(startRole ? roleLabel(startRole) : "");
   const [titleTouched, setTitleTouched] = useState(false);
   const [reason, setReason] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -152,8 +153,9 @@ export function AppointPanel({
 
   // Editing a field takes its error away; Appoint checks everything again.
   const clear = (field: string): void => setErrors((e) => (e[field] ? { ...e, [field]: "" } : e));
-  const allowed = levelsFor(role);
-  const depth: PlaceLevel | null = level === "country" ? null : (level as PlaceLevel);
+  // No role picked yet (main): no levels. A PSF post keeps its own posting levels (this branch).
+  const allowed = role ? levelsFor(role) : [];
+  const depth: PlaceLevel | null = !role || level === "country" ? null : (level as PlaceLevel);
   const area = depth ? areaWords(chain, level) : "the whole country";
 
   const chooseRole = (next: OversightRole) => {
@@ -186,6 +188,7 @@ export function AppointPanel({
         if (!next[field]) next[field] = issue.message;
       }
     }
+    if (!role) next.role = "Choose a role.";
     if (depth && !isPlaceComplete(chain, depth)) {
       next.area = `Choose every level, down to the ${depth}.`;
     }
@@ -218,7 +221,6 @@ export function AppointPanel({
         isOpen
         onOpenChange={(open) => (open ? undefined : onClose())}
         title="Appoint a leader or officer"
-        description="They sign in with this email and a code we send them."
         submitLabel="Appoint"
         submitIcon="PersonPlus"
         isPending={pending}
@@ -252,101 +254,103 @@ export function AppointPanel({
           fullWidth
           className="gap-1"
         >
-          <Label>Full name</Label>
+          <Label>Full name (optional)</Label>
           <Input placeholder="As on their ID" />
-          <Description>Optional. Used when they have no account yet.</Description>
           <FieldError>{errors.name}</FieldError>
         </TextField>
         <SelectField
           label="Role"
           name="role"
           value={role}
+          placeholder="Choose a role"
           options={ROLE_CHOICES}
           onChange={(v) => chooseRole(v as OversightRole)}
           errorMessage={errors.role}
         />
-        {allowed.length > 1 ? (
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium">Covers</span>
-            <Segment
-              aria-label="Covers"
-              selectedKey={level}
-              onSelectionChange={(k) => {
-                setLevel(k as OversightScopeLevel);
-                setErrors({});
+        {role ? (
+          <>
+            {allowed.length > 1 ? (
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium">Covers</span>
+                <Segment
+                  aria-label="Covers"
+                  selectedKey={level}
+                  onSelectionChange={(k) => {
+                    setLevel(k as OversightScopeLevel);
+                    setErrors({});
+                  }}
+                  className="w-fit max-w-full"
+                >
+                  {allowed.map((l) => (
+                    <Segment.Item key={l} id={l}>
+                      {LEVEL_WORD[l]}
+                    </Segment.Item>
+                  ))}
+                </Segment>
+              </div>
+            ) : null}
+            {depth ? (
+              <PlacePicker
+                label={`Area: ${LEVEL_WORD[level].toLowerCase()}`}
+                value={chain}
+                depth={depth}
+                onChange={(next) => {
+                  setChain(next);
+                  setErrors((e) => ({ ...e, area: "" }));
+                }}
+                loadPlaces={loadGuestPlaces}
+                reserveSpace={false}
+                errorMessage={errors.area || null}
+              />
+            ) : (
+              <p className="text-sm text-muted">This role covers the whole country.</p>
+            )}
+            <SelectField
+              label="Government body"
+              name="governmentBodyCode"
+              value={body || null}
+              options={bodies
+                .filter((b) => b.active)
+                .map((b) => ({ id: b.code, label: b.nameEn, description: b.abbreviation ?? undefined }))}
+              onChange={(v) => {
+                setBody(v);
+                clear("governmentBodyCode");
               }}
-              className="w-fit max-w-full"
+              errorMessage={errors.governmentBodyCode}
+            />
+            <TextField
+              name="governmentTitle"
+              value={title}
+              onChange={(v) => {
+                setTitle(v);
+                setTitleTouched(true);
+                clear("governmentTitle");
+              }}
+              isInvalid={errors.governmentTitle ? true : undefined}
+              fullWidth
+              className="gap-1"
             >
-              {allowed.map((l) => (
-                <Segment.Item key={l} id={l}>
-                  {LEVEL_WORD[l]}
-                </Segment.Item>
-              ))}
-            </Segment>
-          </div>
+              <Label>Title</Label>
+              <Input />
+              <FieldError>{errors.governmentTitle}</FieldError>
+            </TextField>
+            <TextField
+              name="reason"
+              value={reason}
+              onChange={(v) => {
+                setReason(v);
+                clear("reason");
+              }}
+              isInvalid={errors.reason ? true : undefined}
+              fullWidth
+              className="gap-1"
+            >
+              <Label>Why</Label>
+              <TextArea rows={3} placeholder="Took office in October 2026" />
+              <FieldError>{errors.reason}</FieldError>
+            </TextField>
+          </>
         ) : null}
-        {depth ? (
-          <PlacePicker
-            label={`Area: ${LEVEL_WORD[level].toLowerCase()}`}
-            value={chain}
-            depth={depth}
-            onChange={(next) => {
-              setChain(next);
-              setErrors((e) => ({ ...e, area: "" }));
-            }}
-            loadPlaces={loadGuestPlaces}
-            reserveSpace={false}
-            errorMessage={errors.area || null}
-          />
-        ) : (
-          <p className="text-sm text-muted">This role covers the whole country.</p>
-        )}
-        <SelectField
-          label="Government body"
-          name="governmentBodyCode"
-          value={body || null}
-          options={bodies
-            .filter((b) => b.active)
-            .map((b) => ({ id: b.code, label: b.nameEn, description: b.abbreviation ?? undefined }))}
-          onChange={(v) => {
-            setBody(v);
-            clear("governmentBodyCode");
-          }}
-          errorMessage={errors.governmentBodyCode}
-        />
-        <TextField
-          name="governmentTitle"
-          value={title}
-          onChange={(v) => {
-            setTitle(v);
-            setTitleTouched(true);
-            clear("governmentTitle");
-          }}
-          isInvalid={errors.governmentTitle ? true : undefined}
-          fullWidth
-          className="gap-1"
-        >
-          <Label>Title</Label>
-          <Input />
-          <Description>What their institution calls the post.</Description>
-          <FieldError>{errors.governmentTitle}</FieldError>
-        </TextField>
-        <TextField
-          name="reason"
-          value={reason}
-          onChange={(v) => {
-            setReason(v);
-            clear("reason");
-          }}
-          isInvalid={errors.reason ? true : undefined}
-          fullWidth
-          className="gap-1"
-        >
-          <Label>Why</Label>
-          <TextArea rows={3} placeholder="Took office in October 2026" />
-          <Description>Kept with the appointment in the audit log.</Description>
-          <FieldError>{errors.reason}</FieldError>
-        </TextField>
       </SidePanel>
       <ConfirmDialog
         isOpen={confirming}
@@ -357,8 +361,8 @@ export function AppointPanel({
         isPending={pending}
         onConfirm={appoint}
       >
-        {`${name.trim() || email} becomes ${roleLabel(role).toLowerCase()} for ${area || "the area chosen"}. `}
-        {isLeaderRole(role)
+        {`${name.trim() || email} becomes ${role ? roleLabel(role).toLowerCase() : ""} for ${area || "the area chosen"}. `}
+        {role && isLeaderRole(role)
           ? "They get an email to sign in, and the guests in that area reach them from now on, with any that were waiting."
           : "They get an email to sign in, and the businesses in that area reach their queue."}
       </ConfirmDialog>

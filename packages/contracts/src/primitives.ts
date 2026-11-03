@@ -136,7 +136,7 @@ export const OversightRole = z.enum([
     "dgie_village",
     "dgie_cell",
     /**
-     * A PSF BDE (Business Development & Empowerment) (2026-11-02, migration 0128): reads one
+     * A PSF BDE (Business Development & Empowerment) (2026-11-02, migration 0129): reads one
      * district's PSF console and decides nothing. Appointed by the district's
      * Province Manager. Last, in the order the database enum appends it.
      */

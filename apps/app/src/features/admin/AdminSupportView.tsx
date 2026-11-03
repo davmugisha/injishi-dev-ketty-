@@ -120,7 +120,6 @@ export function AdminSupportView({ persona, data }: { persona: Persona; data: Ad
       <PageHeader
         eyebrow="Tenants › Support and moderation · 12 open tickets · 6 reports · 4 disputes"
         title="Support and Moderation"
-        description="You see what a tenant shared on the ticket. Looking further needs a view-as session, which is logged and shown to the owner."
         actions={
           <LinkButton href={screenHref("AdminBusinesses")} variant="secondary">
             <Eye className="size-4" />

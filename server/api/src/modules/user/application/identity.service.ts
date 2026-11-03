@@ -492,6 +492,21 @@ export class IdentityService {
     return this.status(userId);
   }
 
+  /**
+   * "Use a different ID" (2026-10-30): the identity on file is dropped so the
+   * person can check another one, or the same one again. Only while nothing on
+   * Injishi stands on it yet; after that a change goes through support.
+   */
+  async clear(userId: string): Promise<IdentityStatus> {
+    if (await this.repo.identityInUse(userId)) {
+      throw new ConflictException(
+        'Your ID is already tied to a business or broker account on Injishi. To change it, contact support.',
+      );
+    }
+    await this.repo.clear(userId);
+    return this.status(userId);
+  }
+
   /** The identity on file, scanned or typed, or null when there is none to show. */
   private onFile(row: IdentityRow): IdentityOnFile | null {
     if (row.kycStatus !== 'verified' && row.kycStatus !== 'pending') return null;

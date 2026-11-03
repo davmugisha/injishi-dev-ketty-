@@ -74,6 +74,10 @@ export * from "./staff-phone";
 export * from "./rentals";
 // Who am I, in one call (blueprint 2.5): where a person lands.
 export * from "./me-context";
+// A short-stay business's home: how it is run, today's counts, a period's stays and money.
+export * from "./stays-overview";
+// Prices and availability by the day, and a room type's own terms.
+export * from "./rates-calendar";
 export * from "./guests";
 // The bar and restaurant point of sale (POS spec, phase 1).
 export * from "./pos";

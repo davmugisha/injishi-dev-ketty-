@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   endOfMonth,
   kigaliToday,
   overviewMonths,
   percentChange,
+  type RentalsMoney,
   type RentalsOverview,
   type RentalsSummary,
 } from '@injishi/contracts';
@@ -116,5 +117,30 @@ export class RentalsOverviewService {
       overdue: { amountRwf: overdue.amountRwf, charges: overdue.charges, leases: overdue.leases },
       months: figures,
     };
+  }
+
+  /**
+   * The landlord's money by the day (2026-10-28): charges, payments and expenses from `from` to `to`.
+   * Left out, the range is January of last year to the end of next month, which every period of the
+   * home's filter and the calendar's next month fall inside. At most 800 days.
+   */
+  async money(ws: ScopedWorkspace, query: { from?: string; to?: string }, now: Date = new Date()): Promise<RentalsMoney> {
+    const r = assertResidence(ws);
+    const buildings = buildingIdsOf(ws.branchScope);
+    const today = kigaliToday(now);
+    const day = /^\d{4}-\d{2}-\d{2}$/;
+    const [y, m] = today.split('-').map(Number) as [number, number];
+    const nextMonth = endOfMonth(`${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, '0')}-01`);
+    const from = query.from ?? `${y - 1}-01-01`;
+    const to = query.to ?? nextMonth;
+    if (!day.test(from) || !day.test(to) || from > to) throw new BadRequestException('from and to must be days, from first.');
+    const span = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000;
+    if (span > 800) throw new BadRequestException('Ask for at most 800 days at a time.');
+    const [charges, payments, spent] = await Promise.all([
+      this.reads.chargesBetween(r.workspaceId, buildings, from, to, today),
+      this.reads.paymentsBetween(r.workspaceId, buildings, from, to),
+      this.reads.spentByDay(r.workspaceId, buildings, from, to),
+    ]);
+    return { from, to, today, charges, payments, spent };
   }
 }

@@ -296,7 +296,6 @@ export class GuestRegistryService {
     };
   }
 
-  /** File a registration and its routes, with the audit and outbox rows, then email the leaders. */
   /**
    * File a hotel stay's guest (0114): the same transaction, routes, audit and
    * outbox as a residence's guest, at the hotel's own place.
@@ -305,6 +304,7 @@ export class GuestRegistryService {
     return this.file(home, values, { hostKind: 'hotel', leaseId: null, userId, guestStayId: stayId });
   }
 
+  /** File a registration and its routes, with the audit and outbox rows, then email the leaders. */
   private async file(
     home: HomeRow,
     values: GuestValues,
@@ -322,9 +322,9 @@ export class GuestRegistryService {
         leaseId: host.leaseId,
         propertyId: home.propertyId,
         unitId: home.unitId,
+        guestStayId: host.guestStayId ?? null,
         registeredByUserId: host.userId,
         area,
-        guestStayId: host.guestStayId ?? null,
       });
       await this.guests.insertRoutes(tx, registrationId, routes, now);
       await this.guests.audit(tx, {

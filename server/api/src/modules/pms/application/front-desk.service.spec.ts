@@ -1,4 +1,5 @@
 import type { StayCompletionService } from './stay-completion.service';
+import type { NightAuditService } from './night-audit.service';
 import type { HotelGuestFilingService } from '../../guests/application/hotel-guest-filing.service';
 import { describe, expect, it } from 'vitest';
 
@@ -153,6 +154,7 @@ function build(opts: {
     { carryToStay: async () => undefined } as unknown as SelfCheckInService,
     hotelGuests as unknown as HotelGuestFilingService,
     { completeBooking: async () => null } as unknown as StayCompletionService,
+    { chargeOnDeparture: async () => 0 } as unknown as NightAuditService,
   );
   return { service, opened, holdQueries, folios, cards, posted, filed };
 }

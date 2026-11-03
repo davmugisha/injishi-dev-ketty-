@@ -5,6 +5,7 @@ import { Job, Queue } from 'bullmq';
 import { QUEUES } from '../../../shared/queues/queues.module';
 import { BookingLifecycleService } from '../application/booking-lifecycle.service';
 import { PaymentAttemptService } from '../application/payment-attempt.service';
+import { DeskReservationService } from '../application/desk-reservation.service';
 import { reportJobFailure } from '../../../shared/observability/report-job-failure';
 
 /** The request-to-book auto-decline sweep on the BookingLifecycle queue. */
@@ -45,6 +46,8 @@ export class BookingLifecycleProcessor
     @InjectQueue(QUEUES.bookingLifecycle) private readonly queue: Queue,
     private readonly lifecycle: BookingLifecycleService,
     private readonly attempts: PaymentAttemptService,
+    /** Desk holds that ran out (0124) ride the same five-minute sweep. */
+    private readonly desk: DeskReservationService,
   ) {
     super();
   }
@@ -88,6 +91,7 @@ export class BookingLifecycleProcessor
     }
     if (job.name === EXPIRE_STALE_REQUESTS) {
       await this.lifecycle.expireStaleRequests(new Date());
+      await this.desk.releaseExpiredHolds(new Date());
       return;
     }
     this.logger.warn(

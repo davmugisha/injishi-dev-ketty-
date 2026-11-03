@@ -1,50 +1,33 @@
 "use client";
 
-import type { BrokerEarnings, BrokerFeeLine, BrokerReviews } from "@injishi/contracts";
+import type { BrokerEarnings, BrokerFeeLine } from "@injishi/contracts";
 import { screenHref } from "@injishi/data";
 import {
   ActionLink,
   type DataColumn,
   DataTable,
+  DateText,
   EmptyBlock,
-  FilterTabs,
   formatDay,
   formatMoney,
-  KpiStrip,
-  ListToolbar,
+  Money,
   PageContent,
-  PageHeader,
 } from "@injishi/ui";
-import { useState } from "react";
-import { FeesChart } from "./FeesChart";
-import { ReviewsSection } from "./ReviewsView";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { FeeChip, feeTermsWords } from "./shared";
 
-type Tab = "all" | "owed" | "paid";
-
 /**
- * What landlords recorded as owed to the broker and paid (2026-10-25). A record: the money moves between
- * the landlord and the broker, outside Injishi, and the landlord marks it paid.
+ * The fees landlords recorded for the broker, owed and paid (2026-10-30): one table with a status filter
+ * and a search. The money moves between the landlord and the broker outside Injishi.
  */
-export function EarningsView({
-  data,
-  reviews,
-  today,
-}: {
-  data: BrokerEarnings;
-  /** What landlords and tenants said, shown under the fees (2026-10-27). */
-  reviews: BrokerReviews;
-  today: string;
-}) {
-  const [tab, setTab] = useState<Tab>("all");
-  const owed = data.fees.filter((f) => f.fee.status === "owed");
-  const paid = data.fees.filter((f) => f.fee.status === "paid");
-  const rows = tab === "owed" ? owed : tab === "paid" ? paid : data.fees;
+export function EarningsView({ data }: { data: BrokerEarnings }) {
+  const count = (s: BrokerFeeLine["fee"]["status"]) => data.fees.filter((f) => f.fee.status === s).length;
   const columns: DataColumn<BrokerFeeLine>[] = [
     {
       id: "lease",
-      header: "Lease",
+      header: "Tenant",
       isRowHeader: true,
+      sortValue: (f) => f.tenantName,
       cell: (f) => (
         <span className="flex flex-col">
           <span className="font-medium">{f.tenantName}</span>
@@ -53,76 +36,73 @@ export function EarningsView({
           </span>
         </span>
       ),
-      sortValue: (f) => f.tenantName,
     },
-    { id: "landlord", header: "Landlord", cell: (f) => f.landlordName, hideBelow: "lg" },
-    { id: "start", header: "Starts", cell: (f) => formatDay(f.startDate, "short"), sortValue: (f) => f.startDate },
-    { id: "terms", header: "Agreed", cell: (f) => feeTermsWords(f.fee.terms), hideBelow: "lg" },
+    {
+      id: "landlord",
+      header: "Landlord",
+      sortValue: (f) => f.landlordName,
+      cell: (f) => f.landlordName,
+      hideBelow: "lg",
+    },
+    {
+      id: "start",
+      header: "Lease starts",
+      sortValue: (f) => f.startDate,
+      cell: (f) => <DateText value={f.startDate} />,
+    },
+    { id: "terms", header: "Agreed", cell: (f) => feeTermsWords(f.fee.terms), hideBelow: "lg", defaultHidden: true },
     {
       id: "amount",
       header: "Fee",
       align: "end",
-      cell: (f) => <span className="tabular">{formatMoney(f.fee.amountRwf)}</span>,
       sortValue: (f) => f.fee.amountRwf,
+      cell: (f) => <Money value={f.fee.amountRwf} />,
     },
     {
       id: "status",
       header: "Status",
-      cell: (f) => (
-        <span className="flex flex-col items-start gap-0.5">
-          <FeeChip status={f.fee.status} />
-          {f.fee.paidAt ? <span className="text-xs text-muted">{formatDay(f.fee.paidAt, "short")}</span> : null}
-        </span>
-      ),
+      sortValue: (f) => f.fee.status,
+      cell: (f) => <FeeChip status={f.fee.status} />,
+    },
+    {
+      id: "paid",
+      header: "Paid on",
+      sortValue: (f) => f.fee.paidAt ?? "",
+      cell: (f) =>
+        f.fee.paidAt ? <DateText value={f.fee.paidAt.slice(0, 10)} /> : <span className="text-muted">-</span>,
     },
   ];
   return (
     <PageContent>
-      <PageHeader title="Earnings and reviews" />
-      <KpiStrip
-        label="Fees"
-        items={[
-          {
-            id: "owed",
-            label: "Owed to you",
-            value: data.owedRwf,
-            icon: "Wallet",
-            status: data.owedRwf > 0 ? "warning" : undefined,
-            isCurrent: tab === "owed",
-          },
-          { id: "paid", label: "Paid", value: data.paidRwf, icon: "CircleCheck", isCurrent: tab === "paid" },
-          { id: "year", label: "Paid this year", value: data.paidThisYearRwf, icon: "Calendar" },
-        ]}
-      />
-      <FeesChart fees={data.fees} today={today} />
-      <ListToolbar
-        tabs={
-          <FilterTabs
-            label="Fees by status"
-            name="Status"
-            tabs={[
-              { id: "all", label: "All", count: data.fees.length },
-              { id: "owed", label: "Owed", count: owed.length },
-              { id: "paid", label: "Paid", count: paid.length },
-            ]}
-            selectedKey={tab}
-            onSelectionChange={(k) => setTab(k as Tab)}
-          />
-        }
-      >
-        <span className="hidden text-xs text-muted md:inline">
-          Landlords pay you directly; Injishi keeps the record.
-        </span>
-      </ListToolbar>
+      <AreaHeader />
       <DataTable
         label="Fees"
-        rows={rows}
+        noun={{ one: "fee", many: "fees" }}
+        rows={data.fees}
         rowKey={(f) => f.leaseId}
         columns={columns}
+        columnToggle
         defaultSort={{ column: "start", direction: "descending" }}
+        search={{
+          placeholder: "Tenant, home or landlord",
+          text: (f) => `${f.tenantName} ${f.unitLabel} ${f.propertyName} ${f.landlordName}`,
+        }}
+        filters={[
+          {
+            id: "status",
+            name: "Status",
+            options: [
+              { id: "all", label: "All", count: data.fees.length },
+              { id: "owed", label: "Owed", count: count("owed") },
+              { id: "paid", label: "Paid", count: count("paid") },
+              { id: "void", label: "Void", count: count("void") },
+            ].filter((o) => o.id !== "void" || o.count > 0),
+            match: (f, v) => f.fee.status === v,
+          },
+        ]}
         mobile={{
           title: (f) => f.tenantName,
-          description: (f) => `${f.unitLabel} · ${f.propertyName}`,
+          description: (f) => `${f.unitLabel} · ${formatDay(f.startDate)}`,
           trailing: (f) => (
             <span className="flex flex-col items-end gap-1">
               <span className="tabular">{formatMoney(f.fee.amountRwf)}</span>
@@ -133,17 +113,16 @@ export function EarningsView({
         empty={
           <EmptyBlock
             icon="Wallet"
-            title="No fees recorded yet"
+            title="No fees yet"
             description="A fee is recorded when a landlord names you on a lease."
             action={
               <ActionLink href={screenHref("BrokerPlacements")} icon="Persons">
-                See placements
+                Placements
               </ActionLink>
             }
           />
         }
       />
-      <ReviewsSection data={reviews} />
     </PageContent>
   );
 }

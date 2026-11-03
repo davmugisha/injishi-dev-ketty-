@@ -8,11 +8,13 @@ import { PieChart } from "@heroui-pro/react/pie-chart";
 import { RadialChart } from "@heroui-pro/react/radial-chart";
 import { type ReactNode, useId, useMemo, useState } from "react";
 import { IconAction } from "./buttons.tsx";
+import { DASHBOARD_PERIODS, type DashboardPeriod, isDashboardPeriod, type PeriodRange } from "./dashboard-period.ts";
 import { formatNumber } from "./format.tsx";
 import { useElementWidth, useNoFocusInside, useReducedMotion } from "./hooks.ts";
 import type { IconKey } from "./icon.tsx";
 import { formatMoney, formatMoneyAxis } from "./money.tsx";
 import { EmptyBlock } from "./states.tsx";
+import { FilterMenu } from "./table.tsx";
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
@@ -1242,6 +1244,8 @@ export interface CountSlice {
   key: string;
   label: string;
   count: number;
+  /** A fixed colour (a state's own): slices keep the order given instead of largest first. */
+  color?: string;
 }
 
 /**
@@ -1275,11 +1279,13 @@ export function CountDonut({
   className?: string;
 }) {
   const motion = !useReducedMotion();
-  const positive = data.filter((d) => d.count > 0).sort((a, b) => b.count - a.count);
-  const top = positive.slice(0, 5);
-  const rest = positive.slice(5).reduce((n, d) => n + d.count, 0);
+  const fixed = data.some((d) => d.color);
+  const positive = data.filter((d) => d.count > 0);
+  if (!fixed) positive.sort((a, b) => b.count - a.count);
+  const top = fixed ? positive : positive.slice(0, 5);
+  const rest = fixed ? 0 : positive.slice(5).reduce((n, d) => n + d.count, 0);
   const slices = [
-    ...top.map((d, i) => ({ key: d.key, name: d.label, value: d.count, color: CHART_COLOR.cat(i + 1) })),
+    ...top.map((d, i) => ({ key: d.key, name: d.label, value: d.count, color: d.color ?? CHART_COLOR.cat(i + 1) })),
     ...(rest > 0 ? [{ key: "", name: "Other", value: rest, color: "var(--chart-other)" }] : []),
   ];
   const total = slices.reduce((n, d) => n + d.value, 0);
@@ -1421,6 +1427,173 @@ export function ProgressRadial({
           {caption ? <span className="text-xs text-muted">{caption}</span> : null}
         </div>
       </div>
+    </ChartCard>
+  );
+}
+
+/** The dashboard's period, as a filter in the page's filter row or a chart's header (2026-10-28). */
+export function PeriodMenu({
+  value,
+  onChange,
+  compact = false,
+  className,
+}: {
+  value: DashboardPeriod;
+  onChange: (period: DashboardPeriod) => void;
+  /** Icon and choice only ("Last 6 months"), for a crowded header. */
+  compact?: boolean;
+  className?: string;
+}) {
+  return (
+    <FilterMenu
+      label="Period"
+      name="Period"
+      compact={compact}
+      icon="Calendar"
+      options={DASHBOARD_PERIODS}
+      value={value}
+      onChange={(v) => (isDashboardPeriod(v) ? onChange(v) : undefined)}
+      className={className}
+    />
+  );
+}
+
+export interface TrendSeries {
+  key: string;
+  label: string;
+  color: string;
+  /** A reference line (what was expected), drawn dashed with no fill. */
+  dashed?: boolean;
+}
+
+/**
+ * Money over the dashboard's period as areas (2026-10-28): day by day for this month, month by month
+ * otherwise. Hover a day or month for every series in francs; the numbers view lists them exactly.
+ * Always an area, even with one month of figures, because this month is drawn by the day.
+ */
+export function TrendArea({
+  title,
+  description,
+  range,
+  series,
+  values,
+  actions,
+  height = 220,
+  empty,
+  format = "money",
+  className,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  range: PeriodRange;
+  series: TrendSeries[];
+  /** One array per series, in the order of `series`, one number per bucket of `range`. */
+  values: number[][];
+  actions?: ReactNode;
+  height?: number;
+  empty?: { icon?: IconKey; title: string; description?: ReactNode; action?: ReactNode };
+  /** What the numbers are: francs (the default), a share in percent (occupancy), or a plain count. */
+  format?: "money" | "percent" | "count";
+  className?: string;
+}) {
+  const motion = !useReducedMotion();
+  const word = (v: number) =>
+    format === "money"
+      ? formatMoney(v)
+      : format === "percent"
+        ? `${formatNumber(v, { maximumFractionDigits: 1 })}%`
+        : formatNumber(v);
+  const axis = (v: number) =>
+    format === "money" ? formatMoneyAxis(v) : format === "percent" ? `${v}%` : formatNumber(v);
+  const total = (j: number) =>
+    format === "percent"
+      ? (values[j] ?? []).reduce((a, v) => a + v, 0) / Math.max(1, (values[j] ?? []).length)
+      : (values[j] ?? []).reduce((a, v) => a + v, 0);
+  const base = useId().replace(/:/g, "");
+  // Months before the first figure are left off, so a line never seems to rise out of months with no
+  // records; at least two points stay so there is a line to read.
+  const firstFigure = range.buckets.findIndex((_, i) => series.some((_s, j) => (values[j]?.[i] ?? 0) !== 0));
+  const skip =
+    range.unit === "month" && firstFigure > 0 ? Math.min(firstFigure, Math.max(0, range.buckets.length - 2)) : 0;
+  const rows = range.buckets.slice(skip).map((b, k) => {
+    const i = k + skip;
+    const row: Record<string, string | number> = { label: b.label, long: b.long };
+    series.forEach((s, j) => {
+      row[s.key] = values[j]?.[i] ?? 0;
+    });
+    return row;
+  });
+  const fewPoints = rows.length <= 12;
+  const totals = series.map((_, j) => total(j));
+  const isEmpty = totals.every((t) => t === 0);
+  const longOf = (label: string | number) => rows.find((r) => r.label === label)?.long ?? String(label);
+  return (
+    <ChartCard
+      title={title}
+      description={description}
+      actions={actions}
+      className={className}
+      legend={series.map((s) => ({ label: s.label, color: s.color, line: s.dashed }))}
+      isEmpty={isEmpty}
+      empty={empty ?? { icon: "Wallet", title: `Nothing in ${range.words}` }}
+      summary={`${series.map((s, j) => `${s.label} ${word(totals[j] ?? 0)}`).join(", ")}${format === "percent" ? " on average" : ""} in ${range.words}.`}
+      table={{
+        columns: [
+          range.unit === "day" ? "Day" : "Month",
+          ...series.map((s) => (format === "money" ? `${s.label} (RWF)` : s.label)),
+        ],
+        rows: range.buckets.map((b, i) => [
+          b.long,
+          ...series.map((_, j) => (format === "money" ? bare(values[j]?.[i] ?? 0) : word(values[j]?.[i] ?? 0))),
+        ]),
+      }}
+    >
+      <AreaChart data={rows} height={height} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        <defs>
+          {series.map((s, j) => (
+            <Gradient key={s.key} id={`${base}-${j}`} color={s.color} />
+          ))}
+        </defs>
+        <AreaChart.Grid vertical={false} />
+        <AreaChart.XAxis
+          dataKey="label"
+          {...axisProps}
+          tickMargin={8}
+          interval={range.unit === "day" ? 4 : "preserveStartEnd"}
+          padding={{ left: 8, right: 8 }}
+        />
+        <AreaChart.YAxis
+          {...axisProps}
+          width={44}
+          tickFormatter={axis}
+          {...(format === "percent" ? { domain: [0, 100] } : {})}
+        />
+        <AreaChart.Tooltip
+          cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+          content={
+            <AreaChart.TooltipContent
+              valueFormatter={(v: number | string) => word(Number(v))}
+              labelFormatter={longOf}
+            />
+          }
+        />
+        {series.map((s, j) => (
+          <AreaChart.Area
+            key={s.key}
+            dataKey={s.key}
+            name={s.label}
+            // Straight lines between real figures: a curve would invent a path between two months.
+            type="linear"
+            stroke={s.color}
+            strokeWidth={s.dashed ? 1.5 : 2}
+            strokeDasharray={s.dashed ? "4 4" : undefined}
+            fill={s.dashed ? "transparent" : `url(#${base}-${j})`}
+            dot={fewPoints && !s.dashed ? { r: 2.5, strokeWidth: 0, fill: s.color } : false}
+            activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
+            isAnimationActive={motion}
+          />
+        ))}
+      </AreaChart>
     </ChartCard>
   );
 }

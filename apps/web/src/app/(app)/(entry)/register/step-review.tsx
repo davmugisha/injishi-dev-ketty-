@@ -48,7 +48,7 @@ export function StepReview({
             </div>
             {row.step && !locked ? (
               <Button variant="ghost" size="sm" onClick={() => row.step && onEdit(row.step)}>
-                Edit<span className="sr-only"> {row.title}</span>
+                Change<span className="sr-only"> {row.title}</span>
               </Button>
             ) : null}
           </div>

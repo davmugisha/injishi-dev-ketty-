@@ -46,7 +46,7 @@ function earnedOn(c: BrokerCommission): string {
 }
 
 /**
- * Commissions on hotel stays (0127), for either side: the broker sees which hotel and where their 85% is; the
+ * Commissions on hotel stays (0128), for either side: the broker sees which hotel and where their 85% is; the
  * hotel sees which broker and what it still owes. Earned at check-out on the nights stayed, collected from the
  * hotel's payouts, then paid to the broker.
  */

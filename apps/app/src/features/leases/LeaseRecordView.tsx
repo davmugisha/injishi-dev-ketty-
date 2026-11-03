@@ -364,21 +364,6 @@ export function LeaseRecordView({
       <KpiStrip
         label={`Lease ${lease.reference} at a glance`}
         items={[
-          { id: "rent", label: "Rent", value: t.monthlyRentRwf, icon: "Wallet", footnote: dueDayWords(t.rentDueDay) },
-          {
-            id: "deposit",
-            label: "Deposit",
-            value: t.depositRwf,
-            icon: "Vault",
-            footnote:
-              t.depositRwf === 0
-                ? "No deposit"
-                : lease.charges.depositStatus === "held"
-                  ? "Held by you"
-                  : lease.charges.depositStatus === "settled"
-                    ? "Settled"
-                    : "Not paid yet",
-          },
           {
             id: "balance",
             label: "Balance owed",
@@ -427,7 +412,20 @@ export function LeaseRecordView({
                 { label: "Rent a month", value: <Money value={t.monthlyRentRwf} /> },
                 { label: "Rent is due", value: dueDayWords(t.rentDueDay) },
                 { label: "Late after", value: `${days(t.graceDays)} of grace` },
-                { label: "Deposit", value: <Money value={t.depositRwf} /> },
+                {
+                  label: "Deposit",
+                  value:
+                    t.depositRwf === 0 ? (
+                      <Muted>No deposit</Muted>
+                    ) : (
+                      <span className="flex flex-wrap items-center gap-2">
+                        <Money value={t.depositRwf} />
+                        {lease.charges.depositStatus ? (
+                          <StatusChip kind="deposit" status={lease.charges.depositStatus} />
+                        ) : null}
+                      </span>
+                    ),
+                },
                 { label: "Notice", value: days(t.noticeDays) },
                 {
                   label: "Also living there",

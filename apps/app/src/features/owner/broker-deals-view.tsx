@@ -52,7 +52,7 @@ const MOVE: Record<Move, { title: string; submit: string; done: string; note: st
 const SHARE = `${Math.round(BROKER_COMMISSION_INJISHI_SHARE * 100)}%`;
 
 /**
- * Brokers, for a hotel's owner (0124, 2026-11-02): the commission deals brokers proposed, to accept or
+ * Brokers, for a hotel's owner (0125, 2026-11-02): the commission deals brokers proposed, to accept or
  * decline, the ones running, to end, and what became of the rest. The broker's phone and email are shown
  * so the owner can talk the terms over before answering.
  */

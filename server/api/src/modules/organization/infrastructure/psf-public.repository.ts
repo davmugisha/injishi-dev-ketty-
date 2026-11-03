@@ -26,7 +26,7 @@ export interface PsfTrackRow {
   applicationId: string;
   orgId: string;
   docId: string;
-  /** New, or a card holder joining the new module (0131). */
+  /** New, or a card holder joining the new module (0132). */
   intake: 'new' | 'card_holder';
   /** The business's logo (2026-10-23), when it gave one. */
   logoObjectKey: string | null;

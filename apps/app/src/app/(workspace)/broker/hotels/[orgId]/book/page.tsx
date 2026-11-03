@@ -7,7 +7,7 @@ import { brokerDeals, brokerScope } from "@/server/broker/client";
 
 export const metadata: Metadata = { title: "Book rooms" };
 
-/** Book rooms at a hotel under the broker's running deal with it (0125). */
+/** Book rooms at a hotel under the broker's running deal with it (0126). */
 export default async function BookRoomsPage({ params }: { params: Promise<{ orgId: string }> }) {
   const { orgId } = await params;
   await requirePersona("BrokerHotels");

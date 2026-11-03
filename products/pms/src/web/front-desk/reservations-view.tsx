@@ -225,7 +225,6 @@ export function ReservationsView({
       <PageHeader
         eyebrow={`Front office · ${data.property}`}
         title="Reservations"
-        description="Find, change and approve bookings. Refunds follow the booking's policy and are paid out by Payments, not from the desk."
         actions={
           <>
             <Segment

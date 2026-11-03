@@ -1,3 +1,5 @@
+import { localToday } from '../domain/pricing';
+import { NightAuditService } from './night-audit.service';
 import type {
   CheckInRequest,
   CheckOutRequest,
@@ -70,6 +72,8 @@ export class FrontDeskService {
     private readonly hotelGuests: HotelGuestFilingService,
     /** Check out completes the booking and releases its escrow to the host (0116). */
     private readonly completion: StayCompletionService,
+    /** Check out bills the room nights the night audit has not reached yet. */
+    private readonly audit: NightAuditService,
   ) {}
 
   /** Every room in this workspace, with who is in it. */
@@ -190,9 +194,10 @@ export class FrontDeskService {
       bookingId: booking.id,
       workspaceId: ws.workspaceId,
       guestUserId: booking.guestUserId,
-      // Null when this guest HAS an account, which is the better source of the
-      // name. A broker's guest (0125) has none, so the booking's name goes on.
-      guestName: booking.guestUserId ? null : (booking.guestName ?? null),
+      // The name the desk typed from the ID (main). Readers still prefer the account's name; this is what
+      // they fall back to when the account has none, which is every guest who signed up with only an email
+      // code. With none typed, a broker's guest (0126) has no account, so the booking's own name goes on.
+      guestName: body.guest?.fullName?.trim() || (booking.guestUserId ? null : (booking.guestName ?? null)),
       roomId: room.id,
       // The planned exit is the booking's own checkout date at the property's
       // checkout hour, on the Kigali clock. Read from the booking rather than
@@ -302,9 +307,10 @@ export class FrontDeskService {
      * check in with a 409 nobody at the counter could fix. An open ended walk
      * in is asked about tonight only, which is all the desk is promising.
      */
-    const today = now.toISOString().slice(0, 10);
+    // Kigali days, not UTC: between midnight and 02:00 the UTC date is still yesterday.
+    const today = localToday(now);
     const lastNight = plannedExitAt
-      ? plannedExitAt.toISOString().slice(0, 10)
+      ? localToday(plannedExitAt)
       : today;
     const until = lastNight > today ? lastNight : this.dayAfter(today);
     const hold = await this.assignments.firstHoldOnRoom(room.id, today, until);
@@ -396,6 +402,10 @@ export class FrontDeskService {
     // Through the room, never the booking: a walk in has none (ADR-054).
     assertInBranchScope(ws, stay.propertyId);
     if (stay.lifecycle === 'closed') return this.presentStay(stay);
+
+    // Before the stay closes, so the bill the guest settles carries every night
+    // used, a same-day stay included. Never throws.
+    await this.audit.chargeOnDeparture(stay.id);
 
     const closed = await this.rooms.closeStay({
       stayId: stay.id,

@@ -226,7 +226,7 @@ export const paymentTransactions = pgTable(
      * and for a business with no workspace, which `orgId` names instead.
      */
     workspaceId: uuid('workspace_id').references(() => workspaces.id),
-    /** The business, when it has no workspace: the public PSF path (0126, 2026-11-02). */
+    /** The business, when it has no workspace: the public PSF path (0127, 2026-11-02). */
     orgId: uuid('org_id').references(() => orgs.id),
     /** The registry provider key: `gtbank`, or `mock` for the mock adapter. */
     provider: text('provider').notNull(),

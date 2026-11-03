@@ -2763,7 +2763,7 @@ export declare const PsfApplicationOrigin: z.ZodEnum<["psf_form", "registration"
 export type PsfApplicationOrigin = z.infer<typeof PsfApplicationOrigin>;
 export declare const PSF_APPLICATION_ORIGIN_LABEL: Readonly<Record<PsfApplicationOrigin, string>>;
 /**
- * How a business came in (2026-11-02, 0131): a new application, or a holder of an old PSF card, with
+ * How a business came in (2026-11-02, 0132): a new application, or a holder of an old PSF card, with
  * no number or certificate in the new module, joining it. A card holder pays nothing now, is given a
  * new number, and keeps the year on its card.
  */

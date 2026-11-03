@@ -64,15 +64,15 @@ export async function orMissing<T>(read: Promise<T>): Promise<T | null> {
 const q = (v: number | string | undefined): string | undefined => (v === undefined || v === "" ? undefined : String(v));
 
 export const brokerSummary = cache(() => get<BrokerSummary>("/api/v1/ops/broker/summary"));
-/** The hotels inside the plan's area, each with this broker's proposed or running deal (0124). */
+/** The hotels inside the plan's area, each with this broker's proposed or running deal (0125). */
 export const brokerHotels = cache(() => get<BrokerHotels>("/api/v1/ops/broker/hotels"));
 /** Every deal this broker has proposed, newest first, whatever became of it. */
 export const brokerDeals = cache(() => get<BrokerDealList>("/api/v1/ops/broker/deals"));
-/** What the broker's hotel stays earned, collected and paid (0127). */
+/** What the broker's hotel stays earned, collected and paid (0128). */
 export const brokerCommissions = cache(() => get<BrokerCommissionList>("/api/v1/ops/broker/commissions"));
 /** The MoMo number the broker's share is paid to, or null before one is set. */
 export const brokerPayoutAccount = cache(() => get<BrokerPayoutAccount | null>("/api/v1/ops/broker/payout-account"));
-/** Every group of rooms this broker booked, newest first (0125). */
+/** Every group of rooms this broker booked, newest first (0126). */
 export const brokerBookings = cache(() => get<BrokerBookingList>("/api/v1/ops/broker/bookings"));
 /** One group; while its MoMo prompt is out, reading it asks the provider where it got to. */
 export const brokerBooking = cache((id: string) => get<BrokerBookingGroup>(`/api/v1/ops/broker/bookings/${id}`));

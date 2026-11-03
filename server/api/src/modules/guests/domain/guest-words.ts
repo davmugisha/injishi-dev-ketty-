@@ -40,11 +40,18 @@ export function addressWords(street: string | null, p: PlaceNames): string {
   return [...streetParts, ...(place ? [place] : [])].join(', ') || 'No address on record';
 }
 
-/** One CSV cell: quoted when it holds a comma, quote or line break; a leading = + - @ is neutralised. */
+/** A phone in E.164: a plus and digits only, which no spreadsheet can run as a formula. */
+const E164 = /^\+[1-9]\d{6,14}$/;
+
+/**
+ * One CSV cell: quoted when it holds a comma, quote or line break; a leading = + - @ is neutralised, except a
+ * phone number in E.164, which is only digits and would otherwise open in Excel as `'+250…`. The .xlsx
+ * download is the one for Excel: there a phone is a typed text cell and needs no guard at all.
+ */
 export function csvCell(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return '';
   let v = String(value);
-  if (/^[=+\-@]/.test(v) && typeof value === 'string') v = `'${v}`;
+  if (/^[=+\-@]/.test(v) && typeof value === 'string' && !E164.test(v)) v = `'${v}`;
   return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 

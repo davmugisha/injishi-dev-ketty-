@@ -79,6 +79,69 @@ export declare const GUEST_RELATIONSHIPS: ReadonlyArray<{
 /** The relationship that asks for its own words. */
 export declare const OTHER_RELATIONSHIP = "other";
 /**
+ * The type of place, as a leader's filter and column name it: a hotel desk files its guests from the business
+ * (`orgs.business_kind`), a tenant or landlord from a residence. A motel counts as a hotel, a tented camp as
+ * a lodge and a villa as apartments; the exact kind is still shown (`guestPlaceKindLabel`).
+ */
+export declare const GUEST_PLACE_TYPES: readonly ["hotel", "lodge", "guest_house", "apartment", "residence", "other"];
+export declare const GuestPlaceType: z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>;
+export type GuestPlaceType = z.infer<typeof GuestPlaceType>;
+export declare const GUEST_PLACE_TYPE_LABEL: Readonly<Record<GuestPlaceType, string>>;
+/** The business kinds each type of place covers (a residence is any tenant's or landlord's guest). */
+export declare const GUEST_PLACE_TYPE_KINDS: Readonly<Record<Exclude<GuestPlaceType, "residence" | "other">, readonly string[]>>;
+/** The type of place from who filed the guest and the business's kind. */
+export declare function guestPlaceTypeOf(hostKind: GuestHostKind, businessKind: string | null | undefined): GuestPlaceType;
+/** The place's own kind in words: "Motel", "Tented camp", "Residence". */
+export declare function guestPlaceKindLabel(hostKind: GuestHostKind, businessKind: string | null | undefined): string;
+/** When guests arrived, relative to the Kigali day: a shared link keeps meaning "today". */
+export declare const GuestArrived: z.ZodEnum<["today", "yesterday", "last_7_days", "this_month"]>;
+export type GuestArrived = z.infer<typeof GuestArrived>;
+export declare const GUEST_ARRIVED_LABEL: Readonly<Record<GuestArrived, string>>;
+/** The days a preset covers, first and last included. */
+export declare function guestArrivedRange(preset: GuestArrived, today: string): {
+    from: string;
+    to: string;
+};
+/** When guests leave: today, or within the next 7 days (today included). */
+export declare const GuestLeaving: z.ZodEnum<["today", "next_7_days"]>;
+export type GuestLeaving = z.infer<typeof GuestLeaving>;
+export declare const GUEST_LEAVING_LABEL: Readonly<Record<GuestLeaving, string>>;
+/** How long the stay is, in nights from arrival to departure. */
+export declare const GuestLength: z.ZodEnum<["under_3", "week", "month"]>;
+export type GuestLength = z.infer<typeof GuestLength>;
+export declare const GUEST_LENGTH_LABEL: Readonly<Record<GuestLength, string>>;
+/** The nights each length covers: `min` and `max` included. */
+export declare const GUEST_LENGTH_NIGHTS: Readonly<Record<GuestLength, {
+    min?: number;
+    max?: number;
+}>>;
+/** Does a stay of so many nights fall in a length? */
+export declare function guestLengthHolds(length: GuestLength, nights: number): boolean;
+/**
+ * Who reads a console: local government (every guest, Rwandan or foreign) or DGIE (guests from abroad only).
+ * A person holding posts in both reads as local government, the wider of the two.
+ */
+export declare const LeaderAudience: z.ZodEnum<["local", "dgie"]>;
+export type LeaderAudience = z.infer<typeof LeaderAudience>;
+export declare function leaderAudienceOf(roles: readonly LeaderRole[]): LeaderAudience;
+/**
+ * Where a guest stays, in two lines for a list or a file: the place (the business, or the landlord's
+ * building), and who hosted them there (the room, the tenant and their unit, or the landlord).
+ */
+export declare function guestHostLines(g: {
+    host: {
+        kind: GuestHostKind;
+        name: string;
+    };
+    place: {
+        name: string;
+        room: string | null;
+    };
+}): {
+    place: string;
+    detail: string;
+};
+/**
  * A guest's phone in E.164: a Rwandan mobile however it is spaced
  * (`0788 123 456`), or a number from another country with its + code. The
  * same rule as the kit's `PhoneInput` with `allowInternational`.
@@ -1329,7 +1392,8 @@ export declare const GuestRelationship: z.ZodObject<{
     needsDetail: boolean;
 }>;
 export type GuestRelationship = z.infer<typeof GuestRelationship>;
-export declare const LeaderGuestTab: z.ZodEnum<["arriving", "staying", "left", "flagged"]>;
+/** `all` (the default): every guest in the area, nothing chosen for the leader. */
+export declare const LeaderGuestTab: z.ZodEnum<["all", "arriving", "staying", "left", "flagged"]>;
 export type LeaderGuestTab = z.infer<typeof LeaderGuestTab>;
 /** The Arriving tab's window: the next 7 days, or everyone arriving after that. */
 export declare const LeaderArrivingWhen: z.ZodEnum<["soon", "later"]>;
@@ -1337,29 +1401,50 @@ export type LeaderArrivingWhen = z.infer<typeof LeaderArrivingWhen>;
 /** A guest filter by nationality, in the leader's words: everyone, Rwandans, or guests from other countries. */
 export declare const ReportOrigin: z.ZodEnum<["nationals", "international"]>;
 export type ReportOrigin = z.infer<typeof ReportOrigin>;
-export declare const LeaderGuestQuery: z.ZodObject<{
-    tab: z.ZodDefault<z.ZodEnum<["arriving", "staying", "left", "flagged"]>>;
+export declare const LeaderGuestQuery: z.ZodEffects<z.ZodObject<{
+    /** Arrived today, yesterday, in the last 7 days or this month (Kigali days). */
+    arrived: z.ZodOptional<z.ZodEnum<["today", "yesterday", "last_7_days", "this_month"]>>;
+    /** Arrived between two days, both included: a custom range, in place of `arrived`. */
+    arrivedFrom: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
+    arrivedTo: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
+    /** In the area on this day: arrived on or before it, leaving on or after it. */
+    presentOn: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
+    leaving: z.ZodOptional<z.ZodEnum<["today", "next_7_days"]>>;
+    page: z.ZodDefault<z.ZodNumber>;
+    /** Rwandan guests, or guests of another nationality. */
+    origin: z.ZodOptional<z.ZodEnum<["nationals", "international"]>>;
+    /** One nationality (ISO 3166-1 alpha-2). */
+    nationality: z.ZodOptional<z.ZodString>;
+    /** One relationship code (`guest_relationships`), or `hotel_guest`. */
+    relationship: z.ZodOptional<z.ZodString>;
+    placeType: z.ZodOptional<z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>>;
+    length: z.ZodOptional<z.ZodEnum<["under_3", "week", "month"]>>;
+    tab: z.ZodDefault<z.ZodEnum<["all", "arriving", "staying", "left", "flagged"]>>;
     when: z.ZodDefault<z.ZodEnum<["soon", "later"]>>;
     sectorId: z.ZodOptional<z.ZodNumber>;
     cellId: z.ZodOptional<z.ZodNumber>;
     villageId: z.ZodOptional<z.ZodNumber>;
     q: z.ZodOptional<z.ZodString>;
-    /** Rwandan guests, or guests of another nationality. */
-    origin: z.ZodOptional<z.ZodEnum<["nationals", "international"]>>;
-    /** One nationality (ISO 3166-1 alpha-2). */
-    nationality: z.ZodOptional<z.ZodString>;
-    page: z.ZodDefault<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     page: number;
-    tab: "arriving" | "staying" | "left" | "flagged";
+    tab: "all" | "arriving" | "staying" | "left" | "flagged";
     when: "soon" | "later";
+    length?: "month" | "under_3" | "week" | undefined;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
     origin?: "nationals" | "international" | undefined;
     q?: string | undefined;
     nationality?: string | undefined;
+    relationship?: string | undefined;
+    arrived?: "today" | "yesterday" | "last_7_days" | "this_month" | undefined;
+    arrivedFrom?: string | undefined;
+    arrivedTo?: string | undefined;
+    presentOn?: string | undefined;
+    leaving?: "today" | "next_7_days" | undefined;
+    placeType?: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge" | undefined;
 }, {
+    length?: "month" | "under_3" | "week" | undefined;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
@@ -1367,10 +1452,55 @@ export declare const LeaderGuestQuery: z.ZodObject<{
     q?: string | undefined;
     page?: number | undefined;
     nationality?: string | undefined;
-    tab?: "arriving" | "staying" | "left" | "flagged" | undefined;
+    relationship?: string | undefined;
+    tab?: "all" | "arriving" | "staying" | "left" | "flagged" | undefined;
     when?: "soon" | "later" | undefined;
+    arrived?: "today" | "yesterday" | "last_7_days" | "this_month" | undefined;
+    arrivedFrom?: string | undefined;
+    arrivedTo?: string | undefined;
+    presentOn?: string | undefined;
+    leaving?: "today" | "next_7_days" | undefined;
+    placeType?: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge" | undefined;
+}>, {
+    page: number;
+    tab: "all" | "arriving" | "staying" | "left" | "flagged";
+    when: "soon" | "later";
+    length?: "month" | "under_3" | "week" | undefined;
+    sectorId?: number | undefined;
+    cellId?: number | undefined;
+    villageId?: number | undefined;
+    origin?: "nationals" | "international" | undefined;
+    q?: string | undefined;
+    nationality?: string | undefined;
+    relationship?: string | undefined;
+    arrived?: "today" | "yesterday" | "last_7_days" | "this_month" | undefined;
+    arrivedFrom?: string | undefined;
+    arrivedTo?: string | undefined;
+    presentOn?: string | undefined;
+    leaving?: "today" | "next_7_days" | undefined;
+    placeType?: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge" | undefined;
+}, {
+    length?: "month" | "under_3" | "week" | undefined;
+    sectorId?: number | undefined;
+    cellId?: number | undefined;
+    villageId?: number | undefined;
+    origin?: "nationals" | "international" | undefined;
+    q?: string | undefined;
+    page?: number | undefined;
+    nationality?: string | undefined;
+    relationship?: string | undefined;
+    tab?: "all" | "arriving" | "staying" | "left" | "flagged" | undefined;
+    when?: "soon" | "later" | undefined;
+    arrived?: "today" | "yesterday" | "last_7_days" | "this_month" | undefined;
+    arrivedFrom?: string | undefined;
+    arrivedTo?: string | undefined;
+    presentOn?: string | undefined;
+    leaving?: "today" | "next_7_days" | undefined;
+    placeType?: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge" | undefined;
 }>;
 export type LeaderGuestQuery = z.infer<typeof LeaderGuestQuery>;
+/** The guest filters that narrow a list or report, as an address keeps them: the list's, then the report's. */
+export declare const GUEST_LIST_FILTER_KEYS: readonly ["origin", "nationality", "relationship", "placeType", "length", "arrived", "arrivedFrom", "arrivedTo", "presentOn", "leaving"];
 export declare const FlagGuestRequest: z.ZodObject<{
     note: z.ZodString;
 }, "strip", z.ZodTypeAny, {
@@ -1446,6 +1576,7 @@ export declare const LeaderGuest: z.ZodObject<{
     stay: z.ZodEnum<["arriving", "staying", "left"]>;
     host: z.ZodObject<{
         kind: z.ZodEnum<["tenant", "landlord", "hotel"]>;
+        /** The tenant or the landlord who filed the guest; for a hotel, the business. */
         name: z.ZodString;
         phone: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
@@ -1457,6 +1588,25 @@ export declare const LeaderGuest: z.ZodObject<{
         kind: "hotel" | "landlord" | "tenant";
         phone: string | null;
     }>;
+    /** Where they stay: the type of place, its own kind in words, the business or building, the room or unit. */
+    place: z.ZodObject<{
+        type: z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>;
+        kindLabel: z.ZodString;
+        name: z.ZodString;
+        room: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        name: string;
+        room: string | null;
+        kindLabel: string;
+    }, {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        name: string;
+        room: string | null;
+        kindLabel: string;
+    }>;
+    /** When the desk checked the guest in (a hotel stay), or null. */
+    checkedInAt: z.ZodNullable<z.ZodString>;
     home: z.ZodObject<{
         propertyName: z.ZodString;
         unitLabel: z.ZodNullable<z.ZodString>;
@@ -1591,6 +1741,13 @@ export declare const LeaderGuest: z.ZodObject<{
         } | null;
     }[];
     flagged: boolean;
+    place: {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        name: string;
+        room: string | null;
+        kindLabel: string;
+    };
+    checkedInAt: string | null;
     seenByMe: boolean;
     changedAt: string | null;
 }, {
@@ -1640,6 +1797,13 @@ export declare const LeaderGuest: z.ZodObject<{
         } | null;
     }[];
     flagged: boolean;
+    place: {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        name: string;
+        room: string | null;
+        kindLabel: string;
+    };
+    checkedInAt: string | null;
     seenByMe: boolean;
     changedAt: string | null;
 }>;
@@ -1717,6 +1881,34 @@ export declare const LeaderFilters: z.ZodObject<{
         name: string;
         count: number;
     }>, "many">>;
+    /** The types of place among those guests, most first. */
+    placeTypes: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        type: z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>;
+        label: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        count: number;
+        label: string;
+    }, {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        count: number;
+        label: string;
+    }>, "many">>;
+    /** Who those guests are to their hosts, most first. */
+    relationships: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        code: z.ZodString;
+        label: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        code: string;
+        count: number;
+        label: string;
+    }, {
+        code: string;
+        count: number;
+        label: string;
+    }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     sectors: {
         name: string;
@@ -1737,6 +1929,16 @@ export declare const LeaderFilters: z.ZodObject<{
         name: string;
         count: number;
     }[];
+    placeTypes: {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        count: number;
+        label: string;
+    }[];
+    relationships: {
+        code: string;
+        count: number;
+        label: string;
+    }[];
 }, {
     sectors: {
         name: string;
@@ -1756,6 +1958,16 @@ export declare const LeaderFilters: z.ZodObject<{
         code: string;
         name: string;
         count: number;
+    }[] | undefined;
+    placeTypes?: {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        count: number;
+        label: string;
+    }[] | undefined;
+    relationships?: {
+        code: string;
+        count: number;
+        label: string;
     }[] | undefined;
 }>;
 export type LeaderFilters = z.infer<typeof LeaderFilters>;
@@ -1812,6 +2024,8 @@ export declare const LeaderSummary: z.ZodObject<{
         name: string | null;
         email: string;
     }>;
+    /** Local government (every guest) or DGIE (guests from abroad only): what the screens and files show. */
+    audience: z.ZodDefault<z.ZodEnum<["local", "dgie"]>>;
     scopes: z.ZodArray<z.ZodObject<{
         assignmentId: z.ZodString;
         role: z.ZodEnum<["village_leader", "cell_executive", "district_officer", "dgie_village", "dgie_cell", "district_immigration", "dasso", "sector_executive", "dgie_province", "dgie_national"]>;
@@ -1882,6 +2096,34 @@ export declare const LeaderSummary: z.ZodObject<{
             name: string;
             count: number;
         }>, "many">>;
+        /** The types of place among those guests, most first. */
+        placeTypes: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            type: z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>;
+            label: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }, {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }>, "many">>;
+        /** Who those guests are to their hosts, most first. */
+        relationships: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            code: z.ZodString;
+            label: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            code: string;
+            count: number;
+            label: string;
+        }, {
+            code: string;
+            count: number;
+            label: string;
+        }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         sectors: {
             name: string;
@@ -1902,6 +2144,16 @@ export declare const LeaderSummary: z.ZodObject<{
             name: string;
             count: number;
         }[];
+        placeTypes: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }[];
+        relationships: {
+            code: string;
+            count: number;
+            label: string;
+        }[];
     }, {
         sectors: {
             name: string;
@@ -1921,6 +2173,16 @@ export declare const LeaderSummary: z.ZodObject<{
             code: string;
             name: string;
             count: number;
+        }[] | undefined;
+        placeTypes?: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }[] | undefined;
+        relationships?: {
+            code: string;
+            count: number;
+            label: string;
         }[] | undefined;
     }>;
     counts: z.ZodObject<{
@@ -1977,6 +2239,7 @@ export declare const LeaderSummary: z.ZodObject<{
         arrivingByDay: number[];
         stayingByDay: number[];
     };
+    audience: "local" | "dgie";
     scopes: {
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
         level: "country" | "province" | "district" | "sector" | "cell" | "village";
@@ -2007,6 +2270,16 @@ export declare const LeaderSummary: z.ZodObject<{
             code: string;
             name: string;
             count: number;
+        }[];
+        placeTypes: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }[];
+        relationships: {
+            code: string;
+            count: number;
+            label: string;
         }[];
     };
 }, {
@@ -2053,7 +2326,18 @@ export declare const LeaderSummary: z.ZodObject<{
             name: string;
             count: number;
         }[] | undefined;
+        placeTypes?: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }[] | undefined;
+        relationships?: {
+            code: string;
+            count: number;
+            label: string;
+        }[] | undefined;
     };
+    audience?: "local" | "dgie" | undefined;
 }>;
 export type LeaderSummary = z.infer<typeof LeaderSummary>;
 export declare const LeaderGuestPage: z.ZodObject<{
@@ -2067,6 +2351,8 @@ export declare const LeaderGuestPage: z.ZodObject<{
         name: string | null;
         email: string;
     }>;
+    /** Local government (every guest) or DGIE (guests from abroad only): what the screens and files show. */
+    audience: z.ZodDefault<z.ZodEnum<["local", "dgie"]>>;
     scopes: z.ZodArray<z.ZodObject<{
         assignmentId: z.ZodString;
         role: z.ZodEnum<["village_leader", "cell_executive", "district_officer", "dgie_village", "dgie_cell", "district_immigration", "dasso", "sector_executive", "dgie_province", "dgie_national"]>;
@@ -2137,6 +2423,34 @@ export declare const LeaderGuestPage: z.ZodObject<{
             name: string;
             count: number;
         }>, "many">>;
+        /** The types of place among those guests, most first. */
+        placeTypes: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            type: z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>;
+            label: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }, {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }>, "many">>;
+        /** Who those guests are to their hosts, most first. */
+        relationships: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            code: z.ZodString;
+            label: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            code: string;
+            count: number;
+            label: string;
+        }, {
+            code: string;
+            count: number;
+            label: string;
+        }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         sectors: {
             name: string;
@@ -2157,6 +2471,16 @@ export declare const LeaderGuestPage: z.ZodObject<{
             name: string;
             count: number;
         }[];
+        placeTypes: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }[];
+        relationships: {
+            code: string;
+            count: number;
+            label: string;
+        }[];
     }, {
         sectors: {
             name: string;
@@ -2176,6 +2500,16 @@ export declare const LeaderGuestPage: z.ZodObject<{
             code: string;
             name: string;
             count: number;
+        }[] | undefined;
+        placeTypes?: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }[] | undefined;
+        relationships?: {
+            code: string;
+            count: number;
+            label: string;
         }[] | undefined;
     }>;
     counts: z.ZodObject<{
@@ -2220,7 +2554,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
         stayingByDay?: number[] | undefined;
     }>;
 } & {
-    tab: z.ZodEnum<["arriving", "staying", "left", "flagged"]>;
+    tab: z.ZodEnum<["all", "arriving", "staying", "left", "flagged"]>;
     when: z.ZodEnum<["soon", "later"]>;
     guests: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -2239,6 +2573,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
         stay: z.ZodEnum<["arriving", "staying", "left"]>;
         host: z.ZodObject<{
             kind: z.ZodEnum<["tenant", "landlord", "hotel"]>;
+            /** The tenant or the landlord who filed the guest; for a hotel, the business. */
             name: z.ZodString;
             phone: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
@@ -2250,6 +2585,25 @@ export declare const LeaderGuestPage: z.ZodObject<{
             kind: "hotel" | "landlord" | "tenant";
             phone: string | null;
         }>;
+        /** Where they stay: the type of place, its own kind in words, the business or building, the room or unit. */
+        place: z.ZodObject<{
+            type: z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>;
+            kindLabel: z.ZodString;
+            name: z.ZodString;
+            room: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            name: string;
+            room: string | null;
+            kindLabel: string;
+        }, {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            name: string;
+            room: string | null;
+            kindLabel: string;
+        }>;
+        /** When the desk checked the guest in (a hotel stay), or null. */
+        checkedInAt: z.ZodNullable<z.ZodString>;
         home: z.ZodObject<{
             propertyName: z.ZodString;
             unitLabel: z.ZodNullable<z.ZodString>;
@@ -2384,6 +2738,13 @@ export declare const LeaderGuestPage: z.ZodObject<{
             } | null;
         }[];
         flagged: boolean;
+        place: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            name: string;
+            room: string | null;
+            kindLabel: string;
+        };
+        checkedInAt: string | null;
         seenByMe: boolean;
         changedAt: string | null;
     }, {
@@ -2433,6 +2794,13 @@ export declare const LeaderGuestPage: z.ZodObject<{
             } | null;
         }[];
         flagged: boolean;
+        place: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            name: string;
+            room: string | null;
+            kindLabel: string;
+        };
+        checkedInAt: string | null;
         seenByMe: boolean;
         changedAt: string | null;
     }>, "many">;
@@ -2487,6 +2855,13 @@ export declare const LeaderGuestPage: z.ZodObject<{
             } | null;
         }[];
         flagged: boolean;
+        place: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            name: string;
+            room: string | null;
+            kindLabel: string;
+        };
+        checkedInAt: string | null;
         seenByMe: boolean;
         changedAt: string | null;
     }[];
@@ -2505,6 +2880,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
     };
     page: number;
     pageSize: number;
+    audience: "local" | "dgie";
     scopes: {
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
         level: "country" | "province" | "district" | "sector" | "cell" | "village";
@@ -2512,7 +2888,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
         assignmentId: string;
         roleLabel: string;
     }[];
-    tab: "arriving" | "staying" | "left" | "flagged";
+    tab: "all" | "arriving" | "staying" | "left" | "flagged";
     when: "soon" | "later";
     leader: {
         name: string | null;
@@ -2537,6 +2913,16 @@ export declare const LeaderGuestPage: z.ZodObject<{
             code: string;
             name: string;
             count: number;
+        }[];
+        placeTypes: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }[];
+        relationships: {
+            code: string;
+            count: number;
+            label: string;
         }[];
     };
 }, {
@@ -2587,6 +2973,13 @@ export declare const LeaderGuestPage: z.ZodObject<{
             } | null;
         }[];
         flagged: boolean;
+        place: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            name: string;
+            room: string | null;
+            kindLabel: string;
+        };
+        checkedInAt: string | null;
         seenByMe: boolean;
         changedAt: string | null;
     }[];
@@ -2612,7 +3005,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
         assignmentId: string;
         roleLabel: string;
     }[];
-    tab: "arriving" | "staying" | "left" | "flagged";
+    tab: "all" | "arriving" | "staying" | "left" | "flagged";
     when: "soon" | "later";
     leader: {
         name: string | null;
@@ -2638,28 +3031,42 @@ export declare const LeaderGuestPage: z.ZodObject<{
             name: string;
             count: number;
         }[] | undefined;
+        placeTypes?: {
+            type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+            count: number;
+            label: string;
+        }[] | undefined;
+        relationships?: {
+            code: string;
+            count: number;
+            label: string;
+        }[] | undefined;
     };
+    audience?: "local" | "dgie" | undefined;
 }>;
 export type LeaderGuestPage = z.infer<typeof LeaderGuestPage>;
 /** The longest period one report covers. */
 export declare const GUEST_REPORT_MAX_DAYS = 731;
 export declare const GuestReportQuery: z.ZodEffects<z.ZodObject<{
+    /** Only guests a leader flagged. */
+    flagged: z.ZodOptional<z.ZodEnum<["only"]>>;
+    /** Rwandan guests, or guests of another nationality. */
+    origin: z.ZodOptional<z.ZodEnum<["nationals", "international"]>>;
+    /** One nationality (ISO 3166-1 alpha-2). */
+    nationality: z.ZodOptional<z.ZodString>;
+    /** One relationship code (`guest_relationships`), or `hotel_guest`. */
+    relationship: z.ZodOptional<z.ZodString>;
+    placeType: z.ZodOptional<z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>>;
+    length: z.ZodOptional<z.ZodEnum<["under_3", "week", "month"]>>;
     from: z.ZodEffects<z.ZodString, string, string>;
     to: z.ZodEffects<z.ZodString, string, string>;
     sectorId: z.ZodOptional<z.ZodNumber>;
     cellId: z.ZodOptional<z.ZodNumber>;
     villageId: z.ZodOptional<z.ZodNumber>;
-    /** By nationality: Rwandan guests, or guests of any other nationality. */
-    origin: z.ZodOptional<z.ZodEnum<["nationals", "international"]>>;
-    /** One nationality (ISO 3166-1 alpha-2). */
-    nationality: z.ZodOptional<z.ZodString>;
-    /** One relationship code (`guest_relationships`). */
-    relationship: z.ZodOptional<z.ZodString>;
-    /** Only guests a leader flagged. */
-    flagged: z.ZodOptional<z.ZodEnum<["only"]>>;
 }, "strip", z.ZodTypeAny, {
     from: string;
     to: string;
+    length?: "month" | "under_3" | "week" | undefined;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
@@ -2667,9 +3074,11 @@ export declare const GuestReportQuery: z.ZodEffects<z.ZodObject<{
     nationality?: string | undefined;
     relationship?: string | undefined;
     flagged?: "only" | undefined;
+    placeType?: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge" | undefined;
 }, {
     from: string;
     to: string;
+    length?: "month" | "under_3" | "week" | undefined;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
@@ -2677,9 +3086,11 @@ export declare const GuestReportQuery: z.ZodEffects<z.ZodObject<{
     nationality?: string | undefined;
     relationship?: string | undefined;
     flagged?: "only" | undefined;
+    placeType?: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge" | undefined;
 }>, {
     from: string;
     to: string;
+    length?: "month" | "under_3" | "week" | undefined;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
@@ -2687,9 +3098,11 @@ export declare const GuestReportQuery: z.ZodEffects<z.ZodObject<{
     nationality?: string | undefined;
     relationship?: string | undefined;
     flagged?: "only" | undefined;
+    placeType?: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge" | undefined;
 }, {
     from: string;
     to: string;
+    length?: "month" | "under_3" | "week" | undefined;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
@@ -2697,10 +3110,22 @@ export declare const GuestReportQuery: z.ZodEffects<z.ZodObject<{
     nationality?: string | undefined;
     relationship?: string | undefined;
     flagged?: "only" | undefined;
+    placeType?: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge" | undefined;
 }>;
 export type GuestReportQuery = z.infer<typeof GuestReportQuery>;
 export declare const ReportBucket: z.ZodEnum<["day", "week", "month"]>;
 export type ReportBucket = z.infer<typeof ReportBucket>;
+/** How long stays are, in bands a chart reads at a glance. */
+export declare const STAY_BANDS: readonly ["same_day", "short", "days", "weeks", "month"];
+export declare const StayBand: z.ZodEnum<["same_day", "short", "days", "weeks", "month"]>;
+export type StayBand = z.infer<typeof StayBand>;
+export declare const STAY_BAND_LABEL: Readonly<Record<StayBand, string>>;
+export declare function stayBandOf(nights: number): StayBand;
+/** When a guest was reported, against their arrival day (Kigali): ahead, on the day, or late. */
+export declare const ReportTiming: z.ZodEnum<["before", "same_day", "after"]>;
+export type ReportTiming = z.infer<typeof ReportTiming>;
+export declare const REPORT_TIMING_LABEL: Readonly<Record<ReportTiming, string>>;
+export declare function reportTimingOf(reportedOn: string, arrivalOn: string): ReportTiming;
 export declare const GuestReport: z.ZodObject<{
     period: z.ZodObject<{
         from: z.ZodString;
@@ -2713,6 +3138,8 @@ export declare const GuestReport: z.ZodObject<{
         to: string;
     }>;
     generatedAt: z.ZodString;
+    /** Local government (every guest) or DGIE (guests from abroad only): which charts and columns it has. */
+    audience: z.ZodDefault<z.ZodEnum<["local", "dgie"]>>;
     leader: z.ZodObject<{
         name: z.ZodNullable<z.ZodString>;
         email: z.ZodString;
@@ -2803,12 +3230,18 @@ export declare const GuestReport: z.ZodObject<{
         /** Guests staying today, whatever the period. */
         stayingNow: z.ZodNumber;
         fromAbroad: z.ZodNumber;
+        /** Rwandan guests: registered less those from abroad. */
+        nationals: z.ZodDefault<z.ZodNumber>;
+        /** How many nationalities the period's guests hold. */
+        nationalities: z.ZodDefault<z.ZodNumber>;
         flagged: z.ZodNumber;
         /** Mean nights per stay, one decimal; null with no guests. */
         averageNights: z.ZodNullable<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         fromAbroad: number;
         flagged: number;
+        nationals: number;
+        nationalities: number;
         registered: number;
         stayingNow: number;
         averageNights: number | null;
@@ -2818,7 +3251,77 @@ export declare const GuestReport: z.ZodObject<{
         registered: number;
         stayingNow: number;
         averageNights: number | null;
+        nationals?: number | undefined;
+        nationalities?: number | undefined;
     }>;
+    /**
+     * Guests in the area on each day of the period (arrived on or before it, not yet gone), and how many of
+     * them are from abroad: who was here, not only who arrived.
+     */
+    presentByDay: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        day: z.ZodString;
+        label: z.ZodString;
+        total: z.ZodNumber;
+        fromAbroad: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        total: number;
+        label: string;
+        fromAbroad: number;
+        day: string;
+    }, {
+        total: number;
+        label: string;
+        fromAbroad: number;
+        day: string;
+    }>, "many">>;
+    /** Arrivals by type of place, with those from abroad and the mean stay there. */
+    byPlaceType: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        type: z.ZodEnum<["hotel", "lodge", "guest_house", "apartment", "residence", "other"]>;
+        label: z.ZodString;
+        count: z.ZodNumber;
+        fromAbroad: z.ZodNumber;
+        averageNights: z.ZodNullable<z.ZodNumber>;
+    }, "strip", z.ZodTypeAny, {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        count: number;
+        label: string;
+        fromAbroad: number;
+        averageNights: number | null;
+    }, {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        count: number;
+        label: string;
+        fromAbroad: number;
+        averageNights: number | null;
+    }>, "many">>;
+    /** How long the stays are, in bands. */
+    stayBands: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        band: z.ZodEnum<["same_day", "short", "days", "weeks", "month"]>;
+        label: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        count: number;
+        label: string;
+        band: "month" | "days" | "same_day" | "short" | "weeks";
+    }, {
+        count: number;
+        label: string;
+        band: "month" | "days" | "same_day" | "short" | "weeks";
+    }>, "many">>;
+    /** When the guests were reported against their arrival day. */
+    timing: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        timing: z.ZodEnum<["before", "same_day", "after"]>;
+        label: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        count: number;
+        label: string;
+        timing: "same_day" | "before" | "after";
+    }, {
+        count: number;
+        label: string;
+        timing: "same_day" | "before" | "after";
+    }>, "many">>;
     /** The level the area table breaks down by: one below the widest post. */
     areaLevel: z.ZodEnum<["sector", "cell", "village"]>;
     byArea: z.ZodArray<z.ZodObject<{
@@ -2887,14 +3390,14 @@ export declare const GuestReport: z.ZodObject<{
             label: string;
             start: string;
         }[];
-        bucket: "month" | "day" | "week";
+        bucket: "month" | "week" | "day";
     }, {
         points: {
             count: number;
             label: string;
             start: string;
         }[];
-        bucket: "month" | "day" | "week";
+        bucket: "month" | "week" | "day";
     }>;
     /**
      * How the period's guests went along the chain, one row per leader post in its order: how many it
@@ -2929,19 +3432,31 @@ export declare const GuestReport: z.ZodObject<{
         flagged: number;
         opened: number;
     }>, "many">>;
-    /** Homes with the most guests, by address: never a person's name. */
+    /**
+     * Homes and places with the most guests: the business or building by name and type, its address and the
+     * unit, never a person's name.
+     */
     topHomes: z.ZodArray<z.ZodObject<{
+        name: z.ZodDefault<z.ZodString>;
+        placeLabel: z.ZodDefault<z.ZodString>;
         address: z.ZodString;
         unitLabel: z.ZodNullable<z.ZodString>;
         guests: z.ZodNumber;
+        fromAbroad: z.ZodDefault<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
+        name: string;
         guests: number;
         address: string;
         unitLabel: string | null;
+        fromAbroad: number;
+        placeLabel: string;
     }, {
         guests: number;
         address: string;
         unitLabel: string | null;
+        name?: string | undefined;
+        fromAbroad?: number | undefined;
+        placeLabel?: string | undefined;
     }>, "many">;
     /** Records older than the retention period are purged; their counts are folded into the totals. */
     purged: z.ZodNullable<z.ZodObject<{
@@ -2952,18 +3467,21 @@ export declare const GuestReport: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         fromAbroad: number;
         flagged: number;
-        registered: number;
         before: string;
+        registered: number;
     }, {
         fromAbroad: number;
         flagged: number;
-        registered: number;
         before: string;
+        registered: number;
     }>>;
 }, "strip", z.ZodTypeAny, {
+    audience: "local" | "dgie";
     totals: {
         fromAbroad: number;
         flagged: number;
+        nationals: number;
+        nationalities: number;
         registered: number;
         stayingNow: number;
         averageNights: number | null;
@@ -3008,6 +3526,29 @@ export declare const GuestReport: z.ZodObject<{
     };
     narrowedTo: string | null;
     filteredBy: string[];
+    presentByDay: {
+        total: number;
+        label: string;
+        fromAbroad: number;
+        day: string;
+    }[];
+    byPlaceType: {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        count: number;
+        label: string;
+        fromAbroad: number;
+        averageNights: number | null;
+    }[];
+    stayBands: {
+        count: number;
+        label: string;
+        band: "month" | "days" | "same_day" | "short" | "weeks";
+    }[];
+    timing: {
+        count: number;
+        label: string;
+        timing: "same_day" | "before" | "after";
+    }[];
     areaLevel: "sector" | "cell" | "village";
     byArea: {
         name: string;
@@ -3032,18 +3573,21 @@ export declare const GuestReport: z.ZodObject<{
             label: string;
             start: string;
         }[];
-        bucket: "month" | "day" | "week";
+        bucket: "month" | "week" | "day";
     };
     topHomes: {
+        name: string;
         guests: number;
         address: string;
         unitLabel: string | null;
+        fromAbroad: number;
+        placeLabel: string;
     }[];
     purged: {
         fromAbroad: number;
         flagged: number;
-        registered: number;
         before: string;
+        registered: number;
     } | null;
 }, {
     totals: {
@@ -3052,6 +3596,8 @@ export declare const GuestReport: z.ZodObject<{
         registered: number;
         stayingNow: number;
         averageNights: number | null;
+        nationals?: number | undefined;
+        nationalities?: number | undefined;
     };
     scopes: {
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
@@ -3094,19 +3640,23 @@ export declare const GuestReport: z.ZodObject<{
             label: string;
             start: string;
         }[];
-        bucket: "month" | "day" | "week";
+        bucket: "month" | "week" | "day";
     };
     topHomes: {
         guests: number;
         address: string;
         unitLabel: string | null;
+        name?: string | undefined;
+        fromAbroad?: number | undefined;
+        placeLabel?: string | undefined;
     }[];
     purged: {
         fromAbroad: number;
         flagged: number;
-        registered: number;
         before: string;
+        registered: number;
     } | null;
+    audience?: "local" | "dgie" | undefined;
     choices?: {
         nationalities: {
             code: string;
@@ -3130,6 +3680,29 @@ export declare const GuestReport: z.ZodObject<{
         opened: number;
     }[] | undefined;
     filteredBy?: string[] | undefined;
+    presentByDay?: {
+        total: number;
+        label: string;
+        fromAbroad: number;
+        day: string;
+    }[] | undefined;
+    byPlaceType?: {
+        type: "residence" | "other" | "hotel" | "guest_house" | "apartment" | "lodge";
+        count: number;
+        label: string;
+        fromAbroad: number;
+        averageNights: number | null;
+    }[] | undefined;
+    stayBands?: {
+        count: number;
+        label: string;
+        band: "month" | "days" | "same_day" | "short" | "weeks";
+    }[] | undefined;
+    timing?: {
+        count: number;
+        label: string;
+        timing: "same_day" | "before" | "after";
+    }[] | undefined;
 }>;
 export type GuestReport = z.infer<typeof GuestReport>;
 /** How an appointment is grouped on the admin screen. */

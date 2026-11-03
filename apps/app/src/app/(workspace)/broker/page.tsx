@@ -1,76 +1,36 @@
-import { BrokerHomesQuery, kigaliToday } from "@injishi/contracts";
+import { kigaliToday } from "@injishi/contracts";
 import { screens } from "@injishi/data";
-import { PageContent } from "@injishi/ui";
 import type { Metadata } from "next";
-import { BrokerDeskTabs } from "@/features/broker/BrokerDeskTabs";
+import { redirect } from "next/navigation";
 import { BrokerHomeView } from "@/features/broker/BrokerHomeView";
-import { HomesView } from "@/features/broker/HomesView";
 import { NotABroker } from "@/features/broker/shared";
 import { requirePersona } from "@/lib/session";
-import {
-  brokerEarnings,
-  brokerHomes,
-  brokerPlacements,
-  brokerPlan,
-  brokerScope,
-  brokerSummary,
-} from "@/server/broker/client";
+import { brokerEarnings, brokerPlan, brokerScope, brokerSummary } from "@/server/broker/client";
 
 export const metadata: Metadata = { title: screens.BrokerWork.pageTitle };
 
 type Params = Record<string, string | undefined>;
 
-/**
- * Broker Homes desk: Overview (dashboard) and Find homes share one route with page tabs.
- * Account is the sign-in landing; this is where they work homes.
- */
-export default async function BrokerHomesDeskPage({ searchParams }: { searchParams: Promise<Params> }) {
+/** The broker's overview: the figures, fees over time and the plan. Find homes is its own tab. */
+export default async function BrokerOverviewPage({ searchParams }: { searchParams: Promise<Params> }) {
   const persona = await requirePersona("BrokerWork");
-  if (!(await brokerScope())) return <NotABroker title="Homes" />;
   const params = await searchParams;
-  const tab = params.tab === "homes" ? "homes" : "overview";
-
-  if (tab === "homes") {
-    const parsed = BrokerHomesQuery.safeParse({
-      district: params.district,
-      minRent: params.minRent,
-      maxRent: params.maxRent,
-      bedrooms: params.bedrooms,
-      q: params.q,
-      sort: params.sort,
-    });
-    const data = await brokerHomes(parsed.success ? parsed.data : {});
-    return (
-      <PageContent>
-        <BrokerDeskTabs tab="homes">
-          <HomesView data={data} openUnitId={params.home ?? null} desk />
-        </BrokerDeskTabs>
-      </PageContent>
-    );
+  // Old links opened Find homes as `/broker?tab=homes`.
+  if (params.tab === "homes") {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) if (v && k !== "tab") q.set(k, v);
+    redirect(`/broker/homes${q.size > 0 ? `?${q.toString()}` : ""}`);
   }
-
-  const [summary, homes, placements, plan, earnings] = await Promise.all([
-    brokerSummary(),
-    brokerHomes({ sort: "newest" }),
-    brokerPlacements(),
-    brokerPlan(),
-    brokerEarnings(),
-  ]);
+  if (!(await brokerScope())) return <NotABroker title="Home" />;
+  const [summary, plan, earnings] = await Promise.all([brokerSummary(), brokerPlan(), brokerEarnings()]);
   return (
-    <PageContent>
-      <BrokerDeskTabs tab="overview">
-        <BrokerHomeView
-          firstName={persona.firstName}
-          summary={summary}
-          homes={homes}
-          placements={placements}
-          plan={plan}
-          earnings={earnings}
-          today={kigaliToday()}
-          desk
-        />
-      </BrokerDeskTabs>
-    </PageContent>
+    <BrokerHomeView
+      firstName={persona.firstName}
+      summary={summary}
+      plan={plan}
+      earnings={earnings}
+      today={kigaliToday()}
+    />
   );
 }
 

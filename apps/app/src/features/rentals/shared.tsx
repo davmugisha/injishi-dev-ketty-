@@ -25,7 +25,7 @@ export const ATTENTION_HREF: Partial<Record<RentalsAttentionKind, { href: string
   waiting_for_tenant: { href: `${screenHref("Leases")}?tab=waiting_for_tenant`, label: "Open leases out for signing" },
   ready_to_start: { href: `${screenHref("Leases")}?tab=ready_to_start`, label: "Open leases ready to start" },
   overdue_rent: { href: `${screenHref("Leases")}?tab=active`, label: "Open active leases" },
-  filings_due: { href: screenHref("Taxes"), label: "Open lease copies for RRA" },
+  filings_due: { href: screenHref("TaxFilings"), label: "Open lease copies for RRA" },
   notices_to_acknowledge: {
     href: `${screenHref("MoveOuts")}?tab=to_acknowledge`,
     label: "Open notices to acknowledge",

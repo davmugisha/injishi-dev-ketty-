@@ -1,37 +1,30 @@
 "use client";
 
-import { Chip, Description, FieldError, Label, TextArea, TextField, toast } from "@heroui/react";
-import { ListView } from "@heroui-pro/react";
+import { Description, FieldError, Label, TextArea, TextField, toast } from "@heroui/react";
 import {
   type GovernmentBody,
   type OversightAppointment,
   type OversightAppointmentList,
-  type OversightRole,
   tidyPlaceName,
   type WaitingArea,
 } from "@injishi/contracts";
 import {
   ActionButton,
-  ActionLink,
   DataTable,
   EmptyBlock,
-  FilterSelect,
-  FilterTabs,
   FormDialog,
   formatDay,
   formatNumber,
   IconAction,
-  ListToolbar,
   PageContent,
-  PageHeader,
   PersonCell,
   type PlaceChain,
   PlacePicker,
   placeLine,
-  SectionCard,
 } from "@injishi/ui";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { loadGuestPlaces } from "../../guests/places";
 import { AppointPanel, type AppointPrefill, ROLE_CHOICES } from "./AppointPanel";
 import { endAppointment } from "./actions";
@@ -70,7 +63,7 @@ function EndDialog({ appointment, onClose }: { appointment: OversightAppointment
       isOpen
       onOpenChange={(open) => (open ? undefined : onClose())}
       title={`End ${appointment.name ?? appointment.email}'s appointment?`}
-      description={`${appointment.roleLabel}, ${appointment.area}. Guests staying now go to whoever else holds the post, or wait for a new leader.`}
+      description={`${appointment.roleLabel}, ${appointment.area}`}
       submitLabel="End appointment"
       submitIcon="PersonXmark"
       isPending={pending}
@@ -122,7 +115,6 @@ function AreaFilterDialog({
       isOpen
       onOpenChange={(open) => (open ? undefined : onClose())}
       title="Show one area"
-      description="Appointments inside the place you pick: a district shows its sectors, cells and villages too."
       submitLabel="Apply"
       onSubmit={(event) => {
         event.preventDefault();
@@ -131,69 +123,6 @@ function AreaFilterDialog({
     >
       <PlacePicker label="Area" value={chain} onChange={setChain} loadPlaces={loadGuestPlaces} reserveSpace={false} />
     </FormDialog>
-  );
-}
-
-function WaitingList({
-  waiting,
-  total,
-  onAppoint,
-}: {
-  waiting: WaitingArea[];
-  total: number;
-  onAppoint?: (w: WaitingArea) => void;
-}) {
-  return (
-    <SectionCard
-      title="Guests waiting for a leader"
-      actions={
-        // One guest waits on several posts at once (cell, sector, district): count the open posts, not
-        // the guests added up per post.
-        total > 0 && waiting.length > 0 ? (
-          <Chip size="sm" variant="soft" color="warning">
-            {formatNumber(waiting.length)} {waiting.length === 1 ? "post open" : "posts open"}
-          </Chip>
-        ) : null
-      }
-      contentClassName="gap-0"
-    >
-      {waiting.length === 0 ? (
-        <EmptyBlock size="sm" icon="CircleCheck" title="Nobody is waiting" />
-      ) : (
-        <ListView
-          aria-label="Areas waiting for a leader"
-          variant="secondary"
-          items={waiting.map((w, i) => ({ ...w, key: `${w.role}-${i}` }))}
-        >
-          {(w) => (
-            <ListView.Item id={w.key} textValue={`${w.roleLabel} ${w.area}`} className="items-center">
-              <ListView.ItemContent className="items-center gap-3">
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <ListView.Title className="whitespace-normal">{w.area}</ListView.Title>
-                  <ListView.Description className="whitespace-normal">
-                    {w.roleLabel} · {w.reports === 1 ? "1 guest" : `${formatNumber(w.reports)} guests`} · since{" "}
-                    {formatDay(w.oldestArrival)}
-                  </ListView.Description>
-                </span>
-              </ListView.ItemContent>
-              {onAppoint && w.located ? (
-                <ListView.ItemAction>
-                  <ActionButton size="sm" icon="PersonPlus" onPress={() => onAppoint(w)}>
-                    Appoint
-                  </ActionButton>
-                </ListView.ItemAction>
-              ) : w.located ? null : (
-                <ListView.ItemAction>
-                  <Chip size="sm" variant="soft" color="warning">
-                    Building has no village
-                  </Chip>
-                </ListView.ItemAction>
-              )}
-            </ListView.Item>
-          )}
-        </ListView>
-      )}
-    </SectionCard>
   );
 }
 
@@ -241,93 +170,95 @@ export function LeadersView({
   const role = params.get("role");
   const areaWords = placeLine(areaChain);
   const total = list.counts.leader + list.counts.reviewer + list.counts.officer;
-  const filtered = Boolean(role || areaWords || params.get("q"));
 
   return (
     <PageContent>
-      <PageHeader
-        title="Local leaders and officers"
+      <AreaHeader
         actions={
-          <>
-            <ActionLink href="/admin/leaders/coverage" icon="MapPin">
-              Coverage
-            </ActionLink>
-            {canAppoint ? (
-              <ActionButton icon="PersonPlus" intent="primary" onPress={() => setAppoint(null)}>
-                Appoint
-              </ActionButton>
-            ) : null}
-          </>
+          canAppoint ? (
+            <ActionButton icon="PersonPlus" intent="primary" onPress={() => setAppoint(null)}>
+              Appoint
+            </ActionButton>
+          ) : null
         }
       />
-
-      <ListToolbar
-        tabs={
-          <FilterTabs
-            label="Appointments"
-            name="Show"
-            selectedKey={kind}
-            onSelectionChange={(k) => go({ kind: k === "all" ? null : k, role: null })}
-            tabs={KIND_TABS.map((t) => ({
-              id: t.id,
-              label: t.label,
-              count: t.id === "all" ? total : list.counts[t.id],
-            }))}
-          />
-        }
-      >
-        <FilterSelect
-          label="Role"
-          className="w-full md:w-52"
-          value={role ?? "all"}
-          options={[{ id: "all", label: "Every role" }, ...ROLE_CHOICES.map((r) => ({ id: r.id, label: r.label }))]}
-          onChange={(v) => go({ role: v === "all" ? null : v })}
-        />
-        <ActionButton icon="MapPin" onPress={() => setAreaOpen(true)} className="max-w-56">
-          <span className="truncate">{areaWords || "Everywhere"}</span>
-        </ActionButton>
-        {areaWords ? (
-          <IconAction
-            icon="Xmark"
-            label="Show every area"
-            onPress={() => go({ provinceId: null, districtId: null, sectorId: null, cellId: null, villageId: null })}
-          />
-        ) : null}
-      </ListToolbar>
 
       <div className="flex min-w-0 flex-col gap-5">
         <DataTable<OversightAppointment>
           label="Appointments"
           rows={list.appointments}
           rowKey={(a) => a.id}
+          noun={{ one: "appointment", many: "appointments" }}
+          search={{ placeholder: "Name, email or area", text: (a) => `${a.name ?? ""} ${a.email} ${a.area}` }}
+          filters={[
+            {
+              id: "kind",
+              name: "Show",
+              options: KIND_TABS.map((t) => ({
+                id: t.id,
+                label: t.label,
+                count: t.id === "all" ? total : list.counts[t.id],
+              })),
+              value: kind,
+              onChange: (k) => go({ kind: k === "all" ? null : k, role: null }),
+            },
+            {
+              id: "role",
+              name: "Role",
+              options: [{ id: "all", label: "All" }, ...ROLE_CHOICES.map((r) => ({ id: r.id, label: r.label }))],
+              value: role ?? "all",
+              onChange: (v) => go({ role: v === "all" ? null : v }),
+            },
+            {
+              id: "opened",
+              name: "Opened",
+              icon: "Eye",
+              options: [
+                { id: "all", label: "All" },
+                { id: "never", label: "Never opened a guest" },
+              ],
+              match: (a) => a.kind === "leader" && a.delivered > 0 && a.seen === 0,
+            },
+          ]}
+          onClearFilters={() =>
+            go({
+              kind: null,
+              role: null,
+              provinceId: null,
+              districtId: null,
+              sectorId: null,
+              cellId: null,
+              villageId: null,
+            })
+          }
+          toolbarEnd={
+            <>
+              <ActionButton
+                icon="MapPin"
+                size="sm"
+                intent="ghost"
+                onPress={() => setAreaOpen(true)}
+                className="max-w-56"
+              >
+                <span className="truncate">{areaWords || "Everywhere"}</span>
+              </ActionButton>
+              {areaWords ? (
+                <IconAction
+                  icon="Xmark"
+                  label="Show every area"
+                  onPress={() =>
+                    go({ provinceId: null, districtId: null, sectorId: null, cellId: null, villageId: null })
+                  }
+                />
+              ) : null}
+            </>
+          }
           empty={
             <EmptyBlock
               icon="Persons"
-              title={filtered ? "Nobody matches" : "Nobody appointed yet"}
-              description={
-                filtered
-                  ? "Try every role or every area."
-                  : "Appoint village leaders, DASSOs, cell executive secretaries and district officers so guests reach them."
-              }
+              title="Nobody appointed yet"
               action={
-                filtered ? (
-                  <ActionButton
-                    icon="Xmark"
-                    onPress={() =>
-                      go({
-                        role: null,
-                        provinceId: null,
-                        districtId: null,
-                        sectorId: null,
-                        cellId: null,
-                        villageId: null,
-                        q: null,
-                      })
-                    }
-                  >
-                    Clear filters
-                  </ActionButton>
-                ) : canAppoint ? (
+                canAppoint ? (
                   <ActionButton icon="PersonPlus" onPress={() => setAppoint(null)}>
                     Appoint
                   </ActionButton>
@@ -398,11 +329,6 @@ export function LeadersView({
             title: (a) => a.name ?? a.email,
             description: (a) => `${a.roleLabel} · ${a.area}`,
           }}
-        />
-        <WaitingList
-          waiting={list.waiting}
-          total={list.waitingReports}
-          onAppoint={canAppoint ? (w) => setAppoint({ role: w.role as OversightRole, chain: chainOf(w) }) : undefined}
         />
       </div>
 

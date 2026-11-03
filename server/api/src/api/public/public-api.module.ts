@@ -177,6 +177,8 @@ import { OpsFilingsController, OpsTaxesController } from './ops/rentals/taxes.co
 import { OpsRoomsController } from './ops/rooms.controller';
 import { OpsThreadsController } from './ops/threads.controller';
 import { OpsStaysController } from './ops/stays.controller';
+import { OpsStaysOverviewController } from './ops/stays-overview.controller';
+import { OpsRatesCalendarController } from './ops/rates-calendar.controller';
 // The front desk's day in one read (interface real-data, frontdesk leaf).
 import { OpsFrontDeskController } from './ops/front-desk.controller';
 import { OpsMessageTemplatesController } from './ops/message-templates.controller';
@@ -376,6 +378,8 @@ import { TrainingPublicModule } from './training/training.module';
     OpsServiceOrdersController,
     OpsRraController,
     OpsStaysController,
+    OpsStaysOverviewController,
+    OpsRatesCalendarController,
     OpsFrontDeskController,
     OpsMessageTemplatesController,
     OpsThreadsController,

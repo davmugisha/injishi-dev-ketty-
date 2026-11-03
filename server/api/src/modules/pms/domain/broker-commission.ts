@@ -1,5 +1,5 @@
 /**
- * The arithmetic of a broker's commission (0127), as pure functions so each is tested on its own. Dates are
+ * The arithmetic of a broker's commission (0128), as pure functions so each is tested on its own. Dates are
  * Kigali calendar days, `YYYY-MM-DD`; money is whole francs.
  */
 

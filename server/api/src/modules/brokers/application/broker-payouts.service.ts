@@ -26,7 +26,7 @@ const str = (v: unknown): string | null => (v === null || v === undefined ? null
 const iso = (v: unknown): string | null => (v ? new Date(String(v)).toISOString() : null);
 
 /**
- * A broker's commission, once earned (0127): what each stay earned, what the hotel has paid of it, and the
+ * A broker's commission, once earned (0128): what each stay earned, what the hotel has paid of it, and the
  * broker's 85% on its way to their MoMo number.
  *
  * The commission is earned and collected at check-out, in the stay's own transaction
