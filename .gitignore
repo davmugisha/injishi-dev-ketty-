@@ -111,6 +111,8 @@ coverage/
 !apps/app/src/app/(workspace)/admin/leaders/coverage/
 .nyc_output/
 test-results/
+# What a CI job keeps as a build artifact (the dead code counts, ADR-078 AC-19).
+/ci-artifacts/
 playwright-report/
 
 # ── OS / editor ──────────────────────────────────────────────────────────────

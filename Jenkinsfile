@@ -15,11 +15,13 @@
 //
 // Properties this file keeps from the workflows:
 //
-// 1. A pull request runs THIS file from its own branch, so nothing here may
-//    reach the VPS. VPS work lives in jenkins/*.Jenkinsfile, whose jobs read
-//    main only, and `ci: workflow guard` fails the build if this file ever names
-//    the VPS key (the Jenkins form of AC-17b; it has the same limit: a pull
-//    request can edit the guard too, so write access stays the real boundary).
+// 1. An origin pull request runs THIS file from its own branch; a fork's runs
+//    its target branch's copy (trust Nobody, ADR-078 AC-5). Either way nothing
+//    here may reach the VPS. VPS work lives in jenkins/*.Jenkinsfile, whose jobs
+//    read main only, and `ci: workflow guard` fails the build if this file ever
+//    names the VPS key (the Jenkins form of AC-17b; it has the same limit: an
+//    origin pull request can edit the guard too, so write access stays the real
+//    boundary).
 // 2. Every ci job runs in its own container with its own time limit, and a
 //    failed job does not stop the next one. `ci-complete`
 //    (scripts/ci-complete.mjs) is the verdict, and a skipped job is a pass.
@@ -31,12 +33,22 @@
 //    next-env.d.ts, and mobile, which generates its typed routes, runs last.
 // 3. image and staging hang off ci alone. integration fails the build but never
 //    stops them; it was its own workflow and is not in ci-complete.
+// 4. ADR-078 (injishi.context, dox/adrs/078-delivery-guardrails). A pull
+//    request's code runs in containers that mount this workspace, and a
+//    workspace outlives its build, so a pull request build starts and ends
+//    with an empty one, git on the host never runs a hook or fsmonitor, and
+//    pull requests keep their own pnpm store (AC-7). A pull request build binds
+//    no credential that can write around repository code (AC-6) and stops
+//    after 2 hours (AC-8). Every pull request and main build posts
+//    injishi/ci-complete and injishi/integration on the commit it built, each
+//    on its own, so integration failing never paints ci red (AC-9, AC-10).
+//    injishi/pr-rules and injishi/review come from jenkins/pr-rules.Jenkinsfile.
 //
 // Toolchain: Node from mise.toml and pnpm from `packageManager`, never retyped
 // here (ADR-052 Value sourcing). `prepare` builds `injishi-ci-node:<node>-pnpm<pnpm>`
 // on the host's Docker once per version pair; every job runs in it as the
-// agent's user. pnpm's store is shared by all injishi builds on the agent
-// (GitHub's `cache: pnpm`).
+// agent's user. main and tag builds share one pnpm store on the agent (GitHub's
+// `cache: pnpm`); pull request builds share another (ADR-078 AC-7).
 
 import groovy.transform.Field
 
@@ -44,6 +56,11 @@ import groovy.transform.Field
 // scripts/ci-changes.mjs selected.
 @Field Map ciResults = [:]
 @Field Map ciFlags = [:]
+// ADR-078: what each integration stage concluded, the commit this build posts
+// its statuses on ('' posts none), and the last state it posted per context.
+@Field Map integrationResults = [:]
+@Field String statusSha = ''
+@Field Map statusState = [:]
 
 pipeline {
   agent { label 'docker' }
@@ -52,9 +69,14 @@ pipeline {
     // ci.yml and integration.yml: a superseded pull request build is aborted; a
     // build of main is never aborted (staging hangs off it), it queues.
     disableConcurrentBuilds(abortPrevious: env.CHANGE_ID != null)
-    // Each job has its own limit; this only catches a hang outside them, at
-    // GitHub's own ceiling for a job.
-    timeout(time: 6, unit: 'HOURS')
+    // Each job has its own limit; this only catches a hang outside them. A pull
+    // request build stops at 2 hours so fork builds cannot hold the one agent
+    // that main's staging deploys need (ADR-078 AC-8); main keeps GitHub's
+    // ceiling of 6.
+    timeout(time: env.CHANGE_ID ? 2 : 6, unit: 'HOURS')
+    // The `checkout` stage checks out, after it has emptied a pull request's
+    // workspace (ADR-078 AC-7).
+    skipDefaultCheckout()
     ansiColor('xterm')
   }
 
@@ -62,9 +84,26 @@ pipeline {
     CI = 'true'
     CACHE_ROOT = '/srv/jenkins-agent/caches/injishi'
     REGISTRY_OWNER = 'hangaasoftwares'
+    // ADR-078 AC-7: no git command in this build runs a hook or an fsmonitor
+    // command, wherever a pull request's code might have left one. Read by git
+    // 2.31 and later.
+    GIT_CONFIG_COUNT = '2'
+    GIT_CONFIG_KEY_0 = 'core.hooksPath'
+    GIT_CONFIG_VALUE_0 = '/dev/null'
+    GIT_CONFIG_KEY_1 = 'core.fsmonitor'
+    GIT_CONFIG_VALUE_1 = 'false'
   }
 
   stages {
+    // ADR-078 AC-7 and AC-9. A pull request build empties its workspace BEFORE
+    // git touches it, then checks out, then works out which commit its statuses
+    // belong on and marks them pending.
+    stage('checkout') {
+      steps {
+        script { checkoutClean() }
+      }
+    }
+
     stage('prepare') {
       steps {
         script { prepare() }
@@ -92,6 +131,9 @@ if grep -nF "$key" Jenkinsfile | grep -vE '^[0-9]+:[[:space:]]*//'; then
   exit 1
 fi
 echo "ok  Jenkinsfile never names $key"
+
+step 'The pull request rules pass their own tests (ADR-078 AC-15)'
+node --test scripts/check-pr-rules.test.mjs
 ''')
         }
       }
@@ -180,6 +222,23 @@ pnpm -r typecheck
       }
     }
 
+    // ADR-078 AC-16 to AC-19. On every build ci runs, whatever changed, because
+    // code goes dead in one place through a change in another. The counts are
+    // kept as knip-counts.json, in the baseline's shape: the first baseline is
+    // taken from a main build's copy, never from a laptop.
+    stage('ci: dead code') {
+      when { expression { env.RUN_CI == 'true' } }
+      steps {
+        script {
+          ciJob('dead-code', 20, installStep() + compiledPackagesStep() + '''
+step 'Dead code ratchet'
+node scripts/dead-code-ratchet.mjs --counts-out ci-artifacts/knip-counts.json
+''')
+          archiveArtifacts(artifacts: 'ci-artifacts/knip-counts.json', allowEmptyArchive: true, fingerprint: false)
+        }
+      }
+    }
+
     // `pnpm test:ci`, not `pnpm -r test`: it pins --workspace-concurrency=1 and
     // leaves mobile's suite to the mobile job.
     stage('ci: unit tests') {
@@ -255,6 +314,11 @@ step 'Report'
 node scripts/ci-complete.mjs
 ''', [env: ["CI_NEEDS=${ciNeedsJson()}"]])
           env.CI_PASSED = (ciResults['ci-complete'] == 'success') ? 'true' : 'false'
+          if (env.CI_PASSED == 'true') {
+            postStatus('injishi/ci-complete', 'success', 'every ci job passed or had nothing to check.')
+          } else {
+            postStatus('injishi/ci-complete', 'failure', "failed: ${failedCiJobs()}.")
+          }
         }
       }
     }
@@ -327,6 +391,7 @@ docker image rm "$image" >/dev/null 2>&1 || true
       when { expression { env.RUN_INTEGRATION == 'true' } }
       steps {
         script {
+          integrationResults['database'] = 'failure'
           catchError(buildResult: 'FAILURE', stageResult: 'FAILURE', catchInterruptions: false) {
             withServices('database', true) { String db ->
               ciJob('database', 30, installStep() + compiledPackagesStep() + '''
@@ -396,6 +461,7 @@ step 'verify:walk-in'
 pnpm --filter @injishi/api verify:walk-in
 ''', [args: "--network container:${db}", env: integrationEnv()])
             }
+            integrationResults['database'] = ciResults['database']
           }
         }
       }
@@ -403,17 +469,24 @@ pnpm --filter @injishi/api verify:walk-in
 
     // AC-8. Replays every migration on top of production's real schema, which
     // injishi-schema-capture publishes to GHCR. Missing, it warns and passes,
-    // as the workflow did.
+    // as the workflow did. It binds injishi-ghcr, a token that can push the
+    // images staging and production run, so it runs on main builds only: a pull
+    // request build binds no credential that can write (ADR-078 AC-6).
     stage("integration: replay migrations on production's schema") {
       when { expression { env.RUN_INTEGRATION == 'true' } }
       steps {
         script {
-          catchError(buildResult: 'FAILURE', stageResult: 'FAILURE', catchInterruptions: false) {
-            withServices('replay', false) { String db ->
-              def jobTmp = "${env.CI_TMP}/schema-replay"
-              withEnv(["SVC_DB=${db}", "JOB_TMP=${jobTmp}", "SCHEMA_IMAGE=ghcr.io/${env.REGISTRY_OWNER}/injishi-schema:latest"]) {
-                withCredentials([usernamePassword(credentialsId: 'injishi-ghcr', usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN')]) {
-                  sh '''#!/bin/bash
+          integrationResults['schema-replay'] = 'failure'
+          if (env.CHANGE_ID) {
+            echo "Schema replay runs on main builds only (ADR-078 AC-6): it binds injishi-ghcr, which can push images, and a pull request build binds no credential that can write."
+            integrationResults['schema-replay'] = 'skipped'
+          } else {
+            catchError(buildResult: 'FAILURE', stageResult: 'FAILURE', catchInterruptions: false) {
+              withServices('replay', false) { String db ->
+                def jobTmp = "${env.CI_TMP}/schema-replay"
+                withEnv(["SVC_DB=${db}", "JOB_TMP=${jobTmp}", "SCHEMA_IMAGE=ghcr.io/${env.REGISTRY_OWNER}/injishi-schema:latest"]) {
+                  withCredentials([usernamePassword(credentialsId: 'injishi-ghcr', usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN')]) {
+                    sh '''#!/bin/bash
 set -euo pipefail
 mkdir -p "$JOB_TMP"
 echo false > "$JOB_TMP/available"
@@ -435,22 +508,28 @@ docker rm "$container" >/dev/null
 echo true > "$JOB_TMP/available"
 wc -l "$JOB_TMP/schema.sql"
 '''
-                }
-                if (readFile(file: "${jobTmp}/available").trim() == 'true') {
-                  sh '''#!/bin/bash
+                  }
+                  if (readFile(file: "${jobTmp}/available").trim() == 'true') {
+                    sh '''#!/bin/bash
 set -euo pipefail
 printf '\\n==> Restore it\\n'
 docker cp "$JOB_TMP/schema.sql" "$SVC_DB:/tmp/schema.sql"
 docker exec "$SVC_DB" psql -U injishi -d injishi -v ON_ERROR_STOP=1 -f /tmp/schema.sql
 '''
-                  ciJob('schema-replay', 20, installStep() + '''
+                    ciJob('schema-replay', 20, installStep() + '''
 step 'Apply every migration on top of it'
 pnpm --filter @injishi/api db:migrate
 ''', [args: "--network container:${db}", env: ['DATABASE_URL=postgres://injishi:injishi@127.0.0.1:5432/injishi']])
+                    integrationResults['schema-replay'] = ciResults['schema-replay']
+                  } else {
+                    // No captured schema: warned above, and a pass, as the workflow did.
+                    integrationResults['schema-replay'] = 'skipped'
+                  }
                 }
               }
             }
           }
+          postIntegrationStatus()
         }
       }
     }
@@ -491,23 +570,216 @@ npx --yes eas-cli@latest build --non-interactive --no-wait --platform all --prof
 ids="$(docker ps -aq --filter "label=injishi-ci=${CI_NAME:-none}")"
 if [ -n "$ids" ]; then docker rm -fv $ids >/dev/null 2>&1 || true; fi
 '''
+      // ADR-078 AC-10: nothing this build marked pending stays pending.
+      script { finishStatuses() }
     }
     cleanup {
-      // Keep .git for the next build's fetch; drop node_modules and build output.
-      sh '''#!/bin/bash
+      script {
+        if (env.CHANGE_ID) {
+          // ADR-078 AC-7: nothing a pull request's code wrote, in .git or
+          // anywhere else, survives into the next build. No git runs here.
+          deleteDir()
+          dir("${env.WORKSPACE}@tmp") { deleteDir() }
+        } else {
+          // main and tags: keep .git for the next build's fetch; drop
+          // node_modules and build output.
+          sh '''#!/bin/bash
 git reset --hard --quiet HEAD 2>/dev/null || true
 git clean -ffdxq 2>/dev/null || true
 rm -rf "$WORKSPACE@tmp/injishi-ci" || true
 '''
+        }
+      }
     }
   }
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
-// The `needs` of ci-complete, in ci.yml's order.
+// The `needs` of ci-complete, in ci.yml's order, then ADR-078's dead code job.
 def ciNeeds() {
-  return ['workflow-guard', 'changes', 'typecheck', 'lint', 'test-unit', 'build-web', 'build-app', 'build-api', 'mobile', 'tokens', 'cycles']
+  return ['workflow-guard', 'changes', 'typecheck', 'lint', 'test-unit', 'build-web', 'build-app', 'build-api', 'mobile', 'tokens', 'cycles', 'dead-code']
+}
+
+// ── ADR-078: the checkout and the two build statuses ────────────────────────
+
+// A pull request build empties its workspace and @tmp before git touches them
+// (AC-7), then every build checks out and finds the commit its statuses
+// belong on (AC-9), and marks both pending (AC-10).
+def checkoutClean() {
+  if (env.CHANGE_ID) {
+    deleteDir()
+    dir("${env.WORKSPACE}@tmp") { deleteDir() }
+  }
+  def scmVars = checkout scm
+  env.GIT_COMMIT = scmVars.GIT_COMMIT ?: ''
+  env.GIT_PREVIOUS_COMMIT = scmVars.GIT_PREVIOUS_COMMIT ?: ''
+  statusSha = resolveStatusSha()
+  if (statusSha) {
+    postStatus('injishi/ci-complete', 'pending', 'ci is running.')
+    postStatus('injishi/integration', 'pending', 'integration has not finished.')
+  }
+}
+
+// main: the pushed commit. A pull request: the head GitHub reports, and only when
+// it is a commit this build checked out (HEAD itself, or, when Jenkins merged the
+// target in, the merge parent that is not the target). Otherwise the pull
+// request has moved on and a newer build owns its statuses, so this one posts
+// none. Tags and other branches post none.
+def resolveStatusSha() {
+  if (env.TAG_NAME) return ''
+  if (!env.CHANGE_ID) return (env.BRANCH_NAME == 'main') ? (env.GIT_COMMIT ?: '') : ''
+  def checkedOut = sh(returnStdout: true, script: '''#!/bin/bash
+set -euo pipefail
+# Printed for the record (ADR-078 verify step 16): what this build is, and what
+# it fetched.
+{
+  echo "CHANGE_ID=${CHANGE_ID:-} CHANGE_TARGET=${CHANGE_TARGET:-} CHANGE_FORK=${CHANGE_FORK:-}"
+  git for-each-ref --format='%(refname) %(objectname:short)' refs/remotes
+} >&2
+git rev-parse HEAD
+set -- $(git rev-list --parents -n 1 HEAD)
+shift
+if [ "$#" -ge 2 ]; then
+  target="$(git rev-parse --verify --quiet "refs/remotes/origin/${CHANGE_TARGET}^{commit}" || true)"
+  for parent in "$@"; do
+    if [ "$parent" != "$target" ]; then echo "$parent"; fi
+  done
+fi
+''').trim()
+  def candidates = []
+  for (String line : checkedOut.split('\n')) {
+    candidates << line.trim()
+  }
+  def head = githubPullRequestHead()
+  if (head && candidates.contains(head)) {
+    return head
+  }
+  echo "Pull request #${env.CHANGE_ID} is at ${head ?: 'a commit GitHub did not report'}, which this build did not check out; it posts no status (ADR-078 AC-9)."
+  return ''
+}
+
+// The pull request's head commit, as GitHub reports it now; '' when it cannot
+// be read (no credential yet, or GitHub unreachable).
+def githubPullRequestHead() {
+  def head = ''
+  try {
+    withCredentials([string(credentialsId: 'injishi-github-status', variable: 'GH_STATUS_TOKEN')]) {
+      head = sh(returnStdout: true, script: '''#!/bin/bash
+set -uo pipefail
+curl -fsS --max-time 20 \\
+  -H "Authorization: Bearer $GH_STATUS_TOKEN" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" \\
+  "https://api.github.com/repos/hangaasoftwares/injishi/pulls/${CHANGE_ID}" | jq -r '.head.sha // ""' || true
+''').trim()
+    }
+  } catch (Exception e) {
+    rethrowIfInterrupted(e)
+    echo "WARNING: could not read pull request #${env.CHANGE_ID} from GitHub (${e.message}); this build posts no status. Is the credential injishi-github-status set up (jenkins/CREDENTIALS.md)?"
+  }
+  return head
+}
+
+// One commit status, by curl on the agent, with injishi-github-status bound
+// around this call alone, which runs no repository code (ADR-078 AC-6). The
+// description names this build. With onlyIfOwn, the status changes only while
+// GitHub still shows this build's own description, so an older build ending
+// late never overwrites a newer build's (AC-10). Failing to post is logged and
+// never fails the build: jenkins/pr-rules.Jenkinsfile is where a broken token
+// turns red.
+def postStatus(String context, String state, String description, boolean onlyIfOwn = false) {
+  if (!statusSha) return
+  def mark = "build #${env.BUILD_NUMBER}:"
+  def text = "${mark} ${description}"
+  if (text.length() > 140) {
+    text = text.substring(0, 137) + '...'
+  }
+  try {
+    withCredentials([string(credentialsId: 'injishi-github-status', variable: 'GH_STATUS_TOKEN')]) {
+      withEnv(["S_SHA=${statusSha}", "S_CONTEXT=${context}", "S_STATE=${state}", "S_DESCRIPTION=${text}", "S_MARK=${mark}", "S_ONLY_IF_OWN=${onlyIfOwn}"]) {
+        def code = sh(returnStatus: true, script: '''#!/bin/bash
+set -euo pipefail
+api="https://api.github.com/repos/hangaasoftwares/injishi"
+auth=(-H "Authorization: Bearer $GH_STATUS_TOKEN" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
+if [ "$S_ONLY_IF_OWN" = true ]; then
+  now="$(curl -fsS --max-time 20 "${auth[@]}" "$api/commits/$S_SHA/statuses?per_page=100" |
+    jq -r --arg context "$S_CONTEXT" 'map(select(.context == $context))[0].description // ""')"
+  case "$now" in
+    "$S_MARK"*) ;;
+    *) echo "$S_CONTEXT now shows another build's result; left as it is."; exit 3 ;;
+  esac
+fi
+payload="$(jq -n --arg state "$S_STATE" --arg description "$S_DESCRIPTION" --arg context "$S_CONTEXT" --arg url "${BUILD_URL:-}" \\
+  '{state: $state, description: $description, context: $context} + (if $url == "" then {} else {target_url: $url} end)')"
+curl -fsS --max-time 20 -o /dev/null "${auth[@]}" -X POST "$api/statuses/$S_SHA" -d "$payload"
+echo "$S_CONTEXT: $S_STATE on ${S_SHA:0:7}"
+''')
+        if (code == 0) {
+          statusState[context] = state
+        } else if (code == 3) {
+          statusState[context] = 'another build'
+        } else {
+          echo "WARNING: could not post ${context} (${state}); GitHub keeps its last state."
+        }
+      }
+    }
+  } catch (Exception e) {
+    rethrowIfInterrupted(e)
+    echo "WARNING: could not post ${context} (${e.message}). Is the credential injishi-github-status set up (jenkins/CREDENTIALS.md)?"
+  }
+}
+
+// After both integration stages: one verdict for injishi/integration.
+def postIntegrationStatus() {
+  def failed = []
+  for (String stage : ['database', 'schema-replay']) {
+    if (integrationResults[stage] == 'failure') {
+      failed << stage
+    }
+  }
+  if (failed) {
+    postStatus('injishi/integration', 'failure', "failed: ${failed.join(', ')}.")
+  } else {
+    postStatus('injishi/integration', 'success', 'the database checks passed.')
+  }
+}
+
+// The ci jobs that failed, for injishi/ci-complete's description.
+def failedCiJobs() {
+  def failed = []
+  for (String job : ciNeeds()) {
+    if (ciResults[job] == 'failure') {
+      failed << job
+    }
+  }
+  return failed ? failed.join(', ') : 'see the build'
+}
+
+// Whatever this build left pending gets a final state, and only while GitHub
+// still shows this build's own description (ADR-078 AC-10).
+def finishStatuses() {
+  if (!statusSha) return
+  def aborted = currentBuild.currentResult == 'ABORTED'
+  for (String context : ['injishi/ci-complete', 'injishi/integration']) {
+    if (statusState[context] != 'pending') {
+      continue
+    }
+    if (aborted) {
+      postStatus(context, 'error', 'aborted before this check finished.', true)
+    } else if (context == 'injishi/ci-complete' && env.RUN_CI == 'false') {
+      postStatus(context, 'error', "ci did not run: the base is ${env.CHANGE_TARGET ?: 'unknown'}, not main.", true)
+    } else if (context == 'injishi/integration' && env.RUN_INTEGRATION == 'false') {
+      postStatus(context, 'success', 'not run: nothing it checks changed.', true)
+    } else {
+      postStatus(context, 'error', 'the build ended before this check finished.', true)
+    }
+  }
+}
+
+// An abort must still stop the build, never be swallowed as a warning.
+def rethrowIfInterrupted(Exception e) {
+  if (e instanceof InterruptedException || e instanceof org.jenkinsci.plugins.workflow.steps.FlowInterruptedException) {
+    throw e
+  }
 }
 
 // A clean tree, the toolchain image, and what this build runs.
@@ -526,7 +798,7 @@ set -euo pipefail
 git reset --hard --quiet HEAD
 git clean -ffdxq
 rm -rf "$CI_TMP"
-mkdir -p "$CI_TMP" "$CACHE_ROOT/pnpm-store"
+mkdir -p "$CI_TMP" "$CACHE_ROOT/pnpm-store" "$CACHE_ROOT/pnpm-store-pull-requests"
 
 # The toolchain (.github/actions/pnpm-setup): Node from mise.toml, pnpm from
 # packageManager in package.json, never written down here.
@@ -622,7 +894,9 @@ def ciJob(String name, int minutes, String body, Map opts = [:]) {
       creds << string(credentialsId: 'injishi-heroui-auth-token', variable: 'HEROUI_AUTH_TOKEN')
     }
     creds.addAll(opts.creds ?: [])
-    def jobEnv = ["JOB_TMP=${env.CI_TMP}/${name}"]
+    // ADR-078 AC-7: a pull request never fills the store a main build, whose
+    // image ships to production, installs from.
+    def jobEnv = ["JOB_TMP=${env.CI_TMP}/${name}", "PNPM_STORE_NAME=${env.CHANGE_ID ? 'pnpm-store-pull-requests' : 'pnpm-store'}"]
     jobEnv.addAll(opts.env ?: [])
     def command = "timeout --kill-after=60s ${minutes}m bash '${jobScript}'"
     withCredentials(creds) {
@@ -645,9 +919,10 @@ def jobPreamble() {
 set -euo pipefail
 step() { printf '\\n==> %s\\n' "$*"; }
 mkdir -p "$JOB_TMP"
-# pnpm's store, shared by every injishi build on this agent. If the cache folder
-# is not visible in this container, a private one still works, only slower.
-PNPM_STORE="$CACHE_ROOT/pnpm-store"
+# pnpm's store: one shared by main and tag builds on this agent, another by pull
+# request builds (ADR-078 AC-7). If the cache folder is not visible in this
+# container, a private one still works, only slower.
+PNPM_STORE="$CACHE_ROOT/${PNPM_STORE_NAME:-pnpm-store}"
 if ! { mkdir -p "$PNPM_STORE" && [ -w "$PNPM_STORE" ]; } 2>/dev/null; then
   PNPM_STORE="$HOME/.pnpm-store"
 fi

@@ -8,7 +8,8 @@ holds a value.
 | Id | Kind | Replaces | Used by |
 | --- | --- | --- | --- |
 | `injishi-heroui-auth-token` | Secret text | secret `HEROUI_AUTH_TOKEN` | `injishi` (every ci and integration stage) |
-| `injishi-ghcr` | Username with password | `GITHUB_TOKEN` with `packages: read/write` | `injishi` (image, schema replay), `injishi-schema-capture` |
+| `injishi-ghcr` | Username with password | `GITHUB_TOKEN` with `packages: read/write` | `injishi` (image; schema replay on `main` builds only, ADR-078 AC-6), `injishi-schema-capture` |
+| `injishi-github-status` | Secret text | new with ADR-078 | `injishi` (the `injishi/ci-complete` and `injishi/integration` statuses), `injishi-pr-rules` |
 | `injishi-vps-ssh` | SSH username with private key, user `gha-runner` | the self-hosted runner `injishi-vps` | `injishi-deploy-staging`, `injishi-deploy-production`, `injishi-backup`, `injishi-schema-capture` |
 | `injishi-jenkins-api` | Username with password | `GITHUB_TOKEN` with `actions: read` | `injishi-deploy-production` (its gates) |
 | `injishi-expo-token` | Secret text | secret `EXPO_TOKEN` (never actually set in GitHub) | `injishi` (mobile-release, `mobile-v*` tags) |
@@ -72,6 +73,24 @@ in `/home/gha-runner/injishi-ci.env` (KEY=value lines, owner `gha-runner`, mode
 `DEMO_COMPOSE_PROJECT`), and `pg_dump`, `age` and `rclone` are not installed on
 the VPS, which is why `backup` fails in Actions now.
 
+**`injishi-github-status`** (ADR-078). A fine grained personal access token,
+resource owner `hangaasoftwares`, repository access `hangaasoftwares/injishi`
+only, with these permissions and nothing else: Commit statuses read and write,
+Pull requests read, Issues read, Contents read, Metadata read. Mint it from an
+account with Write on the repository (Triage cannot post statuses): the owner's,
+or a machine user's. The organisation may have to approve it under Settings >
+Personal access tokens. Write its expiry date here when you create it, and make
+a new one before then:
+
+- Expires: _(fill in)_
+
+It is the one credential a pull request build binds, and only around its own
+`curl` calls, which run no repository code. `injishi-pr-rules` holds it to read
+every open pull request and post `injishi/pr-rules` and `injishi/review`. Until
+it exists, builds still run and log that they post no status, and
+`injishi-pr-rules` fails every run, which is how a missing or expired token
+shows.
+
 **`injishi-jenkins-api`.** Manage Jenkins > Users > Create User (e.g.
 `injishi-gate`), sign in as it, Security > API Token > Add new Token. Username is
 the user id, password the token. Under the current `loggedInUsersCanDoAnything`
@@ -89,13 +108,19 @@ Actions stops and Jenkins' main build takes over.
 1. **VPS** (root, any time before merge; harmless on its own): install the gate
    and add the key line as above. Use the gate from the pull request branch until
    it merges.
-2. **Jenkins: credentials.** Create the five above.
+2. **Jenkins: credentials.** Create the six above (`injishi-github-status`
+   since ADR-078).
 3. **Jenkins: jobs** (JOBS.json). The multibranch job `injishi`: GitHub source
    `hangaasoftwares/injishi`, discover branches (excluding those filed as PRs),
-   pull requests from origin merged with the target, tags; no fork pull
-   requests; head filter `main PR-* mobile-v*`; build strategies regular
-   branches, change requests, tags newer than one day. Then the four pipeline
-   jobs (branch `main`, lightweight checkout, concurrent builds allowed), with
+   pull requests from origin merged with the target, pull requests from forks
+   merged with the target with trust "Nobody" (ADR-078 AC-5: a fork pull request
+   is built with its target branch's `Jenkinsfile`, never its own; every
+   teammate works from a fork, so without this their pull requests get no CI),
+   tags; head filter `main PR-* mobile-v*`; build strategies regular
+   branches, change requests, tags newer than one day. Then the five pipeline
+   jobs, `injishi-pr-rules` (ADR-078 AC-11, `jenkins/pr-rules.Jenkinsfile`,
+   concurrent builds off, its cron in the file) among them (branch `main`,
+   lightweight checkout, concurrent builds allowed unless named), with
    the `COMMIT` string parameter defined on `injishi-deploy-staging` and
    `injishi-deploy-production` at creation, because the main build's
    `build job:` drops a parameter the job has not declared yet. Their crons are
@@ -105,7 +130,8 @@ Actions stops and Jenkins' main build takes over.
 4. **Open the pull request.** Jenkins builds `PR-<n>` from the PR's own
    Jenkinsfile. Because the pipeline changed, every ci job and both integration
    stages run. Expect ci (through ci-complete) green: ci was green on
-   `0e7b1605`. Expect `integration: against a real database` red at
+   `e739ff3e` (`0e7b1605` before the 2026-11-04 identity rewrite of `main`).
+   Expect `integration: against a real database` red at
    `verify:authz` ("3 of 59 check(s) FAILED"): it fails the same way on every
    push to main in Actions today, a product failure the port does not cause.
 5. **Merge.** The main build runs ci, pushes the API image, starts

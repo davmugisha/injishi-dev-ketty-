@@ -19,6 +19,7 @@
     "test:ci": "pnpm -r --workspace-concurrency=1 --filter=!@injishi/mobile test",
     "check:manifests": "node scripts/check-workspace-manifests.mjs",
     "lint:ratchet": "node scripts/lint-ratchet.mjs",
+    "dead-code:ratchet": "node scripts/dead-code-ratchet.mjs",
     "web:dev": "pnpm --filter @injishi/web dev",
     "web:build": "pnpm --filter @injishi/web build",
     "web:start": "pnpm --filter @injishi/web start",
@@ -38,7 +39,6 @@
     "db:seed": "pnpm --filter @injishi/api db:seed",
     "fixtures:seed": "pnpm --filter @injishi/db seed",
     "fixtures:reset": "pnpm --filter @injishi/db reset",
-    "dev:all": "node scripts/dev-all.mjs",
     "dev:stack": "node scripts/dev-stack.mjs",
     "dev:stack:down": "node scripts/dev-stack.mjs --down",
     "dev:stack:reset": "node scripts/dev-stack.mjs --reset",
@@ -50,6 +50,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
+    "knip": "6.44.1",
     "turbo": "2.11.7",
     "typescript": "5.9.3"
   }

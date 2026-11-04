@@ -1,0 +1,83 @@
+// knip finds dead code: files nothing reaches, exports nothing imports, packages
+// nothing uses. scripts/dead-code-ratchet.mjs counts what it finds per workspace
+// member against .github/knip-baseline.json (ADR-078 AC-16 to AC-19).
+//
+// The rule for this file (AC-18): never `ignore`, `ignoreFiles` or
+// `ignoreIssues`, which hide findings by path. A false positive is settled with
+// an entry, a project, a plugin setting or an ignoreDependencies style option,
+// each with its reason in a comment beside it. The ratchet refuses the three.
+//
+// Scripts are entries throughout: a script is run (by hand, by a package
+// script, or by the Jenkinsfile, which knip cannot read), never imported, so
+// "nothing imports it" says nothing about whether it is dead.
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "workspaces": {
+    ".": {
+      // The CI helpers the Jenkinsfile runs, and their tests.
+      "entry": ["scripts/*.mjs"]
+    },
+    "apps/web": {
+      "entry": [
+        // Built into the service worker by next.config's `swSrc`, which knip
+        // does not read as an import.
+        "src/app/sw.ts",
+        // Static files served by URL from public/, never imported.
+        "public/shared/**/*.{js,css}",
+        // Image and codemod scripts, run by hand.
+        "scripts/**/*.mjs"
+      ]
+    },
+    "apps/app": {
+      // The verify and flow scripts, run by hand.
+      "entry": ["scripts/**/*.{mjs,ts}"]
+    },
+    "apps/mobile": {
+      "entry": [
+        "scripts/**/*.mjs",
+        // Read by @expo/fingerprint and by scripts/check-ci.mjs through a path.
+        "fingerprint.config.js",
+        // Swapped in by metro/sample-data.js through a path, for builds without
+        // the demo data.
+        "metro/stubs/*.js"
+      ]
+    },
+    "server/api": {
+      "entry": [
+        // The API and the worker. Naming an entry here replaces knip's default
+        // src/main.ts, so it is named again.
+        "src/main.ts",
+        // Seeds, verify scripts and jobs, run by hand or by package scripts.
+        "scripts/**/*.{mjs,ts}"
+      ],
+      // The live and SMTP suites run only through the manual config.
+      "vitest": {
+        "config": ["vitest.config.mts", "vitest.manual.config.mts"]
+      },
+      // Loaded by pino as a transport named in a string (`target: 'pino-pretty'`
+      // in src/app.module.ts), never imported.
+      "ignoreDependencies": ["pino-pretty"]
+    },
+    // The four compiled packages. dist/ is the output consumers read, committed
+    // and rebuilt by CI before this runs; knip maps every import of it back to
+    // src/, so dist/ itself would always read as unreached. The source is src/.
+    "packages/auth": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/contracts": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/design-tokens": {
+      "project": ["src/**/*.ts", "scripts/**/*.mjs"]
+    },
+    "packages/qr": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/web-ui": {
+      // Exists only for `tsc --noEmit`: it fails the typecheck when the package
+      // stops exporting a name @injishi/ui-contract lists. Imported by nothing on
+      // purpose.
+      "entry": ["src/contract-check.ts"]
+    }
+  }
+}
