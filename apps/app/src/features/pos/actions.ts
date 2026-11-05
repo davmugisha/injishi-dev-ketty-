@@ -9,11 +9,15 @@ import {
   type LineRequest,
   type OrderType,
   type PaymentMethod,
+  type PosExpenseRow,
   type PosFloor,
   type PosOrder,
   type PosShift,
+  type PosStockItem,
   type PosTicket,
+  posBackOffice,
   posWrite,
+  type StockMovementKind,
   type TableStatus,
   type TicketStatus,
 } from "@/server/pos";
@@ -207,4 +211,48 @@ export async function closeShiftAction(
 
 export async function reviewShiftAction(shiftId: string, note?: string): Promise<ActionResult<PosShift>> {
   return run(async () => posWrite.reviewShift(await ctx(), shiftId, note));
+}
+
+// ── Back office: stock and expenses ─────────────────────────────────────────────────────────────────
+
+/** Like `run`, gated by the back-office board the person is on (the stock controller is not a floor persona). */
+async function runBackOffice<T>(board: "PosStock" | "PosReports", act: () => Promise<T>): Promise<ActionResult<T>> {
+  await requirePersona(board);
+  try {
+    const value = await act();
+    for (const b of Object.values(POS_BOARDS)) revalidatePath(b.href);
+    return { ok: true, value };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      if (error.forbidden) return { ok: false, error: `Not allowed: ${error.message}` };
+      return { ok: false, error: error.message };
+    }
+    if (error instanceof ApiUnreachableError)
+      return { ok: false, error: "The Injishi service did not answer. Try again." };
+    throw error;
+  }
+}
+
+export async function adjustStockAction(body: {
+  serviceItemId: string;
+  kind: StockMovementKind;
+  quantity: number;
+  reason: string;
+}): Promise<ActionResult<PosStockItem>> {
+  return runBackOffice("PosStock", async () => posBackOffice.adjustStock(await ctx(), body));
+}
+
+export async function recordExpenseAction(body: {
+  outletId?: string;
+  category: string;
+  amountRwf: number;
+  method: string;
+  payeeName?: string;
+  note?: string;
+}): Promise<ActionResult<PosExpenseRow>> {
+  return runBackOffice("PosReports", async () => posBackOffice.recordExpense(await ctx(), body));
+}
+
+export async function voidExpenseAction(expenseId: string, reason: string): Promise<ActionResult<PosExpenseRow>> {
+  return runBackOffice("PosReports", async () => posBackOffice.voidExpense(await ctx(), expenseId, reason));
 }

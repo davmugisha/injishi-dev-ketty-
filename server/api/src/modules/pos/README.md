@@ -118,9 +118,32 @@ against settlement reports; and a deliberate change to `pos.module.ts`. Fiscal d
 VSDC certification; the platform's `ebm` module is the place for that, and phase 4 adds the
 demo fiscal simulator behind its own port.
 
+## Back office (dashboard, reports, stock, expenses)
+
+Added after phase 1, on the existing tables and with no migration:
+
+| Screen | API | Needs |
+|---|---|---|
+| `/pos/dashboard` | `GET /ops/pos/dashboard` | `shift.review` or `money.view` |
+| `/pos/reports` | `GET /ops/pos/reports?from&to&outletId` | `shift.review` or `money.view` |
+| `/pos/stock` | `GET /ops/pos/stock`, `POST /ops/pos/stock/adjust` | `stock.manage` (read: or `shift.review`) |
+| `/pos/menu` | `GET /ops/pos/outlets/:id/menu` (existing) | any floor permission |
+| expenses panel on Reports | `POST /ops/pos/expenses`, `POST /ops/pos/expenses/:id/void` | `expense.manage` |
+
+- **Stock** is `service_items.stock_qty` (`null` = not tracked). Sending an order takes stock out, once, in the
+  same transaction; a void or a cancellation puts back what was never served; people record damaged, broken,
+  expired, spilled, staff use, received and counted stock with a reason. Every change is a `pos_audit_events`
+  row (`stock.*`), which is the movement history. A sale that would take stock below zero is refused.
+- **Expenses** reuse the platform's `expenses` table (categories, methods, void with a reason).
+- **Reports** are computed from the POS tables on every request. A day is a Kigali calendar day; sales are
+  orders *completed* in the window, collections are payments *settled* in it.
+- `stock.manage` is a new permission: owner, manager and the stock controller.
+- **Cost of goods is an estimate** (`COST_OF_GOODS_RATIO`, 35% of selling price) because no cost price is stored
+  per item, and "low stock" is a fixed `LOW_STOCK_AT` (10). Per-item cost and reorder level need a migration.
+
 ## Known limitations of phase 1
 
-- Stock is not consumed by sales yet (phase 3). Voids therefore have nothing to reverse.
+- Stock has no cost, supplier, purchase-order or recipe model yet (valuation and profit use the estimate above).
 - No fiscal document is raised for a POS sale yet (phase 4), and no journal is posted (phase 5).
 - Customer credit is listed as a method but refused until customer accounts exist.
 - Split bills move whole lines and only before the first payment; a line cannot be split by
@@ -129,5 +152,5 @@ demo fiscal simulator behind its own port.
   reads every price as exclusive; enabling guest ordering on an inclusive outlet would price the
   same item two ways.
 - Floor and board screens refresh by polling (every 15 and 10 seconds), not by push.
-- Dashboard, reports, menu editing, settings screens and the audit log screen are later phases;
+- Menu editing, table and station setup, settings screens and the audit log screen are later phases;
   their API reads (`GET /ops/pos/audit`, `PATCH /ops/pos/outlets/:id/settings`) exist already.

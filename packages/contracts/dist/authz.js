@@ -266,6 +266,11 @@ exports.Permission = zod_1.z.enum([
     "register.operate",
     /** Review a closed shift's cash variance and approve a paid out. Owner and manager. */
     "shift.review",
+    /**
+     * Count the stock: record damaged, broken, expired or received stock and read the stock
+     * valuation. Owner, manager and the stock controller (POS spec, section 8).
+     */
+    "stock.manage",
 ]);
 const ALL = exports.Permission.options;
 /**
@@ -390,9 +395,9 @@ const ROLE_PERMISSIONS = {
     waiter: new Set(["pos.sell", "table.manage"]),
     bartender: new Set(["pos.sell", "table.manage", "kitchen.work"]),
     kitchen: new Set(["kitchen.work"]),
-    // The stock permissions arrive with the inventory phase; until then the
-    // role signs in and holds nothing.
-    stock_controller: new Set([]),
+    // The stock controller counts the stock and records damage and waste (`stock.manage`); it sells,
+    // discounts and refunds nothing.
+    stock_controller: new Set(["stock.manage"]),
 };
 /** Does this role hold this permission? The single predicate both sides use. */
 function can(role, permission) {
@@ -454,6 +459,7 @@ exports.PERMISSION_LABEL = {
     "kitchen.work": "work kitchen and bar tickets",
     "register.operate": "run a cashier shift",
     "shift.review": "review cashier shifts and paid outs",
+    "stock.manage": "count stock and record damage and waste",
 };
 // ---------------------------------------------------------------------------
 // A business's own role customisation
@@ -654,6 +660,7 @@ exports.PERMISSION_AREA_OF = {
     "kitchen.work": "services",
     "register.operate": "money",
     "shift.review": "money",
+    "stock.manage": "services",
 };
 // ---------------------------------------------------------------------------
 // What each role may do, at THIS business

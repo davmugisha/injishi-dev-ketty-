@@ -44,6 +44,7 @@ import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { isSellable, priceLine, unclassifiedSentence } from '../../outlets/domain/sellable-item';
 import { presentOrder } from '../infrastructure/pos-present';
+import { consumeStock, lineIdsNeverServed, restoreStock } from '../infrastructure/pos-stock';
 import {
   audit,
   kigaliPeriod,
@@ -109,6 +110,9 @@ export class PosOrderService {
       if (!item) throw new NotFoundException('That item is not on this outlet’s menu.');
       if (item.status === 'out_of_stock' || item.stockQty === 0) {
         throw new ConflictException(`${item.name} is sold out.`);
+      }
+      if (item.stockQty !== null && item.stockQty < requested.quantity) {
+        throw new ConflictException(`Only ${item.stockQty} ${item.name} left.`);
       }
       if (item.status !== 'active') throw new ConflictException(`${item.name} is not on sale right now.`);
       if (!isSellable(item)) throw new UnprocessableEntityException(unclassifiedSentence(item.name));
@@ -366,6 +370,13 @@ export class PosOrderService {
           .set({ status: 'sent', sentAt: now, stationId: stationId ?? null, updatedAt: now })
           .where(eq(posOrderLines.id, line.id));
       }
+      // Stock leaves the shelf when the order is SENT, once: a line is sent a single time, so a retry
+      // cannot take it again, and nothing is taken at payment as well.
+      await consumeStock(
+        tx,
+        { workspaceId: ws.workspaceId, outletId: order.outletId, actorUserId: userId, orderNumber: order.orderNumber },
+        drafts.map(({ line }) => ({ id: line.id, serviceItemId: line.serviceItemId, quantity: line.quantity, nameSnapshot: line.nameSnapshot })),
+      );
       if (!order.submittedAt) {
         await tx.update(posOrders).set({ submittedAt: now, updatedAt: now }).where(eq(posOrders.id, order.id));
       }
@@ -378,8 +389,8 @@ export class PosOrderService {
   /**
    * Void a SENT line: the manager's override, with a reason. Its ticket item
    * is cancelled unless already served, and its ticket with it once nothing
-   * on it is left to make. The stock a sale consumes is not taken until the
-   * inventory phase, so there is no consumption to reverse yet.
+   * on it is left to make. The stock the line consumed when it was sent goes
+   * back on the shelf unless the item was already served.
    */
   async voidLine(ws: ScopedWorkspace, orderId: string, lineId: string, body: VoidPosLineRequest, userId: string): Promise<PosOrder> {
     if (!this.has(ws, 'pos.override')) throw new ForbiddenException('Voiding a line that went to the kitchen needs a manager.');
@@ -395,6 +406,15 @@ export class PosOrderService {
         .set({ status: 'voided', voidedAt: now, voidedByUserId: userId, voidReason: body.reason, updatedAt: now })
         .where(eq(posOrderLines.id, line.id));
       await this.cancelTicketItems(tx, [line.id], userId, now);
+      // What was never served goes back on the shelf; something already on the table was consumed.
+      const back = await lineIdsNeverServed(tx, [line.id]);
+      if (back.length > 0) {
+        await restoreStock(
+          tx,
+          { workspaceId: ws.workspaceId, outletId: order.outletId, actorUserId: userId, orderNumber: order.orderNumber, reason: `Line voided: ${body.reason}` },
+          [{ id: line.id, serviceItemId: line.serviceItemId, quantity: line.quantity, nameSnapshot: line.nameSnapshot }],
+        );
+      }
       const { totalRwf } = await recomputeOrder(tx, order);
       await this.assertCovers(tx, order, totalRwf);
       await orderEvent(tx, { orderId: order.id, kind: 'line_voided', actorUserId: userId, data: { name: line.nameSnapshot, reason: body.reason } });
@@ -456,7 +476,12 @@ export class PosOrderService {
       const order = await orderInScope(tx, ws, orderId, true);
       this.assertEditable(order);
       const sent = await tx
-        .select({ id: posOrderLines.id })
+        .select({
+          id: posOrderLines.id,
+          serviceItemId: posOrderLines.serviceItemId,
+          quantity: posOrderLines.quantity,
+          nameSnapshot: posOrderLines.nameSnapshot,
+        })
         .from(posOrderLines)
         .where(and(eq(posOrderLines.orderId, order.id), eq(posOrderLines.status, 'sent')));
       if (sent.length > 0 && !this.has(ws, 'pos.override')) {
@@ -469,6 +494,12 @@ export class PosOrderService {
       if (s.pendingRwf > 0) throw new ConflictException('A payment is still waiting for its answer. Resolve it first.');
       const now = new Date();
       await this.cancelTicketItems(tx, sent.map((l) => l.id), userId, now);
+      const never = new Set(await lineIdsNeverServed(tx, sent.map((l) => l.id)));
+      await restoreStock(
+        tx,
+        { workspaceId: ws.workspaceId, outletId: order.outletId, actorUserId: userId, orderNumber: order.orderNumber, reason: `Order cancelled: ${body.reason}` },
+        sent.filter((l) => never.has(l.id)),
+      );
       await tx
         .update(posOrders)
         .set({ status: 'cancelled', cancelledAt: now, cancelledByUserId: userId, cancelReason: body.reason, updatedAt: now })

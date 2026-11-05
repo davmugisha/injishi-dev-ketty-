@@ -118,6 +118,7 @@ import { OpsConditionSignalsController, OpsWorkOrdersController } from './ops/wo
 import { OpsOutletPartiesController } from './ops/outlet-parties.controller';
 import { OpsOutletsController } from './ops/outlets.controller';
 import {
+  OpsPosBackOfficeController,
   OpsPosController,
   OpsPosKitchenController,
   OpsPosOrdersController,
@@ -313,6 +314,7 @@ import { TrainingPublicModule } from './training/training.module';
     OpsPosPaymentsController,
     OpsPosKitchenController,
     OpsPosShiftsController,
+    OpsPosBackOfficeController,
     OpsTeamController,
     OpsRolesController,
     // The HR module (ADR-058, first thread). Every route behind WorkspaceGuard

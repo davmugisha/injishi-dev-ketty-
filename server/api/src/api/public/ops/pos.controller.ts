@@ -50,12 +50,27 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { PosExpenseService } from '../../../modules/pos/application/pos-expense.service';
 import { PosFloorService } from '../../../modules/pos/application/pos-floor.service';
 import { PosKitchenService } from '../../../modules/pos/application/pos-kitchen.service';
 import { PosOrderService } from '../../../modules/pos/application/pos-order.service';
 import { PosPaymentService } from '../../../modules/pos/application/pos-payment.service';
 import { PosReadService } from '../../../modules/pos/application/pos-read.service';
+import { PosReportService } from '../../../modules/pos/application/pos-report.service';
 import { PosShiftService } from '../../../modules/pos/application/pos-shift.service';
+import { PosStockService } from '../../../modules/pos/application/pos-stock.service';
+import {
+  PosPeriodQuery,
+  PosStockQuery,
+  RecordPosExpenseRequest,
+  StockAdjustRequest,
+  VoidPosExpenseRequest,
+  type PosDashboard,
+  type PosExpenseRow,
+  type PosReport,
+  type PosStockItem,
+  type PosStockView,
+} from '../../../modules/pos/domain/pos-ops';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import {
@@ -88,7 +103,15 @@ export class OpsPosController {
   ) {}
 
   @Get('outlets')
-  @RequireAnyPermission('pos.sell', 'pos.checkout', 'kitchen.work', 'register.operate', 'shift.review', 'outlet.manage')
+  @RequireAnyPermission(
+    'pos.sell',
+    'pos.checkout',
+    'kitchen.work',
+    'register.operate',
+    'shift.review',
+    'outlet.manage',
+    'stock.manage',
+  )
   outlets(@CurrentWorkspace() ws: ScopedWorkspace): Promise<PosOutlet[]> {
     return this.read.outlets(ws);
   }
@@ -535,5 +558,80 @@ export class OpsPosShiftsController {
     @CurrentUser() user: SessionUser,
   ): Promise<PosShift> {
     return this.shifts.review(ws, shiftId, body, user.id);
+  }
+}
+
+/**
+ * The back office of the point of sale: the dashboard, the reports, the stock and the expenses
+ * (POS spec sections 4, 8, 13 and 15). Reading the money needs `shift.review` or `money.view`; the stock
+ * needs `stock.manage`; an expense needs `expense.manage`. Each is also filtered by branch scope.
+ */
+@Controller({ path: 'ops/pos', version: '1' })
+@UseGuards(SessionGuard, WorkspaceGuard)
+export class OpsPosBackOfficeController {
+  constructor(
+    private readonly reports: PosReportService,
+    private readonly stock: PosStockService,
+    private readonly expenses: PosExpenseService,
+  ) {}
+
+  @Get('dashboard')
+  @RequireAnyPermission('shift.review', 'money.view')
+  dashboard(
+    @Query(new ZodValidationPipe(PosPeriodQuery)) query: PosPeriodQuery,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+  ): Promise<PosDashboard> {
+    return this.reports.dashboard(ws, query.outletId);
+  }
+
+  @Get('reports')
+  @RequireAnyPermission('shift.review', 'money.view')
+  report(
+    @Query(new ZodValidationPipe(PosPeriodQuery)) query: PosPeriodQuery,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+  ): Promise<PosReport> {
+    return this.reports.report(ws, query);
+  }
+
+  @Get('stock')
+  @RequireAnyPermission('stock.manage', 'shift.review', 'pos.override')
+  stockView(
+    @Query(new ZodValidationPipe(PosStockQuery)) query: PosStockQuery,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+  ): Promise<PosStockView> {
+    return this.stock.view(ws, query.outletId);
+  }
+
+  @Post('stock/adjust')
+  @HttpCode(200)
+  @RequirePermission('stock.manage')
+  adjustStock(
+    @Body(new ZodValidationPipe(StockAdjustRequest)) body: StockAdjustRequest,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PosStockItem> {
+    return this.stock.adjust(ws, body, user.id);
+  }
+
+  @Post('expenses')
+  @RequirePermission('expense.manage')
+  recordExpense(
+    @Body(new ZodValidationPipe(RecordPosExpenseRequest)) body: RecordPosExpenseRequest,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PosExpenseRow> {
+    return this.expenses.record(ws, body, user.id);
+  }
+
+  @Post('expenses/:expenseId/void')
+  @HttpCode(200)
+  @RequirePermission('expense.manage')
+  voidExpense(
+    @Param('expenseId', ParseUUIDPipe) expenseId: string,
+    @Body(new ZodValidationPipe(VoidPosExpenseRequest)) body: VoidPosExpenseRequest,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PosExpenseRow> {
+    return this.expenses.void(ws, expenseId, body, user.id);
   }
 }

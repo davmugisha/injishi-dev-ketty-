@@ -90,7 +90,8 @@ describe("the org roles", () => {
     // added `lease.sign`, `payout.manage`, `expense.manage`, `tax.manage` and
     // `guest.register`.
     // 50: the POS spec, phase 1, added the nine point of sale permissions.
-    assert.equal(permissionsForRole("owner").length, 50);
+    // 51: the POS inventory step added `stock.manage`.
+    assert.equal(permissionsForRole("owner").length, 51);
   });
 
   test("manager holds everything except team.manage, the HR disclosures, signing leases and payouts", () => {
@@ -104,7 +105,7 @@ describe("the org roles", () => {
       permissionsForRole("manager"),
       Permission.options.filter((p) => !withheld.includes(p)),
     );
-    assert.equal(permissionsForRole("manager").length, 44);
+    assert.equal(permissionsForRole("manager").length, 45);
   });
 
   test("receptionist works the front desk and takes orders", () => {
@@ -254,8 +255,8 @@ describe("the org roles", () => {
     assert.deepEqual(permissionsForRole("kitchen"), ["kitchen.work"]);
   });
 
-  test("stock controller holds nothing until the inventory phase", () => {
-    assert.deepEqual(permissionsForRole("stock_controller"), []);
+  test("stock controller counts the stock and does nothing else", () => {
+    assert.deepEqual(permissionsForRole("stock_controller"), ["stock.manage"]);
   });
 
   test("no floor role overrides, refunds or reviews a shift", () => {

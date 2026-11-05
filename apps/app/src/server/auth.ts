@@ -482,6 +482,8 @@ const ROLE_HOME: Partial<Record<string, BoardId>> = {
   waiter: "PosFloor",
   bartender: "PosFloor",
   kitchen: "PosStations",
+  // The stock controller counts the stock and records damage and waste: its screen is the stock.
+  stock_controller: "PosStock",
 };
 
 /**

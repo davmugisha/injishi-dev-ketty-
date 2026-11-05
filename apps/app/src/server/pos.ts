@@ -447,3 +447,156 @@ export function posPermissions(ctx: SourceContext): Set<string> {
     return new Set();
   }
 }
+
+// ── Back office: dashboard, reports, stock, expenses (POS spec sections 4, 8, 13 and 15) ────────────────
+
+export type StockLevel = "untracked" | "ok" | "low" | "out";
+
+export interface PosStockItem {
+  id: string;
+  name: string;
+  category: string;
+  priceRwf: number;
+  stockQty: number | null;
+  level: StockLevel;
+  unitCostRwf: number;
+  valueRwf: number;
+}
+
+export interface PosStockMovement {
+  id: string;
+  at: string;
+  action: string;
+  item: string;
+  delta: number | null;
+  stockBefore: number | null;
+  stockAfter: number | null;
+  by: string | null;
+  reason: string | null;
+  order: string | null;
+}
+
+export interface PosStockView {
+  outletId: string;
+  lowAt: number;
+  costRatio: number;
+  items: PosStockItem[];
+  summary: { tracked: number; low: number; out: number; valuationRwf: number };
+  movements: PosStockMovement[];
+}
+
+export interface PosExpenseRow {
+  id: string;
+  paidOn: string;
+  category: string;
+  amountRwf: number;
+  method: string;
+  payeeName: string | null;
+  note: string | null;
+}
+
+export interface PosSalesLine {
+  name: string;
+  category: string;
+  quantity: number;
+  revenueRwf: number;
+}
+
+export interface PosReport {
+  period: { from: string; to: string };
+  outlet: { id: string | null; name: string };
+  sales: {
+    orders: number;
+    completedOrders: number;
+    totalRwf: number;
+    taxRwf: number;
+    discountRwf: number;
+    netOfTaxRwf: number;
+    averageOrderRwf: number;
+  };
+  payments: {
+    collectedRwf: number;
+    refundsRwf: number;
+    tipsRwf: number;
+    byMethod: { method: string; count: number; amountRwf: number; tipRwf: number }[];
+  };
+  expenses: { totalRwf: number; byCategory: { category: string; totalRwf: number }[]; recent: PosExpenseRow[] };
+  profit: {
+    netSalesRwf: number;
+    costOfGoodsRwf: number;
+    expensesRwf: number;
+    estimatedProfitRwf: number;
+    costRatio: number;
+    note: string;
+  };
+  bestSellers: PosSalesLine[];
+  topDrinks: PosSalesLine[];
+  byCategory: { category: string; quantity: number; revenueRwf: number }[];
+  waiters: { name: string; orders: number; totalRwf: number; averageRwf: number }[];
+  daily: { day: string; orders: number; totalRwf: number }[];
+  tax: { code: string; ratePercent: number; taxableRwf: number; taxRwf: number }[];
+  shifts: { count: number; varianceRwf: number };
+  stock: { tracked: number; low: number; out: number; valuationRwf: number };
+}
+
+export interface PosDashboard {
+  asOf: string;
+  outlet: { id: string | null; name: string };
+  today: PosReport;
+  week: PosReport;
+  live: {
+    activeOrders: { status: string; count: number; totalRwf: number }[];
+    activeOrderCount: number;
+    tables: { status: string; count: number }[];
+    openShifts: number;
+    alerts: { low: number; out: number };
+  };
+}
+
+export const posDashboard = (ctx: SourceContext, outletId?: string) =>
+  ctx.ops().get<PosDashboard>(`${P}/dashboard`, { query: { outletId } });
+export const posReport = (ctx: SourceContext, query: { outletId?: string; from?: string; to?: string }) =>
+  ctx.ops().get<PosReport>(`${P}/reports`, { query });
+export const posStock = (ctx: SourceContext, outletId: string) =>
+  ctx.ops().get<PosStockView>(`${P}/stock`, { query: { outletId } });
+
+export interface PosStationRow {
+  id: string;
+  name: string;
+  kind: "kitchen" | "bar";
+}
+export const posStations = (ctx: SourceContext, outletId: string) =>
+  ctx.ops().get<PosStationRow[]>(`${P}/outlets/${outletId}/stations`);
+
+export type StockMovementKind = "damaged" | "broken" | "expired" | "spillage" | "staff_use" | "received" | "count";
+
+export const STOCK_KIND_LABEL: Record<StockMovementKind, string> = {
+  damaged: "Damaged",
+  broken: "Broken",
+  expired: "Expired",
+  spillage: "Spilled",
+  staff_use: "Staff use",
+  received: "Received",
+  count: "Stock count",
+};
+
+export const posBackOffice = {
+  adjustStock: (
+    ctx: SourceContext,
+    body: { serviceItemId: string; kind: StockMovementKind; quantity: number; reason: string },
+  ) => ctx.ops().post<PosStockItem>(`${P}/stock/adjust`, body),
+  recordExpense: (
+    ctx: SourceContext,
+    body: {
+      outletId?: string;
+      category: string;
+      amountRwf: number;
+      paidOn?: string;
+      method: string;
+      payeeName?: string;
+      note?: string;
+    },
+  ) => ctx.ops().post<PosExpenseRow>(`${P}/expenses`, body),
+  voidExpense: (ctx: SourceContext, expenseId: string, reason: string) =>
+    ctx.ops().post<PosExpenseRow>(`${P}/expenses/${expenseId}/void`, { reason }),
+};

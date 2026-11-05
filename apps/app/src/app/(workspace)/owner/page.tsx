@@ -8,14 +8,25 @@ import type {
   RevenueDay,
 } from "@injishi/data/fixtures/platform";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { OwnerHomeView, type SetupDue } from "@/features/platform/OwnerHomeView";
 import { StayHomeView } from "@/features/pms/stays/StayHomeView";
 import { currentAccount, requirePersona } from "@/lib/session";
 import { setupPath } from "@/lib/setup-path";
 import { getCollection, requestContext } from "@/server/data";
 import { readSetup } from "@/server/mutations/setup";
+import { posOutlets } from "@/server/pos";
 import { holdsSampleData } from "@/server/sample-data";
 import { staysActivity, staysSummary } from "@/server/stays/client";
+
+/** Whether this person's workspace has a bar or restaurant outlet to sell from. A failed read counts as no. */
+async function hasPosOutlets(): Promise<boolean> {
+  try {
+    return (await posOutlets(await requestContext())).length > 0;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * The owner's businesses that are not on the marketplace yet, read the way the setup page reads them, so
@@ -56,6 +67,8 @@ export default async function OwnerHomePage() {
   const persona = await requirePersona("OwnerHome");
   // A stay business (guest house, lodge, hotel, apartments) gets its own home, all from the API.
   const stays = await staysSummary();
+  // A business with no rooms but a bar or restaurant outlet is run from the point of sale, not a front desk.
+  if (stays && stays.business.rooms === 0 && (await hasPosOutlets())) redirect("/pos/dashboard");
   if (stays) {
     const [account, activity, due] = await Promise.all([currentAccount(), staysActivity(), setupDue()]);
     const mine = due[0] ?? null;
