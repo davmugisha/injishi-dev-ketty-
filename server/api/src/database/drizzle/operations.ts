@@ -1127,6 +1127,7 @@ export const serviceItems = pgTable(
     index('service_items_category_idx').on(t.serviceCategoryId),
     index('service_items_department_idx').on(t.departmentId),
     index('service_items_workspace_idx').on(t.workspaceId),
+    index('service_items_outlet_idx').on(t.outletId),
   ],
 );
 

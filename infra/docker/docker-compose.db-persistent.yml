@@ -1,0 +1,21 @@
+# The local database as a long-lived service: an overlay for docker-compose.yml, used with `-f` twice.
+#
+#   docker compose -p injishi-pos-db -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.db-persistent.yml up -d db
+#
+# docker-compose.yml starts `db` for development: no restart policy, so a Docker or laptop restart leaves it down.
+# This overlay keeps `db` running across restarts. Its data is the `db-data` named volume, which survives the
+# container being stopped, recreated or removed with `down`; it is deleted only by `down -v` or `docker volume rm`.
+#
+# Settings come from the environment, never from this file (see docs: infra/docker/BACKUPS.md):
+#   INJISHI_DB_PASSWORD  required in practice; the compose default `injishi` is for throwaway stacks only
+#   INJISHI_DB_PORT      the host port, bound to 127.0.0.1 only (5432 is taken by the Windows service on this machine)
+#   INJISHI_DB_NAME / INJISHI_DB_USER
+services:
+  db:
+    restart: unless-stopped
+    # Keep the container log from growing without bound.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

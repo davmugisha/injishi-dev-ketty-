@@ -1,0 +1,30 @@
+{
+  "_comment": "Copy to a folder OUTSIDE the repository, edit the paths, and pass it with --config. It holds no secrets: `credential` only names a file and a key; the secret itself is read at run time and never logged.",
+  "pgBin": "C:/Program Files/PostgreSQL/17/bin",
+  "backupRoot": "C:/Users/<you>/Documents/injishi-db-backups/scheduled",
+  "retention": { "keepAllDays": 3, "keepDailyDays": 14, "keepWeeklyWeeks": 8, "minimumToKeep": 6 },
+  "drill": {
+    "host": "127.0.0.1",
+    "port": 5433,
+    "user": "injishi",
+    "database": "injishi_backup_verify",
+    "credential": { "file": "C:/Users/<you>/Documents/injishi-demo/secrets/docker-db.env", "key": "INJISHI_DB_PASSWORD" }
+  },
+  "targets": [
+    {
+      "name": "docker-demo",
+      "host": "127.0.0.1",
+      "port": 5433,
+      "user": "injishi",
+      "database": "injishi_demo",
+      "credential": { "file": "C:/Users/<you>/Documents/injishi-demo/secrets/docker-db.env", "key": "INJISHI_DB_PASSWORD" }
+    },
+    {
+      "name": "live-demo-5434",
+      "host": "127.0.0.1",
+      "port": 5434,
+      "database": "injishi_demo",
+      "credential": { "file": "C:/Users/<you>/path/to/repo/server/api/.env.test", "key": "DATABASE_URL", "from": "databaseUrl" }
+    }
+  ]
+}

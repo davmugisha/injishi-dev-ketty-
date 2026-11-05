@@ -350,6 +350,7 @@ export const posOrders = pgTable(
     unique('pos_orders_workspace_number_uk').on(t.workspaceId, t.orderNumber),
     unique('pos_orders_idempotency_key_uk').on(t.idempotencyKey),
     index('pos_orders_outlet_status_idx').on(t.outletId, t.status),
+    index('pos_orders_outlet_completed_idx').on(t.outletId, t.completedAt),
     index('pos_orders_session_idx').on(t.tableSessionId),
     index('pos_orders_workspace_created_idx').on(t.workspaceId, t.createdAt),
     check(
@@ -410,6 +411,7 @@ export const posOrderLines = pgTable(
   },
   (t) => [
     index('pos_order_lines_order_idx').on(t.orderId),
+    index('pos_order_lines_sent_at_idx').on(t.sentAt),
     check('pos_order_lines_quantity_range', sql`${t.quantity} >= 1 AND ${t.quantity} <= 500`),
     check(
       'pos_order_lines_void_shape',
@@ -743,6 +745,7 @@ export const posPayments = pgTable(
     unique('pos_payments_idempotency_key_uk').on(t.idempotencyKey),
     unique('pos_payments_demo_reference_uk').on(t.demoReference),
     index('pos_payments_order_idx').on(t.orderId),
+    index('pos_payments_outlet_settled_idx').on(t.outletId, t.settledAt),
     index('pos_payments_shift_idx').on(t.shiftId),
     index('pos_payments_workspace_created_idx').on(t.workspaceId, t.createdAt),
     check(

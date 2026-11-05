@@ -27,6 +27,7 @@ import { EbmOauthController } from './ebm/ebm-oauth.controller';
 import { GeographyController } from './geography/geography.controller';
 import { GuestsPublicModule } from './guests/guests-public.module';
 import { HealthController } from './health/health.controller';
+import { ReadinessController } from './health/readiness.controller';
 import { MeController } from './me/me.controller';
 // Who am I, in one call (blueprint 2.5).
 import { MeContextController } from './me/context.controller';
@@ -263,6 +264,7 @@ import { TrainingPublicModule } from './training/training.module';
   ],
   controllers: [
     HealthController,
+    ReadinessController,
     // Which platform this is, for every client before sign in (ADR-043).
     PlatformController,
     GeographyController,
