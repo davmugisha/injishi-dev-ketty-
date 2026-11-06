@@ -59,10 +59,16 @@ export const ROLE_CHOICES: { id: OversightRole; label: string; description: stri
   { id: "tax_compliance_officer", label: OVERSIGHT_ROLE_LABEL.tax_compliance_officer, description: "Tax compliance" },
   {
     id: "psf_membership_officer",
-    label: "PSF Province Manager",
-    // 2026-11-02: Injishi appoints PSF's Province Managers only; each appoints its districts' District
-    // Managers from the PSF console's Team screen; each District Manager appoints its BDEs.
-    description: "Oversees PSF membership in one province, and appoints its District Managers",
+    label: "PSF National or Regional Manager",
+    // 2026-11-02: Injishi appoints PSF's Regional Managers only; each appoints its districts' District
+    // Managers from the PSF console's Team screen.
+    description: "National: the whole country, the split, bands and form. Regional: one province, and appoints its District Managers",
+  },
+  // Admin creates BDEs (2026-11-05, the owner), each for one district, with their ID.
+  {
+    id: "psf_business_officer",
+    label: "PSF BDE (Business Development & Empowerment)",
+    description: "Reads one district's PSF console. Approvals come later",
   },
 ];
 
@@ -155,6 +161,8 @@ export function AppointPanel({
   const [title, setTitle] = useState(startRole ? roleLabel(startRole) : "");
   const [titleTouched, setTitleTouched] = useState(false);
   const [reason, setReason] = useState("");
+  const [idType, setIdType] = useState<"national_id" | "passport">("national_id");
+  const [idNumber, setIdNumber] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -186,6 +194,7 @@ export function AppointPanel({
     governmentTitle: title,
     scopeLevel: level,
     ...areaIds(chain, level),
+    ...(role === "psf_business_officer" ? { idDocument: { documentType: idType, documentNumber: idNumber } } : {}),
     reason,
   });
 
@@ -348,6 +357,35 @@ export function AppointPanel({
               <Input />
               <FieldError>{errors.governmentTitle}</FieldError>
             </TextField>
+            {role === "psf_business_officer" ? (
+              <>
+                <SelectField
+                  label="ID"
+                  name="idDocumentType"
+                  value={idType}
+                  onChange={(v) => setIdType(v === "passport" ? "passport" : "national_id")}
+                  options={[
+                    { id: "national_id", label: "Rwandan National ID" },
+                    { id: "passport", label: "Passport" },
+                  ]}
+                />
+                <TextField
+                  name="idDocumentNumber"
+                  value={idNumber}
+                  onChange={(v) => {
+                    setIdNumber(v);
+                    clear("idDocument");
+                  }}
+                  isInvalid={errors.idDocument ? true : undefined}
+                  fullWidth
+                  className="gap-1"
+                >
+                  <Label>{idType === "passport" ? "Passport number" : "National ID number"}</Label>
+                  <Input placeholder={idType === "passport" ? "6 to 12 letters or digits" : "16 digits"} autoComplete="off" />
+                  <FieldError>{errors.idDocument}</FieldError>
+                </TextField>
+              </>
+            ) : null}
             <TextField
               name="reason"
               value={reason}

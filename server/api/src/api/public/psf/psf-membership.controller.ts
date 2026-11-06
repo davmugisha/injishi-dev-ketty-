@@ -10,7 +10,7 @@ import {
   PsfApproveRequest,
   PsfBusinessesQuery,
   PsfBranchDecisionRequest,
-  PsfDeclineRequest,
+  PsfSendBackRequest,
   PsfFeesQuery,
   type PsfFeesView,
   PsfAreaQuery,
@@ -39,6 +39,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Post,
@@ -257,16 +258,17 @@ export class OversightPsfController {
     return this.psf.approve(user.id, grants, applicationId, body);
   }
 
-  @Post(':applicationId/decline')
+  /** Send it back with what to fix (2026-11-05): PSF never rejects. */
+  @Post(':applicationId/send-back')
   @RequireOversight('psf_membership_officer')
   @HttpCode(200)
-  decline(
+  sendBack(
     @Param('applicationId', ParseUUIDPipe) applicationId: string,
-    @Body(new ZodValidationPipe(PsfDeclineRequest)) body: PsfDeclineRequest,
+    @Body(new ZodValidationPipe(PsfSendBackRequest)) body: PsfSendBackRequest,
     @CurrentUser() user: SessionUser,
     @CurrentOversight() grants: OversightGrant[],
   ): Promise<PsfOfficerApplication> {
-    return this.psf.decline(user.id, grants, applicationId, body);
+    return this.psf.sendBack(user.id, grants, applicationId, body);
   }
 
   /** Admit or decline one branch: the officer of the branch's district decides it (2026-10-23). */
@@ -333,6 +335,31 @@ export class OversightPsfRegisterController {
       .send(file.content);
   }
 
+  /** A member's card as a PDF (2026-11-05), for the officer covering the business. */
+  @Get('businesses/:orgId/card')
+  async memberCard(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @CurrentOversight() grants: OversightGrant[],
+    @Res({ passthrough: true }) reply: FileReply,
+  ): Promise<void> {
+    await this.psf.businessDetail(grants, orgId);
+    const file = await this.certificates.cardForOrg(orgId);
+    reply.header('content-type', 'application/pdf').header('content-disposition', `attachment; filename="${file.filename}"`).header('cache-control', 'no-store').send(file.content);
+  }
+
+  /** The owner's passport photo (2026-11-05), for the officer covering the business. */
+  @Get('businesses/:orgId/photo')
+  async ownerPhoto(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @CurrentOversight() grants: OversightGrant[],
+    @Res({ passthrough: true }) reply: FileReply,
+  ): Promise<void> {
+    await this.psf.businessDetail(grants, orgId);
+    const file = await this.certificates.photoOfOrg(orgId);
+    if (!file) throw new NotFoundException('This business has no photo on file.');
+    reply.header('content-type', file.mime).header('cache-control', 'no-store').header('cross-origin-resource-policy', 'cross-origin').header('x-content-type-options', 'nosniff').send(file.bytes);
+  }
+
   /** Remind one business, or every one waiting in the region, that its application waits for its payment. */
   @Post('payment-reminders')
   @HttpCode(200)
@@ -375,17 +402,17 @@ export class OversightPsfRegisterController {
     await this.psf.confirmClaim(user.id, grants, id, body);
   }
 
-  /** Reject a claim with the reason the business is told. */
-  @Post('claims/:id/reject')
+  /** Send a card back with what to fix (2026-11-05): the business resends it by a signed link. */
+  @Post('claims/:id/send-back')
   @RequireOversight('psf_membership_officer')
   @HttpCode(204)
-  async rejectClaim(
+  async sendBackClaim(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: SessionUser,
     @CurrentOversight() grants: OversightGrant[],
     @Body(new ZodValidationPipe(RejectPsfClaimRequest)) body: RejectPsfClaimRequest,
   ): Promise<void> {
-    await this.psf.rejectClaim(user.id, grants, id, body);
+    await this.psf.sendBackClaim(user.id, grants, id, body);
   }
 
   /** PSF's own member list, from its spreadsheet; open claims it matches are confirmed. */
@@ -401,7 +428,7 @@ export class OversightPsfRegisterController {
 
 /**
  * The PSF team (2026-11-02): the District Managers and BDEs (Business
- * Development & Empowerment) in the caller's districts. A Province Manager (or
+ * Development & Empowerment) in the caller's districts. A Regional Manager (or
  * the National Manager) appoints District Managers; a District Manager its BDEs.
  */
 @Controller({ path: 'oversight/psf/team', version: '1' })

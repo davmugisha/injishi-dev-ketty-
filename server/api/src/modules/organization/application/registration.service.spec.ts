@@ -257,6 +257,37 @@ describe('RegistrationService.create, the document a kind requires (ADR-075 AC-1
     expect(createRegistration).not.toHaveBeenCalled();
   });
 
+  describe('the passport photo of a PSF card holder (2026-11-05)', () => {
+    const member = (photo?: string): CreateRegistrationRequest => {
+      const request = hotel([
+        { kind: 'rdb_certificate', objectKey: 'mine' },
+        { kind: 'psf_certificate', objectKey: 'mine' },
+      ]) as unknown as { business: Record<string, unknown> };
+      request.business.psfMember = true;
+      if (photo) request.business.psfOwnerPhotoKey = photo;
+      return request as unknown as CreateRegistrationRequest;
+    };
+
+    it('refuses a card holder with no photo', async () => {
+      const { svc, createRegistration } = harness({ mine: { kind: 'certificate', uploadedByUserId: 'user-1' } });
+      const refusal = await svc.create(member(), 'user-1').catch((e: unknown) => e);
+      expect(issuesOf(refusal)).toEqual([expect.objectContaining({ path: ['business', 'psfOwnerPhotoKey'] })]);
+      expect(createRegistration).not.toHaveBeenCalled();
+    });
+
+    it('refuses a file a PDF cannot print, and one someone else uploaded', async () => {
+      const mine = { kind: 'certificate', uploadedByUserId: 'user-1' };
+      for (const photo of [
+        { ...mine, mime: 'image/webp' },
+        { ...mine, uploadedByUserId: 'user-2', mime: 'image/jpeg' },
+      ]) {
+        const { svc } = harness({ mine, photo });
+        const refusal = await svc.create(member('photo'), 'user-1').catch((e: unknown) => e);
+        expect(issuesOf(refusal)).toEqual([expect.objectContaining({ path: ['business', 'psfOwnerPhotoKey'] })]);
+      }
+    });
+  });
+
   it('asks a residence for its land title, whatever else it sent', async () => {
     const { svc } = harness({ mine: { kind: 'certificate', uploadedByUserId: 'user-1' } });
     const residence = {

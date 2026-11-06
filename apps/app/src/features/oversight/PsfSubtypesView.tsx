@@ -5,6 +5,7 @@ import type { PsfSubsectorsView } from "@injishi/contracts";
 import { EmptyBlock, PageContent, PageHeader, SectionCard, StatusChip } from "@injishi/ui";
 import { useState } from "react";
 import type { PsfScope } from "@/server/sources/psf";
+import { psfSetupCall } from "./psf-setup-actions";
 import { createPsfSubtypeAction, updatePsfSubtypeAction } from "./psf-subtypes-actions";
 
 type View = PsfSubsectorsView;
@@ -55,6 +56,8 @@ export function PsfSubtypesView({ scope, initial }: { scope: PsfScope; initial: 
         </Alert>
       ) : null}
 
+      {view.places.some((p) => p.districtId === null) ? <AddSector onSaved={saved} onFailed={(text) => setNote({ tone: "danger", text })} /> : null}
+
       {view.clusters.map((c) => (
         <ClusterCard key={c.code} cluster={c} view={view} onSaved={saved} onFailed={(text) => setNote({ tone: "danger", text })} />
       ))}
@@ -62,10 +65,88 @@ export function PsfSubtypesView({ scope, initial }: { scope: PsfScope; initial: 
   );
 }
 
+/** The National Manager adds a sector (2026-11-06): it reaches the form at once, with an "Other" association. */
+function AddSector({ onSaved, onFailed }: { onSaved: Saved; onFailed: (text: string) => void }) {
+  const [name, setName] = useState("");
+  return (
+    <SectionCard title="Add a sector" description="A new sector on the public form, beside the ones below." contentClassName="gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Input aria-label="Sector name" className="w-64" value={name} onChange={(e) => setName(e.target.value)} />
+        <Button
+          size="sm"
+          variant="primary"
+          isDisabled={name.trim().length < 2}
+          onPress={async () => {
+            const res = await psfSetupCall<View>("post", "clusters", { name: name.trim() });
+            if (!res.ok) return onFailed(res.error);
+            onSaved(res.value, `${name.trim()} added to the form.`);
+            setName("");
+          }}
+        >
+          Add sector
+        </Button>
+      </div>
+    </SectionCard>
+  );
+}
+
+/** A sector's name and associations, for the National Manager (2026-11-06). */
+function SectorControls({ cluster, associations, onSaved, onFailed }: { cluster: Cluster; associations: Association[]; onSaved: Saved; onFailed: (text: string) => void }) {
+  const [name, setName] = useState(cluster.nameEn);
+  const [association, setAssociation] = useState("");
+  const call = async (method: "post" | "patch", path: string, body: unknown, message: string): Promise<boolean> => {
+    const res = await psfSetupCall<View>(method, path, body);
+    if (!res.ok) {
+      onFailed(res.error);
+      return false;
+    }
+    onSaved(res.value, message);
+    return true;
+  };
+  return (
+    <div className="flex flex-col gap-3 rounded-lg bg-surface-secondary p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Input aria-label="Sector name" className="w-56" value={name} onChange={(e) => setName(e.target.value)} />
+        <Button size="sm" variant="secondary" isDisabled={name.trim().length < 2 || name.trim() === cluster.nameEn} onPress={() => void call("patch", `clusters/${cluster.code}`, { name: name.trim() }, `Renamed to ${name.trim()}.`)}>
+          Rename sector
+        </Button>
+        <Button size="sm" variant="ghost" onPress={() => { if (window.confirm(`Take ${cluster.nameEn} off the form? Businesses already in it stay.`)) void call("patch", `clusters/${cluster.code}`, { active: false }, `${cluster.nameEn} is off the form.`); }}>
+          Retire sector
+        </Button>
+      </div>
+      <ul className="flex flex-wrap gap-2 text-sm">
+        {associations.map((a) => (
+          <li key={a.code} className="flex items-center gap-1 rounded-full border border-border px-3 py-1">
+            {a.nameEn}
+            <button type="button" aria-label={`Remove ${a.nameEn}`} className="text-muted hover:text-foreground" onClick={() => void call("patch", `associations/${a.code}`, { active: false }, `${a.nameEn} is off the form.`)}>
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap items-center gap-2">
+        <Input aria-label="Association name" placeholder="New association" className="w-72" value={association} onChange={(e) => setAssociation(e.target.value)} />
+        <Button
+          size="sm"
+          variant="secondary"
+          isDisabled={association.trim().length < 2}
+          onPress={async () => {
+            if (await call("post", "associations", { clusterCode: cluster.code, name: association.trim() }, `${association.trim()} added to ${cluster.nameEn}.`)) setAssociation("");
+          }}
+        >
+          Add association
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function ClusterCard({ cluster, view, onSaved, onFailed }: { cluster: Cluster; view: View; onSaved: Saved; onFailed: (text: string) => void }) {
   const [adding, setAdding] = useState(false);
   const associations = view.associations.filter((a) => a.clusterCode === cluster.code && !a.code.endsWith("_other"));
   const offered = cluster.subsectors.filter((s) => s.active).length;
+  // Only a national post can add "National (every district)".
+  const national = view.places.some((p) => p.districtId === null);
   return (
     <SectionCard
       title={cluster.nameEn}
@@ -79,6 +160,7 @@ function ClusterCard({ cluster, view, onSaved, onFailed }: { cluster: Cluster; v
       }
       contentClassName="gap-3"
     >
+      {national ? <SectorControls cluster={cluster} associations={associations} onSaved={onSaved} onFailed={onFailed} /> : null}
       {adding ? (
         <SubtypeForm
           associations={associations}

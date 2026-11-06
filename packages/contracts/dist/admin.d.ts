@@ -187,14 +187,14 @@ export declare const AdminKpi: z.ZodObject<{
     previousValue: z.ZodNullable<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     value: number | null;
-    key: string;
     label: string;
+    key: string;
     unit: "count" | "percent" | "rwf";
     previousValue: number | null;
 }, {
     value: number | null;
-    key: string;
     label: string;
+    key: string;
     unit: "count" | "percent" | "rwf";
     previousValue: number | null;
 }>;
@@ -338,14 +338,14 @@ export declare const AdminOverview: z.ZodObject<{
         previousValue: z.ZodNullable<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         value: number | null;
-        key: string;
         label: string;
+        key: string;
         unit: "count" | "percent" | "rwf";
         previousValue: number | null;
     }, {
         value: number | null;
-        key: string;
         label: string;
+        key: string;
         unit: "count" | "percent" | "rwf";
         previousValue: number | null;
     }>, "many">;
@@ -447,8 +447,8 @@ export declare const AdminOverview: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     kpis: {
         value: number | null;
-        key: string;
         label: string;
+        key: string;
         unit: "count" | "percent" | "rwf";
         previousValue: number | null;
     }[];
@@ -490,8 +490,8 @@ export declare const AdminOverview: z.ZodObject<{
 }, {
     kpis: {
         value: number | null;
-        key: string;
         label: string;
+        key: string;
         unit: "count" | "percent" | "rwf";
         previousValue: number | null;
     }[];
@@ -5363,15 +5363,15 @@ export declare const AdminAnalyticsSeries: z.ZodObject<{
         at: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    key: string;
     label: string;
+    key: string;
     points: {
         value: number;
         at: string;
     }[];
 }, {
-    key: string;
     label: string;
+    key: string;
     points: {
         value: number;
         at: string;
@@ -5421,14 +5421,14 @@ export declare const AdminAnalytics: z.ZodObject<{
         previousValue: z.ZodNullable<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         value: number | null;
-        key: string;
         label: string;
+        key: string;
         unit: "count" | "percent" | "rwf";
         previousValue: number | null;
     }, {
         value: number | null;
-        key: string;
         label: string;
+        key: string;
         unit: "count" | "percent" | "rwf";
         previousValue: number | null;
     }>, "many">;
@@ -5446,15 +5446,15 @@ export declare const AdminAnalytics: z.ZodObject<{
             at: string;
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         label: string;
+        key: string;
         points: {
             value: number;
             at: string;
         }[];
     }, {
-        key: string;
         label: string;
+        key: string;
         points: {
             value: number;
             at: string;
@@ -5488,14 +5488,14 @@ export declare const AdminAnalytics: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     totals: {
         value: number | null;
-        key: string;
         label: string;
+        key: string;
         unit: "count" | "percent" | "rwf";
         previousValue: number | null;
     }[];
     series: {
-        key: string;
         label: string;
+        key: string;
         points: {
             value: number;
             at: string;
@@ -5513,14 +5513,14 @@ export declare const AdminAnalytics: z.ZodObject<{
 }, {
     totals: {
         value: number | null;
-        key: string;
         label: string;
+        key: string;
         unit: "count" | "percent" | "rwf";
         previousValue: number | null;
     }[];
     series: {
-        key: string;
         label: string;
+        key: string;
         points: {
             value: number;
             at: string;

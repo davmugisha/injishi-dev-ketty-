@@ -23,18 +23,19 @@ import {
   SectionCard,
   StatusChip,
 } from "@injishi/ui";
+import { psfFeeTotal } from "@injishi/contracts";
 import NextLink from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useId } from "react";
 import { ExportMenu } from "@/components/ExportMenu";
 import type { ExportTable } from "@/lib/table-export";
 import type { PsfReport, PsfScope } from "@/server/sources/psf";
 
+import { FeeStrip, FeeViewSwitch, useFeeAmount, useFeeView } from "./psf-fee-view";
 import { PSF_REPORTS, type PsfReportId } from "./psf-reports";
 
 export { PSF_REPORTS, type PsfReportId };
 
-type Months = PsfReport["months"];
 
 const reportHref = (id: PsfReportId) => `/psf/report/${id}`;
 const businessHref = (orgId: string) => `/psf/register/${orgId}`;
@@ -77,6 +78,9 @@ function waitKpi(id: string, n: number | null, from: string): KpiItem {
   };
 }
 
+/** The months as the bar charts read them: counts, without the fees' breakdown. */
+const barMonths = (r: PsfReport) => r.months.map(({ fees: _fees, ...m }) => m);
+
 /** Members by tier, with the members whose membership names no tier (declared, not applied for). */
 function tierSlices(r: PsfReport) {
   const slices = r.byFamily.map((f) => ({ key: f.key, label: f.label, count: f.count }));
@@ -95,8 +99,11 @@ interface CsvSection {
 function csvFor(id: PsfReportId, r: PsfReport): CsvSection[] {
   const months: CsvSection = {
     title: "Month by month",
-    columns: ["Month", "Registered", "Applied", "Approved", "New members", "Fees (RWF)"],
-    rows: r.months.map((m) => [monthLabel(m.month, true), m.registered, m.applied, m.approved, m.members, m.feesRwf]),
+    columns: ["Month", "Registered", "Applied", "Approved", "New members", "New membership fees (RWF)", "Renewals (RWF)", "Upgrades (RWF)", "All fees (RWF)", "Districts' share (RWF)", "Headquarters' share (RWF)"],
+    rows: r.months.map((m) => {
+      const t = psfFeeTotal(m.fees);
+      return [monthLabel(m.month, true), m.registered, m.applied, m.approved, m.members, m.fees.application.totalRwf, m.fees.renewal.totalRwf, m.fees.upgrade.totalRwf, t.totalRwf, t.districtRwf, t.headquartersRwf];
+    }),
   };
   const k = r.kpis;
   switch (id) {
@@ -108,25 +115,31 @@ function csvFor(id: PsfReportId, r: PsfReport): CsvSection[] {
           rows: [
             ["Applied", k.applied.value, k.applied.previous],
             ["Approved", k.approved.value, k.approved.previous],
-            ["Declined", k.declined.value, k.declined.previous],
+            ["Sent back", k.declined.value, k.declined.previous],
             ["New members", k.newMembers.value, k.newMembers.previous],
             ["Renewed", k.renewed.value, k.renewed.previous],
+            ["Upgraded", k.upgraded.value, k.upgraded.previous],
             ["Card holders brought in", k.cardHolders.value, k.cardHolders.previous],
-            ["Membership fees (RWF)", k.membershipFeesRwf.value, k.membershipFeesRwf.previous],
+            ["New membership fees (RWF)", r.fees.current.application.totalRwf, r.fees.previous.application.totalRwf],
+            ["Renewals (RWF)", r.fees.current.renewal.totalRwf, r.fees.previous.renewal.totalRwf],
+            ["Upgrades (RWF)", r.fees.current.upgrade.totalRwf, r.fees.previous.upgrade.totalRwf],
+            ["All fees (RWF)", k.membershipFeesRwf.value, k.membershipFeesRwf.previous],
+            ["Districts' share (RWF)", psfFeeTotal(r.fees.current).districtRwf, psfFeeTotal(r.fees.previous).districtRwf],
+            ["Headquarters' share (RWF)", psfFeeTotal(r.fees.current).headquartersRwf, psfFeeTotal(r.fees.previous).headquartersRwf],
             ["Median days to decide", k.medianDecisionDays.value ?? "", k.medianDecisionDays.previous ?? ""],
           ],
         },
         months,
         {
           title: "Members by tier",
-          columns: ["Tier", "Members", "Fees (RWF)"],
+          columns: ["Tier", "Members", "Yearly fees (RWF)"],
           rows: r.byFamily.map((f) => [f.label, f.count, f.amountRwf]),
         },
         { title: "By owner group", columns: ["Group", "Businesses"], rows: r.byGroup.map((g) => [g.label, g.count]) },
         {
           title: "By PSF sector",
-          columns: ["Sector", "Businesses", "Fees (RWF)"],
-          rows: r.bySector.map((s) => [s.label, s.count, s.amountRwf]),
+          columns: ["Sector", "Businesses", "All fees (RWF)", "Districts' share (RWF)", "Headquarters' share (RWF)"],
+          rows: r.bySector.map((s) => [s.label, s.count, s.amountRwf, s.districtRwf, s.headquartersRwf]),
         },
       ];
     case "approvals": {
@@ -218,7 +231,7 @@ function csvFor(id: PsfReportId, r: PsfReport): CsvSection[] {
         },
         {
           title: "Members by tier",
-          columns: ["Tier", "Members", "Fees (RWF)"],
+          columns: ["Tier", "Members", "Yearly fees (RWF)"],
           rows: r.byFamily.map((f) => [f.label, f.count, f.amountRwf]),
         },
         months,
@@ -397,8 +410,10 @@ function Funnel({ steps }: { steps: { label: string; count: number }[] }) {
 // ── The reports ───────────────────────────────────────────────────────────────────────────────────
 
 function Overview({ r }: { r: PsfReport }) {
-  const k = r.kpis;
+  const amount = useFeeAmount(r.fees.ourShare);
+  const view = useFeeView();
   const g = r.registrations;
+  const k = r.kpis;
   const e = r.economy;
   const n = r.now;
   const cards: { id: PsfReportId; figures: { label: string; value: string }[]; spark: number[] }[] = [
@@ -407,7 +422,7 @@ function Overview({ r }: { r: PsfReport }) {
       figures: [
         { label: "Applied", value: formatNumber(k.applied.value) },
         { label: "Approved", value: formatNumber(k.approved.value) },
-        { label: "Fees", value: formatMoney(k.membershipFeesRwf.value, { compact: true }) },
+        { label: view === "ours" ? "Our revenue" : "All fees", value: formatMoney(amount(psfFeeTotal(r.fees.current)), { compact: true }) },
       ],
       spark: r.months.map((m) => m.applied),
     },
@@ -491,6 +506,7 @@ function Overview({ r }: { r: PsfReport }) {
           },
         ]}
       />
+      <FeeStrip kinds={r.fees.current} previous={r.fees.previous} ours={r.fees.ourShare} />
       <div className="grid min-w-0 gap-4 md:grid-cols-2">
         {cards.map((c) => {
           const meta = PSF_REPORTS.find((x) => x.id === c.id);
@@ -501,7 +517,7 @@ function Overview({ r }: { r: PsfReport }) {
               title={meta?.title ?? c.id}
               description={meta?.blurb}
               actions={
-                <ActionLink href={reportHref(c.id)} icon="ArrowRight" size="sm">
+                <ActionLink href={view === "ours" ? `${reportHref(c.id)}?fees=ours` : reportHref(c.id)} icon="ArrowRight" size="sm">
                   Open
                 </ActionLink>
               }
@@ -535,6 +551,8 @@ function Overview({ r }: { r: PsfReport }) {
 
 function Membership({ r }: { r: PsfReport }) {
   const k = r.kpis;
+  const amount = useFeeAmount(r.fees.ourShare);
+  const view = useFeeView();
   return (
     <>
       <KpiStrip
@@ -564,32 +582,49 @@ function Membership({ r }: { r: PsfReport }) {
             icon: "Persons",
             trend: trend(k.newMembers),
           },
-          {
-            id: "fees",
-            label: "Membership fees",
-            value: k.membershipFeesRwf.value,
-            format: "money",
-            icon: "Wallet",
-            trend: trend(k.membershipFeesRwf),
-          },
           waitKpi("days", k.medianDecisionDays.value, "from applying"),
         ]}
       />
+      <FeeStrip kinds={r.fees.current} previous={r.fees.previous} ours={r.fees.ourShare} />
       {/* How members came in (2026-11-02): new, renewed, and old card holders brought into the new module. */}
       <KpiStrip
         label="How members came in"
         items={[
           { id: "in-new", label: "New members", value: k.newMembers.value, format: "count", icon: "PersonPlus", trend: trend(k.newMembers) },
           { id: "in-renewed", label: "Renewed", value: k.renewed.value, format: "count", icon: "ArrowRotateRight", trend: trend(k.renewed) },
+          { id: "in-upgraded", label: "Upgraded", value: k.upgraded.value, format: "count", icon: "ArrowUp", trend: trend(k.upgraded) },
           { id: "in-cards", label: "Card holders brought in", value: k.cardHolders.value, format: "count", icon: "CreditCard", trend: trend(k.cardHolders) },
         ]}
       />
+      {/* Who the fees are for (2026-11-05): a record, the money goes to PSF's one account. */}
+      <SectionCard title="Where the money goes" description={`Today, each fee splits ${r.split.districtPercent}% for its district and ${100 - r.split.districtPercent}% for headquarters. The money reaches PSF's one account. See Money for every region and district.`}>
+        <KpiStrip
+          label="The split"
+          items={[
+            { id: "split-total", label: "Fees in the period", value: r.split.totalRwf, format: "money", icon: "Wallet" },
+            { id: "split-district", label: "Districts' share", value: r.split.districtRwf, format: "money", icon: "MapPin" },
+            { id: "split-hq", label: "Headquarters' share", value: r.split.headquartersRwf, format: "money", icon: "Briefcase" },
+          ]}
+        />
+        {r.split.byDistrict.length > 1 ? (
+          <ul className="mt-3 flex flex-col divide-y divide-separator text-sm">
+            {r.split.byDistrict.map((d) => (
+              <li key={d.districtName} className="flex flex-wrap items-baseline justify-between gap-3 py-2">
+                <span className="font-medium">{d.districtName}</span>
+                <span className="tabular text-muted">
+                  {formatMoney(d.districtRwf)} of {formatMoney(d.totalRwf)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </SectionCard>
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <MonthBars
           className="lg:col-span-2"
           title="Applications by month"
           description="Made, and approved, each month"
-          rows={r.months}
+          rows={barMonths(r)}
           series={[
             { key: "applied", label: "Applied" },
             { key: "approved", label: "Approved" },
@@ -609,9 +644,9 @@ function Membership({ r }: { r: PsfReport }) {
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <MoneyArea
           className="lg:col-span-2"
-          title="Membership fees by month"
-          description="What members paid PSF"
-          rows={r.months.map((m) => ({ month: m.month, value: m.feesRwf }))}
+          title={view === "ours" ? "Our revenue by month" : "All fees by month"}
+          description="New memberships, renewals and upgrades"
+          rows={r.months.map((m) => ({ month: m.month, value: amount(psfFeeTotal(m.fees)) }))}
           empty="No fee paid in these months"
         />
         <CountDonut
@@ -630,7 +665,7 @@ function Membership({ r }: { r: PsfReport }) {
               { label: "Applied", count: r.funnel.registered },
               { label: "Approved", count: r.funnel.approved },
               { label: "Paid, now members", count: r.funnel.paid },
-              { label: "Declined", count: r.funnel.declined },
+              { label: "Sent back", count: r.funnel.declined },
             ]}
           />
         </SectionCard>
@@ -652,10 +687,10 @@ function Membership({ r }: { r: PsfReport }) {
               },
               {
                 id: "fees",
-                header: "Fees",
+                header: view === "ours" ? "Our revenue" : "All fees",
                 align: "end",
-                sortValue: (s) => s.amountRwf,
-                cell: (s) => <span className="tabular">{formatMoney(s.amountRwf)}</span>,
+                sortValue: (s) => amount({ totalRwf: s.amountRwf, districtRwf: s.districtRwf, headquartersRwf: s.headquartersRwf }),
+                cell: (s) => <span className="tabular">{formatMoney(amount({ totalRwf: s.amountRwf, districtRwf: s.districtRwf, headquartersRwf: s.headquartersRwf }))}</span>,
               },
             ]}
             mobile={{
@@ -696,11 +731,32 @@ function Membership({ r }: { r: PsfReport }) {
                 cell: (d) => formatNumber(d.members),
               },
               {
-                id: "fees",
-                header: "Fees",
+                id: "fees-new",
+                header: "New",
                 align: "end",
-                sortValue: (d) => d.membershipFeesRwf,
-                cell: (d) => formatMoney(d.membershipFeesRwf),
+                sortValue: (d) => amount(d.fees.application),
+                cell: (d) => formatMoney(amount(d.fees.application)),
+              },
+              {
+                id: "fees-renewal",
+                header: "Renewals",
+                align: "end",
+                sortValue: (d) => amount(d.fees.renewal),
+                cell: (d) => formatMoney(amount(d.fees.renewal)),
+              },
+              {
+                id: "fees-upgrade",
+                header: "Upgrades",
+                align: "end",
+                sortValue: (d) => amount(d.fees.upgrade),
+                cell: (d) => formatMoney(amount(d.fees.upgrade)),
+              },
+              {
+                id: "fees",
+                header: view === "ours" ? "Our revenue" : "All fees",
+                align: "end",
+                sortValue: (d) => amount(psfFeeTotal(d.fees)),
+                cell: (d) => formatMoney(amount(psfFeeTotal(d.fees))),
               },
             ]}
             mobile={{ title: (d) => d.name, trailing: (d) => formatNumber(d.members) }}
@@ -1046,7 +1102,7 @@ function Members({ r }: { r: PsfReport }) {
           className="lg:col-span-2"
           title="New members by month"
           description="Memberships that began each month"
-          rows={r.months}
+          rows={barMonths(r)}
           series={[{ key: "members", label: "New members" }]}
           noun="over the last twelve months"
           empty="No membership began in these months"
@@ -1083,6 +1139,7 @@ export function PsfReportsView({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const params = useSearchParams();
   const meta = PSF_REPORTS.find((r) => r.id === id) ?? PSF_REPORTS[0];
   const period = periodFromRange(report.from, report.to, today);
   const span = `${formatDay(report.from)} to ${formatDay(report.to)}`;
@@ -1115,12 +1172,13 @@ export function PsfReportsView({
             today={today}
             allowFuture
             maxDays={731}
-            onChange={(p) => router.push(`${pathname}?from=${p.start}&to=${p.end}`, { scroll: false })}
+            onChange={(p) => router.push(`${pathname}?from=${p.start}&to=${p.end}${params.get("fees") === "ours" ? "&fees=ours" : ""}`, { scroll: false })}
             label="Report period"
           />
           <span className="text-xs text-muted">
             Figures today, like renewals and standing, do not depend on the period.
           </span>
+          {id === "overview" || id === "membership" ? <FeeViewSwitch ours={report.fees.ourShare} districtPercent={report.split.districtPercent} /> : null}
         </div>
         {id === "membership" ? (
           <Membership r={report} />

@@ -1,4 +1,4 @@
-import type { PsfDeclineReason } from '@injishi/contracts';
+import type { PsfDeclineReason, PsfFeeKind, PsfFeeLine } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { sql, type SQL } from 'drizzle-orm';
 
@@ -30,7 +30,7 @@ function scopeSql(scope: PsfScope): SQL {
 /** Businesses PSF's register lists: a PSF business or a hotel, past its fee, not refused. */
 const ON_REGISTER = sql`o.domain::text IN ('enterprise', 'hospitality') AND o.registration_status::text NOT IN ('pending_payment', 'rejected')`;
 /** In PSF's queue: waiting on PSF, and the business in good standing. */
-const IN_QUEUE = sql`a.status = 'submitted' AND o.registration_status::text IN ('tin_verified', 'field_verified', 'approved', 'active')`;
+const IN_QUEUE = sql`a.status = 'submitted' AND a.returned_at IS NULL AND o.registration_status::text IN ('tin_verified', 'field_verified', 'approved', 'active')`;
 /** When the wait on PSF began. */
 const WAIT_FROM = sql`coalesce(a.queued_at, a.created_at)`;
 
@@ -42,10 +42,18 @@ export interface PeriodCounts {
   newMembers: number;
   /** Memberships renewed (paid) in the period (2026-11-02). */
   renewed: number;
+  /** Memberships moved to a higher band in the period (2026-11-05). */
+  upgraded: number;
   /** Holders of an old PSF card brought into the new module in the period (2026-11-02). */
   cardHolders: number;
-  membershipFeesRwf: number;
   decisionDays: number[];
+}
+
+/** One line of the fee ledger: a kind of payment, in one district, in one month. */
+export interface PsfFeeLedgerRow extends PsfFeeLine {
+  kind: PsfFeeKind;
+  districtId: number;
+  month: string;
 }
 
 export interface DecisionRow {
@@ -86,6 +94,47 @@ export class PsfReportRepository {
     return rowsOf<T>(await this.db.execute(query));
   }
 
+  /** The split's rate today (0137). */
+  async currentSplitPercent(): Promise<number> {
+    const [row] = await this.many<{ p: number }>(sql`SELECT district_percent AS p FROM psf_split_rates ORDER BY created_at DESC LIMIT 1`);
+    return row ? Number(row.p) : 60;
+  }
+
+  /**
+   * The fee ledger over a period (2026-11-06): every payment PSF took, new, renewed or upgraded, by what it
+   * was for, the district it counts in and the month. Every money figure in the console reads this, so they
+   * add up to the same totals.
+   */
+  async feeLines(scope: PsfScope, from: Date, to: Date): Promise<PsfFeeLedgerRow[]> {
+    const rows = await this.many<Record<string, unknown>>(sql`
+      SELECT CASE WHEN f.source_kind <> 'renewal' THEN 'application' WHEN r.kind = 'upgrade' THEN 'upgrade' ELSE 'renewal' END AS kind,
+             f.district_id,
+             to_char(f.paid_at AT TIME ZONE 'Africa/Kigali', 'YYYY-MM') AS month,
+             sum(f.amount_rwf)::bigint AS total, sum(f.district_rwf)::bigint AS district, sum(f.headquarters_rwf)::bigint AS hq
+        FROM psf_fee_allocations f
+        LEFT JOIN psf_membership_renewals r ON f.source_kind = 'renewal' AND r.id = f.source_id
+       WHERE ${scopeSqlFor('f', scope)} AND f.paid_at >= ${from} AND f.paid_at < ${to}
+       GROUP BY 1, 2, 3`);
+    return rows.map((r) => ({
+      kind: r.kind as PsfFeeKind,
+      districtId: n(r.district_id),
+      month: String(r.month),
+      totalRwf: n(r.total),
+      districtRwf: n(r.district),
+      headquartersRwf: n(r.hq),
+    }));
+  }
+
+  /** Who the period's fees are for (0136), by the district each line is for. */
+  async feeSplit(scope: PsfScope, from: Date, to: Date): Promise<{ districtName: string; totalRwf: number; districtRwf: number; headquartersRwf: number }[]> {
+    const rows = await this.many<Record<string, unknown>>(sql`
+      SELECT d.name AS name, sum(f.amount_rwf)::bigint AS total, sum(f.district_rwf)::bigint AS district, sum(f.headquarters_rwf)::bigint AS hq
+        FROM psf_fee_allocations f JOIN districts d ON d.id = f.district_id
+       WHERE ${scopeSqlFor('f', scope)} AND f.paid_at >= ${from} AND f.paid_at < ${to}
+       GROUP BY d.name ORDER BY sum(f.amount_rwf) DESC`);
+    return rows.map((r) => ({ districtName: String(r.name), totalRwf: n(r.total), districtRwf: n(r.district), headquartersRwf: n(r.hq) }));
+  }
+
   async periodCounts(scope: PsfScope, from: Date, to: Date): Promise<PeriodCounts> {
     const s = scopeSql(scope);
     const [reg] = await this.many<{ c: number }>(sql`
@@ -95,17 +144,19 @@ export class PsfReportRepository {
       SELECT
         count(*) FILTER (WHERE a.created_at >= ${from} AND a.created_at < ${to})::int AS applied,
         count(*) FILTER (WHERE a.decided_at >= ${from} AND a.decided_at < ${to} AND a.status IN ('approved', 'member'))::int AS approved,
-        count(*) FILTER (WHERE a.decided_at >= ${from} AND a.decided_at < ${to} AND a.status = 'declined')::int AS declined,
+        -- Sent back to fix (0134), and the declined of before PSF stopped rejecting.
+        count(*) FILTER (WHERE (a.decided_at >= ${from} AND a.decided_at < ${to} AND a.status = 'declined') OR (a.returned_at >= ${from} AND a.returned_at < ${to}))::int AS declined,
         count(*) FILTER (WHERE a.paid_at >= ${from} AND a.paid_at < ${to})::int AS members,
-        count(*) FILTER (WHERE a.intake = 'card_holder' AND a.status = 'member' AND a.decided_at >= ${from} AND a.decided_at < ${to})::int AS card_apps,
-        coalesce(sum(a.paid_amount_rwf) FILTER (WHERE a.paid_at >= ${from} AND a.paid_at < ${to}), 0)::bigint AS fees
+        count(*) FILTER (WHERE a.intake = 'card_holder' AND a.status = 'member' AND a.decided_at >= ${from} AND a.decided_at < ${to})::int AS card_apps
         FROM psf_membership_applications a JOIN orgs o ON o.id = a.org_id
        WHERE ${s}`);
     // Renewals paid, and card holders PSF confirmed from a registration (0121 claims), in the period.
     const [more] = await this.many<Record<string, unknown>>(sql`
       SELECT
         (SELECT count(*) FROM psf_membership_renewals r JOIN orgs o ON o.id = r.org_id
-          WHERE ${s} AND r.status = 'paid' AND r.paid_at >= ${from} AND r.paid_at < ${to})::int AS renewed,
+          WHERE ${s} AND r.status = 'paid' AND r.kind = 'renewal' AND r.paid_at >= ${from} AND r.paid_at < ${to})::int AS renewed,
+        (SELECT count(*) FROM psf_membership_renewals r JOIN orgs o ON o.id = r.org_id
+          WHERE ${s} AND r.status = 'paid' AND r.kind = 'upgrade' AND r.paid_at >= ${from} AND r.paid_at < ${to})::int AS upgraded,
         (SELECT count(*) FROM psf_membership_claims c JOIN orgs o ON o.id = c.org_id
           WHERE ${s} AND c.status = 'confirmed' AND c.decided_at >= ${from} AND c.decided_at < ${to})::int AS card_claims`);
     const days = await this.many<{ d: number }>(sql`
@@ -119,8 +170,8 @@ export class PsfReportRepository {
       declined: n(apps?.declined),
       newMembers: n(apps?.members),
       renewed: n(more?.renewed),
+      upgraded: n(more?.upgraded),
       cardHolders: n(apps?.card_apps) + n(more?.card_claims),
-      membershipFeesRwf: n(apps?.fees),
       decisionDays: days.map((r) => Math.max(0, Number(r.d))),
     };
   }
@@ -381,7 +432,6 @@ export class PsfReportRepository {
     applied: number;
     approved: number;
     members: number;
-    feesRwf: number;
   }[]> {
     const s = scopeSql(scope);
     const k = (col: SQL): SQL => sql`to_char(${col} AT TIME ZONE 'Africa/Kigali', 'YYYY-MM')`;
@@ -396,11 +446,11 @@ export class PsfReportRepository {
       SELECT ${k(sql`a.decided_at`)} AS m, count(*)::int AS c
         FROM psf_membership_applications a JOIN orgs o ON o.id = a.org_id
        WHERE ${s} AND a.status IN ('approved', 'member') AND a.decided_at >= ${from} AND a.decided_at < ${to} GROUP BY 1`);
-    const paid = await this.many<{ m: string; c: number; f: unknown }>(sql`
-      SELECT ${k(sql`a.paid_at`)} AS m, count(*)::int AS c, coalesce(sum(a.paid_amount_rwf), 0)::bigint AS f
+    const paid = await this.many<{ m: string; c: number }>(sql`
+      SELECT ${k(sql`a.paid_at`)} AS m, count(*)::int AS c
         FROM psf_membership_applications a JOIN orgs o ON o.id = a.org_id
        WHERE ${s} AND a.paid_at >= ${from} AND a.paid_at < ${to} GROUP BY 1`);
-    const months = new Map<string, { registered: number; applied: number; approved: number; members: number; feesRwf: number }>();
+    const months = new Map<string, { registered: number; applied: number; approved: number; members: number }>();
     const cursor = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1));
     const end = new Date(to.getTime() - 1);
     // `from` is midnight Kigali, a little before UTC midnight: read its Kigali month.
@@ -410,7 +460,7 @@ export class PsfReportRepository {
     cursor.setUTCFullYear(Number(first.slice(0, 4)), Number(first.slice(5, 7)) - 1, 1);
     for (let guard = 0; guard < 60; guard += 1) {
       const key = cursor.toISOString().slice(0, 7);
-      months.set(key, { registered: 0, applied: 0, approved: 0, members: 0, feesRwf: 0 });
+      months.set(key, { registered: 0, applied: 0, approved: 0, members: 0 });
       if (key >= last) break;
       cursor.setUTCMonth(cursor.getUTCMonth() + 1);
     }
@@ -428,10 +478,7 @@ export class PsfReportRepository {
     }
     for (const r of paid) {
       const m = months.get(r.m);
-      if (m) {
-        m.members = n(r.c);
-        m.feesRwf = n(r.f);
-      }
+      if (m) m.members = n(r.c);
     }
     return [...months.entries()].map(([month, v]) => ({ month, ...v }));
   }
@@ -449,22 +496,28 @@ export class PsfReportRepository {
   }
 
   /** Businesses by sector cluster, with what their members paid over the period. */
-  async bySector(scope: PsfScope, from: Date, to: Date): Promise<{ key: string; label: string; count: number; amountRwf: number }[]> {
+  async bySector(scope: PsfScope, from: Date, to: Date): Promise<{ key: string; label: string; count: number; amountRwf: number; districtRwf: number; headquartersRwf: number }[]> {
+    const fees = await this.many<Record<string, unknown>>(sql`
+      SELECT coalesce(s.cluster_code, 'none') AS key, sum(f.amount_rwf)::bigint AS total, sum(f.district_rwf)::bigint AS district, sum(f.headquarters_rwf)::bigint AS hq
+        FROM psf_fee_allocations f
+        JOIN orgs o ON o.id = f.org_id
+        LEFT JOIN psf_associations s ON s.code = o.psf_association_code
+       WHERE ${scopeSqlFor('f', scope)} AND f.paid_at >= ${from} AND f.paid_at < ${to}
+       GROUP BY 1`);
+    const feesOf = new Map(fees.map((f) => [String(f.key), f]));
     const rows = await this.many<Record<string, unknown>>(sql`
       SELECT coalesce(c.code, 'none') AS key, coalesce(c.name_en, 'Not classified') AS label,
-             count(DISTINCT o.id)::int AS count,
-             coalesce((SELECT sum(a.paid_amount_rwf) FROM psf_membership_applications a JOIN orgs o2 ON o2.id = a.org_id
-                         LEFT JOIN psf_associations s2 ON s2.code = o2.psf_association_code
-                        WHERE coalesce(s2.cluster_code, 'none') = coalesce(c.code, 'none')
-                          AND a.paid_at >= ${from} AND a.paid_at < ${to}
-                          AND (${scopeSqlFor('o2', scope)})), 0)::bigint AS amount
+             count(DISTINCT o.id)::int AS count
         FROM orgs o
         LEFT JOIN psf_associations s ON s.code = o.psf_association_code
         LEFT JOIN psf_clusters c ON c.code = s.cluster_code
        WHERE ${ON_REGISTER} AND ${scopeSql(scope)}
        GROUP BY c.code, c.name_en, c.sort_order
        ORDER BY c.sort_order NULLS LAST`);
-    return rows.map((r) => ({ key: String(r.key), label: String(r.label), count: n(r.count), amountRwf: n(r.amount) }));
+    return rows.map((r) => {
+      const f = feesOf.get(String(r.key));
+      return { key: String(r.key), label: String(r.label), count: n(r.count), amountRwf: n(f?.total), districtRwf: n(f?.district), headquartersRwf: n(f?.hq) };
+    });
   }
 
   /** Current members by membership family, with what they pay a year. */
@@ -500,7 +553,6 @@ export class PsfReportRepository {
     approved: number;
     declined: number;
     members: number;
-    feesRwf: number;
     decisionDays: number[];
     officers: string[];
   }[]> {
@@ -518,8 +570,6 @@ export class PsfReportRepository {
           WHERE o.district_id = d.id AND a.status = 'declined' AND a.decided_at >= ${from} AND a.decided_at < ${to})::int AS declined,
         (SELECT count(*) FROM psf_memberships m JOIN orgs o ON o.id = m.org_id
           WHERE o.district_id = d.id AND m.ended_at IS NULL)::int AS members,
-        (SELECT coalesce(sum(a.paid_amount_rwf), 0) FROM psf_membership_applications a JOIN orgs o ON o.id = a.org_id
-          WHERE o.district_id = d.id AND a.paid_at >= ${from} AND a.paid_at < ${to})::bigint AS fees,
         (SELECT coalesce(array_agg((extract(epoch FROM (a.decided_at - ${WAIT_FROM})) / 86400.0)::float8), '{}'::float8[])
            FROM psf_membership_applications a JOIN orgs o ON o.id = a.org_id
           WHERE o.district_id = d.id AND a.decided_at >= ${from} AND a.decided_at < ${to}
@@ -543,7 +593,6 @@ export class PsfReportRepository {
       approved: n(r.approved),
       declined: n(r.declined),
       members: n(r.members),
-      feesRwf: n(r.fees),
       decisionDays: pgArray(r.days).map((d) => Math.max(0, Number(d))),
       officers: pgArray(r.officers),
     }));

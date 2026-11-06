@@ -24,6 +24,9 @@ export interface BusinessDraft {
   /** On a No: apply now (true), not now (false), or not answered (null). */
   psfApply: boolean | null;
   psfMembershipNumber: string;
+  /** The owner's passport photo (2026-11-05), when it holds a card or applies. */
+  psfOwnerPhotoKey: string;
+  psfOwnerPhotoName: string;
   /** Kept so drafts saved before still parse; the artboard asks no grade. */
   eacStarGrade: string;
   address: AddressDraft;
@@ -49,6 +52,8 @@ export const EMPTY_BUSINESS: BusinessDraft = {
   psfMember: null,
   psfApply: null,
   psfMembershipNumber: "",
+  psfOwnerPhotoKey: "",
+  psfOwnerPhotoName: "",
   eacStarGrade: "",
   address: { ...EMPTY_ADDRESS },
   franchiseRole: "",

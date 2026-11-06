@@ -24,7 +24,7 @@ async function run(act: () => Promise<PsfTeamView>): Promise<PsfTeamResult> {
   }
 }
 
-/** A Province Manager appoints a District Manager, or a District Manager a BDE, in its own area. */
+/** A Regional Manager appoints a District Manager, or a District Manager a BDE, in its own area. */
 export async function appointPsfTeamAction(body: AppointPsfTeamRequest): Promise<PsfTeamResult> {
   return run(async () => (await requestContext()).api.post<PsfTeamView>("/api/v1/oversight/psf/team", body));
 }

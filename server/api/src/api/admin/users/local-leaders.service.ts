@@ -70,7 +70,7 @@ function presentAppointment(row: AppointmentRow): OversightAppointment {
       ? LEADER_ROLE_LABEL[row.role]
       : // A PSF manager is named by the level they are posted at (2026-11-02).
         row.role === 'psf_membership_officer' && row.scopeLevel === 'province'
-        ? 'PSF Province Manager'
+        ? 'PSF Regional Manager'
         : row.role === 'psf_membership_officer' && row.scopeLevel === 'country'
           ? 'PSF National Manager'
           : OVERSIGHT_ROLE_LABEL[row.role],
@@ -274,6 +274,8 @@ export class LocalLeadersService {
         cellId: body.scopeLevel === 'cell' || body.scopeLevel === 'village' ? area.cellId : null,
         villageId: body.scopeLevel === 'village' ? area.villageId : null,
         assignedByUserId: actorUserId,
+        idDocumentType: body.idDocument?.documentType ?? null,
+        idDocumentNumber: body.idDocument?.documentNumber ?? null,
       };
       const [created] = await tx.insert(oversightAssignments).values(values).returning({ id: oversightAssignments.id });
       if (!created) throw new Error('Appointment insert returned no row.');
@@ -335,7 +337,7 @@ export class LocalLeadersService {
           roleLabel: appointment.roleLabel,
           area: appointment.area,
           // A PSF manager lands on the PSF console (2026-11-02), as the team's own appointments do.
-          next: leader ? '/officer/guests' : appointment.role === 'psf_membership_officer' ? '/psf' : '/officer',
+          next: leader ? '/officer/guests' : appointment.role === 'psf_membership_officer' || appointment.role === 'psf_business_officer' ? '/psf' : '/officer',
         }),
         'appointment',
       );

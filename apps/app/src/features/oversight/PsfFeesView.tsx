@@ -2,8 +2,7 @@
 
 import { Alert, Button, Input } from "@heroui/react";
 import {
-  PSF_FAMILY_LABEL,
-  PSF_OFFERED_FAMILIES,
+  psfFamilyName,
   type PsfOfficerFeeRow,
   type PsfOfficerFeesView,
 } from "@injishi/contracts";
@@ -12,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { rwf } from "@/server/format";
 import type { PsfScope } from "@/server/sources/psf";
-import { setPsfFeeAction } from "./psf-fees-actions";
+import { setPsfFeeAction, setPsfServiceFeeAction } from "./psf-fees-actions";
 
 const SOURCE: Record<PsfOfficerFeeRow["source"], { label: string; tone: "success" | "info" | "default" }> = {
   district: { label: "District price", tone: "success" },
@@ -40,7 +39,8 @@ export function PsfFeesView({ scope, initial }: { scope: PsfScope; initial: PsfO
   const district = view.districtId !== null;
   // The column the officer edits here: the district's when one is shown, else the national one.
   const editable = district ? view.canEditDistrict : view.canEditNational;
-  const families = PSF_OFFERED_FAMILIES.map((f) => ({ family: f, rows: view.rows.filter((r) => r.family === f) })).filter((g) => g.rows.length);
+  // PSF's own levels, in the order the API lists its bands (2026-11-06).
+  const families = [...new Set(view.rows.map((r) => r.family))].map((f) => ({ family: f, name: view.rows.find((r) => r.family === f)?.familyName || psfFamilyName(f), rows: view.rows.filter((r) => r.family === f) })).filter((g) => g.rows.length);
   const districts = scope.provinces.flatMap((p) => p.districts);
 
   const save = async (row: PsfOfficerFeeRow, amountRwf: number | null): Promise<string | null> => {
@@ -103,10 +103,10 @@ export function PsfFeesView({ scope, initial }: { scope: PsfScope; initial: PsfO
         </Alert>
       ) : null}
 
-      {families.map(({ family, rows }) => (
-        <SectionCard key={family} title={PSF_FAMILY_LABEL[family]} contentClassName="gap-3">
+      {families.map(({ family, name, rows }) => (
+        <SectionCard key={family} title={name} contentClassName="gap-3">
           <DataTable
-            label={`${PSF_FAMILY_LABEL[family]} prices`}
+            label={`${name} prices`}
             rows={rows}
             rowKey={(r) => r.tierCode}
             columns={[
@@ -184,6 +184,19 @@ export function PsfFeesView({ scope, initial }: { scope: PsfScope; initial: PsfO
           />
         </SectionCard>
       ))}
+      {/* A salon may cost RWF 1M here and RWF 3M elsewhere (2026-11-05): optional, the floor for that kind here. */}
+      {district && view.services.length ? (
+        <SectionCard
+          title="Prices by kind of business"
+          description={`Optional. A kind with a price here pays at least that in ${view.districtName}, inside the band that holds it, and so does a branch of that kind here.`}
+        >
+          <ul className="flex flex-col divide-y divide-separator">
+            {view.services.map((row) => (
+              <ServiceFeeRow key={row.subsectorId} row={row} districtId={view.districtId as number} editable={editable} onSaved={setView} />
+            ))}
+          </ul>
+        </SectionCard>
+      ) : null}
     </PageContent>
   );
 }
@@ -239,5 +252,56 @@ function PriceEditor({
       ) : null}
       {problem ? <span className="text-xs text-danger">{problem}</span> : null}
     </span>
+  );
+}
+
+/** One kind of business's price in the district: shown, or edited in place. */
+function ServiceFeeRow({
+  row,
+  districtId,
+  editable,
+  onSaved,
+}: {
+  row: PsfOfficerFeesView["services"][number];
+  districtId: number;
+  editable: boolean;
+  onSaved: (next: PsfOfficerFeesView) => void;
+}) {
+  const [text, setText] = useState(row.amountRwf ? String(row.amountRwf) : "");
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const amount = Number(text.replace(/[^\d]/g, ""));
+  const save = async (value: number | null) => {
+    setBusy(true);
+    setProblem(null);
+    const res = await setPsfServiceFeeAction(row.subsectorId, districtId, value);
+    setBusy(false);
+    if (!res.ok) return setProblem(res.error);
+    if (value === null) setText("");
+    onSaved(res.value);
+  };
+  const changed = (amount || null) !== row.amountRwf;
+  return (
+    <li className="flex flex-wrap items-center gap-3 py-2.5">
+      <span className="min-w-0 flex-1 text-sm font-medium">{row.name}</span>
+      {editable ? (
+        <>
+          <Input
+            aria-label={`${row.name}, RWF a year`}
+            inputMode="numeric"
+            placeholder="No price of its own"
+            value={text ? Number(text.replace(/[^\d]/g, "") || 0).toLocaleString("en-US") : ""}
+            onChange={(e) => setText(e.target.value.replace(/[^\d]/g, "").slice(0, 10))}
+            className="w-44 tabular"
+          />
+          <Button size="sm" variant="primary" isPending={busy} isDisabled={busy || !changed} onPress={() => void save(amount || null)}>
+            Save
+          </Button>
+        </>
+      ) : (
+        <span className="tabular text-sm">{row.amountRwf ? rwf(row.amountRwf) : "No price of its own"}</span>
+      )}
+      {problem ? <span className="w-full text-xs text-danger">{problem}</span> : null}
+    </li>
   );
 }

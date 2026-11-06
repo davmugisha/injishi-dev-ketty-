@@ -13,7 +13,7 @@ import { leaderSummary } from "./guests";
 
 /** The seats this person holds, or an empty list when the API refuses. */
 /**
- * Whether this person builds a PSF team (2026-11-02): a Province or National Manager appoints District
+ * Whether this person builds a PSF team (2026-11-02): a Regional or National Manager appoints District
  * Managers, a District Manager its BDEs. A BDE does not, and does not see the Team screen.
  */
 export async function appointsPsfTeam(): Promise<boolean> {
@@ -114,14 +114,14 @@ export async function officerPersona(persona: Persona): Promise<Persona> {
   const first = consoles.find((c) => c.console === "guests") ?? consoles[0];
   if (!first || !persona.workspace) return persona;
   const [place, ...rest] = first.scopeLabel.split(", ");
-  // A PSF manager is named by the level they are posted at (2026-11-02): Province and National Managers
+  // A PSF manager is named by the level they are posted at (2026-11-02): Regional and National Managers
   // appoint the District Managers below them.
   const role = isLeaderRole(first.oversightRole)
     ? LEADER_ROLE_SHORT[first.oversightRole]
     : first.oversightRole === "psf_membership_officer" && first.scopeLevel !== "district"
       ? first.scopeLevel === "country"
         ? "PSF National Manager"
-        : "PSF Province Manager"
+        : "PSF Regional Manager"
       : OVERSIGHT_ROLE_LABEL[first.oversightRole];
   const others = consoles.length > 1 ? ` and ${consoles.length - 1} more` : "";
   const name = place ?? first.scopeLabel;

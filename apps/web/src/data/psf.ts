@@ -1,12 +1,14 @@
 import {
   PSF_CHECK_TOKEN_HEADER,
   PsfCardUploadResult,
+  PsfClaimCardView,
   PsfLogoUploadResult,
   PsfMemberLookupConfirmed,
   PsfMemberLookupResult,
   PsfCatalogue,
   PsfIdentityLookupResult,
   PsfPublicSubmitResult,
+  PsfQuote,
   PsfFeesView,
   PsfTier,
   PsfTrackPayResult,
@@ -16,6 +18,8 @@ import {
   type PsfIdentityLookupRequest,
   type PsfPublicSubmitRequest,
   type PsfRenewRequest,
+  type PsfResendRequest,
+  PsfFormConfig,
 } from "@injishi/contracts";
 import { API_URL, apiFetchParsed, type ApiResult } from "@/lib/api";
 
@@ -98,6 +102,21 @@ export function psfCertificateUrl(docId: string): string {
   return `${API_URL}/api/v1/psf/track/${encodeURIComponent(docId)}/certificate`;
 }
 
+/** The owner's photo on a member's papers (2026-11-06). */
+export function psfMemberPhotoSrc(membershipNumber: string): string {
+  return `${API_URL}/api/v1/psf/card/photo?number=${encodeURIComponent(membershipNumber)}`;
+}
+
+/** What the public form asks, as PSF set it (2026-11-06). */
+export function fetchPsfFormConfig(): Promise<ApiResult<PsfFormConfig>> {
+  return apiFetchParsed(PsfFormConfig, "/api/v1/psf/form-config");
+}
+
+/** The member's card as a PDF (2026-11-05). */
+export function psfCardUrl(docId: string): string {
+  return `${API_URL}/api/v1/psf/track/${encodeURIComponent(docId)}/card`;
+}
+
 const SentTo = {
   safeParse(input: unknown): { success: true; data: { sentTo: string } } | { success: false } {
     const v = input as { sentTo?: unknown } | null;
@@ -164,6 +183,58 @@ export async function uploadPsfCard(checkToken: string, file: File): Promise<Api
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** The kind's floor and each branch's price for the form's choices (2026-11-05). */
+export function fetchPsfQuote(query: { district: number; tierCode: string; subsectorId?: string; branches: number[] }): Promise<ApiResult<PsfQuote>> {
+  const params = new URLSearchParams({ district: String(query.district), tierCode: query.tierCode });
+  if (query.subsectorId) params.set("subsectorId", query.subsectorId);
+  if (query.branches.length) params.set("branches", query.branches.join(","));
+  return apiFetchParsed(PsfQuote, `/api/v1/psf/quote?${params.toString()}`);
+}
+
+/** Corrections to an application PSF sent back (2026-11-05). */
+export function resendPsfApplication(docId: string, body: PsfResendRequest): Promise<ApiResult<PsfTrackView>> {
+  return apiFetchParsed(PsfTrackView, `/api/v1/psf/track/${encodeURIComponent(docId)}/resend`, { method: "POST", body });
+}
+
+/** What a signed link for a card sent back opens (2026-11-05). */
+export function fetchPsfClaimCard(token: string): Promise<ApiResult<PsfClaimCardView>> {
+  return apiFetchParsed(PsfClaimCardView, `/api/v1/psf/claim-card?token=${encodeURIComponent(token)}`);
+}
+
+/** One card file to a PSF route, with the same bounds as the logo. Null data for a 204. */
+async function postPsfCard<T>(path: string, file: File, parse: (raw: unknown) => T | null): Promise<ApiResult<T>> {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60_000);
+  try {
+    const res = await fetch(`${API_URL}${path}`, { method: "POST", body: form, signal: controller.signal });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as { message?: string } | null;
+      return { status: "refused", message: body?.message ?? "That card could not be sent.", httpStatus: res.status };
+    }
+    const data = parse(res.status === 204 ? null : await res.json());
+    return data === null ? { status: "failed" } : { status: "ok", data };
+  } catch {
+    return { status: "failed" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** A new card for an application sent back. */
+export function uploadPsfResendCard(docId: string, file: File): Promise<ApiResult<PsfCardUploadResult>> {
+  return postPsfCard(`/api/v1/psf/track/${encodeURIComponent(docId)}/card`, file, (raw) => {
+    const parsed = PsfCardUploadResult.safeParse(raw);
+    return parsed.success ? parsed.data : null;
+  });
+}
+
+/** The card again, by the signed link. */
+export function resendPsfClaimCard(token: string, file: File): Promise<ApiResult<true>> {
+  return postPsfCard(`/api/v1/psf/claim-card?token=${encodeURIComponent(token)}`, file, () => true);
 }
 
 /** The logo's address, from the tracking view's `logoUrl` (a path under the API). */

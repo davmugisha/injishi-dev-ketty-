@@ -8,7 +8,7 @@ import { readPsfBusinesses, readPsfRegisterSummary, readPsfScope, readPsfTiers, 
 
 export const metadata: Metadata = { title: screens.PsfRegister.pageTitle };
 
-const STANDINGS = new Set<PsfStanding>(["not_applied", "applied", "awaiting_payment", "member", "lapsed", "declined"]);
+const STANDINGS = new Set<PsfStanding>(["not_applied", "claimed", "applied", "sent_back", "awaiting_payment", "member", "lapsed", "declined"]);
 
 /** Businesses: every business in the manager's region on PSF's register, each opening its profile. */
 export default async function PsfRegisterPage({
@@ -35,6 +35,7 @@ export default async function PsfRegisterPage({
     district: Number(p.district) > 0 ? String(Number(p.district)) : "",
     group: p.group && p.group in PSF_OWNER_GROUP_SHORT ? p.group : "",
     tin: p.tin === "with" || p.tin === "without" ? p.tin : "",
+    rdb: p.rdb === "with" || p.rdb === "without" ? p.rdb : "",
   };
   const ctx = await requestContext();
   const [scope, summary, page, tiers] = await Promise.all([
@@ -58,5 +59,6 @@ function apiFilter(f: RegisterFilters) {
     district: f.district ? Number(f.district) : undefined,
     group: (f.group || undefined) as PsfOwnerGroup | undefined,
     tin: (f.tin || undefined) as "with" | "without" | undefined,
+    rdb: (f.rdb || undefined) as "with" | "without" | undefined,
   };
 }

@@ -285,6 +285,8 @@ export const SCREEN_REQUIRES: Readonly<Record<BoardId, ScreenRequires>> = {
   // The PSF console's pages (the District Manager's and the BDE's), on their oversight seat.
   PsfApplication: { family: "oversight" },
   PsfRegister: { family: "oversight" },
+  PsfMoney: { family: "oversight" },
+  PsfSetup: { family: "oversight" },
   PsfReport: { family: "oversight" },
   PsfBusiness: { family: "oversight" },
   PsfClaims: { family: "oversight" },

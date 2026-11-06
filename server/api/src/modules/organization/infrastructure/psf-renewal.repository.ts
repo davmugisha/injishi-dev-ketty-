@@ -97,6 +97,7 @@ export class PsfRenewalRepository {
     payerPhoneE164: string;
     startsOn: string;
     expiresOn: string;
+    kind?: 'renewal' | 'upgrade';
   }): Promise<PsfRenewalRow> {
     return this.db.transaction(async (tx) => {
       await tx

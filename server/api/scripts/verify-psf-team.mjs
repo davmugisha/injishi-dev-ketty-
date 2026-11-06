@@ -3,8 +3,8 @@
 // (the fixed code 123456):
 //
 //   T1. Injishi's admin may not appoint a District Manager or a BDE, and does
-//       appoint a Province Manager (Kigali).
-//   T2. The Province Manager appoints a District Manager in Gasabo (with an ID),
+//       appoint a Regional Manager (Kigali).
+//   T2. The Regional Manager appoints a District Manager in Gasabo (with an ID),
 //       is refused a district outside Kigali, and may not appoint a BDE.
 //   T3. The District Manager appoints a BDE in Gasabo (2026-11-02, with an ID).
 //   T4. The BDE reads Gasabo's businesses and fees, is refused the team, and is
@@ -90,26 +90,26 @@ const DBO_EMAIL = `verify.bde.${RUN}@example.test`;
 const DM_EMAIL = `verify.dm.${RUN}@example.test`;
 const post = (role, scopeLevel, place) => ({
   email: PROVINCE_EMAIL,
-  name: 'Verify Province Manager',
+  name: 'Verify Regional Manager',
   role,
   governmentBodyCode: 'PSF',
-  governmentTitle: 'PSF Province Manager',
+  governmentTitle: 'PSF Regional Manager',
   scopeLevel,
   ...place,
   reason: 'Verify the PSF team',
 });
 
 try {
-  console.log('T1. Admin appoints Province Managers only');
+  console.log('T1. Admin appoints Regional Managers only');
   const admin = await signIn(ADMIN_EMAIL);
   const asDm = await call(admin, 'POST', `${V}/admin/local-leaders`, post('psf_membership_officer', 'district', { provinceId: KIGALI, districtId: GASABO }));
   check('admin may not appoint a District Manager', asDm.status === 422, brief(asDm));
   const asDbo = await call(admin, 'POST', `${V}/admin/local-leaders`, post('psf_business_officer', 'district', { provinceId: KIGALI, districtId: GASABO }));
   check('admin may not appoint a BDE', asDbo.status === 422 || asDbo.status === 400, brief(asDbo));
   const province = await call(admin, 'POST', `${V}/admin/local-leaders`, post('psf_membership_officer', 'province', { provinceId: KIGALI }));
-  check('admin appoints a Province Manager for Kigali', province.status === 201, brief(province));
+  check('admin appoints a Regional Manager for Kigali', province.status === 201, brief(province));
 
-  console.log('T2. The Province Manager appoints a District Manager');
+  console.log('T2. The Regional Manager appoints a District Manager');
   const pm = await signIn(PROVINCE_EMAIL);
   const ID = { documentType: 'national_id', documentNumber: '1199980012345678' };
   const pmTeam = await call(pm, 'GET', `${V}/oversight/psf/team`);

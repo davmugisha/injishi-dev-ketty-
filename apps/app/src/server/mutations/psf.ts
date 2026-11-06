@@ -1,11 +1,11 @@
 /**
  * Writes for the PSF console, through the API (ported from the old operator console, 2026-10-26):
- * approve or decline an application, and admit or decline one branch. Every rule is the API's and
+ * approve an application or send it back, and admit or decline one branch. Every rule is the API's and
  * its refusal travels back unchanged: only the PSF District Manager of the district decides
  * (403 for a province or national manager), an officer with a stake in the business may not
  * (403), and an application or branch already decided is a 409.
  */
-import type { PsfDeclineReason, PsfOfficerApplication } from "../sources/psf";
+import type { PsfOfficerApplication } from "../sources/psf";
 import type { SourceContext } from "../sources/types";
 
 /** A request the screen can word for the officer, refused before it reaches the API. */
@@ -43,11 +43,11 @@ export function approvePsf(
   return ctx.api.post<PsfOfficerApplication>(`${applicationPath(id)}/approve`, { membershipNumber: number.slice(0, 40), ...(card ?? {}) });
 }
 
-/** Decline, with PSF's reason; `other` needs a note the business will read. */
-export function declinePsf(ctx: SourceContext, id: string, reason: PsfDeclineReason, text?: string): Promise<PsfOfficerApplication> {
-  const body = { reason, ...(note(text) ? { note: note(text) } : {}) };
-  if (reason === "other" && !body.note) throw new PsfRefusal("Say why, so the business knows what to fix.");
-  return ctx.api.post<PsfOfficerApplication>(`${applicationPath(id)}/decline`, body);
+/** Send it back with what to fix (2026-11-05): PSF never rejects. */
+export function sendBackPsf(ctx: SourceContext, id: string, text: string): Promise<PsfOfficerApplication> {
+  const body = note(text);
+  if (!body) throw new PsfRefusal("Say what they should fix.");
+  return ctx.api.post<PsfOfficerApplication>(`${applicationPath(id)}/send-back`, { note: body });
 }
 
 /** Admit or decline one branch, as the District Manager of the branch's district. */

@@ -11,6 +11,7 @@ import { apiResultMessage } from "@/lib/api";
 import { AddressPicker, useAddressLine, type AddressDraft } from "./address-picker";
 import { branchReady, newBranchDraft, type BranchDraft, type BusinessDraft, type DocumentDraft } from "./business-draft";
 import { PsfApplication, type PsfDraft } from "./psf-application";
+import { PassportPhotoField } from "@/components/psf/register/photo-field";
 import { ChoiceCard, ChoiceTile, Field, Fieldset, TextInput } from "./wizard-ui";
 
 /**
@@ -244,6 +245,17 @@ export function StepBranchesPsf({
 
         {business.psfMember === false && business.psfApply === true ? (
           <PsfApplication draft={psf} onChange={onPsfChange} tiers={tiers} tiersFailed={tiersFailed} onRetryTiers={onRetryTiers} documentLine={documentLine} catalogue={catalogue} askGender={askGender} errors={errors} />
+        ) : null}
+        {business.psfMember === true || (business.psfMember === false && business.psfApply === true) ? (
+          <div className="max-w-form">
+            <PassportPhotoField
+              objectKey={business.psfOwnerPhotoKey ?? ""}
+              name={business.psfOwnerPhotoName ?? ""}
+              error={errors["business.psfOwnerPhotoKey"]}
+              upload={uploadCertificate}
+              onChange={({ objectKey, name }) => onBusinessChange({ ...business, psfOwnerPhotoKey: objectKey, psfOwnerPhotoName: name })}
+            />
+          </div>
         ) : null}
         {business.psfMember === false && business.psfApply === false ? (
           <p className="text-xs text-muted-foreground">PSF never holds up your registration.</p>

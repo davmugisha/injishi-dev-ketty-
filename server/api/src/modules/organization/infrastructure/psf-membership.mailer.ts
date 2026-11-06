@@ -1,4 +1,4 @@
-import { PSF_DECLINE_REASON_LABEL, isPsfApplicant, type PsfDeclineReason } from '@injishi/contracts';
+import { isPsfApplicant } from '@injishi/contracts';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
@@ -9,9 +9,11 @@ import {
   psfApplicationReceivedMail,
   psfApprovedMail,
   psfCertificateMail,
-  psfDeclinedMail,
+  psfCardResentMail,
+  psfCardSentBackMail,
+  psfClaimCardLink,
+  psfSentBackMail,
   psfClaimConfirmedMail,
-  psfClaimRejectedMail,
   psfExpiredMail,
   psfRenewedMail,
   psfPaymentReminderMail,
@@ -97,15 +99,32 @@ export class PsfMembershipMailer {
     );
   }
 
-  declined(orgId: string, reason: PsfDeclineReason, note: string | null): Promise<void> {
+  /** Sent back to fix (2026-11-05), by email and text, with the link to correct it. */
+  sentBack(orgId: string, note: string): Promise<void> {
     return this.toApplicants(
       orgId,
-      'declined',
-      (to, legalName, link) =>
-        psfDeclinedMail({ to, legalName, reasonLabel: PSF_DECLINE_REASON_LABEL[reason], note, link }),
-      (legalName, docId, link) =>
-        `PSF declined the application for ${legalName} (${docId}): ${PSF_DECLINE_REASON_LABEL[reason]}. See why: ${link}`,
+      'sent back',
+      (to, legalName, link) => psfSentBackMail({ to, legalName, note, link }),
+      (legalName, docId, link) => `PSF needs a correction for ${legalName} (${docId}): ${note}. Fix and resend: ${link}`,
     );
+  }
+
+  /** A card sent back (2026-11-05): the link is the signed one, not the portal. */
+  cardSentBack(orgId: string, note: string, token: string): Promise<void> {
+    const link = psfClaimCardLink(this.webUrl, token);
+    return this.toApplicants(orgId, 'card sent back', (to, legalName) => psfCardSentBackMail({ to, legalName, note, link }));
+  }
+
+  /** The card came back: the district's PSF officers. */
+  cardResent(orgId: string): Promise<void> {
+    return this.guarded('card resent', orgId, async () => {
+      const facts = await this.repo.orgFacts(orgId);
+      if (!facts) return;
+      const link = new URL('/psf/claims', this.appUrl).toString();
+      for (const email of await this.repo.membershipOfficerEmails(facts.districtId)) {
+        await this.deliver(email, psfCardResentMail({ to: { name: null }, legalName: facts.legalName, link }), 'card resent', orgId);
+      }
+    });
   }
 
   expiring(orgId: string, membershipNumber: string, expiresOn: string): Promise<void> {
@@ -118,24 +137,14 @@ export class PsfMembershipMailer {
   }
 
   /** A claimed number PSF confirmed (0121). */
-  claimConfirmed(orgId: string, membershipNumber: string, expiresOn: string, certificate?: Buffer): Promise<void> {
+  claimConfirmed(orgId: string, membershipNumber: string, expiresOn: string, certificate?: Buffer, card?: Buffer | null): Promise<void> {
     return this.toApplicants(
       orgId,
       'membership claim confirmed',
       (to, legalName, link) => psfClaimConfirmedMail({ to, legalName, membershipNumber, expiresOn, link }),
       (legalName) => `PSF confirmed membership ${membershipNumber} for ${legalName}, until ${expiresOn}.`,
       // The member's certificate goes with the news (2026-11-02), as it does for a paid application.
-      certificate ? [certificateAttachment(membershipNumber, certificate)] : undefined,
-    );
-  }
-
-  /** A claimed number PSF could not confirm (0121), with the reason it gave. */
-  claimRejected(orgId: string, membershipNumber: string, reason: string): Promise<void> {
-    return this.toApplicants(
-      orgId,
-      'membership claim rejected',
-      (to, legalName, link) => psfClaimRejectedMail({ to, legalName, membershipNumber, reason, link }),
-      (legalName) => `PSF could not confirm membership ${membershipNumber} for ${legalName}: ${reason}`,
+      certificate ? [certificateAttachment(membershipNumber, certificate), ...(card ? [cardAttachment(membershipNumber, card)] : [])] : undefined,
     );
   }
 
@@ -280,6 +289,7 @@ export class PsfMembershipMailer {
     to: string,
     d: { name: string; legalName: string; tierName: string; membershipNumber: string; expiresOn: string | null; docId: string },
     pdf: Buffer,
+    card?: Buffer | null,
   ): Promise<void> {
     const mail = psfCertificateMail({ to: { name: d.name }, ...d, link: this.trackLink(d.docId) });
     let timer: NodeJS.Timeout | undefined;
@@ -288,7 +298,7 @@ export class PsfMembershipMailer {
         this.mailer.send({
           to,
           ...mail,
-          attachments: [certificateAttachment(d.membershipNumber, pdf)],
+          attachments: [certificateAttachment(d.membershipNumber, pdf), ...(card ? [cardAttachment(d.membershipNumber, card)] : [])],
         }),
         new Promise<never>((_resolve, reject) => {
           timer = setTimeout(() => reject(new Error('mail transport did not respond')), PsfMembershipMailer.SEND_TIMEOUT_MS);
@@ -342,6 +352,11 @@ type MailAttachment = { filename: string; content: Buffer; contentType: string }
 /** The certificate as every PSF mail attaches it. */
 export function certificateAttachment(membershipNumber: string, pdf: Buffer): MailAttachment {
   return { filename: psfCertificateFilename(membershipNumber), content: pdf, contentType: 'application/pdf' };
+}
+
+/** The membership card, attached beside the certificate (2026-11-05). */
+export function cardAttachment(membershipNumber: string, pdf: Buffer): MailAttachment {
+  return { filename: psfCertificateFilename(membershipNumber).replace('certificate', 'card'), content: pdf, contentType: 'application/pdf' };
 }
 
 export function psfCertificateFilename(membershipNumber: string): string {

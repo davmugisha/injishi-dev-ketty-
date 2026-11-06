@@ -506,11 +506,6 @@ export declare const TaxYearView: z.ZodObject<{
         taxRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         taxRwf: number;
-        grossRentRwf: number;
-        flatDeductionRwf: number;
-        loanInterestRwf: number;
-        interestDeductedRwf: number;
-        taxableIncomeRwf: number;
         bands: {
             taxRwf: number;
             fromRwf: number;
@@ -518,13 +513,13 @@ export declare const TaxYearView: z.ZodObject<{
             toRwf: number | null;
             incomeRwf: number;
         }[];
+        grossRentRwf: number;
+        flatDeductionRwf: number;
+        loanInterestRwf: number;
+        interestDeductedRwf: number;
+        taxableIncomeRwf: number;
     }, {
         taxRwf: number;
-        grossRentRwf: number;
-        flatDeductionRwf: number;
-        loanInterestRwf: number;
-        interestDeductedRwf: number;
-        taxableIncomeRwf: number;
         bands: {
             taxRwf: number;
             fromRwf: number;
@@ -532,6 +527,11 @@ export declare const TaxYearView: z.ZodObject<{
             toRwf: number | null;
             incomeRwf: number;
         }[];
+        grossRentRwf: number;
+        flatDeductionRwf: number;
+        loanInterestRwf: number;
+        interestDeductedRwf: number;
+        taxableIncomeRwf: number;
     }>>;
     /** The company's view: rent less every cost, and the 28% it implies (null for a person). */
     profit: z.ZodNullable<z.ZodObject<{
@@ -729,11 +729,6 @@ export declare const TaxYearView: z.ZodObject<{
     };
     rentalTax: {
         taxRwf: number;
-        grossRentRwf: number;
-        flatDeductionRwf: number;
-        loanInterestRwf: number;
-        interestDeductedRwf: number;
-        taxableIncomeRwf: number;
         bands: {
             taxRwf: number;
             fromRwf: number;
@@ -741,6 +736,11 @@ export declare const TaxYearView: z.ZodObject<{
             toRwf: number | null;
             incomeRwf: number;
         }[];
+        grossRentRwf: number;
+        flatDeductionRwf: number;
+        loanInterestRwf: number;
+        interestDeductedRwf: number;
+        taxableIncomeRwf: number;
     } | null;
     profit: {
         rentRwf: number;
@@ -835,11 +835,6 @@ export declare const TaxYearView: z.ZodObject<{
     };
     rentalTax: {
         taxRwf: number;
-        grossRentRwf: number;
-        flatDeductionRwf: number;
-        loanInterestRwf: number;
-        interestDeductedRwf: number;
-        taxableIncomeRwf: number;
         bands: {
             taxRwf: number;
             fromRwf: number;
@@ -847,6 +842,11 @@ export declare const TaxYearView: z.ZodObject<{
             toRwf: number | null;
             incomeRwf: number;
         }[];
+        grossRentRwf: number;
+        flatDeductionRwf: number;
+        loanInterestRwf: number;
+        interestDeductedRwf: number;
+        taxableIncomeRwf: number;
     } | null;
     profit: {
         rentRwf: number;

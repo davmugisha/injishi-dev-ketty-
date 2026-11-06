@@ -14,11 +14,12 @@ import {
 } from "@injishi/contracts";
 
 import { COUNTRY_OPTIONS } from "@/app/(app)/(entry)/register/country-options";
-import { Field, Fieldset, SelectField, TextInput } from "@/app/(app)/(entry)/register/wizard-ui";
+import { SelectField, TextInput } from "@/app/(app)/(entry)/register/wizard-ui";
 import { fetchCells, fetchDistricts, fetchProvinces, fetchSectors, fetchVillages } from "@/data/geography";
 
 import { BranchesEditor } from "./branches";
 import { type Errors, type PsfDraft } from "./draft";
+import { PsfExtras, PsfField, PsfFieldset, usePsfOrder } from "./form-config";
 import { Section } from "./step-business";
 
 /**
@@ -39,6 +40,7 @@ export function StepPlace({
   onChange: (next: Partial<PsfDraft>) => void;
   errors: Errors;
 }) {
+  const provinceOrder = usePsfOrder("province");
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
@@ -77,8 +79,8 @@ export function StepPlace({
 
       <Section number={1} title="Where it is">
         <p className="-mt-2 text-sm text-muted-foreground">Your district gives the business its code, for example KIC0001 in Kicukiro.</p>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-          <Field label="Province" required error={e("address.provinceId")}>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3" style={{ order: provinceOrder }}>
+          <PsfField name="province" label="Province" required error={e("address.provinceId")}>
             <SelectField
               id="psf-province"
               value={draft.provinceId}
@@ -95,8 +97,8 @@ export function StepPlace({
               }
               options={provinces.map((p) => ({ value: String(p.id), label: provinceDisplayName(p.name) }))}
             />
-          </Field>
-          <Field label="District" required error={e("address.districtId")}>
+          </PsfField>
+          <PsfField name="district" label="District" required error={e("address.districtId")}>
             <SelectField
               id="psf-district"
               value={draft.districtId}
@@ -113,8 +115,8 @@ export function StepPlace({
               }
               options={districts.map((d) => ({ value: String(d.id), label: d.name }))}
             />
-          </Field>
-          <Field label="Sector" required error={e("address.sectorId")}>
+          </PsfField>
+          <PsfField name="sector" label="Sector" required error={e("address.sectorId")}>
             <SelectField
               id="psf-sector"
               value={draft.sectorId}
@@ -130,8 +132,8 @@ export function StepPlace({
               }
               options={sectors.map((s) => ({ value: String(s.id), label: s.name }))}
             />
-          </Field>
-          <Field label="Cell" required error={e("address.cellId")}>
+          </PsfField>
+          <PsfField name="cell" label="Cell" required error={e("address.cellId")}>
             <SelectField
               id="psf-cell"
               value={draft.cellId}
@@ -146,8 +148,8 @@ export function StepPlace({
               }
               options={cells.map((c) => ({ value: String(c.id), label: c.name }))}
             />
-          </Field>
-          <Field label="Village" required error={e("address.villageId")}>
+          </PsfField>
+          <PsfField name="village" label="Village" required error={e("address.villageId")}>
             <SelectField
               id="psf-village"
               value={draft.villageId}
@@ -158,11 +160,11 @@ export function StepPlace({
               }
               options={villages.map((x) => ({ value: String(x.id), label: x.name }))}
             />
-          </Field>
+          </PsfField>
         </div>
-        <Field label="Street address" hint="Optional. Where PSF can find you, like “KK 15 Ave” or “Masaka trading centre”." error={e("address.street")}>
+        <PsfField name="street" label="Street address" hint="Optional. Where PSF can find you, like “KK 15 Ave” or “Masaka trading centre”." error={e("address.street")}>
           <TextInput id="psf-street" className="w-full" value={draft.street} onChange={(ev) => onChange({ street: ev.target.value })} />
-        </Field>
+        </PsfField>
       </Section>
 
       <Section number={2} title="Branches">
@@ -174,7 +176,7 @@ export function StepPlace({
       </Section>
 
       <Section number={3} title="Trade">
-        <Fieldset legend="Do you export or import?">
+        <PsfFieldset name="tradeDirection" legend="Do you export or import?">
           <div className="inline-flex flex-wrap gap-2 rounded-full bg-secondary p-1">
             {(Object.keys(PSF_TRADE_DIRECTION_LABEL) as PsfTradeDirection[]).map((t) => (
               <button
@@ -191,13 +193,13 @@ export function StepPlace({
               </button>
             ))}
           </div>
-        </Fieldset>
+        </PsfFieldset>
         {draft.tradeDirection !== "none" ? (
           <>
-            <Field label="What do you trade?" required error={e("tradeGoods")}>
+            <PsfField orderAs="tradeDirection" label="What do you trade?" required error={e("tradeGoods")}>
               <TextInput id="psf-trade-goods" className="w-full" value={draft.tradeGoods} onChange={(ev) => onChange({ tradeGoods: ev.target.value })} />
-            </Field>
-            <Field label="Countries you trade with" required error={e("tradeCountries")}>
+            </PsfField>
+            <PsfField orderAs="tradeDirection" label="Countries you trade with" required error={e("tradeCountries")}>
               <div className="flex flex-col gap-3">
                 <SelectField
                   id="psf-trade-country"
@@ -227,9 +229,10 @@ export function StepPlace({
                   </ul>
                 ) : null}
               </div>
-            </Field>
+            </PsfField>
           </>
         ) : null}
+        <PsfExtras step="place" draft={draft} onChange={onChange} errors={errors} />
       </Section>
     </div>
   );

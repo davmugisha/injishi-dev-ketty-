@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { Button } from "@injishi/web-ui";
 
@@ -18,12 +18,18 @@ const MAX_BYTES = 2 * 1024 * 1024;
  * is shown from memory, so after a reload only its name is left to show.
  */
 export function LogoField({
+  label = "Logo (optional)",
+  hint = "Printed on your membership certificate. PNG, JPEG or WebP, up to 2 MB.",
+  required = false,
   checkToken,
   objectKey,
   name,
   error,
   onChange,
 }: {
+  label?: string;
+  hint?: ReactNode;
+  required?: boolean;
   checkToken: string | null;
   objectKey: string;
   name: string;
@@ -61,7 +67,7 @@ export function LogoField({
   };
 
   return (
-    <Field label="Logo (optional)" hint="Printed on your membership certificate. PNG, JPEG or WebP, up to 2 MB." error={problem ?? error}>
+    <Field label={label} hint={hint} required={required} error={problem ?? error}>
       <div className="flex flex-wrap items-center gap-4">
         <span className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-card border border-border bg-secondary/60">
           {preview ? (

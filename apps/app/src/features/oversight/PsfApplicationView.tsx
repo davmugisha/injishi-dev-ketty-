@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CircleCheck, CircleXmark, MapPin } from "@gravity-ui/icons";
+import { ArrowLeft, CircleCheck, MapPin } from "@gravity-ui/icons";
 import {
   Alert,
   Button,
@@ -9,8 +9,6 @@ import {
   Description,
   Input,
   Label,
-  ListBox,
-  Select,
   TextArea,
   TextField,
   Toast,
@@ -18,14 +16,14 @@ import {
 } from "@heroui/react";
 import { KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { useState } from "react";
-import { approvePsfAction, decidePsfBranchAction, declinePsfAction } from "@/features/oversight/psf-actions";
+import { approvePsfAction, decidePsfBranchAction, sendBackPsfAction } from "@/features/oversight/psf-actions";
+import { API_BASE } from "@/pms/data/api";
 import { dayMonthYear, rwf } from "@/server/format";
 import {
   PSF_BRANCH_STATUS_LABEL,
   PSF_DECLINE_REASON_LABEL,
   PSF_OWNER_GROUP_LABEL,
   type PsfApplicationBranch,
-  type PsfDeclineReason,
   type PsfOfficerApplication,
 } from "@/server/sources/psf";
 
@@ -119,13 +117,15 @@ export function PsfApplicationView({ initial, card = null }: { initial: PsfOffic
             <Card.Header>
               <Card.Title>Who applied</Card.Title>
             </Card.Header>
-            <Card.Content>
+            <Card.Content className="flex flex-col gap-4">
+              <OwnerPhoto orgId={app.orgId} />
               <KeyValueList
                 items={[
                   { label: "Name", value: `${f.firstName} ${f.lastName}` },
                   { label: "Role", value: f.contactRole.replace(/_/g, " ") },
                   { label: "Phone", value: f.phoneE164 },
                   { label: "Email", value: f.email || "Not given" },
+                  ...app.extraAnswers.map((a) => ({ label: a.label, value: a.value })),
                 ]}
               />
             </Card.Content>
@@ -169,7 +169,7 @@ export function PsfApplicationView({ initial, card = null }: { initial: PsfOffic
 }
 
 function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecided: (a: PsfOfficerApplication) => void }) {
-  const [mode, setMode] = useState<"approve" | "decline">("approve");
+  const [mode, setMode] = useState<"approve" | "send_back">("approve");
   const [number, setNumber] = useState(app.suggestedMembershipNumber ?? "");
   // A card holder's year, read off its card (2026-11-03): both dates, always exactly a year apart. Pick
   // either and the other follows. It may not have ended already: an older card has lapsed.
@@ -191,12 +191,26 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
     if (isDay(v)) setStartsOn(startOf(v));
   };
   const cardEndOk = isDay(startsOn) && isDay(expiresOn) && expiresOn === endOf(startsOn) && expiresOn >= today && expiresOn <= yearAhead;
-  const [reason, setReason] = useState<PsfDeclineReason>("details_incomplete");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (app.status !== "submitted") return <Outcome app={app} />;
+
+  // Sent back (2026-11-05): waiting on the business, and back in the queue when it resends.
+  if (app.returnedAt) {
+    return (
+      <Card>
+        <Card.Header>
+          <Card.Title>Sent back to fix</Card.Title>
+          <Card.Description>{dayMonthYear(app.returnedAt)}. It returns to your queue when they resend it.</Card.Description>
+        </Card.Header>
+        <Card.Content>
+          <KeyValueList items={[{ label: "You asked", value: app.returnNote ?? "" }]} />
+        </Card.Content>
+      </Card>
+    );
+  }
 
   // Only the District Manager of its district decides (2026-10-23). Here for a branch only,
   // or from a province or national post: read and report.
@@ -246,7 +260,7 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
     const res =
       mode === "approve"
         ? await approvePsfAction(app.id, number, cardHolder ? { startsOn, expiresOn } : undefined)
-        : await declinePsfAction(app.id, reason, note);
+        : await sendBackPsfAction(app.id, note);
     setBusy(false);
     if (!res.ok) return setError(res.error);
     onDecided(res.value);
@@ -255,7 +269,7 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
         ? cardHolder
           ? `${app.businessName} is a member, with its new number and certificate.`
           : `${app.businessName} is approved.`
-        : `${app.businessName} was declined.`,
+        : `${app.businessName} was sent back to fix.`,
     );
   };
 
@@ -303,42 +317,21 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
             ) : null}
           </>
         ) : (
-          <>
-            <div className="flex flex-col gap-1">
-              <Label>Reason</Label>
-              <Select aria-label="Decline reason" fullWidth value={reason} onChange={(key) => key != null && setReason(String(key) as PsfDeclineReason)}>
-                <Select.Trigger>
-                  <Select.Value />
-                  <Select.Indicator />
-                </Select.Trigger>
-                <Select.Popover>
-                  <ListBox>
-                    {(Object.keys(PSF_DECLINE_REASON_LABEL) as PsfDeclineReason[]).map((r) => (
-                      <ListBox.Item key={r} id={r} textValue={PSF_DECLINE_REASON_LABEL[r]}>
-                        {PSF_DECLINE_REASON_LABEL[r]}
-                        <ListBox.ItemIndicator />
-                      </ListBox.Item>
-                    ))}
-                  </ListBox>
-                </Select.Popover>
-              </Select>
-            </div>
-            <TextField fullWidth value={note} onChange={setNote} className="gap-1">
-              <Label htmlFor="psf-note">Note for the business</Label>
-              <TextArea id="psf-note" rows={3} />
-              <Description>{reason === "other" ? "Required: say what they should fix." : "Optional."}</Description>
-            </TextField>
-          </>
+          <TextField fullWidth value={note} onChange={setNote} className="gap-1">
+            <Label htmlFor="psf-note">What should they fix?</Label>
+            <TextArea id="psf-note" rows={3} />
+            <Description>They read this, correct it and resend. Their application stays open, with its docID and any fee paid.</Description>
+          </TextField>
         )}
 
         {error ? <p className="text-[13px] text-danger">{error}</p> : null}
         <Button
           fullWidth
-          variant={mode === "approve" ? "primary" : "danger"}
+          variant="primary"
           isPending={busy}
           isDisabled={
             busy ||
-            (mode === "approve" ? !number.trim() || (cardHolder && !cardEndOk) : reason === "other" && !note.trim())
+            (mode === "approve" ? !number.trim() || (cardHolder && !cardEndOk) : note.trim().length < 3)
           }
           onPress={() => void decide()}
         >
@@ -349,7 +342,7 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
             </>
           ) : (
             <>
-              <CircleXmark className="size-4" /> Decline application
+              <ArrowLeft className="size-4" /> Send back to fix
             </>
           )}
         </Button>
@@ -360,10 +353,10 @@ function DecisionPanel({ app, onDecided }: { app: PsfOfficerApplication; onDecid
           isDisabled={busy}
           onPress={() => {
             setError(null);
-            setMode(mode === "approve" ? "decline" : "approve");
+            setMode(mode === "approve" ? "send_back" : "approve");
           }}
         >
-          {mode === "approve" ? "Decline instead" : "Back to approving"}
+          {mode === "approve" ? "Send back to fix instead" : "Back to approving"}
         </Button>
       </Card.Content>
     </Card>
@@ -482,4 +475,19 @@ function shiftYears(day: string, years: number): string {
 function shiftDays(day: string, days: number): string {
   const [y, m, d] = day.split("-").map(Number) as [number, number, number];
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+/** The owner's passport photo (2026-11-05). A business from before photos has none, and shows nothing. */
+function OwnerPhoto({ orgId }: { orgId: string }) {
+  const [missing, setMissing] = useState(false);
+  if (missing) return null;
+  return (
+    // biome-ignore lint/performance/noImgElement: the API's own route, behind the officer's session
+    <img
+      src={`${API_BASE}/api/v1/oversight/psf/businesses/${orgId}/photo`}
+      alt="The owner"
+      onError={() => setMissing(true)}
+      className="h-28 w-22 rounded-lg object-cover ring-1 ring-border"
+    />
+  );
 }

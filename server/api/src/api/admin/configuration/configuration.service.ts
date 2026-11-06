@@ -1,3 +1,4 @@
+import { psfFamilyName } from '@injishi/contracts';
 import {
   AdminConfiguration,
   AdminFeeSchedule,
@@ -606,6 +607,8 @@ function toPsfTier(row: typeof psfMembershipTiers.$inferSelect): PsfTier {
   return {
     code: row.code,
     family: row.family,
+    familyName: psfFamilyName(row.family),
+    familyBlurb: '',
     nameEn: row.nameEn,
     nameRw: row.nameRw,
     priceKind: row.priceKind,

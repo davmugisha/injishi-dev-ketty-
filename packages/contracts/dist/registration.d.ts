@@ -1050,6 +1050,8 @@ export declare const HospitalityBusiness: z.ZodObject<{
         } | undefined;
         useDocumentOnFile?: true | undefined;
     }>>;
+    /** The owner's passport photo (2026-11-05), when it applies or holds a card: on its card and certificate. */
+    psfOwnerPhotoKey: z.ZodOptional<z.ZodString>;
     eacStarGrade: z.ZodOptional<z.ZodNumber>;
     /** Part of a franchise, and how (ADR-075 AC-8). Absent means No. */
     franchise: z.ZodOptional<z.ZodDiscriminatedUnion<"role", [z.ZodObject<{
@@ -1221,6 +1223,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         } | undefined;
         useDocumentOnFile?: true | undefined;
     } | undefined;
+    psfOwnerPhotoKey?: string | undefined;
     eacStarGrade?: number | undefined;
 }, {
     domain: "hospitality";
@@ -1297,6 +1300,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         } | undefined;
         useDocumentOnFile?: true | undefined;
     } | undefined;
+    psfOwnerPhotoKey?: string | undefined;
     eacStarGrade?: number | undefined;
     branches?: {
         name: string;
@@ -1871,6 +1875,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         } | undefined;
         useDocumentOnFile?: true | undefined;
     }>>;
+    /** The owner's passport photo (2026-11-05), when it applies or holds a card: on its card and certificate. */
+    psfOwnerPhotoKey: z.ZodOptional<z.ZodString>;
     eacStarGrade: z.ZodOptional<z.ZodNumber>;
     /** Part of a franchise, and how (ADR-075 AC-8). Absent means No. */
     franchise: z.ZodOptional<z.ZodDiscriminatedUnion<"role", [z.ZodObject<{
@@ -2042,6 +2048,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         } | undefined;
         useDocumentOnFile?: true | undefined;
     } | undefined;
+    psfOwnerPhotoKey?: string | undefined;
     eacStarGrade?: number | undefined;
 }, {
     domain: "hospitality";
@@ -2118,6 +2125,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         } | undefined;
         useDocumentOnFile?: true | undefined;
     } | undefined;
+    psfOwnerPhotoKey?: string | undefined;
     eacStarGrade?: number | undefined;
     branches?: {
         name: string;
@@ -2477,6 +2485,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         } | undefined;
         useDocumentOnFile?: true | undefined;
     } | undefined;
+    psfOwnerPhotoKey?: string | undefined;
     eacStarGrade?: number | undefined;
 } | {
     domain: "residence";
@@ -2609,6 +2618,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         } | undefined;
         useDocumentOnFile?: true | undefined;
     } | undefined;
+    psfOwnerPhotoKey?: string | undefined;
     eacStarGrade?: number | undefined;
     branches?: {
         name: string;
@@ -3132,6 +3142,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             } | undefined;
             useDocumentOnFile?: true | undefined;
         }>>;
+        /** The owner's passport photo (2026-11-05), when it applies or holds a card: on its card and certificate. */
+        psfOwnerPhotoKey: z.ZodOptional<z.ZodString>;
         eacStarGrade: z.ZodOptional<z.ZodNumber>;
         /** Part of a franchise, and how (ADR-075 AC-8). Absent means No. */
         franchise: z.ZodOptional<z.ZodDiscriminatedUnion<"role", [z.ZodObject<{
@@ -3303,6 +3315,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             } | undefined;
             useDocumentOnFile?: true | undefined;
         } | undefined;
+        psfOwnerPhotoKey?: string | undefined;
         eacStarGrade?: number | undefined;
     }, {
         domain: "hospitality";
@@ -3379,6 +3392,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             } | undefined;
             useDocumentOnFile?: true | undefined;
         } | undefined;
+        psfOwnerPhotoKey?: string | undefined;
         eacStarGrade?: number | undefined;
         branches?: {
             name: string;
@@ -3738,6 +3752,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             } | undefined;
             useDocumentOnFile?: true | undefined;
         } | undefined;
+        psfOwnerPhotoKey?: string | undefined;
         eacStarGrade?: number | undefined;
     } | {
         domain: "residence";
@@ -3870,6 +3885,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             } | undefined;
             useDocumentOnFile?: true | undefined;
         } | undefined;
+        psfOwnerPhotoKey?: string | undefined;
         eacStarGrade?: number | undefined;
         branches?: {
             name: string;
@@ -4042,6 +4058,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             } | undefined;
             useDocumentOnFile?: true | undefined;
         } | undefined;
+        psfOwnerPhotoKey?: string | undefined;
         eacStarGrade?: number | undefined;
     } | {
         domain: "residence";
@@ -4210,6 +4227,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             } | undefined;
             useDocumentOnFile?: true | undefined;
         } | undefined;
+        psfOwnerPhotoKey?: string | undefined;
         eacStarGrade?: number | undefined;
         branches?: {
             name: string;
@@ -4402,6 +4420,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             } | undefined;
             useDocumentOnFile?: true | undefined;
         } | undefined;
+        psfOwnerPhotoKey?: string | undefined;
         eacStarGrade?: number | undefined;
     } | {
         domain: "residence";
@@ -4570,6 +4589,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             } | undefined;
             useDocumentOnFile?: true | undefined;
         } | undefined;
+        psfOwnerPhotoKey?: string | undefined;
         eacStarGrade?: number | undefined;
         branches?: {
             name: string;

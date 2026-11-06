@@ -840,6 +840,7 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
     {
       label: "Reports",
       items: [
+        { id: "money", label: "Money", icon: "Wallet", board: "PsfMoney" },
         { id: "overview", label: "Overview", icon: "ChartColumn", board: "PsfReport", href: "/psf/report/overview" },
         {
           id: "r-membership",
@@ -864,6 +865,7 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
       items: [
         { id: "fees", label: "Fees", icon: "CreditCard", board: "PsfFees" },
         { id: "subtypes", label: "Subtypes", icon: "Tag", board: "PsfSubtypes" },
+        { id: "setup", label: "PSF setup", icon: "Gear", board: "PsfSetup" },
         { id: "team", label: "Team", icon: "Persons", board: "PsfTeam" },
       ],
     },

@@ -45,6 +45,7 @@ export interface RegisterFilters {
   district: string;
   group: string;
   tin: string;
+  rdb: string;
 }
 
 const STANDINGS: { id: RegisterView; label: string }[] = [
@@ -53,6 +54,7 @@ const STANDINGS: { id: RegisterView; label: string }[] = [
   { id: "renewal_due", label: "Renewal due" },
   { id: "payment_due", label: "Awaiting payment" },
   { id: "applied", label: "Waiting for approval" },
+  { id: "sent_back", label: "Sent back" },
   { id: "claimed", label: "Card holders" },
   { id: "awaiting_payment", label: "Approved, to pay" },
   { id: "lapsed", label: "Lapsed" },
@@ -63,6 +65,7 @@ const STANDINGS: { id: RegisterView; label: string }[] = [
 const TONE: Record<PsfStanding, "success" | "warning" | "danger" | "default"> = {
   member: "success",
   applied: "warning",
+  sent_back: "warning",
   claimed: "warning",
   awaiting_payment: "warning",
   lapsed: "danger",
@@ -85,6 +88,7 @@ function apiFilter(f: RegisterFilters): PsfBusinessesFilter {
     district: f.district ? Number(f.district) : undefined,
     group: (f.group || undefined) as PsfOwnerGroup | undefined,
     tin: (f.tin || undefined) as "with" | "without" | undefined,
+    rdb: (f.rdb || undefined) as "with" | "without" | undefined,
   };
 }
 
@@ -117,7 +121,7 @@ export function PsfRegisterView({
   const payments = filters.view === "payment_due";
   const showDistrict = scope.level !== "district";
   const districts = scope.provinces.flatMap((pr) => pr.districts);
-  const narrowed = Boolean(filters.q || filters.view || filters.cluster || filters.tier || filters.district || filters.group || filters.tin);
+  const narrowed = Boolean(filters.q || filters.view || filters.cluster || filters.tier || filters.district || filters.group || filters.tin || filters.rdb);
   const open = (orgId: string) => router.push(`/psf/register/${orgId}`);
 
   const go = (next: Partial<RegisterFilters>) => {
@@ -127,7 +131,7 @@ export function PsfRegisterView({
     if (f.view === "renewal_due") params.set("renewal", "due");
     else if (f.view === "payment_due") params.set("payment", "due");
     else if (f.view) params.set("standing", f.view);
-    for (const k of ["cluster", "tier", "district", "group", "tin"] as const) if (f[k]) params.set(k, f[k]);
+    for (const k of ["cluster", "tier", "district", "group", "tin", "rdb"] as const) if (f[k]) params.set(k, f[k]);
     const qs = params.toString();
     router.push(qs ? `/psf/register?${qs}` : "/psf/register");
   };
@@ -160,6 +164,7 @@ export function PsfRegisterView({
       filters.district ? (districts.find((d) => String(d.id) === filters.district)?.name ?? null) : null,
       filters.group ? PSF_OWNER_GROUP_SHORT[filters.group as PsfOwnerGroup] : null,
       filters.tin === "with" ? "With a TIN" : filters.tin === "without" ? "Without a TIN" : null,
+      filters.rdb === "with" ? "With an RDB certificate" : filters.rdb === "without" ? "Without an RDB certificate" : null,
       filters.q ? `“${filters.q}”` : null,
     ];
     return {
@@ -375,6 +380,10 @@ export function PsfRegisterView({
           {select("TIN", filters.tin, "tin", [
             { value: "with", label: "With a TIN" },
             { value: "without", label: "Without a TIN" },
+          ])}
+          {select("RDB certificate", filters.rdb, "rdb", [
+            { value: "with", label: "With a certificate" },
+            { value: "without", label: "Without a certificate" },
           ])}
           {narrowed ? (
             <Button

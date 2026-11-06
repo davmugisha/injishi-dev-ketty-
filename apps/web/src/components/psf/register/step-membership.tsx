@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { BadgeCheck, Check, Crown, FileText, IdCard, Info, MapPin, Medal, Sprout, Upload, Wallet, type LucideIcon } from "lucide-react";
 import { Button } from "@injishi/web-ui";
 import {
-  PSF_FAMILY_LABEL,
-  PSF_OFFERED_FAMILIES,
+  psfFamilyName,
+  psfLevelsOf,
   type PsfFeesView,
   type PsfMembershipFamily,
   type PsfTier,
@@ -16,6 +16,7 @@ import { apiResultMessage } from "@/lib/api";
 import { uploadPsfCard } from "@/data/psf";
 
 import { rwf, type Errors, type PsfDraft } from "./draft";
+import { PsfExtras } from "./form-config";
 
 const ICON: Partial<Record<PsfMembershipFamily, LucideIcon>> = { golden_circle: Crown, indashyikirwa: Medal, indatwa: Sprout };
 
@@ -44,6 +45,7 @@ export function StepMembership({
   fees,
   districtName,
   checkToken,
+  floorRwf = null,
 }: {
   draft: PsfDraft;
   onChange: (next: Partial<PsfDraft>) => void;
@@ -54,10 +56,14 @@ export function StepMembership({
   districtName: string;
   /** The form's verified ID check, which the card upload goes under. */
   checkToken: string | null;
+  /** This kind of business's own price in the district (2026-11-05), the least it may pay. */
+  floorRwf?: number | null;
 }) {
   const feeOf = (code: string) => fees?.fees.find((f) => f.tierCode === code) ?? null;
-  const families = PSF_OFFERED_FAMILIES.map((family) => ({
+  // PSF's own levels, in its order (2026-11-06).
+  const families = psfLevelsOf(tiers ?? []).map(({ family, name }) => ({
     family,
+    name,
     group: (tiers ?? [])
       // A band PSF prices itself cannot be paid up front, and PSF reviews only paid applications.
       .filter((t) => t.family === family && (fees === null || feeOf(t.code)?.amountRwf != null))
@@ -84,7 +90,7 @@ export function StepMembership({
         {(
           [
             [false, "I am joining PSF", "Pick the level you can afford and pay the first year now.", Sprout],
-            [true, "I already have a PSF card", "From before Injishi, with no number or certificate here. Nothing to pay now.", IdCard],
+            [true, "I already have a PSF card", "From before this hub, with no number or certificate here. Nothing to pay now.", IdCard],
           ] as const
         ).map(([value, title, text, Icon]) => {
           const on = draft.cardHolder === value;
@@ -123,7 +129,7 @@ export function StepMembership({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Membership">
         {tiers === null
           ? [0, 1, 2].map((i) => <span key={i} className="h-28 animate-pulse rounded-card bg-secondary" />)
-          : families.map(({ family, group }) => {
+          : families.map(({ family, name, group }) => {
               const Icon = ICON[family] ?? Sprout;
               const on = draft.family === family;
               const prices = group.map(priceOf).filter((v): v is number => v !== null);
@@ -163,7 +169,7 @@ export function StepMembership({
                     </span>
                   </span>
                   <span>
-                    <span className="block font-semibold">{PSF_FAMILY_LABEL[family]}</span>
+                    <span className="block font-semibold">{name}</span>
                     <span className="mt-0.5 block text-sm tabular-nums text-muted-foreground">
                       {prices.length === 0 ? "…" : prices.length > 1 ? `From ${rwf(Math.min(...prices))}` : rwf(prices[0]!)}
                     </span>
@@ -218,7 +224,7 @@ export function StepMembership({
         >
           <div className="flex flex-col gap-2 bg-secondary/70 px-5 py-4">
             <label htmlFor="psf-amount" className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-              {PSF_FAMILY_LABEL[tier.family]} · what you pay a year
+              {tier.familyName || psfFamilyName(tier.family)} · what you pay a year
             </label>
             <div className="flex items-center gap-2">
               <span className="text-xl font-semibold text-muted-foreground">RWF</span>
@@ -233,7 +239,9 @@ export function StepMembership({
               />
             </div>
             <p id="psf-amount-range" className="text-sm text-muted-foreground">
-              {picked?.amountRwf == null
+              {floorRwf !== null
+                ? `Your kind of business costs at least ${rwf(floorRwf)} a year here.${picked?.ceilingRwf != null ? ` This band goes up to ${rwf(picked.ceilingRwf)}.` : ""}`
+                : picked?.amountRwf == null
                 ? "Loading PSF's price for your district…"
                 : picked.ceilingRwf != null
                   ? `Any amount from ${rwf(picked.amountRwf)} to ${rwf(picked.ceilingRwf)}. PSF's price for this band is ${rwf(picked.amountRwf)}.`
@@ -265,6 +273,7 @@ export function StepMembership({
           ) : null}
         </section>
       ) : null}
+      <PsfExtras step="membership" draft={draft} onChange={onChange} errors={errors} />
     </div>
   );
 }

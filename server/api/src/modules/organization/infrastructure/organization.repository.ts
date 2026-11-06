@@ -182,6 +182,8 @@ export interface CreateOrgRow {
   psfAssociationOther?: string | null;
   psfSubsectorId?: string | null;
   psfSubsectorOther?: string | null;
+  /** The owner's passport photo (2026-11-05), when it applies or holds a card. */
+  psfOwnerPhotoKey?: string | null;
   ownerGroups: PsfOwnerGroup[];
   registrationKind: EnterpriseRegistrationKind | null;
   registrationNumber: string | null;
@@ -319,6 +321,7 @@ export class OrganizationRepository {
           psfAssociationOther: input.psfAssociationOther ?? null,
           psfSubsectorId: input.psfSubsectorId ?? null,
           psfSubsectorOther: input.psfSubsectorOther ?? null,
+          psfOwnerPhotoKey: input.psfOwnerPhotoKey ?? null,
           ownerGroups: input.ownerGroups,
           registrationKind: input.registrationKind,
           registrationNumber: input.registrationNumber,
@@ -518,6 +521,8 @@ export class OrganizationRepository {
     logoObjectKey: string | null;
     /** A card holder's old PSF card (2026-11-02), filed as the business's `psf_certificate`. */
     cardObjectKey?: string | null;
+    /** The owner's passport photo (2026-11-05). */
+    ownerPhotoKey?: string | null;
     application: Omit<NewPsfApplication, 'orgId'>;
     /** The other places it trades from, each for its own district's officer. */
     branches: readonly NewPsfBranch[];
@@ -542,6 +547,7 @@ export class OrganizationRepository {
           psfAssociationOther: input.psfAssociationOther,
           psfSubsectorId: input.psfSubsectorId,
           psfSubsectorOther: input.psfSubsectorOther,
+          psfOwnerPhotoKey: input.ownerPhotoKey ?? null,
           ownerGroups: input.ownerGroups,
           registrationKind: input.registrationKind,
           registrationNumber: input.registrationNumber,

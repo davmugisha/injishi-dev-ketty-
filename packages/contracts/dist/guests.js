@@ -979,9 +979,24 @@ exports.AppointOfficerRequest = zod_1.z
     sectorId: PlaceId,
     cellId: PlaceId,
     villageId: PlaceId,
+    /** Their ID (2026-11-05): required for a PSF BDE, stored with the appointment. */
+    idDocument: zod_1.z
+        .object({ documentType: zod_1.z.enum(["national_id", "passport"]), documentNumber: zod_1.z.string().trim().transform((n) => n.replace(/\s+/g, "").toUpperCase()) })
+        .optional(),
     reason,
 })
     .superRefine((v, ctx) => {
+    if (v.role === "psf_business_officer") {
+        const id = v.idDocument;
+        const ok = id && (id.documentType === "national_id" ? /^\d{16}$/.test(id.documentNumber) : /^[A-Z0-9]{6,12}$/.test(id.documentNumber));
+        if (!ok) {
+            ctx.addIssue({
+                code: zod_1.z.ZodIssueCode.custom,
+                path: ["idDocument"],
+                message: id?.documentType === "passport" ? "Enter their passport number: 6 to 12 letters or digits." : "Enter their National ID: 16 digits.",
+            });
+        }
+    }
     const allowed = exports.OVERSIGHT_ROLE_SCOPES[v.role];
     if (!allowed.includes(v.scopeLevel)) {
         ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, path: ["scopeLevel"], message: "Pick an area at the level this role covers." });

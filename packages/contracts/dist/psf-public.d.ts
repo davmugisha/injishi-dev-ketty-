@@ -325,7 +325,8 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
     companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
     ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
     ownershipOther: z.ZodOptional<z.ZodString>;
-    businessActivity: z.ZodString;
+    /** Asked unless PSF hides it (2026-11-06): the form's settings decide, on the server too. */
+    businessActivity: z.ZodOptional<z.ZodString>;
     website: z.ZodOptional<z.ZodString>;
     /**
      * The business's logo (2026-10-23), optional: the key `POST /psf/logo`
@@ -389,7 +390,6 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
     associationCode: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
     ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
-    businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     tradeCountries: string[];
     legalName: string;
@@ -410,6 +410,7 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
     subsectorOther?: string | undefined;
     website?: string | undefined;
     ownershipOther?: string | undefined;
+    businessActivity?: string | undefined;
     tradeGoods?: string | undefined;
     tin?: string | undefined;
     registrationNumber?: string | undefined;
@@ -426,7 +427,6 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
     associationCode: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
     ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
-    businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     legalName: string;
     registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
@@ -435,6 +435,7 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
     subsectorOther?: string | undefined;
     website?: string | undefined;
     ownershipOther?: string | undefined;
+    businessActivity?: string | undefined;
     tradeGoods?: string | undefined;
     tradeCountries?: string[] | undefined;
     tin?: string | undefined;
@@ -463,7 +464,6 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
     associationCode: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
     ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
-    businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     tradeCountries: string[];
     legalName: string;
@@ -484,6 +484,7 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
     subsectorOther?: string | undefined;
     website?: string | undefined;
     ownershipOther?: string | undefined;
+    businessActivity?: string | undefined;
     tradeGoods?: string | undefined;
     tin?: string | undefined;
     registrationNumber?: string | undefined;
@@ -500,7 +501,6 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
     associationCode: string;
     companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
     ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
-    businessActivity: string;
     tradeDirection: "none" | "export" | "import" | "both";
     legalName: string;
     registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
@@ -509,6 +509,7 @@ export declare const PsfPublicBusiness: z.ZodEffects<z.ZodObject<{
     subsectorOther?: string | undefined;
     website?: string | undefined;
     ownershipOther?: string | undefined;
+    businessActivity?: string | undefined;
     tradeGoods?: string | undefined;
     tradeCountries?: string[] | undefined;
     tin?: string | undefined;
@@ -534,16 +535,20 @@ export declare const PsfPublicContact: z.ZodObject<{
     phoneE164: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
     /** Optional: status reaches the phone by SMS either way. */
     email: z.ZodOptional<z.ZodString>;
+    /** The passport photo (2026-11-05), uploaded under the ID check; printed on the card and certificate. */
+    photoObjectKey: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     gender: "female" | "male";
     phoneE164: string;
     role: "owner" | "managing_director" | "ceo" | "chairman";
     email?: string | undefined;
+    photoObjectKey?: string | undefined;
 }, {
     gender: "female" | "male";
     phoneE164: string;
     role: "owner" | "managing_director" | "ceo" | "chairman";
     email?: string | undefined;
+    photoObjectKey?: string | undefined;
 }>;
 export type PsfPublicContact = z.infer<typeof PsfPublicContact>;
 export declare const PsfPublicMembership: z.ZodObject<{
@@ -617,7 +622,8 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
         ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
         ownershipOther: z.ZodOptional<z.ZodString>;
-        businessActivity: z.ZodString;
+        /** Asked unless PSF hides it (2026-11-06): the form's settings decide, on the server too. */
+        businessActivity: z.ZodOptional<z.ZodString>;
         website: z.ZodOptional<z.ZodString>;
         /**
          * The business's logo (2026-10-23), optional: the key `POST /psf/logo`
@@ -681,7 +687,6 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         associationCode: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
-        businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
         legalName: string;
@@ -702,6 +707,7 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
+        businessActivity?: string | undefined;
         tradeGoods?: string | undefined;
         tin?: string | undefined;
         registrationNumber?: string | undefined;
@@ -718,7 +724,6 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         associationCode: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
-        businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         legalName: string;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
@@ -727,6 +732,7 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
+        businessActivity?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
         tin?: string | undefined;
@@ -755,7 +761,6 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         associationCode: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
-        businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
         legalName: string;
@@ -776,6 +781,7 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
+        businessActivity?: string | undefined;
         tradeGoods?: string | undefined;
         tin?: string | undefined;
         registrationNumber?: string | undefined;
@@ -792,7 +798,6 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         associationCode: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
-        businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         legalName: string;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
@@ -801,6 +806,7 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
+        businessActivity?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
         tin?: string | undefined;
@@ -852,19 +858,25 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         phoneE164: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
         /** Optional: status reaches the phone by SMS either way. */
         email: z.ZodOptional<z.ZodString>;
+        /** The passport photo (2026-11-05), uploaded under the ID check; printed on the card and certificate. */
+        photoObjectKey: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         gender: "female" | "male";
         phoneE164: string;
         role: "owner" | "managing_director" | "ceo" | "chairman";
         email?: string | undefined;
+        photoObjectKey?: string | undefined;
     }, {
         gender: "female" | "male";
         phoneE164: string;
         role: "owner" | "managing_director" | "ceo" | "chairman";
         email?: string | undefined;
+        photoObjectKey?: string | undefined;
     }>;
     /** The number the membership fee is charged to; a card holder pays nothing now and sends none. */
     payerPhoneE164: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
+    /** Answers to the questions PSF added (2026-11-06), by their key. */
+    extras: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodUnion<[z.ZodString, z.ZodNumber, z.ZodBoolean]>>>;
     consent: z.ZodLiteral<true>;
 }, "strip", z.ZodTypeAny, {
     business: {
@@ -879,7 +891,6 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         associationCode: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
-        businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
         legalName: string;
@@ -900,6 +911,7 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
+        businessActivity?: string | undefined;
         tradeGoods?: string | undefined;
         tin?: string | undefined;
         registrationNumber?: string | undefined;
@@ -917,7 +929,9 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         phoneE164: string;
         role: "owner" | "managing_director" | "ceo" | "chairman";
         email?: string | undefined;
+        photoObjectKey?: string | undefined;
     };
+    extras: Record<string, string | number | boolean>;
     checkToken: string;
     payerPhoneE164?: string | undefined;
 }, {
@@ -933,7 +947,6 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         associationCode: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
-        businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         legalName: string;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
@@ -942,6 +955,7 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
+        businessActivity?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
         tin?: string | undefined;
@@ -971,8 +985,10 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         phoneE164: string;
         role: "owner" | "managing_director" | "ceo" | "chairman";
         email?: string | undefined;
+        photoObjectKey?: string | undefined;
     };
     checkToken: string;
+    extras?: Record<string, string | number | boolean> | undefined;
     payerPhoneE164?: string | undefined;
 }>, {
     business: {
@@ -987,7 +1003,6 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         associationCode: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
-        businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         tradeCountries: string[];
         legalName: string;
@@ -1008,6 +1023,7 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
+        businessActivity?: string | undefined;
         tradeGoods?: string | undefined;
         tin?: string | undefined;
         registrationNumber?: string | undefined;
@@ -1025,7 +1041,9 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         phoneE164: string;
         role: "owner" | "managing_director" | "ceo" | "chairman";
         email?: string | undefined;
+        photoObjectKey?: string | undefined;
     };
+    extras: Record<string, string | number | boolean>;
     checkToken: string;
     payerPhoneE164?: string | undefined;
 }, {
@@ -1041,7 +1059,6 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         associationCode: string;
         companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
         ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
-        businessActivity: string;
         tradeDirection: "none" | "export" | "import" | "both";
         legalName: string;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb";
@@ -1050,6 +1067,7 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         subsectorOther?: string | undefined;
         website?: string | undefined;
         ownershipOther?: string | undefined;
+        businessActivity?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
         tin?: string | undefined;
@@ -1079,8 +1097,10 @@ export declare const PsfPublicSubmitRequest: z.ZodEffects<z.ZodObject<{
         phoneE164: string;
         role: "owner" | "managing_director" | "ceo" | "chairman";
         email?: string | undefined;
+        photoObjectKey?: string | undefined;
     };
     checkToken: string;
+    extras?: Record<string, string | number | boolean> | undefined;
     payerPhoneE164?: string | undefined;
 }>;
 export type PsfPublicSubmitRequest = z.infer<typeof PsfPublicSubmitRequest>;
@@ -1151,7 +1171,7 @@ export type PsfPublicSubmitResult = z.infer<typeof PsfPublicSubmitResult>;
  *   declined       PSF declined it
  *   withdrawn      withdrawn (by PSF, on the business's request)
  */
-export declare const PsfTrackStage: z.ZodEnum<["fee_due", "under_review", "approved", "member", "lapsed", "declined", "withdrawn"]>;
+export declare const PsfTrackStage: z.ZodEnum<["fee_due", "under_review", "sent_back", "approved", "member", "lapsed", "declined", "withdrawn"]>;
 export type PsfTrackStage = z.infer<typeof PsfTrackStage>;
 export declare const PSF_TRACK_STAGE_LABEL: Readonly<Record<PsfTrackStage, string>>;
 export declare const PsfTrackEventKind: z.ZodEnum<["submitted", "fee_paid", "code_issued", "in_review", "approved", "declined", "paid", "expired", "renewed", "withdrawn"]>;
@@ -1199,7 +1219,7 @@ export declare const PsfPaymentLine: z.ZodObject<{
     at: string | null;
 }>;
 export type PsfPaymentLine = z.infer<typeof PsfPaymentLine>;
-/** The two district posts: a Province Manager fills the first, a District Manager the second. */
+/** The two district posts: a Regional Manager fills the first, a District Manager the second. */
 export declare const PsfTeamRole: z.ZodEnum<["district_manager", "business_officer"]>;
 export type PsfTeamRole = z.infer<typeof PsfTeamRole>;
 export declare const PSF_TEAM_ROLE_LABEL: Readonly<Record<PsfTeamRole, string>>;
@@ -1242,7 +1262,7 @@ export declare const PsfTeamMember: z.ZodObject<{
 export type PsfTeamMember = z.infer<typeof PsfTeamMember>;
 /** `GET /oversight/psf/team`: the people in the caller's districts, and where the caller may appoint. */
 export declare const PsfTeamView: z.ZodObject<{
-    /** May appoint and end: a Province or National Manager (District Managers), a District Manager (BDEs). */
+    /** May appoint and end: a Regional or National Manager (District Managers), a District Manager (BDEs). */
     canAppoint: z.ZodBoolean;
     /** The posts the caller fills (2026-11-02). */
     appointRoles: z.ZodDefault<z.ZodArray<z.ZodEnum<["district_manager", "business_officer"]>, "many">>;
@@ -1436,6 +1456,9 @@ export declare const PsfRenewalState: z.ZodObject<{
         tierCode?: string | undefined;
         phoneMasked?: string | null | undefined;
     }>>;
+    /** What the renewal's price depends on beyond the band (2026-11-05): its kind, and its admitted branches. */
+    subsectorId: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    branchDistrictIds: z.ZodDefault<z.ZodArray<z.ZodNumber, "many">>;
 }, "strip", z.ZodTypeAny, {
     pending: {
         amountRwf: number;
@@ -1444,11 +1467,13 @@ export declare const PsfRenewalState: z.ZodObject<{
         phoneMasked: string | null;
     } | null;
     expiresOn: string;
+    subsectorId: string | null;
     reason: string | null;
     tierCode: string | null;
     startsOn: string;
     open: boolean;
     opensOn: string;
+    branchDistrictIds: number[];
 }, {
     pending: {
         amountRwf: number;
@@ -1462,6 +1487,8 @@ export declare const PsfRenewalState: z.ZodObject<{
     startsOn: string;
     open: boolean;
     opensOn: string;
+    subsectorId?: string | null | undefined;
+    branchDistrictIds?: number[] | undefined;
 }>;
 export type PsfRenewalState = z.infer<typeof PsfRenewalState>;
 /** One paid renewal, for the tracking page and the officer. */
@@ -1495,7 +1522,39 @@ export declare const PsfTrackView: z.ZodObject<{
     docId: z.ZodString;
     /** A card holder joining the new module (2026-11-02): nothing to pay, PSF confirms its card. */
     intake: z.ZodDefault<z.ZodEnum<["new", "card_holder"]>>;
-    stage: z.ZodEnum<["fee_due", "under_review", "approved", "member", "lapsed", "declined", "withdrawn"]>;
+    stage: z.ZodEnum<["fee_due", "under_review", "sent_back", "approved", "member", "lapsed", "declined", "withdrawn"]>;
+    /** Sent back to fix (2026-11-05): what PSF asked, and what the business can correct. */
+    sentBack: z.ZodDefault<z.ZodNullable<z.ZodObject<{
+        note: z.ZodString;
+        at: z.ZodString;
+        legalName: z.ZodString;
+        streetAddress: z.ZodString;
+        website: z.ZodNullable<z.ZodString>;
+        companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
+        ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+        ownershipOther: z.ZodNullable<z.ZodString>;
+        businessActivity: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        streetAddress: string;
+        website: string | null;
+        companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownershipOther: string | null;
+        businessActivity: string;
+        legalName: string;
+        note: string;
+        at: string;
+    }, {
+        streetAddress: string;
+        website: string | null;
+        companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownershipOther: string | null;
+        businessActivity: string;
+        legalName: string;
+        note: string;
+        at: string;
+    }>>>;
     submittedAt: z.ZodString;
     /** Whole days the application has waited on PSF; null when not under review. */
     waitingDays: z.ZodNullable<z.ZodNumber>;
@@ -1571,20 +1630,20 @@ export declare const PsfTrackView: z.ZodObject<{
         logoUrl?: string | null | undefined;
     }>;
     request: z.ZodObject<{
-        family: z.ZodEnum<["golden_circle", "indashyikirwa", "indatwa", "ordinary", "junior_giants"]>;
+        family: z.ZodString;
         familyName: z.ZodString;
         tierName: z.ZodString;
         declaredFeeRwf: z.ZodNullable<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         declaredFeeRwf: number | null;
-        family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
-        tierName: string;
+        family: string;
         familyName: string;
+        tierName: string;
     }, {
         declaredFeeRwf: number | null;
-        family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
-        tierName: string;
+        family: string;
         familyName: string;
+        tierName: string;
     }>;
     /** Who reviews it: "PSF Kicukiro district office". */
     reviewingOffice: z.ZodString;
@@ -1621,32 +1680,43 @@ export declare const PsfTrackView: z.ZodObject<{
         number: z.ZodString;
         tierName: z.ZodString;
         tierCode: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-        family: z.ZodNullable<z.ZodEnum<["golden_circle", "indashyikirwa", "indatwa", "ordinary", "junior_giants"]>>;
+        family: z.ZodNullable<z.ZodString>;
+        familyName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         feeRwf: z.ZodNullable<z.ZodNumber>;
         startsOn: z.ZodNullable<z.ZodString>;
         expiresOn: z.ZodNullable<z.ZodString>;
         paidAt: z.ZodNullable<z.ZodString>;
         reference: z.ZodNullable<z.ZodString>;
+        /** What the band's ribbon says, like Bronze (2026-11-06). */
+        badge: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        /** Whether the owner's photo can be shown, from `/psf/card/photo` (2026-11-06). */
+        hasPhoto: z.ZodDefault<z.ZodBoolean>;
     }, "strip", z.ZodTypeAny, {
         number: string;
         reference: string | null;
         expiresOn: string | null;
-        family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants" | null;
+        family: string | null;
+        familyName: string | null;
         tierCode: string | null;
         tierName: string;
         startsOn: string | null;
         paidAt: string | null;
         feeRwf: number | null;
+        hasPhoto: boolean;
+        badge: string | null;
     }, {
         number: string;
         reference: string | null;
         expiresOn: string | null;
-        family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants" | null;
+        family: string | null;
         tierName: string;
         startsOn: string | null;
         paidAt: string | null;
         feeRwf: number | null;
+        familyName?: string | null | undefined;
         tierCode?: string | null | undefined;
+        hasPhoto?: boolean | undefined;
+        badge?: string | null | undefined;
     }>>;
     contact: z.ZodObject<{
         name: z.ZodString;
@@ -1730,6 +1800,9 @@ export declare const PsfTrackView: z.ZodObject<{
             tierCode?: string | undefined;
             phoneMasked?: string | null | undefined;
         }>>;
+        /** What the renewal's price depends on beyond the band (2026-11-05): its kind, and its admitted branches. */
+        subsectorId: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        branchDistrictIds: z.ZodDefault<z.ZodArray<z.ZodNumber, "many">>;
     }, "strip", z.ZodTypeAny, {
         pending: {
             amountRwf: number;
@@ -1738,11 +1811,13 @@ export declare const PsfTrackView: z.ZodObject<{
             phoneMasked: string | null;
         } | null;
         expiresOn: string;
+        subsectorId: string | null;
         reason: string | null;
         tierCode: string | null;
         startsOn: string;
         open: boolean;
         opensOn: string;
+        branchDistrictIds: number[];
     }, {
         pending: {
             amountRwf: number;
@@ -1756,6 +1831,8 @@ export declare const PsfTrackView: z.ZodObject<{
         startsOn: string;
         open: boolean;
         opensOn: string;
+        subsectorId?: string | null | undefined;
+        branchDistrictIds?: number[] | undefined;
     }>>>;
     /** Every paid renewal, newest first. */
     renewals: z.ZodDefault<z.ZodArray<z.ZodObject<{
@@ -1804,18 +1881,21 @@ export declare const PsfTrackView: z.ZodObject<{
         provinceName: string | null;
         logoUrl: string | null;
     };
-    stage: "approved" | "declined" | "member" | "withdrawn" | "lapsed" | "fee_due" | "under_review";
+    stage: "approved" | "declined" | "member" | "withdrawn" | "sent_back" | "lapsed" | "fee_due" | "under_review";
     submittedAt: string;
     membership: {
         number: string;
         reference: string | null;
         expiresOn: string | null;
-        family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants" | null;
+        family: string | null;
+        familyName: string | null;
         tierCode: string | null;
         tierName: string;
         startsOn: string | null;
         paidAt: string | null;
         feeRwf: number | null;
+        hasPhoto: boolean;
+        badge: string | null;
     } | null;
     decline: {
         decidedAt: string;
@@ -1834,11 +1914,13 @@ export declare const PsfTrackView: z.ZodObject<{
             phoneMasked: string | null;
         } | null;
         expiresOn: string;
+        subsectorId: string | null;
         reason: string | null;
         tierCode: string | null;
         startsOn: string;
         open: boolean;
         opensOn: string;
+        branchDistrictIds: number[];
     } | null;
     contact: {
         name: string;
@@ -1863,11 +1945,22 @@ export declare const PsfTrackView: z.ZodObject<{
         feeRwf: number;
         approvedAt: string;
     } | null;
+    sentBack: {
+        streetAddress: string;
+        website: string | null;
+        companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownershipOther: string | null;
+        businessActivity: string;
+        legalName: string;
+        note: string;
+        at: string;
+    } | null;
     request: {
         declaredFeeRwf: number | null;
-        family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
-        tierName: string;
+        family: string;
         familyName: string;
+        tierName: string;
     };
     reviewingOffice: string;
     dueRwf: number | null;
@@ -1901,18 +1994,21 @@ export declare const PsfTrackView: z.ZodObject<{
         }[] | undefined;
         logoUrl?: string | null | undefined;
     };
-    stage: "approved" | "declined" | "member" | "withdrawn" | "lapsed" | "fee_due" | "under_review";
+    stage: "approved" | "declined" | "member" | "withdrawn" | "sent_back" | "lapsed" | "fee_due" | "under_review";
     submittedAt: string;
     membership: {
         number: string;
         reference: string | null;
         expiresOn: string | null;
-        family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants" | null;
+        family: string | null;
         tierName: string;
         startsOn: string | null;
         paidAt: string | null;
         feeRwf: number | null;
+        familyName?: string | null | undefined;
         tierCode?: string | null | undefined;
+        hasPhoto?: boolean | undefined;
+        badge?: string | null | undefined;
     } | null;
     decline: {
         decidedAt: string;
@@ -1947,9 +2043,9 @@ export declare const PsfTrackView: z.ZodObject<{
     } | null;
     request: {
         declaredFeeRwf: number | null;
-        family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
-        tierName: string;
+        family: string;
         familyName: string;
+        tierName: string;
     };
     reviewingOffice: string;
     dueRwf: number | null;
@@ -1967,6 +2063,19 @@ export declare const PsfTrackView: z.ZodObject<{
         startsOn: string;
         open: boolean;
         opensOn: string;
+        subsectorId?: string | null | undefined;
+        branchDistrictIds?: number[] | undefined;
+    } | null | undefined;
+    sentBack?: {
+        streetAddress: string;
+        website: string | null;
+        companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
+        ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
+        ownershipOther: string | null;
+        businessActivity: string;
+        legalName: string;
+        note: string;
+        at: string;
     } | null | undefined;
     renewals?: {
         reference: string | null;
@@ -1994,14 +2103,21 @@ export declare const PsfRenewRequest: z.ZodObject<{
     declaredFeeRwf: z.ZodNumber;
     /** Absent to check the prompt already waiting for this band and amount: it goes to the same phone. */
     phoneE164: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
+    /**
+     * An upgrade (2026-11-05), any time: only a higher band, its full price, and a new year starting that
+     * day under the same number. What was left of the old year is not refunded.
+     */
+    upgrade: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     declaredFeeRwf: number;
     tierCode: string;
     phoneE164?: string | undefined;
+    upgrade?: boolean | undefined;
 }, {
     declaredFeeRwf: number;
     tierCode: string;
     phoneE164?: string | undefined;
+    upgrade?: boolean | undefined;
 }>;
 export type PsfRenewRequest = z.infer<typeof PsfRenewRequest>;
 export declare const PsfTrackPayResult: z.ZodObject<{
@@ -2011,7 +2127,39 @@ export declare const PsfTrackPayResult: z.ZodObject<{
         docId: z.ZodString;
         /** A card holder joining the new module (2026-11-02): nothing to pay, PSF confirms its card. */
         intake: z.ZodDefault<z.ZodEnum<["new", "card_holder"]>>;
-        stage: z.ZodEnum<["fee_due", "under_review", "approved", "member", "lapsed", "declined", "withdrawn"]>;
+        stage: z.ZodEnum<["fee_due", "under_review", "sent_back", "approved", "member", "lapsed", "declined", "withdrawn"]>;
+        /** Sent back to fix (2026-11-05): what PSF asked, and what the business can correct. */
+        sentBack: z.ZodDefault<z.ZodNullable<z.ZodObject<{
+            note: z.ZodString;
+            at: z.ZodString;
+            legalName: z.ZodString;
+            streetAddress: z.ZodString;
+            website: z.ZodNullable<z.ZodString>;
+            companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
+            ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+            ownershipOther: z.ZodNullable<z.ZodString>;
+            businessActivity: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            streetAddress: string;
+            website: string | null;
+            companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownershipOther: string | null;
+            businessActivity: string;
+            legalName: string;
+            note: string;
+            at: string;
+        }, {
+            streetAddress: string;
+            website: string | null;
+            companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownershipOther: string | null;
+            businessActivity: string;
+            legalName: string;
+            note: string;
+            at: string;
+        }>>>;
         submittedAt: z.ZodString;
         /** Whole days the application has waited on PSF; null when not under review. */
         waitingDays: z.ZodNullable<z.ZodNumber>;
@@ -2087,20 +2235,20 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             logoUrl?: string | null | undefined;
         }>;
         request: z.ZodObject<{
-            family: z.ZodEnum<["golden_circle", "indashyikirwa", "indatwa", "ordinary", "junior_giants"]>;
+            family: z.ZodString;
             familyName: z.ZodString;
             tierName: z.ZodString;
             declaredFeeRwf: z.ZodNullable<z.ZodNumber>;
         }, "strip", z.ZodTypeAny, {
             declaredFeeRwf: number | null;
-            family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
-            tierName: string;
+            family: string;
             familyName: string;
+            tierName: string;
         }, {
             declaredFeeRwf: number | null;
-            family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
-            tierName: string;
+            family: string;
             familyName: string;
+            tierName: string;
         }>;
         /** Who reviews it: "PSF Kicukiro district office". */
         reviewingOffice: z.ZodString;
@@ -2137,32 +2285,43 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             number: z.ZodString;
             tierName: z.ZodString;
             tierCode: z.ZodDefault<z.ZodNullable<z.ZodString>>;
-            family: z.ZodNullable<z.ZodEnum<["golden_circle", "indashyikirwa", "indatwa", "ordinary", "junior_giants"]>>;
+            family: z.ZodNullable<z.ZodString>;
+            familyName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             feeRwf: z.ZodNullable<z.ZodNumber>;
             startsOn: z.ZodNullable<z.ZodString>;
             expiresOn: z.ZodNullable<z.ZodString>;
             paidAt: z.ZodNullable<z.ZodString>;
             reference: z.ZodNullable<z.ZodString>;
+            /** What the band's ribbon says, like Bronze (2026-11-06). */
+            badge: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+            /** Whether the owner's photo can be shown, from `/psf/card/photo` (2026-11-06). */
+            hasPhoto: z.ZodDefault<z.ZodBoolean>;
         }, "strip", z.ZodTypeAny, {
             number: string;
             reference: string | null;
             expiresOn: string | null;
-            family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants" | null;
+            family: string | null;
+            familyName: string | null;
             tierCode: string | null;
             tierName: string;
             startsOn: string | null;
             paidAt: string | null;
             feeRwf: number | null;
+            hasPhoto: boolean;
+            badge: string | null;
         }, {
             number: string;
             reference: string | null;
             expiresOn: string | null;
-            family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants" | null;
+            family: string | null;
             tierName: string;
             startsOn: string | null;
             paidAt: string | null;
             feeRwf: number | null;
+            familyName?: string | null | undefined;
             tierCode?: string | null | undefined;
+            hasPhoto?: boolean | undefined;
+            badge?: string | null | undefined;
         }>>;
         contact: z.ZodObject<{
             name: z.ZodString;
@@ -2246,6 +2405,9 @@ export declare const PsfTrackPayResult: z.ZodObject<{
                 tierCode?: string | undefined;
                 phoneMasked?: string | null | undefined;
             }>>;
+            /** What the renewal's price depends on beyond the band (2026-11-05): its kind, and its admitted branches. */
+            subsectorId: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+            branchDistrictIds: z.ZodDefault<z.ZodArray<z.ZodNumber, "many">>;
         }, "strip", z.ZodTypeAny, {
             pending: {
                 amountRwf: number;
@@ -2254,11 +2416,13 @@ export declare const PsfTrackPayResult: z.ZodObject<{
                 phoneMasked: string | null;
             } | null;
             expiresOn: string;
+            subsectorId: string | null;
             reason: string | null;
             tierCode: string | null;
             startsOn: string;
             open: boolean;
             opensOn: string;
+            branchDistrictIds: number[];
         }, {
             pending: {
                 amountRwf: number;
@@ -2272,6 +2436,8 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             startsOn: string;
             open: boolean;
             opensOn: string;
+            subsectorId?: string | null | undefined;
+            branchDistrictIds?: number[] | undefined;
         }>>>;
         /** Every paid renewal, newest first. */
         renewals: z.ZodDefault<z.ZodArray<z.ZodObject<{
@@ -2320,18 +2486,21 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             provinceName: string | null;
             logoUrl: string | null;
         };
-        stage: "approved" | "declined" | "member" | "withdrawn" | "lapsed" | "fee_due" | "under_review";
+        stage: "approved" | "declined" | "member" | "withdrawn" | "sent_back" | "lapsed" | "fee_due" | "under_review";
         submittedAt: string;
         membership: {
             number: string;
             reference: string | null;
             expiresOn: string | null;
-            family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants" | null;
+            family: string | null;
+            familyName: string | null;
             tierCode: string | null;
             tierName: string;
             startsOn: string | null;
             paidAt: string | null;
             feeRwf: number | null;
+            hasPhoto: boolean;
+            badge: string | null;
         } | null;
         decline: {
             decidedAt: string;
@@ -2350,11 +2519,13 @@ export declare const PsfTrackPayResult: z.ZodObject<{
                 phoneMasked: string | null;
             } | null;
             expiresOn: string;
+            subsectorId: string | null;
             reason: string | null;
             tierCode: string | null;
             startsOn: string;
             open: boolean;
             opensOn: string;
+            branchDistrictIds: number[];
         } | null;
         contact: {
             name: string;
@@ -2379,11 +2550,22 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             feeRwf: number;
             approvedAt: string;
         } | null;
+        sentBack: {
+            streetAddress: string;
+            website: string | null;
+            companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownershipOther: string | null;
+            businessActivity: string;
+            legalName: string;
+            note: string;
+            at: string;
+        } | null;
         request: {
             declaredFeeRwf: number | null;
-            family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
-            tierName: string;
+            family: string;
             familyName: string;
+            tierName: string;
         };
         reviewingOffice: string;
         dueRwf: number | null;
@@ -2417,18 +2599,21 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             }[] | undefined;
             logoUrl?: string | null | undefined;
         };
-        stage: "approved" | "declined" | "member" | "withdrawn" | "lapsed" | "fee_due" | "under_review";
+        stage: "approved" | "declined" | "member" | "withdrawn" | "sent_back" | "lapsed" | "fee_due" | "under_review";
         submittedAt: string;
         membership: {
             number: string;
             reference: string | null;
             expiresOn: string | null;
-            family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants" | null;
+            family: string | null;
             tierName: string;
             startsOn: string | null;
             paidAt: string | null;
             feeRwf: number | null;
+            familyName?: string | null | undefined;
             tierCode?: string | null | undefined;
+            hasPhoto?: boolean | undefined;
+            badge?: string | null | undefined;
         } | null;
         decline: {
             decidedAt: string;
@@ -2463,9 +2648,9 @@ export declare const PsfTrackPayResult: z.ZodObject<{
         } | null;
         request: {
             declaredFeeRwf: number | null;
-            family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
-            tierName: string;
+            family: string;
             familyName: string;
+            tierName: string;
         };
         reviewingOffice: string;
         dueRwf: number | null;
@@ -2483,6 +2668,19 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             startsOn: string;
             open: boolean;
             opensOn: string;
+            subsectorId?: string | null | undefined;
+            branchDistrictIds?: number[] | undefined;
+        } | null | undefined;
+        sentBack?: {
+            streetAddress: string;
+            website: string | null;
+            companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownershipOther: string | null;
+            businessActivity: string;
+            legalName: string;
+            note: string;
+            at: string;
         } | null | undefined;
         renewals?: {
             reference: string | null;
@@ -2518,18 +2716,21 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             provinceName: string | null;
             logoUrl: string | null;
         };
-        stage: "approved" | "declined" | "member" | "withdrawn" | "lapsed" | "fee_due" | "under_review";
+        stage: "approved" | "declined" | "member" | "withdrawn" | "sent_back" | "lapsed" | "fee_due" | "under_review";
         submittedAt: string;
         membership: {
             number: string;
             reference: string | null;
             expiresOn: string | null;
-            family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants" | null;
+            family: string | null;
+            familyName: string | null;
             tierCode: string | null;
             tierName: string;
             startsOn: string | null;
             paidAt: string | null;
             feeRwf: number | null;
+            hasPhoto: boolean;
+            badge: string | null;
         } | null;
         decline: {
             decidedAt: string;
@@ -2548,11 +2749,13 @@ export declare const PsfTrackPayResult: z.ZodObject<{
                 phoneMasked: string | null;
             } | null;
             expiresOn: string;
+            subsectorId: string | null;
             reason: string | null;
             tierCode: string | null;
             startsOn: string;
             open: boolean;
             opensOn: string;
+            branchDistrictIds: number[];
         } | null;
         contact: {
             name: string;
@@ -2577,11 +2780,22 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             feeRwf: number;
             approvedAt: string;
         } | null;
+        sentBack: {
+            streetAddress: string;
+            website: string | null;
+            companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownershipOther: string | null;
+            businessActivity: string;
+            legalName: string;
+            note: string;
+            at: string;
+        } | null;
         request: {
             declaredFeeRwf: number | null;
-            family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
-            tierName: string;
+            family: string;
             familyName: string;
+            tierName: string;
         };
         reviewingOffice: string;
         dueRwf: number | null;
@@ -2619,18 +2833,21 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             }[] | undefined;
             logoUrl?: string | null | undefined;
         };
-        stage: "approved" | "declined" | "member" | "withdrawn" | "lapsed" | "fee_due" | "under_review";
+        stage: "approved" | "declined" | "member" | "withdrawn" | "sent_back" | "lapsed" | "fee_due" | "under_review";
         submittedAt: string;
         membership: {
             number: string;
             reference: string | null;
             expiresOn: string | null;
-            family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants" | null;
+            family: string | null;
             tierName: string;
             startsOn: string | null;
             paidAt: string | null;
             feeRwf: number | null;
+            familyName?: string | null | undefined;
             tierCode?: string | null | undefined;
+            hasPhoto?: boolean | undefined;
+            badge?: string | null | undefined;
         } | null;
         decline: {
             decidedAt: string;
@@ -2665,9 +2882,9 @@ export declare const PsfTrackPayResult: z.ZodObject<{
         } | null;
         request: {
             declaredFeeRwf: number | null;
-            family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
-            tierName: string;
+            family: string;
             familyName: string;
+            tierName: string;
         };
         reviewingOffice: string;
         dueRwf: number | null;
@@ -2685,6 +2902,19 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             startsOn: string;
             open: boolean;
             opensOn: string;
+            subsectorId?: string | null | undefined;
+            branchDistrictIds?: number[] | undefined;
+        } | null | undefined;
+        sentBack?: {
+            streetAddress: string;
+            website: string | null;
+            companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
+            ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
+            ownershipOther: string | null;
+            businessActivity: string;
+            legalName: string;
+            note: string;
+            at: string;
         } | null | undefined;
         renewals?: {
             reference: string | null;
@@ -2827,12 +3057,103 @@ export declare const PsfReportMonth: z.ZodObject<{
     applied: z.ZodNumber;
     approved: z.ZodNumber;
     members: z.ZodNumber;
+    /** Everything paid that month: new memberships, renewals and upgrades. */
     feesRwf: z.ZodNumber;
+    fees: z.ZodDefault<z.ZodObject<{
+        application: z.ZodObject<{
+            totalRwf: z.ZodNumber;
+            districtRwf: z.ZodNumber;
+            headquartersRwf: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }, {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }>;
+        renewal: z.ZodObject<{
+            totalRwf: z.ZodNumber;
+            districtRwf: z.ZodNumber;
+            headquartersRwf: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }, {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }>;
+        upgrade: z.ZodObject<{
+            totalRwf: z.ZodNumber;
+            districtRwf: z.ZodNumber;
+            headquartersRwf: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }, {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }>;
+    }, "strip", z.ZodTypeAny, {
+        renewal: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+        upgrade: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+        application: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+    }, {
+        renewal: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+        upgrade: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+        application: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+    }>>;
 }, "strip", z.ZodTypeAny, {
     approved: number;
     applied: number;
     members: number;
     month: string;
+    fees: {
+        renewal: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+        upgrade: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+        application: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+    };
     registered: number;
     feesRwf: number;
 }, {
@@ -2842,6 +3163,23 @@ export declare const PsfReportMonth: z.ZodObject<{
     month: string;
     registered: number;
     feesRwf: number;
+    fees?: {
+        renewal: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+        upgrade: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+        application: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+    } | undefined;
 }>;
 export type PsfReportMonth = z.infer<typeof PsfReportMonth>;
 export declare const PsfReportSlice: z.ZodObject<{
@@ -2849,16 +3187,22 @@ export declare const PsfReportSlice: z.ZodObject<{
     label: z.ZodString;
     count: z.ZodNumber;
     amountRwf: z.ZodNumber;
+    districtRwf: z.ZodDefault<z.ZodNumber>;
+    headquartersRwf: z.ZodDefault<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     count: number;
     amountRwf: number;
-    key: string;
     label: string;
+    key: string;
+    districtRwf: number;
+    headquartersRwf: number;
 }, {
     count: number;
     amountRwf: number;
-    key: string;
     label: string;
+    key: string;
+    districtRwf?: number | undefined;
+    headquartersRwf?: number | undefined;
 }>;
 export type PsfReportSlice = z.infer<typeof PsfReportSlice>;
 export declare const PsfDistrictRow: z.ZodObject<{
@@ -2873,6 +3217,79 @@ export declare const PsfDistrictRow: z.ZodObject<{
     declined: z.ZodNumber;
     members: z.ZodNumber;
     membershipFeesRwf: z.ZodNumber;
+    fees: z.ZodDefault<z.ZodObject<{
+        application: z.ZodObject<{
+            totalRwf: z.ZodNumber;
+            districtRwf: z.ZodNumber;
+            headquartersRwf: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }, {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }>;
+        renewal: z.ZodObject<{
+            totalRwf: z.ZodNumber;
+            districtRwf: z.ZodNumber;
+            headquartersRwf: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }, {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }>;
+        upgrade: z.ZodObject<{
+            totalRwf: z.ZodNumber;
+            districtRwf: z.ZodNumber;
+            headquartersRwf: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }, {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }>;
+    }, "strip", z.ZodTypeAny, {
+        renewal: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+        upgrade: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+        application: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+    }, {
+        renewal: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+        upgrade: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+        application: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+    }>>;
     medianDecisionDays: z.ZodNullable<z.ZodNumber>;
     officers: z.ZodArray<z.ZodString, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -2885,6 +3302,23 @@ export declare const PsfDistrictRow: z.ZodObject<{
     waiting: number;
     letters: string;
     overdue: number;
+    fees: {
+        renewal: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+        upgrade: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+        application: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+    };
     registered: number;
     membershipFeesRwf: number;
     medianDecisionDays: number | null;
@@ -2903,6 +3337,23 @@ export declare const PsfDistrictRow: z.ZodObject<{
     membershipFeesRwf: number;
     medianDecisionDays: number | null;
     officers: string[];
+    fees?: {
+        renewal: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+        upgrade: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+        application: {
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        };
+    } | undefined;
 }>;
 export type PsfDistrictRow = z.infer<typeof PsfDistrictRow>;
 /** `GET /oversight/psf/report`: the officer's region over a period. */
@@ -2982,6 +3433,16 @@ export declare const PsfReport: z.ZodObject<{
             value: number;
             previous: number;
         }>>;
+        upgraded: z.ZodDefault<z.ZodObject<{
+            value: z.ZodNumber;
+            previous: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            value: number;
+            previous: number;
+        }, {
+            value: number;
+            previous: number;
+        }>>;
         membershipFeesRwf: z.ZodObject<{
             value: z.ZodNumber;
             previous: z.ZodNumber;
@@ -3039,6 +3500,10 @@ export declare const PsfReport: z.ZodObject<{
             value: number;
             previous: number;
         };
+        upgraded: {
+            value: number;
+            previous: number;
+        };
     }, {
         approved: {
             value: number;
@@ -3076,7 +3541,281 @@ export declare const PsfReport: z.ZodObject<{
             value: number;
             previous: number;
         } | undefined;
+        upgraded?: {
+            value: number;
+            previous: number;
+        } | undefined;
     }>;
+    /** What came in over the period and the one before, by what it was paid for (2026-11-06). */
+    fees: z.ZodDefault<z.ZodObject<{
+        current: z.ZodObject<{
+            application: z.ZodObject<{
+                totalRwf: z.ZodNumber;
+                districtRwf: z.ZodNumber;
+                headquartersRwf: z.ZodNumber;
+            }, "strip", z.ZodTypeAny, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }>;
+            renewal: z.ZodObject<{
+                totalRwf: z.ZodNumber;
+                districtRwf: z.ZodNumber;
+                headquartersRwf: z.ZodNumber;
+            }, "strip", z.ZodTypeAny, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }>;
+            upgrade: z.ZodObject<{
+                totalRwf: z.ZodNumber;
+                districtRwf: z.ZodNumber;
+                headquartersRwf: z.ZodNumber;
+            }, "strip", z.ZodTypeAny, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }>;
+        }, "strip", z.ZodTypeAny, {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        }, {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        }>;
+        previous: z.ZodObject<{
+            application: z.ZodObject<{
+                totalRwf: z.ZodNumber;
+                districtRwf: z.ZodNumber;
+                headquartersRwf: z.ZodNumber;
+            }, "strip", z.ZodTypeAny, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }>;
+            renewal: z.ZodObject<{
+                totalRwf: z.ZodNumber;
+                districtRwf: z.ZodNumber;
+                headquartersRwf: z.ZodNumber;
+            }, "strip", z.ZodTypeAny, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }>;
+            upgrade: z.ZodObject<{
+                totalRwf: z.ZodNumber;
+                districtRwf: z.ZodNumber;
+                headquartersRwf: z.ZodNumber;
+            }, "strip", z.ZodTypeAny, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }>;
+        }, "strip", z.ZodTypeAny, {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        }, {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        }>;
+        ourShare: z.ZodEnum<["headquarters", "district"]>;
+    }, "strip", z.ZodTypeAny, {
+        current: {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        };
+        ourShare: "district" | "headquarters";
+        previous: {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        };
+    }, {
+        current: {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        };
+        ourShare: "district" | "headquarters";
+        previous: {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        };
+    }>>;
+    /**
+     * Who the period's fees are for (2026-11-05): 60% the district, 40% headquarters. A record: the money
+     * goes to PSF's one account.
+     */
+    split: z.ZodDefault<z.ZodObject<{
+        totalRwf: z.ZodNumber;
+        districtRwf: z.ZodNumber;
+        headquartersRwf: z.ZodNumber;
+        districtPercent: z.ZodDefault<z.ZodNumber>;
+        byDistrict: z.ZodArray<z.ZodObject<{
+            districtName: z.ZodString;
+            totalRwf: z.ZodNumber;
+            districtRwf: z.ZodNumber;
+            headquartersRwf: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            districtName: string;
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }, {
+            districtName: string;
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }>, "many">;
+    }, "strip", z.ZodTypeAny, {
+        byDistrict: {
+            districtName: string;
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }[];
+        totalRwf: number;
+        districtPercent: number;
+        districtRwf: number;
+        headquartersRwf: number;
+    }, {
+        byDistrict: {
+            districtName: string;
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }[];
+        totalRwf: number;
+        districtRwf: number;
+        headquartersRwf: number;
+        districtPercent?: number | undefined;
+    }>>;
     /** Right now, not over the period. */
     now: z.ZodObject<{
         members: z.ZodNumber;
@@ -3263,12 +4002,12 @@ export declare const PsfReport: z.ZodObject<{
             count: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
             count: number;
-            key: string;
             label: string;
+            key: string;
         }, {
             count: number;
-            key: string;
             label: string;
+            key: string;
         }>, "many">;
         /** Confirmed bookings arriving in the period. */
         bookings: z.ZodObject<{
@@ -3353,8 +4092,8 @@ export declare const PsfReport: z.ZodObject<{
         }[];
         activeBusinesses: {
             count: number;
-            key: string;
             label: string;
+            key: string;
         }[];
         guestNights: {
             value: number;
@@ -3378,8 +4117,8 @@ export declare const PsfReport: z.ZodObject<{
         };
         activeBusinesses: {
             count: number;
-            key: string;
             label: string;
+            key: string;
         }[];
         guestNights: {
             value: number;
@@ -3409,12 +4148,103 @@ export declare const PsfReport: z.ZodObject<{
         applied: z.ZodNumber;
         approved: z.ZodNumber;
         members: z.ZodNumber;
+        /** Everything paid that month: new memberships, renewals and upgrades. */
         feesRwf: z.ZodNumber;
+        fees: z.ZodDefault<z.ZodObject<{
+            application: z.ZodObject<{
+                totalRwf: z.ZodNumber;
+                districtRwf: z.ZodNumber;
+                headquartersRwf: z.ZodNumber;
+            }, "strip", z.ZodTypeAny, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }>;
+            renewal: z.ZodObject<{
+                totalRwf: z.ZodNumber;
+                districtRwf: z.ZodNumber;
+                headquartersRwf: z.ZodNumber;
+            }, "strip", z.ZodTypeAny, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }>;
+            upgrade: z.ZodObject<{
+                totalRwf: z.ZodNumber;
+                districtRwf: z.ZodNumber;
+                headquartersRwf: z.ZodNumber;
+            }, "strip", z.ZodTypeAny, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }>;
+        }, "strip", z.ZodTypeAny, {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        }, {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        }>>;
     }, "strip", z.ZodTypeAny, {
         approved: number;
         applied: number;
         members: number;
         month: string;
+        fees: {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        };
         registered: number;
         feesRwf: number;
     }, {
@@ -3424,6 +4254,23 @@ export declare const PsfReport: z.ZodObject<{
         month: string;
         registered: number;
         feesRwf: number;
+        fees?: {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        } | undefined;
     }>, "many">;
     funnel: z.ZodObject<{
         registered: z.ZodNumber;
@@ -3446,48 +4293,66 @@ export declare const PsfReport: z.ZodObject<{
         label: z.ZodString;
         count: z.ZodNumber;
         amountRwf: z.ZodNumber;
+        districtRwf: z.ZodDefault<z.ZodNumber>;
+        headquartersRwf: z.ZodDefault<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         count: number;
         amountRwf: number;
-        key: string;
         label: string;
+        key: string;
+        districtRwf: number;
+        headquartersRwf: number;
     }, {
         count: number;
         amountRwf: number;
-        key: string;
         label: string;
+        key: string;
+        districtRwf?: number | undefined;
+        headquartersRwf?: number | undefined;
     }>, "many">;
     byFamily: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
         count: z.ZodNumber;
         amountRwf: z.ZodNumber;
+        districtRwf: z.ZodDefault<z.ZodNumber>;
+        headquartersRwf: z.ZodDefault<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         count: number;
         amountRwf: number;
-        key: string;
         label: string;
+        key: string;
+        districtRwf: number;
+        headquartersRwf: number;
     }, {
         count: number;
         amountRwf: number;
-        key: string;
         label: string;
+        key: string;
+        districtRwf?: number | undefined;
+        headquartersRwf?: number | undefined;
     }>, "many">;
     byGroup: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
         count: z.ZodNumber;
         amountRwf: z.ZodNumber;
+        districtRwf: z.ZodDefault<z.ZodNumber>;
+        headquartersRwf: z.ZodDefault<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         count: number;
         amountRwf: number;
-        key: string;
         label: string;
+        key: string;
+        districtRwf: number;
+        headquartersRwf: number;
     }, {
         count: number;
         amountRwf: number;
-        key: string;
         label: string;
+        key: string;
+        districtRwf?: number | undefined;
+        headquartersRwf?: number | undefined;
     }>, "many">;
     districts: z.ZodArray<z.ZodObject<{
         districtId: z.ZodNumber;
@@ -3501,6 +4366,79 @@ export declare const PsfReport: z.ZodObject<{
         declined: z.ZodNumber;
         members: z.ZodNumber;
         membershipFeesRwf: z.ZodNumber;
+        fees: z.ZodDefault<z.ZodObject<{
+            application: z.ZodObject<{
+                totalRwf: z.ZodNumber;
+                districtRwf: z.ZodNumber;
+                headquartersRwf: z.ZodNumber;
+            }, "strip", z.ZodTypeAny, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }>;
+            renewal: z.ZodObject<{
+                totalRwf: z.ZodNumber;
+                districtRwf: z.ZodNumber;
+                headquartersRwf: z.ZodNumber;
+            }, "strip", z.ZodTypeAny, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }>;
+            upgrade: z.ZodObject<{
+                totalRwf: z.ZodNumber;
+                districtRwf: z.ZodNumber;
+                headquartersRwf: z.ZodNumber;
+            }, "strip", z.ZodTypeAny, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }, {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            }>;
+        }, "strip", z.ZodTypeAny, {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        }, {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        }>>;
         medianDecisionDays: z.ZodNullable<z.ZodNumber>;
         officers: z.ZodArray<z.ZodString, "many">;
     }, "strip", z.ZodTypeAny, {
@@ -3513,6 +4451,23 @@ export declare const PsfReport: z.ZodObject<{
         waiting: number;
         letters: string;
         overdue: number;
+        fees: {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        };
         registered: number;
         membershipFeesRwf: number;
         medianDecisionDays: number | null;
@@ -3531,14 +4486,33 @@ export declare const PsfReport: z.ZodObject<{
         membershipFeesRwf: number;
         medianDecisionDays: number | null;
         officers: string[];
+        fees?: {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        } | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     regionLabel: string;
     byGroup: {
         count: number;
         amountRwf: number;
-        key: string;
         label: string;
+        key: string;
+        districtRwf: number;
+        headquartersRwf: number;
     }[];
     kpis: {
         approved: {
@@ -3577,6 +4551,10 @@ export declare const PsfReport: z.ZodObject<{
             value: number;
             previous: number;
         };
+        upgraded: {
+            value: number;
+            previous: number;
+        };
     };
     from: string;
     to: string;
@@ -3590,16 +4568,87 @@ export declare const PsfReport: z.ZodObject<{
         waiting: number;
         letters: string;
         overdue: number;
+        fees: {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        };
         registered: number;
         membershipFeesRwf: number;
         medianDecisionDays: number | null;
         officers: string[];
     }[];
+    fees: {
+        current: {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        };
+        ourShare: "district" | "headquarters";
+        previous: {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        };
+    };
     months: {
         approved: number;
         applied: number;
         members: number;
         month: string;
+        fees: {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        };
         registered: number;
         feesRwf: number;
     }[];
@@ -3636,6 +4685,18 @@ export declare const PsfReport: z.ZodObject<{
             decidedBy: string | null;
         }[];
     };
+    split: {
+        byDistrict: {
+            districtName: string;
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }[];
+        totalRwf: number;
+        districtPercent: number;
+        districtRwf: number;
+        headquartersRwf: number;
+    };
     now: {
         lapsed: number;
         members: number;
@@ -3660,8 +4721,8 @@ export declare const PsfReport: z.ZodObject<{
         }[];
         activeBusinesses: {
             count: number;
-            key: string;
             label: string;
+            key: string;
         }[];
         guestNights: {
             value: number;
@@ -3688,22 +4749,28 @@ export declare const PsfReport: z.ZodObject<{
     bySector: {
         count: number;
         amountRwf: number;
-        key: string;
         label: string;
+        key: string;
+        districtRwf: number;
+        headquartersRwf: number;
     }[];
     byFamily: {
         count: number;
         amountRwf: number;
-        key: string;
         label: string;
+        key: string;
+        districtRwf: number;
+        headquartersRwf: number;
     }[];
 }, {
     regionLabel: string;
     byGroup: {
         count: number;
         amountRwf: number;
-        key: string;
         label: string;
+        key: string;
+        districtRwf?: number | undefined;
+        headquartersRwf?: number | undefined;
     }[];
     kpis: {
         approved: {
@@ -3742,6 +4809,10 @@ export declare const PsfReport: z.ZodObject<{
             value: number;
             previous: number;
         } | undefined;
+        upgraded?: {
+            value: number;
+            previous: number;
+        } | undefined;
     };
     from: string;
     to: string;
@@ -3759,6 +4830,23 @@ export declare const PsfReport: z.ZodObject<{
         membershipFeesRwf: number;
         medianDecisionDays: number | null;
         officers: string[];
+        fees?: {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        } | undefined;
     }[];
     months: {
         approved: number;
@@ -3767,6 +4855,23 @@ export declare const PsfReport: z.ZodObject<{
         month: string;
         registered: number;
         feesRwf: number;
+        fees?: {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        } | undefined;
     }[];
     registrations: {
         active: number;
@@ -3819,8 +4924,8 @@ export declare const PsfReport: z.ZodObject<{
         };
         activeBusinesses: {
             count: number;
-            key: string;
             label: string;
+            key: string;
         }[];
         guestNights: {
             value: number;
@@ -3853,15 +4958,68 @@ export declare const PsfReport: z.ZodObject<{
     bySector: {
         count: number;
         amountRwf: number;
-        key: string;
         label: string;
+        key: string;
+        districtRwf?: number | undefined;
+        headquartersRwf?: number | undefined;
     }[];
     byFamily: {
         count: number;
         amountRwf: number;
-        key: string;
         label: string;
+        key: string;
+        districtRwf?: number | undefined;
+        headquartersRwf?: number | undefined;
     }[];
+    fees?: {
+        current: {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        };
+        ourShare: "district" | "headquarters";
+        previous: {
+            renewal: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            upgrade: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+            application: {
+                totalRwf: number;
+                districtRwf: number;
+                headquartersRwf: number;
+            };
+        };
+    } | undefined;
+    split?: {
+        byDistrict: {
+            districtName: string;
+            totalRwf: number;
+            districtRwf: number;
+            headquartersRwf: number;
+        }[];
+        totalRwf: number;
+        districtRwf: number;
+        headquartersRwf: number;
+        districtPercent?: number | undefined;
+    } | undefined;
 }>;
 export type PsfReport = z.infer<typeof PsfReport>;
 /** Days an application may wait on PSF before it shows as overdue. */
@@ -4049,7 +5207,7 @@ export declare const PsfQueueAreaQuery: z.ZodObject<{
     cursor: z.ZodOptional<z.ZodString>;
     q: z.ZodOptional<z.ZodString>;
     cluster: z.ZodOptional<z.ZodString>;
-    family: z.ZodOptional<z.ZodEnum<["golden_circle", "indashyikirwa", "indatwa", "ordinary", "junior_giants"]>>;
+    family: z.ZodOptional<z.ZodString>;
     group: z.ZodOptional<z.ZodEnum<["women", "youth", "pwd"]>>;
     /** `newest` first by default: what just arrived is what an officer looks for. */
     sort: z.ZodDefault<z.ZodEnum<["newest", "oldest", "amount"]>>;
@@ -4058,7 +5216,7 @@ export declare const PsfQueueAreaQuery: z.ZodObject<{
     province?: number | undefined;
     district?: number | undefined;
     cursor?: string | undefined;
-    family?: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants" | undefined;
+    family?: string | undefined;
     q?: string | undefined;
     cluster?: string | undefined;
     group?: "women" | "youth" | "pwd" | undefined;
@@ -4067,7 +5225,7 @@ export declare const PsfQueueAreaQuery: z.ZodObject<{
     province?: number | undefined;
     district?: number | undefined;
     cursor?: string | undefined;
-    family?: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants" | undefined;
+    family?: string | undefined;
     q?: string | undefined;
     cluster?: string | undefined;
     group?: "women" | "youth" | "pwd" | undefined;
@@ -4241,7 +5399,7 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         registrationKind: z.ZodNullable<z.ZodEnum<["tin", "rca", "rgb", "other", "none"]>>;
         hasTin: z.ZodBoolean;
         registeredAt: z.ZodString;
-        standing: z.ZodEnum<["not_applied", "claimed", "applied", "awaiting_payment", "member", "lapsed", "declined"]>;
+        standing: z.ZodEnum<["not_applied", "claimed", "applied", "sent_back", "awaiting_payment", "member", "lapsed", "declined"]>;
         tierName: z.ZodNullable<z.ZodString>;
         membershipNumber: z.ZodNullable<z.ZodString>;
         expiresOn: z.ZodNullable<z.ZodString>;
@@ -4294,7 +5452,7 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         associationName: string | null;
         paidRwf: number;
         headOfficeInScope: boolean;
-        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed";
+        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "sent_back" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
@@ -4326,7 +5484,7 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         membershipNumber: string | null;
         clusterName: string | null;
         associationName: string | null;
-        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed";
+        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "sent_back" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
@@ -4568,7 +5726,7 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         associationName: string | null;
         paidRwf: number;
         headOfficeInScope: boolean;
-        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed";
+        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "sent_back" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
@@ -4656,7 +5814,7 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         membershipNumber: string | null;
         clusterName: string | null;
         associationName: string | null;
-        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "lapsed";
+        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "claimed" | "applied" | "sent_back" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
@@ -4998,7 +6156,8 @@ export declare function psfFeeCeilings(fees: ReadonlyArray<{
 export declare const PsfOfficerFeeRow: z.ZodObject<{
     tierCode: z.ZodString;
     tierName: z.ZodString;
-    family: z.ZodEnum<["golden_circle", "indashyikirwa", "indatwa", "ordinary", "junior_giants"]>;
+    family: z.ZodString;
+    familyName: z.ZodDefault<z.ZodString>;
     priceKind: z.ZodEnum<["fixed", "range", "minimum", "set_by_psf"]>;
     /** The band's bounds from the catalogue; a price must sit inside them. */
     bandMinRwf: z.ZodNullable<z.ZodNumber>;
@@ -5012,35 +6171,117 @@ export declare const PsfOfficerFeeRow: z.ZodObject<{
     updatedAt: z.ZodNullable<z.ZodString>;
     updatedByName: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
+    family: string;
+    familyName: string;
     priceKind: "minimum" | "fixed" | "range" | "set_by_psf";
     source: "district" | "band" | "national";
     tierCode: string;
     tierName: string;
     updatedAt: string | null;
+    districtRwf: number | null;
     bandMinRwf: number | null;
     bandMaxRwf: number | null;
     bandFeeRwf: number | null;
     nationalRwf: number | null;
-    districtRwf: number | null;
     effectiveRwf: number | null;
     updatedByName: string | null;
 }, {
-    family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
+    family: string;
     priceKind: "minimum" | "fixed" | "range" | "set_by_psf";
     source: "district" | "band" | "national";
     tierCode: string;
     tierName: string;
     updatedAt: string | null;
+    districtRwf: number | null;
     bandMinRwf: number | null;
     bandMaxRwf: number | null;
     bandFeeRwf: number | null;
     nationalRwf: number | null;
-    districtRwf: number | null;
     effectiveRwf: number | null;
     updatedByName: string | null;
+    familyName?: string | undefined;
 }>;
 export type PsfOfficerFeeRow = z.infer<typeof PsfOfficerFeeRow>;
+/** A kind of business's price in the district shown (2026-11-05); null when it has none of its own. */
+export declare const PsfOfficerServiceFee: z.ZodObject<{
+    subsectorId: z.ZodString;
+    name: z.ZodString;
+    clusterCode: z.ZodString;
+    amountRwf: z.ZodNullable<z.ZodNumber>;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    amountRwf: number | null;
+    subsectorId: string;
+    clusterCode: string;
+}, {
+    name: string;
+    amountRwf: number | null;
+    subsectorId: string;
+    clusterCode: string;
+}>;
+export type PsfOfficerServiceFee = z.infer<typeof PsfOfficerServiceFee>;
+export declare const SetPsfServiceFeeRequest: z.ZodObject<{
+    subsectorId: z.ZodString;
+    districtId: z.ZodNumber;
+    amountRwf: z.ZodNullable<z.ZodEffects<z.ZodNumber, number, number>>;
+}, "strip", z.ZodTypeAny, {
+    amountRwf: number | null;
+    districtId: number;
+    subsectorId: string;
+}, {
+    amountRwf: number | null;
+    districtId: number;
+    subsectorId: string;
+}>;
+export type SetPsfServiceFeeRequest = z.infer<typeof SetPsfServiceFeeRequest>;
+/** `GET /psf/quote` (2026-11-05): the kind's floor in the head office's district, and each branch's price. */
+export declare const PsfQuoteQuery: z.ZodObject<{
+    district: z.ZodNumber;
+    tierCode: z.ZodString;
+    subsectorId: z.ZodOptional<z.ZodString>;
+    /** The branches' districts, comma separated. */
+    branches: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    district: number;
+    tierCode: string;
+    subsectorId?: string | undefined;
+    branches?: string | undefined;
+}, {
+    district: number;
+    tierCode: string;
+    subsectorId?: string | undefined;
+    branches?: string | undefined;
+}>;
+export type PsfQuoteQuery = z.infer<typeof PsfQuoteQuery>;
+export declare const PsfQuote: z.ZodObject<{
+    floorRwf: z.ZodNullable<z.ZodNumber>;
+    branches: z.ZodArray<z.ZodObject<{
+        districtId: z.ZodNumber;
+        amountRwf: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        amountRwf: number;
+        districtId: number;
+    }, {
+        amountRwf: number;
+        districtId: number;
+    }>, "many">;
+    branchesRwf: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    branches: {
+        amountRwf: number;
+        districtId: number;
+    }[];
+    floorRwf: number | null;
+    branchesRwf: number;
+}, {
+    branches: {
+        amountRwf: number;
+        districtId: number;
+    }[];
+    floorRwf: number | null;
+    branchesRwf: number;
+}>;
+export type PsfQuote = z.infer<typeof PsfQuote>;
 export declare const PsfOfficerFeesView: z.ZodObject<{
     /** The district being priced, or null for the national prices. */
     districtId: z.ZodNullable<z.ZodNumber>;
@@ -5051,7 +6292,8 @@ export declare const PsfOfficerFeesView: z.ZodObject<{
     rows: z.ZodArray<z.ZodObject<{
         tierCode: z.ZodString;
         tierName: z.ZodString;
-        family: z.ZodEnum<["golden_circle", "indashyikirwa", "indatwa", "ordinary", "junior_giants"]>;
+        family: z.ZodString;
+        familyName: z.ZodDefault<z.ZodString>;
         priceKind: z.ZodEnum<["fixed", "range", "minimum", "set_by_psf"]>;
         /** The band's bounds from the catalogue; a price must sit inside them. */
         bandMinRwf: z.ZodNullable<z.ZodNumber>;
@@ -5065,51 +6307,77 @@ export declare const PsfOfficerFeesView: z.ZodObject<{
         updatedAt: z.ZodNullable<z.ZodString>;
         updatedByName: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
+        family: string;
+        familyName: string;
         priceKind: "minimum" | "fixed" | "range" | "set_by_psf";
         source: "district" | "band" | "national";
         tierCode: string;
         tierName: string;
         updatedAt: string | null;
+        districtRwf: number | null;
         bandMinRwf: number | null;
         bandMaxRwf: number | null;
         bandFeeRwf: number | null;
         nationalRwf: number | null;
-        districtRwf: number | null;
         effectiveRwf: number | null;
         updatedByName: string | null;
     }, {
-        family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
+        family: string;
         priceKind: "minimum" | "fixed" | "range" | "set_by_psf";
         source: "district" | "band" | "national";
         tierCode: string;
         tierName: string;
         updatedAt: string | null;
+        districtRwf: number | null;
         bandMinRwf: number | null;
         bandMaxRwf: number | null;
         bandFeeRwf: number | null;
         nationalRwf: number | null;
-        districtRwf: number | null;
         effectiveRwf: number | null;
         updatedByName: string | null;
+        familyName?: string | undefined;
     }>, "many">;
+    /** The district's prices by kind of business (2026-11-05). Empty for the national view. */
+    services: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        subsectorId: z.ZodString;
+        name: z.ZodString;
+        clusterCode: z.ZodString;
+        amountRwf: z.ZodNullable<z.ZodNumber>;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        amountRwf: number | null;
+        subsectorId: string;
+        clusterCode: string;
+    }, {
+        name: string;
+        amountRwf: number | null;
+        subsectorId: string;
+        clusterCode: string;
+    }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     districtName: string | null;
     districtId: number | null;
     rows: {
-        family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
+        family: string;
+        familyName: string;
         priceKind: "minimum" | "fixed" | "range" | "set_by_psf";
         source: "district" | "band" | "national";
         tierCode: string;
         tierName: string;
         updatedAt: string | null;
+        districtRwf: number | null;
         bandMinRwf: number | null;
         bandMaxRwf: number | null;
         bandFeeRwf: number | null;
         nationalRwf: number | null;
-        districtRwf: number | null;
         effectiveRwf: number | null;
         updatedByName: string | null;
+    }[];
+    services: {
+        name: string;
+        amountRwf: number | null;
+        subsectorId: string;
+        clusterCode: string;
     }[];
     canEditNational: boolean;
     canEditDistrict: boolean;
@@ -5117,22 +6385,29 @@ export declare const PsfOfficerFeesView: z.ZodObject<{
     districtName: string | null;
     districtId: number | null;
     rows: {
-        family: "golden_circle" | "indashyikirwa" | "indatwa" | "ordinary" | "junior_giants";
+        family: string;
         priceKind: "minimum" | "fixed" | "range" | "set_by_psf";
         source: "district" | "band" | "national";
         tierCode: string;
         tierName: string;
         updatedAt: string | null;
+        districtRwf: number | null;
         bandMinRwf: number | null;
         bandMaxRwf: number | null;
         bandFeeRwf: number | null;
         nationalRwf: number | null;
-        districtRwf: number | null;
         effectiveRwf: number | null;
         updatedByName: string | null;
+        familyName?: string | undefined;
     }[];
     canEditNational: boolean;
     canEditDistrict: boolean;
+    services?: {
+        name: string;
+        amountRwf: number | null;
+        subsectorId: string;
+        clusterCode: string;
+    }[] | undefined;
 }>;
 export type PsfOfficerFeesView = z.infer<typeof PsfOfficerFeesView>;
 /** Set a band's price for a place (`districtId` null: national), or clear it with `amountRwf: null`. */
@@ -5170,6 +6445,8 @@ export declare const PsfMemberCard: z.ZodObject<{
         membershipNumber: z.ZodString;
         startsOn: z.ZodNullable<z.ZodString>;
         expiresOn: z.ZodNullable<z.ZodString>;
+        /** Whether `GET /psf/card/photo` has the owner's photo (2026-11-05). */
+        hasPhoto: z.ZodDefault<z.ZodBoolean>;
     }, "strip", z.ZodTypeAny, {
         districtName: string | null;
         expiresOn: string | null;
@@ -5178,6 +6455,7 @@ export declare const PsfMemberCard: z.ZodObject<{
         membershipNumber: string;
         startsOn: string | null;
         businessName: string;
+        hasPhoto: boolean;
         levelName: string;
     }, {
         districtName: string | null;
@@ -5188,6 +6466,7 @@ export declare const PsfMemberCard: z.ZodObject<{
         startsOn: string | null;
         businessName: string;
         levelName: string;
+        hasPhoto?: boolean | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
     status: "valid" | "lapsed" | "not_found";
@@ -5199,6 +6478,7 @@ export declare const PsfMemberCard: z.ZodObject<{
         membershipNumber: string;
         startsOn: string | null;
         businessName: string;
+        hasPhoto: boolean;
         levelName: string;
     } | null;
 }, {
@@ -5212,6 +6492,7 @@ export declare const PsfMemberCard: z.ZodObject<{
         startsOn: string | null;
         businessName: string;
         levelName: string;
+        hasPhoto?: boolean | undefined;
     } | null;
 }>;
 export type PsfMemberCard = z.infer<typeof PsfMemberCard>;
@@ -5223,4 +6504,64 @@ export declare const PsfMemberCardQuery: z.ZodObject<{
     number: string;
 }>;
 export type PsfMemberCardQuery = z.infer<typeof PsfMemberCardQuery>;
+/** `POST /psf/track/:docId/resend`: the corrections, and the card again when a card holder's needs it. */
+export declare const PsfResendRequest: z.ZodEffects<z.ZodObject<{
+    legalName: z.ZodString;
+    streetAddress: z.ZodDefault<z.ZodString>;
+    website: z.ZodOptional<z.ZodString>;
+    companyType: z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>;
+    ownership: z.ZodEnum<["rwandan_100", "foreign_100", "franchise", "joint_venture", "foreign_representative", "other"]>;
+    ownershipOther: z.ZodOptional<z.ZodString>;
+    businessActivity: z.ZodDefault<z.ZodString>;
+    cardObjectKey: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    streetAddress: string;
+    companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
+    businessActivity: string;
+    legalName: string;
+    website?: string | undefined;
+    ownershipOther?: string | undefined;
+    cardObjectKey?: string | undefined;
+}, {
+    companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
+    legalName: string;
+    streetAddress?: string | undefined;
+    website?: string | undefined;
+    ownershipOther?: string | undefined;
+    businessActivity?: string | undefined;
+    cardObjectKey?: string | undefined;
+}>, {
+    streetAddress: string;
+    companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
+    businessActivity: string;
+    legalName: string;
+    website?: string | undefined;
+    ownershipOther?: string | undefined;
+    cardObjectKey?: string | undefined;
+}, {
+    companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader";
+    ownership: "other" | "rwandan_100" | "foreign_100" | "franchise" | "joint_venture" | "foreign_representative";
+    legalName: string;
+    streetAddress?: string | undefined;
+    website?: string | undefined;
+    ownershipOther?: string | undefined;
+    businessActivity?: string | undefined;
+    cardObjectKey?: string | undefined;
+}>;
+export type PsfResendRequest = z.infer<typeof PsfResendRequest>;
+/** A card holder from registration resending its card, by the signed link in PSF's email. */
+export declare const PsfClaimCardView: z.ZodObject<{
+    businessName: z.ZodString;
+    note: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    note: string;
+    businessName: string;
+}, {
+    note: string;
+    businessName: string;
+}>;
+export type PsfClaimCardView = z.infer<typeof PsfClaimCardView>;
 //# sourceMappingURL=psf-public.d.ts.map

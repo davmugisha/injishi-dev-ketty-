@@ -31,11 +31,11 @@ const appointer = alias(users, 'psf_team_appointer');
 
 /**
  * The PSF team (2026-11-02, the owner's decisions). Injishi's admin appoints
- * PSF's Province and National Managers; a Province Manager appoints its own
- * districts' District Managers, and a District Manager its own district's BDEs
- * (Business Development & Empowerment). Each ends the appointments it makes,
- * with a reason; a Province Manager may end any in its province. A National
- * Manager may do so anywhere. Every appointment records the person's ID.
+ * PSF's Regional and National Managers and, since 2026-11-05, each district's BDEs
+ * (Business Development & Empowerment); a Regional Manager appoints its own
+ * districts' District Managers. It ends those appointments and its BDEs', with a
+ * reason, and a District Manager reads its district's team. A National Manager
+ * may do so anywhere. Every appointment records the person's ID.
  *
  * Every appointment is an `oversight_assignments` row at PSF, district level,
  * with an audit event, exactly as the admin console writes one; what differs
@@ -56,7 +56,7 @@ export class PsfTeamService {
   }
 
   /**
-   * The districts a posting covers. `managers`: where a Province or National Manager appoints District
+   * The districts a posting covers. `managers`: where a Regional or National Manager appoints District
    * Managers. `district`: a District Manager's own districts, where it appoints BDEs. `read`: every PSF
    * console posting's, a BDE's included.
    */
@@ -74,18 +74,16 @@ export class PsfTeamService {
 
   /** Where the caller fills each post: District Managers from a province, BDEs from a district. */
   private async appointScopes(grants: OversightGrant[]): Promise<Record<PsfTeamRole, Scope>> {
-    const [managers, district] = await Promise.all([this.scope(grants, 'managers'), this.scope(grants, 'district')]);
-    return { district_manager: managers, business_officer: district };
+    // BDEs are Injishi's admin's to create (2026-11-05): no one appoints them from here.
+    return { district_manager: await this.scope(grants, 'managers'), business_officer: [] };
   }
 
   async view(grants: OversightGrant[]): Promise<PsfTeamView> {
-    const scopes = await this.appointScopes(grants);
-    const fills = (Object.keys(scopes) as PsfTeamRole[]).filter((r) => scopes[r] === null || scopes[r]!.length > 0);
-    // A manager's screen (2026-11-02): a BDE does not read it.
-    if (fills.length === 0) throw new ForbiddenException('The team is kept by your PSF District and Province Managers.');
-    // What the caller sees: the districts it appoints in, for either post.
-    const read = fills.some((r) => scopes[r] === null) ? null : [...new Set(fills.flatMap((r) => scopes[r] as number[]))];
-    const appoint = read;
+    const [appoint, own] = await Promise.all([this.scope(grants, 'managers'), this.scope(grants, 'district')]);
+    const fills: PsfTeamRole[] = appoint === null || appoint.length > 0 ? ['district_manager'] : [];
+    // A manager's screen (2026-11-02): a BDE does not read it. A District Manager reads its district's.
+    if (fills.length === 0 && own !== null && own.length === 0) throw new ForbiddenException('The team is kept by your PSF District and Regional Managers.');
+    const read = appoint === null || own === null ? null : [...new Set([...appoint, ...own])];
     const inRead = read === null ? undefined : inArray(oversightAssignments.districtId, read.length ? read : [-1]);
     const inAppoint = appoint === null ? undefined : inArray(districts.id, appoint.length ? appoint : [-1]);
     const [members, places] = await Promise.all([
@@ -124,7 +122,7 @@ export class PsfTeamService {
             .orderBy(asc(provinces.name), asc(districts.name)),
     ]);
     return {
-      canAppoint: true,
+      canAppoint: fills.length > 0,
       appointRoles: fills,
       districts: places.map((p) => ({ id: p.id, name: p.name, provinceName: p.provinceName ?? null })),
       members: members
@@ -151,8 +149,8 @@ export class PsfTeamService {
     if (appoint !== null && !appoint.includes(body.districtId)) {
       throw new ForbiddenException(
         body.role === 'district_manager'
-          ? 'District Managers are appointed by the PSF Province Manager, in its own province.'
-          : 'BDEs are appointed by the PSF District Manager, in its own district.',
+          ? 'District Managers are appointed by the PSF Regional Manager, in its own province.'
+          : 'BDEs are created by Injishi’s admin, in the admin console.',
       );
     }
     const [place] = await this.db
@@ -226,8 +224,8 @@ export class PsfTeamService {
   }
 
   /**
-   * End an appointment, with a reason, never a delete: a Province Manager any District Manager's or BDE's
-   * in its province, a District Manager a BDE's in its district.
+   * End an appointment, with a reason, never a delete: a Regional Manager any District Manager's or BDE's
+   * in its province.
    */
   async end(actorUserId: string, grants: OversightGrant[], assignmentId: string, reason: string): Promise<PsfTeamView> {
     const scopes = await this.appointScopes(grants);
@@ -240,7 +238,7 @@ export class PsfTeamService {
       throw new NotFoundException('No current District Manager or BDE appointment has that id.');
     }
     const covers = (scope: Scope): boolean => scope === null || scope.includes(row.districtId as number);
-    const mayEnd = covers(scopes.district_manager) || (row.role === 'psf_business_officer' && covers(scopes.business_officer));
+    const mayEnd = covers(scopes.district_manager);
     if (!mayEnd) throw new ForbiddenException('You end the appointments you may make, in your own area only.');
     if (row.userId === actorUserId) throw new ConflictException('You cannot end your own appointment.');
     await this.db.transaction(async (tx) => {

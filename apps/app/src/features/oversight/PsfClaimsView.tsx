@@ -5,12 +5,10 @@ import type { PsfClaimsPage, PsfMembershipClaim } from "@injishi/contracts";
 import {
   EmptyBlock,
   formatDay,
-  formatNumber,
   Icon,
   KpiStrip,
   PageContent,
   PageHeader,
-  SectionCard,
   StatusChip,
 } from "@injishi/ui";
 import NextLink from "next/link";
@@ -18,7 +16,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { PsfScope } from "@/server/sources/psf";
 import { SELECT } from "../shared/setup-ui";
-import { confirmClaimAction, rejectClaimAction } from "./psf-claims-actions";
+import { confirmClaimAction, sendBackClaimAction } from "./psf-claims-actions";
 
 type Status = "claimed" | "confirmed" | "rejected";
 
@@ -27,11 +25,6 @@ const TABS: { id: Status; label: string }[] = [
   { id: "confirmed", label: "Confirmed" },
   { id: "rejected", label: "Rejected" },
 ];
-
-const TEMPLATE = [
-  "membership_number,legal_name,tin,tier_code,starts_on,expires_on",
-  "PSF/GAS/2026/0001,Example Hotel Ltd,123456789,indatwa_10k,2026-01-01,2027-01-01",
-].join("\n");
 
 /** Today and a year on, as yyyy-mm-dd, for the confirm form's dates. */
 function yearFromToday(): { start: string; end: string } {
@@ -181,7 +174,7 @@ function ClaimCard({
           </span>
         </div>
         <StatusChip tone={tone}>
-          {c.status === "claimed" ? "Waiting for PSF" : c.status === "confirmed" ? "Confirmed" : "Rejected"}
+          {c.status === "confirmed" ? "Confirmed" : c.status === "rejected" ? "Rejected" : c.returnedAt ? "Sent back" : "Waiting for PSF"}
         </StatusChip>
       </div>
 
@@ -238,6 +231,10 @@ function ClaimCard({
             ? `Confirmed ${c.decidedAt ? formatDay(c.decidedAt) : ""}${c.matchedBy === "member_list" ? " from PSF's member list" : c.decidedByName ? ` by ${c.decidedByName}` : ""}.`
             : `Rejected ${c.decidedAt ? formatDay(c.decidedAt) : ""}${c.decidedByName ? ` by ${c.decidedByName}` : ""}: ${c.decisionNote ?? ""}`}
         </p>
+      ) : c.returnedAt ? (
+        <p className="m-0 border-t border-separator pt-3 text-[13px] text-muted">
+          Sent back {formatDay(c.returnedAt)}: {c.returnNote}. It returns here when they send the card again.
+        </p>
       ) : mode === "view" ? (
         <div className="flex flex-wrap gap-2 border-t border-separator pt-3">
           <Button size="sm" onPress={() => setMode("confirm")}>
@@ -245,7 +242,7 @@ function ClaimCard({
             Confirm membership
           </Button>
           <Button size="sm" variant="secondary" onPress={() => setMode("reject")}>
-            Reject
+            Send back to fix
           </Button>
         </div>
       ) : mode === "confirm" ? (
@@ -304,16 +301,16 @@ function ClaimCard({
           className="flex flex-col gap-3 border-t border-separator pt-3"
           onSubmit={(e) => {
             e.preventDefault();
-            void act(rejectClaimAction(c.id, reason));
+            void act(sendBackClaimAction(c.id, reason));
           }}
         >
           <TextField value={reason} onChange={setReason} isRequired className="flex flex-col gap-1">
-            <Label>Why, in words the business reads</Label>
-            <TextArea rows={2} placeholder="This number is not in PSF's records." />
+            <Label>What should they fix?</Label>
+            <TextArea rows={2} placeholder="The photo of the card is blurred. Send a clear one." />
           </TextField>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="danger-soft" type="submit" isDisabled={busy || reason.trim().length < 3}>
-              {busy ? "Rejecting…" : "Reject claim"}
+            <Button size="sm" type="submit" isDisabled={busy || reason.trim().length < 3}>
+              {busy ? "Sending…" : "Send back to fix"}
             </Button>
             <Button size="sm" variant="ghost" onPress={() => setMode("view")}>
               Back

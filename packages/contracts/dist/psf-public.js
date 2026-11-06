@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PsfDistrictRow = exports.PsfReportSlice = exports.PsfReportMonth = exports.PsfKpi = exports.PsfReportQuery = exports.PsfAreaQuery = exports.PsfOfficerScope = exports.PsfScopeDistrict = exports.PsfTrackPayResult = exports.PsfRenewRequest = exports.PsfTrackPayRequest = exports.PsfTrackView = exports.PsfRenewalLine = exports.PsfRenewalState = exports.PSF_RENEWAL_WINDOW_DAYS = exports.EndPsfTeamQuery = exports.AppointPsfTeamRequest = exports.PsfTeamView = exports.PsfTeamMember = exports.PSF_TEAM_ROLE_DESCRIPTION = exports.PSF_TEAM_ROLE_LABEL = exports.PsfTeamRole = exports.PsfPaymentLine = exports.PsfTrackEvent = exports.PsfTrackEventKind = exports.PSF_TRACK_STAGE_LABEL = exports.PsfTrackStage = exports.PsfPublicSubmitResult = exports.PSF_CHECK_TOKEN_HEADER = exports.PsfCardUploadResult = exports.PsfLogoUploadResult = exports.PsfPublicSubmitRequest = exports.PsfPublicMembership = exports.PsfPublicContact = exports.PsfPublicBusiness = exports.PsfPublicBranch = exports.MAX_PSF_BRANCHES = exports.PsfPublicAddress = exports.MomoPhone = exports.PsfVerifiedApplicant = exports.PsfIdentityConfirmRequest = exports.PsfMemberLookupConfirmed = exports.PsfMemberLookupConfirm = exports.PsfMemberLookupResult = exports.PsfMemberLookupRequest = exports.PsfIdentityLookupResult = exports.PsfIdentityLookupRequest = exports.PsfDocId = exports.PSF_DOC_ID_PATTERN = exports.PSF_DOC_ID_ALPHABET = void 0;
-exports.PsfMemberCardQuery = exports.PsfMemberCard = exports.SetPsfTierFeeRequest = exports.PsfOfficerFeesView = exports.PsfOfficerFeeRow = exports.PsfFeesView = exports.PsfFeesQuery = exports.PsfTierFee = exports.PsfFeeSource = exports.PsfRegistrationProfile = exports.PsfBusinessDetail = exports.PsfBusinessHistory = exports.PsfQueueAreaQuery = exports.PsfDecisionsPage = exports.PsfDecisionItem = exports.PsfDecisionsQuery = exports.PSF_OVERDUE_DAYS = exports.PsfReport = void 0;
+exports.PsfClaimCardView = exports.PsfResendRequest = exports.PsfMemberCardQuery = exports.PsfMemberCard = exports.SetPsfTierFeeRequest = exports.PsfOfficerFeesView = exports.PsfQuote = exports.PsfQuoteQuery = exports.SetPsfServiceFeeRequest = exports.PsfOfficerServiceFee = exports.PsfOfficerFeeRow = exports.PsfFeesView = exports.PsfFeesQuery = exports.PsfTierFee = exports.PsfFeeSource = exports.PsfRegistrationProfile = exports.PsfBusinessDetail = exports.PsfBusinessHistory = exports.PsfQueueAreaQuery = exports.PsfDecisionsPage = exports.PsfDecisionItem = exports.PsfDecisionsQuery = exports.PSF_OVERDUE_DAYS = exports.PsfReport = void 0;
 exports.newPsfDocId = newPsfDocId;
 exports.normalizePsfDocId = normalizePsfDocId;
 exports.isPsfDocId = isPsfDocId;
@@ -16,6 +16,7 @@ exports.maskPhone = maskPhone;
 exports.maskEmail = maskEmail;
 exports.psfFeeCeilings = psfFeeCeilings;
 exports.resolvePsfTierFee = resolvePsfTierFee;
+const psf_setup_1 = require("./psf-setup");
 const zod_1 = require("zod");
 const primitives_1 = require("./primitives");
 const psf_1 = require("./psf");
@@ -227,7 +228,8 @@ exports.PsfPublicBusiness = zod_1.z
     companyType: registration_1.PsfCompanyType,
     ownership: registration_1.PsfOwnership,
     ownershipOther: zod_1.z.string().trim().min(1).max(120).optional(),
-    businessActivity: text(300, "Say in a few words what the business does."),
+    /** Asked unless PSF hides it (2026-11-06): the form's settings decide, on the server too. */
+    businessActivity: zod_1.z.string().trim().max(300, "That is too long.").optional(),
     website: zod_1.z.string().trim().max(200).url("Give the full address, like https://example.rw.").optional(),
     /**
      * The business's logo (2026-10-23), optional: the key `POST /psf/logo`
@@ -280,6 +282,8 @@ exports.PsfPublicContact = zod_1.z.object({
     phoneE164: phone,
     /** Optional: status reaches the phone by SMS either way. */
     email: zod_1.z.string().trim().email("That email address does not look right.").optional(),
+    /** The passport photo (2026-11-05), uploaded under the ID check; printed on the card and certificate. */
+    photoObjectKey: zod_1.z.string().trim().min(1).max(200).optional(),
 });
 exports.PsfPublicMembership = zod_1.z.object({
     tierCode: zod_1.z.string().trim().min(1, "Pick a membership.").max(60),
@@ -306,6 +310,8 @@ exports.PsfPublicSubmitRequest = zod_1.z.object({
     contact: exports.PsfPublicContact,
     /** The number the membership fee is charged to; a card holder pays nothing now and sends none. */
     payerPhoneE164: exports.MomoPhone.optional(),
+    /** Answers to the questions PSF added (2026-11-06), by their key. */
+    extras: psf_setup_1.PsfExtraAnswers,
     consent: zod_1.z.literal(true, {
         errorMap: () => ({ message: "Tick the box to agree to share this with PSF." }),
     }),
@@ -352,10 +358,11 @@ exports.PsfPublicSubmitResult = zod_1.z.object({
  *   declined       PSF declined it
  *   withdrawn      withdrawn (by PSF, on the business's request)
  */
-exports.PsfTrackStage = zod_1.z.enum(["fee_due", "under_review", "approved", "member", "lapsed", "declined", "withdrawn"]);
+exports.PsfTrackStage = zod_1.z.enum(["fee_due", "under_review", "sent_back", "approved", "member", "lapsed", "declined", "withdrawn"]);
 exports.PSF_TRACK_STAGE_LABEL = {
     fee_due: "Payment due",
     under_review: "Under review",
+    sent_back: "Sent back to fix",
     approved: "Approved, pay to join",
     member: "PSF member",
     lapsed: "Membership ended",
@@ -383,10 +390,10 @@ exports.PsfPaymentLine = zod_1.z.object({
     reference: zod_1.z.string().nullable(),
 });
 // ---------------------------------------------------------------------------
-// The PSF team (2026-11-02): a Province Manager appoints its District Managers,
+// The PSF team (2026-11-02): a Regional Manager appoints its District Managers,
 // and a District Manager its district's BDEs
 // ---------------------------------------------------------------------------
-/** The two district posts: a Province Manager fills the first, a District Manager the second. */
+/** The two district posts: a Regional Manager fills the first, a District Manager the second. */
 exports.PsfTeamRole = zod_1.z.enum(["district_manager", "business_officer"]);
 exports.PSF_TEAM_ROLE_LABEL = {
     district_manager: "District Manager",
@@ -411,7 +418,7 @@ exports.PsfTeamMember = zod_1.z.object({
 });
 /** `GET /oversight/psf/team`: the people in the caller's districts, and where the caller may appoint. */
 exports.PsfTeamView = zod_1.z.object({
-    /** May appoint and end: a Province or National Manager (District Managers), a District Manager (BDEs). */
+    /** May appoint and end: a Regional or National Manager (District Managers), a District Manager (BDEs). */
     canAppoint: zod_1.z.boolean(),
     /** The posts the caller fills (2026-11-02). */
     appointRoles: zod_1.z.array(exports.PsfTeamRole).default([]),
@@ -455,6 +462,9 @@ exports.PsfRenewalState = zod_1.z.object({
     pending: zod_1.z
         .object({ tierCode: zod_1.z.string().default(""), tierName: zod_1.z.string(), amountRwf: primitives_1.RwfAmount, phoneMasked: zod_1.z.string().nullable().default(null) })
         .nullable(),
+    /** What the renewal's price depends on beyond the band (2026-11-05): its kind, and its admitted branches. */
+    subsectorId: zod_1.z.string().nullable().default(null),
+    branchDistrictIds: zod_1.z.array(zod_1.z.number().int()).default([]),
 });
 /** One paid renewal, for the tracking page and the officer. */
 exports.PsfRenewalLine = zod_1.z.object({
@@ -471,6 +481,21 @@ exports.PsfTrackView = zod_1.z.object({
     /** A card holder joining the new module (2026-11-02): nothing to pay, PSF confirms its card. */
     intake: zod_1.z.enum(["new", "card_holder"]).default("new"),
     stage: exports.PsfTrackStage,
+    /** Sent back to fix (2026-11-05): what PSF asked, and what the business can correct. */
+    sentBack: zod_1.z
+        .object({
+        note: zod_1.z.string(),
+        at: zod_1.z.string(),
+        legalName: zod_1.z.string(),
+        streetAddress: zod_1.z.string(),
+        website: zod_1.z.string().nullable(),
+        companyType: registration_1.PsfCompanyType,
+        ownership: registration_1.PsfOwnership,
+        ownershipOther: zod_1.z.string().nullable(),
+        businessActivity: zod_1.z.string(),
+    })
+        .nullable()
+        .default(null),
     submittedAt: zod_1.z.string(),
     /** Whole days the application has waited on PSF; null when not under review. */
     waitingDays: zod_1.z.number().int().nullable(),
@@ -510,11 +535,16 @@ exports.PsfTrackView = zod_1.z.object({
         tierName: zod_1.z.string(),
         tierCode: zod_1.z.string().nullable().default(null),
         family: psf_1.PsfMembershipFamily.nullable(),
+        familyName: zod_1.z.string().nullable().default(null),
         feeRwf: primitives_1.RwfAmount.nullable(),
         startsOn: zod_1.z.string().nullable(),
         expiresOn: zod_1.z.string().nullable(),
         paidAt: zod_1.z.string().nullable(),
         reference: zod_1.z.string().nullable(),
+        /** What the band's ribbon says, like Bronze (2026-11-06). */
+        badge: zod_1.z.string().nullable().default(null),
+        /** Whether the owner's photo can be shown, from `/psf/card/photo` (2026-11-06). */
+        hasPhoto: zod_1.z.boolean().default(false),
     })
         .nullable(),
     contact: zod_1.z.object({ name: zod_1.z.string(), phoneMasked: zod_1.z.string(), emailMasked: zod_1.z.string().nullable() }),
@@ -536,6 +566,11 @@ exports.PsfRenewRequest = zod_1.z.object({
     declaredFeeRwf: primitives_1.RwfAmount,
     /** Absent to check the prompt already waiting for this band and amount: it goes to the same phone. */
     phoneE164: exports.MomoPhone.optional(),
+    /**
+     * An upgrade (2026-11-05), any time: only a higher band, its full price, and a new year starting that
+     * day under the same number. What was left of the old year is not refunded.
+     */
+    upgrade: zod_1.z.boolean().optional(),
 });
 exports.PsfTrackPayResult = zod_1.z.object({
     status: zod_1.z.enum(["paid", "pending", "declined"]),
@@ -569,9 +604,18 @@ exports.PsfReportMonth = zod_1.z.object({
     applied: zod_1.z.number().int(),
     approved: zod_1.z.number().int(),
     members: zod_1.z.number().int(),
+    /** Everything paid that month: new memberships, renewals and upgrades. */
     feesRwf: zod_1.z.number().int(),
+    fees: psf_setup_1.PsfFeeKinds.default(psf_setup_1.PSF_NO_FEE_KINDS),
 });
-exports.PsfReportSlice = zod_1.z.object({ key: zod_1.z.string(), label: zod_1.z.string(), count: zod_1.z.number().int(), amountRwf: zod_1.z.number().int() });
+exports.PsfReportSlice = zod_1.z.object({
+    key: zod_1.z.string(),
+    label: zod_1.z.string(),
+    count: zod_1.z.number().int(),
+    amountRwf: zod_1.z.number().int(),
+    districtRwf: zod_1.z.number().int().default(0),
+    headquartersRwf: zod_1.z.number().int().default(0),
+});
 exports.PsfDistrictRow = zod_1.z.object({
     districtId: zod_1.z.number().int(),
     name: zod_1.z.string(),
@@ -584,6 +628,7 @@ exports.PsfDistrictRow = zod_1.z.object({
     declined: zod_1.z.number().int(),
     members: zod_1.z.number().int(),
     membershipFeesRwf: zod_1.z.number().int(),
+    fees: psf_setup_1.PsfFeeKinds.default(psf_setup_1.PSF_NO_FEE_KINDS),
     medianDecisionDays: zod_1.z.number().nullable(),
     officers: zod_1.z.array(zod_1.z.string()),
 });
@@ -601,9 +646,27 @@ exports.PsfReport = zod_1.z.object({
         /** Memberships renewed in the period, and old card holders brought into the new module (2026-11-02). */
         renewed: exports.PsfKpi.default({ value: 0, previous: 0 }),
         cardHolders: exports.PsfKpi.default({ value: 0, previous: 0 }),
+        upgraded: exports.PsfKpi.default({ value: 0, previous: 0 }),
         membershipFeesRwf: exports.PsfKpi,
         medianDecisionDays: zod_1.z.object({ value: zod_1.z.number().nullable(), previous: zod_1.z.number().nullable() }),
     }),
+    /** What came in over the period and the one before, by what it was paid for (2026-11-06). */
+    fees: zod_1.z
+        .object({ current: psf_setup_1.PsfFeeKinds, previous: psf_setup_1.PsfFeeKinds, ourShare: psf_setup_1.PsfOurShare })
+        .default({ current: psf_setup_1.PSF_NO_FEE_KINDS, previous: psf_setup_1.PSF_NO_FEE_KINDS, ourShare: "district" }),
+    /**
+     * Who the period's fees are for (2026-11-05): 60% the district, 40% headquarters. A record: the money
+     * goes to PSF's one account.
+     */
+    split: zod_1.z
+        .object({
+        totalRwf: zod_1.z.number(),
+        districtRwf: zod_1.z.number(),
+        headquartersRwf: zod_1.z.number(),
+        districtPercent: zod_1.z.number().int().default(60),
+        byDistrict: zod_1.z.array(zod_1.z.object({ districtName: zod_1.z.string(), totalRwf: zod_1.z.number(), districtRwf: zod_1.z.number(), headquartersRwf: zod_1.z.number() })),
+    })
+        .default({ totalRwf: 0, districtRwf: 0, headquartersRwf: 0, districtPercent: 60, byDistrict: [] }),
     /** Right now, not over the period. */
     now: zod_1.z.object({
         members: zod_1.z.number().int(),
@@ -902,6 +965,7 @@ exports.PsfOfficerFeeRow = zod_1.z.object({
     tierCode: zod_1.z.string(),
     tierName: zod_1.z.string(),
     family: psf_1.PsfMembershipFamily,
+    familyName: zod_1.z.string().default(""),
     priceKind: psf_1.PsfPriceKind,
     /** The band's bounds from the catalogue; a price must sit inside them. */
     bandMinRwf: primitives_1.RwfAmount.nullable(),
@@ -915,6 +979,31 @@ exports.PsfOfficerFeeRow = zod_1.z.object({
     updatedAt: zod_1.z.string().nullable(),
     updatedByName: zod_1.z.string().nullable(),
 });
+/** A kind of business's price in the district shown (2026-11-05); null when it has none of its own. */
+exports.PsfOfficerServiceFee = zod_1.z.object({
+    subsectorId: zod_1.z.string(),
+    name: zod_1.z.string(),
+    clusterCode: zod_1.z.string(),
+    amountRwf: zod_1.z.number().int().nullable(),
+});
+exports.SetPsfServiceFeeRequest = zod_1.z.object({
+    subsectorId: zod_1.z.string().uuid(),
+    districtId: zod_1.z.number().int().positive(),
+    amountRwf: primitives_1.RwfAmount.refine((n) => n > 0, "Give a price above zero.").nullable(),
+});
+/** `GET /psf/quote` (2026-11-05): the kind's floor in the head office's district, and each branch's price. */
+exports.PsfQuoteQuery = zod_1.z.object({
+    district: zod_1.z.coerce.number().int().positive(),
+    tierCode: zod_1.z.string().trim().min(1).max(60),
+    subsectorId: zod_1.z.string().uuid().optional(),
+    /** The branches' districts, comma separated. */
+    branches: zod_1.z.string().max(400).optional(),
+});
+exports.PsfQuote = zod_1.z.object({
+    floorRwf: zod_1.z.number().int().nullable(),
+    branches: zod_1.z.array(zod_1.z.object({ districtId: zod_1.z.number().int(), amountRwf: zod_1.z.number().int() })),
+    branchesRwf: zod_1.z.number().int(),
+});
 exports.PsfOfficerFeesView = zod_1.z.object({
     /** The district being priced, or null for the national prices. */
     districtId: zod_1.z.number().int().nullable(),
@@ -923,6 +1012,8 @@ exports.PsfOfficerFeesView = zod_1.z.object({
     /** True when a district is shown and the officer covers it. */
     canEditDistrict: zod_1.z.boolean(),
     rows: zod_1.z.array(exports.PsfOfficerFeeRow),
+    /** The district's prices by kind of business (2026-11-05). Empty for the national view. */
+    services: zod_1.z.array(exports.PsfOfficerServiceFee).default([]),
 });
 /** Set a band's price for a place (`districtId` null: national), or clear it with `amountRwf: null`. */
 exports.SetPsfTierFeeRequest = zod_1.z.object({
@@ -957,8 +1048,32 @@ exports.PsfMemberCard = zod_1.z.object({
         membershipNumber: zod_1.z.string(),
         startsOn: zod_1.z.string().nullable(),
         expiresOn: zod_1.z.string().nullable(),
+        /** Whether `GET /psf/card/photo` has the owner's photo (2026-11-05). */
+        hasPhoto: zod_1.z.boolean().default(false),
     })
         .nullable(),
 });
 exports.PsfMemberCardQuery = zod_1.z.object({ number: zod_1.z.string().trim().min(3).max(60) });
+// ---------------------------------------------------------------------------
+// Sent back to fix (2026-11-05): PSF never rejects
+// ---------------------------------------------------------------------------
+/** `POST /psf/track/:docId/resend`: the corrections, and the card again when a card holder's needs it. */
+exports.PsfResendRequest = zod_1.z
+    .object({
+    legalName: zod_1.z.string().trim().min(2, "Give the name of the business.").max(200),
+    streetAddress: zod_1.z.string().trim().max(200).default(""),
+    website: zod_1.z.string().trim().max(200).url("Give the full address, like https://example.rw.").optional(),
+    companyType: registration_1.PsfCompanyType,
+    ownership: registration_1.PsfOwnership,
+    ownershipOther: zod_1.z.string().trim().min(1).max(120).optional(),
+    businessActivity: zod_1.z.string().trim().max(300).default(""),
+    cardObjectKey: zod_1.z.string().min(1).max(300).optional(),
+})
+    .superRefine((v, ctx) => {
+    if (v.ownership === "other" && !v.ownershipOther) {
+        ctx.addIssue({ code: "custom", path: ["ownershipOther"], message: "Say what the ownership is." });
+    }
+});
+/** A card holder from registration resending its card, by the signed link in PSF's email. */
+exports.PsfClaimCardView = zod_1.z.object({ businessName: zod_1.z.string(), note: zod_1.z.string() });
 //# sourceMappingURL=psf-public.js.map

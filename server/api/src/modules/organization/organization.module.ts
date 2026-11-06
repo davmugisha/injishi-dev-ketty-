@@ -15,6 +15,8 @@ import { PsfMembershipService } from './application/psf-membership.service';
 import { PsfCertificatesService } from './application/psf-certificates.service';
 import { PsfPublicService } from './application/psf-public.service';
 import { PsfReportService } from './application/psf-report.service';
+import { PsfSetupService } from './application/psf-setup.service';
+import { PsfSetupRepository } from './infrastructure/psf-setup.repository';
 import { RegistrationDraftService } from './application/registration-draft.service';
 import { RegistrationService } from './application/registration.service';
 import { RolePermissionsService } from './application/role-permissions.service';
@@ -115,6 +117,8 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     PsfPublicService,
     PsfReportRepository,
     PsfReportService,
+    PsfSetupService,
+    PsfSetupRepository,
     // Licences and registrations on file (Compliance → Licences): the
     // documents a business keeps about itself, an ORG fact like the roster.
     CertificatesRepository,
@@ -137,6 +141,7 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     PsfCertificatesService,
     PsfTeamService,
     PsfPublicService,
+    PsfSetupService,
     PsfReportService,
     CertificatesService,
   ],

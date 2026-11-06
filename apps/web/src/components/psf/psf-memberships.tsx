@@ -5,7 +5,8 @@ import Link from "next/link";
 import { ArrowRight, Check, Crown, Medal, Sprout, type LucideIcon } from "lucide-react";
 import {
   PSF_FAMILY_BLURB,
-  PSF_FAMILY_LABEL,
+  psfFamilyName,
+  psfLevelsOf,
   PSF_OFFERED_FAMILIES,
   type PsfMembershipFamily,
   type PsfTier,
@@ -60,17 +61,20 @@ export function PsfMemberships() {
     );
   }
 
-  const families = PSF_OFFERED_FAMILIES.map((f) => ({
-    family: f,
+  const levels = tiers === null ? PSF_OFFERED_FAMILIES.map((f) => ({ family: f, name: psfFamilyName(f), blurb: PSF_FAMILY_BLURB[f] ?? "" })) : psfLevelsOf(tiers);
+  const families = levels.map((l) => ({
+    family: l.family,
+    name: l.name,
+    blurb: l.blurb,
     group: (tiers ?? [])
-      .filter((t) => t.family === f)
+      .filter((t) => t.family === l.family)
       .sort((a, b) => (a.annualFeeMinRwf ?? a.annualFeeRwf ?? 0) - (b.annualFeeMinRwf ?? b.annualFeeRwf ?? 0)),
   })).filter((x) => tiers === null || x.group.length > 0);
 
   return (
     <ul className="grid list-none grid-cols-1 items-start gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
-      {families.map(({ family, group }) => (
-        <MembershipCard key={family} family={family} group={group} loading={tiers === null} featured={family === "golden_circle"} />
+      {families.map(({ family, name, blurb, group }) => (
+        <MembershipCard key={family} family={family} name={name} blurb={blurb} group={group} loading={tiers === null} featured={family === "golden_circle"} />
       ))}
     </ul>
   );
@@ -90,11 +94,11 @@ function floorOf(group: PsfTier[]): number | null {
 }
 
 /** The first sentence of a family's blurb: who it is for, in a few words. */
-function tagline(family: PsfMembershipFamily): string {
-  return PSF_FAMILY_BLURB[family].split(". ")[0]!.replace(/\.$/, "");
+function tagline(blurb: string): string {
+  return (blurb.split(". ")[0] ?? "").replace(/\.$/, "");
 }
 
-function MembershipCard({ family, group, loading, featured }: { family: PsfMembershipFamily; group: PsfTier[]; loading: boolean; featured: boolean }) {
+function MembershipCard({ family, name, blurb, group, loading, featured }: { family: PsfMembershipFamily; name: string; blurb: string; group: PsfTier[]; loading: boolean; featured: boolean }) {
   const Icon = ICON[family] ?? Sprout;
   const benefits = group[0]?.benefitsEn ?? [];
   const floor = floorOf(group);
@@ -118,12 +122,12 @@ function MembershipCard({ family, group, loading, featured }: { family: PsfMembe
         >
           <Icon size={18} strokeWidth={1.8} aria-hidden />
         </span>
-        <h3 className="flex-1 text-lg font-semibold text-page-fg">{PSF_FAMILY_LABEL[family]}</h3>
+        <h3 className="flex-1 text-lg font-semibold text-page-fg">{name}</h3>
         {featured ? (
           <span className="rounded-full border border-accent-brand px-2 py-0.5 text-2xs font-semibold uppercase tracking-widest text-accent-text">Top</span>
         ) : null}
       </div>
-      <p className="mt-1 text-sm text-page-fg-70">{tagline(family)}</p>
+      <p className="mt-1 text-sm text-page-fg-70">{tagline(blurb)}</p>
 
       {loading ? (
         <span className="mt-4 h-9 w-1/2 animate-pulse rounded bg-secondary" />

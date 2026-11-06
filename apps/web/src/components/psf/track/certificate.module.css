@@ -1,11 +1,331 @@
 /*
- * The certificate's QR borrows the receipt's QrCode, which reads its colours
- * from these two variables. Plain black on white in every theme: the public
- * pages do not load the ink ramp `receipt.module.css` uses, and an inverted or
- * unpainted symbol does not scan.
+ * The certificate as the PDF draws it (2026-11-06): the member's panel in the level's colours, then
+ * paper. The paper stays light in the dark theme, because it is a printed thing and its colours
+ * come from the level; the level's colours arrive as --ground and --accent from the component.
  */
-.qr {
-  --receipt-ink: black;
-  --receipt-qr-light: white;
-  display: inline-flex;
+.paper {
+  --paper: #fbfbf8;
+  --ink: #262e2b;
+  --muted: #666f6b;
+  --rule: #b8cfbd;
+  container-type: inline-size;
+  background: var(--paper);
+  color: var(--ink);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  overflow: hidden;
+  padding: 1.5rem 1rem;
+  background: var(--ground);
+  border-bottom: 3px solid var(--accent);
+  color: white;
+  text-align: center;
+}
+
+.pattern {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--accent);
+  stroke-opacity: 0.3;
+  pointer-events: none;
+}
+
+.panel > :not(.pattern) {
+  position: relative;
+}
+
+.logo {
+  height: 3.5rem;
+  width: auto;
+}
+
+.federation {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.country {
+  margin-top: 0.125rem;
+  color: var(--accent);
+  font-size: 0.5625rem;
+  letter-spacing: 0.4em;
+}
+
+.photo {
+  width: 7rem;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border: 1.5px solid var(--accent);
+}
+
+.holder {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.verify {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: auto;
+}
+
+.scan {
+  font-size: 0.5625rem;
+  letter-spacing: 0.25em;
+}
+
+.number {
+  color: var(--accent);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  padding: 1.5rem 1.25rem 1rem;
+}
+
+.reference {
+  color: var(--muted);
+  font-size: 0.5625rem;
+  letter-spacing: 0.25em;
+  overflow-wrap: anywhere;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.serif {
+  color: var(--ground);
+  font-family: "Times New Roman", Times, serif;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.title {
+  font-size: 1.875rem;
+}
+
+.rule {
+  width: 4.25rem;
+  height: 2px;
+  margin-top: 0.75rem;
+  background: var(--accent);
+}
+
+.certifies {
+  margin-top: 1.25rem;
+  font-size: 0.625rem;
+  letter-spacing: 0.35em;
+}
+
+.business {
+  margin-top: 0.75rem;
+  font-size: 2rem;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.sector {
+  margin-top: 0.5rem;
+  color: var(--ground);
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.where {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.line {
+  margin-top: 1.25rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.level {
+  margin-top: 0.375rem;
+  color: var(--ground);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.facts {
+  display: grid;
+  width: 100%;
+  margin-top: 1.5rem;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.fact dt {
+  color: var(--muted);
+  font-size: 0.5625rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+
+.fact dd {
+  margin-top: 0.25rem;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.lapsed {
+  margin-top: 1.25rem;
+  padding: 0.375rem 1rem;
+  border-radius: 999px;
+  background: #fbecc8;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.issued {
+  text-align: center;
+}
+
+.issuedOn {
+  font-size: 0.8125rem;
+}
+
+.issuedRule {
+  display: block;
+  width: 10rem;
+  max-width: 100%;
+  height: 1px;
+  margin: 0.375rem 0;
+  background: var(--accent);
+}
+
+.issuedBy {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+}
+
+.office {
+  margin-top: 0.125rem;
+  color: var(--muted);
+  font-size: 0.5rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.mark {
+  max-width: 9rem;
+  max-height: 4.5rem;
+  width: auto;
+  object-fit: contain;
+}
+
+.hub {
+  margin-top: 1rem;
+  color: var(--muted);
+  font-size: 0.625rem;
+  text-align: center;
+}
+
+/* Wide enough for the PDF's own layout: the panel beside the paper, sizes growing with the sheet. */
+@container (min-width: 40rem) {
+  .sheet {
+    flex-direction: row;
+    min-height: 70cqw;
+  }
+
+  .panel {
+    width: 27%;
+    flex: none;
+    border-right: 3px solid var(--accent);
+    border-bottom: 0;
+  }
+
+  .body {
+    padding: 2rem 2.5rem 1rem;
+  }
+
+  .title {
+    font-size: clamp(1.875rem, 4.6cqw, 2.75rem);
+  }
+
+  .business {
+    font-size: clamp(2rem, 5.2cqw, 3.25rem);
+  }
+
+  .sector {
+    font-size: clamp(1.0625rem, 2.3cqw, 1.5rem);
+  }
+
+  .facts {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+  }
+
+  .fact + .fact {
+    border-left: 1px solid var(--rule);
+  }
+
+  .foot {
+    margin-top: auto;
+    padding-top: 1.5rem;
+  }
+}
+
+/* The Print button prints this sheet alone. */
+@media print {
+  :global(body):has(.paper) * {
+    visibility: hidden;
+  }
+
+  .paper,
+  .paper * {
+    visibility: visible;
+  }
+
+  .paper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-shadow: none;
+  }
 }

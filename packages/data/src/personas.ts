@@ -649,6 +649,8 @@ export const personas: Record<PersonaId, Persona> = {
       "PsfDecisions",
       "PsfSubtypes",
       "PsfFees",
+      "PsfMoney",
+      "PsfSetup",
       "PsfTeam",
       "OfficerHome",
       "OfficerCase",

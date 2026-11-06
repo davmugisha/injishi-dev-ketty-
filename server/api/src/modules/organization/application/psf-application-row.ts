@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
-import { newPsfDocId } from '@injishi/contracts';
+import { newPsfDocId, psfFamilyName } from '@injishi/contracts';
 import type {
   PsfApplication,
   PsfApplicationInput,
@@ -175,10 +175,12 @@ export function toPsfMembershipView(row: PsfMembershipRow & { tierName: string |
   };
 }
 
-export function toPsfTierView(row: PsfTierRow): PsfTier {
+export function toPsfTierView(row: PsfTierRow & { familyName?: string; familyBlurb?: string | null }): PsfTier {
   return {
     code: row.code,
     family: row.family,
+    familyName: row.familyName ?? psfFamilyName(row.family),
+    familyBlurb: row.familyBlurb ?? '',
     nameEn: row.nameEn,
     nameRw: row.nameRw,
     priceKind: row.priceKind,

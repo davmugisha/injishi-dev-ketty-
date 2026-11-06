@@ -34,9 +34,9 @@ export async function confirmClaimAction(id: string, body: ConfirmPsfClaimReques
   });
 }
 
-export async function rejectClaimAction(id: string, reason: string): Promise<ClaimActionResult> {
+export async function sendBackClaimAction(id: string, reason: string): Promise<ClaimActionResult> {
   return run(async () => {
-    await (await requestContext()).api.post(`/api/v1/oversight/psf/claims/${id}/reject`, { reason });
+    await (await requestContext()).api.post(`/api/v1/oversight/psf/claims/${id}/send-back`, { reason });
     return undefined;
   });
 }

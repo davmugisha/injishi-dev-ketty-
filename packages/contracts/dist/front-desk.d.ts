@@ -1339,8 +1339,8 @@ export declare const DeskMessageTemplate: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     id: string;
-    key: string;
     label: string;
+    key: string;
     bodies: {
         en: string;
         rw: string | null;
@@ -1348,8 +1348,8 @@ export declare const DeskMessageTemplate: z.ZodObject<{
     };
 }, {
     id: string;
-    key: string;
     label: string;
+    key: string;
     bodies: {
         en: string;
         rw: string | null;
@@ -1377,8 +1377,8 @@ export declare const DeskMessageTemplateList: z.ZodObject<{
         }>;
     }, "strip", z.ZodTypeAny, {
         id: string;
-        key: string;
         label: string;
+        key: string;
         bodies: {
             en: string;
             rw: string | null;
@@ -1386,8 +1386,8 @@ export declare const DeskMessageTemplateList: z.ZodObject<{
         };
     }, {
         id: string;
-        key: string;
         label: string;
+        key: string;
         bodies: {
             en: string;
             rw: string | null;
@@ -1397,8 +1397,8 @@ export declare const DeskMessageTemplateList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     templates: {
         id: string;
-        key: string;
         label: string;
+        key: string;
         bodies: {
             en: string;
             rw: string | null;
@@ -1408,8 +1408,8 @@ export declare const DeskMessageTemplateList: z.ZodObject<{
 }, {
     templates: {
         id: string;
-        key: string;
         label: string;
+        key: string;
         bodies: {
             en: string;
             rw: string | null;

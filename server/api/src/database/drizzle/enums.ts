@@ -411,7 +411,7 @@ export const oversightRoleEnum = pgEnum('oversight_role', [
   'dgie_village',
   'dgie_cell',
   // A PSF BDE (Business Development & Empowerment) (0129): reads one district's PSF console, decides nothing.
-  // Appointed by the district's PSF Province Manager.
+  // Appointed by the district's PSF Regional Manager.
   'psf_business_officer',
 ]);
 
@@ -1470,15 +1470,7 @@ export const offerAudienceEnum = pgEnum('offer_audience', [
  * the form branches on them; the tiers themselves are catalogue rows admin
  * edits (`psf_membership_tiers`), so a new price is never a migration.
  */
-export const psfMembershipFamilyEnum = pgEnum('psf_membership_family', [
-  'golden_circle',
-  'indashyikirwa',
-  // 2026-10-15: PSF's band for small and growing businesses. `ordinary` and
-  // `junior_giants` are retired and stay for the rows that name them.
-  'indatwa',
-  'ordinary',
-  'junior_giants',
-]);
+// `psf_membership_family` is gone (0137): levels are rows in `psf_levels`.
 
 /**
  * A fixed amount, a min to max range, a floor with no ceiling (`minimum`,

@@ -531,12 +531,12 @@ export declare const EmployeePage: z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -552,11 +552,11 @@ export declare const EmployeePage: z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         label: string;
+        key: string;
     }, {
-        key: string;
         label: string;
+        key: string;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: ({
@@ -676,16 +676,16 @@ export declare const EmployeePage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }, {
     items: ({
@@ -805,16 +805,16 @@ export declare const EmployeePage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }>;
 export type EmployeePage = z.infer<typeof EmployeePage>;
@@ -957,12 +957,12 @@ export declare const RosterPage: z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -978,11 +978,11 @@ export declare const RosterPage: z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         label: string;
+        key: string;
     }, {
-        key: string;
         label: string;
+        key: string;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
@@ -1010,16 +1010,16 @@ export declare const RosterPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }, {
     items: {
@@ -1047,16 +1047,16 @@ export declare const RosterPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }>;
 export type RosterPage = z.infer<typeof RosterPage>;
@@ -1299,12 +1299,12 @@ export declare const AttendancePage: z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -1320,11 +1320,11 @@ export declare const AttendancePage: z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         label: string;
+        key: string;
     }, {
-        key: string;
         label: string;
+        key: string;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
@@ -1367,16 +1367,16 @@ export declare const AttendancePage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }, {
     items: {
@@ -1419,16 +1419,16 @@ export declare const AttendancePage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }>;
 export type AttendancePage = z.infer<typeof AttendancePage>;
@@ -1644,12 +1644,12 @@ export declare const ShiftRequestPage: z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -1665,11 +1665,11 @@ export declare const ShiftRequestPage: z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         label: string;
+        key: string;
     }, {
-        key: string;
         label: string;
+        key: string;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
@@ -1711,16 +1711,16 @@ export declare const ShiftRequestPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }, {
     items: {
@@ -1762,16 +1762,16 @@ export declare const ShiftRequestPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }>;
 export type ShiftRequestPage = z.infer<typeof ShiftRequestPage>;
@@ -1948,12 +1948,12 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -1969,11 +1969,11 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         label: string;
+        key: string;
     }, {
-        key: string;
         label: string;
+        key: string;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
@@ -2012,16 +2012,16 @@ export declare const AttendanceRequestPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }, {
     items: {
@@ -2060,16 +2060,16 @@ export declare const AttendanceRequestPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }>;
 export type AttendanceRequestPage = z.infer<typeof AttendanceRequestPage>;
@@ -2326,12 +2326,12 @@ export declare const LeaveRequestPage: z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -2347,11 +2347,11 @@ export declare const LeaveRequestPage: z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         label: string;
+        key: string;
     }, {
-        key: string;
         label: string;
+        key: string;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
@@ -2398,16 +2398,16 @@ export declare const LeaveRequestPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }, {
     items: {
@@ -2454,16 +2454,16 @@ export declare const LeaveRequestPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }>;
 export type LeaveRequestPage = z.infer<typeof LeaveRequestPage>;
@@ -2685,12 +2685,12 @@ export declare const LeaveAllocationPage: z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -2706,11 +2706,11 @@ export declare const LeaveAllocationPage: z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         label: string;
+        key: string;
     }, {
-        key: string;
         label: string;
+        key: string;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
@@ -2747,16 +2747,16 @@ export declare const LeaveAllocationPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }, {
     items: {
@@ -2793,16 +2793,16 @@ export declare const LeaveAllocationPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }>;
 export type LeaveAllocationPage = z.infer<typeof LeaveAllocationPage>;
@@ -2920,12 +2920,12 @@ export declare const LeaveBalancePage: z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -2941,11 +2941,11 @@ export declare const LeaveBalancePage: z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         label: string;
+        key: string;
     }, {
-        key: string;
         label: string;
+        key: string;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
@@ -2966,16 +2966,16 @@ export declare const LeaveBalancePage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }, {
     items: {
@@ -2996,16 +2996,16 @@ export declare const LeaveBalancePage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }>;
 export type LeaveBalancePage = z.infer<typeof LeaveBalancePage>;
@@ -3126,12 +3126,12 @@ export declare const PayRunPage: z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -3147,11 +3147,11 @@ export declare const PayRunPage: z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         label: string;
+        key: string;
     }, {
-        key: string;
         label: string;
+        key: string;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
@@ -3179,16 +3179,16 @@ export declare const PayRunPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }, {
     items: {
@@ -3216,16 +3216,16 @@ export declare const PayRunPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }>;
 export type PayRunPage = z.infer<typeof PayRunPage>;
@@ -3367,12 +3367,12 @@ export declare const PayslipPage: z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -3388,11 +3388,11 @@ export declare const PayslipPage: z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         label: string;
+        key: string;
     }, {
-        key: string;
         label: string;
+        key: string;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
@@ -3419,16 +3419,16 @@ export declare const PayslipPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }, {
     items: {
@@ -3455,16 +3455,16 @@ export declare const PayslipPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }>;
 export type PayslipPage = z.infer<typeof PayslipPage>;
@@ -3667,12 +3667,12 @@ export declare const LoanPage: z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -3688,11 +3688,11 @@ export declare const LoanPage: z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         label: string;
+        key: string;
     }, {
-        key: string;
         label: string;
+        key: string;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
@@ -3727,16 +3727,16 @@ export declare const LoanPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }, {
     items: {
@@ -3771,16 +3771,16 @@ export declare const LoanPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }>;
 export type LoanPage = z.infer<typeof LoanPage>;
@@ -3938,12 +3938,12 @@ export declare const PayClaimPage: z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -3959,11 +3959,11 @@ export declare const PayClaimPage: z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         label: string;
+        key: string;
     }, {
-        key: string;
         label: string;
+        key: string;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
@@ -3996,16 +3996,16 @@ export declare const PayClaimPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }, {
     items: {
@@ -4038,16 +4038,16 @@ export declare const PayClaimPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }>;
 export type PayClaimPage = z.infer<typeof PayClaimPage>;
@@ -4218,12 +4218,12 @@ export declare const PayAdjustmentPage: z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -4239,11 +4239,11 @@ export declare const PayAdjustmentPage: z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         label: string;
+        key: string;
     }, {
-        key: string;
         label: string;
+        key: string;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
@@ -4270,16 +4270,16 @@ export declare const PayAdjustmentPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }, {
     items: {
@@ -4306,16 +4306,16 @@ export declare const PayAdjustmentPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }>;
 export type PayAdjustmentPage = z.infer<typeof PayAdjustmentPage>;
@@ -4446,12 +4446,12 @@ export declare const ContractPage: z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -4467,11 +4467,11 @@ export declare const ContractPage: z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         label: string;
+        key: string;
     }, {
-        key: string;
         label: string;
+        key: string;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
@@ -4497,16 +4497,16 @@ export declare const ContractPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }, {
     items: {
@@ -4532,16 +4532,16 @@ export declare const ContractPage: z.ZodObject<{
     pageSize: 10 | 100 | 50 | 25;
     groups?: {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
     stages?: {
-        key: string;
         label: string;
+        key: string;
     }[] | undefined;
 }>;
 export type ContractPage = z.infer<typeof ContractPage>;

@@ -1,10 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PsfApplicationPrefill = exports.PsfApplication = exports.PsfPayment = exports.PsfFiledForm = exports.PsfMembership = exports.CreatePsfAssociationRequest = exports.UpsertPsfAssociationRequest = exports.CreatePsfClusterRequest = exports.UpsertPsfClusterRequest = exports.PsfCatalogue = exports.PsfCluster = exports.PsfSubsector = exports.PsfAssociation = exports.UpdatePsfTierRequest = exports.CreatePsfTierRequest = exports.PsfTier = exports.OVERSIGHT_ROLE_POSTING = exports.PSF_OUT_OF_SCOPE_MESSAGE = exports.PSF_NOT_FOR_RESIDENCE_MESSAGE = exports.PSF_DISTRICT_DECIDES_MESSAGE = exports.PSF_OWN_BUSINESS_MESSAGE = exports.PSF_NOT_PAYABLE_MESSAGE = exports.PSF_NOT_OPEN_MESSAGE = exports.PSF_OPEN_APPLICATION_MESSAGE = exports.PSF_FEE_NOTICE = exports.REGISTRATION_TYPE_SHORT = exports.ENTERPRISE_REGISTRATION_KIND_LABEL = exports.PSF_OWNER_GROUP_SHORT = exports.PSF_OWNER_GROUP_LABEL = exports.PSF_CONTACT_ROLE_LABEL = exports.PSF_TRADE_DIRECTION_LABEL = exports.PSF_OWNERSHIP_LABEL = exports.PSF_COMPANY_TYPE_LABEL = exports.PSF_MEMBERSHIP_SOURCE_LABEL = exports.PSF_DECLINE_REASON_LABEL = exports.PSF_APPLICATION_STAGE_LABEL = exports.PSF_APPLICATION_STATUS_LABEL = exports.PSF_OFFERED_FAMILIES = exports.PSF_FAMILY_BLURB = exports.PSF_FAMILY_LABEL = exports.PSF_DOMAINS = exports.PSF_QUEUE_REGISTRATION_STATES = exports.PsfApplicationStage = exports.PsfMembershipSource = exports.PsfDeclineReason = exports.PsfSubmittedCapacity = exports.PSF_OPEN_APPLICATION_STATUSES = exports.PsfApplicationStatus = exports.PsfPriceKind = exports.PsfMembershipFamily = void 0;
-exports.PsfMemberListRow = exports.RejectPsfClaimRequest = exports.ConfirmPsfClaimRequest = exports.PsfClaimsPage = exports.PsfClaimsQuery = exports.PsfMembershipClaim = exports.PsfClaimStatus = exports.PsfFormAnswers = exports.UpdatePsfFormFieldRequest = exports.CreatePsfFormFieldRequest = exports.PsfFormFieldsOfficerView = exports.PsfFormFieldsPublic = exports.PsfFormField = exports.PsfFormFieldOption = exports.PsfFormFieldKey = exports.PsfFormFieldType = exports.UpdatePsfSubsectorRequest = exports.CreatePsfSubsectorRequest = exports.PsfSubsectorsView = exports.PsfRegisterSummary = exports.PsfCount = exports.PsfBusinessesPage = exports.PsfBusinessBranch = exports.PsfPaymentReminderResult = exports.PsfPaymentReminderRequest = exports.PsfBusinessRow = exports.PsfBusinessesQuery = exports.PsfBusinessKind = exports.PSF_STANDING_LABEL = exports.PsfStanding = exports.PsfDeclineRequest = exports.PsfApproveRequest = exports.PsfOfficerApplication = exports.PsfQueueQuery = exports.PsfQueuePage = exports.PsfQueueItem = exports.PSF_APPLICATION_INTAKE_LABEL = exports.PsfApplicationIntake = exports.PSF_APPLICATION_ORIGIN_LABEL = exports.PsfApplicationOrigin = exports.PsfBranchDecisionRequest = exports.PsfApplicationBranch = exports.PSF_BRANCH_STATUS_LABEL = exports.PsfBranchStatus = exports.PayPsfMembershipRequest = exports.CreatePsfApplicationRequest = exports.AdminOrgPsf = exports.AdminPsfApplication = exports.PsfMembershipOverview = exports.PsfBusinessProfile = void 0;
-exports.PsfMemberListResult = exports.UploadPsfMemberListRequest = void 0;
+exports.RejectPsfClaimRequest = exports.ConfirmPsfClaimRequest = exports.PsfClaimsPage = exports.PsfClaimsQuery = exports.PsfMembershipClaim = exports.PsfClaimStatus = exports.PsfFormAnswers = exports.UpdatePsfFormFieldRequest = exports.CreatePsfFormFieldRequest = exports.PsfFormFieldsOfficerView = exports.PsfFormFieldsPublic = exports.PsfFormField = exports.PsfFormFieldOption = exports.PsfFormFieldKey = exports.PsfFormFieldType = exports.UpdatePsfSubsectorRequest = exports.CreatePsfSubsectorRequest = exports.PsfSubsectorsView = exports.PsfRegisterSummary = exports.PsfCount = exports.PsfBusinessesPage = exports.PsfBusinessBranch = exports.PsfPaymentReminderResult = exports.PsfPaymentReminderRequest = exports.PsfBusinessRow = exports.PsfBusinessesQuery = exports.PsfBusinessKind = exports.PSF_STANDING_LABEL = exports.PsfStanding = exports.PsfDeclineRequest = exports.PsfSendBackRequest = exports.PsfApproveRequest = exports.PsfOfficerApplication = exports.PsfQueueQuery = exports.PsfQueuePage = exports.PsfQueueItem = exports.PSF_APPLICATION_INTAKE_LABEL = exports.PsfApplicationIntake = exports.PSF_APPLICATION_ORIGIN_LABEL = exports.PsfApplicationOrigin = exports.PsfBranchDecisionRequest = exports.PsfApplicationBranch = exports.PSF_BRANCH_STATUS_LABEL = exports.PsfBranchStatus = exports.PayPsfMembershipRequest = exports.CreatePsfApplicationRequest = exports.AdminOrgPsf = exports.AdminPsfApplication = exports.PsfMembershipOverview = exports.PsfBusinessProfile = void 0;
+exports.PsfMemberListResult = exports.UploadPsfMemberListRequest = exports.PsfMemberListRow = void 0;
 exports.isInPsfQueueState = isInPsfQueueState;
 exports.isPsfApplicant = isPsfApplicant;
+exports.psfFamilyName = psfFamilyName;
+exports.psfLevelsOf = psfLevelsOf;
 exports.psfTierAcceptsFee = psfTierAcceptsFee;
 exports.psfFeeProblem = psfFeeProblem;
 exports.psfStartingFee = psfStartingFee;
@@ -43,7 +45,7 @@ const registration_1 = require("./registration");
  * The families PSF prices membership in. `ordinary` and `junior_giants` are
  * retired (2026-10-15) and stay only so the rows that name them still read.
  */
-exports.PsfMembershipFamily = zod_1.z.enum(["golden_circle", "indashyikirwa", "indatwa", "ordinary", "junior_giants"]);
+exports.PsfMembershipFamily = zod_1.z.string().trim().min(1).max(60);
 /**
  * A fixed amount, a min to max band, a floor with no ceiling (`minimum`, which
  * is Golden Circle's 5,000,000 and up), or a price only PSF can quote.
@@ -134,6 +136,19 @@ exports.PSF_FAMILY_BLURB = {
     ordinary: "Retired.",
     junior_giants: "Retired.",
 };
+/** A level's name when only its code is at hand; the API's `familyName` is the one PSF edits. */
+function psfFamilyName(code) {
+    return exports.PSF_FAMILY_LABEL[code] ?? code.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+}
+/** The levels a list of bands belongs to, in the order the API sent them (PSF's own). */
+function psfLevelsOf(tiers) {
+    const seen = new Map();
+    for (const t of tiers) {
+        if (!seen.has(t.family))
+            seen.set(t.family, { family: t.family, name: t.familyName || psfFamilyName(t.family), blurb: t.familyBlurb || (exports.PSF_FAMILY_BLURB[t.family] ?? "") });
+    }
+    return [...seen.values()];
+}
 /** The families a business can still pick, in the order PSF ranks them. */
 exports.PSF_OFFERED_FAMILIES = ["golden_circle", "indashyikirwa", "indatwa"];
 exports.PSF_APPLICATION_STATUS_LABEL = {
@@ -237,21 +252,22 @@ exports.PSF_OUT_OF_SCOPE_MESSAGE = "This business is outside the region you cove
  *
  * A PSF membership officer may be posted for the whole country, a province or
  * one district, and sees exactly the businesses of that region. Injishi's admin
- * posts only the Province Managers (2026-11-02); each Province
- * Manager posts its districts' District Managers, and a District Manager its
- * district's BDEs, from the PSF console's Team screen, so neither is offered to
- * admin here.
+ * posts only the Regional Managers (2026-11-02); each Province
+ * Manager posts its districts' District Managers from the PSF console's Team
+ * screen. Admin also creates each district's BDEs (2026-11-05).
  */
 exports.OVERSIGHT_ROLE_POSTING = {
     psf_membership_officer: {
         governmentBodyCode: "PSF",
-        scopeLevels: ["province"],
-        message: "Injishi appoints PSF's Province Managers, at PSF. A Province Manager appoints its District Managers from the PSF console.",
+        // The National Manager too (2026-11-06, the owner): the whole country, the split, bands and form.
+        scopeLevels: ["country", "province"],
+        message: "Injishi appoints PSF's National and Regional Managers, at PSF. A Regional Manager appoints its District Managers from the PSF console.",
     },
     psf_business_officer: {
         governmentBodyCode: "PSF",
-        scopeLevels: [],
-        message: "A BDE (Business Development & Empowerment) is appointed by the PSF District Manager of that district, from the PSF console.",
+        // Injishi's admin creates BDEs (2026-11-05, the owner), each for one district, with their ID.
+        scopeLevels: ["district"],
+        message: "A BDE (Business Development & Empowerment) is posted at PSF, for one district.",
     },
 };
 // ---------------------------------------------------------------------------
@@ -260,6 +276,9 @@ exports.OVERSIGHT_ROLE_POSTING = {
 exports.PsfTier = zod_1.z.object({
     code: zod_1.z.string(),
     family: exports.PsfMembershipFamily,
+    /** The level's name and line, as PSF keeps them (`psf_levels`, 2026-11-06). */
+    familyName: zod_1.z.string().default(""),
+    familyBlurb: zod_1.z.string().default(""),
     nameEn: zod_1.z.string(),
     nameRw: zod_1.z.string().nullable(),
     priceKind: exports.PsfPriceKind,
@@ -707,6 +726,11 @@ exports.PsfQueuePage = zod_1.z.object({
 exports.PsfQueueQuery = registration_1.OversightDecisionQuery;
 exports.PsfOfficerApplication = exports.PsfApplication.extend({
     orgId: primitives_1.Uuid,
+    /** Answers to the questions PSF added to the form (2026-11-06), each with its question. */
+    extraAnswers: zod_1.z.array(zod_1.z.object({ label: zod_1.z.string(), value: zod_1.z.string() })).default([]),
+    /** Sent back to fix (2026-11-05): when, and what the District Manager asked. Null while with PSF. */
+    returnedAt: zod_1.z.string().nullable().default(null),
+    returnNote: zod_1.z.string().nullable().default(null),
     /** New, or a card holder joining the new module (2026-11-02): confirmed with dates, no fee. */
     intake: exports.PsfApplicationIntake.default("new"),
     /** Where it was sent from: the public PSF form, or Injishi's business registration. */
@@ -746,6 +770,10 @@ exports.PsfApproveRequest = zod_1.z.object({
     startsOn: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use yyyy-mm-dd.").optional(),
     expiresOn: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use yyyy-mm-dd.").optional(),
 });
+/** PSF never rejects (2026-11-05): an application goes back with what to fix. */
+exports.PsfSendBackRequest = zod_1.z.object({
+    note: zod_1.z.string().trim().min(3, "Say what they should fix.").max(1000, "That note is too long."),
+});
 /** Declining an application (AC-12). A note is required with `other`. */
 exports.PsfDeclineRequest = zod_1.z
     .object({
@@ -772,11 +800,12 @@ exports.PsfDeclineRequest = zod_1.z
  *   lapsed             a membership that ended, and none current
  *   declined           the last application was declined, none open
  */
-exports.PsfStanding = zod_1.z.enum(["not_applied", "claimed", "applied", "awaiting_payment", "member", "lapsed", "declined"]);
+exports.PsfStanding = zod_1.z.enum(["not_applied", "claimed", "applied", "sent_back", "awaiting_payment", "member", "lapsed", "declined"]);
 exports.PSF_STANDING_LABEL = {
     not_applied: "Not applied",
     claimed: "Card holder, waiting for PSF",
     applied: "Waiting for approval",
+    sent_back: "Sent back to fix",
     awaiting_payment: "Approved, to pay",
     member: "Member",
     lapsed: "Lapsed",
@@ -808,6 +837,8 @@ exports.PsfBusinessesQuery = zod_1.z.object({
     payment: zod_1.z.enum(["due"]).optional(),
     group: registration_1.PsfOwnerGroup.optional(),
     tin: zod_1.z.enum(["with", "without"]).optional(),
+    /** Whether it has an RDB certificate on file (2026-11-05). */
+    rdb: zod_1.z.enum(["with", "without"]).optional(),
     kind: exports.PsfBusinessKind.optional(),
     cursor: zod_1.z.string().max(200).optional(),
 });
@@ -1068,6 +1099,9 @@ exports.PsfMembershipClaim = zod_1.z.object({
     /** The next number in its district's run (2026-11-02): every card holder gets a new one. */
     suggestedMembershipNumber: zod_1.z.string().nullable().default(null),
     status: exports.PsfClaimStatus,
+    /** Sent back (2026-11-05): waiting for the business to resend its card. Null otherwise. */
+    returnedAt: zod_1.z.string().nullable().default(null),
+    returnNote: zod_1.z.string().nullable().default(null),
     claimedAt: zod_1.z.string(),
     claimedByName: zod_1.z.string().nullable(),
     decidedAt: zod_1.z.string().nullable(),

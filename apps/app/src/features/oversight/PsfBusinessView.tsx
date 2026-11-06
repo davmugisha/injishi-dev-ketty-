@@ -338,6 +338,14 @@ export function PsfBusinessView({
                     Download the membership certificate
                   </a>
                 ) : null}
+                {m.standing === "member" ? (
+                  <a
+                    href={`${API_BASE}/api/v1/oversight/psf/businesses/${p.orgId}/card`}
+                    className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-accent hover:underline"
+                  >
+                    Download the membership card
+                  </a>
+                ) : null}
                 {/* Renewals (2026-11-02): paid on the tracking page, renewed at once, no decision here. */}
                 {membership?.renewals.length ? (
                   <div className="flex flex-col gap-1.5 border-t border-separator pt-3">

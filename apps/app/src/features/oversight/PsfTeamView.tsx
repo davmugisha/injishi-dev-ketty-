@@ -10,10 +10,9 @@ import { appointPsfTeamAction, endPsfTeamAction } from "./psf-team-actions";
 type Member = Team["members"][number];
 
 /**
- * The PSF team (2026-11-02): a Province Manager (or the National Manager) appoints its districts'
- * District Managers, and a District Manager its own district's BDEs (Business Development &
- * Empowerment). Each ends the appointments it may make, with a reason. Every appointment takes the
- * person's ID.
+ * The PSF team: a Regional Manager (or the National Manager) appoints its districts' District Managers
+ * and ends appointments, with a reason. Injishi's admin creates BDEs (2026-11-05), and a District Manager
+ * reads who is who. Every appointment takes the person's ID.
  */
 export function PsfTeamView({ scope, initial }: { scope: PsfScope; initial: Team }) {
   const [team, setTeam] = useState(initial);
@@ -21,8 +20,8 @@ export function PsfTeamView({ scope, initial }: { scope: PsfScope; initial: Team
   const [note, setNote] = useState<string | null>(null);
   const managers = team.members.filter((m) => m.role === "district_manager").length;
   const appointsManagers = team.appointRoles.includes("district_manager");
-  // A Province Manager ends anyone in its districts; a District Manager its BDEs.
-  const mayEnd = (m: Member) => appointsManagers || (m.role === "business_officer" && team.appointRoles.includes("business_officer"));
+  // A Regional Manager ends anyone in its districts; a District Manager reads.
+  const mayEnd = (_m: Member): boolean => appointsManagers;
 
   return (
     <PageContent>
@@ -31,14 +30,14 @@ export function PsfTeamView({ scope, initial }: { scope: PsfScope; initial: Team
         title="Team"
         description={
           appointsManagers
-            ? "The District Managers of your districts, and the BDEs they appoint. You appoint the District Managers."
-            : "Your district's PSF team. You appoint its BDEs (Business Development & Empowerment); your Province Manager appoints District Managers."
+            ? "The District Managers and BDEs of your districts. You appoint the District Managers; Injishi's admin creates BDEs."
+            : "Your district's PSF team. Your Regional Manager appoints District Managers, and Injishi's admin creates BDEs (Business Development & Empowerment)."
         }
       />
 
       <Alert status="accent">
         <Alert.Content>
-          <Alert.Title>Two posts in each district: the Province Manager appoints the first, the District Manager the second</Alert.Title>
+          <Alert.Title>Two posts in each district: the Regional Manager appoints the first, Injishi's admin creates the second</Alert.Title>
           <Alert.Description>
             <strong>{PSF_TEAM_ROLE_LABEL.district_manager}:</strong> {PSF_TEAM_ROLE_DESCRIPTION.district_manager}{" "}
             <strong>{PSF_TEAM_ROLE_LABEL.business_officer}:</strong> {PSF_TEAM_ROLE_DESCRIPTION.business_officer}
@@ -87,7 +86,7 @@ export function PsfTeamView({ scope, initial }: { scope: PsfScope; initial: Team
               size="sm"
               icon="Persons"
               title="Nobody appointed yet"
-              description={appointsManagers ? "Appoint a District Manager for each district. Each District Manager appoints its BDEs." : "Appoint the BDEs your district needs."}
+              description={appointsManagers ? "Appoint a District Manager for each district. Injishi's admin creates BDEs." : "Nobody appointed yet in your district."}
             />
           }
           columns={[

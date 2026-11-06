@@ -107,6 +107,8 @@ export const orgs = pgTable(
     // 2026-10-23: the business's own logo, optional, given on the public PSF
     // form and printed on its membership certificate (`org_logo` objects).
     logoObjectKey: text('logo_object_key').references((): AnyPgColumn => storedObjects.objectKey),
+    // The owner's passport photo (0136), printed on its PSF card and certificate.
+    psfOwnerPhotoKey: text('psf_owner_photo_key'),
     /**
      * The `Idempotency-Key` of the Pay press that created this registration
      * (ADR-075 AC-14). Unique, so a retried press, a double press or two tabs

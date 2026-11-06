@@ -857,9 +857,11 @@ export default function RegisterWizard({
       ? // A member sends its card (2026-11-02), and its number if it knows it: PSF reads the number off
         // the card otherwise.
         (!business.psfMembershipNumber.trim() || looksLikePsfNumber(business.psfMembershipNumber)) &&
-        docs.some((d) => d.kind === "psf_certificate")
+        docs.some((d) => d.kind === "psf_certificate") &&
+        Boolean(business.psfOwnerPhotoKey)
       : business.psfMember === false
-        ? business.psfApply !== true || (PsfApplicationInput.safeParse(psfCandidate(psf, true, askPsfGender)).success && psfBusinessIssue(psf) === null)
+        ? business.psfApply !== true ||
+          (PsfApplicationInput.safeParse(psfCandidate(psf, true, askPsfGender)).success && psfBusinessIssue(psf) === null && Boolean(business.psfOwnerPhotoKey))
         : true);
   // The rows Documents asks for, by the kind the org will carry (ADR-075 S5).
   const documentKind: BusinessKind | null = kind && kind !== "broker" ? registrationForKind(kind).businessKind : null;
@@ -1487,8 +1489,12 @@ export default function RegisterWizard({
         why:
           business.psfMembershipNumber.trim() && !looksLikePsfNumber(business.psfMembershipNumber)
             ? "Fix the PSF membership number, or leave it empty, to continue."
-            : "Add your PSF membership card to continue.",
+            : !docs.some((d) => d.kind === "psf_certificate")
+              ? "Add your PSF membership card to continue."
+              : "Add your passport photo to continue.",
       };
+    } else if (business.psfMember === false && business.psfApply === true && !business.psfOwnerPhotoKey) {
+      primary = { ...primary, disabled: true, why: "Add your passport photo to continue." };
     }
   } else if (step === "you" && !youDone) {
     primary = { ...primary, disabled: true, why: "Finish the sections above to continue." };
@@ -2019,6 +2025,7 @@ function businessCandidate(
     psfMember: member,
     ...(member && number ? { psfMembershipNumber: number } : {}),
     ...(d.psfMember === false && d.psfApply === true ? { psfApplication: psfCandidate(psf, documentOnFile, askPsfGender) } : {}),
+    ...((member || (d.psfMember === false && d.psfApply === true)) && d.psfOwnerPhotoKey ? { psfOwnerPhotoKey: d.psfOwnerPhotoKey } : {}),
     // The franchise question is not asked for now (2026-11-03): an answer left in an older saved draft is
     // not sent either. `franchiseCandidate(d)` goes back here when the section does.
     address,

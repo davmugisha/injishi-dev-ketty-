@@ -51,6 +51,8 @@ export * from "./platform";
 export * from "./training";
 export * from "./psf";
 export * from "./psf-public";
+export * from "./psf-setup";
+export * from "./psf-papers";
 export * from "./business-code";
 export * from "./identity";
 export * from "./registration-draft";

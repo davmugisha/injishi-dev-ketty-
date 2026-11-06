@@ -106,6 +106,8 @@ export const sampleCollectionsByBoard: Record<string, number> = {
   PsfRegister: 0,
   PsfReport: 0,
   PsfSubtypes: 0,
+  PsfMoney: 0,
+  PsfSetup: 0,
   PsfTeam: 0,
   PublicHelp: 4,
   PublicHost: 2,

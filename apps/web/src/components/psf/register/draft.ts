@@ -69,6 +69,11 @@ export interface PsfDraft {
   gender: "male" | "female" | "";
   phone: string;
   email: string;
+  /** The passport photo (2026-11-05): its key, and its name to show after a reload. */
+  photoObjectKey: string;
+  photoName: string;
+  /** Answers to the questions PSF added (2026-11-06), by their key. */
+  extras: Record<string, string | number | boolean>;
 
   legalName: string;
   registrationKind: EnterpriseRegistrationKind | "";
@@ -127,6 +132,9 @@ export const EMPTY_DRAFT: PsfDraft = {
   gender: "",
   phone: "",
   email: "",
+  photoObjectKey: "",
+  photoName: "",
+  extras: {},
   legalName: "",
   registrationKind: "",
   tin: "",
@@ -232,7 +240,7 @@ export function businessFrom(d: PsfDraft): unknown {
     companyType: d.companyType || undefined,
     ownership: d.ownership || undefined,
     ownershipOther: d.ownership === "other" ? blank(d.ownershipOther) : undefined,
-    businessActivity: d.businessActivity,
+    businessActivity: blank(d.businessActivity),
     website: blank(d.website),
     logoObjectKey: blank(d.logoObjectKey),
     tradeDirection: d.tradeDirection,
@@ -305,7 +313,7 @@ function validateBusinessAll(d: PsfDraft): Errors {
  * (2026-10-20), never the business's own; the form copies it into the draft,
  * and the API refuses a form whose amount no longer matches.
  */
-export function validateMembership(d: PsfDraft, tiers: PsfTier[], fees: PsfFeesView | null): Errors {
+export function validateMembership(d: PsfDraft, tiers: PsfTier[], fees: PsfFeesView | null, floorRwf: number | null = null): Errors {
   const tier = tiers.find((t) => t.code === d.tierCode);
   if (!d.family) return { "membership.family": d.cardHolder ? "Pick the level printed on your card." : "Pick a membership." };
   if (!tier) return { "membership.tierCode": d.cardHolder ? "Pick the band printed on your card." : "Pick the band you can afford." };
@@ -317,6 +325,10 @@ export function validateMembership(d: PsfDraft, tiers: PsfTier[], fees: PsfFeesV
   if (price === null) return { "membership.tierCode": "PSF has not set a price for this band in your district yet. Pick another." };
   // At least the band's price, and below the next band's (`psfFeeCeilings`).
   const amount = Number(d.amount.replace(/[^\d]/g, ""));
+  // This kind's own price in the district is the floor (2026-11-05).
+  if (floorRwf !== null && amount < floorRwf) {
+    return { "membership.declaredFeeRwf": `This kind of business costs at least ${rwf(floorRwf)} a year in your district.` };
+  }
   if (!d.amount.trim() || amount < price) {
     return { "membership.declaredFeeRwf": `This band starts at ${rwf(price)} a year. Pay at least that, or pick a lower band.` };
   }
@@ -351,7 +363,9 @@ export function toRequest(d: PsfDraft): PsfPublicSubmitRequest {
       gender: (d.gender || "female") as "male" | "female",
       phoneE164: d.phone,
       email: blank(d.email),
+      photoObjectKey: blank(d.photoObjectKey),
     },
+    extras: d.extras,
     ...(d.cardHolder ? {} : { payerPhoneE164: d.payer }),
     consent: true,
   };

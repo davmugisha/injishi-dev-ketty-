@@ -3,18 +3,17 @@ import {
   OVERSIGHT_ROLE_LABEL,
   PSF_DECLINE_REASON_LABEL,
   REJECTION_REASON_LABEL,
-  PSF_FAMILY_LABEL,
-  PSF_OFFERED_FAMILIES,
   PSF_OVERDUE_DAYS,
   PSF_OWNER_GROUP_LABEL,
   districtLetters,
   median,
+  psfFeeKindsOf,
+  psfFeeTotal,
   provinceDisplayName,
   type OversightGrant,
   type PsfDecisionsPage,
   type PsfDecisionsQuery,
   type PsfKpi,
-  type PsfMembershipFamily,
   type PsfOfficerScope,
   type PsfOwnerGroup,
   type PsfReport,
@@ -171,7 +170,17 @@ export class PsfReportService {
       this.repo.bookingMonths(scope, chartFromDay(chartFrom), toDay),
       this.repo.topBusinesses(scope, query.from, toDay),
     ]);
+    const [split, districtPercent, levels, feeLines, feeLinesBefore, feeLinesCharted] = await Promise.all([
+      this.repo.feeSplit(scope, from, to),
+      this.repo.currentSplitPercent(),
+      this.psf.levels(),
+      this.repo.feeLines(scope, from, to),
+      this.repo.feeLines(scope, prevFrom, from),
+      this.repo.feeLines(scope, chartFrom, to),
+    ]);
     const kpi = (k: keyof Omit<typeof current, 'decisionDays'>): PsfKpi => ({ value: current[k], previous: previous[k] });
+    const fees = psfFeeKindsOf(feeLines);
+    const feesBefore = psfFeeKindsOf(feeLinesBefore);
     const families = new Map(byFamily.map((f) => [f.key, f]));
     return {
       regionLabel: label,
@@ -185,8 +194,21 @@ export class PsfReportService {
         newMembers: kpi('newMembers'),
         renewed: kpi('renewed'),
         cardHolders: kpi('cardHolders'),
-        membershipFeesRwf: kpi('membershipFeesRwf'),
+        upgraded: kpi('upgraded'),
+        membershipFeesRwf: { value: psfFeeTotal(fees).totalRwf, previous: psfFeeTotal(feesBefore).totalRwf },
         medianDecisionDays: { value: round1(median(current.decisionDays)), previous: round1(median(previous.decisionDays)) },
+      },
+      fees: {
+        current: fees,
+        previous: feesBefore,
+        ourShare: grants.some((g) => g.oversightRole === 'psf_membership_officer' && g.scopeLevel === 'country') ? 'headquarters' : 'district',
+      },
+      split: {
+        totalRwf: split.reduce((sum, d) => sum + d.totalRwf, 0),
+        districtRwf: split.reduce((sum, d) => sum + d.districtRwf, 0),
+        headquartersRwf: split.reduce((sum, d) => sum + d.headquartersRwf, 0),
+        districtPercent,
+        byDistrict: split,
       },
       now,
       registrations: {
@@ -219,36 +241,50 @@ export class PsfReportService {
         months: fillMonths(months.map((m) => m.month), bookingMonths, { bookings: 0, guestNights: 0, valueRwf: 0 }),
         topBusinesses: top,
       },
-      months,
+      months: months.map((m) => {
+        const inMonth = psfFeeKindsOf(feeLinesCharted.filter((f) => f.month === m.month));
+        return { ...m, feesRwf: psfFeeTotal(inMonth).totalRwf, fees: inMonth };
+      }),
       funnel,
       bySector,
-      byFamily: PSF_OFFERED_FAMILIES.map((f) => ({
-        key: f,
-        label: PSF_FAMILY_LABEL[f as PsfMembershipFamily],
-        count: families.get(f)?.count ?? 0,
-        amountRwf: families.get(f)?.amountRwf ?? 0,
-      })),
+      // PSF's own levels (2026-11-06), any it retired kept while they still hold members.
+      byFamily: levels
+        .filter((l) => l.active || families.has(l.code))
+        .map((l) => ({
+          key: l.code,
+          label: l.nameEn,
+          count: families.get(l.code)?.count ?? 0,
+          amountRwf: families.get(l.code)?.amountRwf ?? 0,
+          districtRwf: 0,
+          headquartersRwf: 0,
+        })),
       byGroup: byGroup.map((g) => ({
         key: g.key,
         label: PSF_OWNER_GROUP_LABEL[g.key as PsfOwnerGroup] ?? g.key,
         count: g.count,
         amountRwf: 0,
+        districtRwf: 0,
+        headquartersRwf: 0,
       })),
-      districts: districts.map((d) => ({
-        districtId: d.districtId,
-        name: d.name,
-        letters: districtLetters(d.districtId, d.name),
-        provinceName: provinceDisplayName(d.provinceName),
-        registered: d.registered,
-        waiting: d.waiting,
-        overdue: d.overdue,
-        approved: d.approved,
-        declined: d.declined,
-        members: d.members,
-        membershipFeesRwf: d.feesRwf,
-        medianDecisionDays: round1(median(d.decisionDays)),
-        officers: d.officers,
-      })),
+      districts: districts.map((d) => {
+        const inDistrict = psfFeeKindsOf(feeLines.filter((f) => f.districtId === d.districtId));
+        return {
+          districtId: d.districtId,
+          name: d.name,
+          letters: districtLetters(d.districtId, d.name),
+          provinceName: provinceDisplayName(d.provinceName),
+          registered: d.registered,
+          waiting: d.waiting,
+          overdue: d.overdue,
+          approved: d.approved,
+          declined: d.declined,
+          members: d.members,
+          membershipFeesRwf: psfFeeTotal(inDistrict).totalRwf,
+          fees: inDistrict,
+          medianDecisionDays: round1(median(d.decisionDays)),
+          officers: d.officers,
+        };
+      }),
     };
   }
 

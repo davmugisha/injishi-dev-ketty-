@@ -23,6 +23,7 @@ const FILTERS: { id: AdminPsfFilter; label: string }[] = [
   { id: "renewal_due", label: "Renewal due" },
   { id: "lapsed", label: "Lapsed" },
   { id: "applied", label: "Waiting for approval" },
+  { id: "sent_back", label: "Sent back" },
   { id: "claimed", label: "Card holders" },
   { id: "declined", label: "Declined" },
 ];
@@ -30,6 +31,7 @@ const FILTERS: { id: AdminPsfFilter; label: string }[] = [
 const TONE: Record<PsfStanding, "success" | "warning" | "danger" | "default"> = {
   member: "success",
   applied: "warning",
+  sent_back: "warning",
   claimed: "warning",
   awaiting_payment: "warning",
   lapsed: "danger",

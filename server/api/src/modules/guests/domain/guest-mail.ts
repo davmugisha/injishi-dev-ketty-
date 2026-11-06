@@ -124,7 +124,7 @@ export function appointmentMail(input: { appUrl: string; roleLabel: string; area
   const url = new URL('/sign-in', input.appUrl);
   url.searchParams.set('next', input.next);
   // "Village leader" reads as "village leader" mid-sentence; a title led by an
-  // acronym ("PSF Province Manager", "DGIE district officer") keeps its capitals.
+  // acronym ("PSF Regional Manager", "DGIE district officer") keeps its capitals.
   const role = /^[A-Z]{2,}\b/.test(input.roleLabel) ? input.roleLabel : input.roleLabel.toLowerCase();
   return mail(
     `You are now the ${role} for ${input.area} on Injishi`,

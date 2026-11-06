@@ -67,6 +67,8 @@ __exportStar(require("./platform"), exports);
 __exportStar(require("./training"), exports);
 __exportStar(require("./psf"), exports);
 __exportStar(require("./psf-public"), exports);
+__exportStar(require("./psf-setup"), exports);
+__exportStar(require("./psf-papers"), exports);
 __exportStar(require("./business-code"), exports);
 __exportStar(require("./identity"), exports);
 __exportStar(require("./registration-draft"), exports);
