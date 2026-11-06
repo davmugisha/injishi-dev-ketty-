@@ -24,6 +24,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./primitives"), exports);
 __exportStar(require("./phone"), exports);
 __exportStar(require("./authz"), exports);
+// Injishi Account (ADR-076 slice G): products and entitlements, the grants a
+// client reads, the new permission names, and the refusal layers and codes.
+__exportStar(require("./authz/products"), exports);
+__exportStar(require("./authz/legacy-keys"), exports);
+__exportStar(require("./authz/grants"), exports);
+__exportStar(require("./authz/refusals"), exports);
+__exportStar(require("./authz/entitlements"), exports);
 __exportStar(require("./staff-authz"), exports);
 __exportStar(require("./rdb"), exports);
 __exportStar(require("./business-kind"), exports);

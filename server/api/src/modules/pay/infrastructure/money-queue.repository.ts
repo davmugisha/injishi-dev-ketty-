@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, sql } from 'drizzle-orm';
 
-import { auditEvents, moneyOverrides, paymentTransactions } from '../../../database/drizzle/schema';
+import { moneyOverrides, paymentTransactions } from '../../../database/drizzle/schema';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import {
   DRIZZLE,
   type Database,
@@ -573,12 +574,12 @@ async function audit(
   reason: string,
   payload: Record<string, unknown> = {},
 ): Promise<void> {
-  await tx.insert(auditEvents).values({
+  await AuditWriter.write(tx, {
     actorUserId,
     subjectType: 'payment',
     subjectId,
     eventType,
     reason,
-    payloadDiff: payload as never,
+    payloadDiff: payload,
   });
 }

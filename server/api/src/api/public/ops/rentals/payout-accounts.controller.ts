@@ -8,6 +8,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.pipe';
@@ -19,10 +20,12 @@ import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.
  *
  * Read by whoever reads the money; changed only with `payout.manage`, the
  * owner's by default, because whoever changes it decides where every tenant's
- * rent lands. Every write answers the whole list.
+ * rent lands. Every write answers the whole list. Pay's, which owns payout
+ * destinations (ADR-074; ADR-076 slice G).
  */
 @Controller({ path: 'ops/payout-accounts', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('pay')
 export class OpsPayoutAccountsController {
   constructor(private readonly accounts: PayoutAccountsService) {}
 

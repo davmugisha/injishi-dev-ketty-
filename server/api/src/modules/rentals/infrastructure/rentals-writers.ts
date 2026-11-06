@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import type { LeaseActorRole, LeaseEventKind } from '@injishi/contracts';
 import { sql } from 'drizzle-orm';
 
-import { auditEvents, leaseEvents } from '../../../database/drizzle/schema';
+import { leaseEvents } from '../../../database/drizzle/schema';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import type { Database } from '../../../shared/database/database.module';
 
 /** The transaction handle Drizzle hands a `db.transaction` callback. */
@@ -79,20 +80,21 @@ export interface RentalsAuditInput {
  * cancellations, tenant record changes, payout account changes, unit
  * retirements, later recorded and reversed payments and deposit settlements.
  *
- * `audit_events` has a `prev_hash` column, but nothing in the platform chains
- * it yet (every writer leaves it null), so these rows follow that: one row per
- * act, by subject, in the same transaction as the act. Chaining belongs in a
- * shared writer for every audit row, not in one module's.
+ * One row per act, by subject, in the same transaction as the act, written
+ * through the platform's `AuditWriter` (ADR-076 G16): a landlord's act carries
+ * the business grant it was done under, a tenant's `self`, and a job's none.
+ * `audit_events` has a `prev_hash` column that nothing chains yet; chaining
+ * belongs in `AuditWriter`, not in one module's writer.
  */
 @Injectable()
 export class RentalsAuditWriter {
   async write(tx: DbOrTx, entry: RentalsAuditInput): Promise<void> {
-    await tx.insert(auditEvents).values({
+    await AuditWriter.write(tx, {
       actorUserId: entry.actorUserId,
       subjectType: entry.subjectType,
       subjectId: entry.subjectId,
       eventType: entry.eventType,
-      payloadDiff: (entry.diff ?? null) as never,
+      payloadDiff: entry.diff ?? null,
       reason: entry.reason ?? null,
     });
   }

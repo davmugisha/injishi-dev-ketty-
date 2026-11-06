@@ -155,8 +155,8 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
     }[] | undefined;
     done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
     phase?: "business" | "documents" | "about" | "place" | undefined;
-    openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
-    reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
+    openStep?: "business" | "documents" | "review" | "pay" | "you" | undefined;
+    reached?: "business" | "documents" | "review" | "pay" | "you" | undefined;
 }, {
     business: Record<string, string | boolean | Record<string, string> | null>;
     personal: {
@@ -197,8 +197,8 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
     }[] | undefined;
     done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
     phase?: "business" | "documents" | "about" | "place" | undefined;
-    openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
-    reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
+    openStep?: "business" | "documents" | "review" | "pay" | "you" | undefined;
+    reached?: "business" | "documents" | "review" | "pay" | "you" | undefined;
 }>, {
     business: Record<string, string | boolean | Record<string, string> | null>;
     personal: {
@@ -239,8 +239,8 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
     }[] | undefined;
     done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
     phase?: "business" | "documents" | "about" | "place" | undefined;
-    openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
-    reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
+    openStep?: "business" | "documents" | "review" | "pay" | "you" | undefined;
+    reached?: "business" | "documents" | "review" | "pay" | "you" | undefined;
 }, {
     business: Record<string, string | boolean | Record<string, string> | null>;
     personal: {
@@ -281,8 +281,8 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
     }[] | undefined;
     done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
     phase?: "business" | "documents" | "about" | "place" | undefined;
-    openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
-    reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
+    openStep?: "business" | "documents" | "review" | "pay" | "you" | undefined;
+    reached?: "business" | "documents" | "review" | "pay" | "you" | undefined;
 }>;
 export type RegistrationDraft = z.infer<typeof RegistrationDraft>;
 /**
@@ -688,8 +688,8 @@ export declare const RegistrationDraftRead: z.ZodObject<{
         }[] | undefined;
         done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
         phase?: "business" | "documents" | "about" | "place" | undefined;
-        openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
-        reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
+        openStep?: "business" | "documents" | "review" | "pay" | "you" | undefined;
+        reached?: "business" | "documents" | "review" | "pay" | "you" | undefined;
     }, {
         business: Record<string, string | boolean | Record<string, string> | null>;
         personal: {
@@ -730,8 +730,8 @@ export declare const RegistrationDraftRead: z.ZodObject<{
         }[] | undefined;
         done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
         phase?: "business" | "documents" | "about" | "place" | undefined;
-        openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
-        reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
+        openStep?: "business" | "documents" | "review" | "pay" | "you" | undefined;
+        reached?: "business" | "documents" | "review" | "pay" | "you" | undefined;
     }>, {
         business: Record<string, string | boolean | Record<string, string> | null>;
         personal: {
@@ -772,8 +772,8 @@ export declare const RegistrationDraftRead: z.ZodObject<{
         }[] | undefined;
         done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
         phase?: "business" | "documents" | "about" | "place" | undefined;
-        openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
-        reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
+        openStep?: "business" | "documents" | "review" | "pay" | "you" | undefined;
+        reached?: "business" | "documents" | "review" | "pay" | "you" | undefined;
     }, {
         business: Record<string, string | boolean | Record<string, string> | null>;
         personal: {
@@ -814,8 +814,8 @@ export declare const RegistrationDraftRead: z.ZodObject<{
         }[] | undefined;
         done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
         phase?: "business" | "documents" | "about" | "place" | undefined;
-        openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
-        reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
+        openStep?: "business" | "documents" | "review" | "pay" | "you" | undefined;
+        reached?: "business" | "documents" | "review" | "pay" | "you" | undefined;
     }>>;
     checks: z.ZodObject<{
         tin: z.ZodOptional<z.ZodObject<{
@@ -1106,8 +1106,8 @@ export declare const RegistrationDraftRead: z.ZodObject<{
         }[] | undefined;
         done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
         phase?: "business" | "documents" | "about" | "place" | undefined;
-        openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
-        reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
+        openStep?: "business" | "documents" | "review" | "pay" | "you" | undefined;
+        reached?: "business" | "documents" | "review" | "pay" | "you" | undefined;
     } | null;
     checks: {
         tin?: {
@@ -1186,8 +1186,8 @@ export declare const RegistrationDraftRead: z.ZodObject<{
         }[] | undefined;
         done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
         phase?: "business" | "documents" | "about" | "place" | undefined;
-        openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
-        reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
+        openStep?: "business" | "documents" | "review" | "pay" | "you" | undefined;
+        reached?: "business" | "documents" | "review" | "pay" | "you" | undefined;
     } | null;
     checks: {
         tin?: {

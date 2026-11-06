@@ -27,7 +27,7 @@ import {
   TextField,
 } from "@heroui/react";
 import { ListView } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
+import { type Persona, type ScreenProduct, screenHref } from "@injishi/data";
 import type {
   AccessAlternatives,
   AccessDenial,
@@ -53,14 +53,34 @@ function placeName(persona: Persona): string {
   return branch?.name ?? persona.org;
 }
 
+/** What each product is called, for the sentence that names one switched off. */
+const PRODUCT_NAME: Record<ScreenProduct, string> = {
+  account: "Account",
+  marketplace: "Marketplace",
+  pms: "PMS",
+  outlets: "Outlets",
+  pos: "POS",
+  residence: "Residence",
+  hr: "HR",
+  finance: "Finance",
+  pay: "Pay",
+};
+
+/** The layer that refused (ADR-076 G14): it decides what the card says, never the request button. */
+export type DeniedLayer = "workspace" | "operational" | "entitlement" | "permission";
+
 /** Permission denial and export step-up (artifact: AccessDenied.dc.html). Default is the denied card. */
 export function AccessDeniedView({
   persona,
   variant,
+  layer = "permission",
+  product,
   data,
 }: {
   persona: Persona;
   variant: "denied" | "stepup";
+  layer?: DeniedLayer;
+  product?: ScreenProduct;
   data: AccessDeniedData;
 }) {
   const { denial, alternatives, dataExport: exp, purposes, history } = data;
@@ -95,11 +115,22 @@ export function AccessDeniedView({
               <IconTile icon={<ShieldKeyhole className="size-[22px]" />} size={48} />
               <div className="flex flex-col gap-1.5">
                 <h1 id="ad-h" className="text-2xl leading-8 font-semibold tracking-[-0.015em]">
-                  This {noun} Isn’t Part of Your Role
+                  {layer === "entitlement"
+                    ? "This Product Isn’t Switched On Here"
+                    : layer === "operational"
+                      ? "Your Business Isn’t Active Yet"
+                      : layer === "workspace"
+                        ? `This ${noun} Belongs to Another Kind of Account`
+                        : `This ${noun} Isn’t Part of Your Role`}
                 </h1>
                 <p className="text-sm text-muted">
-                  Your {persona.role} role at {place} doesn’t include {denial.scope}, so nothing from this {denial.noun}{" "}
-                  was loaded.
+                  {layer === "entitlement"
+                    ? `${product ? PRODUCT_NAME[product] : "This product"} is not switched on at ${place}, so nothing from this ${denial.noun} was loaded. Injishi switches a product on for a business; its owner can ask.`
+                    : layer === "operational"
+                      ? `${place} is still in registration. Its screens open once Injishi approves it.`
+                      : layer === "workspace"
+                        ? `This ${denial.noun} is for a different kind of account than the ones you hold, so nothing from it was loaded.`
+                        : `Your ${persona.role} role at ${place} doesn’t include ${denial.scope}, so nothing from this ${denial.noun} was loaded.`}
                 </p>
               </div>
             </div>

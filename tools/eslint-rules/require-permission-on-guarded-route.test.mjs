@@ -36,25 +36,48 @@ class OpsThingsController {
 ${body}
 }`;
 
+// Every business route below names its product, as ADR-076 G10 requires;
+// the product cases at the end test that twin check on its own.
+const PRODUCT = `@RequireProduct('pms')`;
+
 tester.run('require-permission-on-guarded-route', rule, {
   valid: [
     // A read that names one power.
     workspaceController(`
   @Get()
   @RequirePermission('message.send')
-  list() {}`),
+  list() {}`, PRODUCT),
     // A read open to several powers (audit H1).
     workspaceController(`
   @Get()
   @RequireAnyPermission('stay.checkin', 'housekeeping.set')
-  list() {}`),
+  list() {}`, PRODUCT),
     // A class-level declaration covers every handler under it.
     workspaceController(
       `
   @Get('connection')
   connection() {}`,
-      `@RequirePermission('ebm.manage')`,
+      `@RequirePermission('ebm.manage')\n${PRODUCT}`,
     ),
+    // The product on the handler instead of the class.
+    workspaceController(`
+  @Get()
+  @RequirePermission('stay.checkin')
+  @RequireProduct('pms')
+  list() {}`),
+    // A platform capability route names any of its products.
+    workspaceController(`
+  @Get()
+  @RequirePermission('listing.manage')
+  list() {}`, `@RequireAnyProduct('pms', 'residence', 'outlets')`),
+    // A controller that answers to no one product yet, named by class.
+    {
+      code: workspaceController(`
+  @Get()
+  @RequirePermission('ebm.manage')
+  list() {}`),
+      options: [{ productAllow: ['OpsThingsController'] }],
+    },
     // SessionGuard alone has no permission to declare.
     `
 @Controller('me')
@@ -129,6 +152,48 @@ class UsersController {
   list() {}
 }`,
       errors: [{ messageId: 'missing', data: { route: 'UsersController.list', guard: 'StaffGuard', declaration: 'RequireStaffPermission' } }],
+    },
+    // ADR-076 G10: a business route that declares a permission and no product.
+    {
+      code: workspaceController(`
+  @Get()
+  @RequirePermission('stay.checkin')
+  list() {}`),
+      errors: [{ messageId: 'productMissing', data: { route: 'OpsThingsController.list' } }],
+    },
+    // `productAllow` names a class, so another class is still judged.
+    {
+      code: workspaceController(`
+  @Get()
+  @RequirePermission('stay.checkin')
+  list() {}`),
+      options: [{ productAllow: ['SomeOtherController'] }],
+      errors: [{ messageId: 'productMissing' }],
+    },
+    // A staff route never declares a product.
+    {
+      code: `
+@Controller('admin/orgs')
+@UseGuards(SessionGuard, StaffGuard)
+@RequireProduct('pms')
+class OrgsController {
+  @Get()
+  @RequireStaffPermission('admin.business.view')
+  list() {}
+}`,
+      errors: [{ messageId: 'productOnStaff', data: { route: 'OrgsController.list', guard: 'StaffGuard' } }],
+    },
+    // Nor does an oversight route.
+    {
+      code: `
+@Controller('oversight/cases')
+@UseGuards(SessionGuard, OversightGuard)
+class CasesController {
+  @Get()
+  @RequireAnyProduct('pms', 'residence')
+  list() {}
+}`,
+      errors: [{ messageId: 'productOnStaff', data: { route: 'CasesController.list', guard: 'OversightGuard' } }],
     },
   ],
 });

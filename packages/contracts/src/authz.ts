@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { WorkspaceGrants } from "./authz/grants";
 import { DepartmentCategory } from "./ops";
 import { Domain, OrgRegistrationStatus, OrgRole, OversightRole, OversightScopeLevel, Uuid, WorkspaceKind } from "./primitives";
 /**
@@ -818,6 +819,18 @@ export const WorkspaceAccess = z.object({
      * still parses a grant from an API built before it.
      */
     psfMembership: z.object({ canManage: z.boolean() }).nullable().default(null),
+    /**
+     * What the person holds HERE, in the shape every product reads (ADR-076
+     * contract section 3): the products the business has on, narrowed to the
+     * branches this member covers; the roles they hold, each with its scope;
+     * and the permissions those roles grant, under their new names.
+     *
+     * Set on every `business` workspace, absent on `broker` and `personal`.
+     * Optional so a client built before it still parses a grant. It sits
+     * beside `permissions` rather than replacing it: the flat field keeps
+     * today's keys until stage 9 (D-20).
+     */
+    grants: WorkspaceGrants.optional(),
 });
 export type WorkspaceAccess = z.infer<typeof WorkspaceAccess>;
 /**

@@ -24,7 +24,6 @@ import {
 import { asc, desc, eq, sql } from 'drizzle-orm';
 
 import {
-  auditEvents,
   configEntries,
   districts,
   featureFlags,
@@ -35,6 +34,7 @@ import {
   registrationFees,
   subscriptionPlans,
 } from '../../../database/drizzle/schema';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import {
   DRIZZLE,
   type Database,
@@ -211,7 +211,7 @@ export class ConfigurationAdminService {
         .values({ code, ...tierColumns(fields), updatedByUserId: input.actorUserId })
         .returning();
       if (!row) throw new Error('PSF tier insert returned no row.');
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.actorUserId,
         subjectType: 'config',
         subjectId: null,
@@ -247,7 +247,7 @@ export class ConfigurationAdminService {
         .where(eq(psfMembershipTiers.code, input.code))
         .returning();
       if (!row) throw new Error('PSF tier update returned no row.');
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.actorUserId,
         subjectType: 'config',
         subjectId: null,
@@ -288,7 +288,7 @@ export class ConfigurationAdminService {
         .insert(psfClusters)
         .values({ code, ...clusterColumns(fields), updatedByUserId: input.actorUserId })
         .returning();
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.actorUserId,
         subjectType: 'config',
         subjectId: null,
@@ -318,7 +318,7 @@ export class ConfigurationAdminService {
         .set({ ...clusterColumns(fields), updatedByUserId: input.actorUserId, updatedAt: new Date() })
         .where(eq(psfClusters.code, input.code))
         .returning();
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.actorUserId,
         subjectType: 'config',
         subjectId: null,
@@ -348,7 +348,7 @@ export class ConfigurationAdminService {
         .insert(psfAssociations)
         .values({ code, ...associationColumns(fields), updatedByUserId: input.actorUserId })
         .returning();
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.actorUserId,
         subjectType: 'config',
         subjectId: null,
@@ -376,7 +376,7 @@ export class ConfigurationAdminService {
         .set({ ...associationColumns(fields), updatedByUserId: input.actorUserId, updatedAt: new Date() })
         .where(eq(psfAssociations.code, input.code))
         .returning();
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.actorUserId,
         subjectType: 'config',
         subjectId: null,
@@ -436,7 +436,7 @@ export class ConfigurationAdminService {
         });
       if (!fee) throw new Error('Registration fee insert returned no row.');
 
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.actorUserId,
         subjectType: 'config',
         subjectId: fee.id,

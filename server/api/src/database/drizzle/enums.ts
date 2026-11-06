@@ -1156,6 +1156,43 @@ export const auditSubjectTypeEnum = pgEnum('audit_subject_type', [
   'tax_declaration',
   // People (migration 0125): a custom staff role made, changed or archived.
   'staff_role',
+  // ADR-076 (Injishi Account): a product switched on or off for a business is
+  // audited against its entitlement row (slice G); a role, a membership, an
+  // ownership transfer and an enrolled device each get theirs in slices R, O
+  // and D. Added together in migration 0134, which uses none of them, because
+  // Postgres refuses a new enum value inside the transaction that adds it.
+  'entitlement',
+  'role',
+  'membership',
+  'ownership_transfer',
+  'device',
+]);
+
+/**
+ * Which family of grant an audited act was done under (ADR-076 contract
+ * section 8). The three families of ADR-074 are never mixed: a business role,
+ * a platform staff role and an oversight assignment each answer to their own
+ * guard. `self` is a person acting on their own record (a guest, a resident),
+ * and `device` an act through an enrolled till, screen or kiosk (slice D).
+ */
+export const grantFamilyEnum = pgEnum('grant_family', [
+  'business',
+  'staff',
+  'oversight',
+  'self',
+  'device',
+]);
+
+/**
+ * How a product came to be switched on for a business (ADR-074 data model,
+ * ADR-076 G2, G3, G6): the switch on migration, the move to `active`, a plan
+ * (not built), or Injishi staff with a reason.
+ */
+export const entitlementSourceEnum = pgEnum('entitlement_source', [
+  'backfill',
+  'registration',
+  'plan',
+  'admin',
 ]);
 
 export const recordDataClassEnum = pgEnum('record_data_class', [
@@ -1200,6 +1237,10 @@ export const escalationTypeEnum = pgEnum('escalation_type', [
   'off_platform_leakage',
   'listing_non_compliance',
   'review_abuse',
+  // ADR-076 G4: a business became `active` but its kind could not be
+  // resolved, so it was given `account` only and a person must decide which
+  // products it runs. Nothing is guessed.
+  'business_kind_unresolved',
 ]);
 
 export const escalationStateEnum = pgEnum('escalation_state', [

@@ -37,6 +37,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -51,6 +52,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/shift-templates', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsShiftTemplatesController {
   constructor(private readonly time: TimeService) {}
 
@@ -94,6 +96,7 @@ export class OpsShiftTemplatesController {
  */
 @Controller({ path: 'ops/roster', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsRosterController {
   constructor(private readonly time: TimeService) {}
 

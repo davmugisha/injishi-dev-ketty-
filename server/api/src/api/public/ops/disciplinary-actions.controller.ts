@@ -25,6 +25,7 @@ import {
 import {
   CurrentWorkspace,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
@@ -40,6 +41,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/disciplinary-actions', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsDisciplinaryActionsController {
   constructor(private readonly content: HrContentService) {}
 

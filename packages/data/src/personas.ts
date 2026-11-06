@@ -23,6 +23,11 @@ export interface Branch {
 /** Business context shown in the sidebar switcher (from the artifact's BusinessSwitcher board). */
 export interface WorkspaceContext {
   kind: "business" | "institution";
+  /**
+   * The real workspace this context describes, when it is one (ADR-076 G13): the app builds it from
+   * `/me/workspaces` for everyone but a demo persona. A demo persona's context has none.
+   */
+  workspaceId?: string;
   ini: string;
   name: string;
   meta: string;
@@ -32,13 +37,18 @@ export interface WorkspaceContext {
   branches: Branch[];
   currentBranch: string;
   canManage?: boolean;
+  /**
+   * A demo business links to a board. A real one links to its own address (`href`, `/w/<workspaceId>`), or
+   * is switched to with `POST /me/active-workspace` first (`workspaceId`, the landlord's switcher).
+   */
   others: {
     ini: string;
     name: string;
     meta: string;
     count?: string;
     countLabel?: string;
-    board: BoardId;
+    board?: BoardId;
+    href?: string;
     /** A real business: choosing it switches the session's workspace (`POST /me/active-workspace`) first. */
     workspaceId?: string;
   }[];

@@ -23,8 +23,8 @@ export declare const MeContextBusiness: z.ZodObject<{
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
     permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
     orgName: string;
-    signatoryName: string | null;
     operational: boolean;
+    signatoryName: string | null;
 }, {
     domain: "hospitality" | "residence" | "enterprise";
     role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
@@ -33,8 +33,8 @@ export declare const MeContextBusiness: z.ZodObject<{
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
     permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
     orgName: string;
-    signatoryName: string | null;
     operational: boolean;
+    signatoryName: string | null;
 }>;
 export type MeContextBusiness = z.infer<typeof MeContextBusiness>;
 /** A home the person rents: a lease naming them (through `tenants.user_id`) that is not a draft. */
@@ -104,8 +104,8 @@ export declare const MeContext: z.ZodObject<{
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
         permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
         orgName: string;
-        signatoryName: string | null;
         operational: boolean;
+        signatoryName: string | null;
     }, {
         domain: "hospitality" | "residence" | "enterprise";
         role: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
@@ -114,8 +114,8 @@ export declare const MeContext: z.ZodObject<{
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
         permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
         orgName: string;
-        signatoryName: string | null;
         operational: boolean;
+        signatoryName: string | null;
     }>, "many">;
     /** The workspace this session last chose (`POST /me/active-workspace`); a hint about order, never about access. */
     activeWorkspaceId: z.ZodNullable<z.ZodString>;
@@ -233,8 +233,8 @@ export declare const MeContext: z.ZodObject<{
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
         permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
         orgName: string;
-        signatoryName: string | null;
         operational: boolean;
+        signatoryName: string | null;
     }[];
     user: {
         name: string | null;
@@ -287,8 +287,8 @@ export declare const MeContext: z.ZodObject<{
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
         permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.manage" | "lease.sign" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run" | "lostfound.manage" | "payout.manage" | "expense.manage" | "tax.manage" | "guest.register" | "pos.sell" | "pos.checkout" | "pos.discount" | "pos.override" | "pos.refund" | "table.manage" | "kitchen.work" | "register.operate" | "shift.review")[];
         orgName: string;
-        signatoryName: string | null;
         operational: boolean;
+        signatoryName: string | null;
     }[];
     user: {
         name: string | null;

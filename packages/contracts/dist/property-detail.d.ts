@@ -224,11 +224,6 @@ export declare const PropertyDetail: z.ZodObject<{
         }>>;
     }, "strip", z.ZodTypeAny, {
         key: string;
-        amenity: {
-            code: string;
-            label: string;
-            category: string | null;
-        } | null;
         outlet: {
             name: string;
             id: string;
@@ -236,14 +231,14 @@ export declare const PropertyDetail: z.ZodObject<{
             orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
+        } | null;
+        amenity: {
+            code: string;
+            label: string;
+            category: string | null;
         } | null;
     }, {
         key: string;
-        amenity: {
-            code: string;
-            label: string;
-            category: string | null;
-        } | null;
         outlet: {
             name: string;
             id: string;
@@ -251,14 +246,14 @@ export declare const PropertyDetail: z.ZodObject<{
             orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
+        } | null;
+        amenity: {
+            code: string;
+            label: string;
+            category: string | null;
         } | null;
     }>, {
         key: string;
-        amenity: {
-            code: string;
-            label: string;
-            category: string | null;
-        } | null;
         outlet: {
             name: string;
             id: string;
@@ -266,14 +261,14 @@ export declare const PropertyDetail: z.ZodObject<{
             orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
+        } | null;
+        amenity: {
+            code: string;
+            label: string;
+            category: string | null;
         } | null;
     }, {
         key: string;
-        amenity: {
-            code: string;
-            label: string;
-            category: string | null;
-        } | null;
         outlet: {
             name: string;
             id: string;
@@ -281,6 +276,11 @@ export declare const PropertyDetail: z.ZodObject<{
             orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
+        } | null;
+        amenity: {
+            code: string;
+            label: string;
+            category: string | null;
         } | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -324,11 +324,6 @@ export declare const PropertyDetail: z.ZodObject<{
     houseRules: string | null;
     facilities: {
         key: string;
-        amenity: {
-            code: string;
-            label: string;
-            category: string | null;
-        } | null;
         outlet: {
             name: string;
             id: string;
@@ -336,6 +331,11 @@ export declare const PropertyDetail: z.ZodObject<{
             orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
+        } | null;
+        amenity: {
+            code: string;
+            label: string;
+            category: string | null;
         } | null;
     }[];
     locationPrivacy: boolean;
@@ -401,11 +401,6 @@ export declare const PropertyDetail: z.ZodObject<{
     houseRules: string | null;
     facilities: {
         key: string;
-        amenity: {
-            code: string;
-            label: string;
-            category: string | null;
-        } | null;
         outlet: {
             name: string;
             id: string;
@@ -413,6 +408,11 @@ export declare const PropertyDetail: z.ZodObject<{
             orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
+        } | null;
+        amenity: {
+            code: string;
+            label: string;
+            category: string | null;
         } | null;
     }[];
     locationPrivacy: boolean;

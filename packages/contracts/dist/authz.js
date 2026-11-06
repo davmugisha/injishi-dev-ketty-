@@ -20,6 +20,7 @@ exports.opposingGateRole = opposingGateRole;
 exports.violatesSeparationOfDuties = violatesSeparationOfDuties;
 exports.mayElevate = mayElevate;
 const zod_1 = require("zod");
+const grants_1 = require("./authz/grants");
 const ops_1 = require("./ops");
 const primitives_1 = require("./primitives");
 /**
@@ -823,6 +824,18 @@ exports.WorkspaceAccess = zod_1.z.object({
      * still parses a grant from an API built before it.
      */
     psfMembership: zod_1.z.object({ canManage: zod_1.z.boolean() }).nullable().default(null),
+    /**
+     * What the person holds HERE, in the shape every product reads (ADR-076
+     * contract section 3): the products the business has on, narrowed to the
+     * branches this member covers; the roles they hold, each with its scope;
+     * and the permissions those roles grant, under their new names.
+     *
+     * Set on every `business` workspace, absent on `broker` and `personal`.
+     * Optional so a client built before it still parses a grant. It sits
+     * beside `permissions` rather than replacing it: the flat field keeps
+     * today's keys until stage 9 (D-20).
+     */
+    grants: grants_1.WorkspaceGrants.optional(),
 });
 /**
  * The emailed step up for this session (F-S02): whether the person's workspaces

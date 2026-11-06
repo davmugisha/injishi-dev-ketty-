@@ -3,7 +3,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import { type SQL, and, eq, gt, sql } from 'drizzle-orm';
 
 import {
-  auditEvents,
   districts,
   identityDocuments,
   oboRegistrations,
@@ -15,6 +14,8 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
+import { EntitlementDefaults } from '../../../shared/entitlements/entitlement-defaults';
 import { recordRegistrationEvent } from './registration-events';
 
 /** Any reason a claim writes nothing. Rolls the transaction back; answered 404. */
@@ -215,6 +216,9 @@ export class OwnerClaimRepository {
           // The owner claiming is the registrant side of the pipeline acting.
           mover: { trigger: 'registrant', actorUserId: input.userId },
         });
+        // A claim activated business gets its products exactly as an approved
+        // one does, in the same transaction (ADR-076 G2).
+        await EntitlementDefaults.applyTx(tx, input.orgId);
       }
 
       // 7. The audit row, carrying why payouts did or did not unlock.
@@ -225,7 +229,7 @@ export class OwnerClaimRepository {
             .from(orgs)
             .where(eq(orgs.id, input.orgId))
             .limit(1);
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.userId,
         subjectType: 'org',
         subjectId: input.orgId,

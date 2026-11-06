@@ -51,7 +51,7 @@ export type AdminAdapterStatus = z.infer<typeof AdminAdapterStatus>;
  * exists. The API's typecheck is what caught the gap: the query's row type
  * gained the two values and this contract had not.
  */
-export declare const AdminAuditSubjectType: z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration", "maintenance_ticket", "expense", "tax_declaration", "staff_role"]>;
+export declare const AdminAuditSubjectType: z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration", "maintenance_ticket", "expense", "tax_declaration", "staff_role", "entitlement", "role", "membership", "ownership_transfer", "device"]>;
 export type AdminAuditSubjectType = z.infer<typeof AdminAuditSubjectType>;
 /**
  * `record_data_class`. What class of another person's data a staff member read.
@@ -125,7 +125,7 @@ export type AdminSupportTicketState = z.infer<typeof AdminSupportTicketState>;
 export declare const AdminEscalationSubjectType: z.ZodEnum<["user", "org", "lease", "booking", "listing", "review", "message", "payment"]>;
 export type AdminEscalationSubjectType = z.infer<typeof AdminEscalationSubjectType>;
 /** `escalation_type`. */
-export declare const AdminEscalationType: z.ZodEnum<["dispute", "policy_violation", "off_platform_leakage", "listing_non_compliance", "review_abuse"]>;
+export declare const AdminEscalationType: z.ZodEnum<["dispute", "policy_violation", "off_platform_leakage", "listing_non_compliance", "review_abuse", "business_kind_unresolved"]>;
 export type AdminEscalationType = z.infer<typeof AdminEscalationType>;
 /** `escalation_state`. */
 export declare const AdminEscalationState: z.ZodEnum<["open", "resolved"]>;
@@ -2289,7 +2289,7 @@ export type AdminOrgMoney = z.infer<typeof AdminOrgMoney>;
 export declare const AdminTimelineEvent: z.ZodObject<{
     id: z.ZodString;
     eventType: z.ZodString;
-    subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration", "maintenance_ticket", "expense", "tax_declaration", "staff_role"]>>;
+    subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration", "maintenance_ticket", "expense", "tax_declaration", "staff_role", "entitlement", "role", "membership", "ownership_transfer", "device"]>>;
     actorUserId: z.ZodNullable<z.ZodString>;
     actorName: z.ZodNullable<z.ZodString>;
     reason: z.ZodNullable<z.ZodString>;
@@ -2299,7 +2299,7 @@ export declare const AdminTimelineEvent: z.ZodObject<{
     reason: string | null;
     occurredAt: string;
     eventType: string;
-    subjectType: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | null;
+    subjectType: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | null;
     actorUserId: string | null;
     actorName: string | null;
 }, {
@@ -2307,7 +2307,7 @@ export declare const AdminTimelineEvent: z.ZodObject<{
     reason: string | null;
     occurredAt: string;
     eventType: string;
-    subjectType: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | null;
+    subjectType: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | null;
     actorUserId: string | null;
     actorName: string | null;
 }>;
@@ -2316,7 +2316,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
     items: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         eventType: z.ZodString;
-        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration", "maintenance_ticket", "expense", "tax_declaration", "staff_role"]>>;
+        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration", "maintenance_ticket", "expense", "tax_declaration", "staff_role", "entitlement", "role", "membership", "ownership_transfer", "device"]>>;
         actorUserId: z.ZodNullable<z.ZodString>;
         actorName: z.ZodNullable<z.ZodString>;
         reason: z.ZodNullable<z.ZodString>;
@@ -2326,7 +2326,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | null;
+        subjectType: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | null;
         actorUserId: string | null;
         actorName: string | null;
     }, {
@@ -2334,7 +2334,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | null;
+        subjectType: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | null;
         actorUserId: string | null;
         actorName: string | null;
     }>, "many">;
@@ -2357,7 +2357,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | null;
+        subjectType: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | null;
         actorUserId: string | null;
         actorName: string | null;
     }[];
@@ -2372,7 +2372,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | null;
+        subjectType: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | null;
         actorUserId: string | null;
         actorName: string | null;
     }[];
@@ -2395,7 +2395,7 @@ export declare const AdminAuditRow: z.ZodObject<{
      * the audit trail exists to record.
      */
     impersonatedUserId: z.ZodNullable<z.ZodString>;
-    subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration", "maintenance_ticket", "expense", "tax_declaration", "staff_role"]>>;
+    subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration", "maintenance_ticket", "expense", "tax_declaration", "staff_role", "entitlement", "role", "membership", "ownership_transfer", "device"]>>;
     subjectId: z.ZodNullable<z.ZodString>;
     eventType: z.ZodString;
     reason: z.ZodNullable<z.ZodString>;
@@ -2407,7 +2407,7 @@ export declare const AdminAuditRow: z.ZodObject<{
     reason: string | null;
     occurredAt: string;
     eventType: string;
-    subjectType: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | null;
+    subjectType: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | null;
     actorUserId: string | null;
     actorName: string | null;
     impersonatedUserId: string | null;
@@ -2418,7 +2418,7 @@ export declare const AdminAuditRow: z.ZodObject<{
     reason: string | null;
     occurredAt: string;
     eventType: string;
-    subjectType: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | null;
+    subjectType: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | null;
     actorUserId: string | null;
     actorName: string | null;
     impersonatedUserId: string | null;
@@ -2431,19 +2431,19 @@ export declare const AdminAuditQuery: z.ZodObject<{
     pageSize: z.ZodOptional<z.ZodNumber>;
     /** Free text over the event type and the reason. */
     q: z.ZodOptional<z.ZodString>;
-    subjectType: z.ZodOptional<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration", "maintenance_ticket", "expense", "tax_declaration", "staff_role"]>>;
+    subjectType: z.ZodOptional<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration", "maintenance_ticket", "expense", "tax_declaration", "staff_role", "entitlement", "role", "membership", "ownership_transfer", "device"]>>;
     actorUserId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     q?: string | undefined;
     page?: number | undefined;
     pageSize?: number | undefined;
-    subjectType?: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | undefined;
+    subjectType?: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | undefined;
     actorUserId?: string | undefined;
 }, {
     q?: string | undefined;
     page?: number | undefined;
     pageSize?: number | undefined;
-    subjectType?: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | undefined;
+    subjectType?: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | undefined;
     actorUserId?: string | undefined;
 }>;
 export type AdminAuditQuery = z.infer<typeof AdminAuditQuery>;
@@ -2459,7 +2459,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
          * the audit trail exists to record.
          */
         impersonatedUserId: z.ZodNullable<z.ZodString>;
-        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration", "maintenance_ticket", "expense", "tax_declaration", "staff_role"]>>;
+        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration", "maintenance_ticket", "expense", "tax_declaration", "staff_role", "entitlement", "role", "membership", "ownership_transfer", "device"]>>;
         subjectId: z.ZodNullable<z.ZodString>;
         eventType: z.ZodString;
         reason: z.ZodNullable<z.ZodString>;
@@ -2471,7 +2471,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | null;
+        subjectType: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | null;
         actorUserId: string | null;
         actorName: string | null;
         impersonatedUserId: string | null;
@@ -2482,7 +2482,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | null;
+        subjectType: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | null;
         actorUserId: string | null;
         actorName: string | null;
         impersonatedUserId: string | null;
@@ -2508,7 +2508,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | null;
+        subjectType: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | null;
         actorUserId: string | null;
         actorName: string | null;
         impersonatedUserId: string | null;
@@ -2526,7 +2526,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | null;
+        subjectType: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | null;
         actorUserId: string | null;
         actorName: string | null;
         impersonatedUserId: string | null;
@@ -2665,7 +2665,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
     events: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         eventType: z.ZodString;
-        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration", "maintenance_ticket", "expense", "tax_declaration", "staff_role"]>>;
+        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration", "maintenance_ticket", "expense", "tax_declaration", "staff_role", "entitlement", "role", "membership", "ownership_transfer", "device"]>>;
         actorUserId: z.ZodNullable<z.ZodString>;
         actorName: z.ZodNullable<z.ZodString>;
         reason: z.ZodNullable<z.ZodString>;
@@ -2675,7 +2675,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | null;
+        subjectType: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | null;
         actorUserId: string | null;
         actorName: string | null;
     }, {
@@ -2683,7 +2683,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | null;
+        subjectType: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | null;
         actorUserId: string | null;
         actorName: string | null;
     }>, "many">;
@@ -2721,7 +2721,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | null;
+        subjectType: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | null;
         actorUserId: string | null;
         actorName: string | null;
     }[];
@@ -2741,7 +2741,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "property" | "booking" | "payment" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | null;
+        subjectType: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | null;
         actorUserId: string | null;
         actorName: string | null;
     }[];
@@ -5047,14 +5047,14 @@ export declare const AdminEscalation: z.ZodObject<{
     id: z.ZodString;
     subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "listing", "review", "message", "payment"]>>;
     subjectId: z.ZodNullable<z.ZodString>;
-    type: z.ZodEnum<["dispute", "policy_violation", "off_platform_leakage", "listing_non_compliance", "review_abuse"]>;
+    type: z.ZodEnum<["dispute", "policy_violation", "off_platform_leakage", "listing_non_compliance", "review_abuse", "business_kind_unresolved"]>;
     state: z.ZodEnum<["open", "resolved"]>;
     ownerUserId: z.ZodNullable<z.ZodString>;
     resolutionNote: z.ZodNullable<z.ZodString>;
     districtId: z.ZodNullable<z.ZodNumber>;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    type: "dispute" | "policy_violation" | "off_platform_leakage" | "listing_non_compliance" | "review_abuse";
+    type: "dispute" | "policy_violation" | "off_platform_leakage" | "listing_non_compliance" | "review_abuse" | "business_kind_unresolved";
     id: string;
     state: "open" | "resolved";
     districtId: number | null;
@@ -5064,7 +5064,7 @@ export declare const AdminEscalation: z.ZodObject<{
     ownerUserId: string | null;
     resolutionNote: string | null;
 }, {
-    type: "dispute" | "policy_violation" | "off_platform_leakage" | "listing_non_compliance" | "review_abuse";
+    type: "dispute" | "policy_violation" | "off_platform_leakage" | "listing_non_compliance" | "review_abuse" | "business_kind_unresolved";
     id: string;
     state: "open" | "resolved";
     districtId: number | null;
@@ -5139,14 +5139,14 @@ export declare const AdminModeration: z.ZodObject<{
         id: z.ZodString;
         subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "listing", "review", "message", "payment"]>>;
         subjectId: z.ZodNullable<z.ZodString>;
-        type: z.ZodEnum<["dispute", "policy_violation", "off_platform_leakage", "listing_non_compliance", "review_abuse"]>;
+        type: z.ZodEnum<["dispute", "policy_violation", "off_platform_leakage", "listing_non_compliance", "review_abuse", "business_kind_unresolved"]>;
         state: z.ZodEnum<["open", "resolved"]>;
         ownerUserId: z.ZodNullable<z.ZodString>;
         resolutionNote: z.ZodNullable<z.ZodString>;
         districtId: z.ZodNullable<z.ZodNumber>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        type: "dispute" | "policy_violation" | "off_platform_leakage" | "listing_non_compliance" | "review_abuse";
+        type: "dispute" | "policy_violation" | "off_platform_leakage" | "listing_non_compliance" | "review_abuse" | "business_kind_unresolved";
         id: string;
         state: "open" | "resolved";
         districtId: number | null;
@@ -5156,7 +5156,7 @@ export declare const AdminModeration: z.ZodObject<{
         ownerUserId: string | null;
         resolutionNote: string | null;
     }, {
-        type: "dispute" | "policy_violation" | "off_platform_leakage" | "listing_non_compliance" | "review_abuse";
+        type: "dispute" | "policy_violation" | "off_platform_leakage" | "listing_non_compliance" | "review_abuse" | "business_kind_unresolved";
         id: string;
         state: "open" | "resolved";
         districtId: number | null;
@@ -5189,7 +5189,7 @@ export declare const AdminModeration: z.ZodObject<{
         csat: number | null;
     }[];
     escalations: {
-        type: "dispute" | "policy_violation" | "off_platform_leakage" | "listing_non_compliance" | "review_abuse";
+        type: "dispute" | "policy_violation" | "off_platform_leakage" | "listing_non_compliance" | "review_abuse" | "business_kind_unresolved";
         id: string;
         state: "open" | "resolved";
         districtId: number | null;
@@ -5222,7 +5222,7 @@ export declare const AdminModeration: z.ZodObject<{
         csat: number | null;
     }[];
     escalations: {
-        type: "dispute" | "policy_violation" | "off_platform_leakage" | "listing_non_compliance" | "review_abuse";
+        type: "dispute" | "policy_violation" | "off_platform_leakage" | "listing_non_compliance" | "review_abuse" | "business_kind_unresolved";
         id: string;
         state: "open" | "resolved";
         districtId: number | null;
@@ -6439,7 +6439,7 @@ export declare const AdminCustomRole: z.ZodObject<{
     key: z.ZodString;
     name: z.ZodString;
     description: z.ZodString;
-    permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.user.suspend", "admin.role.view", "admin.business.member.manage", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>, "many">;
+    permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.business.entitlement.edit", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.user.suspend", "admin.role.view", "admin.business.member.manage", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>, "many">;
     holderCount: z.ZodNumber;
     archivedAt: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
@@ -6449,7 +6449,7 @@ export declare const AdminCustomRole: z.ZodObject<{
     id: string;
     description: string;
     key: string;
-    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
     createdAt: string;
     archivedAt: string | null;
     holderCount: number;
@@ -6459,7 +6459,7 @@ export declare const AdminCustomRole: z.ZodObject<{
     id: string;
     description: string;
     key: string;
-    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
     createdAt: string;
     archivedAt: string | null;
     holderCount: number;
@@ -6470,17 +6470,17 @@ export type AdminCustomRole = z.infer<typeof AdminCustomRole>;
 export declare const AdminBuiltInRole: z.ZodObject<{
     role: z.ZodEnum<["super_admin", "ops", "compliance", "finance", "trainer"]>;
     name: z.ZodString;
-    permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.user.suspend", "admin.role.view", "admin.business.member.manage", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>, "many">;
+    permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.business.entitlement.edit", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.user.suspend", "admin.role.view", "admin.business.member.manage", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>, "many">;
     holderCount: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     name: string;
     role: "finance" | "super_admin" | "ops" | "compliance" | "trainer";
-    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
     holderCount: number;
 }, {
     name: string;
     role: "finance" | "super_admin" | "ops" | "compliance" | "trainer";
-    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
     holderCount: number;
 }>;
 export type AdminBuiltInRole = z.infer<typeof AdminBuiltInRole>;
@@ -6489,17 +6489,17 @@ export declare const AdminStaffRoleCatalog: z.ZodObject<{
     builtIn: z.ZodArray<z.ZodObject<{
         role: z.ZodEnum<["super_admin", "ops", "compliance", "finance", "trainer"]>;
         name: z.ZodString;
-        permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.user.suspend", "admin.role.view", "admin.business.member.manage", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>, "many">;
+        permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.business.entitlement.edit", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.user.suspend", "admin.role.view", "admin.business.member.manage", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>, "many">;
         holderCount: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         name: string;
         role: "finance" | "super_admin" | "ops" | "compliance" | "trainer";
-        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
         holderCount: number;
     }, {
         name: string;
         role: "finance" | "super_admin" | "ops" | "compliance" | "trainer";
-        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
         holderCount: number;
     }>, "many">;
     custom: z.ZodArray<z.ZodObject<{
@@ -6507,7 +6507,7 @@ export declare const AdminStaffRoleCatalog: z.ZodObject<{
         key: z.ZodString;
         name: z.ZodString;
         description: z.ZodString;
-        permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.user.suspend", "admin.role.view", "admin.business.member.manage", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>, "many">;
+        permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.business.entitlement.edit", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.user.suspend", "admin.role.view", "admin.business.member.manage", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>, "many">;
         holderCount: z.ZodNumber;
         archivedAt: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
@@ -6517,7 +6517,7 @@ export declare const AdminStaffRoleCatalog: z.ZodObject<{
         id: string;
         description: string;
         key: string;
-        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
         createdAt: string;
         archivedAt: string | null;
         holderCount: number;
@@ -6527,7 +6527,7 @@ export declare const AdminStaffRoleCatalog: z.ZodObject<{
         id: string;
         description: string;
         key: string;
-        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
         createdAt: string;
         archivedAt: string | null;
         holderCount: number;
@@ -6539,7 +6539,7 @@ export declare const AdminStaffRoleCatalog: z.ZodObject<{
         id: string;
         description: string;
         key: string;
-        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
         createdAt: string;
         archivedAt: string | null;
         holderCount: number;
@@ -6548,7 +6548,7 @@ export declare const AdminStaffRoleCatalog: z.ZodObject<{
     builtIn: {
         name: string;
         role: "finance" | "super_admin" | "ops" | "compliance" | "trainer";
-        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
         holderCount: number;
     }[];
 }, {
@@ -6557,7 +6557,7 @@ export declare const AdminStaffRoleCatalog: z.ZodObject<{
         id: string;
         description: string;
         key: string;
-        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
         createdAt: string;
         archivedAt: string | null;
         holderCount: number;
@@ -6566,7 +6566,7 @@ export declare const AdminStaffRoleCatalog: z.ZodObject<{
     builtIn: {
         name: string;
         role: "finance" | "super_admin" | "ops" | "compliance" | "trainer";
-        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
         holderCount: number;
     }[];
 }>;
@@ -6575,17 +6575,17 @@ export type AdminStaffRoleCatalog = z.infer<typeof AdminStaffRoleCatalog>;
 export declare const AdminCreateCustomRoleRequest: z.ZodObject<{
     name: z.ZodString;
     description: z.ZodDefault<z.ZodString>;
-    permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.user.suspend", "admin.role.view", "admin.business.member.manage", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>, "many">;
+    permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.business.entitlement.edit", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.user.suspend", "admin.role.view", "admin.business.member.manage", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>, "many">;
     reason: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     name: string;
     reason: string;
     description: string;
-    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
 }, {
     name: string;
     reason: string;
-    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
     description?: string | undefined;
 }>;
 export type AdminCreateCustomRoleRequest = z.infer<typeof AdminCreateCustomRoleRequest>;
@@ -6593,17 +6593,17 @@ export type AdminCreateCustomRoleRequest = z.infer<typeof AdminCreateCustomRoleR
 export declare const AdminUpdateCustomRoleRequest: z.ZodObject<{
     name: z.ZodString;
     description: z.ZodDefault<z.ZodString>;
-    permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.user.suspend", "admin.role.view", "admin.business.member.manage", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>, "many">;
+    permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.business.entitlement.edit", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.user.suspend", "admin.role.view", "admin.business.member.manage", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>, "many">;
     reason: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     name: string;
     reason: string;
     description: string;
-    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
 }, {
     name: string;
     reason: string;
-    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
     description?: string | undefined;
 }>;
 export type AdminUpdateCustomRoleRequest = z.infer<typeof AdminUpdateCustomRoleRequest>;
@@ -6615,7 +6615,7 @@ export declare const AdminCustomRoleChange: z.ZodObject<{
         key: z.ZodString;
         name: z.ZodString;
         description: z.ZodString;
-        permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.user.suspend", "admin.role.view", "admin.business.member.manage", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>, "many">;
+        permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.business.entitlement.edit", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.user.suspend", "admin.role.view", "admin.business.member.manage", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit", "training.view", "training.session.manage", "training.attendance.mark", "training.certificate.revoke", "training.course.manage", "training.venue.manage", "training.session.publish"]>, "many">;
         holderCount: z.ZodNumber;
         archivedAt: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
@@ -6625,7 +6625,7 @@ export declare const AdminCustomRoleChange: z.ZodObject<{
         id: string;
         description: string;
         key: string;
-        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
         createdAt: string;
         archivedAt: string | null;
         holderCount: number;
@@ -6635,7 +6635,7 @@ export declare const AdminCustomRoleChange: z.ZodObject<{
         id: string;
         description: string;
         key: string;
-        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
         createdAt: string;
         archivedAt: string | null;
         holderCount: number;
@@ -6647,7 +6647,7 @@ export declare const AdminCustomRoleChange: z.ZodObject<{
         id: string;
         description: string;
         key: string;
-        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
         createdAt: string;
         archivedAt: string | null;
         holderCount: number;
@@ -6660,7 +6660,7 @@ export declare const AdminCustomRoleChange: z.ZodObject<{
         id: string;
         description: string;
         key: string;
-        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
+        permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.business.entitlement.edit" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.user.suspend" | "admin.role.view" | "admin.business.member.manage" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
         createdAt: string;
         archivedAt: string | null;
         holderCount: number;

@@ -20,7 +20,12 @@ import { FaultPaymentsService } from '../../../../modules/rentals/application/fa
 import { FaultsService } from '../../../../modules/rentals/application/faults.service';
 import type { ScopedWorkspace } from '../../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../../shared/auth/session.guard';
-import { CurrentWorkspace, RequirePermission, WorkspaceGuard } from '../../../../shared/auth/workspace.guard';
+import {
+  CurrentWorkspace,
+  RequirePermission,
+  RequireProduct,
+  WorkspaceGuard,
+} from '../../../../shared/auth/workspace.guard';
 import { IdempotencyKey } from '../../../../shared/http/idempotency-key';
 import { UserThrottlerGuard } from '../../../../shared/http/user-throttler.guard';
 import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.pipe';
@@ -45,6 +50,7 @@ const RECEIPT_LIMITS = { maxFiles: 1, maxBytes: EXPENSE_RECEIPT_MAX_BYTES, what:
  */
 @Controller({ path: 'ops/faults', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('residence')
 export class OpsFaultsController {
   constructor(
     private readonly faults: FaultsService,

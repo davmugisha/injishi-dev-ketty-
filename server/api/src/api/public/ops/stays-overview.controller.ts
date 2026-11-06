@@ -4,7 +4,7 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { StaysOverviewService } from '../../../modules/pms/application/stays-overview.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { SessionGuard } from '../../../shared/auth/session.guard';
-import { CurrentWorkspace, RequireAnyPermission, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
+import { CurrentWorkspace, RequireAnyPermission, RequireProduct, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
 
 /**
  * A short-stay business's home → /api/v1/ops/stays-overview (2026-10-29).
@@ -15,6 +15,7 @@ import { CurrentWorkspace, RequireAnyPermission, WorkspaceGuard } from '../../..
  */
 @Controller({ path: 'ops/stays-overview', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('pms')
 export class OpsStaysOverviewController {
   constructor(private readonly overview: StaysOverviewService) {}
 

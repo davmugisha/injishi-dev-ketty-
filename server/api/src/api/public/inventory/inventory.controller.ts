@@ -50,6 +50,7 @@ import {
 } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireAnyProduct,
   RequireEveryBranch,
   RequirePermission,
   WorkspaceGuard,
@@ -75,6 +76,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 @Controller({ path: 'inventory', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
 @RequirePermission('listing.manage')
+@RequireAnyProduct('pms', 'residence', 'outlets')
 export class InventoryController {
   constructor(
     private readonly inventory: InventoryService,

@@ -2,21 +2,24 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   ForbiddenException,
+  HttpException,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
-import { permissionsForRole, type WorkspaceAccess } from '@injishi/contracts';
+import { permissionsForRole, REGISTRATION_STAGE_MESSAGE, type WorkspaceAccess } from '@injishi/contracts';
 
 import {
   REQUIRE_ANY_PERMISSION,
   REQUIRE_EVERY_BRANCH,
   REQUIRE_PERMISSION,
+  REQUIRE_PRODUCT,
   WorkspaceGuard,
 } from './workspace.guard';
 import type { TwoFactorService } from './two-factor.service';
 import type { WorkspaceService } from './workspace.service';
+import type { WorkspaceFacts } from './workspace-facts';
 
 /**
  * The workspace guard is the security boundary (Spec 0004, AC-4 and AC-5).
@@ -25,6 +28,10 @@ import type { WorkspaceService } from './workspace.service';
  * between a receptionist and the revenue screen, and those run in the browser.
  * These tests pin the refusals, because a guard that quietly returns true is
  * indistinguishable from no guard at all.
+ *
+ * Since ADR-076 slice G it resolves the caller's access once (the step-up
+ * status and the workspace, together), runs the layers in the contract's
+ * order, and names the layer and code of every refusal.
  */
 describe('WorkspaceGuard', () => {
   const OWNER_ACCESS: WorkspaceAccess = {
@@ -55,13 +62,20 @@ describe('WorkspaceGuard', () => {
     permissions: ['stay.checkin'],
   };
 
+  /** Every product on for the whole business: what the backfill gave every existing hotel. */
+  const ALL_ON = ['account', 'marketplace', 'pms', 'outlets', 'pos', 'hr', 'finance', 'pay'].map(
+    (productId) => ({ productId, propertyId: null }),
+  );
+
   interface FakeRequest {
     headers: Record<string, string | string[] | undefined>;
     body?: Record<string, unknown>;
     query?: Record<string, unknown>;
     params?: Record<string, string>;
     user?: { id: string; email: string };
+    session?: { id: string };
     workspace?: WorkspaceAccess & { branchScope?: unknown };
+    accessContext?: unknown;
   }
 
   function contextFor(request: FakeRequest): ExecutionContext {
@@ -72,41 +86,72 @@ describe('WorkspaceGuard', () => {
     } as unknown as ExecutionContext;
   }
 
+  interface Wiring {
+    requiredPermission?: string | string[];
+    anyOfPermissions?: string[];
+    everyBranch?: boolean;
+    products?: string[];
+    entitlements?: { productId: string; propertyId: string | null }[];
+    stepUp?: { required: boolean; verified: boolean };
+  }
+
   function guardWith(
     resolved: WorkspaceAccess | null,
     requiredPermission?: string | string[],
     anyOfPermissions?: string[],
     everyBranch?: boolean,
-  ): { guard: WorkspaceGuard; workspaces: WorkspaceService } {
+    extra: Omit<Wiring, 'requiredPermission' | 'anyOfPermissions' | 'everyBranch'> = {},
+  ): { guard: WorkspaceGuard; workspaces: WorkspaceService; twoFactor: TwoFactorService } {
     // A limited member covers Rubavu only; everyone else covers both.
-    const workspaces = {
-      resolveForUser: vi.fn().mockResolvedValue(resolved),
-      coveredProperties: vi.fn((_userId: string, access: WorkspaceAccess) =>
-        Promise.resolve(
-          access.branchCoverage === 'limited'
-            ? { coverage: 'limited', propertyIds: [RUBAVU] }
-            : { coverage: 'all', propertyIds: [REMERA, RUBAVU] },
-        ),
+    const accessFor = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        resolved && {
+          access: resolved,
+          covered:
+            resolved.branchCoverage === 'limited'
+              ? { coverage: 'limited', propertyIds: [RUBAVU] }
+              : { coverage: 'all', propertyIds: [REMERA, RUBAVU] },
+          facts: {
+            membershipId: resolved.kind === 'business' ? 'membership-1' : null,
+            entitlements: extra.entitlements ?? ALL_ON,
+          } as unknown as WorkspaceFacts,
+        },
       ),
-    } as unknown as WorkspaceService;
+    );
+    const workspaces = { accessFor } as unknown as WorkspaceService;
     // Answers per metadata key, the way Nest's reflector does: the all-of and
     // the any-of declarations are two separate keys on the same handler.
     const metadata: Record<string, unknown> = {
       [REQUIRE_PERMISSION]: requiredPermission,
       [REQUIRE_ANY_PERMISSION]: anyOfPermissions,
       [REQUIRE_EVERY_BRANCH]: everyBranch,
+      [REQUIRE_PRODUCT]: extra.products,
     };
     const reflector = {
       getAllAndOverride: vi.fn((key: string) => metadata[key]),
     } as unknown as Reflector;
-    // The second factor is satisfied in every case here; it has its own spec.
+    // The second factor is satisfied unless a case says otherwise.
     const twoFactor = {
-      assertSatisfied: vi.fn().mockResolvedValue(undefined),
+      stepUpFor: vi.fn().mockResolvedValue(extra.stepUp ?? { required: true, verified: true }),
     } as unknown as TwoFactorService;
     return {
       guard: new WorkspaceGuard(workspaces, twoFactor, reflector),
       workspaces,
+      twoFactor,
     };
+  }
+
+  /** The body a refusal sends. */
+  async function refusalOf(promise: Promise<unknown>): Promise<Record<string, unknown>> {
+    try {
+      await promise;
+    } catch (error) {
+      if (error instanceof HttpException) {
+        return { status: error.getStatus(), ...(error.getResponse() as Record<string, unknown>) };
+      }
+      throw error;
+    }
+    throw new Error('expected a refusal');
   }
 
   const signedIn = { id: 'user-1', email: 'samuel@demo.injishi.com' };
@@ -466,7 +511,7 @@ describe('WorkspaceGuard', () => {
       });
 
       await expect(guard.canActivate(context)).rejects.toThrow();
-      expect(workspaces.resolveForUser).not.toHaveBeenCalled();
+      expect(workspaces.accessFor).not.toHaveBeenCalled();
     });
   });
 
@@ -481,7 +526,7 @@ describe('WorkspaceGuard', () => {
           user: signedIn,
         }),
       );
-      expect(workspaces.resolveForUser).toHaveBeenCalledWith(
+      expect(workspaces.accessFor).toHaveBeenCalledWith(
         'user-1',
         'from-param',
       );
@@ -503,11 +548,11 @@ describe('WorkspaceGuard', () => {
           user: signedIn,
         }),
       );
-      expect(workspaces.resolveForUser).toHaveBeenCalledWith(
+      expect(workspaces.accessFor).toHaveBeenCalledWith(
         'user-1',
         'ws-in-the-address-bar',
       );
-      expect(workspaces.resolveForUser).not.toHaveBeenCalledWith(
+      expect(workspaces.accessFor).not.toHaveBeenCalledWith(
         'user-1',
         'ws-stale-tab',
       );
@@ -522,7 +567,7 @@ describe('WorkspaceGuard', () => {
           user: signedIn,
         }),
       );
-      expect(workspaces.resolveForUser).toHaveBeenCalledWith(
+      expect(workspaces.accessFor).toHaveBeenCalledWith(
         'user-1',
         'from-header',
       );
@@ -537,7 +582,7 @@ describe('WorkspaceGuard', () => {
           user: signedIn,
         }),
       );
-      expect(workspaces.resolveForUser).toHaveBeenCalledWith(
+      expect(workspaces.accessFor).toHaveBeenCalledWith(
         'user-1',
         'from-body',
       );
@@ -552,7 +597,7 @@ describe('WorkspaceGuard', () => {
           user: signedIn,
         }),
       );
-      expect(workspaces.resolveForUser).toHaveBeenCalledWith(
+      expect(workspaces.accessFor).toHaveBeenCalledWith(
         'user-1',
         'from-query',
       );
@@ -652,6 +697,268 @@ describe('WorkspaceGuard', () => {
     it('lets a member covering every branch through the same write', async () => {
       const { guard } = guardWith(OWNER_ACCESS, undefined, undefined, true);
       await expect(guard.canActivate(contextFor(request()))).resolves.toBe(true);
+    });
+  });
+
+  describe('names the layer and code of every refusal (ADR-076 G11, AC-U3)', () => {
+    const at = (headers: Record<string, string> = {}): FakeRequest => ({
+      headers: { host: 'd', 'x-workspace-id': 'ws-owned', ...headers },
+      user: signedIn,
+      session: { id: 'session-1' },
+    });
+
+    it('a workspace not held: 403, workspace, workspace_not_available, message unchanged', async () => {
+      const { guard } = guardWith(null);
+      expect(await refusalOf(guard.canActivate(contextFor(at())))).toMatchObject({
+        status: 403,
+        layer: 'workspace',
+        code: 'workspace_not_available',
+        message: 'That workspace is not available to you.',
+      });
+    });
+
+    it('no workspace named: 403, workspace, workspace_required', async () => {
+      const { guard } = guardWith(OWNER_ACCESS);
+      const request = { headers: { host: 'd' }, user: signedIn };
+      expect(await refusalOf(guard.canActivate(contextFor(request)))).toMatchObject({
+        status: 403,
+        layer: 'workspace',
+        code: 'workspace_required',
+      });
+    });
+
+    it('a step-up owed: 403, session, two_factor_required, before the workspace question', async () => {
+      const { guard } = guardWith(null, undefined, undefined, undefined, {
+        stepUp: { required: true, verified: false },
+      });
+      expect(await refusalOf(guard.canActivate(contextFor(at())))).toMatchObject({
+        status: 403,
+        layer: 'session',
+        code: 'two_factor_required',
+        message: 'Enter the code we emailed you to continue.',
+      });
+    });
+
+    it('a branch not covered: 404, scope, not_found', async () => {
+      const { guard } = guardWith(OWNER_ACCESS);
+      expect(
+        await refusalOf(guard.canActivate(contextFor(at({ 'x-branch-id': 'not-a-uuid' })))),
+      ).toMatchObject({ status: 404, layer: 'scope', code: 'not_found' });
+    });
+
+    it('a missing permission: 403, permission, permission_missing, the same sentence', async () => {
+      const { guard } = guardWith(RECEPTIONIST_ACCESS, 'money.view');
+      expect(await refusalOf(guard.canActivate(contextFor(at())))).toMatchObject({
+        status: 403,
+        layer: 'permission',
+        code: 'permission_missing',
+        message: 'Your role cannot view money in this workspace.',
+      });
+    });
+
+    it('a business still in the pipeline: 403, operational, registration_stage, the stage in words', async () => {
+      const pending: WorkspaceAccess = { ...OWNER_ACCESS, registrationStatus: 'tin_verified', permissions: [] };
+      const { guard } = guardWith(pending, 'money.view');
+      expect(await refusalOf(guard.canActivate(contextFor(at())))).toMatchObject({
+        status: 403,
+        layer: 'operational',
+        code: 'registration_stage',
+        // The stage in the words the contract gives it, whatever ADR-075 makes of that stage.
+        message: REGISTRATION_STAGE_MESSAGE.tin_verified,
+      });
+    });
+
+    it('a suspended business: 403, operational, suspended', async () => {
+      const suspended: WorkspaceAccess = { ...OWNER_ACCESS, registrationStatus: 'suspended', permissions: [] };
+      const { guard } = guardWith(suspended, undefined, ['stay.checkin']);
+      expect(await refusalOf(guard.canActivate(contextFor(at())))).toMatchObject({
+        layer: 'operational',
+        code: 'suspended',
+      });
+    });
+
+    it('an org wide write by a limited member: 403, scope, out_of_scope', async () => {
+      const limited: WorkspaceAccess = { ...RECEPTIONIST_ACCESS, branchCoverage: 'limited' };
+      const { guard } = guardWith(limited, undefined, undefined, true);
+      expect(await refusalOf(guard.canActivate(contextFor(at())))).toMatchObject({
+        status: 403,
+        layer: 'scope',
+        code: 'out_of_scope',
+        message: 'This needs access to every branch.',
+      });
+    });
+
+    it('checks the branch before the permission, so a bad branch is a 404 whatever the role lacks', async () => {
+      const { guard } = guardWith(RECEPTIONIST_ACCESS, 'money.view');
+      expect(
+        await refusalOf(guard.canActivate(contextFor(at({ 'x-branch-id': 'not-a-uuid' })))),
+      ).toMatchObject({ status: 404, layer: 'scope' });
+    });
+  });
+
+  describe('the route product (ADR-076 G9, A-3)', () => {
+    const at = (branch?: string, access: WorkspaceAccess = OWNER_ACCESS): { request: FakeRequest } => ({
+      request: {
+        headers: {
+          host: 'd',
+          'x-workspace-id': access.workspaceId,
+          ...(branch ? { 'x-branch-id': branch } : {}),
+        },
+        user: signedIn,
+      },
+    });
+    const PMS_AT_RUBAVU = [
+      { productId: 'account', propertyId: null },
+      { productId: 'pms', propertyId: RUBAVU },
+    ];
+
+    it('passes when the product is on for the whole business, and leaves the scope as coverage made it', async () => {
+      const { guard } = guardWith(OWNER_ACCESS, 'stay.checkin', undefined, undefined, { products: ['pms'] });
+      const { request } = at();
+      await expect(guard.canActivate(contextFor(request))).resolves.toBe(true);
+      expect(request.workspace?.branchScope).toEqual({
+        coverage: 'all',
+        selectedPropertyId: null,
+        propertyIds: [REMERA, RUBAVU],
+        includesUnbranched: true,
+      });
+    });
+
+    it('refuses 403, entitlement, product_off when the product is off everywhere', async () => {
+      const { guard } = guardWith(OWNER_ACCESS, 'stay.checkin', undefined, undefined, {
+        products: ['pms'],
+        entitlements: [{ productId: 'account', propertyId: null }],
+      });
+      expect(await refusalOf(guard.canActivate(contextFor(at().request)))).toMatchObject({
+        status: 403,
+        layer: 'entitlement',
+        code: 'product_off',
+      });
+    });
+
+    it('with no branch named, narrows to the covered branches where it is on, and hides rows of no branch', async () => {
+      const { guard } = guardWith(OWNER_ACCESS, 'stay.checkin', undefined, undefined, {
+        products: ['pms'],
+        entitlements: PMS_AT_RUBAVU,
+      });
+      const { request } = at();
+      await expect(guard.canActivate(contextFor(request))).resolves.toBe(true);
+      expect(request.workspace?.branchScope).toEqual({
+        coverage: 'all',
+        selectedPropertyId: null,
+        propertyIds: [RUBAVU],
+        includesUnbranched: false,
+      });
+    });
+
+    it('refuses a named branch where it is off, and passes one where it is on', async () => {
+      const wiring = { products: ['pms'], entitlements: PMS_AT_RUBAVU };
+      const { guard } = guardWith(OWNER_ACCESS, 'stay.checkin', undefined, undefined, wiring);
+      expect(await refusalOf(guard.canActivate(contextFor(at(REMERA).request)))).toMatchObject({
+        code: 'product_off',
+      });
+      await expect(guard.canActivate(contextFor(at(RUBAVU).request))).resolves.toBe(true);
+    });
+
+    it('answers a branch the member does not cover with 404 before asking about the product', async () => {
+      // The limited member covers Rubavu only; POS is off at Remera. A probe of
+      // Remera must learn nothing about Remera, including that POS is off there.
+      const limited: WorkspaceAccess = { ...RECEPTIONIST_ACCESS, branchCoverage: 'limited' };
+      const { guard } = guardWith(limited, 'stay.checkin', undefined, undefined, {
+        products: ['pos'],
+        entitlements: [{ productId: 'pos', propertyId: RUBAVU }],
+      });
+      expect(await refusalOf(guard.canActivate(contextFor(at(REMERA, limited).request)))).toMatchObject({
+        status: 404,
+        layer: 'scope',
+      });
+    });
+
+    it('refuses a limited member whose branches all have the product off, though another branch has it', async () => {
+      const limited: WorkspaceAccess = { ...RECEPTIONIST_ACCESS, branchCoverage: 'limited' };
+      const { guard } = guardWith(limited, 'stay.checkin', undefined, undefined, {
+        products: ['pos'],
+        entitlements: [{ productId: 'pos', propertyId: REMERA }],
+      });
+      expect(await refusalOf(guard.canActivate(contextFor(at(undefined, limited).request)))).toMatchObject({
+        code: 'product_off',
+      });
+    });
+
+    it('a platform capability route is on wherever any of its products is', async () => {
+      const { guard } = guardWith(OWNER_ACCESS, 'stay.checkin', undefined, undefined, {
+        products: ['pms', 'residence', 'outlets'],
+        entitlements: [{ productId: 'outlets', propertyId: null }],
+      });
+      await expect(guard.canActivate(contextFor(at().request))).resolves.toBe(true);
+    });
+
+    it('never grants: a product on with the permission missing is still refused by permission', async () => {
+      const { guard } = guardWith(RECEPTIONIST_ACCESS, 'money.view', undefined, undefined, { products: ['finance'] });
+      expect(await refusalOf(guard.canActivate(contextFor(at().request)))).toMatchObject({
+        layer: 'permission',
+      });
+    });
+
+    it('a broker workspace on a product route is refused by permission, as before', async () => {
+      const broker: WorkspaceAccess = {
+        ...OWNER_ACCESS,
+        workspaceId: 'ws-broker',
+        kind: 'broker',
+        orgId: null,
+        orgName: null,
+        domain: null,
+        orgRole: null,
+        registrationStatus: null,
+        permissions: [],
+        departments: [],
+        propertyName: null,
+        branchCoverage: null,
+        psfMembership: null,
+      };
+      const { guard } = guardWith(broker, 'stay.checkin', undefined, undefined, { products: ['pms'] });
+      expect(await refusalOf(guard.canActivate(contextFor(at(undefined, broker).request)))).toMatchObject({
+        layer: 'permission',
+        code: 'permission_missing',
+      });
+    });
+  });
+
+  describe('one resolution per request (ADR-076 A-17, G17)', () => {
+    it('asks for the step-up status and the workspace once each, and never again', async () => {
+      const { guard, workspaces, twoFactor } = guardWith(OWNER_ACCESS, 'stay.checkin', undefined, undefined, {
+        products: ['pms'],
+      });
+      const request: FakeRequest = {
+        headers: { host: 'd', 'x-workspace-id': 'ws-owned', 'x-branch-id': RUBAVU },
+        user: signedIn,
+        session: { id: 'session-1' },
+      };
+      await guard.canActivate(contextFor(request));
+      expect(workspaces.accessFor).toHaveBeenCalledTimes(1);
+      expect(twoFactor.stepUpFor).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves who acted, and under what grant, on the request for the audit row', async () => {
+      const limited: WorkspaceAccess = { ...RECEPTIONIST_ACCESS, branchCoverage: 'limited' };
+      const { guard } = guardWith(limited, undefined, ['stay.checkin', 'money.view']);
+      const request: FakeRequest = {
+        headers: { host: 'd', 'x-workspace-id': 'ws-owned' },
+        user: signedIn,
+      };
+      await guard.canActivate(contextFor(request));
+      expect(request.accessContext).toEqual({
+        actorUserId: 'user-1',
+        actorMembershipId: 'membership-1',
+        grantFamily: 'business',
+        roleKeys: ['receptionist'],
+        // Only what the route was granted on, under the new names.
+        permissions: ['pms.stay.checkin'],
+        scope: [{ kind: 'branch', ids: [RUBAVU] }],
+        deviceId: null,
+        deviceUserSessionId: null,
+        overrideByMembershipId: null,
+      });
     });
   });
 });

@@ -203,6 +203,7 @@ import { UploadsController } from './uploads/uploads.controller';
 import { SupportModule } from './support/support.module';
 import { AssistantPublicModule } from './assistant/assistant.module';
 import { TrainingPublicModule } from './training/training.module';
+import { EntitlementCheck } from '../../shared/entitlements/entitlement-check';
 
 /**
  * Public API (/api/v1). Controllers here compose application services from the
@@ -467,7 +468,8 @@ import { TrainingPublicModule } from './training/training.module';
   ],
   // WorkspaceService is the one resolver of "which workspaces does this user
   // hold" (Spec 0004). WorkspaceGuard depends on it; DatabaseModule is @Global
-  // so DRIZZLE resolves without importing it here.
-  providers: [WorkspaceService, TwoFactorService, RealtimeGateway],
+  // so DRIZZLE resolves without importing it here. KioskGuard asks
+  // EntitlementCheck whether HR is on at a kiosk's branch (ADR-076 G9).
+  providers: [WorkspaceService, TwoFactorService, RealtimeGateway, EntitlementCheck],
 })
 export class PublicApiModule {}

@@ -11,11 +11,20 @@ import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query
 import { LeaseBrokersService } from '../../../../modules/rentals/application/lease-brokers.service';
 import type { ScopedWorkspace } from '../../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../../shared/auth/session.guard';
-import { CurrentWorkspace, RequireAnyPermission, RequirePermission, WorkspaceGuard } from '../../../../shared/auth/workspace.guard';
+import {
+  CurrentWorkspace,
+  RequireAnyPermission,
+  RequirePermission,
+  RequireProduct,
+  WorkspaceGuard,
+} from '../../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.pipe';
 
 /**
  * Brokers on the landlord's side (2026-10-25). Residence businesses only.
+ * Marketplace's, as its broker network (ADR-076 slice G, owner 2026-10-30):
+ * switching Marketplace off takes these with the listings and the directory,
+ * while the leases themselves stay Residence's.
  *
  * `GET /ops/rentals/placements`: the brokers who said they have a tenant for a
  * unit, with the lease and fee each became (`lease.manage` or `message.send`).
@@ -26,6 +35,7 @@ import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.
  */
 @Controller({ version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('marketplace')
 export class OpsLeaseBrokersController {
   constructor(private readonly brokers: LeaseBrokersService) {}
 

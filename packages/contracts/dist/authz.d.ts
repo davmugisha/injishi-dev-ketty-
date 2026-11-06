@@ -478,6 +478,135 @@ export declare const WorkspaceAccess: z.ZodObject<{
     }, {
         canManage: boolean;
     }>>>;
+    /**
+     * What the person holds HERE, in the shape every product reads (ADR-076
+     * contract section 3): the products the business has on, narrowed to the
+     * branches this member covers; the roles they hold, each with its scope;
+     * and the permissions those roles grant, under their new names.
+     *
+     * Set on every `business` workspace, absent on `broker` and `personal`.
+     * Optional so a client built before it still parses a grant. It sits
+     * beside `permissions` rather than replacing it: the flat field keeps
+     * today's keys until stage 9 (D-20).
+     */
+    grants: z.ZodOptional<z.ZodObject<{
+        family: z.ZodLiteral<"business">;
+        products: z.ZodArray<z.ZodObject<{
+            id: z.ZodEnum<["account", "admin", "membership", "marketplace", "finance", "pay", "pms", "outlets", "pos", "hr", "residence"]>;
+            branches: z.ZodUnion<[z.ZodLiteral<"all">, z.ZodArray<z.ZodString, "many">]>;
+        }, "strip", z.ZodTypeAny, {
+            id: "residence" | "finance" | "hr" | "admin" | "membership" | "account" | "marketplace" | "pay" | "pms" | "outlets" | "pos";
+            branches: string[] | "all";
+        }, {
+            id: "residence" | "finance" | "hr" | "admin" | "membership" | "account" | "marketplace" | "pay" | "pms" | "outlets" | "pos";
+            branches: string[] | "all";
+        }>, "many">;
+        roles: z.ZodArray<z.ZodObject<{
+            roleId: z.ZodNullable<z.ZodString>;
+            key: z.ZodString;
+            name: z.ZodString;
+            kind: z.ZodEnum<["default", "custom"]>;
+            scopes: z.ZodArray<z.ZodObject<{
+                kind: z.ZodEnum<["branch", "outlet", "department", "section"]>;
+                ids: z.ZodArray<z.ZodString, "many">;
+            }, "strip", z.ZodTypeAny, {
+                kind: "branch" | "outlet" | "department" | "section";
+                ids: string[];
+            }, {
+                kind: "branch" | "outlet" | "department" | "section";
+                ids: string[];
+            }>, "many">;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            kind: "custom" | "default";
+            key: string;
+            roleId: string | null;
+            scopes: {
+                kind: "branch" | "outlet" | "department" | "section";
+                ids: string[];
+            }[];
+        }, {
+            name: string;
+            kind: "custom" | "default";
+            key: string;
+            roleId: string | null;
+            scopes: {
+                kind: "branch" | "outlet" | "department" | "section";
+                ids: string[];
+            }[];
+        }>, "many">;
+        permissions: z.ZodArray<z.ZodObject<{
+            key: z.ZodString;
+            scopes: z.ZodArray<z.ZodObject<{
+                kind: z.ZodEnum<["branch", "outlet", "department", "section"]>;
+                ids: z.ZodArray<z.ZodString, "many">;
+            }, "strip", z.ZodTypeAny, {
+                kind: "branch" | "outlet" | "department" | "section";
+                ids: string[];
+            }, {
+                kind: "branch" | "outlet" | "department" | "section";
+                ids: string[];
+            }>, "many">;
+        }, "strip", z.ZodTypeAny, {
+            key: string;
+            scopes: {
+                kind: "branch" | "outlet" | "department" | "section";
+                ids: string[];
+            }[];
+        }, {
+            key: string;
+            scopes: {
+                kind: "branch" | "outlet" | "department" | "section";
+                ids: string[];
+            }[];
+        }>, "many">;
+    }, "strip", z.ZodTypeAny, {
+        family: "business";
+        roles: {
+            name: string;
+            kind: "custom" | "default";
+            key: string;
+            roleId: string | null;
+            scopes: {
+                kind: "branch" | "outlet" | "department" | "section";
+                ids: string[];
+            }[];
+        }[];
+        permissions: {
+            key: string;
+            scopes: {
+                kind: "branch" | "outlet" | "department" | "section";
+                ids: string[];
+            }[];
+        }[];
+        products: {
+            id: "residence" | "finance" | "hr" | "admin" | "membership" | "account" | "marketplace" | "pay" | "pms" | "outlets" | "pos";
+            branches: string[] | "all";
+        }[];
+    }, {
+        family: "business";
+        roles: {
+            name: string;
+            kind: "custom" | "default";
+            key: string;
+            roleId: string | null;
+            scopes: {
+                kind: "branch" | "outlet" | "department" | "section";
+                ids: string[];
+            }[];
+        }[];
+        permissions: {
+            key: string;
+            scopes: {
+                kind: "branch" | "outlet" | "department" | "section";
+                ids: string[];
+            }[];
+        }[];
+        products: {
+            id: "residence" | "finance" | "hr" | "admin" | "membership" | "account" | "marketplace" | "pay" | "pms" | "outlets" | "pos";
+            branches: string[] | "all";
+        }[];
+    }>>;
 }, "strip", z.ZodTypeAny, {
     domain: "hospitality" | "residence" | "enterprise" | null;
     kind: "business" | "broker" | "personal";
@@ -499,6 +628,30 @@ export declare const WorkspaceAccess: z.ZodObject<{
     psfMembership: {
         canManage: boolean;
     } | null;
+    grants?: {
+        family: "business";
+        roles: {
+            name: string;
+            kind: "custom" | "default";
+            key: string;
+            roleId: string | null;
+            scopes: {
+                kind: "branch" | "outlet" | "department" | "section";
+                ids: string[];
+            }[];
+        }[];
+        permissions: {
+            key: string;
+            scopes: {
+                kind: "branch" | "outlet" | "department" | "section";
+                ids: string[];
+            }[];
+        }[];
+        products: {
+            id: "residence" | "finance" | "hr" | "admin" | "membership" | "account" | "marketplace" | "pay" | "pms" | "outlets" | "pos";
+            branches: string[] | "all";
+        }[];
+    } | undefined;
 }, {
     domain: "hospitality" | "residence" | "enterprise" | null;
     kind: "business" | "broker" | "personal";
@@ -520,6 +673,30 @@ export declare const WorkspaceAccess: z.ZodObject<{
     psfMembership?: {
         canManage: boolean;
     } | null | undefined;
+    grants?: {
+        family: "business";
+        roles: {
+            name: string;
+            kind: "custom" | "default";
+            key: string;
+            roleId: string | null;
+            scopes: {
+                kind: "branch" | "outlet" | "department" | "section";
+                ids: string[];
+            }[];
+        }[];
+        permissions: {
+            key: string;
+            scopes: {
+                kind: "branch" | "outlet" | "department" | "section";
+                ids: string[];
+            }[];
+        }[];
+        products: {
+            id: "residence" | "finance" | "hr" | "admin" | "membership" | "account" | "marketplace" | "pay" | "pms" | "outlets" | "pos";
+            branches: string[] | "all";
+        }[];
+    } | undefined;
 }>;
 export type WorkspaceAccess = z.infer<typeof WorkspaceAccess>;
 /**
@@ -639,6 +816,135 @@ export declare const MyWorkspaces: z.ZodObject<{
         }, {
             canManage: boolean;
         }>>>;
+        /**
+         * What the person holds HERE, in the shape every product reads (ADR-076
+         * contract section 3): the products the business has on, narrowed to the
+         * branches this member covers; the roles they hold, each with its scope;
+         * and the permissions those roles grant, under their new names.
+         *
+         * Set on every `business` workspace, absent on `broker` and `personal`.
+         * Optional so a client built before it still parses a grant. It sits
+         * beside `permissions` rather than replacing it: the flat field keeps
+         * today's keys until stage 9 (D-20).
+         */
+        grants: z.ZodOptional<z.ZodObject<{
+            family: z.ZodLiteral<"business">;
+            products: z.ZodArray<z.ZodObject<{
+                id: z.ZodEnum<["account", "admin", "membership", "marketplace", "finance", "pay", "pms", "outlets", "pos", "hr", "residence"]>;
+                branches: z.ZodUnion<[z.ZodLiteral<"all">, z.ZodArray<z.ZodString, "many">]>;
+            }, "strip", z.ZodTypeAny, {
+                id: "residence" | "finance" | "hr" | "admin" | "membership" | "account" | "marketplace" | "pay" | "pms" | "outlets" | "pos";
+                branches: string[] | "all";
+            }, {
+                id: "residence" | "finance" | "hr" | "admin" | "membership" | "account" | "marketplace" | "pay" | "pms" | "outlets" | "pos";
+                branches: string[] | "all";
+            }>, "many">;
+            roles: z.ZodArray<z.ZodObject<{
+                roleId: z.ZodNullable<z.ZodString>;
+                key: z.ZodString;
+                name: z.ZodString;
+                kind: z.ZodEnum<["default", "custom"]>;
+                scopes: z.ZodArray<z.ZodObject<{
+                    kind: z.ZodEnum<["branch", "outlet", "department", "section"]>;
+                    ids: z.ZodArray<z.ZodString, "many">;
+                }, "strip", z.ZodTypeAny, {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }, {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }>, "many">;
+            }, "strip", z.ZodTypeAny, {
+                name: string;
+                kind: "custom" | "default";
+                key: string;
+                roleId: string | null;
+                scopes: {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }[];
+            }, {
+                name: string;
+                kind: "custom" | "default";
+                key: string;
+                roleId: string | null;
+                scopes: {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }[];
+            }>, "many">;
+            permissions: z.ZodArray<z.ZodObject<{
+                key: z.ZodString;
+                scopes: z.ZodArray<z.ZodObject<{
+                    kind: z.ZodEnum<["branch", "outlet", "department", "section"]>;
+                    ids: z.ZodArray<z.ZodString, "many">;
+                }, "strip", z.ZodTypeAny, {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }, {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }>, "many">;
+            }, "strip", z.ZodTypeAny, {
+                key: string;
+                scopes: {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }[];
+            }, {
+                key: string;
+                scopes: {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }[];
+            }>, "many">;
+        }, "strip", z.ZodTypeAny, {
+            family: "business";
+            roles: {
+                name: string;
+                kind: "custom" | "default";
+                key: string;
+                roleId: string | null;
+                scopes: {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }[];
+            }[];
+            permissions: {
+                key: string;
+                scopes: {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }[];
+            }[];
+            products: {
+                id: "residence" | "finance" | "hr" | "admin" | "membership" | "account" | "marketplace" | "pay" | "pms" | "outlets" | "pos";
+                branches: string[] | "all";
+            }[];
+        }, {
+            family: "business";
+            roles: {
+                name: string;
+                kind: "custom" | "default";
+                key: string;
+                roleId: string | null;
+                scopes: {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }[];
+            }[];
+            permissions: {
+                key: string;
+                scopes: {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }[];
+            }[];
+            products: {
+                id: "residence" | "finance" | "hr" | "admin" | "membership" | "account" | "marketplace" | "pay" | "pms" | "outlets" | "pos";
+                branches: string[] | "all";
+            }[];
+        }>>;
     } & {
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
@@ -663,6 +969,30 @@ export declare const MyWorkspaces: z.ZodObject<{
         psfMembership: {
             canManage: boolean;
         } | null;
+        grants?: {
+            family: "business";
+            roles: {
+                name: string;
+                kind: "custom" | "default";
+                key: string;
+                roleId: string | null;
+                scopes: {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }[];
+            }[];
+            permissions: {
+                key: string;
+                scopes: {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }[];
+            }[];
+            products: {
+                id: "residence" | "finance" | "hr" | "admin" | "membership" | "account" | "marketplace" | "pay" | "pms" | "outlets" | "pos";
+                branches: string[] | "all";
+            }[];
+        } | undefined;
     }, {
         domain: "hospitality" | "residence" | "enterprise" | null;
         kind: "business" | "broker" | "personal";
@@ -685,6 +1015,30 @@ export declare const MyWorkspaces: z.ZodObject<{
         psfMembership?: {
             canManage: boolean;
         } | null | undefined;
+        grants?: {
+            family: "business";
+            roles: {
+                name: string;
+                kind: "custom" | "default";
+                key: string;
+                roleId: string | null;
+                scopes: {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }[];
+            }[];
+            permissions: {
+                key: string;
+                scopes: {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }[];
+            }[];
+            products: {
+                id: "residence" | "finance" | "hr" | "admin" | "membership" | "account" | "marketplace" | "pay" | "pms" | "outlets" | "pos";
+                branches: string[] | "all";
+            }[];
+        } | undefined;
     }>, "many">;
     activeWorkspaceId: z.ZodNullable<z.ZodString>;
     twoFactor: z.ZodObject<{
@@ -724,6 +1078,30 @@ export declare const MyWorkspaces: z.ZodObject<{
         psfMembership: {
             canManage: boolean;
         } | null;
+        grants?: {
+            family: "business";
+            roles: {
+                name: string;
+                kind: "custom" | "default";
+                key: string;
+                roleId: string | null;
+                scopes: {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }[];
+            }[];
+            permissions: {
+                key: string;
+                scopes: {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }[];
+            }[];
+            products: {
+                id: "residence" | "finance" | "hr" | "admin" | "membership" | "account" | "marketplace" | "pay" | "pms" | "outlets" | "pos";
+                branches: string[] | "all";
+            }[];
+        } | undefined;
     }[];
     activeWorkspaceId: string | null;
 }, {
@@ -753,6 +1131,30 @@ export declare const MyWorkspaces: z.ZodObject<{
         psfMembership?: {
             canManage: boolean;
         } | null | undefined;
+        grants?: {
+            family: "business";
+            roles: {
+                name: string;
+                kind: "custom" | "default";
+                key: string;
+                roleId: string | null;
+                scopes: {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }[];
+            }[];
+            permissions: {
+                key: string;
+                scopes: {
+                    kind: "branch" | "outlet" | "department" | "section";
+                    ids: string[];
+                }[];
+            }[];
+            products: {
+                id: "residence" | "finance" | "hr" | "admin" | "membership" | "account" | "marketplace" | "pay" | "pms" | "outlets" | "pos";
+                branches: string[] | "all";
+            }[];
+        } | undefined;
     }[];
     activeWorkspaceId: string | null;
 }>;

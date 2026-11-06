@@ -65,6 +65,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -92,6 +93,7 @@ import type { FileReply } from './pay-runs.controller';
 /** Payslips across runs -> /api/v1/ops/payslips (AC-PY10, AC-PY11). */
 @Controller({ path: 'ops/payslips', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayslipsController {
   constructor(private readonly payslips: PayslipsService) {}
 
@@ -170,6 +172,7 @@ export class OpsPayslipsController {
 /** Pay adjustments -> /api/v1/ops/pay-adjustments (AC-PY16). */
 @Controller({ path: 'ops/pay-adjustments', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayAdjustmentsController {
   constructor(private readonly adjustments: PayAdjustmentsService) {}
 
@@ -210,6 +213,7 @@ export class OpsPayAdjustmentsController {
 /** Loans and advances -> /api/v1/ops/loans (AC-PY8). */
 @Controller({ path: 'ops/loans', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsLoansController {
   constructor(private readonly loans: LoansService) {}
 
@@ -273,6 +277,7 @@ export class OpsLoansController {
 /** Claims -> /api/v1/ops/pay-claims (AC-PY9). */
 @Controller({ path: 'ops/pay-claims', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayClaimsController {
   constructor(private readonly claims: PayClaimsService) {}
 
@@ -355,6 +360,7 @@ export class OpsPayClaimsController {
 /** Pay components -> /api/v1/ops/pay-components (AC-PY5). */
 @Controller({ path: 'ops/pay-components', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayComponentsController {
   constructor(private readonly components: PayComponentsService) {}
 
@@ -390,6 +396,7 @@ export class OpsPayComponentsController {
 /** Pay structures -> /api/v1/ops/pay-structures (AC-PY5). */
 @Controller({ path: 'ops/pay-structures', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayStructuresController {
   constructor(private readonly components: PayComponentsService) {}
 
@@ -428,6 +435,7 @@ export class OpsPayStructuresController {
  */
 @Controller({ path: 'ops/contracts', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsContractsController {
   constructor(private readonly views: PayrollViewsService) {}
 
@@ -455,6 +463,7 @@ export class OpsContractsController {
 /** The dashboard and the national rules in force -> /api/v1/ops/payroll (AC-PY15). */
 @Controller({ path: 'ops/payroll', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayrollController {
   constructor(private readonly views: PayrollViewsService) {}
 
@@ -475,6 +484,7 @@ export class OpsPayrollController {
 /** A file a run produced, fetched again -> /api/v1/ops/pay-files/:id. */
 @Controller({ path: 'ops/pay-files', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayFilesController {
   constructor(private readonly files: PayFilesService) {}
 

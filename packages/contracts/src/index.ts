@@ -8,6 +8,13 @@
 export * from "./primitives";
 export * from "./phone";
 export * from "./authz";
+// Injishi Account (ADR-076 slice G): products and entitlements, the grants a
+// client reads, the new permission names, and the refusal layers and codes.
+export * from "./authz/products";
+export * from "./authz/legacy-keys";
+export * from "./authz/grants";
+export * from "./authz/refusals";
+export * from "./authz/entitlements";
 export * from "./staff-authz";
 export * from "./rdb";
 export * from "./business-kind";

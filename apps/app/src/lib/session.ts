@@ -1,11 +1,13 @@
-import { type BoardId, canAccess, type Persona, screens } from "@injishi/data";
+import { type BoardId, type Persona, screens } from "@injishi/data";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import { screenDecision } from "@/server/access";
 import { type ApiClient, ApiError, createApiClient, type SessionCookie } from "@/server/api";
 import { type Account, accountFor, OTP_TTL_SECONDS } from "@/server/auth";
 import { expiredAuthCookies, type ForwardedCookie, sessionCookieHeader } from "@/server/session-cookies";
 import { safePath } from "./return-to";
+import { accessSubject } from "./screen-access";
 
 /**
  * Where the app kept the API's session before it shared the browser's Better Auth cookie with web.
@@ -73,17 +75,23 @@ export const currentApi = cache(async (): Promise<ApiClient> => createApiClient(
 
 /**
  * Gate a screen: public screens return the persona (or null); protected screens redirect
- * signed-out visitors to sign-in and people without access to the access-denied screen.
+ * signed-out visitors to sign-in and people without access to the access-denied screen, which
+ * names the layer that refused (ADR-076 G14).
  * Call it first in every page: `const persona = await requireScreen("CheckIn")`.
+ *
+ * A real person is judged by what the API granted: the screen's product must be on for their business
+ * and their grant must hold one of the screen's permissions (`SCREEN_REQUIRES`). A demo persona, on the
+ * demo only, by its story.
  */
 export async function requireScreen(board: BoardId): Promise<Persona | null> {
-  const persona = await currentPersona();
+  const account = await currentAccount();
+  const persona = account?.persona ?? null;
   const screen = screens[board];
   if (screen.persona === null) return persona;
-  if (!persona) redirect(`/sign-in?next=${encodeURIComponent(screen.href)}`);
-  // The persona's own screens, and those of the other roles this person holds (`withHats`).
-  if (!canAccess(persona.id, board) && !persona.access?.includes(board)) redirect(`/access-denied?from=${board}`);
-  return persona;
+  if (!account) redirect(`/sign-in?next=${encodeURIComponent(screen.href)}`);
+  const decision = screenDecision(accessSubject(account), board);
+  if (!decision.ok) redirect(`/access-denied?from=${board}&layer=${decision.layer}`);
+  return account.persona;
 }
 
 /** Same as requireScreen for screens that always need a person (narrows the type). */

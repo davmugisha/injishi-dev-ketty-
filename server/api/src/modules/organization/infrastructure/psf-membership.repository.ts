@@ -16,7 +16,6 @@ import { and, asc, desc, eq, inArray, isNull, lt, or, sql, type SQL } from 'driz
 import { alias, type AnyPgColumn } from 'drizzle-orm/pg-core';
 
 import {
-  auditEvents,
   districts,
   identityDocuments,
   oboRegistrations,
@@ -49,6 +48,7 @@ import {
   type Database,
 } from '../../../shared/database/database.module';
 import type { Tx } from '../../platform/property/infrastructure/insert-property';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 
 /**
  * PSF membership (ADR-056, widened by the PSF path): the tier catalogue, the
@@ -2315,7 +2315,7 @@ export class PsfMembershipRepository {
 
   /** A payment reminder, on the record: it is also how a second one the same day is held back. */
   async recordPaymentReminder(orgId: string, actorUserId: string, districtId: number | null): Promise<void> {
-    await this.db.insert(auditEvents).values({
+    await AuditWriter.write(this.db, {
       actorUserId,
       subjectType: 'org',
       subjectId: orgId,

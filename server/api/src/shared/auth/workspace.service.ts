@@ -1,22 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import {
   NO_STAFF_ACCESS,
   OVERSIGHT_COUNTRY_SCOPE_LABEL,
-  type WorkspaceBranch,
-  type DepartmentCategory,
   type OversightConsoleGrant,
   type OversightGrant,
-  type Permission,
-  type RolePermissionOverride,
   type StaffAccess,
   type WorkspaceAccess,
-  isPsfApplicant,
-  PSF_DOMAINS,
   mayElevate,
   oversightConsoleFor,
-  parseRolePermissionOverride,
-  permissionsForWorkspace,
   staffPermissionsForGrants,
   tidyPlaceName,
 } from '@injishi/contracts';
@@ -24,29 +16,42 @@ import {
 import { DRIZZLE, type Database } from '../database/database.module';
 import type { CoveredProperties } from './branch-scope';
 import {
+  accessFromFacts,
+  coveredFromFacts,
+  factsFromRow,
+  workspaceFactsQuery,
+  type FactsRow,
+  type WorkspaceFacts,
+} from './workspace-facts';
+import {
   adminUsers,
-  staffCustomRolePermissions,
-  staffCustomRoles,
-  userStaffCustomRoles,
   cells,
-  departments,
   districts,
   governmentBodies,
   identityDocuments,
-  oboRegistrations,
-  orgMembershipBranches,
-  orgMemberships,
-  orgRolePermissions,
-  orgs,
   oversightAssignments,
-  properties,
   provinces,
   sectors,
   sessions,
+  staffCustomRolePermissions,
+  staffCustomRoles,
+  userStaffCustomRoles,
   verifiedIdentities,
   villages,
-  workspaces,
 } from '../../database/drizzle/schema';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * One workspace as a guard needs it: the grant the client is told about, what
+ * the member covers, and the facts both were built from (the membership and the
+ * open entitlements, which later layers read). Resolved in one statement.
+ */
+export interface ResolvedWorkspace {
+  readonly access: WorkspaceAccess;
+  readonly covered: CoveredProperties;
+  readonly facts: WorkspaceFacts;
+}
 
 /**
  * Resolves what a signed-in person may actually do (Spec 0004).
@@ -70,282 +75,15 @@ import {
 export class WorkspaceService {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
-  /** Every workspace this user may act in, each with the permissions that apply there. */
-  async listForUser(userId: string): Promise<WorkspaceAccess[]> {
-    const own = await this.db
-      .select({
-        workspaceId: workspaces.id,
-        kind: workspaces.kind,
-      })
-      .from(workspaces)
-      .where(eq(workspaces.userId, userId));
-
-    const viaOrg = await this.db
-      .select({
-        workspaceId: workspaces.id,
-        kind: workspaces.kind,
-        orgId: orgs.id,
-        orgName: orgs.legalName,
-        domain: orgs.domain,
-        orgRole: orgMemberships.orgRole,
-        membershipId: orgMemberships.id,
-        // Not decoration: this is what decides whether the caller holds any
-        // permission here at all (D20, D23). Selected on the same row as the
-        // role so the two can never be resolved from different reads.
-        registrationStatus: orgs.registrationStatus,
-      })
-      .from(orgMemberships)
-      .innerJoin(orgs, eq(orgs.id, orgMemberships.orgId))
-      .innerJoin(workspaces, eq(workspaces.orgId, orgs.id))
-      .where(
-        and(
-          eq(orgMemberships.userId, userId),
-          eq(orgMemberships.status, 'active'),
-        ),
-      );
-
-    /*
-     * Which departments each business workspace runs (ADR-035, D-a).
-     *
-     * On the grant because the operator app derives its nav SECTIONS from it,
-     * and screen access is derived from the nav. Before this the app read the
-     * answer out of `data/demo.ts`, so a fixture decided which doors a real
-     * hotel had.
-     *
-     * One extra query rather than a join onto `viaOrg`: a business runs
-     * several departments, so joining would multiply the membership rows and
-     * every grant would then have to be de-duplicated back down. Skipped
-     * entirely when the caller holds no business workspace, which is the
-     * common case for a broker or a guest.
-     *
-     * ARCHIVED departments are excluded. A retired restaurant keeps its
-     * revenue history, which is why the row is never deleted, but it must not
-     * keep the Services door open.
-     */
-    const businessWorkspaceIds = viaOrg.map((w) => w.workspaceId);
-    const departmentsByWorkspace = new Map<string, DepartmentCategory[]>();
-    if (businessWorkspaceIds.length > 0) {
-      const rows = await this.db
-        .selectDistinct({
-          workspaceId: departments.workspaceId,
-          category: departments.departmentCategory,
-        })
-        .from(departments)
-        .where(
-          and(
-            inArray(departments.workspaceId, businessWorkspaceIds),
-            eq(departments.status, 'active'),
-          ),
-        );
-      for (const row of rows) {
-        const list = departmentsByWorkspace.get(row.workspaceId) ?? [];
-        list.push(row.category);
-        departmentsByWorkspace.set(row.workspaceId, list);
-      }
-    }
-
-    /*
-     * The branches each business workspace's member covers (ADR-054 AC-S3).
-     *
-     * On the grant for the same reason `departments` is: the topbar names the
-     * branch on every screen, and reading it from `/inventory/properties`
-     * meant a receptionist — who may not manage listings — took a 403 on every
-     * page load for a name. Identity is not a listing operation.
-     *
-     * Active branches only, head office first then by name, narrowed to the
-     * member's `org_membership_branches` rows when they have any.
-     */
-    const limits = await this.branchLimitsFor(viaOrg);
-    const branchesByWorkspace = new Map<string, WorkspaceBranch[]>();
-    if (businessWorkspaceIds.length > 0) {
-      const rows = await this.db
-        .select({
-          workspaceId: properties.workspaceId,
-          id: properties.id,
-          name: properties.name,
-          districtName: districts.name,
-          isHeadOffice: properties.isHeadOffice,
-        })
-        .from(properties)
-        .leftJoin(districts, eq(districts.id, properties.districtId))
-        .where(
-          and(
-            inArray(properties.workspaceId, businessWorkspaceIds),
-            isNull(properties.archivedAt),
-          ),
-        )
-        .orderBy(desc(properties.isHeadOffice), asc(properties.name));
-      for (const { workspaceId, ...branch } of rows) {
-        const list = branchesByWorkspace.get(workspaceId) ?? [];
-        list.push(branch);
-        branchesByWorkspace.set(workspaceId, list);
-      }
-    }
-
-    const fromOwn: WorkspaceAccess[] = own.map((w) => ({
-      workspaceId: w.workspaceId,
-      kind: w.kind,
-      orgId: null,
-      orgName: null,
-      domain: null,
-      orgRole: null,
-      registrationStatus: null,
-      permissions: permissionsForWorkspace({
-        kind: w.kind,
-        orgRole: null,
-        registrationStatus: null,
-      }),
-      // Broker and Personal run no departments. Empty, never absent.
-      departments: [],
-      // And no property, so no branch. Null and empty, never absent.
-      propertyName: null,
-      branches: [],
-      branchCoverage: null,
-      // No business, so no PSF membership (ADR-056).
-      psfMembership: null,
-    }));
-
-    /*
-     * What each business decided its own staff roles mean (ADR-055).
-     *
-     * A DELTA table: one row per permission a business moved on or off one of
-     * its roles. A role nothing names still resolves from the platform default,
-     * so the common case — a business that has never opened the Roles screen —
-     * reads zero rows and behaves exactly as it did before this existed.
-     *
-     * One extra query covering every business workspace at once, and keyed by
-     * ORG rather than by workspace: the policy belongs to the business, so an
-     * org with two workspaces must not be able to hold two answers. Skipped
-     * entirely when the caller holds no business workspace, which is the common
-     * case for a guest or a broker.
-     *
-     * ROWS THAT DO NOT NARROW ARE DROPPED, through the same helper the service
-     * that writes them uses, so the read path and the write path cannot disagree
-     * about what a row means. `permissionsForWorkspace` then applies them INSIDE the
-     * registration gate, so a business still in the pipeline cannot grant its
-     * way past its own approval.
-     */
-    const orgIds = [
-      ...new Set(
-        viaOrg.map((w) => w.orgId).filter((id): id is string => Boolean(id)),
-      ),
-    ];
-    const overridesByOrg = new Map<string, RolePermissionOverride[]>();
-    if (orgIds.length > 0) {
-      const rows = await this.db
-        .select({
-          orgId: orgRolePermissions.orgId,
-          orgRole: orgRolePermissions.orgRole,
-          permission: orgRolePermissions.permission,
-          granted: orgRolePermissions.granted,
-        })
-        .from(orgRolePermissions)
-        .where(inArray(orgRolePermissions.orgId, orgIds));
-      for (const row of rows) {
-        const parsed = parseRolePermissionOverride(row);
-        if (!parsed) continue;
-        const list = overridesByOrg.get(row.orgId) ?? [];
-        list.push(parsed);
-        overridesByOrg.set(row.orgId, list);
-      }
-    }
-
-    /*
-     * The on behalf registration of each business, for the PSF applicant rule
-     * (ADR-056). The agent who registered stays an `owner` after the claim
-     * (scope `_root` 40), so the rule has to read the claim to tell them apart
-     * from the owner. One query for every business at once, skipped with none.
-     */
-    const oboByOrg = new Map<
-      string,
-      {
-        registrantUserId: string;
-        claimStatus: 'registrant_held' | 'owner_claimed' | 'expired';
-      }
-    >();
-    if (orgIds.length > 0) {
-      const rows = await this.db
-        .select({
-          orgId: oboRegistrations.orgId,
-          registrantUserId: oboRegistrations.registrantUserId,
-          claimStatus: oboRegistrations.claimStatus,
-        })
-        .from(oboRegistrations)
-        .where(inArray(oboRegistrations.orgId, orgIds));
-      for (const { orgId, ...obo } of rows) oboByOrg.set(orgId, obo);
-    }
-
-    const fromOrg: WorkspaceAccess[] = viaOrg.map((w) => {
-      const limit = limits.get(w.membershipId);
-      const branches = (branchesByWorkspace.get(w.workspaceId) ?? []).filter(
-        (b) => !limit || limit.has(b.id),
-      );
-      return {
-        workspaceId: w.workspaceId,
-        kind: w.kind,
-        orgId: w.orgId,
-        orgName: w.orgName,
-        domain: w.domain,
-        orgRole: w.orgRole,
-        registrationStatus: w.registrationStatus,
-        permissions: permissionsForWorkspace({
-          kind: w.kind,
-          orgRole: w.orgRole,
-          registrationStatus: w.registrationStatus,
-          roleOverrides: w.orgId ? (overridesByOrg.get(w.orgId) ?? []) : [],
-        }),
-        departments: departmentsByWorkspace.get(w.workspaceId) ?? [],
-        // Head office first, then by name, so the first covered branch is
-        // the head office when covered and else the first by name (AC-S3).
-        propertyName: branches[0]?.name ?? null,
-        branches,
-        branchCoverage: limit ? ('limited' as const) : ('all' as const),
-        // A hotel or a PSF business may hold a PSF membership; a residence may not.
-        psfMembership:
-          w.domain !== null && PSF_DOMAINS.includes(w.domain)
-            ? {
-                canManage: isPsfApplicant({
-                  userId,
-                  domain: w.domain,
-                  orgRole: w.orgRole,
-                  obo: w.orgId ? (oboByOrg.get(w.orgId) ?? null) : null,
-                }),
-              }
-            : null,
-      };
-    });
-
-    return [...fromOwn, ...fromOrg];
-  }
-
   /**
-   * The branch limit of each membership that has one, keyed by membership id.
-   *
-   * No rows means every branch (ADR-054, `org_membership_branches`). An owner's
-   * rows, which the service never writes, are ignored rather than trusted:
-   * an owner always covers every branch (invariant 5).
+   * Every workspace this user may act in, each with the permissions that apply
+   * there and, on a business workspace, the grants (ADR-076 G1). One statement
+   * (`workspaceFactsQuery`), the same one the guard runs for a single workspace.
    */
-  private async branchLimitsFor(
-    memberships: readonly { membershipId: string; orgRole: string }[],
-  ): Promise<Map<string, Set<string>>> {
-    const ids = memberships
-      .filter((m) => m.orgRole !== 'owner')
-      .map((m) => m.membershipId);
-    const limits = new Map<string, Set<string>>();
-    if (ids.length === 0) return limits;
-    const rows = await this.db
-      .select({
-        membershipId: orgMembershipBranches.orgMembershipId,
-        propertyId: orgMembershipBranches.propertyId,
-      })
-      .from(orgMembershipBranches)
-      .where(inArray(orgMembershipBranches.orgMembershipId, ids));
-    for (const row of rows) {
-      const set = limits.get(row.membershipId) ?? new Set<string>();
-      set.add(row.propertyId);
-      limits.set(row.membershipId, set);
-    }
-    return limits;
+  async listForUser(userId: string): Promise<WorkspaceAccess[]> {
+    return (await this.factsFor(userId, null)).map((facts) =>
+      accessFromFacts(userId, facts),
+    );
   }
 
   /**
@@ -358,49 +96,40 @@ export class WorkspaceService {
     userId: string,
     workspaceId: string,
   ): Promise<WorkspaceAccess | null> {
-    const all = await this.listForUser(userId);
-    return all.find((w) => w.workspaceId === workspaceId) ?? null;
+    return (await this.accessFor(userId, workspaceId))?.access ?? null;
   }
 
   /**
-   * The properties this member covers in a workspace, archived ones included,
-   * for the branch scope `WorkspaceGuard` resolves (ADR-054). Archived branches
-   * stay in it so their history is still readable; the switcher offers only
-   * the grant's `branches`.
+   * One workspace with what the member covers and the facts behind both, or
+   * null when the user does not hold it, in ONE query (ADR-076 A-17). This is
+   * what `WorkspaceGuard` resolves, once per request.
    *
-   * `access` is the grant `resolveForUser` returned, so its coverage and this
-   * list come from the same membership. A limited member's list is their limit
-   * rows, joined to the workspace so a row naming another org's property (which
-   * the service refuses to write) can never widen it.
+   * A workspace id that is not a uuid is answered exactly like one the user
+   * does not hold, before it reaches the database: a probe learns nothing, and
+   * a malformed header is a 403 rather than a cast error.
    */
-  async coveredProperties(
+  async accessFor(
     userId: string,
-    access: WorkspaceAccess,
-  ): Promise<CoveredProperties> {
-    if (access.branchCoverage !== 'limited' || !access.orgId) {
-      const rows = await this.db
-        .select({ id: properties.id })
-        .from(properties)
-        .where(eq(properties.workspaceId, access.workspaceId));
-      return { coverage: 'all', propertyIds: rows.map((r) => r.id) };
-    }
-    const rows = await this.db
-      .select({ id: properties.id })
-      .from(orgMembershipBranches)
-      .innerJoin(
-        orgMemberships,
-        eq(orgMemberships.id, orgMembershipBranches.orgMembershipId),
-      )
-      .innerJoin(properties, eq(properties.id, orgMembershipBranches.propertyId))
-      .where(
-        and(
-          eq(orgMemberships.userId, userId),
-          eq(orgMemberships.orgId, access.orgId),
-          eq(orgMemberships.status, 'active'),
-          eq(properties.workspaceId, access.workspaceId),
-        ),
-      );
-    return { coverage: 'limited', propertyIds: rows.map((r) => r.id) };
+    workspaceId: string,
+  ): Promise<ResolvedWorkspace | null> {
+    if (!UUID.test(workspaceId)) return null;
+    const [facts] = await this.factsFor(userId, workspaceId);
+    if (!facts) return null;
+    return {
+      access: accessFromFacts(userId, facts),
+      covered: coveredFromFacts(facts),
+      facts,
+    };
+  }
+
+  private async factsFor(
+    userId: string,
+    workspaceId: string | null,
+  ): Promise<WorkspaceFacts[]> {
+    const result = await this.db.execute<FactsRow>(
+      workspaceFactsQuery(userId, workspaceId),
+    );
+    return result.rows.map(factsFromRow);
   }
 
   /**
@@ -645,15 +374,5 @@ export class WorkspaceService {
       ),
       customRoles: [...customRoles].map(([id, name]) => ({ id, name })),
     };
-  }
-
-  /** Convenience for a guard: does this user hold this permission HERE? */
-  async userHasPermissionIn(
-    userId: string,
-    workspaceId: string,
-    permission: Permission,
-  ): Promise<boolean> {
-    const access = await this.resolveForUser(userId, workspaceId);
-    return access?.permissions.includes(permission) ?? false;
   }
 }

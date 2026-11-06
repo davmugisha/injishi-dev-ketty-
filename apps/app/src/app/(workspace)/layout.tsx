@@ -1,11 +1,13 @@
-import { type NavGroup, navigationFor, personaByEmail } from "@injishi/data";
+import { type NavGroup, navigationFor } from "@injishi/data";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { WorkspaceShell } from "@/components/shell/WorkspaceShell";
 import { MessagesLive } from "@/features/messages/MessagesLive";
 import { sampleCollectionsByBoard } from "@/lib/coverage.generated";
 import { openToRealPeople } from "@/lib/real-screens";
+import { accessSubject } from "@/lib/screen-access";
 import { currentAccount } from "@/lib/session";
+import { screenDecision } from "@/server/access";
 import { adminNav } from "@/server/admin/nav";
 import { brokerNav } from "@/server/broker/nav";
 import { businessNav } from "@/server/business/nav";
@@ -97,23 +99,40 @@ function withOversightNav(nav: NavGroup[], persona: { id: string; access?: reado
   return extras.length ? [...nav, ...extras] : nav;
 }
 
-/** Desktop workspace: sidebar navigation of the signed-in persona around every operator screen. */
+/**
+ * Only the items this person may open, by the same decision the screens make (ADR-076 G12). A demo persona's
+ * decision is its story's (`canAccess`); anyone else's is their grants'.
+ */
+function mayOpen(groups: NavGroup[], subject: ReturnType<typeof accessSubject>): NavGroup[] {
+  return groups
+    .map((group) => ({ ...group, items: group.items.filter((item) => screenDecision(subject, item.board).ok) }))
+    .filter((group) => group.items.length > 0);
+}
+
+/**
+ * Desktop workspace: the sidebar navigation of the signed-in person's shell around every operator screen.
+ *
+ * The shell's navigation is narrowed to the screens this person may open (ADR-076 G12): a business
+ * member's from the products their business has on and the permissions their grant holds, staff and
+ * officers from the API's own answers. A demo persona keeps its whole story.
+ */
 export default async function WorkspaceLayout({ children }: { children: ReactNode }) {
   const account = await currentAccount();
-  const persona = account?.persona;
-  if (!persona) redirect("/sign-in");
+  if (!account) redirect("/sign-in");
+  const { persona } = account;
+  const subject = accessSubject(account);
   // A landlord's sidebar follows their permissions and the business's counts (server/rentals/nav.ts).
   // An officer's or local leader's sidebar follows the seats they hold (server/oversight/nav.ts).
   const stays =
     persona.id === "owner" || persona.id === "manager"
       ? await staysNav(persona.id === "manager" ? "ManagerToday" : "OwnerHome")
       : null;
-  let nav =
+  const shellNav =
     persona.id === "landlord"
       ? await landlordNav()
       : persona.id === "officer"
         ? await officerNav()
-        : (persona.id === "psf" || persona.id === "psfdbo") && personaByEmail(account.user.email)?.id !== persona.id
+        : (persona.id === "psf" || persona.id === "psfdbo") && !account.demo
           ? realScreensOnly(navigationFor(persona.id))
           : persona.id === "tenant"
             ? await tenantNav()
@@ -124,13 +143,15 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
                 : // A stay business's menu follows how it is run (server/stays/nav.ts).
                   stays
                   ? stays
-                  : personaByEmail(account.user.email)?.id === persona.id
+                  : account.demo
                     ? navigationFor(persona.id)
                     : ((BUSINESS_SHELLS.has(persona.id) ? await businessNav(account) : null) ??
                       // A real person's sidebar lists only the screens that show their own records.
                       withoutSampleCounts(navigationFor(persona.id))
                         .map((g) => ({ ...g, items: g.items.filter((i) => openToRealPeople(i.board)) }))
                         .filter((g) => g.items.length > 0));
+  // Only the screens this person may open, by the same decision the screens make (G12).
+  let nav: NavGroup[] = mayOpen(shellNav, subject);
   if (nav.length === 0) {
     // Phone/tablet personas visiting a desktop screen they may open: home plus "what to try".
     nav = [
@@ -150,7 +171,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
       : null;
   // An officer's or leader's header names their own seat, not the persona's sample one.
   const shown = persona.id === "officer" || persona.id === "psf" || persona.id === "psfdbo" ? await officerPersona(persona) : persona;
-  nav = withOversightNav(nav, persona);
+  nav = mayOpen(withOversightNav(nav, persona), subject);
   // Team is the managers' screen (2026-11-02): a BDE does not see it.
   if ((persona.id === "psf" || persona.id === "psfdbo") && !(await appointsPsfTeam())) {
     nav = nav.map((g) => ({ ...g, items: g.items.filter((i) => i.board !== "PsfTeam") })).filter((g) => g.items.length > 0);
@@ -160,10 +181,11 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
   return (
     <WorkspaceShell
       persona={shown}
+      switcher={account.switcher}
       nav={nav}
       altNav={altNav}
       live={stays !== null}
-      demo={personaByEmail(account.user.email)?.id === persona.id}
+      demo={account.demo}
     >
       {children}
       {/* Message counts in the sidebar follow new lines live (P3.4). */}

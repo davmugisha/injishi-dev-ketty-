@@ -3,7 +3,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import { type SQL, and, desc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 
 import {
-  auditEvents,
   orgInvitations,
   orgMembershipBranches,
   orgMemberships,
@@ -16,6 +15,7 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import { ensureStaffFileTx } from '../../hr/infrastructure/staff-file';
 
 /** Any reason an acceptance writes nothing. Rolls the transaction back. */
@@ -153,7 +153,7 @@ export class StaffInvitationRepository {
         })
         .returning({ id: orgInvitations.id });
       if (!row) throw new Error('Invitation insert returned no row.');
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.invitedByUserId,
         subjectType: 'org',
         subjectId: input.orgId,
@@ -332,7 +332,7 @@ export class StaffInvitationRepository {
         .limit(1);
       if (!workspace) throw new StaffInvitationRefused('no_live_invitation');
 
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.userId,
         subjectType: 'org',
         subjectId: input.orgId,

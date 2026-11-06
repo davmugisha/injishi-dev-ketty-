@@ -4,7 +4,12 @@ import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Query, UseGuards } 
 import { TenantsService } from '../../../../modules/rentals/application/tenants.service';
 import type { ScopedWorkspace } from '../../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../../shared/auth/session.guard';
-import { CurrentWorkspace, RequirePermission, WorkspaceGuard } from '../../../../shared/auth/workspace.guard';
+import {
+  CurrentWorkspace,
+  RequirePermission,
+  RequireProduct,
+  WorkspaceGuard,
+} from '../../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -15,6 +20,7 @@ import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.
  */
 @Controller({ path: 'ops/tenants', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('residence')
 export class OpsTenantsController {
   constructor(private readonly tenants: TenantsService) {}
 

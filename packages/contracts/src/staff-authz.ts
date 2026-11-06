@@ -35,6 +35,10 @@ export const StaffPermission = z.enum([
     "admin.business.review",
     "admin.business.suspend",
     "admin.business.reinstate",
+    // Switch a product on or off for a business or chosen branches, with a
+    // reason (ADR-076 G6). `super_admin` and `ops`: it narrows or widens what a
+    // business runs, which is running the platform, never money.
+    "admin.business.entitlement.edit",
     // Users — identity, and the two powers that can hand out authority.
     "admin.user.view",
     "admin.user.role.grant",
@@ -128,6 +132,7 @@ const STAFF_ROLE_PERMISSIONS = {
         "admin.business.review",
         "admin.business.suspend",
         "admin.business.reinstate",
+        "admin.business.entitlement.edit",
         "admin.user.view",
         "admin.user.session.revoke",
         // Ops can stop a compromised or abusive account from signing in; a
@@ -222,6 +227,7 @@ export const STAFF_PERMISSION_LABEL: Readonly<Record<StaffPermission, string>> =
     "admin.business.review": "review a business registration",
     "admin.business.suspend": "suspend a business",
     "admin.business.reinstate": "reinstate a business",
+    "admin.business.entitlement.edit": "switch a business's products on or off",
     "admin.user.view": "view users",
     "admin.user.role.grant": "change what a user may do",
     "admin.user.session.revoke": "end a user's sessions",
@@ -339,6 +345,7 @@ export const STAFF_PERMISSION_AREA: Readonly<Record<StaffPermission, StaffPermis
     "admin.business.review": "businesses",
     "admin.business.suspend": "businesses",
     "admin.business.reinstate": "businesses",
+    "admin.business.entitlement.edit": "businesses",
     "admin.business.member.manage": "businesses",
     "admin.user.view": "people",
     "admin.user.role.grant": "people",
@@ -382,6 +389,7 @@ export const STAFF_PERMISSION_DESCRIPTION: Readonly<Record<StaffPermission, stri
     "admin.business.review": "Check a registration and send it on or back.",
     "admin.business.suspend": "Stop a business from trading on Injishi.",
     "admin.business.reinstate": "Let a suspended business trade again.",
+    "admin.business.entitlement.edit": "Switch a product on or off for a business, for all of it or some branches.",
     "admin.business.member.manage": "Add a person to a business, change their role there, or take them out.",
     "admin.user.view": "Search every account and open a person.",
     "admin.user.role.grant": "Create accounts, give staff roles and appoint officers.",

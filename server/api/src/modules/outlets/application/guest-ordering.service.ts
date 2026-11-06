@@ -18,6 +18,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 
+import { EntitlementCheck } from '../../../shared/entitlements/entitlement-check';
 import { isOutletOpen } from '../domain/outlet-hours';
 import {
   isSellable,
@@ -74,6 +75,7 @@ export class GuestOrderingService {
     private readonly folios: FolioPort,
     private readonly messaging: MessagingService,
     private readonly seam: PaymentSeam,
+    private readonly entitlements: EntitlementCheck,
   ) {}
 
   protected now(): Date {
@@ -105,7 +107,11 @@ export class GuestOrderingService {
     }
 
     const now = this.now();
-    const open = [...byId.values()].filter((o) => isOutletOpen(o.hours, now, PROPERTY_TIME_ZONE));
+    const hoursOpen = [...byId.values()].filter((o) => isOutletOpen(o.hours, now, PROPERTY_TIME_ZONE));
+    // An outlet whose business has Outlets off at its branch is left out, not
+    // refused: a list never shows a door that would refuse (ADR-076 G10).
+    const entitled = await this.entitlements.onAt('outlets', hoursOpen);
+    const open = hoursOpen.filter((_outlet, i) => entitled[i]);
     const menu = await this.guests.menuFor(open.map((o) => o.id));
 
     const listed: OrderableOutlet[] = [];
@@ -158,6 +164,13 @@ export class GuestOrderingService {
     if (!outlet || outlet.status !== 'active') {
       throw new NotFoundException('That outlet is not taking orders.');
     }
+    // After the outlet is found, so an unknown id is still a 404; then the
+    // business must have Outlets on at the outlet's branch (ADR-076 G10).
+    await this.entitlements.assertOn(
+      'outlets',
+      outlet,
+      `${outlet.name} is not taking orders through Injishi right now.`,
+    );
 
     // Scoped by the workspace that owns the row, as every key in this layer
     // is, and by the person, because two guests may pick the same UUID.

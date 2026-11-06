@@ -93,6 +93,7 @@ export function NewLeaseView({
   initialUnitId,
   initialStart = null,
   canSign,
+  marketplaceOn,
 }: {
   units: RentalUnitView[];
   properties: RentalPropertyView[];
@@ -102,6 +103,8 @@ export function NewLeaseView({
   /** The first day, from a day chosen on the landlord's calendar. */
   initialStart?: string | null;
   canSign: boolean;
+  /** Whether Marketplace is on for this business: the broker picker searches its broker network. */
+  marketplaceOn: boolean;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -475,7 +478,7 @@ export function NewLeaseView({
             </div>
           ) : null}
 
-          {id === "tenant" ? (
+          {id === "tenant" && marketplaceOn ? (
             <section aria-label="Broker" className="flex flex-col gap-3 border-t border-separator pt-4">
               <BrokerPicker
                 value={broker}

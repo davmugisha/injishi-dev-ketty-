@@ -2086,14 +2086,14 @@ export declare const TimeRequestBulkRequest: z.ZodObject<{
         note?: string | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    action: "approve" | "reject";
     ids: string[];
+    action: "approve" | "reject";
     params?: {
         note?: string | undefined;
     } | undefined;
 }, {
-    action: "approve" | "reject";
     ids: string[];
+    action: "approve" | "reject";
     params?: {
         note?: string | undefined;
     } | undefined;
@@ -2483,14 +2483,14 @@ export declare const LeaveBulkRequest: z.ZodObject<{
         note?: string | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    action: "approve" | "reject";
     ids: string[];
+    action: "approve" | "reject";
     params?: {
         note?: string | undefined;
     } | undefined;
 }, {
-    action: "approve" | "reject";
     ids: string[];
+    action: "approve" | "reject";
     params?: {
         note?: string | undefined;
     } | undefined;
@@ -2819,14 +2819,14 @@ export declare const LeaveAllocationBulkRequest: z.ZodObject<{
         note?: string | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    action: "approve" | "reject";
     ids: string[];
+    action: "approve" | "reject";
     params?: {
         note?: string | undefined;
     } | undefined;
 }, {
-    action: "approve" | "reject";
     ids: string[];
+    action: "approve" | "reject";
     params?: {
         note?: string | undefined;
     } | undefined;
@@ -3492,16 +3492,16 @@ export declare const PayslipBulkRequest: z.ZodObject<{
         method: "cash" | "momo" | "bank";
         paidOn: string;
     };
-    action: "mark_paid";
     ids: string[];
+    action: "mark_paid";
 }, {
     params: {
         reference: string;
         method: "cash" | "momo" | "bank";
         paidOn: string;
     };
-    action: "mark_paid";
     ids: string[];
+    action: "mark_paid";
 }>;
 export type PayslipBulkRequest = z.infer<typeof PayslipBulkRequest>;
 /** `GET /ops/loans`. */
@@ -4063,14 +4063,14 @@ export declare const PayClaimBulkRequest: z.ZodObject<{
         note?: string | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    action: "approve" | "reject";
     ids: string[];
+    action: "approve" | "reject";
     params?: {
         note?: string | undefined;
     } | undefined;
 }, {
-    action: "approve" | "reject";
     ids: string[];
+    action: "approve" | "reject";
     params?: {
         note?: string | undefined;
     } | undefined;

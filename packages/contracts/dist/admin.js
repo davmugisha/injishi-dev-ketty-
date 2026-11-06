@@ -107,6 +107,14 @@ exports.AdminAuditSubjectType = zod_1.z.enum([
     "tax_declaration",
     // People (migration 0125): a custom staff role made, changed or archived.
     "staff_role",
+    // ADR-076 (migration 0134). A product switched on or off is filed under its
+    // entitlement row (slice G); roles, memberships, ownership transfers and
+    // enrolled devices get theirs in slices R, O and D.
+    "entitlement",
+    "role",
+    "membership",
+    "ownership_transfer",
+    "device",
 ]);
 /**
  * `record_data_class`. What class of another person's data a staff member read.
@@ -235,6 +243,9 @@ exports.AdminEscalationType = zod_1.z.enum([
     "off_platform_leakage",
     "listing_non_compliance",
     "review_abuse",
+    // ADR-076 G4 (migration 0134): a business became active with a kind nobody
+    // could resolve, so it holds `account` only until a person decides.
+    "business_kind_unresolved",
 ]);
 /** `escalation_state`. */
 exports.AdminEscalationState = zod_1.z.enum(["open", "resolved"]);

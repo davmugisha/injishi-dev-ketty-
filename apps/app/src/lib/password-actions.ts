@@ -24,6 +24,7 @@ import {
   signInWithPassword,
 } from "@/server/password";
 import { destinationAfterSignIn } from "./return-to";
+import { canOpen } from "./screen-access";
 import { applyApiCookies, currentSessionCookie, LEGACY_SESSION_COOKIE, OTP_COOKIE } from "./session";
 
 async function visitor(): Promise<{ ip: string | null; userAgent: string | null }> {
@@ -52,7 +53,16 @@ export async function signInPassword(_prev: PasswordSignInState, form: FormData)
   store.delete(LEGACY_SESSION_COOKIE);
   store.delete(OTP_COOKIE);
   const account = await accountFor(result.cookie);
-  redirect(destinationAfterSignIn(account?.persona.id ?? "guest", String(form.get("next") ?? ""), account?.user.email));
+  // Where it lands is the account's own: its home and the screens its grants open (ADR-076 G14).
+  const landing = account ? { home: account.home, canOpen: canOpen(account) } : {};
+  redirect(
+    destinationAfterSignIn(
+      account?.persona.id ?? "guest",
+      String(form.get("next") ?? ""),
+      account?.user.email,
+      landing,
+    ),
+  );
 }
 
 /** "Send a code" on Forgot password. Says "sent" for every well-formed address. */

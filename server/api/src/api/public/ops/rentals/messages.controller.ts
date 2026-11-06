@@ -14,7 +14,12 @@ import { LeaseMessagesService } from '../../../../modules/rentals/application/le
 import { PlacementMessagesService } from '../../../../modules/rentals/application/placement-messages.service';
 import type { ScopedWorkspace } from '../../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../../shared/auth/session.guard';
-import { CurrentWorkspace, RequirePermission, WorkspaceGuard } from '../../../../shared/auth/workspace.guard';
+import {
+  CurrentWorkspace,
+  RequirePermission,
+  RequireProduct,
+  WorkspaceGuard,
+} from '../../../../shared/auth/workspace.guard';
 import { UserThrottlerGuard } from '../../../../shared/http/user-throttler.guard';
 import type { FileReply } from '../pay-runs.controller';
 import { normaliseFormFields, parseFields, readForm, type FormRequest } from './multipart-form';
@@ -47,6 +52,7 @@ export function sendMessageFile(reply: FileReply, file: { body: Buffer; mime: st
  */
 @Controller({ path: 'ops/rentals/messages', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('residence')
 export class OpsLeaseMessagesController {
   constructor(
     private readonly messages: LeaseMessagesService,

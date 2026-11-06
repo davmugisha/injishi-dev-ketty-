@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { count, desc, eq } from 'drizzle-orm';
 
-import { auditEvents } from '../../../database/drizzle/governance';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import {
   trainingCertificates,
   trainingCourses,
@@ -143,7 +143,7 @@ export class TrainingCertificateService {
         })
         .where(eq(trainingCertificates.id, certificateId));
 
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: actor.userId,
         subjectType: 'training_certificate',
         subjectId: certificateId,

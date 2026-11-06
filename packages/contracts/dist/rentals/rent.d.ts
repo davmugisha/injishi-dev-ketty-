@@ -1041,9 +1041,6 @@ export declare const RentRollRow: z.ZodObject<{
         propertyName: string;
         blockCode: string | null;
     };
-    expectedRwf: number;
-    outstandingRwf: number;
-    daysOverdue: number;
     charge: {
         status: "open" | "paid" | "waived";
         id: string;
@@ -1062,6 +1059,9 @@ export declare const RentRollRow: z.ZodObject<{
         daysOverdue: number;
         waivedReason: string | null;
     } | null;
+    expectedRwf: number;
+    outstandingRwf: number;
+    daysOverdue: number;
     rollStatus: "open" | "paid" | "overdue" | "waived" | "not_raised" | "partly_paid";
     lastPayment: {
         id: string;
@@ -1094,9 +1094,6 @@ export declare const RentRollRow: z.ZodObject<{
         propertyName: string;
         blockCode: string | null;
     };
-    expectedRwf: number;
-    outstandingRwf: number;
-    daysOverdue: number;
     charge: {
         status: "open" | "paid" | "waived";
         id: string;
@@ -1115,6 +1112,9 @@ export declare const RentRollRow: z.ZodObject<{
         daysOverdue: number;
         waivedReason: string | null;
     } | null;
+    expectedRwf: number;
+    outstandingRwf: number;
+    daysOverdue: number;
     rollStatus: "open" | "paid" | "overdue" | "waived" | "not_raised" | "partly_paid";
     lastPayment: {
         id: string;
@@ -1293,9 +1293,6 @@ export declare const RentRoll: z.ZodObject<{
             propertyName: string;
             blockCode: string | null;
         };
-        expectedRwf: number;
-        outstandingRwf: number;
-        daysOverdue: number;
         charge: {
             status: "open" | "paid" | "waived";
             id: string;
@@ -1314,6 +1311,9 @@ export declare const RentRoll: z.ZodObject<{
             daysOverdue: number;
             waivedReason: string | null;
         } | null;
+        expectedRwf: number;
+        outstandingRwf: number;
+        daysOverdue: number;
         rollStatus: "open" | "paid" | "overdue" | "waived" | "not_raised" | "partly_paid";
         lastPayment: {
             id: string;
@@ -1346,9 +1346,6 @@ export declare const RentRoll: z.ZodObject<{
             propertyName: string;
             blockCode: string | null;
         };
-        expectedRwf: number;
-        outstandingRwf: number;
-        daysOverdue: number;
         charge: {
             status: "open" | "paid" | "waived";
             id: string;
@@ -1367,6 +1364,9 @@ export declare const RentRoll: z.ZodObject<{
             daysOverdue: number;
             waivedReason: string | null;
         } | null;
+        expectedRwf: number;
+        outstandingRwf: number;
+        daysOverdue: number;
         rollStatus: "open" | "paid" | "overdue" | "waived" | "not_raised" | "partly_paid";
         lastPayment: {
             id: string;
@@ -1423,9 +1423,6 @@ export declare const RentRoll: z.ZodObject<{
             propertyName: string;
             blockCode: string | null;
         };
-        expectedRwf: number;
-        outstandingRwf: number;
-        daysOverdue: number;
         charge: {
             status: "open" | "paid" | "waived";
             id: string;
@@ -1444,6 +1441,9 @@ export declare const RentRoll: z.ZodObject<{
             daysOverdue: number;
             waivedReason: string | null;
         } | null;
+        expectedRwf: number;
+        outstandingRwf: number;
+        daysOverdue: number;
         rollStatus: "open" | "paid" | "overdue" | "waived" | "not_raised" | "partly_paid";
         lastPayment: {
             id: string;
@@ -1488,9 +1488,6 @@ export declare const RentRoll: z.ZodObject<{
             propertyName: string;
             blockCode: string | null;
         };
-        expectedRwf: number;
-        outstandingRwf: number;
-        daysOverdue: number;
         charge: {
             status: "open" | "paid" | "waived";
             id: string;
@@ -1509,6 +1506,9 @@ export declare const RentRoll: z.ZodObject<{
             daysOverdue: number;
             waivedReason: string | null;
         } | null;
+        expectedRwf: number;
+        outstandingRwf: number;
+        daysOverdue: number;
         rollStatus: "open" | "paid" | "overdue" | "waived" | "not_raised" | "partly_paid";
         lastPayment: {
             id: string;

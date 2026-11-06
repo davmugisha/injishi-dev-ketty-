@@ -6,8 +6,8 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import {
-  auditEvents,
   orgMemberships,
   orgRolePermissions,
   workspaces,
@@ -176,7 +176,7 @@ export class RolePermissionsRepository {
        */
       const before = new Set(input.effective.from);
       const after = new Set(input.effective.to);
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.setByUserId,
         subjectType: 'org',
         subjectId: input.orgId,

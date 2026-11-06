@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { NewLeaseView } from "@/features/leases/NewLeaseView";
 import { NoRentalsBusiness } from "@/features/rentals/shared";
 import { requirePersona } from "@/lib/session";
+import { productOn } from "@/server/access";
 import { can, landlordScope, rentalProperties, rentalsProfile, rentalUnits } from "@/server/rentals/client";
 
 export const metadata: Metadata = { title: screens.LeaseNew.pageTitle };
@@ -57,6 +58,8 @@ export default async function NewLeasePage({
       // A day chosen on the calendar starts the lease there; never a day gone.
       initialStart={start && /^\d{4}-\d{2}-\d{2}$/.test(start) && start >= today ? start : null}
       canSign={can(scope, "lease.sign")}
+      // Naming a broker searches Marketplace's broker network (ADR-076 G14).
+      marketplaceOn={productOn(scope.workspace.grants, "marketplace")}
     />
   );
 }

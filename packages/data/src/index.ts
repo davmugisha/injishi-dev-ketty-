@@ -14,6 +14,7 @@ import type {
 
 export * from "./navigation.ts";
 export * from "./personas.ts";
+export * from "./screen-requires.ts";
 export * from "./screens.ts";
 export type * from "./types.ts";
 

@@ -34,6 +34,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.pipe';
@@ -81,6 +82,7 @@ function partsOf(request: MultipartRequest): NonNullable<MultipartRequest['parts
  */
 @Controller({ path: 'ops/units', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('residence')
 export class OpsUnitMediaController {
   constructor(
     private readonly media: UnitMediaService,

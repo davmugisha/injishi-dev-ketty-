@@ -7,6 +7,7 @@ import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
   RequireAnyPermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 
@@ -19,6 +20,7 @@ import {
  */
 @Controller({ path: 'ops/org-chart', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsOrgChartController {
   constructor(private readonly content: HrContentService) {}
 

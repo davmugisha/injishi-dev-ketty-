@@ -11,7 +11,13 @@ import { BadRequestException, Body, Controller, Get, HttpCode, Param, ParseUUIDP
 import { ExpensesService } from '../../../../modules/rentals/application/expenses.service';
 import type { ScopedWorkspace } from '../../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../../shared/auth/session.guard';
-import { CurrentWorkspace, RequireAnyPermission, RequirePermission, WorkspaceGuard } from '../../../../shared/auth/workspace.guard';
+import {
+  CurrentWorkspace,
+  RequireAnyPermission,
+  RequirePermission,
+  RequireProduct,
+  WorkspaceGuard,
+} from '../../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.pipe';
 import { UploadThrottlerGuard } from '../../uploads/upload-throttler.guard';
 import { normaliseFormFields, parseFields, readForm, type FormRequest } from './multipart-form';
@@ -28,6 +34,7 @@ const RECEIPT_LIMITS = { maxFiles: 1, maxBytes: EXPENSE_RECEIPT_MAX_BYTES, what:
  */
 @Controller({ path: 'ops/expenses', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('residence')
 export class OpsExpensesController {
   constructor(private readonly expenses: ExpensesService) {}
 

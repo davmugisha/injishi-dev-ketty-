@@ -98,3 +98,5 @@ export * from './brokers';
 export * from './pos';
 // The shared idempotency store for offline writes (mobile spec 0003, D-r). A leaf over auth.
 export * from './idempotency';
+// Which products each business has switched on (ADR-074, built by ADR-076 slice G).
+export * from './entitlements';

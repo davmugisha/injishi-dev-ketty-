@@ -22,9 +22,10 @@ import {
   sql,
 } from 'drizzle-orm';
 
+import { AuditWriter } from '../../../shared/audit/audit-writer';
+import { EntitlementDefaults } from '../../../shared/entitlements/entitlement-defaults';
 import { storedObjects } from '../../../database/drizzle/hospitality';
 import {
-  auditEvents,
   districts,
   oboRegistrations,
   orgCertificates,
@@ -325,6 +326,11 @@ export class OrganizationRepository {
         })
         .returning({ id: orgs.id });
       if (!org) throw new Error('Org insert returned no row.');
+
+      // Every business holds Account from the moment it exists, in the same
+      // transaction, and never loses it (ADR-076 G2, A-10). The rest of its
+      // products come when it becomes active.
+      await EntitlementDefaults.writeAccountTx(tx, org.id);
 
       // The FIRST event, and the only one with no `from` (ADR-053, AC-R6). It is
       // what bounds the `pending_payment` wait, which nothing could measure
@@ -812,6 +818,9 @@ export class OrganizationRepository {
       if (rows.length === 0) return false;
 
       await recordRegistrationEvent(tx, { orgId, from, to, mover });
+      // No caller moves an org to `active` through here today, but the move is
+      // generic, so the rule rides with it (ADR-076 G2).
+      if (to === 'active') await EntitlementDefaults.applyTx(tx, orgId);
       return true;
     });
   }
@@ -926,6 +935,9 @@ export class OrganizationRepository {
         to: input.to,
         mover: { trigger: 'officer', actorUserId: input.decidedByUserId },
       });
+      // A gate decides `field_verified`, `approved` or `rejected` today; the
+      // write is generic, so the rule rides with it (ADR-076 G2).
+      if (input.to === 'active') await EntitlementDefaults.applyTx(tx, input.orgId);
 
       await tx.insert(orgRegistrationReviews).values({
         orgId: input.orgId,
@@ -943,7 +955,7 @@ export class OrganizationRepository {
       // acting officer, their body and their title. Written HERE rather than by
       // a listener, so an audit gap and a state change cannot be separated by a
       // crash between them.
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.decidedByUserId,
         subjectType: 'org',
         subjectId: input.orgId,
@@ -977,6 +989,9 @@ export class OrganizationRepository {
             to: 'active',
             mover: { trigger: 'officer', actorUserId: input.decidedByUserId },
           });
+          // Its kind's products, in the transaction that makes it active
+          // (ADR-074 D-k, ADR-076 G2).
+          await EntitlementDefaults.applyTx(tx, input.orgId);
         }
       }
 

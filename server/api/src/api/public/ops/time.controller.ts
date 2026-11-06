@@ -73,6 +73,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import { ListQueryPipe } from '../../../shared/lists/list-query';
@@ -93,6 +94,7 @@ function noteOf(body: DecideRequestBody): string | null {
 /** Rotations -> /api/v1/ops/rotation-patterns (058-time AC-TM3). */
 @Controller({ path: 'ops/rotation-patterns', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsRotationPatternsController {
   constructor(private readonly rotations: RotationService) {}
 
@@ -131,6 +133,7 @@ export class OpsRotationPatternsController {
 /** People on a rotation -> /api/v1/ops/rotation-assignments (058-time AC-TM3). */
 @Controller({ path: 'ops/rotation-assignments', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsRotationAssignmentsController {
   constructor(private readonly rotations: RotationService) {}
 
@@ -175,6 +178,7 @@ export class OpsRotationAssignmentsController {
  */
 @Controller({ path: 'ops/shift-requests', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsShiftRequestsController {
   constructor(private readonly requests: TimeRequestsService) {}
 
@@ -276,6 +280,7 @@ export class OpsShiftRequestsController {
  */
 @Controller({ path: 'ops/attendance-requests', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsAttendanceRequestsController {
   constructor(private readonly requests: TimeRequestsService) {}
 
@@ -352,6 +357,7 @@ export class OpsAttendanceRequestsController {
  */
 @Controller({ path: 'ops/attendance', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsAttendanceSettingsController {
   constructor(
     private readonly settings: TimeSettingsService,
@@ -463,6 +469,7 @@ export class OpsAttendanceSettingsController {
 /** A person's kiosk PIN -> /api/v1/ops/employees/:id/kiosk-pin (058-time AC-TM11). Never shown again. */
 @Controller({ path: 'ops/employees', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsEmployeeKioskPinController {
   constructor(private readonly kiosks: KioskService) {}
 
@@ -495,6 +502,7 @@ export class OpsEmployeeKioskPinController {
  */
 @Controller({ path: 'ops/hr', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsHrTimeSettingsController {
   constructor(private readonly settings: TimeSettingsService) {}
 

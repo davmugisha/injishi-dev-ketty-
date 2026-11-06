@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 
-import { auditEvents } from '../../../database/drizzle/governance';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import { brokers } from '../../../database/drizzle/residence';
 import {
   DRIZZLE,
@@ -72,25 +72,22 @@ export class AdminBrokerActionsService {
         });
       }
 
-      const [audit] = await tx
-        .insert(auditEvents)
-        .values({
-          actorUserId,
-          // The BROKER is the subject (migration 0029 added the value). This
-          // was filed as `user` with the broker's user id while the enum had
-          // no `broker`, so "every audit row about this broker" could only be
-          // answered by reading payloads. The user id stays in the payload so
-          // the person behind the broker is still one query away.
-          subjectType: 'broker',
-          subjectId: brokerId,
-          eventType: 'admin.broker.suspended',
-          payloadDiff: {
-            brokerUserId: moved.userId,
-            status: { from: 'active', to: 'suspended' },
-          } as never,
-          reason,
-        })
-        .returning({ id: auditEvents.id });
+      const audit = await AuditWriter.write(tx, {
+        actorUserId,
+        // The BROKER is the subject (migration 0029 added the value). This
+        // was filed as `user` with the broker's user id while the enum had
+        // no `broker`, so "every audit row about this broker" could only be
+        // answered by reading payloads. The user id stays in the payload so
+        // the person behind the broker is still one query away.
+        subjectType: 'broker',
+        subjectId: brokerId,
+        eventType: 'admin.broker.suspended',
+        payloadDiff: {
+          brokerUserId: moved.userId,
+          status: { from: 'active', to: 'suspended' },
+        } as never,
+        reason,
+      });
 
       return AdminBrokerStatusChange.parse({
         brokerId,

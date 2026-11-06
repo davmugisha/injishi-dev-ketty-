@@ -38,6 +38,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
@@ -70,6 +71,7 @@ type MultipartPart =
  */
 @Controller({ path: 'ops/hr', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsHrController {
   constructor(
     private readonly content: HrContentService,

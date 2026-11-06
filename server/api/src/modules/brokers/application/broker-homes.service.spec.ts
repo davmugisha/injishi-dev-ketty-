@@ -244,6 +244,8 @@ describe('the SQL every broker read carries', () => {
     expect(text).toContain('u.broker_fee_kind is not null');
     expect(text).toContain("o.registration_status = 'active'");
     expect(text).toContain("le.status in ('pending_signature', 'signed', 'active')");
-    expect(text).toContain('p.district_id = $1');
+    // A business with Marketplace off leaves the broker directory (ADR-076 G10).
+    expect(text).toContain('e.org_id = o.id AND e.product_id = $1');
+    expect(text).toContain('p.district_id = $2');
   });
 });

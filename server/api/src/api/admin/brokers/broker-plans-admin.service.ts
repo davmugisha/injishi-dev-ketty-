@@ -11,8 +11,8 @@ import {
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { eq, sql } from 'drizzle-orm';
 
-import { auditEvents } from '../../../database/drizzle/governance';
 import { brokerPlans } from '../../../database/drizzle/brokers';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 
 function toPlan(row: typeof brokerPlans.$inferSelect): BrokerPlan {
@@ -59,12 +59,12 @@ export class AdminBrokerPlansService {
         .where(eq(brokerPlans.code, code))
         .returning();
       if (!row) throw new Error('Broker plan update returned no row.');
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId,
         subjectType: 'config',
         subjectId: null,
         eventType: 'admin.broker_plan.priced',
-        payloadDiff: { before: toPlan(before), after: toPlan(row) } as never,
+        payloadDiff: { before: toPlan(before), after: toPlan(row) },
         reason: request.reason,
       });
       return toPlan(row);

@@ -11,13 +11,14 @@ import { ConfigService } from '@nestjs/config';
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
-import { auditEvents, districts, oversightAssignments, provinces, users } from '../../../database/drizzle/schema';
+import { districts, oversightAssignments, provinces, users } from '../../../database/drizzle/schema';
 import { resolveAppUrl } from '../../../shared/config/app-url';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { appointmentMail } from '../../guests/domain/guest-mail';
 import { MAILER_PORT, type MailerPort } from '../../mailer/domain/mailer-port';
 import { PsfMembershipRepository } from '../infrastructure/psf-membership.repository';
 import { isPsfConsoleRole } from './psf-membership.service';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 
 type Scope = number[] | null;
 
@@ -209,7 +210,7 @@ export class PsfTeamService {
         })
         .returning({ id: oversightAssignments.id });
       if (!created) throw new Error('Appointment insert returned no row.');
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId,
         subjectType: 'user',
         subjectId: userId,
@@ -244,7 +245,7 @@ export class PsfTeamService {
     if (row.userId === actorUserId) throw new ConflictException('You cannot end your own appointment.');
     await this.db.transaction(async (tx) => {
       await tx.update(oversightAssignments).set({ revokedAt: new Date() }).where(eq(oversightAssignments.id, row.id));
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId,
         subjectType: 'user',
         subjectId: row.userId,

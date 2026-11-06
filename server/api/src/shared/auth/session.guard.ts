@@ -9,6 +9,8 @@ import {
 } from '@nestjs/common';
 
 import { AUTH_INSTANCE } from '../../modules/auth/auth.module';
+import { accessContextFor, type RequestWithAccessContext } from './access-context';
+import { accessRefusal } from './access-refusal';
 
 /** The authenticated principal a guarded route sees (F-S01). */
 export interface SessionUser {
@@ -27,7 +29,7 @@ export interface SessionRecord {
 }
 
 /** Minimal structural view of the request we touch (Fastify, see auth-http.ts). */
-interface RequestWithUser {
+interface RequestWithUser extends RequestWithAccessContext {
   headers: Record<string, string | string[] | undefined>;
   user?: SessionUser;
   session?: SessionRecord;
@@ -64,11 +66,15 @@ export class SessionGuard implements CanActivate {
 
     const session = await getSession({ headers: toHeaders(request.headers) });
     if (!session?.user?.id) {
-      throw new UnauthorizedException('Sign in to continue.');
+      throw accessRefusal('unauthenticated', 'Sign in to continue.');
     }
 
     request.user = session.user;
     request.session = session.session;
+    // A person acting on their own record (ADR-076 contract section 8). A
+    // workspace, staff or oversight guard that runs after this one replaces it
+    // with the family it resolved.
+    request.accessContext = accessContextFor('self', session.user.id);
     return true;
   }
 }

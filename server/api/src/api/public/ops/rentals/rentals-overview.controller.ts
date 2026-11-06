@@ -4,7 +4,12 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { RentalsOverviewService } from '../../../../modules/rentals/application/rentals-overview.service';
 import type { ScopedWorkspace } from '../../../../shared/auth/branch-scope';
 import { SessionGuard } from '../../../../shared/auth/session.guard';
-import { CurrentWorkspace, RequireAnyPermission, WorkspaceGuard } from '../../../../shared/auth/workspace.guard';
+import {
+  CurrentWorkspace,
+  RequireAnyPermission,
+  RequireProduct,
+  WorkspaceGuard,
+} from '../../../../shared/auth/workspace.guard';
 
 /**
  * The landlord's home → /api/v1/ops/rentals (blueprint 2.3 "Overview and
@@ -17,6 +22,7 @@ import { CurrentWorkspace, RequireAnyPermission, WorkspaceGuard } from '../../..
  */
 @Controller({ path: 'ops/rentals', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('residence')
 export class OpsRentalsOverviewController {
   constructor(private readonly overview: RentalsOverviewService) {}
 

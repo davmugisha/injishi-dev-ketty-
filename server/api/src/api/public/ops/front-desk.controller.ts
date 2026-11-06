@@ -7,6 +7,7 @@ import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
   RequireAnyPermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
@@ -27,6 +28,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/front-desk', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('pms')
 export class OpsFrontDeskController {
   constructor(private readonly board: FrontDeskBoardService) {}
 

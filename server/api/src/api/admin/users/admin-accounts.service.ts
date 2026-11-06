@@ -16,11 +16,12 @@ import {
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 
-import { adminUsers, auditEvents, orgMemberships, orgs, userProfiles, users } from '../../../database/drizzle/schema';
+import { adminUsers, orgMemberships, orgs, userProfiles, users } from '../../../database/drizzle/schema';
 import { compose, greeting } from '../../../modules/organization/domain/registration-mail';
 import { GuestNotifier } from '../../../modules/guests/infrastructure/guest-notifier';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { StaffRolesService, endStaffIfEmpty, liveCustomRoleCount } from './staff-roles.service';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 
 type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 
@@ -440,11 +441,6 @@ export class AdminAccountsService {
     payloadDiff: Record<string, unknown>,
     reason: string,
   ): Promise<string> {
-    const [row] = await tx
-      .insert(auditEvents)
-      .values({ actorUserId, subjectType, subjectId, eventType, payloadDiff: payloadDiff as never, reason })
-      .returning({ id: auditEvents.id });
-    if (!row) throw new Error('Audit insert returned no row.');
-    return row.id;
+    return (await AuditWriter.write(tx, { actorUserId, subjectType, subjectId, eventType, payloadDiff: payloadDiff as never, reason })).id;
   }
 }

@@ -16,7 +16,7 @@ const access = { workspaceId: WORKSPACE, kind: 'business', permissions: ['stay.c
 
 function resolver(overrides: {
   stepUp?: () => Promise<void>;
-  resolveForUser?: () => Promise<unknown>;
+  accessFor?: () => Promise<unknown>;
   coverage?: { coverage: 'all' | 'limited'; propertyIds: string[] };
 } = {}): { resolver: OperatorScopeResolver; calls: string[] } {
   const calls: string[] = [];
@@ -26,14 +26,17 @@ function resolver(overrides: {
       return overrides.stepUp ? overrides.stepUp() : undefined;
     }),
   } as unknown as TwoFactorService;
+  // Membership and coverage come from one resolution now (ADR-076 A-17), as the
+  // guard reads them.
   const workspaces = {
-    resolveForUser: vi.fn(async () => {
-      calls.push('membership');
-      return overrides.resolveForUser ? overrides.resolveForUser() : access;
-    }),
-    coveredProperties: vi.fn(async () => {
-      calls.push('coverage');
-      return overrides.coverage ?? { coverage: 'limited', propertyIds: [BRANCH_A] };
+    accessFor: vi.fn(async () => {
+      calls.push('membership and coverage');
+      if (overrides.accessFor) return overrides.accessFor();
+      return {
+        access,
+        covered: overrides.coverage ?? { coverage: 'limited', propertyIds: [BRANCH_A] },
+        facts: {},
+      };
     }),
   } as unknown as WorkspaceService;
   return { resolver: new OperatorScopeResolver(workspaces, twoFactor), calls };
@@ -42,10 +45,10 @@ function resolver(overrides: {
 const input = { userId: USER, sessionId: SESSION, workspaceId: WORKSPACE, branchHeader: undefined };
 
 describe('OperatorScopeResolver (ADR-061 D-f)', () => {
-  it('runs the step up, then membership, then coverage, in WorkspaceGuard order', async () => {
+  it('runs the step up, then membership and coverage, in WorkspaceGuard order', async () => {
     const { resolver: r, calls } = resolver();
     const scope = await r.resolve(input);
-    expect(calls).toEqual(['step-up', 'membership', 'coverage']);
+    expect(calls).toEqual(['step-up', 'membership and coverage']);
     expect(scope.stepUpNeeded).toBe(false);
     expect(scope.workspace).toMatchObject({ workspaceId: WORKSPACE, branchScope: { coverage: 'limited', propertyIds: [BRANCH_A] } });
   });
@@ -57,7 +60,7 @@ describe('OperatorScopeResolver (ADR-061 D-f)', () => {
   });
 
   it('resolves nothing for a workspace the caller does not hold', async () => {
-    const { resolver: r } = resolver({ resolveForUser: () => Promise.resolve(null) });
+    const { resolver: r } = resolver({ accessFor: () => Promise.resolve(null) });
     await expect(r.resolve(input)).resolves.toEqual({ workspace: null, stepUpNeeded: false });
   });
 
@@ -82,7 +85,7 @@ describe('OperatorScopeResolver (ADR-061 D-f)', () => {
   it('lets an unexpected failure through rather than hiding it as "no workspace"', async () => {
     const { resolver: r } = resolver({ stepUp: () => Promise.reject(new Error('database down')) });
     await expect(r.resolve(input)).rejects.toThrow('database down');
-    const { resolver: r2 } = resolver({ resolveForUser: () => Promise.reject(new BadRequestException()) });
+    const { resolver: r2 } = resolver({ accessFor: () => Promise.reject(new BadRequestException()) });
     await expect(r2.resolve(input)).rejects.toBeInstanceOf(BadRequestException);
   });
 });

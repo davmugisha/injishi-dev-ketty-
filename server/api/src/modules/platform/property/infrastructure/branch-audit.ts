@@ -1,4 +1,4 @@
-import { auditEvents } from '../../../../database/drizzle/governance';
+import { AuditWriter } from '../../../../shared/audit/audit-writer';
 import type { Tx } from './insert-property';
 
 /** What moved on a branch, and what it became (ADR-054 AC-A1). */
@@ -31,7 +31,7 @@ export async function recordBranchEvent(
     diff: Record<string, { from: unknown; to: unknown }>;
   },
 ): Promise<void> {
-  await tx.insert(auditEvents).values({
+  await AuditWriter.write(tx, {
     actorUserId: event.actorUserId,
     subjectType: 'property',
     subjectId: event.propertyId,

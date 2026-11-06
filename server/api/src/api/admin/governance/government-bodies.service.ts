@@ -12,9 +12,9 @@ import {
 import { asc, eq } from 'drizzle-orm';
 
 import {
-  auditEvents,
   governmentBodies,
 } from '../../../database/drizzle/schema';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import {
   DRIZZLE,
   type Database,
@@ -74,7 +74,7 @@ export class GovernmentBodiesService {
         });
       }
 
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.actorUserId,
         subjectType: 'config',
         subjectId: null,
@@ -115,7 +115,7 @@ export class GovernmentBodiesService {
         .returning(columns);
       if (!after) throw new NotFoundException('No government body has that code.');
 
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.actorUserId,
         subjectType: 'config',
         subjectId: null,

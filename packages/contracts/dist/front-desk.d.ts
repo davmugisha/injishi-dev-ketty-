@@ -224,15 +224,15 @@ export declare const FrontDeskBooking: z.ZodObject<{
     paidRwf: number;
     createdAt: string;
     guestName: string | null;
-    guestCount: number;
-    roomTypeName: string;
-    totalRwf: number;
     stay: {
         id: string;
         reference: string | null;
         roomLabel: string | null;
         lifecycle: "open" | "closed";
     } | null;
+    guestCount: number;
+    roomTypeName: string;
+    totalRwf: number;
     channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
     adults: number | null;
     children: number | null;
@@ -287,15 +287,15 @@ export declare const FrontDeskBooking: z.ZodObject<{
     paidRwf: number;
     createdAt: string;
     guestName: string | null;
-    guestCount: number;
-    roomTypeName: string;
-    totalRwf: number;
     stay: {
         id: string;
         reference: string | null;
         roomLabel: string | null;
         lifecycle: "open" | "closed";
     } | null;
+    guestCount: number;
+    roomTypeName: string;
+    totalRwf: number;
     channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
     adults: number | null;
     children: number | null;
@@ -704,15 +704,15 @@ export declare const FrontDeskBoard: z.ZodObject<{
         paidRwf: number;
         createdAt: string;
         guestName: string | null;
-        guestCount: number;
-        roomTypeName: string;
-        totalRwf: number;
         stay: {
             id: string;
             reference: string | null;
             roomLabel: string | null;
             lifecycle: "open" | "closed";
         } | null;
+        guestCount: number;
+        roomTypeName: string;
+        totalRwf: number;
         channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
         adults: number | null;
         children: number | null;
@@ -767,15 +767,15 @@ export declare const FrontDeskBoard: z.ZodObject<{
         paidRwf: number;
         createdAt: string;
         guestName: string | null;
-        guestCount: number;
-        roomTypeName: string;
-        totalRwf: number;
         stay: {
             id: string;
             reference: string | null;
             roomLabel: string | null;
             lifecycle: "open" | "closed";
         } | null;
+        guestCount: number;
+        roomTypeName: string;
+        totalRwf: number;
         channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
         adults: number | null;
         children: number | null;
@@ -1099,15 +1099,15 @@ export declare const FrontDeskBoard: z.ZodObject<{
         paidRwf: number;
         createdAt: string;
         guestName: string | null;
-        guestCount: number;
-        roomTypeName: string;
-        totalRwf: number;
         stay: {
             id: string;
             reference: string | null;
             roomLabel: string | null;
             lifecycle: "open" | "closed";
         } | null;
+        guestCount: number;
+        roomTypeName: string;
+        totalRwf: number;
         channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
         adults: number | null;
         children: number | null;
@@ -1229,15 +1229,15 @@ export declare const FrontDeskBoard: z.ZodObject<{
         paidRwf: number;
         createdAt: string;
         guestName: string | null;
-        guestCount: number;
-        roomTypeName: string;
-        totalRwf: number;
         stay: {
             id: string;
             reference: string | null;
             roomLabel: string | null;
             lifecycle: "open" | "closed";
         } | null;
+        guestCount: number;
+        roomTypeName: string;
+        totalRwf: number;
         channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
         adults: number | null;
         children: number | null;

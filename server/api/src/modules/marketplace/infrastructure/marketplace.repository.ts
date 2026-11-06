@@ -19,6 +19,7 @@ import {
   workspaces,
 } from '../../../database/drizzle/schema';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import { productOnSql } from '../../../shared/entitlements/entitlement-check';
 import { placeLine } from '../domain/place-line';
 
 /** What the marketplace adds to a property the canonical public read already admits. */
@@ -277,7 +278,8 @@ export class MarketplaceRepository {
                WHERE rt.property_id = p.id AND rt.status = 'active' AND rt.domain = 'hospitality'
                ORDER BY rt.base_price_rwf NULLS LAST, rt.id LIMIT 1) AS booking_mode,
              ci.saved_price_rwf, ci.created_at,
-             (l.status = 'published' AND o.registration_status = 'active') AS available
+             (l.status = 'published' AND o.registration_status = 'active'
+              AND ${productOnSql(sql`o.id`, 'marketplace')}) AS available
         FROM collection_items ci
         JOIN collections c ON c.id = ci.collection_id
         JOIN properties p ON p.id = ci.property_id

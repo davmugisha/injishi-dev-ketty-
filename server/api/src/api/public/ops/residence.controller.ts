@@ -23,6 +23,7 @@ import {
 import {
   CurrentWorkspace,
   RequirePermission,
+  RequireAnyProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -40,9 +41,12 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  *
  * Both surfaces: a hotel work order names a room, a residence repair names a
  * lease or a room (ADR-016 D16 made `maintenance_tickets.lease_id` nullable).
+ * So it is on wherever PMS or Residence is (ADR-076 slice G): a route two
+ * products share declares both, never one of them.
  */
 @Controller({ path: 'ops/tickets', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireAnyProduct('pms', 'residence')
 export class OpsTicketsController {
   constructor(private readonly residence: ResidenceService) {}
 

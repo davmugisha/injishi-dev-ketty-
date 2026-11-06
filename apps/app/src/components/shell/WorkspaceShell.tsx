@@ -14,6 +14,7 @@ import {
   screenByPath,
   screenHref,
   type TopbarStatus,
+  type WorkspaceContext,
 } from "@injishi/data";
 import { ActionLink, EmptyBlock, Icon, IconAction, LinkButton, PageContent } from "@injishi/ui";
 import NextLink from "next/link";
@@ -142,9 +143,14 @@ function CollapseToggle() {
   );
 }
 
-/** Desktop app shell for operator, institution and Injishi staff workspaces (artifact: .ij-app). */
+/**
+ * Desktop app shell for operator, institution and Injishi staff workspaces (artifact: .ij-app). `switcher`
+ * is the account's own business context (ADR-076 G13), and `nav` is already narrowed to what this person may
+ * open (G12).
+ */
 export function WorkspaceShell({
   persona,
+  switcher,
   nav,
   altNav,
   live: liveWorkspace = false,
@@ -152,6 +158,7 @@ export function WorkspaceShell({
   children,
 }: {
   persona: Persona;
+  switcher: WorkspaceContext | null;
   /**
    * The signed-in person is one of the demo's own people (2026-10-30). Only they see the registry's sample
    * pills, the "Sample data" chip and the fixture-backed search, assistant and notification count; a real
@@ -226,7 +233,7 @@ export function WorkspaceShell({
         </NextLink>
         <CollapseToggle />
       </div>
-      <BusinessSwitcher persona={persona} />
+      <BusinessSwitcher persona={persona} context={switcher} />
     </Sidebar.Header>
   );
 

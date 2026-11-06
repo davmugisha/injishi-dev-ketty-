@@ -303,11 +303,11 @@ export declare const EbmConnection: z.ZodObject<{
     status: "revoked" | "not_connected" | "connected";
     tin: string | null;
     mode: "mock" | "live";
+    scopes: string[];
     accountName: string | null;
     branchId: string | null;
     accountStatus: "submitted" | "approved" | "disabled" | null;
     vatRegistered: boolean | null;
-    scopes: string[];
     connectedAt: string | null;
     mapping: {
         accommodationItemId: number | null;
@@ -320,11 +320,11 @@ export declare const EbmConnection: z.ZodObject<{
     status: "revoked" | "not_connected" | "connected";
     tin: string | null;
     mode: "mock" | "live";
+    scopes: string[];
     accountName: string | null;
     branchId: string | null;
     accountStatus: "submitted" | "approved" | "disabled" | null;
     vatRegistered: boolean | null;
-    scopes: string[];
     connectedAt: string | null;
     mapping: {
         accommodationItemId: number | null;

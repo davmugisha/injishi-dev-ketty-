@@ -31,6 +31,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
@@ -55,6 +56,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/hr', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsHrWorkforceController {
   constructor(private readonly workforce: HrWorkforceService) {}
 
@@ -117,6 +119,7 @@ export class OpsHrWorkforceController {
  */
 @Controller({ path: 'ops/roster/cover', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsRosterCoverController {
   constructor(private readonly workforce: HrWorkforceService) {}
 

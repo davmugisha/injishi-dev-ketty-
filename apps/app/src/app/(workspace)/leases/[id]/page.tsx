@@ -6,6 +6,7 @@ import { LeaseRecordView, type RecordOpen } from "@/features/leases/LeaseRecordV
 import { RECORD_TABS, type RecordTab } from "@/features/leases/shared";
 import { NoRentalsBusiness } from "@/features/rentals/shared";
 import { requirePersona } from "@/lib/session";
+import { productOn } from "@/server/access";
 import { can, landlordScope, orNull, rentalsProfile } from "@/server/rentals/client";
 import { leaseCharges, leaseContract, leaseDetail, leaseEvents, leasePayments } from "@/server/rentals/leases";
 
@@ -52,6 +53,8 @@ export default async function LeaseRecordPage({
       open={open}
       today={kigaliToday()}
       autoStart={profile?.leaseDefaults.autoStartLeases ?? true}
+      // A lease is Residence's; its broker controls are Marketplace's broker network (ADR-076 G14).
+      marketplaceOn={productOn(scope.workspace.grants, "marketplace")}
       can={{
         manage: can(scope, "lease.manage"),
         sign: can(scope, "lease.sign"),

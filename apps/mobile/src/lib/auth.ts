@@ -137,13 +137,21 @@ const LAST_PERSONA_KEY = "injishi_last_persona";
 const STEP_UP_KEY = "injishi_step_up_session";
 
 /**
- * Which phone app this person gets. A demo persona is matched by email, as the operator app does; a real
- * housekeeper gets the housekeeping app; everyone else the guest app, under their own name.
+ * Which phone app this person gets (ADR-076 G15). A demo persona is matched by email only when the API
+ * runs as the demo, as the operator app does; outside it, a persona's email is a person with grants of
+ * their own. A housekeeper, by the role their business grant names, gets the housekeeping app; everyone
+ * else the guest app, under their own name.
  */
-function phonePersonaFor(user: { name?: string | null; email: string }, workspaces: MyWorkspaces["workspaces"]): Persona {
-  const demo = personaByEmail(user.email);
-  if (demo?.app.kind === "phone") return demo;
-  const housekeeper = workspaces.some((w) => w.kind === "business" && w.orgRole === "housekeeper");
+function phonePersonaFor(
+  user: { name?: string | null; email: string },
+  workspaces: MyWorkspaces["workspaces"],
+  demo: boolean,
+): Persona {
+  const persona = demo ? personaByEmail(user.email) : undefined;
+  if (persona?.app.kind === "phone") return persona;
+  const housekeeper = workspaces.some(
+    (w) => w.kind === "business" && (w.grants?.roles[0]?.key ?? w.orgRole) === "housekeeper",
+  );
   const shell = personas[housekeeper ? "housekeeper" : "guest"];
   const name = user.name?.trim() || user.email.split("@")[0];
   const parts = name.split(/\s+/).filter(Boolean);
@@ -196,7 +204,9 @@ function remembered(): Remembered | null {
     const shell = personas[saved.id];
     if (!shell) return null;
     const { account, ...fields } = saved;
-    const offline = account ? { ...account, twoFactor: { ...account.twoFactor, verified: stepUpKept(account.sessionId) } } : null;
+    const offline = account
+      ? { ...account, twoFactor: { ...account.twoFactor, verified: stepUpKept(account.sessionId) } }
+      : null;
     return { persona: { ...shell, ...fields }, account: offline };
   } catch {
     return null;
@@ -247,7 +257,11 @@ export async function loadSession(): Promise<SessionState> {
       remember(null);
       return { status: "signed-out" };
     }
-    const answer = await api.requestParsed(MyWorkspaces, "/api/v1/me/workspaces");
+    // A demo persona applies only when the API says it is the demo (ADR-076 G15).
+    const [answer, options] = await Promise.all([
+      api.requestParsed(MyWorkspaces, "/api/v1/me/workspaces"),
+      signInOptions(),
+    ]);
     if (answer.status === "unauthenticated") return { status: "signed-out" };
     if (answer.status !== "ok") {
       const saved = offline();
@@ -259,7 +273,7 @@ export async function loadSession(): Promise<SessionState> {
     const { workspaces, twoFactor } = answer.data;
     const sessionId = data.session.id;
     if (twoFactor.required && twoFactor.verified) keepStepUp(sessionId);
-    const persona = phonePersonaFor(data.user, workspaces);
+    const persona = phonePersonaFor(data.user, workspaces, options?.demo === true);
     const account: Account = {
       userId: data.user.id,
       sessionId,

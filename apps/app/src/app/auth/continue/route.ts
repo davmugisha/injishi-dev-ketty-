@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { APP_URL, destinationAfterSignIn, safeReturn, WEB_URL } from "@/lib/return-to";
+import { canOpen } from "@/lib/screen-access";
 import { ApiError } from "@/server/api";
 import { type Account, accountFor } from "@/server/auth";
 import { sessionCookieHeader } from "@/server/session-cookies";
@@ -44,7 +45,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${WEB_URL}/two-factor/verify?${new URLSearchParams({ redirect: self }).toString()}`);
   }
 
+  // Where it lands is the account's own: its home and the screens its grants open (ADR-076 G14).
+  const landing = { home: account.home, canOpen: canOpen(account) };
   return NextResponse.redirect(
-    new URL(destinationAfterSignIn(account.persona.id, next, account.user.email, account.persona.home), APP_URL),
+    new URL(destinationAfterSignIn(account.persona.id, next, account.user.email, landing), APP_URL),
   );
 }

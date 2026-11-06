@@ -961,12 +961,12 @@ export declare const BulkRequest: z.ZodObject<{
     ids: z.ZodArray<z.ZodString, "many">;
     params: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
 }, "strip", z.ZodTypeAny, {
-    action: string;
     ids: string[];
+    action: string;
     params?: Record<string, unknown> | undefined;
 }, {
-    action: string;
     ids: string[];
+    action: string;
     params?: Record<string, unknown> | undefined;
 }>;
 export type BulkRequest = z.infer<typeof BulkRequest>;

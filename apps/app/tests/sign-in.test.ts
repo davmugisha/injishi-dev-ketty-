@@ -6,7 +6,7 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { homeHref, personas } from "@injishi/data";
+import { homeHref, personas, screens } from "@injishi/data";
 import { destinationAfterSignIn, homeAfterSignIn, WEB_HOME, WEB_URL } from "../src/lib/return-to";
 import { describeDevice, lastActive, sessionRow } from "../src/lib/sessions";
 import { expiredAuthCookies } from "../src/server/session-cookies";
@@ -26,13 +26,17 @@ test("the demo's own guest keeps her story, and business people keep their works
 });
 
 test("a floor role borrowing the waiter's shell lands on its own live screen", () => {
-  // A real cashier lands on the live floor, a cook on the station board; the demo waiter keeps her home.
-  assert.equal(homeAfterSignIn("waiter", "cashier1@pos.demo.injishi.com", "PosFloor"), "/pos/floor");
-  assert.equal(destinationAfterSignIn("waiter", "", "kitchen1@pos.demo.injishi.com", "PosStations"), "/pos/stations");
+  // A real cashier lands on the live floor, a cook on the station board (the home `accountFor` works out
+  // from the role and its grants); the demo waiter keeps her home.
+  assert.equal(homeAfterSignIn("waiter", "cashier1@pos.demo.injishi.com", screens.PosFloor.href), "/pos/floor");
+  assert.equal(
+    destinationAfterSignIn("waiter", "", "kitchen1@pos.demo.injishi.com", { home: screens.PosStations.href }),
+    "/pos/stations",
+  );
   assert.equal(homeAfterSignIn("waiter", personas.waiter.email), homeHref("waiter"));
   // A return target the shell may open still wins over the role's landing.
   assert.equal(
-    destinationAfterSignIn("waiter", "/pos/shift", "cashier1@pos.demo.injishi.com", "PosFloor"),
+    destinationAfterSignIn("waiter", "/pos/shift", "cashier1@pos.demo.injishi.com", { home: screens.PosFloor.href }),
     "/pos/shift",
   );
 });

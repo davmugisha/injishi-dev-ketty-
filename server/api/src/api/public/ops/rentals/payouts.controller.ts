@@ -8,6 +8,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.pipe';
@@ -16,10 +17,12 @@ import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.
  * Payouts → /api/v1/ops/payouts (blueprint 2.3 "Payouts"; WP 1.6b): the rent
  * paid out to the business, by month and status, and sending a failed or
  * held one again. Read by whoever reads the money or decides where it goes;
- * retried with `payout.manage`.
+ * retried with `payout.manage`. Pay's, which owns payouts and where they go
+ * (ADR-074; ADR-076 slice G).
  */
 @Controller({ path: 'ops/payouts', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('pay')
 export class OpsPayoutsController {
   constructor(private readonly payouts: PayoutsService) {}
 

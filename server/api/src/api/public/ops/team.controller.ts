@@ -31,6 +31,7 @@ import {
   CurrentWorkspace,
   RequireEveryBranch,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -58,6 +59,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/team', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('account')
 export class OpsTeamController {
   constructor(
     private readonly team: TeamService,

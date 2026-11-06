@@ -34,6 +34,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -68,6 +69,7 @@ export interface FileReply {
  */
 @Controller({ path: 'ops/pay-runs', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayRunsController {
   constructor(
     private readonly payRuns: PayRunsService,

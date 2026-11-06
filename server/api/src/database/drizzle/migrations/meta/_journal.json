@@ -939,6 +939,13 @@
       "when": 1793674375226,
       "tag": "0133_people_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 134,
+      "version": "7",
+      "when": 1793928430159,
+      "tag": "0134_account_grants_entitlements",
+      "breakpoints": true
     }
   ]
 }

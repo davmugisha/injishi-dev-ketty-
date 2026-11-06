@@ -13,6 +13,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -33,6 +34,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 @Controller({ path: 'ops/housekeeping', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('pms')
 export class OpsHousekeepingBoardController {
   constructor(private readonly board: HousekeepingBoardService) {}
 

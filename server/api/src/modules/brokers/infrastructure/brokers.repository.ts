@@ -3,6 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { sql, type SQL } from 'drizzle-orm';
 
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import { productOnSql } from '../../../shared/entitlements/entitlement-check';
 import { scopeSql, type ListingScope } from '../domain/broker-scope';
 
 type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -154,6 +155,8 @@ export class BrokersRepository {
       sql`u.broker_fee_kind is not null`,
       sql`o.domain = 'residence'`,
       sql`o.registration_status = 'active'`,
+      // A business with Marketplace off leaves the broker directory (ADR-076 G10).
+      productOnSql(sql`o.id`, 'marketplace'),
       sql`not exists (select 1 from leases le where le.unit_id = u.id and le.status in ${HOLDING})`,
       scopeSql(scope),
     ];

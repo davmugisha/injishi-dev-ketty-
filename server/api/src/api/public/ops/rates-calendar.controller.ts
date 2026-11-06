@@ -4,7 +4,7 @@ import { Body, Controller, Get, Put, Query, UseGuards } from '@nestjs/common';
 import { RatesCalendarService } from '../../../modules/platform/property/application/rates-calendar.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { SessionGuard } from '../../../shared/auth/session.guard';
-import { CurrentWorkspace, RequirePermission, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
+import { CurrentWorkspace, RequirePermission, RequireProduct, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -15,6 +15,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 @Controller({ path: 'ops/rates', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
 @RequirePermission('listing.manage')
+@RequireProduct('pms')
 export class OpsRatesCalendarController {
   constructor(private readonly rates: RatesCalendarService) {}
 

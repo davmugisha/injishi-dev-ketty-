@@ -30,11 +30,12 @@ import {
 } from '@injishi/contracts';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 
-import { auditEvents, oversightAssignments, users } from '../../../database/drizzle/schema';
+import { oversightAssignments, users } from '../../../database/drizzle/schema';
 import { GuestRoutingService } from '../../../modules/guests/application/guest-routing.service';
 import { appointmentMail } from '../../../modules/guests/domain/guest-mail';
 import { placeWords, toCsv } from '../../../modules/guests/domain/guest-words';
 import { GuestNotifier } from '../../../modules/guests/infrastructure/guest-notifier';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { type AppointmentRow, LocalLeadersRepository, type ResolvedArea, type WaitingRow } from './local-leaders.repository';
 import { OversightGrantsService } from './oversight-grants.service';
@@ -277,7 +278,7 @@ export class LocalLeadersService {
       const [created] = await tx.insert(oversightAssignments).values(values).returning({ id: oversightAssignments.id });
       if (!created) throw new Error('Appointment insert returned no row.');
 
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId,
         subjectType: 'user',
         subjectId: userId,
@@ -296,7 +297,7 @@ export class LocalLeadersService {
             villageId: values.villageId,
             createdUser,
           },
-        } as never,
+        },
         reason: body.reason,
         districtId: values.districtId,
       });
@@ -363,12 +364,12 @@ export class LocalLeadersService {
           villageId: oversightAssignments.villageId,
         });
       if (!row) throw new NotFoundException('No live appointment has that id.');
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId,
         subjectType: 'user',
         subjectId: row.userId,
         eventType: 'admin.user.oversight_revoked',
-        payloadDiff: { oversight: { assignmentId: row.id, oversightRole: row.role, governmentBodyCode: row.governmentBodyCode } } as never,
+        payloadDiff: { oversight: { assignmentId: row.id, oversightRole: row.role, governmentBodyCode: row.governmentBodyCode } },
         reason,
         districtId: row.districtId,
       });
