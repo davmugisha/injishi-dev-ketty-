@@ -224,15 +224,15 @@ export declare const FrontDeskBooking: z.ZodObject<{
     paidRwf: number;
     createdAt: string;
     guestName: string | null;
-    guestCount: number;
-    roomTypeName: string;
-    totalRwf: number;
     stay: {
         id: string;
         reference: string | null;
         roomLabel: string | null;
         lifecycle: "open" | "closed";
     } | null;
+    guestCount: number;
+    roomTypeName: string;
+    totalRwf: number;
     channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
     adults: number | null;
     children: number | null;
@@ -287,15 +287,15 @@ export declare const FrontDeskBooking: z.ZodObject<{
     paidRwf: number;
     createdAt: string;
     guestName: string | null;
-    guestCount: number;
-    roomTypeName: string;
-    totalRwf: number;
     stay: {
         id: string;
         reference: string | null;
         roomLabel: string | null;
         lifecycle: "open" | "closed";
     } | null;
+    guestCount: number;
+    roomTypeName: string;
+    totalRwf: number;
     channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
     adults: number | null;
     children: number | null;
@@ -704,15 +704,15 @@ export declare const FrontDeskBoard: z.ZodObject<{
         paidRwf: number;
         createdAt: string;
         guestName: string | null;
-        guestCount: number;
-        roomTypeName: string;
-        totalRwf: number;
         stay: {
             id: string;
             reference: string | null;
             roomLabel: string | null;
             lifecycle: "open" | "closed";
         } | null;
+        guestCount: number;
+        roomTypeName: string;
+        totalRwf: number;
         channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
         adults: number | null;
         children: number | null;
@@ -767,15 +767,15 @@ export declare const FrontDeskBoard: z.ZodObject<{
         paidRwf: number;
         createdAt: string;
         guestName: string | null;
-        guestCount: number;
-        roomTypeName: string;
-        totalRwf: number;
         stay: {
             id: string;
             reference: string | null;
             roomLabel: string | null;
             lifecycle: "open" | "closed";
         } | null;
+        guestCount: number;
+        roomTypeName: string;
+        totalRwf: number;
         channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
         adults: number | null;
         children: number | null;
@@ -1099,15 +1099,15 @@ export declare const FrontDeskBoard: z.ZodObject<{
         paidRwf: number;
         createdAt: string;
         guestName: string | null;
-        guestCount: number;
-        roomTypeName: string;
-        totalRwf: number;
         stay: {
             id: string;
             reference: string | null;
             roomLabel: string | null;
             lifecycle: "open" | "closed";
         } | null;
+        guestCount: number;
+        roomTypeName: string;
+        totalRwf: number;
         channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
         adults: number | null;
         children: number | null;
@@ -1229,15 +1229,15 @@ export declare const FrontDeskBoard: z.ZodObject<{
         paidRwf: number;
         createdAt: string;
         guestName: string | null;
-        guestCount: number;
-        roomTypeName: string;
-        totalRwf: number;
         stay: {
             id: string;
             reference: string | null;
             roomLabel: string | null;
             lifecycle: "open" | "closed";
         } | null;
+        guestCount: number;
+        roomTypeName: string;
+        totalRwf: number;
         channel: "phone" | "direct" | "marketplace" | "travel_agent" | "corporate" | "channel_manager" | "walk_in" | null;
         adults: number | null;
         children: number | null;
@@ -1339,8 +1339,8 @@ export declare const DeskMessageTemplate: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     id: string;
-    key: string;
     label: string;
+    key: string;
     bodies: {
         en: string;
         rw: string | null;
@@ -1348,8 +1348,8 @@ export declare const DeskMessageTemplate: z.ZodObject<{
     };
 }, {
     id: string;
-    key: string;
     label: string;
+    key: string;
     bodies: {
         en: string;
         rw: string | null;
@@ -1377,8 +1377,8 @@ export declare const DeskMessageTemplateList: z.ZodObject<{
         }>;
     }, "strip", z.ZodTypeAny, {
         id: string;
-        key: string;
         label: string;
+        key: string;
         bodies: {
             en: string;
             rw: string | null;
@@ -1386,8 +1386,8 @@ export declare const DeskMessageTemplateList: z.ZodObject<{
         };
     }, {
         id: string;
-        key: string;
         label: string;
+        key: string;
         bodies: {
             en: string;
             rw: string | null;
@@ -1397,8 +1397,8 @@ export declare const DeskMessageTemplateList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     templates: {
         id: string;
-        key: string;
         label: string;
+        key: string;
         bodies: {
             en: string;
             rw: string | null;
@@ -1408,8 +1408,8 @@ export declare const DeskMessageTemplateList: z.ZodObject<{
 }, {
     templates: {
         id: string;
-        key: string;
         label: string;
+        key: string;
         bodies: {
             en: string;
             rw: string | null;

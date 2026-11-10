@@ -5,6 +5,7 @@
   "description": "Injishi backend: NestJS modular monolith (HTTP + WS) and BullMQ worker",
   "scripts": {
     "build": "nest build",
+    "build:image": "nest build -p tsconfig.image.json",
     "dev": "nest start --watch",
     "dev:test": "cross-env APP_ENV=test nest start --watch",
     "start": "node dist/main.js",

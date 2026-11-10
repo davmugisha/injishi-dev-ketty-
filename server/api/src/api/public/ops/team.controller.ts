@@ -1,11 +1,14 @@
 import {
   ChangeMemberRoleRequest,
+  DeclineStaffAccessRequest,
   InviteStaffRequest,
   SetMemberBranchesRequest,
   type OperatorStaffInvitation,
   type OperatorStaffInvitationList,
   type OperatorTeamList,
   type OperatorTeamMember,
+  type StaffAccessRequest,
+  type StaffAccessRequestList,
 } from '@injishi/contracts';
 import {
   Body,
@@ -20,6 +23,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { StaffAccessService } from '../../../modules/organization/application/staff-access.service';
 import { StaffInvitationService } from '../../../modules/organization/application/staff-invitation.service';
 import { TeamService } from '../../../modules/organization/application/team.service';
 import {
@@ -31,6 +35,7 @@ import {
   CurrentWorkspace,
   RequireEveryBranch,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -58,10 +63,12 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/team', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('account')
 export class OpsTeamController {
   constructor(
     private readonly team: TeamService,
     private readonly invitations: StaffInvitationService,
+    private readonly access: StaffAccessService,
   ) {}
 
   @Get()
@@ -77,6 +84,43 @@ export class OpsTeamController {
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorStaffInvitationList> {
     return { invitations: await this.invitations.list(workspace) };
+  }
+
+  /**
+   * Logins HR asked for while putting people on file (HR onboarding): those waiting for the
+   * owner first, then the last month's decisions. Before `:userId` routes, as a literal segment.
+   */
+  @Get('access-requests')
+  @RequirePermission('team.manage')
+  listAccessRequests(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<StaffAccessRequestList> {
+    return this.access.list(workspace);
+  }
+
+  /** Approve a login HR asked for: its invitation is sent now. */
+  @Post('access-requests/:id/approve')
+  @HttpCode(200)
+  @RequirePermission('team.manage')
+  @RequireEveryBranch()
+  approveAccessRequest(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<StaffAccessRequest> {
+    return this.access.approve(workspace, user.id, id);
+  }
+
+  /** Decline a login HR asked for, saying why; HR reads it on the person's file. */
+  @Post('access-requests/:id/decline')
+  @HttpCode(200)
+  @RequirePermission('team.manage')
+  @RequireEveryBranch()
+  declineAccessRequest(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(DeclineStaffAccessRequest)) body: DeclineStaffAccessRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<StaffAccessRequest> {
+    return this.access.decline(workspace, user.id, id, body.note);
   }
 
   /**

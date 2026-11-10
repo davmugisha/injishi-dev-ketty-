@@ -172,7 +172,7 @@ export type EndRotationAssignmentRequest = z.infer<typeof EndRotationAssignmentR
 // ---------------------------------------------------------------------------
 // Shift and swap requests (AC-TM5)
 // ---------------------------------------------------------------------------
-export const ShiftRequestKind = z.enum(["change", "swap"]);
+export const ShiftRequestKind = z.enum(["change", "swap", "rotation"]);
 export type ShiftRequestKind = z.infer<typeof ShiftRequestKind>;
 export const ShiftRequestStatus = z.enum(["requested", "awaiting_colleague", "approved", "rejected", "cancelled"]);
 export type ShiftRequestStatus = z.infer<typeof ShiftRequestStatus>;
@@ -183,6 +183,8 @@ export const ShiftRequest = z.object({
     kind: ShiftRequestKind,
     shiftTemplate: z.object({ id: Uuid, name: z.string() }).nullable(),
     swapWith: RosterCard.nullable(),
+    /** The rotation asked to join (`rotation`). */
+    rotation: z.object({ id: Uuid, name: z.string() }).nullable(),
     fromDate: IsoDate,
     toDate: IsoDate,
     reason: z.string(),
@@ -202,12 +204,14 @@ const ShiftRange = z.object({ from: IsoDate, to: IsoDate, reason: Reason });
 export const CreateShiftRequestRequest = z.discriminatedUnion("kind", [
     ShiftRange.extend({ kind: z.literal("change"), employeeId: Uuid, shiftTemplateId: Uuid }),
     ShiftRange.extend({ kind: z.literal("swap"), employeeId: Uuid, swapEmployeeId: Uuid }),
+    ShiftRange.extend({ kind: z.literal("rotation"), employeeId: Uuid, rotationPatternId: Uuid }),
 ]).superRefine(rangeRefine);
 export type CreateShiftRequestRequest = z.infer<typeof CreateShiftRequestRequest>;
 /** The same, raised by the person through self service: their own file is the path. */
 export const CreateMyShiftRequestRequest = z.discriminatedUnion("kind", [
     ShiftRange.extend({ kind: z.literal("change"), shiftTemplateId: Uuid }),
     ShiftRange.extend({ kind: z.literal("swap"), swapEmployeeId: Uuid }),
+    ShiftRange.extend({ kind: z.literal("rotation"), rotationPatternId: Uuid }),
 ]).superRefine(rangeRefine);
 export type CreateMyShiftRequestRequest = z.infer<typeof CreateMyShiftRequestRequest>;
 export const DecideRequestBody = z.object({ note: Note.nullable().optional() });
@@ -292,9 +296,21 @@ export const AttendancePolicy = PolicyFields.extend({
 });
 export type AttendancePolicy = z.infer<typeof AttendancePolicy>;
 const Centre = z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) });
+/**
+ * How staff of a branch clock themselves in (058-time, clock-in rules):
+ * `anywhere` from their phone, the far ones waiting for HR; `at_work` from
+ * their phone, refused away from work; `entrance` only by the tablet at the
+ * entrance, its PIN pad or the code on its screen. A scanned code counts in
+ * every mode.
+ */
+export const ClockMode = z.enum(["anywhere", "at_work", "entrance"]);
+export type ClockMode = z.infer<typeof ClockMode>;
 export const BranchClockSettings = z.object({
     propertyId: Uuid,
     branchName: z.string(),
+    clockMode: ClockMode,
+    /** A self clock-in opens this many minutes before the shift; null: any time. */
+    opensMinutesBefore: z.number().int().nullable(),
     geofenceRadiusM: z.number().int(),
     /** The geofence's own centre, set here: where staff clock in, when that is not the map pin. */
     centre: Centre.nullable(),
@@ -320,6 +336,10 @@ export type PutAttendancePolicyRequest = z.infer<typeof PutAttendancePolicyReque
 export const PutBranchClockSettingsRequest = z.object({
     geofenceRadiusM: z.number().int().min(25).max(2000),
     centre: Centre.nullable().optional(),
+    /** Left out, the branch keeps what it had. */
+    clockMode: ClockMode.optional(),
+    /** Left out, kept; null, a self clock-in opens any time. */
+    opensMinutesBefore: z.number().int().min(5).max(240).nullable().optional(),
 });
 export type PutBranchClockSettingsRequest = z.infer<typeof PutBranchClockSettingsRequest>;
 // ---------------------------------------------------------------------------
@@ -364,6 +384,9 @@ export type SetKioskPinRequest = z.infer<typeof SetKioskPinRequest>;
 /** `PUT /me/work/:employeeId/kiosk-pin`: the current PIN proves it is them. */
 export const ChangeMyKioskPinRequest = z.object({ currentPin: Pin, pin: Pin });
 export type ChangeMyKioskPinRequest = z.infer<typeof ChangeMyKioskPinRequest>;
+/** `POST /me/work/:employeeId/kiosk-pin/check`: the person proves it is them before seeing their pay on a shared phone. */
+export const CheckMyKioskPinRequest = z.object({ pin: z.string().regex(/^\d{4}$/, "Enter your four digits.") });
+export type CheckMyKioskPinRequest = z.infer<typeof CheckMyKioskPinRequest>;
 export const KioskPinState = z.object({ hasPin: z.boolean(), setAt: z.string().nullable() });
 export type KioskPinState = z.infer<typeof KioskPinState>;
 /** `POST /kiosk/pair`: the tablet trades the code for its device cookie. */
@@ -384,6 +407,18 @@ export const KioskPunchResult = z.object({
     at: z.string(),
 });
 export type KioskPunchResult = z.infer<typeof KioskPunchResult>;
+/**
+ * `GET /kiosk/qr`: the code the tablet shows for phones to scan. It changes
+ * every 30 seconds and a scan is good for 90, so a photo sent home has run out
+ * before it is any use.
+ */
+export const KioskQr = z.object({
+    url: z.string(),
+    expiresAt: z.string(),
+    /** When the tablet should ask for the next one. */
+    refreshInMs: z.number().int(),
+});
+export type KioskQr = z.infer<typeof KioskQr>;
 // ---------------------------------------------------------------------------
 // Holidays and weekly days off (AC-TM12)
 // ---------------------------------------------------------------------------
@@ -505,6 +540,8 @@ export const PhoneClockRequest = z
     lat: z.number().min(-90).max(90).optional(),
     lng: z.number().min(-180).max(180).optional(),
     accuracyM: z.number().min(0).max(100_000).optional(),
+    /** The code scanned off the entrance tablet, when the punch came from a scan. */
+    code: z.string().trim().max(200).optional(),
 })
     .merge(ReportedTime)
     .superRefine(reportedTimePair);
@@ -518,6 +555,34 @@ export const PhoneClockResult = z.object({
     distanceM: z.number().int().nullable(),
 });
 export type PhoneClockResult = z.infer<typeof PhoneClockResult>;
+/**
+ * `GET /me/work/:employeeId/clock`: what the person's clock-in card needs:
+ * how their branch clocks in, whether they are in, and their shift.
+ */
+export const MyClock = z.object({
+    branchName: z.string().nullable(),
+    clockMode: ClockMode,
+    open: z.object({ id: Uuid, clockInAt: z.string(), validated: z.boolean() }).nullable(),
+    /** The shift a clock-in now or next would belong to, today. */
+    shift: z.object({ startsAt: z.string(), endsAt: z.string() }).nullable(),
+    /** When a self clock-in opens for that shift; null when it is open already or there is no limit. */
+    opensAt: z.string().nullable(),
+});
+export type MyClock = z.infer<typeof MyClock>;
+/** `GET /ops/attendance/far-clock-ins`: people who clocked in, or tried to, away from work this month. */
+export const FarClockIns = z.object({
+    month: z.string(),
+    people: z.array(
+        z.object({
+            employeeId: Uuid,
+            displayName: z.string(),
+            /** Clock-ins saved far from work, and attempts refused for it. */
+            times: z.number().int(),
+            lastAt: z.string(),
+        }),
+    ),
+});
+export type FarClockIns = z.infer<typeof FarClockIns>;
 /** One published shift on the phone's shift card, with its template's planned break. */
 export const MyWorkTodayShift = z.object({
     rosterEntryId: Uuid,
@@ -567,6 +632,8 @@ export const MyShiftRequestList = z.object({
     mine: z.array(ShiftRequest),
     /** Swaps colleagues asked of them, waiting for an answer. */
     askedOfMe: z.array(ShiftRequest),
+    /** Swaps they already answered, newest first: what came of each. */
+    answered: z.array(ShiftRequest),
 });
 export type MyShiftRequestList = z.infer<typeof MyShiftRequestList>;
 /**
@@ -574,7 +641,13 @@ export type MyShiftRequestList = z.infer<typeof MyShiftRequestList>;
  * may name (AC-TM5). The active shifts of the branch they work at, and the
  * colleagues there a swap could be with: a roster card each, never a file.
  */
-export const MyShiftOptions = z.object({ shifts: z.array(ShiftTemplate), colleagues: z.array(RosterCard) });
+export const MyShiftOptions = z.object({
+    shifts: z.array(ShiftTemplate),
+    colleagues: z.array(RosterCard),
+    /** The active rotations of their branch, and the one they are on. */
+    rotations: z.array(z.object({ id: Uuid, name: z.string(), stepNames: z.array(z.string()), rule: RotationRule, ruleValue: z.number().int() })),
+    currentRotation: z.object({ patternId: Uuid, name: z.string(), startsOn: IsoDate }).nullable(),
+});
 export type MyShiftOptions = z.infer<typeof MyShiftOptions>;
 export const MyAttendance = z.object({
     from: IsoDate,

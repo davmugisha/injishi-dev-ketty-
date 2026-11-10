@@ -1,12 +1,4 @@
-import {
-  type BoardId,
-  canAccess,
-  homeHref,
-  type PersonaId,
-  personaByEmail,
-  screenByPath,
-  screens,
-} from "@injishi/data";
+import { type BoardId, canAccess, homeHref, type PersonaId, personaByEmail, screenByPath } from "@injishi/data";
 import { isSetupPath } from "./setup-path";
 
 /**
@@ -101,10 +93,19 @@ export const WEB_HOME = `${WEB_URL}/trips`;
  * signed in here landed on a stranger's booking and stayed there. Their side of the product is web's, so
  * they go to it. The demo's own guest, matched by her email, keeps the story written for her.
  */
-export function homeAfterSignIn(personaId: PersonaId, email: string | null | undefined, home?: BoardId): string {
+export function homeAfterSignIn(personaId: PersonaId, email: string | null | undefined, home?: string): string {
+  // A signed-in account carries its own home, from its grants (`server/access.ts`, ADR-076 G14).
+  if (home) return home;
   if (personaId === "guest" && !personaByEmail(email ?? "")) return WEB_HOME;
-  // A shell borrowed by a role with a landing of its own (a real cashier lands on the live floor).
-  return home ? screens[home].href : homeHref(personaId);
+  return homeHref(personaId);
+}
+
+/** What the landing knows about a signed-in account, when it has one. */
+export interface LandingFor {
+  /** The account's own home (`Account.home`). */
+  home?: string;
+  /** May this account open a screen (`canOpen` in screen-access.ts)? A demo persona's story without it. */
+  canOpen?: (board: BoardId) => boolean;
 }
 
 /**
@@ -116,7 +117,7 @@ export function destinationAfterSignIn(
   personaId: PersonaId,
   raw: string | null | undefined,
   email: string | null | undefined,
-  home?: BoardId,
+  account: LandingFor = {},
 ): string {
   const target = safeReturn(raw);
   if (target && !target.startsWith("/")) return target;
@@ -124,10 +125,11 @@ export function destinationAfterSignIn(
     const path = target.split(/[?#]/)[0];
     if (isSetupPath(path)) return target;
     const screen = screenByPath(path);
-    if (screen && canAccess(personaId, screen.board)) return target;
+    const may = account.canOpen ?? ((board: BoardId) => canAccess(personaId, board));
+    if (screen && may(screen.board)) return target;
     // `/messages` is one route for three people (2026-11-02): it resolves to the front desk's board, so a
     // landlord or broker following a message digest is let back to it under their own board.
-    if (path === "/messages" && (canAccess(personaId, "LandlordMessages") || canAccess(personaId, "BrokerMessages"))) return target;
+    if (path === "/messages" && (may("LandlordMessages") || may("BrokerMessages"))) return target;
   }
-  return homeAfterSignIn(personaId, email, home);
+  return homeAfterSignIn(personaId, email, account.home);
 }

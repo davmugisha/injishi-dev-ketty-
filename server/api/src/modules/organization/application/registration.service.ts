@@ -322,6 +322,17 @@ export class RegistrationService {
     }
   }
 
+  /** The passport photo a PSF member or applicant sends (2026-11-05), a JPEG or PNG this person uploaded. */
+  private async assertOwnerPhoto(objectKey: string | undefined, registrantUserId: string): Promise<void> {
+    const stored = objectKey ? await this.storage.describe(objectKey) : null;
+    if (!stored || stored.kind !== 'certificate' || stored.uploadedByUserId !== registrantUserId || (stored.mime !== 'image/jpeg' && stored.mime !== 'image/png')) {
+      throw new UnprocessableEntityException({
+        message: 'Validation failed',
+        issues: [{ code: 'custom', path: ['business', 'psfOwnerPhotoKey'], message: 'Add a passport photo, as a JPEG or PNG.' }],
+      });
+    }
+  }
+
   /**
    * A membership number a business typed (0121): it must read like one ("PSF-" alone does not), and it
    * must not be another business's current membership on Injishi. Whether it is real is PSF's to
@@ -553,6 +564,7 @@ export class RegistrationService {
     await this.assertDocuments(businessKind, b.certificates, registrantUserId);
     await this.assertPsfNumber(b.domain === 'hospitality' && b.psfMember ? (b.psfMembershipNumber ?? null) : null);
     // A member sends its card, with or without the number (2026-11-02): it is what PSF checks the claim against.
+    if (b.domain === 'hospitality' && (b.psfMember || b.psfApplication)) await this.assertOwnerPhoto(b.psfOwnerPhotoKey, registrantUserId);
     if (b.domain === 'hospitality' && b.psfMember && !b.certificates.some((c) => c.kind === 'psf_certificate')) {
       throw new UnprocessableEntityException({
         message: 'Validation failed',
@@ -600,6 +612,7 @@ export class RegistrationService {
         upi: b.domain === 'hospitality' ? (b.upi ?? null) : b.domain === 'residence' ? b.upi : null,
         psfAssociationCode,
         ...psfPicks,
+        psfOwnerPhotoKey: b.domain === 'hospitality' ? (b.psfOwnerPhotoKey ?? null) : null,
         ownerGroups: b.domain === 'enterprise' ? b.ownerGroups : [],
         registrationKind: b.domain === 'enterprise' ? b.registrationKind : null,
         registrationNumber:

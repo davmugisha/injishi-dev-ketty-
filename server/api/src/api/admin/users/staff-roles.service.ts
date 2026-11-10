@@ -26,13 +26,13 @@ import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import {
   adminUsers,
-  auditEvents,
   staffCustomRolePermissions,
   staffCustomRoles,
   userStaffCustomRoles,
   users,
 } from '../../../database/drizzle/schema';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 
 type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 type RoleRow = typeof staffCustomRoles.$inferSelect;
@@ -460,10 +460,5 @@ export async function audit(
   payloadDiff: Record<string, unknown>,
   reason: string,
 ): Promise<string> {
-  const [row] = await tx
-    .insert(auditEvents)
-    .values({ actorUserId, subjectType, subjectId, eventType, payloadDiff: payloadDiff as never, reason })
-    .returning({ id: auditEvents.id });
-  if (!row) throw new Error('Audit insert returned no row.');
-  return row.id;
+  return (await AuditWriter.write(tx, { actorUserId, subjectType, subjectId, eventType, payloadDiff: payloadDiff as never, reason })).id;
 }

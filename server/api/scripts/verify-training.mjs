@@ -13,7 +13,7 @@
 //   VERIFY_API_URL=http://localhost:8000 node scripts/verify-training.mjs
 //
 // ONE SIGN IN PER ACCOUNT, for the reason `verify-authz-http.mjs` records at
-// length: the OTP send cap is five per address per hour and thirty per IP per
+// length: the OTP send cap is ten per address per hour and thirty per IP per
 // hour, and locally every account shares one address. If a run does lock you
 // out, the ledger is `auth_otp_requests` and on a SAMPLE database
 // `delete from auth_otp_requests;` clears it. Never on a real one.

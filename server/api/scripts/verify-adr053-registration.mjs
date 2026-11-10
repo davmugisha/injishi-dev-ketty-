@@ -125,7 +125,7 @@ async function markVerified(email, fullName, dateOfBirth) {
 }
 
 // ---------------------------------------------------------------------------
-// Sessions, cached between runs in the OS temp directory. The OTP cap is five
+// Sessions, cached between runs in the OS temp directory. The OTP cap is ten
 // codes per address per hour, and the cache holds live cookies, so it never
 // sits in the repository.
 // ---------------------------------------------------------------------------

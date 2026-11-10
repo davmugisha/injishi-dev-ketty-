@@ -13,11 +13,12 @@ import { EmployeesView } from "@injishi/product-hr/web";
 import type { Metadata } from "next";
 import { HrMount } from "@/features/hr/hr-mount";
 import { requirePersona } from "@/lib/session";
-import { getCollection, requestContext } from "@/server/data";
+import { getCollection } from "@/server/data";
+import { hrFeaturesOff } from "@/server/hr-features";
 
 export const metadata: Metadata = { title: screens.Employees.pageTitle };
 
-const FILE_TABS = ["overview", "pay", "docs", "family", "policies"];
+const FILE_TABS = ["overview", "personal", "pay", "docs", "family", "policies", "access", "offboarding"];
 
 export default async function EmployeesPage({
   searchParams,
@@ -37,15 +38,16 @@ export default async function EmployeesPage({
     getCollection<OffboardingTask>("people.offboarding"),
   ]);
   const { view, employee, tab } = await searchParams;
+  const named = employees.some((e) => e.id === employee);
   return (
-    <HrMount>
+    <HrMount off={await hrFeaturesOff()}>
       <EmployeesView
         data={{ properties, employees, compensation, documents, family, policies, org, offboarding }}
-        today={(await requestContext()).today.iso}
         initial={{
           view: view === "org" ? "org" : "dir",
-          employee: employees.some((e) => e.id === employee) ? (employee as string) : (employees[0]?.id ?? ""),
+          employee: named ? (employee as string) : (employees[0]?.id ?? ""),
           tab: FILE_TABS.includes(tab ?? "") ? (tab as string) : "overview",
+          open: named,
         }}
       />
     </HrMount>

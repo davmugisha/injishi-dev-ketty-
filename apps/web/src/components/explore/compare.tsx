@@ -16,6 +16,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import {
   Button,
   Sheet,
@@ -78,14 +79,15 @@ export function CompareToggle({
   disabled: boolean;
   onToggle: (slug: string) => void;
 }) {
+  const t = useTranslations("search");
   return (
     <button
       type="button"
       role="checkbox"
       aria-checked={selected}
-      aria-label={`Compare ${nameOf(listing)}`}
+      aria-label={t("compareToggle", { name: nameOf(listing) })}
       disabled={disabled}
-      title={disabled ? `You can compare up to ${COMPARE_LIMIT} stays. Remove one first.` : undefined}
+      title={disabled ? t("compareLimit", { limit: COMPARE_LIMIT }) : undefined}
       onClick={(event) => {
         // The card is one big link; the checkbox must not open the stay.
         event.preventDefault();
@@ -110,7 +112,7 @@ export function CompareToggle({
       >
         {selected ? <Check className="size-3.5" strokeWidth={3} /> : null}
       </span>
-      {selected ? "Comparing" : "Compare"}
+      {selected ? t("comparing") : t("compare")}
     </button>
   );
 }
@@ -135,21 +137,22 @@ export function CompareTray({
   /** Leaves compare mode. The picks are kept for when it comes back. */
   onClose: () => void;
 }) {
+  const t = useTranslations("search");
   const ready = selected.length >= 2;
   const empties = Math.max(0, COMPARE_LIMIT - selected.length);
   const hint =
     selected.length === 0
-      ? "Tick Compare on any stay to start."
+      ? t("compareHintEmpty")
       : selected.length === 1
-        ? "Pick at least one more stay."
+        ? t("compareHintOne")
         : selected.length === COMPARE_LIMIT
-          ? "That's the most we can line up."
-          : "Ready to compare. Add more if you like.";
+          ? t("compareHintFull")
+          : t("compareHintReady");
 
   return (
     <div
       role="region"
-      aria-label="Stays to compare"
+      aria-label={t("compareTray")}
       className="compare-tray pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-3 sm:pb-6"
     >
       <div className="pointer-events-auto flex w-full max-w-wide flex-wrap items-center gap-x-4 gap-y-3 rounded-card bg-card/95 p-3 shadow-control ring-1 ring-border backdrop-blur-md sm:flex-nowrap sm:p-3.5">
@@ -164,7 +167,7 @@ export function CompareTray({
           </span>
           <div className="min-w-0" aria-live="polite">
             <p className="text-sm font-bold text-foreground">
-              {selected.length === 0 ? "Compare stays" : `${selected.length} of ${COMPARE_LIMIT} picked`}
+              {selected.length === 0 ? t("compareStays") : t("picked", { count: selected.length, limit: COMPARE_LIMIT })}
             </p>
             <p className="truncate text-xs text-muted-foreground">{hint}</p>
           </div>
@@ -183,7 +186,7 @@ export function CompareTray({
               <button
                 type="button"
                 onClick={() => onRemove(listing.slug)}
-                aria-label={`Remove ${nameOf(listing)} from comparison`}
+                aria-label={t("removeComparison", { name: nameOf(listing) })}
                 className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-foreground text-background shadow-control transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <X className="size-3" strokeWidth={3} aria-hidden />
@@ -204,14 +207,14 @@ export function CompareTray({
         <div className="flex w-full shrink-0 items-center justify-end gap-1.5 sm:w-auto">
           {selected.length > 0 ? (
             <Button variant="ghost" size="sm" onClick={onClear}>
-              Clear
+              {t("clear")}
             </Button>
           ) : null}
           <Button variant="ghost" size="sm" onClick={onClose}>
-            Done
+            {t("compareDone")}
           </Button>
           <Button size="sm" disabled={!ready} onClick={onOpen} className="gap-1.5">
-            Compare{selected.length > 0 ? ` ${selected.length}` : ""}
+            {t("compare")}{selected.length > 0 ? ` ${selected.length}` : ""}
             <ArrowRight className="size-4" strokeWidth={2.4} aria-hidden />
           </Button>
         </div>
@@ -454,6 +457,7 @@ export function CompareSheet({
   onAddMore: () => void;
   intent?: StayIntent;
 }) {
+  const t = useTranslations("search");
   const [onlyDifferences, setOnlyDifferences] = useState(false);
   const [copied, setCopied] = useState(false);
   useEffect(() => {
@@ -494,9 +498,9 @@ export function CompareSheet({
       <SheetContent side="bottom" className="flex h-[90dvh] flex-col rounded-t-3xl bg-card p-0">
         <SheetHeader className="flex flex-col gap-3 border-b border-separator px-5 py-4 text-left sm:flex-row sm:items-end sm:justify-between sm:px-8 sm:pr-16">
           <div>
-            <SheetTitle className="text-xl">Compare stays</SheetTitle>
+            <SheetTitle className="text-xl">{t("compareStays")}</SheetTitle>
             <SheetDescription>
-              {selected.length} stays side by side · rates per night, before dates are chosen
+              {t("compareSummary", { count: selected.length })}
             </SheetDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -521,7 +525,7 @@ export function CompareSheet({
                   )}
                 />
               </span>
-              Only differences
+              {t("onlyDifferences")}
             </button>
             <Button variant="outline" size="sm" onClick={copyLink} className="gap-1.5" aria-live="polite">
               {copied ? (
@@ -529,7 +533,7 @@ export function CompareSheet({
               ) : (
                 <Link2 className="size-4" strokeWidth={2.2} aria-hidden />
               )}
-              {copied ? "Link copied" : "Copy link"}
+              {copied ? t("linkCopied") : t("copyLink")}
             </Button>
           </div>
         </SheetHeader>
@@ -549,7 +553,7 @@ export function CompareSheet({
                   className="sticky left-0 top-0 z-30 border-b border-separator bg-card px-4 pb-4 pt-5 text-left align-bottom sm:px-8"
                 >
                   <span className="text-2xs font-bold uppercase tracking-widest text-muted-foreground">
-                    {onlyDifferences ? `${shownRows} of ${totalRows} differ` : `${totalRows} details`}
+                    {onlyDifferences ? t("rowsDiffer", { shown: shownRows, total: totalRows }) : t("detailsCount", { count: totalRows })}
                   </span>
                 </th>
                 {selected.map((l) => (
@@ -574,9 +578,9 @@ export function CompareSheet({
                       <span className="flex size-10 items-center justify-center rounded-full bg-surface-secondary transition-colors group-hover:bg-accent group-hover:text-accent-foreground">
                         <Plus className="size-5" strokeWidth={2.2} aria-hidden />
                       </span>
-                      <span className="text-sm font-bold">Add another stay</span>
+                      <span className="text-sm font-bold">{t("addAnotherStay")}</span>
                       <span className="text-xs">
-                        {COMPARE_LIMIT - selected.length} more {COMPARE_LIMIT - selected.length === 1 ? "slot" : "slots"}
+                        {t("slotsLeft", { count: COMPARE_LIMIT - selected.length })}
                       </span>
                     </button>
                   </th>

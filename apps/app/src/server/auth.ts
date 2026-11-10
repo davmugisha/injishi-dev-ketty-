@@ -9,7 +9,13 @@
  * the person is signed in on web and here at once.
  */
 
-import { isLeaderRole, landlordBusiness, type MeContext, type MeContextBusiness } from "@injishi/contracts";
+import {
+  isLeaderRole,
+  landlordBusiness,
+  type MeContext,
+  type MeContextBusiness,
+  type MeSurface,
+} from "@injishi/contracts";
 import {
   type BoardId,
   DEMO_OTP,
@@ -20,6 +26,8 @@ import {
   screens,
   type WorkspaceContext,
 } from "@injishi/data";
+import { WEB_HOME } from "../lib/return-to";
+import { homeFor, switcherFor, type Workspace } from "./access";
 import { ApiError, apiBaseUrl, apiOrigin, apiRequest, clientIpHeaders, type SessionCookie } from "./api";
 import { authCookiesFrom, cookieHeaderFor, type ForwardedCookie } from "./session-cookies";
 
@@ -187,19 +195,7 @@ export interface ApiUser {
   email: string;
 }
 
-/** One grant from GET /api/v1/me/workspaces (fields the app reads). */
-export interface Workspace {
-  workspaceId: string;
-  kind: "personal" | "business" | string;
-  orgId: string | null;
-  orgName: string | null;
-  domain: "hospitality" | "residence" | "broker" | string | null;
-  orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | string | null;
-  registrationStatus: string | null;
-  permissions: string[];
-  branches: { propertyId: string; name: string }[] | unknown[];
-  label: string;
-}
+export type { Workspace, WorkspaceBranch, WorkspaceGrants } from "./access";
 
 export interface Account {
   user: ApiUser;
@@ -211,6 +207,21 @@ export interface Account {
    */
   context: MeContext | null;
   persona: Persona;
+  /**
+   * A demo persona on the demo stack, matched by email (ADR-076 G12). Everyone else, and everyone in
+   * production, is judged by what the API grants: never by a persona.
+   */
+  demo: boolean;
+  /** The business workspace the shell acts in: the one this session last switched to, else the strongest. */
+  active: Workspace | null;
+  /** Platform staff, from `/me/context` (or `/me/staff`). */
+  staff: boolean;
+  /** Holds a live government oversight assignment, from `/me/context` (or `/me/oversight`). */
+  oversight: boolean;
+  /** The switcher's context: the person's own businesses, or a demo persona's own (G13). */
+  switcher: WorkspaceContext | null;
+  /** Where this person lands when nowhere else is asked for (G14). */
+  home: string;
   /**
    * The emailed step-up (F-S02). An email-code session is stepped up when it opens; a Google session is
    * not, and the API refuses an operator's workspace calls until it is (`two_factor_required`).
@@ -296,20 +307,46 @@ export async function accountFor(cookie: SessionCookie): Promise<Account | null>
     throw error;
   }
   if (!session?.user) return null;
-  const [{ workspaces, twoFactor }, context] = await Promise.all([
+  // Everything that decides access, asked of the API at once: the grants, who this person is across the
+  // product, and whether this stack is the demo.
+  const [me, context, environment] = await Promise.all([
     apiRequest<{
       workspaces: Workspace[];
+      activeWorkspaceId?: string | null;
       twoFactor?: { required?: boolean; verified?: boolean };
     }>(cookie, "/api/v1/me/workspaces"),
     meContext(cookie),
+    platformEnvironment(),
   ]);
-  const shell = await personaFor(cookie, session.user, workspaces, context);
+  const { workspaces } = me;
+  const [staff, seats] = context
+    ? [context.staff.isStaff, context.oversight.map((g) => g.oversightRole)]
+    : await Promise.all([holds(cookie, "/api/v1/me/staff"), oversightRoles(cookie)]);
+  const oversight = seats.length > 0;
+  const active = activeBusiness(workspaces, [me.activeWorkspaceId, context?.landing.workspaceId]);
+  const { shell, demo } = shellFor(session.user, workspaces, active, {
+    staff,
+    oversightRoles: seats,
+    environment,
+    landing: context?.landing.surface ?? null,
+  });
+  const subject = { demo, personaId: shell.id, workspaces, active, staff, oversight };
+  // A real person keeps every role they hold in the sidebar (`withHats`); a demo persona keeps its story.
+  const persona = demo
+    ? shell
+    : asPerson(withHats(shell, context), session.user, workspaces, context, switcherFor(workspaces, active), active);
   return {
     user: session.user,
     workspaces,
     context,
-    persona: asPerson(shell, session.user, workspaces, context),
-    twoFactor: { required: twoFactor?.required === true, verified: twoFactor?.verified === true },
+    persona,
+    demo,
+    active,
+    staff,
+    oversight,
+    switcher: persona.workspace ?? null,
+    home: homeFor(subject, shell.home, shell.id, WEB_HOME),
+    twoFactor: { required: me.twoFactor?.required === true, verified: me.twoFactor?.verified === true },
   };
 }
 
@@ -324,19 +361,38 @@ async function meContext(cookie: SessionCookie): Promise<MeContext | null> {
 }
 
 /**
- * A demo persona is the person it describes. Anyone else borrows a shell (home, navigation) but keeps
- * their own name and email, so a real owner never sees "Didier Mugenzi" on their own workspace. A
- * landlord's or a hotel's switcher is their own businesses, read from the API, never the shell's: the
- * shell's is the demo's "Amahoro Hospitality Ltd".
+ * Which stack this is, asked of the API (`GET /api/v1/platform`). A demo persona applies on `demo` alone
+ * (G12): staging runs as `production` over sample data, so a demo persona's email there is a person with
+ * their own grants. An API that cannot say is treated as not the demo.
  */
-function asPerson(shell: Persona, user: ApiUser, workspaces: Workspace[], context: MeContext | null): Persona {
-  if (shell.email && shell.email === user.email.toLowerCase()) return shell;
+async function platformEnvironment(): Promise<string | null> {
+  try {
+    return (await apiRequest<{ environment?: string }>(null, "/api/v1/platform")).environment ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A real person borrows a shell (its navigation and layout) but keeps their own name and email, and their
+ * own businesses: the shell's demo business ("Amahoro Hospitality Ltd") never reaches them (G13). A
+ * landlord's and a hotel role's switcher is read from `/me/context`; anyone else's is built from their
+ * grants (`switcher`).
+ */
+function asPerson(
+  shell: Persona,
+  user: ApiUser,
+  workspaces: Workspace[],
+  context: MeContext | null,
+  switcher: WorkspaceContext | null,
+  active: Workspace | null,
+): Persona {
   const business = !context
     ? null
     : shell.id === "landlord"
       ? landlordBusiness(context.businesses, context.activeWorkspaceId)
       : HOTEL_SHELLS.has(shell.id)
-        ? hotelBusiness(context)
+        ? hotelBusiness(context, active?.workspaceId ?? null)
         : null;
   // An account with no name of its own: the owner's lease signatory name (the owner signs for the
   // business), a broker's registered name, the landlord's business, and only then the email's first part.
@@ -348,10 +404,17 @@ function asPerson(shell: Persona, user: ApiUser, workspaces: Workspace[], contex
     business?.orgName.trim() ||
     user.email.split("@")[0];
   const parts = name.split(/\s+/).filter(Boolean);
-  const person = { ...shell, name, firstName: parts[0] ?? name, initials: initialsOf(name), email: user.email };
-  if (!context || !business) return person;
-  const role = ROLE_LABEL[business.role ?? ""] ?? "Member";
-  return { ...person, role, workspace: businessSwitcher(business, workspaces, context) };
+  const workspace = business && context ? businessSwitcher(business, workspaces, context) : switcher;
+  return {
+    ...shell,
+    name,
+    firstName: parts[0] ?? name,
+    initials: initialsOf(name),
+    email: user.email,
+    ...(business ? { role: ROLE_LABEL[business.role ?? ""] ?? "Member" } : {}),
+    org: workspace?.name ?? "",
+    workspace: workspace ?? undefined,
+  };
 }
 
 /** The shells a hotel role wears (`ROLE_PERSONA`), each of which gets the real business in its switcher. */
@@ -367,13 +430,17 @@ const HOTEL_SHELLS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * The hospitality business in view: the one the session chose, else a running one, else one still
- * in review (its owner sets the listing up before approval).
+ * The hospitality business in view: the one the shell acts in (`activeBusiness`), else the one the session
+ * chose, else a running one, else one still in review (its owner sets the listing up before approval).
  */
-function hotelBusiness(context: MeContext): MeContextBusiness | null {
+function hotelBusiness(context: MeContext, preferred: string | null): MeContextBusiness | null {
   const held = context.businesses.filter((b) => b.domain === "hospitality" && b.role !== null);
   return (
-    held.find((b) => b.workspaceId === context.activeWorkspaceId) ?? held.find((b) => b.operational) ?? held[0] ?? null
+    held.find((b) => b.workspaceId === preferred) ??
+    held.find((b) => b.workspaceId === context.activeWorkspaceId) ??
+    held.find((b) => b.operational) ??
+    held[0] ??
+    null
   );
 }
 
@@ -415,12 +482,7 @@ function businessSwitcher(business: MeContextBusiness, workspaces: Workspace[], 
   const rentals = business.domain === "residence";
   const unit = rentals ? "building" : "branch";
   const units = rentals ? "buildings" : "branches";
-  // A residence workspace names its buildings by `propertyId`, a hotel's its branches by `id`.
-  const branches = (grant?.branches ?? []).flatMap((b) => {
-    if (typeof b !== "object" || b === null || !("name" in b)) return [];
-    const id = "propertyId" in b ? b.propertyId : "id" in b ? b.id : null;
-    return typeof id === "string" ? [{ id, name: String(b.name), meta: "" }] : [];
-  });
+  const branches = (grant?.branches ?? []).map((b) => ({ id: b.id, name: b.name, meta: "" }));
   const all =
     branches.length > 1
       ? [{ id: "all", name: `All ${units}`, meta: `${branches.length} ${units}` }, ...branches]
@@ -487,6 +549,31 @@ const ROLE_HOME: Partial<Record<string, BoardId>> = {
   stock_controller: "PosStock",
 };
 
+/** The strongest role first, when no business was chosen. */
+const ROLE_ORDER = [
+  "owner",
+  "manager",
+  "finance",
+  "hr",
+  "receptionist",
+  "cashier",
+  "bartender",
+  "waiter",
+  "stock_controller",
+  "kitchen",
+  "housekeeper",
+];
+
+/** The role a business grant says this person holds (the grant's own key; the flat field for an older API). */
+function roleOf(w: Workspace): string {
+  return w.grants?.roles[0]?.key ?? w.orgRole ?? "";
+}
+
+function rankOf(role: string): number {
+  const at = ROLE_ORDER.indexOf(role);
+  return at < 0 ? ROLE_ORDER.length : at;
+}
+
 /**
  * Operator shell plus the oversight boards a dual-hat person also holds, so an
  * approved business owner who is a district manager can open `/w/…/setup` in the
@@ -504,20 +591,74 @@ function withOversightBoards(shell: Persona, oversight: string[]): Persona {
 }
 
 /**
- * Which interface shell a person gets. A demo persona is matched by email (its story, home and
- * navigation are written for it); anyone else gets the shell of where they land (`/me/context`, from
- * real records): a running residence business is the landlord's; a hotel is the shell of the
- * person's role there; a tenancy is the tenant's home; then platform staff, an officer or leader, and
- * otherwise the guest side. A residence business still in review opens nothing yet.
+ * The business the shell acts in: the first of `preferred` this person holds (the one this session last
+ * switched to, then where `/me/context` lands them), else the strongest role held.
  */
-async function personaFor(
-  cookie: SessionCookie,
+function activeBusiness(workspaces: Workspace[], preferred: readonly (string | null | undefined)[]): Workspace | null {
+  const business = workspaces.filter((w) => w.kind === "business" && roleOf(w));
+  for (const id of preferred) {
+    const chosen = id ? business.find((w) => w.workspaceId === id) : undefined;
+    if (chosen) return chosen;
+  }
+  business.sort((a, b) => rankOf(roleOf(a)) - rankOf(roleOf(b)));
+  return business[0] ?? null;
+}
+
+/** The shell of a role in a business, with the floor roles' own home (POS) where they have one. */
+function roleShell(role: string): Persona {
+  const shell = personas[ROLE_PERSONA[role] as PersonaId];
+  const home = ROLE_HOME[role];
+  return home ? { ...shell, home } : shell;
+}
+
+/**
+ * Which interface shell a person gets (G12). A demo persona, matched by email, only when the API runs as
+ * the demo: its story, home and navigation are written for it. Anyone else gets a shell from real records:
+ * where `/me/context` lands them (a landlord, a broker), the business in view and the role its grant names
+ * (a residence owner or manager is the landlord's), a tenancy, a broker workspace, platform staff, an
+ * oversight seat; holding none of these, the guest shell, whose home is web's.
+ */
+export function shellFor(
   user: ApiUser,
   workspaces: Workspace[],
-  context: MeContext | null,
-): Promise<Persona> {
-  const shell = await shellFor(cookie, user, workspaces, context);
-  return personaByEmail(user.email) ? shell : withHats(shell, context);
+  active: Workspace | null,
+  grants: {
+    staff: boolean;
+    oversightRoles: readonly string[];
+    environment: string | null;
+    landing?: MeSurface | null;
+  },
+): { shell: Persona; demo: boolean } {
+  if (grants.environment === "demo") {
+    const persona = personaByEmail(user.email);
+    if (persona) return { shell: persona, demo: true };
+  }
+  const landing = grants.landing ?? null;
+  if (landing === "landlord") return { shell: personas.landlord, demo: false };
+  // A broker's workspace has kind `broker`, never a business: their landing says so (`/me/context`).
+  if (landing === "broker") return { shell: personas.broker, demo: false };
+  if (active) {
+    const role = roleOf(active);
+    if (active.domain === "residence") {
+      if (role === "owner" || role === "manager") return { shell: personas.landlord, demo: false };
+    } else if (ROLE_PERSONA[role]) {
+      return { shell: roleShell(role), demo: false };
+    }
+  }
+  if (landing === "tenant") return { shell: personas.tenant, demo: false };
+  if (workspaces.some((w) => w.kind === "broker")) return { shell: personas.broker, demo: false };
+  if (grants.staff) return { shell: personas.ops, demo: false };
+  const seats = grants.oversightRoles;
+  // A local leader or DGIE officer reviews no business: they land on the guests in their area.
+  if (seats.length > 0 && seats.every((r) => isLeaderRole(r))) {
+    return { shell: { ...personas.officer, home: "LeaderGuests" }, demo: false };
+  }
+  // A PSF District Manager's desk is the PSF console: membership, registration review and the overview.
+  if (seats.includes("psf_membership_officer")) return { shell: personas.psf, demo: false };
+  // A BDE, Business Development & Empowerment (2026-11-02): the PSF console, read only for now.
+  if (seats.includes("psf_business_officer")) return { shell: personas.psfdbo, demo: false };
+  if (seats.length > 0) return { shell: personas.officer, demo: false };
+  return { shell: personas.guest, demo: false };
 }
 
 /** Every screen of a persona, by the persona the screen belongs to. */
@@ -530,8 +671,9 @@ const boardsOf = (persona: PersonaId): BoardId[] =>
  * THE OTHER HATS A PERSON WEARS (2026-10-30). A shell is the role they land in; the rest of what they
  * hold stays reachable: a landlord or a hotel owner who is also a village leader opens the guests in
  * their area, a tenant who brokers opens their placements, an officer who rents opens their home. Each
- * adds its screens to the persona's access (the sidebar then lists them, `withOversightNav`); the API
- * still decides what each read returns.
+ * adds its screens to the persona's access, which is what the sidebar lists (`withOversightNav`). Whether
+ * a screen OPENS is `screenDecision`'s, from the grants (ADR-076 G14), and the API still decides what each
+ * read returns. A demo persona wears its own story and gets none.
  */
 function withHats(shell: Persona, context: MeContext | null): Persona {
   if (!context) return shell;
@@ -548,62 +690,6 @@ function withHats(shell: Persona, context: MeContext | null): Persona {
   );
   if (extra.length === 0) return withSeats;
   return { ...withSeats, access: [...new Set([...(withSeats.access ?? []), ...extra])] };
-}
-
-/** The shell a person lands in (see `personaFor`). */
-async function shellFor(
-  cookie: SessionCookie,
-  user: ApiUser,
-  workspaces: Workspace[],
-  context: MeContext | null,
-): Promise<Persona> {
-  const demo = personaByEmail(user.email);
-  if (demo) return demo;
-  const landing = context?.landing;
-  if (landing?.surface === "landlord") return personas.landlord;
-  // A broker's workspace has kind `broker`, never a business: their landing says so (`/me/context`).
-  if (landing?.surface === "broker") return personas.broker;
-  // The shell of a role in a business, with the floor roles' own home (POS) where they have one.
-  const shellFor = (role: string) => {
-    const shell = personas[ROLE_PERSONA[role] as PersonaId];
-    const home = ROLE_HOME[role];
-    return home ? { ...shell, home } : shell;
-  };
-  if (landing?.surface === "business") {
-    const chosen = workspaces.find((w) => w.workspaceId === landing.workspaceId);
-    if (chosen?.orgRole && ROLE_PERSONA[chosen.orgRole]) return shellFor(chosen.orgRole);
-  }
-  const business = workspaces.filter((w) => w.kind === "business" && w.orgRole && w.domain !== "residence");
-  const order = [
-    "owner",
-    "manager",
-    "finance",
-    "hr",
-    "receptionist",
-    "cashier",
-    "bartender",
-    "waiter",
-    "stock_controller",
-    "kitchen",
-    "housekeeper",
-  ];
-  business.sort((a, b) => order.indexOf(a.orgRole ?? "") - order.indexOf(b.orgRole ?? ""));
-  const active = business.filter((w) => w.registrationStatus === "active");
-  const topActive = active[0];
-  const top = business[0];
-  if (top?.orgRole && ROLE_PERSONA[top.orgRole]) return shellFor(top.orgRole);
-  if (landing?.surface === "tenant") return personas.tenant;
-  if (context ? context.staff.isStaff : await holds(cookie, "/api/v1/me/staff")) return personas.ops;
-  // A local leader or DGIE officer reviews no business: they land on the guests in their area.
-  if (context && context.oversight.length > 0 && context.oversight.every((g) => isLeaderRole(g.oversightRole)))
-    return { ...personas.officer, home: "LeaderGuests" };
-  const oversight = context ? context.oversight.map((g) => g.oversightRole) : await oversightRoles(cookie);
-  // A PSF District Manager's desk is the PSF console: membership, registration review and the overview.
-  if (oversight.includes("psf_membership_officer")) return personas.psf;
-  // A BDE, Business Development & Empowerment (2026-11-02): the PSF console, read only for now.
-  if (oversight.includes("psf_business_officer")) return personas.psfdbo;
-  if (oversight.length > 0) return personas.officer;
-  return personas.guest;
 }
 
 /** The oversight roles a person holds, from GET /api/v1/me/oversight; none when it cannot be read. */

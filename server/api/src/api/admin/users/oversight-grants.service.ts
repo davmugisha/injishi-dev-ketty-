@@ -19,7 +19,6 @@ import {
 import { and, eq, isNull } from 'drizzle-orm';
 
 import {
-  auditEvents,
   districts,
   governmentBodies,
   orgMemberships,
@@ -28,6 +27,7 @@ import {
   provinces,
   users,
 } from '../../../database/drizzle/schema';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import {
   DRIZZLE,
   type Database,
@@ -159,7 +159,7 @@ export class OversightGrantsService {
         .returning({ id: oversightAssignments.id });
       if (!created) throw new Error('Oversight grant insert returned no row.');
 
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.actorUserId,
         subjectType: 'user',
         subjectId: input.userId,
@@ -241,7 +241,7 @@ export class OversightGrantsService {
         );
       }
 
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.actorUserId,
         subjectType: 'user',
         subjectId: input.userId,

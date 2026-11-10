@@ -13,6 +13,8 @@ import { HrMount } from "@/features/hr/hr-mount";
 import { requirePersona } from "@/lib/session";
 import { workspaceFor } from "@/server/auth";
 import { getCollection, requestContext } from "@/server/data";
+import { hrFeaturesOff } from "@/server/hr-features";
+import { chosenRosterBranch } from "@/server/roster-branch";
 
 export const metadata: Metadata = { title: screens.Roster.pageTitle };
 
@@ -30,16 +32,23 @@ export default async function RosterPage({ searchParams }: { searchParams: Promi
   const ctx = await requestContext();
   // The roster is the head office's (the branches come head office first); a shift is lent to the next one.
   const branches = ((ctx.account ? workspaceFor(ctx.account, "hospitality")?.branches : []) ?? []) as {
+    id: string;
     name: string;
+    isHeadOffice?: boolean;
   }[];
+  const chosen = await chosenRosterBranch();
+  const current = branches.find((b) => b.id === chosen) ?? branches.find((b) => b.isHeadOffice) ?? branches[0];
+  const other = branches.find((b) => b.id !== current?.id);
   return (
-    <HrMount>
+    <HrMount off={await hrFeaturesOff()}>
       <RosterView
         data={{ groups, staff, weeks, swaps, rotations, holidays }}
         initialWeek={week === "next" ? "next" : "this"}
         today={ctx.today.iso}
-        branchName={branches[0]?.name ?? "this branch"}
-        otherBranchName={branches[1]?.name ?? "another branch"}
+        branchName={current?.name ?? "this branch"}
+        otherBranchName={other?.name ?? "another branch"}
+        branches={branches.map((b) => ({ id: b.id, name: b.name }))}
+        branchId={current?.id ?? ""}
       />
     </HrMount>
   );

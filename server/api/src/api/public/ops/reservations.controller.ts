@@ -44,6 +44,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -79,6 +80,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/reservations', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('pms')
 export class OpsReservationsController {
   constructor(
     private readonly reservations: OperatorReservationsService,
@@ -361,6 +363,7 @@ export class OpsReservationsController {
  */
 @Controller({ path: 'ops/room-assignments', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('pms')
 export class OpsRoomAssignmentsController {
   constructor(private readonly assignments: RoomAssignmentService) {}
 

@@ -3,21 +3,24 @@
 import { Toast, toast } from "@heroui/react";
 import {
   type AdminBrokerSubscription,
+  type AdminBrokerSubscriptionList,
   BROKER_PAY_METHOD_LABEL,
   type BrokerPlan,
   type BrokerPlanCode,
   type BrokerPlanStatus,
 } from "@injishi/contracts";
 import {
-  type DataColumn,
   DataTable,
   EmptyBlock,
   FormDialog,
   formatDay,
   formatMoney,
+  type GridColumn,
   IconAction,
   MoneyInput,
   PageContent,
+  type PlaceChain,
+  ServerDataGrid,
   StatusChip,
   type StatusTone,
 } from "@injishi/ui";
@@ -25,6 +28,18 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { TextInput } from "@/features/rentals/fields";
+import {
+  ALL,
+  AreaFilter,
+  CountStrip,
+  ListBar,
+  ListFilter,
+  ListSearch,
+  ListUrlProvider,
+  SinceFilter,
+  useListUrl,
+} from "../list/list-kit";
+import { EntityMark } from "../list/stat-cards";
 import { setBrokerPlanPrice } from "./actions";
 
 const STATUS: Record<BrokerPlanStatus, { tone: StatusTone; label: string }> = {
@@ -41,49 +56,65 @@ const COVERS: Record<BrokerPlanCode, string> = {
   country: "All of Rwanda",
 };
 
-type Tab = "all" | "active" | "past_due" | "ended";
-const ENDED: BrokerPlanStatus[] = ["cancelled", "expired"];
-
 /**
  * Broker plans in the admin console: the three plans with their monthly price and how many brokers hold
  * each, a new price with a reason (finance, `admin.fee.edit`), and every broker's subscription. A new
  * price applies to the next payment; a month already paid keeps its price.
  */
-export function BrokerPlansView({
-  view,
-  plans,
-  subscriptions,
-  canEdit,
-}: {
+export function BrokerPlansView(props: {
   /** The Subscriptions tab or the Plan prices tab. */
   view: "subscriptions" | "prices";
   plans: BrokerPlan[];
-  subscriptions: AdminBrokerSubscription[];
+  /** One page of subscriptions, filtered by the URL (the Subscriptions tab). */
+  subscriptions: AdminBrokerSubscriptionList | null;
+  /** Brokers on each plan now, active or in grace (the Plan prices tab). */
+  holding: Partial<Record<BrokerPlanCode, number>>;
+  areaChain: PlaceChain;
   canEdit: boolean;
 }) {
+  return (
+    <ListUrlProvider>
+      <BrokerPlans {...props} />
+    </ListUrlProvider>
+  );
+}
+
+function BrokerPlans({
+  view,
+  plans,
+  subscriptions,
+  holding: held,
+  areaChain,
+  canEdit,
+}: {
+  view: "subscriptions" | "prices";
+  plans: BrokerPlan[];
+  subscriptions: AdminBrokerSubscriptionList | null;
+  holding: Partial<Record<BrokerPlanCode, number>>;
+  areaChain: PlaceChain;
+  canEdit: boolean;
+}) {
+  const url = useListUrl();
   const [editing, setEditing] = useState<BrokerPlan | null>(null);
-  const holding = (code: BrokerPlanCode) =>
-    subscriptions.filter((s) => s.plan === code && (s.status === "active" || s.status === "past_due")).length;
-  const count = (t: Tab) =>
-    t === "all"
-      ? subscriptions.length
-      : t === "ended"
-        ? subscriptions.filter((s) => ENDED.includes(s.status)).length
-        : subscriptions.filter((s) => s.status === t).length;
+  const holding = (code: BrokerPlanCode) => held[code] ?? 0;
+  const counts = subscriptions?.statusCounts ?? {};
   const planName = (code: BrokerPlanCode) => plans.find((p) => p.code === code)?.name ?? code;
 
-  const columns: DataColumn<AdminBrokerSubscription>[] = [
+  const columns: GridColumn<AdminBrokerSubscription>[] = [
     {
       id: "broker",
       header: "Broker",
       isRowHeader: true,
-      sortValue: (s) => s.brokerName ?? "",
-      cell: (s) => <span className="font-medium">{s.brokerName ?? "No name yet"}</span>,
+      cell: (s) => (
+        <span className="flex min-w-0 items-center gap-3">
+          <EntityMark name={s.brokerName ?? "Broker"} />
+          <span className="truncate font-medium">{s.brokerName ?? "No name yet"}</span>
+        </span>
+      ),
     },
     {
       id: "plan",
       header: "Plan",
-      sortValue: (s) => s.plan,
       cell: (s) => (
         <span className="flex flex-col">
           <span>{planName(s.plan)}</span>
@@ -94,7 +125,6 @@ export function BrokerPlansView({
     {
       id: "period",
       header: "Month",
-      sortValue: (s) => s.periodStart,
       cell: (s) => (
         <span className="whitespace-nowrap">
           {formatDay(s.periodStart)} to {formatDay(s.periodEnd)}
@@ -105,7 +135,6 @@ export function BrokerPlansView({
       id: "paid",
       header: "Paid",
       align: "end",
-      sortValue: (s) => s.paidRwf,
       cell: (s) => (
         <span className="flex flex-col items-end">
           <span className="tabular">{formatMoney(s.paidRwf)}</span>
@@ -191,41 +220,75 @@ export function BrokerPlansView({
           empty={<EmptyBlock icon="CreditCard" title="No plans yet" />}
         />
       ) : (
-        <DataTable
-          label="Broker subscriptions"
-          noun={{ one: "subscription", many: "subscriptions" }}
-          rows={subscriptions}
-          rowKey={(s) => s.id}
-          columns={columns}
-          defaultSort={{ column: "period", direction: "descending" }}
-          search={{ placeholder: "Broker or area", text: (s) => `${s.brokerName ?? ""} ${s.area}` }}
-          filters={[
-            {
-              id: "status",
-              name: "Status",
-              options: [
-                { id: "all", label: "All", count: count("all") },
-                { id: "active", label: "Active", count: count("active") },
-                { id: "past_due", label: "In grace", count: count("past_due") },
-                { id: "ended", label: "Ended", count: count("ended") },
-              ],
-              match: (s, v) => (v === "ended" ? ENDED.includes(s.status) : s.status === v),
-            },
-            {
-              id: "plan",
-              name: "Plan",
-              icon: "CreditCard",
-              options: [{ id: "all", label: "All" }, ...plans.map((p) => ({ id: p.code, label: p.name }))],
-              match: (s, v) => s.plan === v,
-            },
-          ]}
-          mobile={{
-            title: (s) => s.brokerName ?? "No name yet",
-            description: (s) => `${planName(s.plan)} · ${s.area} · ${formatMoney(s.paidRwf)}`,
-            trailing: (s) => <StatusChip tone={STATUS[s.status].tone}>{STATUS[s.status].label}</StatusChip>,
-          }}
-          empty={<EmptyBlock icon="CreditCard" title="No subscriptions yet" />}
-        />
+        <>
+          <CountStrip
+            label="Subscriptions by status"
+            param="status"
+            items={[
+              { id: "active", label: "Active", icon: "CircleCheck", value: counts.active ?? 0 },
+              {
+                id: "past_due",
+                label: "In grace",
+                icon: "Clock",
+                value: counts.past_due ?? 0,
+                status: (counts.past_due ?? 0) > 0 ? "warning" : undefined,
+              },
+              { id: "pending_payment", label: "Waiting to pay", icon: "Wallet", value: counts.pending_payment ?? 0 },
+              { id: "cancelled", label: "Cancelled", icon: "CircleXmark", value: counts.cancelled ?? 0 },
+              { id: "expired", label: "Ended", icon: "CircleXmark", value: counts.expired ?? 0 },
+            ]}
+          />
+          <ListBar
+            keys={["q", "status", "plan", "since"]}
+            found={subscriptions?.meta.total ?? 0}
+            noun={{ one: "subscription", many: "subscriptions" }}
+            search={<ListSearch placeholder="Broker name or email" />}
+          >
+            <ListFilter
+              param="status"
+              name="Status"
+              options={[
+                { id: ALL, label: "All" },
+                ...(Object.keys(STATUS) as BrokerPlanStatus[]).map((k) => ({
+                  id: k,
+                  label: STATUS[k].label,
+                  count: counts[k] ?? 0,
+                })),
+              ]}
+            />
+            <ListFilter
+              param="plan"
+              name="Plan"
+              icon="CreditCard"
+              options={[{ id: ALL, label: "All" }, ...plans.map((p) => ({ id: p.code, label: p.name }))]}
+            />
+            <AreaFilter chain={areaChain} depth="province" />
+            <SinceFilter name="Started" />
+          </ListBar>
+          <ServerDataGrid<AdminBrokerSubscription>
+            label="Broker subscriptions"
+            rows={subscriptions?.items ?? []}
+            rowKey={(s) => s.id}
+            columns={columns}
+            isLoading={url.pending}
+            paging={
+              subscriptions
+                ? {
+                    page: subscriptions.meta.page,
+                    pageSize: subscriptions.meta.pageSize,
+                    total: subscriptions.meta.total,
+                    onPageChange: (page) => url.set({ page: String(page) }),
+                  }
+                : undefined
+            }
+            mobile={{
+              title: (s) => s.brokerName ?? "No name yet",
+              description: (s) => `${planName(s.plan)} · ${s.area} · ${formatMoney(s.paidRwf)}`,
+              trailing: (s) => <StatusChip tone={STATUS[s.status].tone}>{STATUS[s.status].label}</StatusChip>,
+            }}
+            empty={<EmptyBlock size="sm" icon="CreditCard" title="No subscription matches" />}
+          />
+        </>
       )}
 
       {editing ? <PriceDialog plan={editing} onClose={() => setEditing(null)} /> : null}

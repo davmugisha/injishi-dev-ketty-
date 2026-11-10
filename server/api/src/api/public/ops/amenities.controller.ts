@@ -19,6 +19,7 @@ import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
   RequireAnyPermission,
+  RequireAnyProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -39,6 +40,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/amenities', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireAnyProduct('pms', 'residence', 'outlets')
 export class OpsAmenitiesController {
   constructor(private readonly amenities: AmenitiesService) {}
 

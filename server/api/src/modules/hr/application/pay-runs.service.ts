@@ -33,6 +33,7 @@ import { displayNameOf } from './employee-presenter';
 import { assertPersonInReach, orgOf } from './hr-access';
 import { LeaveService } from './leave.service';
 import { PayAdjustmentsService } from './pay-adjustments.service';
+import { applyChoices, PayrollContributionsService } from './payroll-contributions.service';
 
 interface Computation {
   slips: (ComputedPayslip & { employeeId: string })[];
@@ -63,6 +64,9 @@ interface Computation {
  * and adjustments (AC-PY8, AC-PY9, AC-PY16), and a leaver's settlement
  * (AC-PY13). A rule a run needs and has no row for blocks it, never pays zero.
  */
+/** What a recompute or a hold answers while the run waits for whoever confirms it. */
+const SUBMITTED_LOCKED = 'This run is with whoever confirms it. Withdraw it first to change it.';
+
 @Injectable()
 export class PayRunsService {
   constructor(
@@ -76,6 +80,7 @@ export class PayRunsService {
     private readonly closer: AttendanceCloser,
     private readonly adjustments: PayAdjustmentsService,
     private readonly employees: EmployeesRepository,
+    private readonly contributions: PayrollContributionsService,
   ) {}
 
   /** `GET /ops/pay-runs`: one page through the list contract, newest month first by default. */
@@ -84,9 +89,26 @@ export class PayRunsService {
     return pageOf(page.rows.map(presentRun), page.total, query, { statusCounts: page.statusCounts });
   }
 
+  /**
+   * `GET /ops/pay-runs/:id`, and what every write here answers. The owner's pay is the owner's own
+   * business: whoever does not hold `team.manage` reads that the payslip is there and none of its
+   * figures, on the month being prepared and on every earlier one. The run's totals still count it.
+   */
   async get(ws: ScopedWorkspace, id: string): Promise<PayRunDetail> {
     const run = assertOwnedByOrg(await this.payroll.findRun(id), ws);
-    return this.detail(run);
+    const detail = await this.detail(run);
+    if (ws.permissions.includes('team.manage')) return detail;
+    const owners = await this.payroll.ownerEmployeeIds(run.orgId);
+    return {
+      ...detail,
+      payslips: detail.payslips.map((p) => (owners.has(p.employeeId) ? maskedPayslip(p) : p)),
+      // The one blocker that says a figure.
+      blockers: detail.blockers.map((b) =>
+        b.code === 'negative_net' && b.employeeId && owners.has(b.employeeId)
+          ? { ...b, displayName: 'Owner', message: `The owner's pay comes to less than nothing. ${remedyWords(b.remedies ?? [])}` }
+          : b,
+      ),
+    };
   }
 
   /** `POST /ops/pay-runs`: a draft for a month, computed. */
@@ -122,6 +144,7 @@ export class PayRunsService {
       const run = await this.payroll.lockRun(tx, id);
       if (!run) throw new NotFoundException();
       if (run.status === 'confirmed') throw new ConflictException('A confirmed pay run never changes. Put a correction on a later run.');
+      if (run.submittedAt) throw new ConflictException(SUBMITTED_LOCKED);
       const period = monthOf(run.periodStart);
       const computed = await this.compute(tx, orgId, period, id);
       await this.writeDraft(tx, orgId, id, computed);
@@ -152,6 +175,7 @@ export class PayRunsService {
       const run = await this.payroll.lockRun(tx, id);
       if (!run) throw new NotFoundException();
       if (run.status === 'confirmed') throw new ConflictException('A confirmed pay run never changes.');
+      if (run.submittedAt) throw new ConflictException(SUBMITTED_LOCKED);
       const period = monthOf(run.periodStart);
       const computed = await this.compute(tx, orgId, period, id);
       const slip = computed.slips.find((s) => s.employeeId === body.employeeId);
@@ -179,6 +203,73 @@ export class PayRunsService {
         orgId,
         diff: { payRunId: id, period },
         reason: body.reason,
+      });
+    });
+    return this.get(ws, id);
+  }
+
+  /**
+   * `POST /ops/pay-runs/:id/submit`: whoever prepared the month hands it to
+   * whoever confirms it (ADR-069 D-e). Computed once more first, so what is
+   * handed over is current, and refused with every blocker listed, as a
+   * confirm would be: a person is fixed or paid next month before the month
+   * goes up. The draft is locked until it is confirmed or withdrawn. A second
+   * submit answers with the same run.
+   */
+  async submit(ws: ScopedWorkspace, userId: string, id: string, note: string | null): Promise<PayRunDetail> {
+    const orgId = orgOf(ws);
+    assertOwnedByOrg(await this.payroll.findRun(id), ws);
+    await this.db.transaction(async (tx) => {
+      const run = await this.payroll.lockRun(tx, id);
+      if (!run) throw new NotFoundException();
+      if (run.status === 'confirmed') throw new ConflictException('This run is already confirmed.');
+      if (run.submittedAt) return;
+      const period = monthOf(run.periodStart);
+      const computed = await this.compute(tx, orgId, period, id);
+      if (computed.blockers.length > 0) {
+        throw new ConflictException({
+          code: 'pay_run_blocked',
+          message: `This run cannot be submitted yet: ${computed.blockers.length} thing${computed.blockers.length === 1 ? '' : 's'} to fix first.`,
+          blockers: computed.blockers,
+        });
+      }
+      await this.writeDraft(tx, orgId, id, computed);
+      await this.payroll.markSubmitted(tx, id, { userId, note: note?.trim() || null });
+      await writeHrAudit(tx, {
+        actorUserId: userId,
+        subjectType: 'pay_run',
+        subjectId: id,
+        eventType: 'hr.pay_run_submitted',
+        orgId,
+        diff: { period, payslips: computed.slips.length, netRwf: computed.slips.reduce((s, p) => s + p.netRwf, 0) },
+        reason: note?.trim() || undefined,
+      });
+    });
+    return this.get(ws, id);
+  }
+
+  /**
+   * `POST /ops/pay-runs/:id/withdraw`: a submitted draft comes back to be
+   * changed, by whoever submitted it or sent back by whoever confirms, who
+   * says why. Withdrawing what is not submitted changes nothing.
+   */
+  async withdraw(ws: ScopedWorkspace, userId: string, id: string, reason: string | null): Promise<PayRunDetail> {
+    const orgId = orgOf(ws);
+    assertOwnedByOrg(await this.payroll.findRun(id), ws);
+    await this.db.transaction(async (tx) => {
+      const run = await this.payroll.lockRun(tx, id);
+      if (!run) throw new NotFoundException();
+      if (run.status === 'confirmed') throw new ConflictException('A confirmed pay run never changes. Put a correction on a later run.');
+      if (!run.submittedAt) return;
+      await this.payroll.markSubmitted(tx, id, null);
+      await writeHrAudit(tx, {
+        actorUserId: userId,
+        subjectType: 'pay_run',
+        subjectId: id,
+        eventType: 'hr.pay_run_withdrawn',
+        orgId,
+        diff: { period: monthOf(run.periodStart) },
+        reason: reason?.trim() || undefined,
       });
     });
     return this.get(ws, id);
@@ -242,6 +333,8 @@ export class PayRunsService {
     if (!paye) throw new ConflictException(missingRuleMessage(HR_RULE.paye, first));
     const rssb = await this.rules.rssb(first, tx);
     if (!rssb) throw new ConflictException(missingRuleMessage(HR_RULE.rssb, first));
+    // The optional contributions this business chose, and its private health insurer.
+    const contributionsDue = applyChoices(rssb.value, await this.contributions.choicesOf(orgId, tx));
     const overtimeRule = await this.rules.overtime(first, tx);
     const settlementRule = await this.rules.finalSettlement(first, tx);
 
@@ -272,7 +365,7 @@ export class PayRunsService {
         code: 'missing_rssb_employer_number',
         employeeId: null,
         displayName: '',
-        message: 'Add the business\'s RSSB employer number in Payroll settings: payslips and the declaration print it.',
+        message: 'Add the business\'s RSSB employer number in Payroll rules: payslips and the declaration print it.',
       });
     }
     const thresholds = new Map<string | null, number>();
@@ -466,7 +559,8 @@ export class PayRunsService {
         extraDeductions,
         passthrough,
         paye: paye.value,
-        rssb: rssb.value,
+        rssb: contributionsDue.rssb,
+        fixedContributions: contributionsDue.fixed,
       });
       if (slip.netRwf < 0) {
         const remedies: PayRunRemedy[] = [];
@@ -590,6 +684,7 @@ export class PayRunsService {
         code,
         employeeId: a.employeeId,
         displayName: name,
+        record: { id: a.id, workDate: a.workDate, clockInAt: a.clockInAt.toISOString() },
         message: a.open
           ? `${name} is still clocked in on a day in this month.`
           : a.autoClosed
@@ -670,6 +765,10 @@ function presentRun(row: PayRunRow): PayRun {
     ruleVersions: row.ruleVersions,
     confirmedAt: row.confirmedAt ? row.confirmedAt.toISOString() : null,
     confirmedByUserId: row.confirmedByUserId,
+    confirmedByName: row.confirmedByName,
+    submittedAt: row.submittedAt ? row.submittedAt.toISOString() : null,
+    submittedByName: row.submittedByName,
+    submitNote: row.submitNote,
     headcount: row.headcount,
     grossRwf: row.grossRwf,
     netRwf: row.netRwf,
@@ -679,7 +778,29 @@ function presentRun(row: PayRunRow): PayRun {
   };
 }
 
-export function presentPayslip(row: PayslipRow): Payslip {
+/** The owner's payslip as someone without `team.manage` reads it: that it is there, and nothing it says. */
+function maskedPayslip(slip: Payslip): Payslip {
+  return {
+    ...slip,
+    displayName: 'Owner',
+    payableDays: 0,
+    grossRwf: 0,
+    payeRwf: 0,
+    employeeContributionsRwf: 0,
+    employerContributionsRwf: 0,
+    otherDeductionsRwf: 0,
+    nonIncomeRwf: 0,
+    netRwf: 0,
+    lines: [],
+    paidAt: null,
+    paidMethod: null,
+    paidReference: null,
+    sentAt: null,
+    confidential: true,
+  };
+}
+
+function presentPayslip(row: PayslipRow): Payslip {
   return {
     id: row.id,
     employeeId: row.employeeId,

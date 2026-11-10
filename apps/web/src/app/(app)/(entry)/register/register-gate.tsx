@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@injishi/web-ui";
 
 import { fetchPlatform, isDemo, offersGoogle, registrationFeeMode, type RegistrationFeeMode } from "@/data/platform";
-import { registerHeadingFor, type MobileMoneyNetwork } from "@injishi/contracts";
+import { type MobileMoneyNetwork } from "@injishi/contracts";
 import { useOnline } from "@/hooks/use-online";
 import { useSessionUser } from "@/lib/session";
 import { gateView, nextReconnectDelay } from "@/lib/session-reconnect";
@@ -12,7 +13,7 @@ import { gateView, nextReconnectDelay } from "@/lib/session-reconnect";
 import { EmailPanel } from "./email-panel";
 import { RegisterRail, type RailStep } from "./register-rail";
 import { RegisterShell, StepCard, StepSkeleton } from "./register-shell";
-import { STEP_ORDER, STEP_TITLE } from "./register-steps";
+import { STEP_ORDER, STEP_TITLE_KEY } from "./register-steps";
 import RegisterWizard from "./register-wizard";
 import { findRegistrationKind, registrationForKind, type RegistrationKind } from "./registration-kinds";
 
@@ -46,6 +47,8 @@ export default function RegisterGate({
   initialKind: RegistrationKind | null;
 }) {
   const session = useSessionUser();
+  const t = useTranslations("register");
+  const tc = useTranslations("common");
   const online = useOnline();
   const [failedRetries, setFailedRetries] = useState(0);
   const { status, refresh } = session;
@@ -142,17 +145,24 @@ export default function RegisterGate({
   // the type, Change beside it goes back to the `/host` chooser, and the rail
   // shows all five steps with the first on screen and nothing past it open. A
   // broker has no steps, so it keeps the bare shell.
-  const kindLabel = initialKind ? (findRegistrationKind(initialKind)?.label ?? null) : null;
+  const kindEntry = initialKind ? findRegistrationKind(initialKind) : null;
+  const kindLabel = kindEntry ? t(kindEntry.labelKey) : null;
   const walks = initialKind !== "broker";
+  const headingKind = initialKind ? registrationForKind(initialKind).businessKind : null;
   const heading = walks
     ? {
-        title: initialKind ? registerHeadingFor(registrationForKind(initialKind).businessKind) : "List your business",
+        title:
+          headingKind && headingKind !== "other"
+            ? t("heading.register", {
+                kind: t(`kinds.items.${headingKind}.label`).toLowerCase(),
+              })
+            : t("heading.business"),
         sub: null,
       }
     : null;
   const rail: RailStep[] = STEP_ORDER.map((id) => ({
     id,
-    title: STEP_TITLE[id],
+    title: t(`steps.${STEP_TITLE_KEY[id]}`),
     status: id === STEP_ORDER[0] ? "active" : "inactive",
     locked: id !== STEP_ORDER[0],
   }));
@@ -163,7 +173,7 @@ export default function RegisterGate({
       changeKindHref="/host#host-chooser-title"
       carried={walks && initialKind !== null}
       heading={heading}
-      exit={{ label: "Exit", href: "/host" }}
+      exit={{ label: t("shell.exit"), href: "/host" }}
       rail={walks && view === "anonymous" ? <RegisterRail steps={rail} onGo={() => {}} /> : null}
     >
       {view === "checking" ? (
@@ -173,7 +183,11 @@ export default function RegisterGate({
           demo={demo}
           googleReturn={google ? here : null}
           fallbackHref={signInHref}
-          position={walks ? { n: 1, of: STEP_ORDER.length, title: STEP_TITLE[STEP_ORDER[0]!] } : null}
+          position={
+            walks
+              ? { n: 1, of: STEP_ORDER.length, title: t(`steps.${STEP_TITLE_KEY[STEP_ORDER[0]!]}`) }
+              : null
+          }
           onSignedIn={async () => (await refresh()).status === "authenticated"}
         />
       ) : view === "reconnecting" ? (
@@ -186,21 +200,17 @@ export default function RegisterGate({
          */
         <StepCard
           id="register-connecting"
-          title="Still connecting to Injishi…"
-          lead="It isn't answering yet. We'll keep trying, so you don't need to do anything."
+          title={t("gate.connectingTitle")}
+          lead={t("gate.connectingLead")}
         />
       ) : (
         <StepCard
           id="register-down"
-          title={view === "offline" ? "You're offline" : "We can't reach Injishi"}
-          lead={
-            view === "offline"
-              ? "Connect to open your registration. Once it's open you can keep going offline: your answers are saved on this phone, and only the TIN check, uploads and paying wait for a connection."
-              : "Injishi isn't answering right now. Registering a business needs it, so it can't start until Injishi is back. Try again in a few minutes."
-          }
+          title={view === "offline" ? t("gate.offlineTitle") : t("gate.downTitle")}
+          lead={view === "offline" ? t("gate.offlineLead") : t("gate.downLead")}
           footer={
             <Button variant="outline" pending={asking} onClick={tryAgain}>
-              {asking ? "Trying…" : "Try again"}
+              {asking ? tc("trying") : tc("tryAgain")}
             </Button>
           }
         />

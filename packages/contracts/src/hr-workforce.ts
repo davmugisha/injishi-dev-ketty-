@@ -72,6 +72,17 @@ export type CoverRequirementList = z.infer<typeof CoverRequirementList>;
 /** Every branch in the caller's scope when no branch is named. */
 export const CoverQuery = z.object({ propertyId: Uuid.optional() });
 export type CoverQuery = z.infer<typeof CoverQuery>;
+/**
+ * `PUT /ops/roster/cover`: the fewest people a team needs, per weekday (Monday first), and the shifts
+ * that count. Saving again changes the team's minimum rather than adding another.
+ */
+export const SaveCoverRequest = z.object({
+    teamId: Uuid,
+    shiftTemplateIds: z.array(Uuid).min(1, "Choose at least one shift.").max(12),
+    minByWeekday: z.array(z.number().int().min(0).max(99)).length(7),
+    note: z.string().trim().max(200).nullable().optional(),
+});
+export type SaveCoverRequest = z.infer<typeof SaveCoverRequest>;
 // ---------------------------------------------------------------------------
 // Compensation (`GET /ops/hr/compensation`, people.manage or payroll.run)
 // ---------------------------------------------------------------------------
@@ -128,35 +139,6 @@ export const ExpiringDocumentQuery = z.object({
     withinDays: z.coerce.number().int().min(1).max(366).optional(),
 });
 export type ExpiringDocumentQuery = z.infer<typeof ExpiringDocumentQuery>;
-// ---------------------------------------------------------------------------
-// Checklists (`GET /ops/hr/checklists`, `POST /ops/hr/checklist-items/:id`)
-// ---------------------------------------------------------------------------
-export const HrChecklistKind = z.enum(["onboarding", "offboarding"]);
-export type HrChecklistKind = z.infer<typeof HrChecklistKind>;
-export const HrChecklistItem = z.object({
-    id: Uuid,
-    employeeId: Uuid,
-    checklist: HrChecklistKind,
-    code: z.string(),
-    title: z.string(),
-    detail: z.string().nullable(),
-    /** Only someone who may manage the team ticks it. */
-    ownerOnly: z.boolean(),
-    sortOrder: z.number().int(),
-    doneAt: z.string().nullable(),
-    doneByName: z.string().nullable(),
-});
-export type HrChecklistItem = z.infer<typeof HrChecklistItem>;
-export const HrChecklistItemList = z.object({ items: z.array(HrChecklistItem) });
-export type HrChecklistItemList = z.infer<typeof HrChecklistItemList>;
-export const HrChecklistQuery = z.object({
-    checklist: HrChecklistKind,
-    employeeId: Uuid.optional(),
-});
-export type HrChecklistQuery = z.infer<typeof HrChecklistQuery>;
-/** Tick a step, or take the tick back. */
-export const MarkChecklistItemRequest = z.object({ done: z.boolean() });
-export type MarkChecklistItemRequest = z.infer<typeof MarkChecklistItemRequest>;
 // ---------------------------------------------------------------------------
 // Dependants (`GET /ops/hr/dependants`, people.manage)
 // ---------------------------------------------------------------------------

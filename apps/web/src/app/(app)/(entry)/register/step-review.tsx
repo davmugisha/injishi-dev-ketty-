@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@injishi/web-ui";
 
 import type { StepId } from "./register-steps";
@@ -37,6 +38,7 @@ export function StepReview({
   kindPhrase: string;
   fee: number | null;
 }) {
+  const t = useTranslations("registerForms.review");
   return (
     <>
       <dl className="flex flex-col divide-y divide-border rounded-card bg-secondary">
@@ -48,7 +50,7 @@ export function StepReview({
             </div>
             {row.step && !locked ? (
               <Button variant="ghost" size="sm" onClick={() => row.step && onEdit(row.step)}>
-                Change<span className="sr-only"> {row.title}</span>
+                {t("change")}<span className="sr-only"> {row.title}</span>
               </Button>
             ) : null}
           </div>
@@ -56,9 +58,9 @@ export function StepReview({
       </dl>
 
       <div className="flex flex-col gap-1 rounded-card bg-secondary px-4 py-4">
-        <span className="text-sm text-muted-foreground">Registration fee for {kindPhrase}</span>
-        <span className="text-2xl font-semibold tabular-nums">{fee === null ? "Not available yet" : formatRwf(fee)}</span>
-        <span className="text-xs text-muted-foreground">Charged once, on the next step.</span>
+        <span className="text-sm text-muted-foreground">{t("feeFor", { kind: kindPhrase })}</span>
+        <span className="text-2xl font-semibold tabular-nums">{fee === null ? t("notAvailable") : formatRwf(fee)}</span>
+        <span className="text-xs text-muted-foreground">{t("chargedOnce")}</span>
       </div>
     </>
   );

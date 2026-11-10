@@ -23,11 +23,10 @@ import {
   type RegistrationFeeQuote,
   type RegistrationPayRequest,
   type RegistrationSummary,
-  BUSINESS_KIND_LABEL,
   isRwandanAddress,
-  registerHeadingFor,
 } from "@injishi/contracts";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { ArrowLeft, ArrowRight, CircleAlert, History, Landmark, Lock } from "lucide-react";
 import { Badge, Button } from "@injishi/web-ui";
 
@@ -76,7 +75,7 @@ import { RegisterRail, type RailStep } from "./register-rail";
 import { RegisterSection } from "./register-section";
 import { Callout, RegisterShell, StepCard, StepFrame, StepSkeleton, type StepPrimary } from "./register-shell";
 import {
-  STEP_TITLE,
+  STEP_TITLE_KEY,
   clampToOpenable,
   documentRows,
   openableThrough,
@@ -221,6 +220,7 @@ export default function RegisterWizard({
   feeMaxRwf?: number | null;
 }) {
   const arrivalKind = initialKind;
+  const tr = useTranslations("register");
 
   const [screen, setScreen] = useState<Screen>("resume");
   const [step, setStep] = useState<StepId>("business");
@@ -857,9 +857,11 @@ export default function RegisterWizard({
       ? // A member sends its card (2026-11-02), and its number if it knows it: PSF reads the number off
         // the card otherwise.
         (!business.psfMembershipNumber.trim() || looksLikePsfNumber(business.psfMembershipNumber)) &&
-        docs.some((d) => d.kind === "psf_certificate")
+        docs.some((d) => d.kind === "psf_certificate") &&
+        Boolean(business.psfOwnerPhotoKey)
       : business.psfMember === false
-        ? business.psfApply !== true || (PsfApplicationInput.safeParse(psfCandidate(psf, true, askPsfGender)).success && psfBusinessIssue(psf) === null)
+        ? business.psfApply !== true ||
+          (PsfApplicationInput.safeParse(psfCandidate(psf, true, askPsfGender)).success && psfBusinessIssue(psf) === null && Boolean(business.psfOwnerPhotoKey))
         : true);
   // The rows Documents asks for, by the kind the org will carry (ADR-075 S5).
   const documentKind: BusinessKind | null = kind && kind !== "broker" ? registrationForKind(kind).businessKind : null;
@@ -1183,8 +1185,10 @@ export default function RegisterWizard({
 
   // --- render ------------------------------------------------------------------
   const kindEntry = kind ? (REGISTRATION_KINDS.find((k) => k.value === kind) ?? null) : null;
-  const summaryKindLabel = summary?.businessKind ? BUSINESS_KIND_LABEL[summary.businessKind] : null;
-  const kindLabel = kindEntry?.label ?? summaryKindLabel ?? "business";
+  const summaryKindLabel = summary?.businessKind
+    ? tr(`kinds.items.${summary.businessKind}.label`)
+    : null;
+  const kindLabel = kindEntry ? tr(kindEntry.labelKey) : (summaryKindLabel ?? tr("kinds.fallback"));
   // Mid sentence, with its article: "Registration fee for an apartment".
   const kindPhrase = kindInSentence(summary?.businessKind ?? documentKind);
   const landlord = path === "landlord";
@@ -1202,7 +1206,12 @@ export default function RegisterWizard({
   // One h1 that names the type, and the business's name as one line under it once RRA has returned it (AC-2).
   const headingKind = summary?.businessKind ?? (kind && kind !== "broker" && !choosingKind ? registrationForKind(kind).businessKind : null);
   const heading = {
-    title: headingKind ? registerHeadingFor(headingKind) : "List your business",
+    title:
+      headingKind && headingKind !== "other"
+        ? tr("heading.register", {
+            kind: tr(`kinds.items.${headingKind}.label`).toLowerCase(),
+          })
+        : tr("heading.business"),
     sub: businessNamed || null,
   };
 
@@ -1487,8 +1496,12 @@ export default function RegisterWizard({
         why:
           business.psfMembershipNumber.trim() && !looksLikePsfNumber(business.psfMembershipNumber)
             ? "Fix the PSF membership number, or leave it empty, to continue."
-            : "Add your PSF membership card to continue.",
+            : !docs.some((d) => d.kind === "psf_certificate")
+              ? "Add your PSF membership card to continue."
+              : "Add your passport photo to continue.",
       };
+    } else if (business.psfMember === false && business.psfApply === true && !business.psfOwnerPhotoKey) {
+      primary = { ...primary, disabled: true, why: "Add your passport photo to continue." };
     }
   } else if (step === "you" && !youDone) {
     primary = { ...primary, disabled: true, why: "Finish the sections above to continue." };
@@ -1527,7 +1540,7 @@ export default function RegisterWizard({
     const why = railLock(order, id, { current: step, openable, reached: reachedIndex, created: summary !== null, paid });
     return {
       id,
-      title: STEP_TITLE[id],
+      title: tr(`steps.${STEP_TITLE_KEY[id]}`),
       status: id === step ? "active" : complete(id) && visited.has(id) ? "complete" : "inactive",
       locked: why !== null,
       why,
@@ -1629,8 +1642,8 @@ export default function RegisterWizard({
     body = (
       <StepFrame
         position={{ n: stepIndex + 1, of: order.length }}
-        title={pickingKind ? "What kind of business?" : STEP_TITLE[step]}
-        lead={pickingKind ? "Pick the one that fits. It decides the documents we ask for." : LEAD[step]}
+        title={pickingKind ? tr("kinds.question") : tr(`steps.${STEP_TITLE_KEY[step]}`)}
+        lead={pickingKind ? tr("kinds.pickLead") : LEAD[step]}
         onBack={
           pickingKind
             ? kind !== null && kind !== "broker" && (kind !== "other" || business.accommodationClassOther.trim() !== "")
@@ -1783,7 +1796,7 @@ export default function RegisterWizard({
   const walking = screen === "steps" && summary === null;
   return (
     <RegisterShell
-      kindLabel={screen === "resume" || screen === "pending" ? null : (kindEntry?.label ?? summaryKindLabel)}
+      kindLabel={screen === "resume" || screen === "pending" ? null : (kindEntry ? tr(kindEntry.labelKey) : summaryKindLabel)}
       demo={demo}
       onChangeKind={walking && kind !== null && !choosingKind ? changeKind : undefined}
       carried={walking && kind !== null && !choosingKind}
@@ -1793,7 +1806,7 @@ export default function RegisterWizard({
           ? { state: autosave.state, savedAt: autosave.savedAt, onRetry: autosave.retry }
           : null
       }
-      exit={walking ? { label: "Save and exit", onPress: () => void saveAndExit(), busy: exiting } : { label: "Exit", href: "/start" }}
+      exit={walking ? { label: tr("shell.saveAndExit"), onPress: () => void saveAndExit(), busy: exiting } : { label: tr("shell.exit"), href: "/start" }}
       rail={screen === "steps" ? <RegisterRail steps={rail} onGo={(id) => goTo(id as StepId)} /> : null}
     >
       {body}
@@ -2019,6 +2032,7 @@ function businessCandidate(
     psfMember: member,
     ...(member && number ? { psfMembershipNumber: number } : {}),
     ...(d.psfMember === false && d.psfApply === true ? { psfApplication: psfCandidate(psf, documentOnFile, askPsfGender) } : {}),
+    ...((member || (d.psfMember === false && d.psfApply === true)) && d.psfOwnerPhotoKey ? { psfOwnerPhotoKey: d.psfOwnerPhotoKey } : {}),
     // The franchise question is not asked for now (2026-11-03): an answer left in an older saved draft is
     // not sent either. `franchiseCandidate(d)` goes back here when the section does.
     address,

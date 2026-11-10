@@ -1,24 +1,42 @@
+import { BrokerPlanCode, BrokerPlanStatus } from "@injishi/contracts";
 import { screens } from "@injishi/data";
 import { EmptyBlock, PageContent, PageHeader } from "@injishi/ui";
 import type { Metadata } from "next";
 import { BrokerPlansView } from "@/features/admin/brokers/BrokerPlansView";
 import { requirePersona } from "@/lib/session";
 import { brokerPlanList, brokerSubscriptions } from "@/server/admin/brokers";
-import { staffAccess } from "@/server/admin/leaders";
+import { placeChainOf, staffAccess } from "@/server/admin/leaders";
+import { idOf, one, pageOf, type Search, sinceDay, wordOf } from "@/server/admin/list";
 import { ApiError } from "@/server/api";
 
 export const metadata: Metadata = { title: screens.AdminBrokerPlans.pageTitle };
 
-/** Broker plan prices and subscriptions, read from the admin API as this staffer. */
-export default async function AdminBrokerPlansPage() {
+/** Broker subscriptions, read from the admin API as this staffer, one page at a time and filtered by the URL. */
+export default async function AdminBrokerPlansPage({ searchParams }: { searchParams: Promise<Search> }) {
   await requirePersona("AdminBrokerPlans");
+  const sp = await searchParams;
+  const provinceId = idOf(sp.provinceId);
   try {
-    const [plans, subscriptions, access] = await Promise.all([brokerPlanList(), brokerSubscriptions(), staffAccess()]);
+    const [plans, subscriptions, access, areaChain] = await Promise.all([
+      brokerPlanList(),
+      brokerSubscriptions({
+        q: one(sp.q)?.trim() || undefined,
+        status: wordOf(sp.status, BrokerPlanStatus.options),
+        plan: wordOf(sp.plan, BrokerPlanCode.options),
+        provinceId,
+        createdFrom: sinceDay(sp.since),
+        page: pageOf(sp.page),
+      }),
+      staffAccess(),
+      placeChainOf({ province: provinceId }),
+    ]);
     return (
       <BrokerPlansView
         view="subscriptions"
         plans={plans.plans}
-        subscriptions={subscriptions.items}
+        subscriptions={subscriptions}
+        holding={{}}
+        areaChain={areaChain}
         canEdit={access.permissions.includes("admin.fee.edit")}
       />
     );

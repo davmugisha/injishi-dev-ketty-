@@ -2,8 +2,8 @@ import type { AssistantProposalState } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, gt, inArray } from 'drizzle-orm';
 
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import { assistantActionProposals } from '../../../database/drizzle/assistant';
-import { auditEvents } from '../../../database/drizzle/governance';
 import {
   DRIZZLE,
   type Database,
@@ -141,7 +141,7 @@ export class ProposalRepository {
     detail?: string;
   }): Promise<void> {
     const p = event.proposal;
-    await this.db.insert(auditEvents).values({
+    await AuditWriter.write(this.db, {
       actorUserId: event.actorUserId,
       subjectType: 'property',
       subjectId: event.propertyId,

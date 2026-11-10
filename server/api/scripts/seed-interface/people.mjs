@@ -469,6 +469,19 @@ export async function seed({ c, fx, log, keep }) {
   });
   keep('employee_pay_accounts', await upsert(c, 'employee_pay_accounts', accountRows), BY_ORG);
 
+  // Each employer's RSSB number: printed on payslips and the declaration, and a pay run needs it to
+  // confirm (058-payroll AC-PY14). SAMPLE numbers, in RSSB's nine-digit form; a real business types its own.
+  for (const [org, number] of [
+    [ORG.hotel, '100234561'],
+    [ORG.residences, '100234578'],
+  ]) {
+    await c.query(
+      `INSERT INTO hr_settings (org_id, rssb_employer_number) VALUES ($1, $2)
+       ON CONFLICT (org_id) DO UPDATE SET rssb_employer_number = EXCLUDED.rssb_employer_number, updated_at = now()`,
+      [org, number],
+    );
+  }
+
   // --- Kiosk PINs (the last four digits of the employee number): everybody but the two people who
   // still clock in at the desk because theirs was never issued (Fabrice, Yvonne).
   const pepper = process.env.HR_PIN_PEPPER?.trim() || 'dev-only-insecure-pin-pepper';
@@ -1052,20 +1065,47 @@ export async function seed({ c, fx, log, keep }) {
     access: `Owner action · Injishi access ends on ${dm(lastDay)} at 23:59 · kiosk PIN disabled at the same time`,
     cert: 'Generated from the file and signed by the owner on the last day',
   };
-  const checklistRows = fx('people.offboarding').map((t, i) => ({
-    id: iid('hr-checklist', `${leaver.id}:offboarding:${t.id}`),
-    org_id: orgOfProperty(leaver.property),
-    employee_id: empId(leaver.id),
-    checklist: 'offboarding',
+  // One checklist for HR (ADR-058): the leaving checklist people are given from a template,
+  // with each fixture step as one of its tasks. A checklist is one per person and kind, so a
+  // re-run updates the one already there, whatever id it was started with.
+  const leaverOrg = orgOfProperty(leaver.property);
+  const [checklistId] = await upsert(
+    c,
+    'employee_checklists',
+    [
+      {
+        id: iid('hr-checklist', `${leaver.id}:offboarding`),
+        org_id: leaverOrg,
+        employee_id: empId(leaver.id),
+        kind: 'offboarding',
+        template_name: 'Leaving',
+        anchor_on: lastDay,
+        started_by_user_id: hr,
+        started_at: kigaliAt('09:00', -21),
+      },
+    ],
+    { conflict: '(employee_id, kind)' },
+  );
+  keep('employee_checklists', [checklistId], BY_ORG);
+  const taskRows = fx('people.offboarding').map((t, i) => ({
+    id: iid('hr-checklist-task', `${leaver.id}:offboarding:${t.id}`),
+    org_id: leaverOrg,
+    checklist_id: checklistId,
     code: t.id,
-    title: t.title,
+    label: t.title,
     detail: DETAIL[t.id] ?? t.detail,
     owner_only: t.ownerOnly,
+    by_employee: false,
     sort_order: i + 1,
+    due_on: lastDay,
     done_at: t.done ? kigaliAt('10:00', -20 + i) : null,
     done_by_user_id: t.done ? hr : null,
   }));
-  keep('hr_checklist_items', await upsert(c, 'hr_checklist_items', checklistRows), BY_ORG);
+  keep(
+    'employee_checklist_tasks',
+    await upsert(c, 'employee_checklist_tasks', taskRows, { conflict: '(checklist_id, code) WHERE code IS NOT NULL' }),
+    BY_ORG,
+  );
 
   // --- Jeanne's family. ------------------------------------------------------------------------
   const FAMILY = {

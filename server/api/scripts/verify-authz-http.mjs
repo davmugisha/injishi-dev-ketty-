@@ -13,7 +13,7 @@
 //   VERIFY_API_URL=http://localhost:8000 node scripts/verify-authz-http.mjs
 //
 // ONE SIGN IN PER ACCOUNT, and that is not an optimisation. The OTP send cap is
-// five per email per hour and THIRTY PER IP PER HOUR (`OTP_MAX_PER_HOUR`,
+// ten per email per hour and THIRTY PER IP PER HOUR (`OTP_MAX_PER_HOUR`,
 // `OTP_MAX_PER_IP_HOUR` in `packages/auth/src/options.ts`), and locally every
 // account shares one address. Signing in per case rather than per account would
 // spend the machine's whole hourly budget in a single run and leave the next
@@ -58,7 +58,7 @@ async function sessionFor(email) {
   });
   if (sent.status === 429) {
     throw new Error(
-      `${email} is rate limited (429). The OTP send cap is five per hour per ` +
+      `${email} is rate limited (429). The OTP send cap is ten per hour per ` +
         'address and thirty per hour per IP; see this file\'s header for the ledger.',
     );
   }

@@ -5,33 +5,21 @@ import type { PsfClaimsPage, PsfMembershipClaim } from "@injishi/contracts";
 import {
   EmptyBlock,
   formatDay,
-  formatNumber,
   Icon,
   KpiStrip,
   PageContent,
   PageHeader,
-  SectionCard,
   StatusChip,
 } from "@injishi/ui";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type { PsfScope } from "@/server/sources/psf";
 import { SELECT } from "../shared/setup-ui";
-import { confirmClaimAction, rejectClaimAction } from "./psf-claims-actions";
+import { confirmClaimAction, sendBackClaimAction } from "./psf-claims-actions";
 
 type Status = "claimed" | "confirmed" | "rejected";
-
-const TABS: { id: Status; label: string }[] = [
-  { id: "claimed", label: "Waiting" },
-  { id: "confirmed", label: "Confirmed" },
-  { id: "rejected", label: "Rejected" },
-];
-
-const TEMPLATE = [
-  "membership_number,legal_name,tin,tier_code,starts_on,expires_on",
-  "PSF/GAS/2026/0001,Example Hotel Ltd,123456789,indatwa_10k,2026-01-01,2027-01-01",
-].join("\n");
 
 /** Today and a year on, as yyyy-mm-dd, for the confirm form's dates. */
 function yearFromToday(): { start: string; end: string } {
@@ -60,20 +48,21 @@ export function PsfClaimsView({
   /** The membership card each business sent, by org (2026-11-02). */
   cards: Record<string, { url: string; mime: string | null }>;
 }) {
+  const t = useTranslations("psfOperations.claims");
   return (
     <PageContent>
       <PageHeader
         eyebrow={`${scope.title} · ${scope.label}`}
-        title="Card holders"
-        description="Businesses that registered on Injishi with an old PSF card, no number or certificate in the new module. Check the card, then give a new number and the year it shows: they become members with a certificate."
+        title={t("title")}
+        description={t("description")}
       />
 
       <KpiStrip
-        label="Claims"
+        label={t("claim")}
         items={[
           {
             id: "claimed",
-            label: "Waiting for PSF",
+            label: t("waiting"),
             value: page.counts.claimed,
             format: "count",
             icon: "Clock",
@@ -83,7 +72,7 @@ export function PsfClaimsView({
           },
           {
             id: "confirmed",
-            label: "Confirmed",
+            label: t("confirmed"),
             value: page.counts.confirmed,
             format: "count",
             icon: "CircleCheck",
@@ -92,7 +81,7 @@ export function PsfClaimsView({
           },
           {
             id: "rejected",
-            label: "Rejected",
+            label: t("rejected"),
             value: page.counts.rejected,
             format: "count",
             icon: "Xmark",
@@ -106,13 +95,13 @@ export function PsfClaimsView({
       <div className="min-w-0">
         <section aria-labelledby="claims-h" className="flex min-w-0 flex-col gap-3">
           <h2 id="claims-h" className="text-[15px] font-semibold">
-            {TABS.find((t) => t.id === status)?.label} claims
+            {status === "claimed" ? t("waiting") : status === "confirmed" ? t("confirmed") : t("rejected")} {t("claim")}
           </h2>
           {page.items.length === 0 ? (
             <Card variant="secondary" className="p-8">
               <EmptyBlock
                 icon={status === "claimed" ? "CircleCheck" : "FileText"}
-                title={status === "claimed" ? "No claim is waiting for PSF" : `No ${status} claim yet`}
+                title={status === "claimed" ? t("noWaiting") : t("noStatus", { status: status === "confirmed" ? t("confirmed").toLowerCase() : t("rejected").toLowerCase() })}
                 description={
                   status === "claimed"
                     ? "A business that says at registration it is already a PSF member shows here, with the number and the card it sent."
@@ -144,6 +133,7 @@ function ClaimCard({
   tiers: { code: string; nameEn: string }[];
   card: { url: string; mime: string | null } | null;
 }) {
+  const t = useTranslations("psfOperations.claims");
   const router = useRouter();
   const [mode, setMode] = useState<"view" | "confirm" | "reject">("view");
   const dates = yearFromToday();
@@ -181,17 +171,17 @@ function ClaimCard({
           </span>
         </div>
         <StatusChip tone={tone}>
-          {c.status === "claimed" ? "Waiting for PSF" : c.status === "confirmed" ? "Confirmed" : "Rejected"}
+          {c.status === "confirmed" ? t("confirmed") : c.status === "rejected" ? t("rejected") : c.returnedAt ? t("sentBack") : t("waiting")}
         </StatusChip>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl bg-default/60 px-3 py-2.5">
         <span className="flex flex-col">
-          <span className="text-[11px] text-muted">Old card number</span>
+          <span className="text-[11px] text-muted">{t("oldNumber")}</span>
           {c.membershipNumber ? (
             <span className="font-mono text-[15px] font-semibold tabular">{c.membershipNumber}</span>
           ) : (
-            <span className="text-[13px] text-muted">Not given</span>
+            <span className="text-[13px] text-muted">{t("optional")}</span>
           )}
         </span>
         <span className="flex flex-col">
@@ -202,13 +192,13 @@ function ClaimCard({
           </span>
         </span>
         <span className="flex flex-col">
-          <span className="text-[11px] text-muted">Membership card</span>
+          <span className="text-[11px] text-muted">{t("card")}</span>
           {card ? (
             <a href={card.url} target="_blank" rel="noreferrer" className="text-[13px] font-medium text-accent hover:underline">
-              Open the card{card.mime === "application/pdf" ? " (PDF)" : ""}
+              {t("openCard")}{card.mime === "application/pdf" ? " (PDF)" : ""}
             </a>
           ) : (
-            <span className="text-[13px] text-muted">None sent</span>
+            <span className="text-[13px] text-muted">{t("noneSent")}</span>
           )}
         </span>
       </div>
@@ -238,14 +228,18 @@ function ClaimCard({
             ? `Confirmed ${c.decidedAt ? formatDay(c.decidedAt) : ""}${c.matchedBy === "member_list" ? " from PSF's member list" : c.decidedByName ? ` by ${c.decidedByName}` : ""}.`
             : `Rejected ${c.decidedAt ? formatDay(c.decidedAt) : ""}${c.decidedByName ? ` by ${c.decidedByName}` : ""}: ${c.decisionNote ?? ""}`}
         </p>
+      ) : c.returnedAt ? (
+        <p className="m-0 border-t border-separator pt-3 text-[13px] text-muted">
+          {t("sentBackNote", { date: formatDay(c.returnedAt), note: c.returnNote ?? "" })}
+        </p>
       ) : mode === "view" ? (
         <div className="flex flex-wrap gap-2 border-t border-separator pt-3">
           <Button size="sm" onPress={() => setMode("confirm")}>
             <Icon name="Check" className="size-4" />
-            Confirm membership
+            {t("confirm")}
           </Button>
           <Button size="sm" variant="secondary" onPress={() => setMode("reject")}>
-            Reject
+            {t("sendBack")}
           </Button>
         </div>
       ) : mode === "confirm" ? (
@@ -258,9 +252,9 @@ function ClaimCard({
             );
           }}
         >
-          <p className="m-0 text-[13px] text-muted">A new number in the new module, and the level and year the card shows.</p>
+          <p className="m-0 text-[13px] text-muted">{t("description")}</p>
           <label className="flex flex-col gap-1 text-sm font-medium sm:max-w-sm">
-            New membership number
+            {t("newNumber")}
             <input
               className={SELECT}
               value={typedNumber}
@@ -282,20 +276,20 @@ function ClaimCard({
               </select>
             </label>
             <TextField value={startsOn} onChange={setStartsOn} isRequired className="flex flex-col gap-1">
-              <Label>Member since</Label>
+              <Label>{t("memberSince")}</Label>
               <Input type="date" />
             </TextField>
             <TextField value={expiresOn} onChange={setExpiresOn} isRequired className="flex flex-col gap-1">
-              <Label>Member until</Label>
+              <Label>{t("memberUntil")}</Label>
               <Input type="date" />
             </TextField>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" type="submit" isDisabled={busy || !tier || !typedNumber.trim() || expiresOn <= startsOn}>
-              {busy ? "Confirming…" : "Confirm membership"}
+              {busy ? t("confirming") : t("confirm")}
             </Button>
             <Button size="sm" variant="ghost" onPress={() => setMode("view")}>
-              Back
+              {t("back")}
             </Button>
           </div>
         </form>
@@ -304,19 +298,19 @@ function ClaimCard({
           className="flex flex-col gap-3 border-t border-separator pt-3"
           onSubmit={(e) => {
             e.preventDefault();
-            void act(rejectClaimAction(c.id, reason));
+            void act(sendBackClaimAction(c.id, reason));
           }}
         >
           <TextField value={reason} onChange={setReason} isRequired className="flex flex-col gap-1">
-            <Label>Why, in words the business reads</Label>
-            <TextArea rows={2} placeholder="This number is not in PSF's records." />
+            <Label>{t("reason")}</Label>
+            <TextArea rows={2} placeholder={t("reasonPlaceholder")} />
           </TextField>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="danger-soft" type="submit" isDisabled={busy || reason.trim().length < 3}>
-              {busy ? "Rejecting…" : "Reject claim"}
+            <Button size="sm" type="submit" isDisabled={busy || reason.trim().length < 3}>
+              {busy ? t("sending") : t("sendBack")}
             </Button>
             <Button size="sm" variant="ghost" onPress={() => setMode("view")}>
-              Back
+              {t("back")}
             </Button>
           </div>
         </form>

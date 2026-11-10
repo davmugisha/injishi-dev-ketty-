@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import {
   Accordion,
   AccordionContent,
@@ -50,10 +51,11 @@ import { supportHref } from "@/lib/support-intent";
  * the shared `TabsContent` does not carry the `hidden` handling that goes with
  * it, and that primitive is not in this piece's scope to change.
  */
-export function HostFaq() {
+export async function HostFaq() {
+  const t = await getTranslations("host.sections");
   return (
     <section className="section-y container">
-      <SectionHeading lead="Questions before you " emphasis="list" />
+      <SectionHeading lead={t("faqLead")} emphasis={t("faqEmphasis")} />
 
       <Tabs
         defaultValue={HOST_FAQ[0]?.id}
@@ -66,7 +68,7 @@ export function HostFaq() {
               value={group.id}
               className="text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:border-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:border-transparent data-[state=inactive]:hover:text-foreground"
             >
-              {group.label}
+              {t(group.id === "listing" ? "listing" : group.id === "payouts" ? "payouts" : "compliance")}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -78,7 +80,9 @@ export function HostFaq() {
               collapsible
               defaultValue={group.entries[0]?.question}
             >
-              {group.entries.map((entry) => (
+                {group.entries.map((entry, index) => {
+                  const faqNumber = HOST_FAQ.slice(0, HOST_FAQ.indexOf(group)).reduce((sum, item) => sum + item.entries.length, 0) + index + 1;
+                  return (
                 <AccordionItem
                   key={entry.question}
                   value={entry.question}
@@ -88,13 +92,14 @@ export function HostFaq() {
                   className="border-b first:border-t last:border-b"
                 >
                   <AccordionTrigger marker="circle" className="text-page-fg">
-                    {entry.question}
+                    {t(`faq${faqNumber}q`)}
                   </AccordionTrigger>
                   <AccordionContent className="max-w-read pb-6 pr-14 text-base text-page-fg-70">
-                    {entry.answer}
+                    {t(`faq${faqNumber}a`)}
                   </AccordionContent>
                 </AccordionItem>
-              ))}
+                  );
+                })}
             </Accordion>
           </TabsContent>
         ))}
@@ -108,18 +113,18 @@ export function HostFaq() {
           the first. The call request opens the support form already on
           "Listing my accommodation" (`lib/support-intent.ts`). */}
       <p className="mt-8 text-base text-page-fg-70">
-        Still have a question?{" "}
+        {t("questions")} {" "}
         <a
           href={CONTACT.whatsappHref}
           target="_blank"
           rel="noopener noreferrer"
           className="font-medium text-page-fg underline underline-offset-2"
         >
-          Message us on WhatsApp
+          {t("whatsapp")}
         </a>{" "}
-        or{" "}
+        {t("faqOr")} {" "}
         <Link href={supportHref("hosting")} className="font-medium text-page-fg underline underline-offset-2">
-          ask us to call you
+          {t("call")}
         </Link>
         .
       </p>

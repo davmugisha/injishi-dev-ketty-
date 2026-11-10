@@ -10,6 +10,7 @@ import { ServiceCatalogService } from './application/service-catalog.service';
 import { GuestOrderingRepository } from './infrastructure/guest-ordering.repository';
 import { OutletsRepository } from './infrastructure/outlets.repository';
 import { ServiceCatalogRepository } from './infrastructure/service-catalog.repository';
+import { EntitlementCheck } from '../../shared/entitlements/entitlement-check';
 
 /**
  * Outlets on the server (ADR-074 stage 5): the places a business sells from,
@@ -35,6 +36,9 @@ import { ServiceCatalogRepository } from './infrastructure/service-catalog.repos
 @Module({
   imports: [FolioModule, PaymentsModule, OperationsModule],
   providers: [
+    // A guest's order is refused, and the orderable list leaves an outlet out,
+    // where its business has Outlets off (ADR-076 G10). Shared, like the guards.
+    EntitlementCheck,
     OutletsRepository,
     OutletsService,
     ServiceCatalogRepository,

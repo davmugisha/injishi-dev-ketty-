@@ -24,16 +24,20 @@ export const definition = {
 } as const satisfies ProductDefinition<"hr">;
 
 // Three areas declare a name each other also uses for a different shape, so the second one is renamed here.
+export type * from "./model/announcements.ts";
 export type * from "./model/commands.ts";
 export type {
   Candidate,
   FinalSettlement,
   HelpdeskTicket as PayrollHelpdeskTicket,
-  HrAutomation,
-  HrReport,
   Interview,
   OnboardingTask,
+  PastRun,
+  PayAmountInput,
+  PayClaimView,
   PayLine,
+  PayLoansData,
+  PayLoanView,
   PaymentFile,
   PayRates,
   PayRunException,
@@ -41,8 +45,12 @@ export type {
   PayRunOutput,
   PayRunRule,
   PayRunStage,
+  PayRunState,
   PayRunStep,
   PayRunTotal,
+  PayrollContribution,
+  PayrollContributionList,
+  PayrollSettingsView,
   PipelineStage,
   ReviewCycleMetric,
   ReviewDepartment,
@@ -54,6 +62,7 @@ export type {
   Vacancy,
 } from "./model/payroll.ts";
 export type * from "./model/people.ts";
+export type * from "./model/report.ts";
 export type * from "./model/shared.ts";
 export type {
   HelpTicket,
@@ -66,9 +75,17 @@ export type {
   PayslipLine,
   RequestStatus,
   Shift,
+  ShiftChoices,
+  StaffAnnouncement,
+  StaffClaim,
   StaffDocument,
+  StaffLoan,
+  StaffOwnReview,
   StaffProfile,
   StaffRequest,
   StaffTone,
+  SwapAsk,
   SwapColleague,
 } from "./model/staff.ts";
+export type * from "./model/talent.ts";
+export type * from "./model/time.ts";

@@ -2,23 +2,18 @@
 
 import { CircleInfo } from "@gravity-ui/icons";
 import { Button, Card, Chip, Disclosure, FieldError, Form, Input, Label, Separator, TextField } from "@heroui/react";
-import { OPEN_ENTRIES, PERSONA_GROUPS, type Persona, type PersonaGroup, screenHref } from "@injishi/data";
+import { OPEN_ENTRIES, PERSONA_GROUPS, type Persona, screenHref } from "@injishi/data";
 import { LinkButton, TextLink } from "@injishi/ui";
 import { useActionState, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { BrandPalm } from "@/components/brand";
+import { LanguageSelect } from "@/components/language-select";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { type SignInState, signInAs, signInAsDemoEmail, startSignIn } from "@/lib/auth-actions";
 import type { DemoRosterPerson } from "@/server/auth";
 import { GoogleButton } from "./GoogleButton";
 import { HeroCarousel } from "./HeroCarousel";
 import { ForgotPasswordForm, PasswordSignInForm } from "./PasswordSignIn";
-
-const GROUP_LABEL: Record<PersonaGroup, string> = {
-  operator: "Operator workspaces",
-  devices: "Staff devices",
-  guests: "Guests, residents and the public",
-  external: "Institutions and Injishi staff",
-};
 
 function PersonaCard({
   persona,
@@ -31,6 +26,7 @@ function PersonaCard({
   highlighted: boolean;
   onUseEmail: (email: string) => void;
 }) {
+  const t = useTranslations("platform.signIn");
   const [expanded, setExpanded] = useState(highlighted);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -52,7 +48,7 @@ function PersonaCard({
           <Disclosure.Content>
             <Disclosure.Body className="flex flex-col gap-2 pt-0">
               <p className="text-[13px] leading-[18px] text-muted">{persona.lands}</p>
-              <p className="text-xs font-semibold tracking-wider text-muted uppercase">What to try</p>
+              <p className="text-xs font-semibold tracking-wider text-muted uppercase">{t("whatToTry")}</p>
               <ol className="flex list-decimal flex-col gap-1 pl-5 text-[13px] leading-[18px]">
                 {persona.tryItems.map((t) => (
                   <li key={t.board}>
@@ -69,7 +65,7 @@ function PersonaCard({
               size="sm"
               className="h-auto px-0 text-[13px] font-medium underline underline-offset-2"
             >
-              {expanded ? "Less about this role" : "More about this role"}
+              {expanded ? t("lessRole") : t("moreRole")}
             </Button>
           </Disclosure.Heading>
         </Disclosure>
@@ -87,7 +83,7 @@ function PersonaCard({
         <div className="flex items-center gap-3 pt-1">
           <form action={signInAs.bind(null, persona.id, next)} className="flex-1">
             <Button type="submit" fullWidth className="rounded-full">
-              Sign in as {persona.firstName}
+              {t("signInAs", { name: persona.firstName })}
             </Button>
           </form>
           <Button
@@ -96,7 +92,7 @@ function PersonaCard({
             className="text-[13px] underline underline-offset-2"
             onPress={() => onUseEmail(persona.email)}
           >
-            Use this email
+            {t("useEmail")}
           </Button>
         </div>
       </Card>
@@ -143,6 +139,7 @@ export function SignInView({
   /** Why the person is back here, from `?error=` (Google did not finish, a persona's code was refused). */
   notice: string | null;
 }) {
+  const t = useTranslations("platform.signIn");
   const [state, formAction, pending] = useActionState<SignInState, FormData>(startSignIn, {});
   const [email, setEmail] = useState(state.email ?? "");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -163,14 +160,14 @@ export function SignInView({
       </aside>
 
       <main className="relative flex min-w-0 flex-1 flex-col items-center px-5 pt-14 pb-12 sm:px-8">
-        <ThemeToggle className="absolute top-5 right-5" />
+        <div className="absolute top-5 right-5 flex items-center gap-2">
+          <LanguageSelect />
+          <ThemeToggle />
+        </div>
         <div className="flex w-full max-w-[440px] flex-col items-center gap-5">
           <div className="flex w-full flex-col items-center gap-5 rounded-[28px] border border-separator bg-surface p-6 shadow-[0_24px_60px_-36px_rgba(0,0,0,0.35)] sm:p-8">
             <BrandPalm size={44} className="h-11 w-auto" />
-            <div className="flex flex-col items-center gap-1.5">
-              <h1 className="text-center text-[30px] leading-9 font-bold tracking-[-0.02em]">Welcome to Injishi</h1>
-              <p className="text-center text-[14px] text-muted">Sign in to run your floor, kitchen, bar and tills.</p>
-            </div>
+            <h1 className="text-center text-[30px] leading-9 font-bold tracking-[-0.02em]">{t("welcome")}</h1>
 
             {notice ? (
               <p role="alert" className="w-full text-center text-sm text-danger">
@@ -179,7 +176,7 @@ export function SignInView({
             ) : null}
 
             <div className="flex w-full flex-col items-center gap-2">
-              <span className="text-[13px] text-muted">Continue with</span>
+              <span className="text-[13px] text-muted">{t("continueWith")}</span>
               {google ? (
                 <GoogleButton next={next} />
               ) : (
@@ -188,18 +185,16 @@ export function SignInView({
                     <span aria-hidden="true" className="font-bold">
                       G
                     </span>
-                    Continue with Google
+                    {t("continueGoogle")}
                   </Button>
-                  <span className="text-xs text-muted">
-                    Sign in with Google is coming soon. Use your email for now.
-                  </span>
+                  <span className="text-xs text-muted">{t("googleSoon")}</span>
                 </>
               )}
             </div>
 
             <div className="flex w-full items-center gap-3">
               <Separator className="flex-1" />
-              <span className="text-xs text-muted">Or continue with email</span>
+              <span className="text-xs text-muted">{t("orEmail")}</span>
               <Separator className="flex-1" />
             </div>
 
@@ -241,8 +236,8 @@ export function SignInView({
                     fullWidth
                     autoComplete="email"
                   >
-                    <Label className="mb-1 text-[13px] font-medium">Email</Label>
-                    <Input ref={inputRef} placeholder="Enter your email" className="h-12 rounded-xl" />
+                    <Label className="mb-1 text-[13px] font-medium">{t("email")}</Label>
+                    <Input ref={inputRef} placeholder={t("email")} className="h-12 rounded-xl" />
                     {state.error ? <FieldError>{state.error}</FieldError> : null}
                   </TextField>
                   <Button
@@ -251,11 +246,11 @@ export function SignInView({
                     isPending={pending}
                     className="h-12 rounded-xl text-[15px] font-semibold"
                   >
-                    Continue
+                    {t("continue")}
                   </Button>
                 </Form>
                 <Button variant="ghost" size="sm" className="text-sm text-muted" onPress={() => setMode("password")}>
-                  Sign in with your password
+                  {t("password")}
                 </Button>
               </>
             )}
@@ -266,21 +261,21 @@ export function SignInView({
             <Card className="w-full gap-3 p-4" aria-labelledby="demo-h">
               <div className="flex items-center justify-between gap-3">
                 <h2 id="demo-h" className="text-[15px] font-semibold">
-                  Explore the demo
+                  {t("exploreDemo")}
                 </h2>
                 <TextLink href={screenHref("Main")} className="text-[13px]">
-                  How this demo works
+                  {t("demoHow")}
                 </TextLink>
               </div>
               <p className="flex gap-1.5 text-[13px] leading-[18px] text-muted">
                 <CircleInfo className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
                 <span>
-                  Choose someone and sign in as them in one step. Typing an email by hand works too: every code is{" "}
+                  {t("demoChoice", { code: "" }).replace(/\s+$/, "")}{" "}
                   <strong className="font-semibold text-foreground">{demo.code}</strong>.
                 </span>
               </p>
               {demo.seededAt ? (
-                <p className="text-xs text-muted">Demo data last reset {resetLabel(demo.seededAt)}</p>
+                <p className="text-xs text-muted">{t("demoReset", { date: resetLabel(demo.seededAt) })}</p>
               ) : null}
 
               {PERSONA_GROUPS.map((g) => {
@@ -289,7 +284,7 @@ export function SignInView({
                 return (
                   <section key={g.id} className="flex flex-col gap-2.5 pt-1" aria-label={g.title}>
                     <h3 className="pt-1 text-xs font-semibold tracking-wider text-muted uppercase">
-                      {GROUP_LABEL[g.id]}
+                      {t(`groups.${g.id}`)}
                     </h3>
                     {people.map((p) => (
                       <PersonaCard
@@ -316,7 +311,7 @@ export function SignInView({
 
               {roster.length ? (
                 <section className="flex flex-col gap-2.5 pt-1" aria-label="More demo people">
-                  <h3 className="pt-1 text-xs font-semibold tracking-wider text-muted uppercase">More demo people</h3>
+                  <h3 className="pt-1 text-xs font-semibold tracking-wider text-muted uppercase">{t("morePeople")}</h3>
                   <p className="text-[13px] leading-[18px] text-muted">
                     The people the API&rsquo;s demo seeds create, the PSF District, Provincial and National Managers
                     among them.
@@ -332,7 +327,7 @@ export function SignInView({
                       <div className="flex items-center gap-3 pt-1">
                         <form action={signInAsDemoEmail.bind(null, r.email, next)} className="flex-1">
                           <Button type="submit" fullWidth className="rounded-full">
-                            Sign in as {r.name.split(" ")[0]}
+                            {t("signInAs", { name: r.name.split(" ")[0] })}
                           </Button>
                         </form>
                         <Button
@@ -341,7 +336,7 @@ export function SignInView({
                           className="text-[13px] underline underline-offset-2"
                           onPress={() => fillEmail(r.email)}
                         >
-                          Use this email
+                          {t("useEmail")}
                         </Button>
                       </div>
                     </Card>

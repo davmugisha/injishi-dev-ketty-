@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { getTranslations } from "next-intl/server";
 import { Skeleton } from "@injishi/web-ui";
 import { ExploreShell } from "@/components/explore/explore-shell";
 import { databaseListings } from "@/data/discovery";
 
-export const metadata: Metadata = {
-  title: "Find your perfect stay",
-  description:
-    "Browse verified guesthouses, lodges and serviced apartments across Rwanda. Filter by type, budget, district and size.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("search");
+  return { title: t("exploreTitle"), description: t("exploreDescription") };
+}
 
 export default async function ExplorePage() {
+  const t = await getTranslations("search");
   // Inventory published in the operator app, beside the catalogue (booking
   // audit, 2026-09-13). Revalidated every minute; an unreachable API lists none.
   const fromDatabase = await databaseListings();
@@ -36,7 +37,7 @@ export default async function ExplorePage() {
         above already carries the same words into the tab and into search
         results.
       */}
-      <h1 className="sr-only">Find your perfect stay</h1>
+      <h1 className="sr-only">{t("exploreTitle")}</h1>
 
       {/* useSearchParams needs a Suspense boundary to keep the route static. */}
       <Suspense fallback={<ResultsSkeleton />}>

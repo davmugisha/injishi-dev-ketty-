@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { looksLikePsfNumber, MAX_REGISTRATION_BRANCHES, type PsfCatalogue, type PsfTier } from "@injishi/contracts";
 import { Button } from "@injishi/web-ui";
 import { FileCheck, FileText, GitBranch, Plus, Trash2, Upload } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { uploadCertificate } from "@/data/uploads";
 import { apiResultMessage } from "@/lib/api";
@@ -11,6 +12,7 @@ import { apiResultMessage } from "@/lib/api";
 import { AddressPicker, useAddressLine, type AddressDraft } from "./address-picker";
 import { branchReady, newBranchDraft, type BranchDraft, type BusinessDraft, type DocumentDraft } from "./business-draft";
 import { PsfApplication, type PsfDraft } from "./psf-application";
+import { PassportPhotoField } from "@/components/psf/register/photo-field";
 import { ChoiceCard, ChoiceTile, Field, Fieldset, TextInput } from "./wizard-ui";
 
 /**
@@ -74,6 +76,7 @@ export function StepBranchesPsf({
   /** The branch being added or edited, and which one (null: a new one). */
   const [editing, setEditing] = useState<{ draft: BranchDraft; index: number | null } | null>(null);
   const atCap = branches.length >= MAX_REGISTRATION_BRANCHES;
+  const t = useTranslations("registerForms.branches");
 
   const save = () => {
     if (!editing || !branchReady(editing.draft)) return;
@@ -90,15 +93,14 @@ export function StepBranchesPsf({
       <section aria-labelledby="register-branches-title" className="flex flex-col gap-3.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 id="register-branches-title" className="text-base font-semibold">
-            Branches
+            {t("title")}
           </h3>
           <span className="text-xs text-muted-foreground">
-            {branches.length} of {MAX_REGISTRATION_BRANCHES}
+            {t("countOf", { count: branches.length, max: MAX_REGISTRATION_BRANCHES })}
           </span>
         </div>
         <p className="text-sm text-muted-foreground">
-          Your head office is the location above. Add the other sites that share TIN {tinLabel}: up to{" "}
-          {MAX_REGISTRATION_BRANCHES} now, more after approval. A site with its own TIN registers on its own.
+          {t("lead", { tin: tinLabel, max: MAX_REGISTRATION_BRANCHES })}
         </p>
 
         {branches.length ? (
@@ -122,9 +124,9 @@ export function StepBranchesPsf({
 
         {editing ? (
           <div className="flex flex-col gap-4 rounded-card border border-border p-4 sm:p-5">
-            <h4 className="text-base font-semibold">{editing.index === null ? "New branch" : "Edit branch"}</h4>
+            <h4 className="text-base font-semibold">{editing.index === null ? t("newBranch") : t("editBranch")}</h4>
             <div className="max-w-form">
-              <Field label="Branch name" hint="The name guests see">
+              <Field label={t("branchName")} hint={t("branchNameHint")}>
                 <TextInput
                   id="register-branch-name"
                   className="w-full"
@@ -142,10 +144,10 @@ export function StepBranchesPsf({
             />
             <div className="flex flex-wrap gap-2">
               <Button size="sm" onClick={save} disabled={!branchReady(editing.draft)}>
-                {editing.index === null ? "Add branch" : "Save branch"}
+                {editing.index === null ? t("addBranch") : t("saveBranch")}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
-                Cancel
+                {t("cancel")}
               </Button>
             </div>
           </div>
@@ -157,7 +159,7 @@ export function StepBranchesPsf({
               onClick={() => setEditing({ draft: newBranchDraft(headOffice), index: null })}
             >
               <Plus size={16} aria-hidden />
-              Add a branch
+              {t("addABranch")}
             </Button>
           </div>
         )}
@@ -167,14 +169,14 @@ export function StepBranchesPsf({
 
       <section aria-labelledby="register-psf-title" className="flex flex-col gap-3.5">
         <h3 id="register-psf-title" className="text-base font-semibold">
-          PSF membership
+          {t("psfTitle")}
         </h3>
-        <Fieldset legend="Is the business a member of the Private Sector Federation (PSF)?">
+        <Fieldset legend={t("psfLegend")}>
           <div className="grid gap-3 sm:grid-cols-2">
             {(
               [
-                [true, "yes", "Yes, we hold a PSF card"],
-                [false, "no", "No"],
+                [true, "yes", t("yesCard")],
+                [false, "no", t("no")],
               ] as const
             ).map(([member, value, label]) => (
               <ChoiceCard
@@ -200,18 +202,18 @@ export function StepBranchesPsf({
         {business.psfMember === true ? (
           <div className="max-w-form">
             <Field
-              label="Number on your old card (optional)"
-              hint="If your card has one. PSF checks the card you send below, then gives you a new membership number and your certificate. Until then your business shows as a card holder, not a member."
+              label={t("oldNumber")}
+              hint={t("oldNumberHint")}
               error={
                 errors["business.psfMembershipNumber"] ??
                 (business.psfMembershipNumber.trim().length > 3 && !looksLikePsfNumber(business.psfMembershipNumber)
-                  ? "That does not look like a PSF membership number. Type it in full, as on your card."
+                  ? t("badNumber")
                   : undefined)
               }
             >
               <TextInput
                 className="w-full tabular-nums"
-                placeholder="PSF-0412-2019"
+                placeholder={t("numberPlaceholder")}
                 value={business.psfMembershipNumber}
                 onChange={(e) => onBusinessChange({ ...business, psfMembershipNumber: e.target.value })}
               />
@@ -221,12 +223,12 @@ export function StepBranchesPsf({
         ) : null}
 
         {business.psfMember === false ? (
-          <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Apply for PSF membership">
+          <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label={t("applyLabel")}>
             <ChoiceTile
               name="psf-plan"
               checked={business.psfApply === true}
-              title="Apply now"
-              description="Fill PSF’s form here. It is filed with this registration; PSF reviews it alongside Injishi’s checks."
+              title={t("applyNow")}
+              description={t("applyNowBody")}
               onSelect={() => {
                 onBusinessChange({ ...business, psfApply: true });
                 onApplyNow();
@@ -235,8 +237,8 @@ export function StepBranchesPsf({
             <ChoiceTile
               name="psf-plan"
               checked={business.psfApply === false}
-              title="Not now"
-              description="Register on Injishi only. Apply for PSF later from your workspace."
+              title={t("notNow")}
+              description={t("notNowBody")}
               onSelect={() => onBusinessChange({ ...business, psfApply: false })}
             />
           </div>
@@ -245,8 +247,19 @@ export function StepBranchesPsf({
         {business.psfMember === false && business.psfApply === true ? (
           <PsfApplication draft={psf} onChange={onPsfChange} tiers={tiers} tiersFailed={tiersFailed} onRetryTiers={onRetryTiers} documentLine={documentLine} catalogue={catalogue} askGender={askGender} errors={errors} />
         ) : null}
+        {business.psfMember === true || (business.psfMember === false && business.psfApply === true) ? (
+          <div className="max-w-form">
+            <PassportPhotoField
+              objectKey={business.psfOwnerPhotoKey ?? ""}
+              name={business.psfOwnerPhotoName ?? ""}
+              error={errors["business.psfOwnerPhotoKey"]}
+              upload={uploadCertificate}
+              onChange={({ objectKey, name }) => onBusinessChange({ ...business, psfOwnerPhotoKey: objectKey, psfOwnerPhotoName: name })}
+            />
+          </div>
+        ) : null}
         {business.psfMember === false && business.psfApply === false ? (
-          <p className="text-xs text-muted-foreground">PSF never holds up your registration.</p>
+          <p className="text-xs text-muted-foreground">{t("neverHolds")}</p>
         ) : null}
       </section>
     </>
@@ -255,6 +268,7 @@ export function StepBranchesPsf({
 
 function BranchRow({ branch, onEdit, onRemove }: { branch: BranchDraft; onEdit: () => void; onRemove: () => void }) {
   const where = useAddressLine(branch.address);
+  const t = useTranslations("registerForms.branches");
   return (
     <li className="flex items-center gap-3 px-4 py-3">
       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-card text-muted-foreground">
@@ -262,12 +276,12 @@ function BranchRow({ branch, onEdit, onRemove }: { branch: BranchDraft; onEdit: 
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="text-sm font-semibold">{branch.name}</span>
-        <span className="text-xs text-muted-foreground">{where ?? "Placed in Rwanda"}</span>
+        <span className="text-xs text-muted-foreground">{where ?? t("placedInRwanda")}</span>
       </span>
       <Button variant="ghost" size="sm" onClick={onEdit}>
-        Edit<span className="sr-only"> {branch.name}</span>
+        {t("edit")}<span className="sr-only"> {branch.name}</span>
       </Button>
-      <Button variant="ghost" size="icon-sm" aria-label={`Remove ${branch.name}`} title="Remove" onClick={onRemove}>
+      <Button variant="ghost" size="icon-sm" aria-label={t("removeName", { name: branch.name })} title={t("remove")} onClick={onRemove}>
         <Trash2 size={16} aria-hidden />
       </Button>
     </li>
@@ -285,6 +299,7 @@ const CARD_MAX_BYTES = 10 * 1024 * 1024;
 function MembershipCard({ card, onChange }: { card: DocumentDraft | null; onChange: (next: DocumentDraft | null) => void }) {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const t = useTranslations("registerForms.branches");
   /** The picked file, shown from memory (2026-11-02): after a reload only its name is left to show. */
   const [preview, setPreview] = useState<{ url: string; pdf: boolean } | null>(null);
   useEffect(() => () => {
@@ -293,9 +308,9 @@ function MembershipCard({ card, onChange }: { card: DocumentDraft | null; onChan
 
   const pick = async (file: globalThis.File | undefined) => {
     if (!file) return;
-    if (file.size > CARD_MAX_BYTES) return setProblem("That file is larger than 10 MB. Send a smaller photo or scan.");
+    if (file.size > CARD_MAX_BYTES) return setProblem(t("cardTooBig"));
     if (!/\.(pdf|jpe?g|png|webp)$/i.test(file.name) && !CARD_ACCEPT.split(",").includes(file.type)) {
-      return setProblem("Send the card as a PDF, JPEG or PNG.");
+      return setProblem(t("cardFormat"));
     }
     setBusy(true);
     setProblem(null);
@@ -308,11 +323,11 @@ function MembershipCard({ card, onChange }: { card: DocumentDraft | null; onChan
 
   return (
     <div className="mt-5">
-      <Field label="Your PSF card" hint="A photo or scan of the card, front side. PSF checks your membership against it." required error={problem ?? undefined}>
+      <Field label={t("cardLabel")} hint={t("cardHint")} required error={problem ?? undefined}>
         {card ? (
           <div className="flex flex-wrap items-center gap-4 rounded-card border border-border bg-card p-3">
             {preview ? (
-              <a href={preview.url} target="_blank" rel="noreferrer" title="Open the card in full" className="shrink-0">
+              <a href={preview.url} target="_blank" rel="noreferrer" title={t("openFull")} className="shrink-0">
                 {preview.pdf ? (
                   <span className="flex h-20 w-28 items-center justify-center rounded-card bg-secondary text-muted-foreground ring-1 ring-border">
                     <FileText size={28} aria-hidden />
@@ -320,7 +335,7 @@ function MembershipCard({ card, onChange }: { card: DocumentDraft | null; onChan
                 ) : (
                   // A local blob of the picked file; next/image has nothing to optimise here.
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={preview.url} alt="Your PSF membership card" className="h-20 w-28 rounded-card object-cover ring-1 ring-border" />
+                  <img src={preview.url} alt={t("cardAlt")} className="h-20 w-28 rounded-card object-cover ring-1 ring-border" />
                 )}
               </a>
             ) : (
@@ -330,7 +345,7 @@ function MembershipCard({ card, onChange }: { card: DocumentDraft | null; onChan
               <span className="truncate text-sm font-medium">{card.filename}</span>
               {preview ? (
                 <a href={preview.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-accent-text hover:underline">
-                  View it in full
+                  {t("viewFull")}
                 </a>
               ) : null}
             </span>
@@ -342,13 +357,13 @@ function MembershipCard({ card, onChange }: { card: DocumentDraft | null; onChan
               }}
               className="text-sm font-medium text-accent-text hover:underline"
             >
-              Replace
+              {t("replace")}
             </button>
           </div>
         ) : (
           <label className="flex cursor-pointer items-center gap-3 rounded-card border border-dashed border-border bg-card px-4 py-3 hover:bg-secondary">
             <Upload size={18} aria-hidden className="text-muted-foreground" />
-            <span className="text-sm">{busy ? "Uploading…" : "Choose a photo or PDF of the card"}</span>
+            <span className="text-sm">{busy ? t("uploading") : t("chooseCard")}</span>
             <input type="file" accept={CARD_ACCEPT} className="sr-only" disabled={busy} onChange={(e) => void pick(e.target.files?.[0])} />
           </label>
         )}

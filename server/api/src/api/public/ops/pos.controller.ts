@@ -77,6 +77,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
@@ -96,6 +97,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 /** Outlets, settings, the menu, stations and the floor. */
 @Controller({ path: 'ops/pos', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('pos')
 export class OpsPosController {
   constructor(
     private readonly read: PosReadService,
@@ -216,6 +218,7 @@ export class OpsPosController {
 /** Orders, their lines, discounts and the bill. */
 @Controller({ path: 'ops/pos/orders', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('pos')
 export class OpsPosOrdersController {
   constructor(
     private readonly read: PosReadService,
@@ -396,6 +399,7 @@ export class OpsPosOrdersController {
 /** A payment's simulated callback and its refund. */
 @Controller({ path: 'ops/pos/payments', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('pos')
 export class OpsPosPaymentsController {
   constructor(private readonly payments: PosPaymentService) {}
 
@@ -427,6 +431,7 @@ export class OpsPosPaymentsController {
 /** The kitchen and bar boards. */
 @Controller({ path: 'ops/pos', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('pos')
 export class OpsPosKitchenController {
   constructor(
     private readonly read: PosReadService,
@@ -471,6 +476,7 @@ export class OpsPosKitchenController {
 /** Registers, cashier shifts and cash movements. */
 @Controller({ path: 'ops/pos', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('pos')
 export class OpsPosShiftsController {
   constructor(
     private readonly read: PosReadService,

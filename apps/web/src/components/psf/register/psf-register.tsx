@@ -7,9 +7,10 @@ import type { PsfCatalogue, PsfFeesView, PsfPublicSubmitResult, PsfTier } from "
 import { Button } from "@injishi/web-ui";
 
 import { Notice } from "@/app/(app)/(entry)/register/wizard-ui";
-import { fetchPsfCatalogue, fetchPsfFees, fetchPsfTiers, submitPsfApplication } from "@/data/psf";
+import { fetchPsfCatalogue, fetchPsfFees, fetchPsfQuote, fetchPsfTiers, submitPsfApplication } from "@/data/psf";
 import { apiResultMessage, retryWhileFailed } from "@/lib/api";
 
+import type { PsfQuote } from "@injishi/contracts";
 import {
   EMPTY_DRAFT,
   STEPS,
@@ -33,6 +34,7 @@ import { StepBusiness } from "./step-business";
 import { StepMembership } from "./step-membership";
 import { StepPlace } from "./step-place";
 import { StepReview } from "./step-review";
+import { PsfFormConfigProvider, usePsfFormConfig, withFormRules } from "./form-config";
 import { StepYou } from "./step-you";
 
 /**
@@ -56,11 +58,13 @@ export function PsfRegister() {
   const [errors, setErrors] = useState<Errors>({});
   /** Steps the person has tried to leave: from then on their messages follow the answers live. */
   const [tried, setTried] = useState<ReadonlySet<StepKey>>(new Set());
+  const formConfig = usePsfFormConfig();
   const [tiers, setTiers] = useState<PsfTier[] | null>(null);
   const [catalogue, setCatalogue] = useState<PsfCatalogue | null>(null);
   /** PSF's prices in the business's district; the amount is never the business's own. */
   const [fees, setFees] = useState<PsfFeesView | null>(null);
   const [feesTick, setFeesTick] = useState(0);
+  const [quote, setQuote] = useState<PsfQuote | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [done, setDone] = useState<PsfPublicSubmitResult | null>(null);
@@ -90,6 +94,27 @@ export function PsfRegister() {
     if (!districtForFees) return;
     void retryWhileFailed(() => fetchPsfFees(districtForFees)).then((r) => r.status === "ok" && setFees(r.data));
   }, [districtForFees, feesTick]);
+  // The kind's price here and each branch's (2026-11-05): none of it is the business's to choose.
+  const kindForQuote = /^[0-9a-f-]{36}$/.test(draft.subsectorId) ? draft.subsectorId : undefined;
+  const branchPlaces = draft.branches.map((b) => Number(b.districtId)).filter((n) => n > 0);
+  const quoteKey = [districtForFees, draft.tierCode, kindForQuote ?? "", branchPlaces.join(",")].join("|");
+  useEffect(() => {
+    if (!districtForFees || !draft.tierCode) return setQuote(null);
+    let live = true;
+    void fetchPsfQuote({ district: Number(districtForFees), tierCode: draft.tierCode, subsectorId: kindForQuote, branches: branchPlaces }).then((r) => {
+      if (live && r.status === "ok") setQuote(r.data);
+    });
+    return () => {
+      live = false;
+    };
+    // quoteKey holds every input.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: the key names them all.
+  }, [quoteKey]);
+  const floorRwf = draft.cardHolder ? null : (quote?.floorRwf ?? null);
+  const branchesRwf = draft.cardHolder ? 0 : (quote?.branchesRwf ?? 0);
+  useEffect(() => {
+    if (floorRwf !== null && Number(draft.amount.replace(/[^\d]/g, "")) < floorRwf) setDraft((d) => ({ ...d, amount: String(floorRwf) }));
+  }, [floorRwf, draft.amount]);
   // A band picked starts at its price; the business may raise it within the
   // band (2026-10-23), so an amount already typed is kept and checked instead.
   const priceOfPicked = fees?.fees.find((f) => f.tierCode === draft.tierCode)?.amountRwf ?? null;
@@ -110,14 +135,14 @@ export function PsfRegister() {
 
   const validate = (key: StepKey): Errors =>
     key === "you"
-      ? validateYou(draft)
+      ? withFormRules(validateYou(draft), draft, formConfig, "you")
       : key === "business"
-        ? validateBusiness(draft)
+        ? withFormRules(validateBusiness(draft), draft, formConfig, "business")
         : key === "place"
-          ? validatePlace(draft)
+          ? withFormRules(validatePlace(draft), draft, formConfig, "place")
           : key === "membership"
-            ? validateMembership(draft, tiers ?? [], fees)
-            : validateReview(draft);
+            ? withFormRules(validateMembership(draft, tiers ?? [], fees, floorRwf), draft, { ...formConfig, fields: formConfig.fields.filter((f) => f.key !== "logo") }, "membership")
+            : { ...withFormRules({}, draft, { ...formConfig, extras: [] }, "membership"), ...validateReview(draft) };
 
   // Once a step has been tried, each answer re-checks it: a message goes the
   // moment its field is right, and stays while it is still wrong.
@@ -168,7 +193,7 @@ export function PsfRegister() {
 
   const declared = Number(draft.amount.replace(/[^\d]/g, ""));
   // The one payment is the membership fee: no registration fee (2026-10-23).
-  const total = declared > 0 ? declared : null;
+  const total = declared > 0 ? declared + branchesRwf : null;
 
   if (done) {
     return (
@@ -251,6 +276,7 @@ export function PsfRegister() {
 
         <main className="min-w-0">
           <div className="rounded-card border border-border bg-card p-5 shadow-sm sm:p-8">
+            <PsfFormConfigProvider config={formConfig}>
             {!loaded ? (
               <div className="h-80 animate-pulse rounded-card bg-secondary" />
             ) : step === "you" ? (
@@ -260,10 +286,11 @@ export function PsfRegister() {
             ) : step === "place" ? (
               <StepPlace draft={draft} onChange={change} errors={errors} />
             ) : step === "membership" ? (
-              <StepMembership draft={draft} onChange={change} errors={errors} tiers={tiers} fees={fees} districtName={draft.placeNames.district} checkToken={draft.applicant?.checkToken ?? null} />
+              <StepMembership draft={draft} onChange={change} errors={errors} tiers={tiers} fees={fees} districtName={draft.placeNames.district} checkToken={draft.applicant?.checkToken ?? null} floorRwf={floorRwf} />
             ) : (
-              <StepReview draft={draft} onChange={change} errors={errors} tiers={tiers} catalogue={catalogue} goTo={go} />
+              <StepReview draft={draft} onChange={change} errors={errors} tiers={tiers} catalogue={catalogue} goTo={go} branchesRwf={branchesRwf} branchCount={quote?.branches.length ?? 0} />
             )}
+            </PsfFormConfigProvider>
 
             {problem ? (
               <div className="mt-6">

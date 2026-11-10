@@ -13,10 +13,9 @@ import {
   StatusChip,
 } from "@injishi/ui";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { HBar } from "./shared";
-
-const QUEUE_LABEL: Record<QueueId, string> = { verification: "Verification", approval: "Approval", tax: "Tax" };
 
 /**
  * The officer's queues (2026-10-30): every case waiting on this officer in one table, oldest due first,
@@ -33,18 +32,20 @@ export function OfficerHomeView({
   /** The oldest case waiting on this officer, or null when nothing waits. */
   firstCaseHref: string | null;
 }) {
+  const t = useTranslations("officials.queue");
   const router = useRouter();
+  const queueLabel: Record<QueueId, string> = { verification: t("verification"), approval: t("approval"), tax: t("tax") };
   const columns: DataColumn<QueueCase>[] = [
     {
       id: "case",
-      header: "Business",
+      header: t("business"),
       isRowHeader: true,
       sortValue: (c) => c.business,
       cell: (c) => <PersonCell name={c.business} secondary={`${c.ref ?? c.id} · ${c.place}`} />,
     },
     {
       id: "type",
-      header: "Type",
+      header: t("type"),
       hideBelow: "lg",
       sortValue: (c) => c.type,
       cell: (c) => (
@@ -54,10 +55,10 @@ export function OfficerHomeView({
         </span>
       ),
     },
-    { id: "queue", header: "Queue", sortValue: (c) => c.queue, cell: (c) => QUEUE_LABEL[c.queue] },
+    { id: "queue", header: t("queue"), sortValue: (c) => c.queue, cell: (c) => queueLabel[c.queue] },
     {
       id: "age",
-      header: "Waiting",
+      header: t("waiting"),
       sortValue: (c) => c.slaUsed,
       cell: (c) => (
         <span className="flex min-w-32 flex-col gap-1.5">
@@ -70,14 +71,14 @@ export function OfficerHomeView({
     },
     {
       id: "status",
-      header: "Status",
+      header: t("status"),
       cell: (c) => (
         <StatusChip tone={c.statusTone === "accent" ? "info" : (c.statusTone ?? "default")}>{c.status}</StatusChip>
       ),
     },
     {
       id: "who",
-      header: "Verified by",
+      header: t("verifiedBy"),
       hideBelow: "xl",
       defaultHidden: !held.includes("approval"),
       cell: (c) => c.who,
@@ -90,31 +91,31 @@ export function OfficerHomeView({
         actions={
           firstCaseHref ? (
             <ActionLink href={firstCaseHref} icon="ArrowRight" intent="primary">
-              Open next case
+              {t("openNext")}
             </ActionLink>
           ) : null
         }
       />
       <DataTable
-        label="Cases"
-        noun={{ one: "case", many: "cases" }}
+        label={t("cases")}
+        noun={{ one: t("case"), many: t("casePlural") }}
         rows={cases}
         rowKey={(c) => c.id}
         columns={columns}
         columnToggle
         defaultSort={{ column: "age", direction: "descending" }}
-        search={{ placeholder: "Business or reference", text: (c) => `${c.business} ${c.ref ?? ""} ${c.place}` }}
+        search={{ placeholder: t("search"), text: (c) => `${c.business} ${c.ref ?? ""} ${c.place}` }}
         filters={
           held.length > 1
             ? [
                 {
                   id: "queue",
-                  name: "Queue",
+                  name: t("queue"),
                   options: [
-                    { id: "all", label: "All" },
+                    { id: "all", label: t("all") },
                     ...held.map((q) => ({
                       id: q,
-                      label: QUEUE_LABEL[q],
+                      label: queueLabel[q],
                       count: cases.filter((c) => c.queue === q).length,
                     })),
                   ],
@@ -127,13 +128,13 @@ export function OfficerHomeView({
         rowActions={(c) =>
           c.action === "open" && c.href ? (
             <RowActions>
-              <IconAction icon="ChevronRight" label={`Open ${c.business}`} onPress={() => open(c)} />
+              <IconAction icon="ChevronRight" label={t("openCase", { business: c.business })} onPress={() => open(c)} />
             </RowActions>
           ) : null
         }
         mobile={{
           title: (c) => c.business,
-          description: (c) => `${QUEUE_LABEL[c.queue]} · ${c.age} · ${c.place}`,
+          description: (c) => `${queueLabel[c.queue]} · ${c.age} · ${c.place}`,
           trailing: (c) => (
             <StatusChip tone={c.statusTone === "accent" ? "info" : (c.statusTone ?? "default")}>{c.status}</StatusChip>
           ),
@@ -141,7 +142,7 @@ export function OfficerHomeView({
         empty={
           <EmptyBlock
             icon="CircleCheck"
-            title={held.length > 0 ? "Nothing waits on you" : "No review queue is delegated to you"}
+            title={held.length > 0 ? t("nothingWaits") : t("noQueue")}
           />
         }
       />

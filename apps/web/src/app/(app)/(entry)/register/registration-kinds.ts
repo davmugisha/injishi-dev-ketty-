@@ -1,5 +1,4 @@
 import {
-  ACCOMMODATION_CLASS_LABEL,
   AccommodationClass,
   BUSINESS_KIND_NOUN,
   type BusinessKind,
@@ -49,16 +48,13 @@ export type RegistrationKind =
 
 interface RegistrationKindEntry {
   value: RegistrationKind;
-  label: string;
-  blurb: string;
+  /** The catalog key for the tile's title, under `register.kinds.items.<value>`. */
+  labelKey: string;
+  /** The catalog key for the tile's one line, under `register.kinds.items.<value>`. */
+  blurbKey: string;
   /** Which of the three groups the tile sits in on the card. */
   group: "stay" | "venue" | "lease";
 }
-
-const RESIDENCE_LABEL = "Residence";
-const BROKER_LABEL = "Broker";
-const BAR_RESTAURANT_LABEL = "Bar & Restaurant";
-const COFFEE_SHOP_LABEL = "Coffee shop";
 
 /**
  * The tiles, in the order they are shown.
@@ -72,31 +68,28 @@ const COFFEE_SHOP_LABEL = "Coffee shop";
  * who places tenants in someone else's. Mixing them into one eleven-up grid is
  * what made the old role question feel necessary.
  *
- * The eight labels come from `ACCOMMODATION_CLASS_LABEL`, never retyped, so
- * this card and the search rail always say the same word for the same class.
+ * WHAT A TILE SAYS IS A CATALOG KEY, not a string. The label and the one line
+ * under it live in `@injishi/i18n` under `register.kinds.items.<value>`, so the
+ * same eleven answers exist in English, French and Kinyarwanda and a tile
+ * cannot drift from the word the rest of the product uses for that class.
  */
 const ENTRIES: ReadonlyArray<{
   value: RegistrationKind;
-  blurb: string;
   group: "stay" | "venue" | "lease";
 }> = [
   // The same order as the `/host` chooser (`data/host.ts`), so a host who goes
   // back finds the tiles where they left them.
-  { value: "hotel", blurb: "Serviced rooms, front desk", group: "stay" },
-  { value: "motel", blurb: "Roadside rooms, drive-up", group: "stay" },
-  { value: "guest_house", blurb: "Rooms in your own home", group: "stay" },
-  { value: "lodge", blurb: "Built for stays, with grounds", group: "stay" },
-  { value: "apartment", blurb: "A flat with its own key", group: "stay" },
-  { value: "villa", blurb: "A whole house, one party", group: "stay" },
-  { value: "tented_camp", blurb: "Canvas on a fixed site", group: "stay" },
-  { value: "other", blurb: "Something else — you tell us", group: "stay" },
-  {
-    value: "bar_restaurant",
-    blurb: "Food and drink, no rooms",
-    group: "venue",
-  },
-  { value: "coffee_shop", blurb: "Coffee, light food, no rooms", group: "venue" },
-  { value: "residence", blurb: "Let on a lease, not nightly", group: "lease" },
+  { value: "hotel", group: "stay" },
+  { value: "motel", group: "stay" },
+  { value: "guest_house", group: "stay" },
+  { value: "lodge", group: "stay" },
+  { value: "apartment", group: "stay" },
+  { value: "villa", group: "stay" },
+  { value: "tented_camp", group: "stay" },
+  { value: "other", group: "stay" },
+  { value: "bar_restaurant", group: "venue" },
+  { value: "coffee_shop", group: "venue" },
+  { value: "residence", group: "lease" },
 ];
 
 /**
@@ -104,22 +97,19 @@ const ENTRIES: ReadonlyArray<{
  * (`POST /registrations/broker`) and is never a tile on the chooser. The value
  * stays known, so `/register?kind=broker` still opens that form.
  */
-const BROKER_ENTRY = { value: "broker" as const, blurb: "You place tenants for owners", group: "lease" as const };
+const BROKER_ENTRY = { value: "broker" as const, group: "lease" as const };
 
-function entryOf({ value, blurb, group }: { value: RegistrationKind; blurb: string; group: "stay" | "venue" | "lease" }): RegistrationKindEntry {
+function entryOf({
+  value,
+  group,
+}: {
+  value: RegistrationKind;
+  group: "stay" | "venue" | "lease";
+}): RegistrationKindEntry {
   return {
     value,
-    label:
-      value === "residence"
-        ? RESIDENCE_LABEL
-        : value === "broker"
-          ? BROKER_LABEL
-          : value === "bar_restaurant"
-            ? BAR_RESTAURANT_LABEL
-            : value === "coffee_shop"
-              ? COFFEE_SHOP_LABEL
-              : ACCOMMODATION_CLASS_LABEL[value],
-    blurb,
+    labelKey: `kinds.items.${value}.label`,
+    blurbKey: `kinds.items.${value}.blurb`,
     group,
   };
 }

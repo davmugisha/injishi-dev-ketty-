@@ -3,12 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { SearchIcon } from "@/components/icons";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { HostCta } from "@/components/layout/host-cta";
+import { LanguageMenu } from "@/components/layout/language-menu";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { SearchOverlay } from "@/components/layout/search-overlay";
 import { PRIMARY_NAV, headerVariantFor } from "@/data/navigation";
@@ -83,6 +85,7 @@ import { useHeaderSearch } from "@/lib/header-search";
  */
 export function SiteHeader() {
   const pathname = usePathname();
+  const t = useTranslations("nav");
   const variant = headerVariantFor(pathname);
   const scrolled = useScrolled(24);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -216,19 +219,15 @@ export function SiteHeader() {
                       size="lg"
                       className={content}
                     >
-                      <Link href={item.href}>{item.label}</Link>
+                      <Link href={item.href}>{item.labelKey ? t(item.labelKey) : item.label}</Link>
                     </Button>
                   ))}
                 </div>
 
-                {/* `LanguageMenu` stood here: a globe offering English,
-                    Français and Kinyarwanda that changed nothing, because no
-                    locale layer reads the choice (its own file says so). A
-                    visitor who picked Kinyarwanda got English and a control
-                    that had lied to them, so it is unmounted until the site can
-                    speak the languages it offers (2026-10-21). The component is
-                    kept for that day; mount it here again with the locale
-                    layer. */}
+                {/* Mounted again on 2026-11-04, the day a locale layer landed:
+                    the choice now reaches `i18n/request.ts` and changes what
+                    the page says, so the control no longer lies. */}
+                <LanguageMenu className={content} />
 
                 <Button
                   variant="ghost"

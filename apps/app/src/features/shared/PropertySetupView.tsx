@@ -5,6 +5,7 @@ import { Alert, Button, Card, Chip, Description, Input, Label, TextArea, TextFie
 import { tidyPlaceName } from "@injishi/contracts";
 import { LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { type FormEvent, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { hasPhoto, type Place, type SetupRead } from "@/server/mutations/setup";
 import { MapPinPicker } from "./MapPinPicker";
 import { DeskStep, FacilitiesStep, RulesStep, StarGradeField, StayRoomsStep } from "./StaySetupSteps";
@@ -17,52 +18,53 @@ import {
   unpublishAction,
   updatePropertyAction,
 } from "./setup-actions";
-import { Outcome, rwf, SELECT, StepCard, useStep } from "./setup-ui";
+import { Outcome, rwf, SELECT, StepCard, useSetupWords, useStep } from "./setup-ui";
 
 type Open = Extract<SetupRead, { open: true }>;
 
 /** Where an unapproved registration stands, in the owner's words (RegistrationSummary statuses). */
-const WAITING: Record<string, { chip: string; tone: "accent" | "warning" | "danger" | "default"; text: string }> = {
+const WAITING: Record<string, { chipKey: string; tone: "accent" | "warning" | "danger" | "default"; textKey: string }> = {
   pending_payment: {
-    chip: "Waiting for payment",
+    chipKey: "waitingPayment",
     tone: "warning",
-    text: "The registration fee has not been paid yet.",
+    textKey: "feeNotPaid",
   },
   submitted: {
-    chip: "In review · TIN check",
+    chipKey: "reviewTin",
     tone: "accent",
-    text: "Paid. RRA is confirming your TIN, which usually takes seconds.",
+    textKey: "paidTinCheck",
   },
   tin_verified: {
-    chip: "In review · documents",
+    chipKey: "reviewDocuments",
     tone: "accent",
-    text: "An officer is reviewing your documents online.",
+    textKey: "officerReviewing",
   },
   field_verified: {
-    chip: "In review · approval",
+    chipKey: "reviewApproval",
     tone: "accent",
-    text: "Your documents are checked. A second officer now approves.",
+    textKey: "secondOfficer",
   },
   approved: {
-    chip: "Approved · waiting for the owner",
+    chipKey: "approvedOwner",
     tone: "accent",
-    text: "Approved. It opens once the owner it was registered for accepts the invitation.",
+    textKey: "approvedClaim",
   },
   rejected: {
-    chip: "Sent back",
+    chipKey: "sentBack",
     tone: "danger",
-    text: "The officers sent it back with a reason. Fix it on your registration and resubmit; there is no new fee.",
+    textKey: "fixAndResubmit",
   },
-  suspended: { chip: "Suspended", tone: "danger", text: "This business is suspended. Contact Injishi support." },
+  suspended: { chipKey: "suspended", tone: "danger", textKey: "suspendedSupport" },
 };
 
 function PlacePicker({ provinces, onSector }: { provinces: Place[]; onSector: (id: string) => void }) {
+  const t = useTranslations("setup");
   const [districts, setDistricts] = useState<Place[]>([]);
   const [sectors, setSectors] = useState<Place[]>([]);
   return (
     <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr))]">
       <label className="flex flex-col gap-1 text-sm font-medium">
-        Province
+        {t("province")}
         <select
           className={SELECT}
           defaultValue=""
@@ -72,7 +74,7 @@ function PlacePicker({ provinces, onSector }: { provinces: Place[]; onSector: (i
             setDistricts(e.target.value ? await placesAction("districts", Number(e.target.value)) : []);
           }}
         >
-          <option value="">Choose…</option>
+          <option value="">{t("choose")}</option>
           {provinces.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -81,7 +83,7 @@ function PlacePicker({ provinces, onSector }: { provinces: Place[]; onSector: (i
         </select>
       </label>
       <label className="flex flex-col gap-1 text-sm font-medium">
-        District
+        {t("district")}
         <select
           className={SELECT}
           defaultValue=""
@@ -91,7 +93,7 @@ function PlacePicker({ provinces, onSector }: { provinces: Place[]; onSector: (i
             setSectors(e.target.value ? await placesAction("sectors", Number(e.target.value)) : []);
           }}
         >
-          <option value="">Choose…</option>
+          <option value="">{t("choose")}</option>
           {districts.map((d) => (
             <option key={d.id} value={d.id}>
               {d.name}
@@ -100,14 +102,14 @@ function PlacePicker({ provinces, onSector }: { provinces: Place[]; onSector: (i
         </select>
       </label>
       <label className="flex flex-col gap-1 text-sm font-medium">
-        Sector
+        {t("sector")}
         <select
           className={SELECT}
           defaultValue=""
           disabled={!sectors.length}
           onChange={(e) => onSector(e.target.value)}
         >
-          <option value="">Choose…</option>
+          <option value="">{t("choose")}</option>
           {sectors.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -134,6 +136,7 @@ function VillagePicker({
   villageId: string;
   onVillage: (id: string) => void;
 }) {
+  const t = useTranslations("setup");
   const [cells, setCells] = useState<Place[] | null>(null);
   const [cellId, setCellId] = useState(initialCellId ? String(initialCellId) : "");
   const [villages, setVillages] = useState<Place[]>([]);
@@ -148,7 +151,7 @@ function VillagePicker({
   return (
     <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr))]">
       <label className="flex flex-col gap-1 text-sm font-medium">
-        Cell
+        {t("cell")}
         <select
           className={SELECT}
           value={cellId}
@@ -159,7 +162,7 @@ function VillagePicker({
             setVillages(e.target.value ? await placesAction("villages", Number(e.target.value)) : []);
           }}
         >
-          <option value="">{cells === null ? "Loading…" : "Choose…"}</option>
+          <option value="">{cells === null ? t("loading") : t("choose")}</option>
           {(cells ?? []).map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -168,14 +171,14 @@ function VillagePicker({
         </select>
       </label>
       <label className="flex flex-col gap-1 text-sm font-medium">
-        Village
+        {t("village")}
         <select
           className={SELECT}
           value={villageId}
           disabled={!villages.length}
           onChange={(e) => onVillage(e.target.value)}
         >
-          <option value="">Choose…</option>
+          <option value="">{t("choose")}</option>
           {villages.map((v) => (
             <option key={v.id} value={v.id}>
               {v.name}
@@ -188,6 +191,7 @@ function VillagePicker({
 }
 
 function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
+  const t = useTranslations("setup");
   const p = data.property;
   const venue = data.foodVenue;
   const step = useStep();
@@ -212,29 +216,29 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
       <StepCard
         id="property"
         index={1}
-        title={venue ? "Venue details" : "Property details"}
+        title={venue ? t("venueDetails") : t("propertyDetails")}
         done={false}
         icon={<House />}
         lead={
           venue
-            ? "Where customers visit: its name and the sector it is in."
-            : "Where guests stay: its name and the sector it is in."
+            ? t("venueWhere")
+            : t("propertyWhere")
         }
       >
         <form onSubmit={submit} className="flex flex-col gap-3">
           <TextField value={name} onChange={setName} isRequired fullWidth>
-            <Label>{venue ? "Venue name" : "Property name"}</Label>
-            <Input placeholder={venue ? "As customers will see it" : "As guests will see it"} />
+            <Label>{venue ? t("venueName") : t("propertyName")}</Label>
+            <Input placeholder={venue ? t("seenByCustomers") : t("seenByGuests")} />
           </TextField>
           <PlacePicker provinces={provinces} onSector={setSectorId} />
           <TextField value={street} onChange={setStreet} fullWidth>
-            <Label>Street</Label>
+            <Label>{t("street")}</Label>
             <Input placeholder="KG 11 Ave" />
           </TextField>
           <Button type="submit" className="self-start" isDisabled={step.busy || name.trim().length < 2 || !sectorId}>
-            {step.busy ? "Adding…" : venue ? "Add the venue" : "Add the property"}
+            {step.busy ? t("add") : venue ? t("addVenue") : t("addProperty")}
           </Button>
-          <Outcome result={step.result} okText={venue ? "Venue added." : "Property added."} />
+          <Outcome result={step.result} okText={venue ? t("venueAdded") : t("propertyAdded")} />
         </form>
       </StepCard>
     );
@@ -266,30 +270,30 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
     <StepCard
       id="property"
       index={1}
-      title={venue ? "Venue details" : "Property and location"}
+      title={venue ? t("venueDetails") : t("propertyLocation")}
       done
       icon={<House />}
       lead={
         venue
-          ? "Created from your registration. Add what customers read, the village it is in and how to reach you."
-          : "Created from your registration. Add what guests read about the place, the village it is in and how to find it."
+          ? t("createdVenue")
+          : t("createdProperty")
       }
     >
       <dl className="m-0 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr))]">
         <div className="flex flex-col">
-          <dt className="text-xs text-muted">Name</dt>
+          <dt className="text-xs text-muted">{t("name")}</dt>
           <dd className="m-0 font-medium">{p.name}</dd>
         </div>
         <div className="flex flex-col">
-          <dt className="text-xs text-muted">Where</dt>
-          <dd className="m-0 font-medium">{place || "Sector on record"}</dd>
+          <dt className="text-xs text-muted">{t("where")}</dt>
+          <dd className="m-0 font-medium">{place || t("sectorOnRecord")}</dd>
         </div>
       </dl>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <TextField value={description} onChange={setDescription} fullWidth>
-          <Label>Description</Label>
-          <TextArea rows={3} placeholder="What makes the place, in a few sentences." />
-          <Description>{venue ? "Shown on your venue page." : "Shown on your property page."}</Description>
+          <Label>{t("description")}</Label>
+          <TextArea rows={3} placeholder={t("descriptionPlaceholder")} />
+          <Description>{venue ? t("venuePage") : t("propertyPage")}</Description>
         </TextField>
         {p.address.sectorId ? (
           <VillagePicker
@@ -301,57 +305,57 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
         ) : null}
         <p className="m-0 text-[13px] text-muted">
           {venue
-            ? "The village decides which local leader your premises are filed with."
-            : "The village decides which local leader your guests are reported to when they check in."}
+            ? t("villageVenue")
+            : t("villageProperty")}
         </p>
         {venue ? null : (
           <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium">Pin it on the map</span>
+            <span className="text-sm font-medium">{t("pinMap")}</span>
             <MapPinPicker value={mapPoint} onChange={setMapPoint} />
             <span className="text-xs text-muted">
-              Click where the entrance is, then drag the pin to the gate if it is off.
+              {t("pinHint")}
             </span>
           </div>
         )}
         <TextField value={mapPoint} onChange={setMapPoint} fullWidth>
-          <Label>{venue ? "Map location" : "Or paste the point"}</Label>
+          <Label>{venue ? t("mapLocation") : t("pastePoint")}</Label>
           <Input placeholder="-1.9441, 30.0880" inputMode="decimal" className="tabular" />
           <Description>
             {venue
-              ? "Find the venue on Google Maps, right-click it and copy the numbers. Without them it is not pinned on the map."
-              : "Find the property on Google Maps, right-click it and copy the numbers. Without them it is not pinned on the map."}
+              ? t("venueMapHint")
+              : t("propertyMapHint")}
           </Description>
         </TextField>
         {venue ? (
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr))]">
             <TextField value={phone} onChange={setPhone} fullWidth>
-              <Label>Phone</Label>
+              <Label>{t("phone")}</Label>
               <Input type="tel" placeholder="078 123 4567" />
             </TextField>
             <TextField value={email} onChange={setEmail} fullWidth>
-              <Label>Email</Label>
+              <Label>{t("email")}</Label>
               <Input type="email" placeholder="frontdesk@example.com" />
             </TextField>
           </div>
         ) : null}
         <TextField value={street} onChange={setStreet} fullWidth>
-          <Label>{venue ? "Street" : "Street or landmark"}</Label>
-          <Input placeholder={venue ? "KG 11 Ave" : "KG 11 Ave, opposite the bus park"} />
+          <Label>{venue ? t("street") : t("streetLandmark")}</Label>
+          <Input placeholder={venue ? t("venueStreetPlaceholder") : t("propertyStreetPlaceholder")} />
         </TextField>
         {venue ? null : (
           <TextField value={directions} onChange={setDirections} fullWidth>
-            <Label>How to find it</Label>
+            <Label>{t("directions")}</Label>
             <TextArea
               rows={2}
-              placeholder="From the main road, turn left at the church; the gate is the second on the right."
+              placeholder={t("directionsPlaceholder")}
             />
-            <Description>Optional. Shown to guests once they have booked.</Description>
+            <Description>{t("optionalGuest")}</Description>
           </TextField>
         )}
         <Button type="submit" variant="secondary" className="self-start" isDisabled={step.busy}>
-          {step.busy ? "Saving…" : "Save details"}
+          {step.busy ? t("saving") : t("save")}
         </Button>
-        <Outcome result={step.result} okText="Saved." />
+      <Outcome result={step.result} okText={t("saved")} />
       </form>
       {venue ? null : <StarGradeField data={data} />}
     </StepCard>
@@ -359,11 +363,12 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
 }
 
 function RoomTypeStep({ data }: { data: Open }) {
+  const t = useTranslations("setup");
   const p = data.property;
   const venue = data.foodVenue;
-  const words = data.words;
+  const words = useSetupWords(data.words);
   const wholeUnit = words.priceBasis === "per_unit";
-  const typeLabel = `${words.unitSingular.charAt(0).toUpperCase()}${words.unitSingular.slice(1)} type`;
+  const typeLabel = t("unitType", { unit: words.unitSingular });
   const step = useStep();
   const [name, setName] = useState("");
   const [sleeps, setSleeps] = useState(venue ? "1" : "2");
@@ -393,30 +398,34 @@ function RoomTypeStep({ data }: { data: Open }) {
     <StepCard
       id="room_type"
       index={2}
-      title={venue ? "What you sell" : `A priced ${words.unitSingular} type`}
+      title={venue ? t("itemTitle") : t("roomTypeTitle", { unit: words.unitSingular })}
       done={done}
       icon={<Tag />}
       lead={
         venue
-          ? "Menu items or packages, each with a price in Rwandan francs. Customers see them on your page; nothing is booked."
+          ? t("venueItemsLead")
           : wholeUnit
-            ? `Each ${words.unitSingular} is let whole to one party, so the price is ${words.pricePeriod}, in Rwandan francs, however many people stay.`
-            : `What you sell and at what price, ${words.pricePeriod}, in Rwandan francs.`
+            ? t("wholeUnitLead", { unit: words.unitSingular, period: words.pricePeriod })
+            : t("roomPriceLead", { period: words.pricePeriod })
       }
     >
       {types.length ? (
         <ul className="m-0 flex list-none flex-col p-0">
-          {types.map((t) => (
+          {types.map((roomType) => (
             <li
-              key={t.id}
+              key={roomType.id}
               className="flex flex-wrap items-center justify-between gap-2 border-t border-separator py-2 first:border-t-0"
             >
-              <span className="font-medium">{t.name}</span>
+              <span className="font-medium">{roomType.name}</span>
               <span className="text-[13px] text-muted tabular">
-                {t.basePriceRwf === null ? "No price yet" : `${rwf(t.basePriceRwf)} ${words.pricePeriod}`}
+                {roomType.basePriceRwf === null ? t("noPrice") : `${rwf(roomType.basePriceRwf)} ${words.pricePeriod}`}
                 {venue
                   ? null
-                  : ` · ${t.sellableRoomCount} ${t.sellableRoomCount === 1 ? words.unitSingular : words.unitPlural}`}
+                  : ` · ${t("unitCount", {
+                      count: roomType.sellableRoomCount,
+                      unit: words.unitSingular,
+                      units: words.unitPlural,
+                    })}`}
               </span>
             </li>
           ))}
@@ -426,28 +435,32 @@ function RoomTypeStep({ data }: { data: Open }) {
         <form onSubmit={submit} className="flex flex-col gap-3">
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr))]">
             <TextField value={name} onChange={setName} isRequired fullWidth>
-              <Label>{venue ? "Item" : typeLabel}</Label>
+              <Label>{venue ? t("item") : typeLabel}</Label>
               <Input
                 placeholder={
-                  venue ? "Espresso, lunch set…" : wholeUnit ? `Two-bedroom ${words.unitSingular}` : "Double room"
+                  venue
+                    ? t("espressoPlaceholder")
+                    : wholeUnit
+                      ? t("wholeUnitPlaceholder", { unit: words.unitSingular })
+                      : t("doubleRoom")
                 }
               />
             </TextField>
             {venue ? null : (
               <TextField value={sleeps} onChange={setSleeps} isRequired fullWidth>
-                <Label>Sleeps</Label>
+                <Label>{t("sleeps")}</Label>
                 <Input inputMode="numeric" />
               </TextField>
             )}
             <TextField value={price} onChange={setPrice} isRequired fullWidth>
               <Label>
-                {venue ? "Price each (RWF)" : wholeUnit ? "Price per night (RWF)" : "Price per person (RWF)"}
+                {venue ? t("priceEach") : wholeUnit ? t("priceNight") : t("pricePerson")}
               </Label>
               <Input inputMode="numeric" placeholder={venue ? "2500" : "45000"} className="tabular" />
             </TextField>
             {venue ? null : (
               <TextField value={rooms} onChange={setRooms} isRequired fullWidth>
-                <Label>{`How many ${words.unitPlural}`}</Label>
+              <Label>{t("countUnits", { units: words.unitPlural })}</Label>
                 <Input inputMode="numeric" />
               </TextField>
             )}
@@ -459,25 +472,26 @@ function RoomTypeStep({ data }: { data: Open }) {
             isDisabled={step.busy || name.trim().length < 2 || !price.trim()}
           >
             {step.busy
-              ? "Adding…"
+              ? t("add")
               : types.length
                 ? venue
-                  ? "Add another item"
-                  : `Add another ${words.unitSingular} type`
+                  ? t("addAnotherItem")
+                  : t("addAnotherType", { unit: words.unitSingular })
                 : venue
-                  ? "Add item"
-                  : `Add ${words.unitSingular} type`}
+                  ? t("addItem")
+                  : t("addType", { unit: words.unitSingular })}
           </Button>
-          <Outcome result={step.result} okText={venue ? "Item added." : `${typeLabel} added.`} />
+          <Outcome result={step.result} okText={venue ? t("itemAdded") : t("typeAdded", { type: typeLabel })} />
         </form>
       ) : (
-        <p className="text-[13px] text-muted">{venue ? "Add the venue first." : "Add the property first."}</p>
+        <p className="text-[13px] text-muted">{venue ? t("addVenueFirst") : t("addPropertyFirst")}</p>
       )}
     </StepCard>
   );
 }
 
 function PhotoStep({ data, index = 3 }: { data: Open; index?: number }) {
+  const t = useTranslations("setup");
   const p = data.property;
   const venue = data.foodVenue;
   const step = useStep();
@@ -512,27 +526,27 @@ function PhotoStep({ data, index = 3 }: { data: Open; index?: number }) {
     <StepCard
       id="photo"
       index={index}
-      title={rooms.length ? "Photographs" : "A photograph"}
+      title={rooms.length ? t("photos") : t("photo")}
       done={data.counts.photos > 0 && bare.length === 0}
       icon={<Picture />}
       lead={
         venue
-          ? "At least one, so customers can see the venue. The first one is the cover."
+          ? t("photoVenueLead")
           : rooms.length
-            ? "The place, and every room type in a photograph of its own, so guests see the room they book. The first one is the cover."
-            : "At least one, so guests can see the place. The first one is the cover."
+            ? t("photoRoomsLead")
+            : t("photoPropertyLead")
       }
     >
       {rooms.length ? (
-        <ul className="m-0 flex list-none flex-wrap gap-2 p-0" aria-label="A photograph of every room type">
-          {rooms.map((t) => {
-            const ok = hasPhoto(p ?? null, t.id);
+        <ul className="m-0 flex list-none flex-wrap gap-2 p-0" aria-label={t("photoOfEveryRoom")}>
+          {rooms.map((room) => {
+            const ok = hasPhoto(p ?? null, room.id);
             return (
-              <li key={t.id}>
+              <li key={room.id}>
                 <Chip size="sm" variant="soft" color={ok ? "success" : "warning"}>
                   {ok ? <CircleCheck className="size-3" aria-hidden="true" /> : null}
                   <Chip.Label>
-                    {t.name} · {ok ? "has its photo" : "needs a photo"}
+                    {room.name} · {ok ? t("hasPhoto") : t("needsPhoto")}
                   </Chip.Label>
                 </Chip>
               </li>
@@ -547,12 +561,12 @@ function PhotoStep({ data, index = 3 }: { data: Open; index?: number }) {
               {/* biome-ignore lint/performance/noImgElement: a short-lived signed URL, not a static asset */}
               <img
                 src={ph.url}
-                alt={ph.caption ?? (venue ? "Venue photograph" : "Property photograph")}
+                alt={ph.caption ?? (venue ? t("venuePhoto") : t("propertyPhoto"))}
                 className="aspect-[4/3] w-full rounded-[10px] bg-default object-cover"
               />
               <span className="truncate text-[12px] text-muted">
-                {ph.isCover ? "Cover · " : ""}
-                {ph.caption ?? "No caption"}
+                {ph.isCover ? `${t("cover")} · ` : ""}
+                {ph.caption ?? t("noCaption")}
               </span>
             </li>
           ))}
@@ -561,7 +575,7 @@ function PhotoStep({ data, index = 3 }: { data: Open; index?: number }) {
       {p ? (
         <form onSubmit={submit} className="flex flex-col gap-3">
           <label className="flex flex-col gap-1 text-sm font-medium">
-            Photograph
+            {t("photograph")}
             <input
               key={inputKey}
               type="file"
@@ -569,27 +583,27 @@ function PhotoStep({ data, index = 3 }: { data: Open; index?: number }) {
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               className="text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-default file:px-3 file:py-2 file:text-foreground"
             />
-            <span className="text-xs font-normal text-muted">JPEG, PNG or WebP, up to 8 MB.</span>
+            <span className="text-xs font-normal text-muted">{t("imageLimit")}</span>
           </label>
           {rooms.length ? (
             <label className="flex flex-col gap-1 text-sm font-medium">
-              What it shows
+              {t("whatItShows")}
               <select className={SELECT} value={shows} onChange={(e) => setRoom(e.target.value)}>
-                <option value="">The place itself: outside, lobby, garden…</option>
-                {rooms.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                    {hasPhoto(p ?? null, t.id) ? "" : " · needs a photo"}
+                <option value="">{t("placeItself")}</option>
+                {rooms.map((room) => (
+                  <option key={room.id} value={room.id}>
+                    {room.name}
+                    {hasPhoto(p ?? null, room.id) ? "" : ` · ${t("needsPhoto")}`}
                   </option>
                 ))}
               </select>
             </label>
           ) : null}
           <TextField value={caption} onChange={setCaption} fullWidth>
-            <Label>Caption</Label>
+            <Label>{t("caption")}</Label>
             <Input
               placeholder={
-                venue ? "Counter, terrace…" : (rooms.find((t) => t.id === shows)?.name ?? "Front of the house")
+                venue ? t("venueCaption") : (rooms.find((t) => t.id === shows)?.name ?? t("propertyCaption"))
               }
             />
           </TextField>
@@ -599,18 +613,19 @@ function PhotoStep({ data, index = 3 }: { data: Open; index?: number }) {
             className="self-start"
             isDisabled={step.busy || !file}
           >
-            {step.busy ? "Uploading…" : "Add photo"}
+            {step.busy ? t("uploading") : t("addPhoto")}
           </Button>
-          <Outcome result={step.result} okText="Photo added." />
+          <Outcome result={step.result} okText={t("photoAdded")} />
         </form>
       ) : (
-        <p className="text-[13px] text-muted">{venue ? "Add the venue first." : "Add the property first."}</p>
+        <p className="text-[13px] text-muted">{venue ? t("addVenueFirst") : t("addPropertyFirst")}</p>
       )}
     </StepCard>
   );
 }
 
 function PublishStep({ data, webUrl, index = 4 }: { data: Open; webUrl: string; index?: number }) {
+  const t = useTranslations("setup");
   const p = data.property;
   const venue = data.foodVenue;
   const step = useStep();
@@ -638,27 +653,27 @@ function PublishStep({ data, webUrl, index = 4 }: { data: Open; webUrl: string; 
     <StepCard
       id="publish"
       index={index}
-      title="Publish"
+      title={t("publish")}
       done={live}
       icon={<ArrowUpRightFromSquare />}
       lead={
         venue
-          ? "Puts the venue on the Injishi marketplace. Until you press it, customers see nothing."
-          : "Puts the property on the Injishi marketplace. Until you press it, guests see nothing."
+          ? t("venuePublishLead")
+          : t("propertyPublishLead")
       }
     >
       {live ? (
         <Alert status="success" role="status">
           <Alert.Content>
-            <Alert.Title>Live on the marketplace</Alert.Title>
+            <Alert.Title>{t("live")}</Alert.Title>
             <Alert.Description>
-              {venue ? `Customers can find ${p?.name}.` : `Guests can find ${p?.name} and book it.`}
+              {venue ? t("customersFind", { name: p?.name ?? "" }) : t("guestsCanBook", { name: p?.name ?? "" })}
             </Alert.Description>
           </Alert.Content>
         </Alert>
       ) : data.blockers.length ? (
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium">Before it can be published</span>
+          <span className="text-sm font-medium">{t("beforePublish")}</span>
           <ul className="m-0 flex list-disc flex-col gap-1 pl-5 text-[13px] text-muted">
             {data.blockers.map((b) => (
               <li key={b}>{b}</li>
@@ -666,31 +681,31 @@ function PublishStep({ data, webUrl, index = 4 }: { data: Open; webUrl: string; 
           </ul>
         </div>
       ) : (
-        <p className="text-[13px] text-muted">Everything the marketplace needs is in place.</p>
+        <p className="text-[13px] text-muted">{t("allReady")}</p>
       )}
       <div className="flex flex-wrap items-center gap-3">
         {live ? null : (
           <Button onPress={() => void publish()} isDisabled={step.busy || !p || data.blockers.length > 0}>
-            {step.busy ? "Publishing…" : "Publish"}
+            {step.busy ? t("publishing") : t("publish")}
           </Button>
         )}
         {live && slug ? (
           <LinkButton href={`${webUrl}/property/${slug}`} variant="secondary">
-            {venue ? "See it as customers do" : "See it as guests do"}
+            {venue ? t("seeAsCustomers") : t("seeAsGuests")}
             <ArrowUpRightFromSquare className="size-4" />
           </LinkButton>
         ) : null}
         {live ? (
           // Closing for a season, or a listing that is wrong: the owner withdraws it here, keeping its address.
           <Button variant="ghost" onPress={() => void unpublish()} isDisabled={step.busy || !p}>
-            {step.busy ? "Taking it off…" : "Take it off the marketplace"}
+            {step.busy ? t("takingOff") : t("unpublish")}
           </Button>
         ) : null}
       </div>
       <Outcome
         result={step.result}
         okText={
-          last === "unpublish" ? "Taken off the marketplace. Publish again whenever you are ready." : "Published."
+          last === "unpublish" ? t("unpublished") : t("published")
         }
       />
     </StepCard>
@@ -698,14 +713,14 @@ function PublishStep({ data, webUrl, index = 4 }: { data: Open; webUrl: string; 
 }
 
 /** Where each checklist step is done: on this page, or a screen of its own. */
-const STEP_HOME: Partial<Record<string, { href: string; label: string }>> = {
-  property: { href: "#property", label: "Above" },
-  contact: { href: "#property", label: "Above" },
-  room_types: { href: "#room_type", label: "Above" },
-  photos: { href: "#photo", label: "Above" },
-  listing: { href: "#publish", label: "Above" },
-  rooms: { href: "/room-rack", label: "Room rack" },
-  staff: { href: "/settings/team", label: "Team" },
+const STEP_HOME: Partial<Record<string, { href: string; labelKey: "above" | "roomRack" | "team" }>> = {
+  property: { href: "#property", labelKey: "above" },
+  contact: { href: "#property", labelKey: "above" },
+  room_types: { href: "#room_type", labelKey: "above" },
+  photos: { href: "#photo", labelKey: "above" },
+  listing: { href: "#publish", labelKey: "above" },
+  rooms: { href: "/room-rack", labelKey: "roomRack" },
+  staff: { href: "/settings/team", labelKey: "team" },
 };
 
 /**
@@ -714,15 +729,16 @@ const STEP_HOME: Partial<Record<string, { href: string; label: string }>> = {
  * place well needs, done here or on its own screen.
  */
 function KindChecklist({ data }: { data: Open }) {
+  const t = useTranslations("setup");
   const left = data.checklist.filter((s) => !s.done).length;
   return (
     <Card render={(p) => <section {...p} />} aria-labelledby="checklist-h" className="gap-3 p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="checklist-h" className="text-[15px] leading-[22px] font-semibold">
-          {`Your ${data.kindLabel} checklist`}
+          {t("checklist", { kind: data.kindLabel })}
         </h2>
         <span className="text-[13px] text-muted tabular">
-          {left === 0 ? "All done" : `${data.checklist.length - left} of ${data.checklist.length} done`}
+          {left === 0 ? t("allDone") : t("doneCount", { done: data.checklist.length - left, total: data.checklist.length })}
         </span>
       </div>
       <ul className="m-0 flex list-none flex-col p-0">
@@ -735,17 +751,17 @@ function KindChecklist({ data }: { data: Open }) {
             >
               <div className="flex min-w-0 flex-1 basis-64 flex-col gap-0.5">
                 <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                  {s.done ? <CircleCheck className="size-4 text-success" aria-label="Done" /> : null}
+                  {s.done ? <CircleCheck className="size-4 text-success" aria-label={t("done")} /> : null}
                   {s.title}
                   <Chip size="sm" variant="soft" color={s.required ? "accent" : "default"}>
-                    {s.required ? "Required" : "Recommended"}
+                    {s.required ? t("required") : t("recommended")}
                   </Chip>
                 </span>
                 <span className="text-[13px] text-muted">{s.description}</span>
               </div>
               {home && !s.done ? (
                 <a href={home.href} className="text-[13px] font-medium text-accent underline-offset-2 hover:underline">
-                  {home.label}
+                  {t(home.labelKey)}
                 </a>
               ) : null}
             </li>
@@ -758,19 +774,20 @@ function KindChecklist({ data }: { data: Open }) {
 
 /** Where the booking money goes: the host's payout account, on its own page (0116). */
 function GettingPaidCard({ data }: { data: Open }) {
+  const t = useTranslations("setup");
   return (
     <Card render={(p) => <section {...p} />} aria-labelledby="paid-h" className="gap-2 p-5">
       <h2 id="paid-h" className="text-[15px] leading-[22px] font-semibold">
-        Getting paid
+        {t("gettingPaid")}
       </h2>
       <p className="m-0 text-sm text-muted">
         {data.approved
-          ? "Add the mobile money number or bank account your booking money goes to. Each guest's payment is sent there after they check out."
-          : "Once you are approved, add the mobile money number or bank account your booking money goes to."}
+          ? t("paidApproved")
+          : t("paidPending")}
       </p>
       {data.approved ? (
         <LinkButton href={`/w/${data.workspaceId}/getting-paid`} variant="secondary" className="self-start">
-          Set up getting paid
+          {t("setUpGettingPaid")}
         </LinkButton>
       ) : null}
     </Card>
@@ -779,10 +796,11 @@ function GettingPaidCard({ data }: { data: Open }) {
 
 /** One business, several branches: pick which one this page sets up. */
 function PropertySwitcher({ data }: { data: Open }) {
+  const t = useTranslations("setup");
   if (data.properties.length < 2) return null;
   return (
     <label className="flex max-w-[420px] flex-col gap-1 text-sm font-medium">
-      Setting up
+      {t("settingUp")}
       <select
         className={SELECT}
         value={data.property?.id ?? ""}
@@ -802,21 +820,21 @@ function PropertySwitcher({ data }: { data: Open }) {
 
 /** Shown above the steps while the registration is reviewed: build now, publish after approval. */
 function ReviewNotice({ status }: { status: string | null }) {
+  const t = useTranslations("setup");
   const where = WAITING[status ?? ""];
   return (
     <Alert status="accent" role="status">
       <Alert.Content>
         <Alert.Title className="flex flex-wrap items-center gap-2">
-          Your registration is in review
+          {t("registrationInReview")}
           {where ? (
             <Chip size="sm" variant="soft" color={where.tone}>
-              {where.chip}
+              {t(where.chipKey)}
             </Chip>
           ) : null}
         </Alert.Title>
         <Alert.Description>
-          {where ? `${where.text} ` : ""}Set everything up now: you can publish as soon as it is approved, and we email
-          you when it is.
+          {where ? `${t(where.textKey)} ` : ""}{t("reviewLead")}
         </Alert.Description>
       </Alert.Content>
     </Alert>
@@ -838,32 +856,32 @@ export function PropertySetupView({
   provinces: Place[];
   webUrl: string;
 }) {
+  const t = useTranslations("setup");
   if (!data.open) {
     const where = WAITING[data.status ?? ""] ?? {
-      chip: "Not open yet",
+      chipKey: "notOpen",
       tone: "default" as const,
-      text: "This business is not approved yet.",
+      textKey: "notApproved",
     };
     return (
       <PageContent>
-        <PageHeader eyebrow={`${data.businessName} · Setup`} title="Set up your business" />
+        <PageHeader eyebrow={`${data.businessName} · ${t("setupSuffix")}`} title={t("title")} />
         <Card render={(p) => <section {...p} />} aria-labelledby="closed-h" className="gap-3 p-5">
           <div className="flex flex-wrap items-center gap-2">
             <Clock className="size-5 text-muted" aria-hidden="true" />
             <h2 id="closed-h" className="text-[15px] leading-[22px] font-semibold">
-              Setup opens once your registration fee is paid
+              {t("closedTitle")}
             </h2>
             <Chip size="sm" variant="soft" color={where.tone}>
-              {where.chip}
+              {t(where.chipKey)}
             </Chip>
           </div>
-          <p className="text-sm text-muted">{where.text}</p>
+          <p className="text-sm text-muted">{t(where.textKey)}</p>
           <p className="text-sm text-muted">
-            Until then the registry does not let anyone add prices or photographs for this business, so there is nothing
-            to prepare here yet.
+            {t("closedLead")}
           </p>
           <LinkButton href={`${webUrl}/register`} variant="secondary" className="self-start">
-            See your registration
+            {t("seeRegistration")}
           </LinkButton>
         </Card>
       </PageContent>
@@ -875,23 +893,23 @@ export function PropertySetupView({
   return (
     <PageContent>
       <PageHeader
-        eyebrow={`${data.businessName} · Setup`}
-        title={venue ? "Set up your venue" : "Set up your property"}
+        eyebrow={`${data.businessName} · ${t("setupSuffix")}`}
+        title={venue ? t("titleVenue") : t("titleProperty")}
         description={
           data.published
             ? venue
-              ? "Your venue is on the marketplace. Keep its details, prices and photographs up to date here."
-              : "Your property is on the marketplace. Keep its details, prices and photographs up to date here."
+              ? t("venueLive")
+              : t("propertyLive")
             : venue
-              ? "Three steps, then publish. Customers see nothing until you press Publish."
-              : "Six steps, then publish. Guests see nothing until you press Publish."
+              ? t("venueSteps")
+              : t("propertySteps")
         }
       />
       {!data.approved ? <ReviewNotice status={data.status} /> : null}
       <PropertySwitcher data={data} />
-      <section aria-label="Setup progress" className="flex flex-wrap items-center gap-2">
+      <section aria-label={t("progress")} className="flex flex-wrap items-center gap-2">
         <span className="mr-1 text-sm font-medium tabular">
-          {done} of {data.steps.length} done
+          {t("doneCount", { done, total: data.steps.length })}
         </span>
         {data.steps.map((s) => (
           <Chip key={s.key} size="sm" variant="soft" color={s.done ? "success" : "default"}>

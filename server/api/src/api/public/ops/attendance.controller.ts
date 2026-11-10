@@ -3,7 +3,9 @@ import {
   ClockOutRequest,
   CorrectAttendanceRequest,
   DecideOvertimeRequest,
+  RejectAttendanceRequest,
   type AttendancePage,
+  type FarClockIns,
   type ListQuery,
   type AttendanceRecord,
 } from '@injishi/contracts';
@@ -29,6 +31,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -44,8 +47,16 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/attendance', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsAttendanceController {
   constructor(private readonly time: TimeService) {}
+
+  /** People who clocked in, or tried to, far from work this month (clock-in rules). */
+  @Get('far-clock-ins')
+  @RequirePermission('attendance.approve')
+  farClockIns(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<FarClockIns> {
+    return this.time.farClockIns(workspace);
+  }
 
   @Get()
   @RequireAnyPermission('attendance.record', 'attendance.approve')
@@ -98,6 +109,19 @@ export class OpsAttendanceController {
     @CurrentUser() user: SessionUser,
   ): Promise<AttendanceRecord> {
     return this.time.validate(workspace, user.id, id);
+  }
+
+  /** The person was not at work: a clock-in nobody vouched for counts for nothing. */
+  @Post(':id/reject')
+  @HttpCode(200)
+  @RequirePermission('attendance.approve')
+  reject(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(RejectAttendanceRequest)) body: RejectAttendanceRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<AttendanceRecord> {
+    return this.time.reject(workspace, user.id, id, body);
   }
 
   /** Approve all of the overtime, or less (058-time AC-TM8). Only approved overtime reaches pay. */

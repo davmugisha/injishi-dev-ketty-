@@ -33,9 +33,25 @@ export interface DeptPresence {
   property: PropertyId;
   /** On shift and on time. */
   present: string[];
-  late: PresenceIssue[];
+  /** Late today. `gone`: has clocked out since, so no longer in. */
+  late: (PresenceIssue & { gone?: boolean })[];
   /** `explained`: called in / certificate to follow; otherwise no clock-in and no leave recorded. */
   absent: (PresenceIssue & { explained: boolean })[];
+  /** Clocked in today and out again: rostered, no longer in. */
+  finished?: string[];
+  /** On approved leave today: not rostered, shown so nobody looks for them. */
+  onLeave?: PresenceIssue[];
+}
+
+/** One kind of request waiting on HR, as People home counts it. */
+export interface HrWaiting {
+  id: string;
+  label: string;
+  count: number;
+  /** The screen where it is decided. */
+  board: BoardId;
+  /** Added to that screen's address: "?tab=corrections". */
+  query: string;
 }
 
 /** Shift below minimum cover in the next 7 days. */
@@ -163,10 +179,14 @@ export interface OrgNode {
 
 export interface OffboardingTask {
   id: string;
+  /** Whose checklist the step is on. */
+  employeeId: string;
   title: string;
   detail: string;
   /** Owner-only step: HR sees it but cannot tick it. */
   ownerOnly: boolean;
+  /** The person looking holds what an owner-only step asks (`team.manage`), so they can tick it. */
+  canTickOwnerOnly?: boolean;
   done: boolean;
   board: BoardId | null;
   linkLabel: string | null;
@@ -188,6 +208,8 @@ export interface RosterGroup {
   shifts: ShiftCode[];
   /** Minimum cover Monday → Sunday. */
   min: number[];
+  /** The minimums as saved, Monday first, for editing. */
+  minByWeekday?: number[];
   note: string;
 }
 
@@ -199,6 +221,10 @@ export interface RosterStaff {
   rotation: string;
   /** Seven shift codes, Monday → Sunday, per week. */
   shifts: Record<WeekId, string>;
+  /** The real hours of each day with a shift ("08–17"), per week. */
+  times?: Record<WeekId, (string | null)[]>;
+  /** How long each day's shift is, in hours; 0 for no shift. */
+  lengths?: Record<WeekId, number[]>;
 }
 
 export interface RosterWeek {
@@ -218,13 +244,30 @@ export interface RosterWeek {
    * carries it so a reload still offers to publish them; the prototype starts every week at 0.
    */
   pendingChanges?: number;
+  /** Each shift letter's real hours at this branch ("08–17"), as a new shift would get them. */
+  shiftTimes?: Partial<Record<"M" | "E" | "N", string>>;
+  /** How long each shift letter is at this branch, in hours. */
+  shiftLengths?: Partial<Record<"M" | "E" | "N", number>>;
 }
 
 export interface ShiftSwap {
   id: string;
   a: string;
   b: string;
+  /** The roster week the day falls in; absent means this week. */
+  week?: WeekId;
+  /** The day's place in that week, 0 to 6; -1 when it is not on the grid. */
   day: number;
+  /** A swap, another shift, or joining a rotation. Absent means a swap. */
+  kind?: "swap" | "change" | "rotation";
+  /** Still waiting for the colleague to say yes. */
+  waiting?: boolean;
+  /** The colleague has no login, so someone who manages the roster says yes for them. */
+  canAcceptFor?: boolean;
+  /** The colleague's first name, for the waiting line. */
+  colleague?: string;
+  /** The day has passed with no decision. */
+  overdue?: boolean;
   title: string;
   detail: string;
 }
@@ -237,6 +280,10 @@ export interface Rotation {
   staff: number;
   /** Short pattern per rotation code, shown when editing a shift ("Rotation A · Weekends off."). */
   patterns: Record<string, string>;
+  /** Its patterns (one, or a staggered family), each with its steps in order. */
+  members?: RotationMember[];
+  /** Who is on it now. */
+  people?: RotationPerson[];
 }
 
 export interface PublicHoliday {
@@ -258,6 +305,8 @@ export interface ClockRecord {
   property: string;
   shift: string;
   clockIn: string;
+  /** The Kigali day the clock-in fell on ("2026-10-15"): a clock-out is typed against this day. */
+  clockedOn?: string;
   source: ClockSource | null;
   sourceNote: string;
   clockOut: string;
@@ -265,6 +314,19 @@ export interface ClockRecord {
   tone: Tone;
   /** Set on desk entries added from the Attendance screen (ISO time); newest show first. */
   addedAt?: string;
+  /** The person's staff file, when HR can act on the row. */
+  employeeId?: string;
+  /** What HR can do from the row: clock in someone with no clock-in, or clock out someone on shift. */
+  action?: "clock_in" | "clock_out" | null;
+  /** A clock-in from a phone nobody has checked: HR counts it, or marks it not counted. */
+  check?: { recordId: string; why: string } | null;
+  /** "07:00": the shift's start, offered as the clock-in time. */
+  shiftStart?: string;
+  /**
+   * A clock-in of an earlier day the person never clocked out of: it blocks today's until closed.
+   * `since` reads "Fri 16 Oct"; `clockIn` and `clockOut` are "06:52" and the end offered, "14:52".
+   */
+  stale?: { recordId: string; date: string; since: string; clockIn: string; clockOut: string };
   /** Desk entries: date typed by HR, reason picked and the justification on file. */
   date?: string;
   reason?: string;
@@ -300,6 +362,10 @@ export interface AttendanceException {
   /** Correction request that resolves this exception when approved. */
   correction: string | null;
   resolvedDetail: string | null;
+  /** The day the record belongs to ("2026-10-15"): a desk entry for it opens on this day. */
+  workDate?: string;
+  /** "07:00": the clock-in on that record, which a desk entry keeps. */
+  clockIn?: string;
 }
 
 export interface DeskEmployee {
@@ -309,6 +375,8 @@ export interface DeskEmployee {
   dept: string;
   property: string;
   shift: string;
+  /** Absent, missed a clock-out, or has no kiosk PIN this week: listed first. */
+  due?: boolean;
 }
 
 export interface AttendanceSummary {
@@ -360,6 +428,8 @@ export interface LeaveRequest {
   by: string | null;
   /** Calendar bar: [first day index from 12 Oct, number of days]. */
   cal: [number, number] | null;
+  /** Why the person signed in may not decide this, in words; empty when they may. */
+  blockedWhy?: string | null;
 }
 
 export interface LeaveBalance {
@@ -372,6 +442,38 @@ export interface LeaveBalance {
   sick: number;
   /** Request whose days are pending in this balance. */
   request: string | null;
+  /** What the ledger says is left, expired days taken off. */
+  left?: number | null;
+}
+
+/** Days on top of what a kind of leave gives, asked for by a person and decided on the Leave screen. */
+export interface ExtraDaysAsk {
+  id: string;
+  name: string;
+  dept: string;
+  /** "Extra days", or "Day in lieu" for a worked holiday or day off. */
+  kind: string;
+  /** "Annual leave". */
+  leaveType: string;
+  days: number;
+  reason: string;
+  /** "9 Oct". */
+  asked: string;
+  state: "pending" | "approved" | "declined";
+  /** Who decided and what they said, once decided. */
+  outcome: string | null;
+  /** Why the person signed in may not decide this, in words; empty when they may. */
+  blockedWhy: string | null;
+}
+
+/** A document a person handed in, waiting for HR to check it. */
+export interface DocumentToCheck {
+  id: string;
+  employeeId: string;
+  name: string;
+  title: string;
+  /** "9 Oct". */
+  handedIn: string;
 }
 
 export interface LeaveType {
@@ -394,3 +496,160 @@ export interface LeaveCalendarEntry {
   step: "approved";
   cal: [number, number];
 }
+
+/** What a login may be given with, at one employer. */
+export interface AccessOptionsView {
+  /** The person may give logins at all. */
+  canGrant: boolean;
+  /** The person manages the team: every role goes out at once. */
+  grantsEveryRole: boolean;
+  roles: AccessRoleView[];
+  branches: { id: string; name: string }[];
+}
+
+/** The staff roles a login may be given into; `owner` changes hands only by transfer. */
+export type AccessRoleId = "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+
+/** Where one file's login stands, as the file's Access tab shows it. */
+export interface EmployeeAccessView extends AccessOptionsView {
+  employeeId: string;
+  state: "active" | "invited" | "awaiting_owner" | "none";
+  /** "Front office / Receptionist · every branch · last active 2 h ago". */
+  member: { email: string | null; role: string; branches: string; lastActive: string } | null;
+  invitation: { email: string; role: string; branches: string; sent: string; expires: string } | null;
+  request: {
+    status: "pending" | "approved" | "declined" | "cancelled";
+    email: string;
+    role: string;
+    branches: string;
+    requested: string;
+    decided: string | null;
+    decisionNote: string | null;
+  } | null;
+}
+
+/** Earlier views of an employee file. `{first}` is replaced with the employee's first name. */
+export interface FileAccess {
+  id: string;
+  what: string;
+  when: string;
+}
+
+/** Days of leave taken in one month of this year, for the Leave page's chart. */
+export interface LeaveMonth {
+  /** The month, "2026-03". */
+  id: string;
+  annual: number;
+  sick: number;
+  other: number;
+}
+
+/** One stretch of leave on the Leave page's calendar: approved or still pending, this year or later. */
+export interface LeaveStretch {
+  id: string;
+  name: string;
+  type: string;
+  from: string;
+  to: string;
+  days: number;
+  approved: boolean;
+  /** Approved leave decided too long ago for the queue, whole: HR can still open and cancel it. */
+  request?: LeaveRequest | null;
+}
+
+/** The new employee form's choices (People › Employees › Add employee). */
+export interface NewEmployeeForm {
+  id: string;
+  employers: NewEmployeeEmployer[];
+  /** Banks a salary may be paid to, for the payment step. */
+  banks: string[];
+  /** Today in Kigali, the default start date. */
+  today: string;
+}
+
+export interface RotationMember {
+  id: string;
+  code: string;
+  description: string;
+  /** Each step's shift name, or "Off". */
+  steps: string[];
+  rule: "every_n_days" | "weekly" | "monthly";
+  ruleValue: number;
+}
+
+export interface RotationPerson {
+  assignmentId: string;
+  employeeId: string;
+  name: string;
+  title: string | null;
+  patternId: string;
+  code: string;
+  startsOn: string;
+  startStep: number;
+}
+
+export interface EmployeeDocumentView {
+  id: string;
+  title: string;
+  state: string;
+  tone: "success" | "warning" | "danger" | "default";
+  /** "Expires 3 Mar 2027", "Uploaded 9 Oct 2026", "Due 20 Oct 2026". */
+  meta: string;
+  /** A file has been uploaded, so there is something to open. */
+  canOpen: boolean;
+  /** Handed in and waiting: HR approves it or sends it back. */
+  canDecide?: boolean;
+}
+
+/** One role as the access step offers it: what it is for and what it may do at this business. */
+export interface AccessRoleView {
+  id: AccessRoleId;
+  label: string;
+  summary: string;
+  /** With HR's rights alone, a login into this role waits for the owner's approval. */
+  needsOwner: boolean;
+  /** Its permissions by area, in plain words. */
+  areas: { label: string; permissions: string[] }[];
+}
+
+/** One employer HR keeps files for, with what its new employee form offers. */
+export interface NewEmployeeEmployer {
+  /** The business workspace. */
+  id: string;
+  name: string;
+  kind: "hospitality" | "residence";
+  branches: { id: string; name: string }[];
+  positions: { id: string; title: string }[];
+  employeeTypes: { id: string; title: string }[];
+  /** Who a new person may report to: active files of this employer. */
+  managers: { id: string; name: string; title: string }[];
+  access: AccessOptionsView;
+}
+
+/** A login HR asked for, as the owner decides it on Team and roles. */
+export interface AccessRequestView {
+  id: string;
+  employeeId: string;
+  name: string;
+  initials: string;
+  /** "Night auditor · EMP-0094" */
+  job: string;
+  email: string;
+  role: string;
+  branches: string;
+  /** "Asked by Diane Ingabire · 18 Oct" */
+  asked: string;
+  note: string | null;
+  status: "pending" | "approved" | "declined" | "cancelled";
+  /** "Approved by Didier Mugenzi · 18 Oct", or the decline with its reason. */
+  outcome: string | null;
+}
+
+/** A file's personal details, as the Personal tab shows them. `full` is false for a reader without them. */
+export interface EmployeePersonalView {
+  full: boolean;
+  rows: { label: string; value: string }[];
+}
+
+/** The levels of Rwanda's places, province down to village (umudugudu). */
+export type PlaceLevelId = "province" | "district" | "sector" | "cell" | "village";

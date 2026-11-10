@@ -3,6 +3,8 @@ import {
   CreatePayExportRequest,
   CreatePayRunRequest,
   HoldPayslipRequest,
+  SubmitPayRunRequest,
+  WithdrawPayRunRequest,
   type ListQuery,
   type PayFileList,
   type PayFileResult,
@@ -34,6 +36,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -68,6 +71,7 @@ export interface FileReply {
  */
 @Controller({ path: 'ops/pay-runs', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayRunsController {
   constructor(
     private readonly payRuns: PayRunsService,
@@ -125,6 +129,35 @@ export class OpsPayRunsController {
     @CurrentUser() user: SessionUser,
   ): Promise<PayRunDetail> {
     return this.payRuns.hold(workspace, user.id, id, body);
+  }
+
+  /**
+   * Hand the draft to whoever confirms it, with a word if there is one. Refused,
+   * with every blocker listed, while something stops the month.
+   */
+  @Post(':id/submit')
+  @HttpCode(200)
+  @RequireAnyPermission('payroll.draft', 'payroll.run')
+  submit(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(SubmitPayRunRequest)) body: SubmitPayRunRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PayRunDetail> {
+    return this.payRuns.submit(workspace, user.id, id, body.note ?? null);
+  }
+
+  /** Take a submitted draft back to change it; whoever confirms sends it back the same way, saying why. */
+  @Post(':id/withdraw')
+  @HttpCode(200)
+  @RequireAnyPermission('payroll.draft', 'payroll.run')
+  withdraw(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(WithdrawPayRunRequest)) body: WithdrawPayRunRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PayRunDetail> {
+    return this.payRuns.withdraw(workspace, user.id, id, body.reason ?? null);
   }
 
   /**

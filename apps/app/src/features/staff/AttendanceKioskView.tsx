@@ -40,8 +40,7 @@ const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "del"] 
  * with a one-time code, through a device cookie this app does not hold, and it takes an employee number with the
  * PIN. Until the tablet is paired this screen checks nothing, so it accepts no PIN and no card.
  */
-const NOT_CONNECTED =
-  "This kiosk is not connected to Injishi attendance yet, so it cannot check a PIN or a card. Ask the front desk or your supervisor to record your time.";
+const NOT_CONNECTED = "This kiosk is not connected yet. Ask the front desk or your supervisor to record your time.";
 
 /** Camera area of the staff-card scanner: a live viewfinder, not a photo. */
 function Viewfinder({ onScan }: { onScan: () => void }) {
@@ -182,7 +181,7 @@ export function AttendanceKioskView({
           <BrandMark size={36} />
           <div className="flex flex-col">
             <span className="text-base leading-[22px] font-semibold">Staff clock-in</span>
-            <span className="text-[13px] leading-[18px] text-muted">Not paired with a property yet</span>
+            <span className="text-[13px] leading-[18px] text-muted">Not paired yet</span>
           </div>
         </div>
 
@@ -204,11 +203,11 @@ export function AttendanceKioskView({
         <div className="flex flex-col gap-[10px]">
           <p className="flex items-start gap-[8px] text-[13px] leading-[18px] text-muted">
             <ShieldCheck className="mt-[1px] size-4 shrink-0" aria-hidden="true" />
-            <span>This kiosk shows only your name, photo, department and shift. Nothing else is kept on it.</span>
+            <span>Shows only your name, photo, department and shift. Nothing else is kept.</span>
           </p>
           <p className="flex items-start gap-[8px] text-[13px] leading-[18px] text-muted">
             <ArrowsRotateLeft className="mt-[1px] size-4 shrink-0" aria-hidden="true" />
-            <span>Goes back to the start {kiosk.resetSeconds} seconds after the last tap.</span>
+            <span>Resets {kiosk.resetSeconds} seconds after the last tap.</span>
           </p>
         </div>
       </aside>
@@ -301,7 +300,7 @@ export function AttendanceKioskView({
           <>
             <div className="mt-[40px] flex flex-col items-center gap-[6px] text-center">
               <h1 className="text-[28px] leading-9 font-semibold">Scan your staff card</h1>
-              <p className="text-[15px] text-muted">Hold the QR code on your card in the frame.</p>
+              <p className="text-[15px] text-muted">Hold your card's QR code in the frame.</p>
             </div>
             <Viewfinder onScan={() => setErr(true)} />
             {err ? (

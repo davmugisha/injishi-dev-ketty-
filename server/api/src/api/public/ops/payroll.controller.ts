@@ -9,6 +9,7 @@ import {
   PayDecisionRequest,
   PayPeriod,
   PayslipBulkRequest,
+  SetPayrollContributionRequest,
   SettleLoanRequest,
   UnmarkPaidRequest,
   UpdateContractPayTermsRequest,
@@ -28,6 +29,7 @@ import {
   type PayClaimPage,
   type PayComponent,
   type PayComponentList,
+  type PayrollContributionList,
   type PayrollDashboard,
   type PayrollRules,
   type PayslipPage,
@@ -44,16 +46,19 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
 
+import { HrFeatureOn } from '../../../modules/hr/application/hr-feature.guard';
 import { LoansService } from '../../../modules/hr/application/loans.service';
 import { PayAdjustmentsService } from '../../../modules/hr/application/pay-adjustments.service';
 import { PayClaimsService } from '../../../modules/hr/application/pay-claims.service';
 import { PayComponentsService } from '../../../modules/hr/application/pay-components.service';
 import { PayFilesService } from '../../../modules/hr/application/pay-files.service';
+import { PayrollContributionsService } from '../../../modules/hr/application/payroll-contributions.service';
 import { PayrollViewsService } from '../../../modules/hr/application/payroll-views.service';
 import { PayslipsService } from '../../../modules/hr/application/payslips.service';
 import {
@@ -65,6 +70,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -92,6 +98,7 @@ import type { FileReply } from './pay-runs.controller';
 /** Payslips across runs -> /api/v1/ops/payslips (AC-PY10, AC-PY11). */
 @Controller({ path: 'ops/payslips', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayslipsController {
   constructor(private readonly payslips: PayslipsService) {}
 
@@ -170,6 +177,7 @@ export class OpsPayslipsController {
 /** Pay adjustments -> /api/v1/ops/pay-adjustments (AC-PY16). */
 @Controller({ path: 'ops/pay-adjustments', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayAdjustmentsController {
   constructor(private readonly adjustments: PayAdjustmentsService) {}
 
@@ -210,6 +218,7 @@ export class OpsPayAdjustmentsController {
 /** Loans and advances -> /api/v1/ops/loans (AC-PY8). */
 @Controller({ path: 'ops/loans', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsLoansController {
   constructor(private readonly loans: LoansService) {}
 
@@ -232,6 +241,7 @@ export class OpsLoansController {
   }
 
   /** Records the loan and writes its whole schedule; a retry with the same key answers the first. */
+  @HrFeatureOn('loans')
   @Post()
   @RequirePermission('payroll.run')
   create(
@@ -244,6 +254,7 @@ export class OpsLoansController {
   }
 
   /** Everything still owed, deducted in one month. */
+  @HrFeatureOn('loans')
   @Post(':id/settle')
   @HttpCode(200)
   @RequirePermission('payroll.run')
@@ -257,6 +268,7 @@ export class OpsLoansController {
   }
 
   /** The installment and every later unpaid one move a month on. */
+  @HrFeatureOn('loans')
   @Post(':id/installments/:period/defer')
   @HttpCode(200)
   @RequirePermission('payroll.run')
@@ -270,14 +282,18 @@ export class OpsLoansController {
   }
 }
 
-/** Claims -> /api/v1/ops/pay-claims (AC-PY9). */
+/**
+ * Claims -> /api/v1/ops/pay-claims (AC-PY9). HR reads them and their receipts while preparing a
+ * month; deciding one is the owner's money and needs `payroll.run`.
+ */
 @Controller({ path: 'ops/pay-claims', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayClaimsController {
   constructor(private readonly claims: PayClaimsService) {}
 
   @Get()
-  @RequirePermission('payroll.run')
+  @RequireAnyPermission('payroll.draft', 'payroll.run')
   list(
     @Query(ListQueryPipe) query: ListQuery,
     @CurrentWorkspace() workspace: ScopedWorkspace,
@@ -286,7 +302,7 @@ export class OpsPayClaimsController {
   }
 
   @Get('ids')
-  @RequirePermission('payroll.run')
+  @RequireAnyPermission('payroll.draft', 'payroll.run')
   ids(
     @Query(ListQueryPipe) query: ListQuery,
     @CurrentWorkspace() workspace: ScopedWorkspace,
@@ -294,6 +310,7 @@ export class OpsPayClaimsController {
     return this.claims.ids(workspace, query);
   }
 
+  @HrFeatureOn('claims')
   @Post('bulk')
   @HttpCode(200)
   @RequirePermission('payroll.run')
@@ -306,6 +323,7 @@ export class OpsPayClaimsController {
   }
 
   /** Raised for someone; a retry with the same key answers the first claim. */
+  @HrFeatureOn('claims')
   @Post()
   @RequirePermission('payroll.run')
   create(
@@ -317,6 +335,7 @@ export class OpsPayClaimsController {
     return this.claims.create(workspace, user.id, key, body);
   }
 
+  @HrFeatureOn('claims')
   @Post(':id/approve')
   @HttpCode(200)
   @RequirePermission('payroll.run')
@@ -329,6 +348,7 @@ export class OpsPayClaimsController {
     return this.claims.approve(workspace, user.id, id, body.note?.trim() || null);
   }
 
+  @HrFeatureOn('claims')
   @Post(':id/reject')
   @HttpCode(200)
   @RequirePermission('payroll.run')
@@ -343,7 +363,7 @@ export class OpsPayClaimsController {
 
   /** The receipt, as a five minute link. */
   @Get(':id/receipt')
-  @RequirePermission('payroll.run')
+  @RequireAnyPermission('payroll.draft', 'payroll.run')
   receipt(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: ScopedWorkspace,
@@ -352,9 +372,39 @@ export class OpsPayClaimsController {
   }
 }
 
+/**
+ * The contributions on pay and a business's optional ones -> /api/v1/ops/payroll-contributions.
+ * HR reads them to prepare a month; switching one, or setting a private insurer, is the
+ * owner's money and needs `payroll.run`.
+ */
+@Controller({ path: 'ops/payroll-contributions', version: '1' })
+@UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
+export class OpsPayrollContributionsController {
+  constructor(private readonly contributions: PayrollContributionsService) {}
+
+  @Get()
+  @RequirePermission('payroll.draft')
+  list(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<PayrollContributionList> {
+    return this.contributions.list(workspace);
+  }
+
+  @Put(':code')
+  @RequirePermission('payroll.run')
+  set(
+    @Param('code') code: string,
+    @Body(new ZodValidationPipe(SetPayrollContributionRequest)) body: SetPayrollContributionRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PayrollContributionList> {
+    return this.contributions.set(workspace, user.id, code, body);
+  }
+}
+
 /** Pay components -> /api/v1/ops/pay-components (AC-PY5). */
 @Controller({ path: 'ops/pay-components', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayComponentsController {
   constructor(private readonly components: PayComponentsService) {}
 
@@ -390,6 +440,7 @@ export class OpsPayComponentsController {
 /** Pay structures -> /api/v1/ops/pay-structures (AC-PY5). */
 @Controller({ path: 'ops/pay-structures', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayStructuresController {
   constructor(private readonly components: PayComponentsService) {}
 
@@ -428,6 +479,7 @@ export class OpsPayStructuresController {
  */
 @Controller({ path: 'ops/contracts', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsContractsController {
   constructor(private readonly views: PayrollViewsService) {}
 
@@ -455,6 +507,7 @@ export class OpsContractsController {
 /** The dashboard and the national rules in force -> /api/v1/ops/payroll (AC-PY15). */
 @Controller({ path: 'ops/payroll', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayrollController {
   constructor(private readonly views: PayrollViewsService) {}
 
@@ -475,6 +528,7 @@ export class OpsPayrollController {
 /** A file a run produced, fetched again -> /api/v1/ops/pay-files/:id. */
 @Controller({ path: 'ops/pay-files', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayFilesController {
   constructor(private readonly files: PayFilesService) {}
 

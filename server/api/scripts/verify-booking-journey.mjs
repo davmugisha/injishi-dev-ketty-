@@ -34,7 +34,7 @@
  * Umurage Guesthouse rooms, left in place like verify-my-trips.mjs leaves its
  * own. Run it only against a local SAMPLE database, never a shared one.
  *
- * OTP budget: one sign-in per identity per run, and the cap is 5 codes an hour
+ * OTP budget: one sign-in per identity per run, and the cap is 10 codes an hour
  * per identity (ADR-039). Move to other seeded identities with
  * VERIFY_GUEST_EMAIL, VERIFY_OTHER_EMAIL and VERIFY_OPERATOR_EMAIL.
  */
@@ -85,7 +85,7 @@ async function sessionFor(email) {
   });
   if (!res.ok) {
     console.error(
-      `${email}: sign-in answered ${res.status}. A 400 is usually the OTP cap (5 codes an hour per identity); ` +
+      `${email}: sign-in answered ${res.status}. A 400 is usually the OTP cap (10 codes an hour per identity); ` +
         'wait, or point VERIFY_*_EMAIL at another seeded identity.',
     );
     process.exit(2);

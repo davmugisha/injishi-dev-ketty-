@@ -205,12 +205,12 @@ function SwitcherPanel({
                   <ChevronRight className="size-4 text-muted" aria-hidden="true" />
                 </>
               );
-              return o.workspaceId ? (
+              return o.workspaceId && o.board ? (
                 <SwitchRow key={o.workspaceId} workspaceId={o.workspaceId} href={screenHref(o.board)}>
                   {body}
                 </SwitchRow>
               ) : (
-                <Row key={o.name} href={screenHref(o.board)}>
+                <Row key={o.href ?? o.name} href={o.href ?? (o.board ? screenHref(o.board) : undefined)}>
                   {body}
                 </Row>
               );
@@ -289,19 +289,28 @@ function SwitcherPanel({
   );
 }
 
-/** Sidebar switcher: business + branch for business personas, a fixed header for institutions. */
+/**
+ * Sidebar switcher: business + branch for a business member, a fixed header for institutions.
+ *
+ * `context` is the account's switcher (ADR-076 G13): for everyone but a demo persona it is built from the
+ * person's own `/me/workspaces`, so the businesses listed are theirs and never the demo's. The branch
+ * picked is remembered per business, not per persona: two real owners share the owner shell.
+ */
 export function BusinessSwitcher({
   persona,
+  context,
   defaultOpen = false,
   inline = false,
 }: {
   persona: Persona;
+  context: WorkspaceContext | null;
   defaultOpen?: boolean;
   /** Render the panel in the page flow under the trigger (the standalone /switcher screen). */
   inline?: boolean;
 }) {
-  const ctx = persona.workspace;
-  const storedBranch = useWorkspaceStore((s) => s.branchByPersona[persona.id]);
+  const ctx = context;
+  const storeKey = ctx?.workspaceId ?? persona.id;
+  const storedBranch = useWorkspaceStore((s) => s.branchByPersona[storeKey]);
   const setBranch = useWorkspaceStore((s) => s.setBranch);
   const [open, setOpen] = useState(defaultOpen);
   useEffect(() => {
@@ -351,7 +360,7 @@ export function BusinessSwitcher({
       ctx={ctx}
       branch={branch}
       onBranch={(id) => {
-        setBranch(persona.id, id);
+        setBranch(storeKey, id);
         if (!inline) setOpen(false);
       }}
       onNavigate={() => setOpen(false)}

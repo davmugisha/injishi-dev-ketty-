@@ -49,15 +49,3 @@ export function setupIsOpen(summary: { status: string; domain?: string | null })
   if (summary.status === "active") return true;
   return summary.domain !== "residence" && IN_REVIEW.has(summary.status);
 }
-
-/** What the page says about setup, by where the registration stands. */
-export function setupNote(status: string, domain: string | null = null): string {
-  if (status === "active") return "Rooms, prices and photographs, then publish. Guests see nothing until you publish.";
-  if (status === "approved")
-    return "Setup opens once the owner accepts the invitation, because the business is theirs to set up.";
-  if (status === "rejected") return "Setup opens again once you resubmit the fix.";
-  if (IN_REVIEW.has(status) && domain !== "residence")
-    return "Open now. Add your rooms, prices and photographs while we review; you can publish once you are approved.";
-  if (IN_REVIEW.has(status)) return "Units, leases and payouts open once your registration is approved. We email you when it does.";
-  return "Setup opens once your registration fee is paid.";
-}

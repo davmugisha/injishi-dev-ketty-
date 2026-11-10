@@ -17,6 +17,7 @@ import {
   verifySignInCode,
 } from "@/server/auth";
 import { destinationAfterSignIn, safeReturn } from "./return-to";
+import { canOpen } from "./screen-access";
 import {
   applyApiCookies,
   clearAuthCookies,
@@ -128,12 +129,13 @@ export async function verifyCode(_prev: VerifyState, form: FormData): Promise<Ve
   store.delete(LEGACY_SESSION_COOKIE);
   store.delete(OTP_COOKIE);
   const account = await accountFor(result.cookie);
+  const landing = account ? { home: account.home, canOpen: canOpen(account) } : {};
   redirect(
     destinationAfterSignIn(
       account?.persona.id ?? "guest",
       String(form.get("next") ?? ""),
       account?.user.email,
-      account?.persona.home,
+      landing,
     ),
   );
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { Check } from "lucide-react";
 import {
@@ -93,6 +94,7 @@ export function AccountMenu({
   /** White pill while the bar sits on a photograph. Ghost ink disappears there. */
   onPhoto?: boolean;
 }) {
+  const t = useTranslations("nav");
   const { status, user, signOut } = useSessionUser();
   const { signingOut, signOutAndLeave } = useSignOutAndLeave(signOut);
 
@@ -122,7 +124,7 @@ export function AccountMenu({
           size="lg"
           className={className}
         >
-          <Link href="/sign-in">Sign In</Link>
+          <Link href="/sign-in">{t("signIn")}</Link>
         </Button>
       </>
     );
@@ -211,6 +213,7 @@ export function AccountMenu({
  * three as above, in the same order.
  */
 export function AccountMenuMobile({ onNavigate }: { onNavigate?: () => void }) {
+  const t = useTranslations("nav");
   const { status, user, signOut } = useSessionUser();
   const { signingOut, signOutAndLeave } = useSignOutAndLeave(signOut);
 
@@ -227,7 +230,7 @@ export function AccountMenuMobile({ onNavigate }: { onNavigate?: () => void }) {
     return (
       <Button asChild variant="outline" fullWidth>
         <Link href="/sign-in" onClick={onNavigate}>
-          Sign In
+          {t("signIn")}
         </Link>
       </Button>
     );

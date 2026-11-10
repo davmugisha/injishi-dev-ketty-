@@ -2,6 +2,7 @@
 
 import { CalendarDays, MapPin, Search, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Button } from "@injishi/web-ui";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@injishi/utils";
@@ -15,8 +16,6 @@ import { track } from "@/lib/analytics";
 import {
   dateSummary,
   EMPTY_SEARCH,
-  GUESTS_PLACEHOLDER,
-  searchGuestSummary,
   searchHref,
   toDateRange,
   withDateRange,
@@ -41,6 +40,7 @@ import {
 type OpenField = "destination" | "dates" | "guests" | null;
 
 export function StaySearchBar() {
+  const t = useTranslations("search");
   const router = useRouter();
   const [search, setSearch] = useState<StaySearch>(EMPTY_SEARCH);
   const [open, setOpen] = useState<OpenField>(null);
@@ -65,7 +65,13 @@ export function StaySearchBar() {
    * travelling alone or in six had no cue that the number was ours and not
    * theirs.
    */
-  const guests = searchGuestSummary(search);
+  const guests = search.guests
+    ? t("partySummary", {
+        count: search.guests.adults + search.guests.children,
+        infantCount: search.guests.infants,
+        pets: search.guests.pets ? "true" : "false",
+      })
+    : null;
   const panelSide =
     placement === "top" ? "bottom-[calc(100%+12px)]" : "top-[calc(100%+12px)]";
 
@@ -130,7 +136,7 @@ export function StaySearchBar() {
               inputRef.current?.focus();
             }}
           >
-            <FieldLabel>Where</FieldLabel>
+            <FieldLabel>{t("where")}</FieldLabel>
             <span className="flex items-center gap-2.5">
               <PinGlyph className="shrink-0 text-ink/40" />
               <DestinationField
@@ -144,8 +150,8 @@ export function StaySearchBar() {
                 // week", and "Search a district, park or stay" both repeated
                 // the field's own label and broke that rhythm. The instruction
                 // lives in the panel, where it is actionable. WHO is the one
-                // exception and says so at `GUESTS_PLACEHOLDER`.
-                placeholder="Anywhere in Rwanda"
+                // exception and says so in the translated guest placeholder.
+                placeholder={t("anywhere")}
                 inputRef={inputRef}
                 placement={placement}
               />
@@ -160,7 +166,7 @@ export function StaySearchBar() {
             className="flex-1"
             onClick={() => setOpen(open === "dates" ? null : "dates")}
           >
-            <FieldLabel>When</FieldLabel>
+            <FieldLabel>{t("when")}</FieldLabel>
             <span className="flex items-center gap-2.5">
               <CalendarGlyph className="shrink-0 text-ink/40" />
               <span
@@ -171,7 +177,7 @@ export function StaySearchBar() {
                   dates ? "text-ink" : "text-ink/65",
                 )}
               >
-                {dates ?? "Any week"}
+                {dates ?? t("anyWeek")}
               </span>
             </span>
             {open === "dates" ? (
@@ -184,6 +190,7 @@ export function StaySearchBar() {
               >
                 <StayDatePicker
                   variant="hero"
+                  doneLabel={t("done")}
                   range={toDateRange(search)}
                   onChange={(range) =>
                     setSearch((current) => withDateRange(current, range))
@@ -206,7 +213,7 @@ export function StaySearchBar() {
             className="flex-1"
             onClick={() => setOpen(open === "guests" ? null : "guests")}
           >
-            <FieldLabel>Who</FieldLabel>
+            <FieldLabel>{t("who")}</FieldLabel>
             <span className="flex items-center gap-2.5">
               <GuestGlyph className="shrink-0 text-ink/40" />
               <span
@@ -217,7 +224,7 @@ export function StaySearchBar() {
                   guests ? "text-ink" : "text-ink/65",
                 )}
               >
-                {guests ?? GUESTS_PLACEHOLDER}
+                {guests ?? t("guestsPlaceholder")}
               </span>
             </span>
             {open === "guests" ? (
@@ -240,7 +247,7 @@ export function StaySearchBar() {
             className="ml-1 h-14 shrink-0 gap-2.5 px-7 text-base"
           >
             <SearchGlyph />
-            Search
+            {t("search")}
           </Button>
         </form>
       </div>
@@ -253,10 +260,10 @@ export function StaySearchBar() {
       >
         <span className="min-w-0 flex-1 py-1">
           <span className="block truncate text-base leading-tight text-ink">
-            {search.destination?.label || search.query.trim() || "Where to?"}
+            {search.destination?.label || search.query.trim() || t("whereTo")}
           </span>
           <span className="block truncate text-sm leading-tight text-ink/65">
-            {[dates ?? "Any week", guests ?? GUESTS_PLACEHOLDER].join(" · ")}
+            {[dates ?? t("anyWeek"), guests ?? t("guestsPlaceholder")].join(" · ")}
           </span>
         </span>
         <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-ink text-white">

@@ -37,7 +37,7 @@
 //    policy as it found it.
 //
 // SIX SIGN-INS PER RUN (the owner, the two verification members, the manager,
-// the desk and the housekeeper). The OTP send cap is five per address and
+// the desk and the housekeeper). The OTP send cap is ten per address and
 // thirty per IP per hour; `verify-authz-http.mjs` explains the ledger and how to
 // clear it on a sample database.
 import pg from 'pg';
@@ -337,6 +337,13 @@ async function main() {
       'the run carries no ID number, birth date, RSSB number or pay account',
       !/"(idNumber|idDocumentNumber|dateOfBirth|rssbNumber|payAccount)"/.test(text),
       text.slice(0, 200),
+    );
+    // Without team.manage the owner's payslip says only that it is there.
+    const ownersSlip = (detail.json?.payslips ?? []).filter((p) => p.confidential);
+    check(
+      "the owner's payslip carries no figures or lines to a drafter",
+      ownersSlip.every((p) => p.grossRwf === 0 && p.netRwf === 0 && p.lines.length === 0),
+      JSON.stringify(ownersSlip).slice(0, 200),
     );
     const hrConfirm = await post(HR, `/ops/pay-runs/${run.id}/confirm`);
     expectStatus('hr POST /ops/pay-runs/:id/confirm', hrConfirm, 403);

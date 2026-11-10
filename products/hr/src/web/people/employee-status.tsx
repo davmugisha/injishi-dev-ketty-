@@ -1,5 +1,5 @@
 import { Link as LinkIcon, LinkSlash } from "@gravity-ui/icons";
-import { Chip } from "@heroui/react";
+import { Chip, Tooltip } from "@heroui/react";
 import { type Tone, toneColor } from "@injishi/ui";
 import type { Employee, EmployeeStatus } from "../../model/people.ts";
 
@@ -19,8 +19,36 @@ function loginChip(e: Employee): { label: string; tone: Tone; linked: boolean } 
     : { label: "Linked", tone: "accent", linked: true };
 }
 
-export function LoginChip({ employee, size = "sm" }: { employee: Employee; size?: "sm" | "md" }) {
+export function LoginChip({
+  employee,
+  size = "sm",
+  iconOnly = false,
+}: {
+  employee: Employee;
+  size?: "sm" | "md";
+  /** Just the link icon, its label on hover: for a dense table. */
+  iconOnly?: boolean;
+}) {
   const c = loginChip(employee);
+  if (iconOnly) {
+    return (
+      <Tooltip delay={150} closeDelay={0}>
+        <Tooltip.Trigger
+          aria-label={`Login: ${c.label}`}
+          className={`inline-flex size-7 items-center justify-center rounded-full outline-none ${
+            c.linked
+              ? c.tone === "warning"
+                ? "bg-warning-soft text-warning-soft-foreground"
+                : "bg-accent-soft text-accent-soft-foreground"
+              : "text-muted"
+          }`}
+        >
+          {c.linked ? <LinkIcon className="size-3.5" /> : <LinkSlash className="size-3.5" />}
+        </Tooltip.Trigger>
+        <Tooltip.Content className="text-xs">{employee.login ?? c.label}</Tooltip.Content>
+      </Tooltip>
+    );
+  }
   return (
     <Chip size={size} variant="soft" color={toneColor(c.tone)}>
       {c.linked ? <LinkIcon className="size-3" /> : <LinkSlash className="size-3" />}

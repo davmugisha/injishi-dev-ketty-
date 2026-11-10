@@ -1,4 +1,6 @@
 import { PSF_NO_INSTRUMENT_MESSAGE, psfInstrument } from './psf-instrument';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
 import { psfPayee } from './psf-payee';
 import {
   PSF_CONSENT_VERSION,
@@ -37,7 +39,10 @@ import {
   type PsfApplicationBranch,
   type PsfApplicationStatus,
   type PsfBranchDecisionRequest,
-  type PsfDeclineRequest,
+  type PsfClaimCardView,
+  type PsfQuote,
+  type SetPsfServiceFeeRequest,
+  type PsfSendBackRequest,
   type PsfMembershipOverview,
   type PsfOfficerApplication,
   type PsfQueuePage,
@@ -76,6 +81,7 @@ import {
 import {
   BadRequestException,
   ConflictException,
+  GoneException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -192,6 +198,8 @@ export class PsfMembershipService {
         districtName: r.districtName ?? null,
         membershipNumber: r.membershipNumber,
         status: r.status,
+        returnedAt: r.returnedAt ? r.returnedAt.toISOString() : null,
+        returnNote: r.returnNote ?? null,
         claimedAt: r.claimedAt.toISOString(),
         claimedByName: r.claimedByName ?? null,
         decidedAt: r.decidedAt ? r.decidedAt.toISOString() : null,
@@ -251,17 +259,58 @@ export class PsfMembershipService {
     await this.ensureMemberRecord(claim.orgId).catch((e: unknown) => this.log.warn(`Member record for ${claim.orgId}: ${String(e)}`));
     // A business that had a card is a member now, with the certificate of one (2026-11-02).
     const certificate = await this.certificates?.pdfOrNull(claim.orgId);
-    if (certificate) await this.mail.claimConfirmed(claim.orgId, membershipNumber, body.expiresOn, certificate);
+    if (certificate) await this.mail.claimConfirmed(claim.orgId, membershipNumber, body.expiresOn, certificate, await this.certificates?.pdfOfCardOrNull(claim.orgId));
     else await this.mail.claimConfirmed(claim.orgId, membershipNumber, body.expiresOn);
   }
 
   /** Reject a claim with the reason the business is told. */
-  async rejectClaim(userId: string, grants: OversightGrant[], id: string, body: RejectPsfClaimRequest): Promise<void> {
+  /** Send a card back (2026-11-05): PSF never rejects. The business resends it by the signed link. */
+  async sendBackClaim(userId: string, grants: OversightGrant[], id: string, body: RejectPsfClaimRequest): Promise<void> {
     const claim = await this.openClaimInScope(grants, id);
-    if (!(await this.repo.rejectClaim(claim.id, userId, body.reason))) {
-      throw new ConflictException('That claim has already been decided.');
+    if (!(await this.repo.sendBackClaim(claim.id, userId, body.reason))) {
+      throw new ConflictException('That card has already been decided or sent back.');
     }
-    await this.mail.claimRejected(claim.orgId, claim.membershipNumber ?? 'sent with your card', body.reason);
+    await this.mail.cardSentBack(claim.orgId, body.reason, this.claimCardToken(claim.id));
+  }
+
+  /** The signed link's token for one claim's card: it opens only that claim, for 30 days. */
+  private claimCardToken(claimId: string): string {
+    const payload = Buffer.from(JSON.stringify({ c: claimId, e: Date.now() + 30 * 24 * 3600 * 1000 })).toString('base64url');
+    return `${payload}.${this.signClaimCard(payload)}`;
+  }
+
+  private signClaimCard(payload: string): string {
+    const secret = this.config.get<string>('BETTER_AUTH_SECRET');
+    if (!secret) throw new ServiceUnavailableException('The card link cannot be signed just now.');
+    return createHmac('sha256', `psf-claim-card:${secret}`).update(payload).digest('base64url');
+  }
+
+  /** The claim a signed token names, still waiting for its card; a refusal otherwise. */
+  private async claimOfToken(token: string): Promise<{ id: string; orgId: string; returnNote: string | null }> {
+    const [payload = '', signature = ''] = token.split('.');
+    const refused = new GoneException('This link is out of date. Ask your PSF district office to send it again.');
+    const expected = Buffer.from(this.signClaimCard(payload));
+    const given = Buffer.from(signature);
+    if (expected.length !== given.length || !timingSafeEqual(expected, given)) throw refused;
+    const body = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { c: string; e: number };
+    if (body.e < Date.now()) throw refused;
+    const claim = await this.repo.claim(body.c);
+    if (!claim || claim.status !== 'claimed' || !claim.returnedAt) throw refused;
+    return claim;
+  }
+
+  /** What the resend page shows. */
+  async claimCardView(token: string): Promise<PsfClaimCardView> {
+    const claim = await this.claimOfToken(token);
+    const facts = await this.repo.orgFacts(claim.orgId);
+    return { businessName: facts?.legalName ?? 'Your business', note: claim.returnNote ?? '' };
+  }
+
+  /** The new card, already stored: the claim is PSF's again, and its officers are told. */
+  async resendClaimCard(token: string, cardObjectKey: string): Promise<void> {
+    const claim = await this.claimOfToken(token);
+    if (!(await this.repo.resendClaimCard(claim, cardObjectKey))) throw new ConflictException('That card was already sent.');
+    await this.mail.cardResent(claim.orgId);
   }
 
   /**
@@ -502,6 +551,11 @@ export class PsfMembershipService {
 
   // --- The catalogues --------------------------------------------------------
 
+  /** PSF's levels (0137). */
+  levels(): ReturnType<PsfMembershipRepository['levels']> {
+    return this.repo.levels();
+  }
+
   async tiers(): Promise<PsfTier[]> {
     return (await this.repo.tiers(true)).map(toPsfTierView);
   }
@@ -580,11 +634,19 @@ export class PsfMembershipService {
       this.repo.tierFees(districtId),
       districtId === null ? Promise.resolve(null) : this.repo.districtName(districtId),
     ]);
+    const [subsectors, servicePrices] =
+      districtId === null ? [[], []] : await Promise.all([this.repo.subsectors([districtId]), this.repo.serviceFees([districtId])]);
     return {
       districtId,
       districtName,
       canEditNational: editScope === null,
       canEditDistrict: districtId !== null && this.canEditSubsector(editScope, districtId),
+      services: subsectors.map((x) => ({
+        subsectorId: x.id,
+        name: x.nameEn,
+        clusterCode: x.clusterCode,
+        amountRwf: servicePrices.find((p) => p.subsectorId === x.id)?.amountRwf ?? null,
+      })),
       rows: tiers.map((t) => {
         const own = districtId === null ? undefined : rows.find((r) => r.tierCode === t.code && r.districtId === districtId);
         const national = rows.find((r) => r.tierCode === t.code && r.districtId === null);
@@ -594,6 +656,7 @@ export class PsfMembershipService {
           tierCode: t.code,
           tierName: t.nameEn,
           family: t.family,
+          familyName: t.familyName,
           priceKind: t.priceKind,
           bandMinRwf: t.annualFeeMinRwf ?? (t.priceKind === 'fixed' ? t.annualFeeRwf : null),
           bandMaxRwf: t.annualFeeMaxRwf ?? (t.priceKind === 'fixed' ? t.annualFeeRwf : null),
@@ -609,6 +672,35 @@ export class PsfMembershipService {
         };
       }),
     };
+  }
+
+  /** Set or clear a kind of business's price in a district (2026-11-05): that district's manager's to set. */
+  async setServiceFee(officerUserId: string, grants: OversightGrant[], input: SetPsfServiceFeeRequest): Promise<PsfOfficerFeesView> {
+    if (!this.canEditSubsector(await this.editScopeOf(grants), input.districtId)) throw new ForbiddenException(PSF_OUT_OF_SCOPE_MESSAGE);
+    const kind = await this.repo.subsector(input.subsectorId);
+    if (!kind || !kind.active) throw new NotFoundException('That kind of business is not offered any more.');
+    await this.repo.setServiceFee({ ...input, userId: officerUserId });
+    return this.feesForOfficer(grants, { district: input.districtId });
+  }
+
+  /**
+   * What a business pays beyond its band's price (2026-11-05): its kind's floor in its own district, and
+   * each branch's price: the kind's there, else the band's there. A band PSF has not priced there is 0.
+   */
+  async quote(input: { district: number; tierCode: string; subsectorId?: string | null; branches: readonly number[] }): Promise<PsfQuote> {
+    const places = [...new Set([input.district, ...input.branches])];
+    const prices = input.subsectorId ? await this.repo.serviceFees(places) : [];
+    const kindIn = (districtId: number): number | null =>
+      prices.find((p) => p.subsectorId === input.subsectorId && p.districtId === districtId)?.amountRwf ?? null;
+    const branches = await Promise.all(
+      input.branches.map(async (districtId) => {
+        const own = kindIn(districtId);
+        if (own !== null) return { districtId, amountRwf: own };
+        const band = (await this.feesIn(districtId)).fees.find((f) => f.tierCode === input.tierCode);
+        return { districtId, amountRwf: band?.amountRwf ?? 0 };
+      }),
+    );
+    return { floorRwf: kindIn(input.district), branches, branchesRwf: branches.reduce((sum, b) => sum + b.amountRwf, 0) };
   }
 
   /** Set or clear a band's price for a place the officer may price. */
@@ -1184,6 +1276,11 @@ export class PsfMembershipService {
     });
     // Only the call that recorded it remits and mails, so a race stays silent.
     if (recorded) {
+      // Who it is for (2026-11-05): an approval's fee is the head office's district's.
+      const facts = await this.repo.orgFacts(orgId);
+      if (facts?.districtId) {
+        await this.repo.recordFeeAllocations({ sourceKind: 'application', sourceId: app.id, orgId, paidAt, lines: [{ districtId: facts.districtId, amountRwf: receipt.amountRwf }] });
+      }
       await this.remit(app.id, input.scopeId, receipt.amountRwf);
       await this.mail.member(orgId, {
         tierName: app.requestedTierName,
@@ -1522,9 +1619,12 @@ export class PsfMembershipService {
     }
     return {
       ...toPsfApplicationView(row),
+      extraAnswers: await this.labelledAnswers(row.extraAnswers),
       // Nobody signed in: the public PSF form. A registrant: Injishi's business registration (2026-11-02).
       origin: row.submittedByUserId ? 'registration' : 'psf_form',
       intake: row.intake,
+      returnedAt: row.returnedAt ? row.returnedAt.toISOString() : null,
+      returnNote: row.returnNote ?? null,
       orgId: row.orgId,
       businessName: row.businessName,
       districtName: row.districtName,
@@ -1640,6 +1740,7 @@ export class PsfMembershipService {
       if (app && app.status !== 'submitted') throw new ConflictException(PSF_NOT_OPEN_MESSAGE);
       throw new NotFoundException('This application is not in the membership queue.');
     }
+    if (row.returnedAt) throw new ConflictException('This application was sent back to fix. It returns here when the business resends it.');
     if (!decidingDistricts(grants).includes(row.districtId ?? -1)) throw new ForbiddenException(PSF_DISTRICT_DECIDES_MESSAGE);
     if (row.officerHasStake) throw new ForbiddenException(PSF_OWN_BUSINESS_MESSAGE);
     return row;
@@ -1748,7 +1849,7 @@ export class PsfMembershipService {
     if (!done) throw new ConflictException(PSF_NOT_OPEN_MESSAGE);
     // The news goes with the certificate, as for a claim PSF confirms.
     const certificate = await this.certificates?.pdfOrNull(done.orgId);
-    if (certificate) await this.mail.claimConfirmed(done.orgId, input.membershipNumber, input.expiresOn, certificate);
+    if (certificate) await this.mail.claimConfirmed(done.orgId, input.membershipNumber, input.expiresOn, certificate, await this.certificates?.pdfOfCardOrNull(done.orgId));
     else await this.mail.claimConfirmed(done.orgId, input.membershipNumber, input.expiresOn);
     return this.decidedView(row.id, done.orgId, decidingDistricts(grants));
   }
@@ -1783,30 +1884,30 @@ export class PsfMembershipService {
     return this.decidedView(row.id, done.orgId, decidingDistricts(grants));
   }
 
-  async decline(
-    officerUserId: string,
-    grants: OversightGrant[],
-    applicationId: string,
-    input: PsfDeclineRequest,
-  ): Promise<PsfOfficerApplication> {
+  /**
+   * Send it back to fix (2026-11-05, the owner: "nta reject ibaho"): it leaves the queue with what PSF
+   * asks, keeps its docID and any fee paid, and returns when the business resends it.
+   */
+  async sendBack(officerUserId: string, grants: OversightGrant[], applicationId: string, input: PsfSendBackRequest): Promise<PsfOfficerApplication> {
     await this.decidable(officerUserId, grants, applicationId);
-    const decided = await this.repo.decline({
-      applicationId,
-      officerUserId,
-      bodyCode: this.bodyOf(grants),
-      reason: input.reason,
-      note: input.note ?? null,
-    });
-    if (!decided) throw new ConflictException(PSF_NOT_OPEN_MESSAGE);
-    // Nothing is refunded (2026-10-23): a fee paid before review is kept, and
-    // goes on to PSF as an approval's does.
-    const after = await this.repo.applicationById(applicationId);
-    if (after?.paidAt && after.paidAmountRwf !== null) await this.remit(applicationId, decided.orgId, after.paidAmountRwf);
-    await this.mail.declined(decided.orgId, input.reason, input.note ?? null);
-    return this.decidedView(applicationId, decided.orgId, decidingDistricts(grants));
+    const sent = await this.repo.sendBack({ applicationId, officerUserId, note: input.note });
+    if (!sent) throw new ConflictException(PSF_NOT_OPEN_MESSAGE);
+    await this.mail.sentBack(sent.orgId, input.note);
+    return this.decidedView(applicationId, sent.orgId, decidingDistricts(grants));
   }
 
-  /** A declined application, read back for the officer who declined it. */
+  /** The answers to PSF's extra questions (2026-11-06), with each question beside its answer. */
+  private async labelledAnswers(answers: unknown): Promise<{ label: string; value: string }[]> {
+    const bag = (answers ?? {}) as Record<string, unknown>;
+    if (Object.keys(bag).length === 0) return [];
+    const fields = await this.repo.formFields(false);
+    return Object.entries(bag).map(([key, value]) => ({
+      label: fields.find((f) => f.key === key)?.label ?? key,
+      value: typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value),
+    }));
+  }
+
+  /** An application just decided or sent back, read back for the officer. */
   private async decidedView(applicationId: string, orgId: string, deciding: number[]): Promise<PsfOfficerApplication> {
     const [app, facts] = await Promise.all([
       this.repo.applicationById(applicationId),
@@ -1815,8 +1916,11 @@ export class PsfMembershipService {
     if (!app || !facts) throw new NotFoundException('Application not found.');
     return {
       ...toPsfApplicationView(app),
+      extraAnswers: await this.labelledAnswers(app.extraAnswers),
       origin: app.submittedByUserId ? 'registration' : 'psf_form',
       intake: app.intake,
+      returnedAt: app.returnedAt ? app.returnedAt.toISOString() : null,
+      returnNote: app.returnNote ?? null,
       orgId,
       businessName: facts.legalName,
       districtName: facts.districtName,
@@ -1873,6 +1977,7 @@ export class PsfMembershipService {
         payment: query.payment,
         group: query.group,
         tin: query.tin,
+        rdb: query.rdb,
         kind: query.kind,
       },
       decodeQueueCursor(query.cursor),

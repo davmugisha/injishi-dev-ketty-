@@ -142,7 +142,7 @@ export const SHIFT_REQUEST_LIST = defineListSpec({
             key: "kind",
             label: "Kind",
             type: "enum",
-            enumValues: ["change", "swap"],
+            enumValues: ["change", "swap", "rotation"],
             enumLabels: { change: "Different shift", swap: "Swap" },
             filterable: true,
             groupable: true,

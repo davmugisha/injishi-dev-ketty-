@@ -533,6 +533,35 @@ export class StorageService {
   }
 
   /**
+   * Store a file an applicant sent from their progress page (058-talent): a document HR asked for.
+   * The same rule as an HR document (a PDF or an image, 10 MB, read from its first bytes), kept
+   * private against the business's workspace; nobody is signed in, so no uploader is recorded.
+   */
+  async putCandidateDocument(input: {
+    body: Buffer;
+    filename: string;
+    workspaceId: string;
+  }): Promise<{ objectKey: string; sizeBytes: number }> {
+    const rule = HR_FILE_RULES.document;
+    if (input.body.byteLength === 0) throw new BadRequestException('That file is empty.');
+    if (input.body.byteLength > rule.maxBytes) throw new BadRequestException('A file must be 10 MB or smaller.');
+    const mime = sniffMime(input.body);
+    if (!mime || !(rule.mimes as readonly string[]).includes(mime)) {
+      throw new BadRequestException('A file must be a PDF, or a JPEG, PNG or HEIC image.');
+    }
+    const put = await this.storage.put({ body: input.body, mime, filename: input.filename, kind: rule.kind });
+    await this.db.insert(storedObjects).values({
+      objectKey: put.objectKey,
+      kind: rule.kind,
+      mime,
+      sizeBytes: put.sizeBytes,
+      uploadedByUserId: null,
+      workspaceId: input.workspaceId,
+    });
+    return { objectKey: put.objectKey, sizeBytes: put.sizeBytes };
+  }
+
+  /**
    * Store a file payroll built: a bank or MoMo file, or a declaration
    * (058-payroll AC-PY10, AC-PY12). Like a training certificate, these bytes
    * were made here a moment ago, so there is no client to distrust and no

@@ -92,10 +92,16 @@ export type PayeRule = z.infer<typeof PayeRule>;
  * The base a contribution is charged on: another closed list. `contributable`
  * is the earnings that count in the contribution base (058-payroll AC-PY6).
  */
-const ContributionBase = z.enum(['gross', 'basic', 'contributable']);
+/**
+ * What a contribution is a share of. `net` is pay after PAYE and the other contributions, taken
+ * last: CBHI is 0.5% of net salary (Prime Minister's Order 034/01 of 2020).
+ */
+const ContributionBase = z.enum(['gross', 'basic', 'contributable', 'net']);
 export type ContributionBase = z.infer<typeof ContributionBase>;
 
 export const RssbRule = z.object({
+  /** Where the figures come from, and whether they are confirmed. */
+  note: z.string().optional(),
   contributions: z
     .array(
       z.object({
@@ -106,6 +112,13 @@ export const RssbRule = z.object({
         employerRate: Rate,
         /** A ceiling on the base, when the contribution has one. */
         capRwf: z.number().int().positive().optional(),
+        /**
+         * A scheme a business chooses (RSSB's medical scheme is a private employer's choice).
+         * It applies only where the business switched it on, or by `defaultOn` where it made no
+         * choice.
+         */
+        optional: z.boolean().optional(),
+        defaultOn: z.boolean().optional(),
       }),
     )
     .min(1),

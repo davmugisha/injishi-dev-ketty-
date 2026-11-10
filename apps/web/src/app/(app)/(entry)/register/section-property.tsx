@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@injishi/web-ui";
 import { ArrowLeft } from "lucide-react";
 
@@ -32,17 +33,18 @@ export function SectionProperty({
   /** Back: the section before, reopened with its answers, or the step before. */
   onBack?: (() => void) | null;
 }) {
+  const t = useTranslations("registerForms.property");
   const back = onBack ? (
     <Button variant="ghost" onClick={onBack}>
       <ArrowLeft size={16} aria-hidden />
-      Back
+      {t("back")}
     </Button>
   ) : null;
   const liveUpi = draft.upi.trim() ? upiError(draft.upi) : null;
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Residence name" hint="As it is let, or as on the land title." error={errors["business.legalName"]}>
+        <Field label={t("name")} hint={t("nameHint")} error={errors["business.legalName"]}>
           <TextInput
             id="register-residence-name"
             className="w-full"
@@ -50,7 +52,7 @@ export function SectionProperty({
             onChange={(e) => onChange({ ...draft, legalName: e.target.value })}
           />
         </Field>
-        <Field label="UPI" hint="The parcel number on your land title" error={errors["business.upi"] ?? liveUpi ?? undefined}>
+        <Field label={t("upi")} hint={t("upiHint")} error={errors["business.upi"] ?? liveUpi ?? undefined}>
           <TextInput
             id="register-upi"
             className="w-full tabular-nums"
@@ -62,20 +64,20 @@ export function SectionProperty({
         </Field>
       </div>
       <fieldset className="flex flex-col gap-2.5">
-        <legend className="mb-2.5 text-sm font-semibold">How you hold it</legend>
+        <legend className="mb-2.5 text-sm font-semibold">{t("hold")}</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           <ChoiceTile
             name="residence-class"
             checked={draft.residenceClass === "residential_landlord"}
-            title="I am the landlord"
-            description="You own the property you let."
+            title={t("landlord")}
+            description={t("landlordBody")}
             onSelect={() => onChange({ ...draft, residenceClass: "residential_landlord" })}
           />
           <ChoiceTile
             name="residence-class"
             checked={draft.residenceClass === "residential_property_manager"}
-            title="I manage it for the owner"
-            description="You run the letting on someone else's behalf."
+            title={t("manager")}
+            description={t("managerBody")}
             onSelect={() => onChange({ ...draft, residenceClass: "residential_property_manager" })}
           />
         </div>
@@ -83,7 +85,7 @@ export function SectionProperty({
       <div className="flex flex-wrap items-center gap-2">
         {back}
         <Button onClick={onNext} disabled={draft.legalName.trim().length < 2 || upiError(draft.upi) !== null}>
-          Next
+          {t("next")}
         </Button>
       </div>
     </>

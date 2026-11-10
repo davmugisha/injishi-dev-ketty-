@@ -614,6 +614,8 @@ export const HospitalityBusiness = businessBase.extend({
      * same transaction as the business. Forbidden with a Yes.
      */
     psfApplication: PsfApplicationInput.optional(),
+    /** The owner's passport photo (2026-11-05), when it applies or holds a card: on its card and certificate. */
+    psfOwnerPhotoKey: z.string().trim().min(1).max(200).optional(),
     eacStarGrade: z.number().int().min(1).max(5).optional(),
     /** Part of a franchise, and how (ADR-075 AC-8). Absent means No. */
     franchise: FranchiseDeclaration.optional(),

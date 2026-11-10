@@ -5,8 +5,9 @@ import { addDays, eachDate } from './hr-calendar';
 /**
  * Time's rules, pure (ADR-058, 058-time): which roster entry a clock in links
  * to (AC-TM15), the figures a closed record carries (AC-TM7, AC-TM8), what kind
- * of day a date is (AC-TM7, AC-TM12), which step a rotation is on (AC-TM3), and
- * how far a phone was from its branch (AC-TM9).
+ * of day a date is (AC-TM7, AC-TM12), which step a rotation is on (AC-TM3),
+ * how far a phone was from its branch (AC-TM9), and what a branch's clock-in
+ * rules make of a person clocking themselves in.
  *
  * Every figure is whole minutes, floored, so two readers of one record can
  * never disagree by a rounding.
@@ -271,7 +272,7 @@ export function distanceMeters(a: { lat: number; lng: number }, b: { lat: number
 }
 
 /** The largest accuracy a phone may report and still be trusted (AC-TM9). */
-export const MAX_TRUSTED_ACCURACY_M = 200;
+const MAX_TRUSTED_ACCURACY_M = 200;
 
 /**
  * Whether a phone punch validates itself: a location was sent, the branch has
@@ -282,7 +283,7 @@ export function phonePunchVerdict(input: {
   point: { lat: number; lng: number; accuracyM: number | null } | null;
   branch: { lat: number; lng: number } | null;
   radiusM: number;
-}): { validated: boolean; distanceM: number | null; reason: string | null; code: LocationPendingReason | null } {
+}): PunchVerdict {
   if (!input.point) return { validated: false, distanceM: null, reason: 'No location was sent.', code: 'no_location' };
   if (!input.branch) {
     return { validated: false, distanceM: null, reason: 'The branch has no location set.', code: 'no_branch_location' };
@@ -300,6 +301,17 @@ export function phonePunchVerdict(input: {
     return { validated: false, distanceM, reason: `It was ${distanceM} m from the branch.`, code: 'outside_fence' };
   }
   return { validated: true, distanceM, reason: null, code: null };
+}
+
+export interface PunchVerdict {
+  validated: boolean;
+  distanceM: number | null;
+  reason: string | null;
+  /**
+   * Why it waits, as stored on the record (mobile spec 0003, D-ao); null when it validated itself.
+   * The clock-in rules decide on this, never on the sentence.
+   */
+  code: LocationPendingReason | null;
 }
 
 /** The location reasons of `phonePunchVerdict`, as stored on the record (mobile spec 0003, D-ao). */
@@ -334,4 +346,79 @@ export function takesLateClockOut(
     record.updatedAt.getTime() > at.getTime() &&
     at.getTime() > record.clockInAt.getTime()
   );
+}
+
+// --- Clock-in rules: how a branch's staff clock themselves in ----------------------------
+
+export type ClockMode = 'anywhere' | 'at_work' | 'entrance';
+
+/** "350 m", "3.2 km": a distance as a person says it. */
+export function distanceWords(m: number): string {
+  return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`;
+}
+
+/** "07:05" in Kigali, which keeps UTC+2 all year. */
+export function kigaliClock(at: Date): string {
+  return new Date(at.getTime() + 2 * 3_600_000).toISOString().slice(11, 16);
+}
+
+export type SelfPunchDecision =
+  | { allow: true; validated: boolean; reason: string | null }
+  /** Refused, with the sentence for the person; `far` marks a refusal for being away from work. */
+  | { allow: false; reason: string; far: boolean };
+
+/**
+ * What a branch's rule makes of a person clocking themselves in or out from
+ * their phone. A fresh code scanned off the entrance tablet is proof in every
+ * mode, unless the phone itself says it is far away, as a photo of the code sent
+ * home would. A clock out is never refused: refusing one would leave the person
+ * clocked in, so the doubtful ones wait for HR instead.
+ */
+export function selfPunchDecision(input: {
+  mode: ClockMode;
+  direction: 'in' | 'out';
+  scanned: boolean;
+  verdict: PunchVerdict;
+}): SelfPunchDecision {
+  const { verdict } = input;
+  const far = verdict.code === 'outside_fence' && verdict.distanceM !== null;
+  if (input.scanned) {
+    return far
+      ? { allow: true, validated: false, reason: `Scanned the code, but the phone was ${distanceWords(verdict.distanceM ?? 0)} from work.` }
+      : { allow: true, validated: true, reason: null };
+  }
+  if (input.direction === 'out' || input.mode === 'anywhere') {
+    return { allow: true, validated: verdict.validated, reason: verdict.reason };
+  }
+  if (input.mode === 'entrance') {
+    return { allow: false, reason: 'Clock in at the entrance: scan the code on the tablet, or use your PIN there.', far: false };
+  }
+  // At work only.
+  switch (verdict.code) {
+    case null:
+      return { allow: true, validated: true, reason: null };
+    case 'outside_fence':
+      return { allow: false, reason: `You are ${distanceWords(verdict.distanceM ?? 0)} from work. Clock in when you get there.`, far: true };
+    case 'poor_accuracy':
+      return {
+        allow: false,
+        reason: 'Your phone cannot tell closely enough where it is. Step outside or near a window and try again, or scan the code at the entrance.',
+        far: false,
+      };
+    case 'no_location':
+      return { allow: false, reason: 'Turn on location so Injishi can see you are at work, then try again.', far: false };
+    case 'no_branch_location':
+      // Nothing to measure against: recorded for HR rather than refusing everyone.
+      return { allow: true, validated: false, reason: verdict.reason };
+  }
+}
+
+/**
+ * When a self clock-in opens for a shift: `opensMinutesBefore` ahead of its
+ * start. Null when it is open already, or when the branch sets no limit.
+ */
+export function clockInOpensAt(input: { at: Date; shiftStartsAt: Date | null; opensMinutesBefore: number | null }): Date | null {
+  if (input.opensMinutesBefore === null || !input.shiftStartsAt) return null;
+  const opens = new Date(input.shiftStartsAt.getTime() - input.opensMinutesBefore * MINUTE);
+  return input.at < opens ? opens : null;
 }

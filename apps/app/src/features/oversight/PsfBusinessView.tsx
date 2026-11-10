@@ -2,7 +2,6 @@
 
 import { Timeline } from "@heroui-pro/react";
 import {
-  ORG_CERTIFICATE_KIND_LABEL,
   type OrgCertificateKind,
   type OversightDocument,
   type PsfBusinessDetail,
@@ -21,6 +20,7 @@ import {
   StatusChip,
 } from "@injishi/ui";
 import NextLink from "next/link";
+import { useTranslations } from "next-intl";
 import { API_BASE } from "@/pms/data/api";
 import { WEB_URL } from "@/lib/return-to";
 import type { PsfScope } from "@/server/sources/psf";
@@ -29,31 +29,21 @@ import { FactGrid } from "./shared";
 type Tone = "success" | "warning" | "danger" | "default";
 
 /** Where the business stands on Injishi, in words and a tone. */
-const STATUS: Record<string, { label: string; tone: Tone }> = {
-  active: { label: "Approved and open", tone: "success" },
-  approved: { label: "Approved, the owner has to claim it", tone: "warning" },
-  rejected: { label: "Rejected, the owner can resubmit", tone: "danger" },
-  suspended: { label: "Suspended", tone: "danger" },
-  pending_payment: { label: "Fee not paid yet", tone: "default" },
-  submitted: { label: "Waiting for review", tone: "warning" },
-  tin_verified: { label: "Waiting for review", tone: "warning" },
-  field_verified: { label: "Waiting for approval", tone: "warning" },
+const STATUS: Record<string, { tone: Tone }> = {
+  active: { tone: "success" }, approved: { tone: "warning" }, rejected: { tone: "danger" },
+  suspended: { tone: "danger" }, pending_payment: { tone: "default" }, submitted: { tone: "warning" },
+  tin_verified: { tone: "warning" }, field_verified: { tone: "warning" },
 };
 
 /** A business's standing with PSF, as the register files it. */
-const STANDING: Record<string, { label: string; tone: Tone }> = {
-  member: { label: "Member", tone: "success" },
-  applied: { label: "Applied, waiting on PSF", tone: "warning" },
-  awaiting_payment: { label: "Approved, fee not paid", tone: "warning" },
-  claimed: { label: "Says it is a member, waiting for PSF", tone: "warning" },
-  lapsed: { label: "Lapsed", tone: "danger" },
-  declined: { label: "Declined", tone: "danger" },
-  not_applied: { label: "Not applied", tone: "default" },
+const STANDING: Record<string, { tone: Tone }> = {
+  member: { tone: "success" }, applied: { tone: "warning" }, awaiting_payment: { tone: "warning" },
+  claimed: { tone: "warning" }, lapsed: { tone: "danger" }, declined: { tone: "danger" }, not_applied: { tone: "default" },
 };
 
-function documentName(d: OversightDocument): string {
-  if (d.kind === "other") return d.kindOther ?? "Other document";
-  return ORG_CERTIFICATE_KIND_LABEL[d.kind as OrgCertificateKind] ?? d.kind;
+function documentName(d: OversightDocument, t: ReturnType<typeof useTranslations<"psfBusiness">>): string {
+  if (d.kind === "other") return d.kindOther ?? t("documents.other");
+  return t(`documents.${d.kind as OrgCertificateKind}`);
 }
 
 /**
@@ -74,7 +64,8 @@ export function PsfBusinessView({
   documents: OversightDocument[];
   webUrl: string;
 }) {
-  const status = STATUS[p.status] ?? { label: p.status, tone: "default" as Tone };
+  const t = useTranslations("psfBusiness");
+  const status = STATUS[p.status] ?? { tone: "default" as Tone };
   const live = p.listings.find((l) => l.status === "published" && l.slug);
   const place = [p.sectorName, p.districtName].filter(Boolean).join(", ");
   const rooms = p.listings.reduce((n, l) => n + l.rooms, 0);
@@ -89,10 +80,10 @@ export function PsfBusinessView({
         eyebrow={
           <>
             <NextLink href="/psf/register" className="text-inherit no-underline hover:underline">
-              Businesses
+              {t("businesses")}
             </NextLink>
             <span aria-hidden="true"> › </span>
-            <span>{p.businessCode ?? "Business"}</span>
+            <span>{p.businessCode ?? t("business")}</span>
           </>
         }
         title={p.legalName}
@@ -102,10 +93,10 @@ export function PsfBusinessView({
               {p.kindLabel}
               {place ? ` · ${place}` : ""}
             </span>
-            <StatusChip tone={status.tone}>{status.label}</StatusChip>
+            <StatusChip tone={status.tone}>{t(`status.${p.status}`)}</StatusChip>
             {m ? (
               <StatusChip tone={STANDING[m.standing]?.tone ?? "default"}>
-                PSF: {STANDING[m.standing]?.label ?? m.standing}
+                PSF: {t(`standing.${m.standing}`)}
               </StatusChip>
             ) : null}
           </span>
@@ -118,7 +109,7 @@ export function PsfBusinessView({
               intent="primary"
               target="_blank"
             >
-              See it on Injishi
+              {t("seeOnInjishi")}
             </ActionLink>
           ) : null
         }
@@ -126,21 +117,21 @@ export function PsfBusinessView({
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
-          <SectionCard title="The decision" description="How its registration on Injishi was decided">
+          <SectionCard title={t("decision")} description={t("decisionDescription")}>
             {p.reviews.length === 0 ? (
               <EmptyBlock
                 size="sm"
                 icon="ShieldCheck"
-                title={p.status === "pending_payment" ? "Its fee is not paid yet" : "Nobody has decided it yet"}
+                title={p.status === "pending_payment" ? t("feeNotPaid") : t("noDecision")}
                 description={
                   p.status === "tin_verified" || p.status === "submitted"
-                    ? "It is waiting for your review in Business approvals."
+                    ? t("waitingForReview")
                     : undefined
                 }
                 action={
                   p.status === "tin_verified" ? (
                     <ActionLink href={`/officer/cases/${p.orgId}`} size="sm" icon="ArrowRight">
-                      Review it
+                      {t("reviewIt")}
                     </ActionLink>
                   ) : undefined
                 }
@@ -155,7 +146,7 @@ export function PsfBusinessView({
                     <Timeline.Connector />
                   </Timeline.Rail>
                   <Timeline.Content className="flex flex-col pb-1">
-                    <span className="font-medium">Registered and paid</span>
+                    <span className="font-medium">{t("registeredAndPaid")}</span>
                     <span className="text-xs text-muted">{formatDay(p.registeredAt)}</span>
                   </Timeline.Content>
                 </Timeline.Item>
@@ -171,14 +162,14 @@ export function PsfBusinessView({
                       <span className="font-medium">
                         {r.decision === "passed"
                           ? r.roleLabel === "PSF District Manager"
-                            ? "Reviewed and approved"
+                            ? t("reviewedApproved")
                             : r.stage === "tin_verified"
-                              ? "Documents checked"
-                              : "Approved"
-                          : "Rejected"}
+                              ? t("documentsChecked")
+                              : t("approved")
+                          : t("rejected")}
                       </span>
                       <span className="text-xs text-muted">
-                        {[r.byName ?? "An officer", r.roleLabel, formatDay(r.at)].join(" · ")}
+                        {[r.byName ?? t("anOfficer"), r.roleLabel, formatDay(r.at)].join(" · ")}
                       </span>
                       {r.reasonLabel ? <span className="text-xs">{r.reasonLabel}</span> : null}
                       {r.notes ? <span className="text-xs text-muted">“{r.notes}”</span> : null}
@@ -189,34 +180,34 @@ export function PsfBusinessView({
             )}
           </SectionCard>
 
-          <SectionCard title="About the business">
+          <SectionCard title={t("aboutBusiness")}>
             <FactGrid
               min={180}
               className="gap-x-5 gap-y-3"
               items={[
-                { label: "Legal name", value: p.legalName },
-                { label: "Business code", value: p.businessCode ?? "Not given yet" },
-                { label: "TIN", value: p.tin ?? "Not given" },
-                { label: "Kind", value: p.kindLabel },
+                { label: t("legalName"), value: p.legalName },
+                { label: t("businessCode"), value: p.businessCode ?? t("notGivenYet") },
+                { label: "TIN", value: p.tin ?? t("notGiven") },
+                { label: t("kind"), value: p.kindLabel },
                 {
-                  label: "Star grade",
-                  value: p.starGrade ? `${p.starGrade} stars` : "None claimed",
+                  label: t("starGrade"),
+                  value: p.starGrade ? t("stars", { count: p.starGrade }) : t("noneClaimed"),
                   note: p.starGrade
                     ? p.starGradeConfirmed
-                      ? "Confirmed by Injishi"
-                      : "Claimed, not confirmed"
+                      ? t("confirmedByInjishi")
+                      : t("claimedNotConfirmed")
                     : undefined,
                 },
-                { label: "Address", value: p.addressText ?? (place || "Not given") },
-                { label: "Owner", value: p.owner?.name ?? "Not named", note: p.owner?.email },
-                { label: "Owner's phone", value: p.owner?.phone ?? "Not given" },
+                { label: t("address"), value: p.addressText ?? (place || t("notGiven")) },
+                { label: t("owner"), value: p.owner?.name ?? t("notNamed"), note: p.owner?.email },
+                { label: t("ownerPhone"), value: p.owner?.phone ?? t("notGiven") },
               ]}
             />
           </SectionCard>
 
-          <SectionCard title="Documents" description="What it registered with. Each link works for a few minutes.">
+          <SectionCard title={t("documentsTitle")} description={t("documentsDescription")}>
             {documents.length === 0 ? (
-              <EmptyBlock size="sm" icon="FileText" title="No document on this registration" />
+              <EmptyBlock size="sm" icon="FileText" title={t("noDocument")} />
             ) : (
               <ul className="flex flex-col">
                 {documents.map((d) => (
@@ -226,22 +217,22 @@ export function PsfBusinessView({
                   >
                     <Icon name="FileText" className="size-4 shrink-0 text-muted" />
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="font-medium">{documentName(d)}</span>
+                      <span className="font-medium">{documentName(d, t)}</span>
                       <span className="text-xs text-muted">
                         {[
-                          d.certificateNumber ? `No. ${d.certificateNumber}` : null,
+                          d.certificateNumber ? t("certificateNumber", { number: d.certificateNumber }) : null,
                           d.checkedAt
-                            ? `Read by ${d.checkedByName ?? "an officer"} on ${formatDay(d.checkedAt)}`
-                            : "Not read yet",
+                            ? t("readBy", { name: d.checkedByName ?? t("anOfficer"), date: formatDay(d.checkedAt) })
+                            : t("notReadYet"),
                         ]
                           .filter(Boolean)
                           .join(" · ")}
                       </span>
                     </span>
-                    {d.expired ? <StatusChip tone="danger">Expired</StatusChip> : null}
+                    {d.expired ? <StatusChip tone="danger">{t("expired")}</StatusChip> : null}
                     {d.url ? (
                       <ActionLink href={d.url} size="sm" icon="ArrowUpRightFromSquare" target="_blank" prefetch={false}>
-                        Open
+                        {t("open")}
                       </ActionLink>
                     ) : null}
                   </li>
@@ -252,9 +243,9 @@ export function PsfBusinessView({
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">
-          <SectionCard title="On Injishi" description="Whether guests can find and book it">
+          <SectionCard title={t("onInjishi")} description={t("onInjishiDescription")}>
             {p.listings.length === 0 ? (
-              <EmptyBlock size="sm" icon="House" title="No property set up yet" />
+              <EmptyBlock size="sm" icon="House" title={t("noProperty")} />
             ) : (
               <ul className="flex flex-col gap-3">
                 {p.listings.map((l) => {
@@ -263,15 +254,15 @@ export function PsfBusinessView({
                     <li key={l.propertyName} className="flex flex-col gap-1.5">
                       <div className="flex items-center gap-2">
                         <span className="min-w-0 flex-1 truncate font-medium">{l.propertyName}</span>
-                        <StatusChip tone={on ? "success" : "default"}>{on ? "Live" : "Not published"}</StatusChip>
+                        <StatusChip tone={on ? "success" : "default"}>{on ? t("live") : t("notPublished")}</StatusChip>
                       </div>
                       <span className="text-xs text-muted">
                         {on && l.publishedAt
-                          ? `Live since ${formatDay(l.publishedAt)}`
-                          : "The owner is still setting it up. Guests cannot see it yet."}
+                          ? t("liveSince", { date: formatDay(l.publishedAt) })
+                          : t("ownerStillSettingUp")}
                       </span>
                       <span className="text-xs text-muted">
-                        {formatNumber(l.rooms)} rooms in {formatNumber(l.roomTypes)} room types
+                        {t("roomSummary", { rooms: formatNumber(l.rooms), types: formatNumber(l.roomTypes) })}
                       </span>
                       {on && l.slug ? (
                         <ActionLink
@@ -281,7 +272,7 @@ export function PsfBusinessView({
                           target="_blank"
                           className="self-start"
                         >
-                          See its page
+                          {t("seeItsPage")}
                         </ActionLink>
                       ) : null}
                     </li>
@@ -291,26 +282,26 @@ export function PsfBusinessView({
             )}
             <div className="grid grid-cols-2 gap-3 border-t border-separator pt-3">
               <div className="flex flex-col">
-                <span className="text-xs text-muted">Rooms</span>
+                <span className="text-xs text-muted">{t("rooms")}</span>
                 <span className="text-lg font-semibold tabular">{formatNumber(rooms)}</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-xs text-muted">Bookings, last 90 days</span>
+                <span className="text-xs text-muted">{t("bookings90Days")}</span>
                 <span className="text-lg font-semibold tabular">{formatNumber(p.bookings90Days)}</span>
               </div>
             </div>
           </SectionCard>
 
-          <SectionCard title="With PSF" description="Its membership of the Private Sector Federation">
+          <SectionCard title={t("withPsf")} description={t("withPsfDescription")}>
             {m ? (
               <div className="flex flex-col gap-3">
                 <FactGrid
                   min={150}
                   className="gap-x-4 gap-y-3"
                   items={[
-                    { label: "Standing", value: STANDING[m.standing]?.label ?? m.standing },
-                    { label: "Tier", value: m.tierName ?? "None yet" },
-                    { label: "Membership number", value: m.membershipNumber ?? "None yet" },
+                    { label: t("standingLabel"), value: t(`standing.${m.standing}`) },
+                    { label: t("tier"), value: m.tierName ?? t("noneYet") },
+                    { label: t("membershipNumber"), value: m.membershipNumber ?? t("noneYet") },
                     {
                       // The docID opens the business's tracking page: renewal and the certificate live there (2026-11-02).
                       label: "docID",
@@ -319,14 +310,14 @@ export function PsfBusinessView({
                           {docId}
                         </a>
                       ) : (
-                        "None yet"
+                        t("noneYet")
                       ),
                     },
                     {
-                      label: "Valid until",
-                      value: m.standing === "member" && m.expiresOn ? formatDay(m.expiresOn) : m.standing === "lapsed" ? "Lapsed" : "—",
+                      label: t("validUntil"),
+                      value: m.standing === "member" && m.expiresOn ? formatDay(m.expiresOn) : m.standing === "lapsed" ? t("standing.lapsed") : "—",
                     },
-                    { label: "Paid to PSF", value: formatMoney(m.paidRwf) },
+                    { label: t("paidToPsf"), value: formatMoney(m.paidRwf) },
                   ]}
                 />
                 {/* The certificate (2026-11-02), whichever way it became a member: a card PSF confirmed included. */}
@@ -335,21 +326,29 @@ export function PsfBusinessView({
                     href={`${API_BASE}/api/v1/oversight/psf/businesses/${p.orgId}/certificate`}
                     className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-accent hover:underline"
                   >
-                    Download the membership certificate
+                    {t("downloadCertificate")}
+                  </a>
+                ) : null}
+                {m.standing === "member" ? (
+                  <a
+                    href={`${API_BASE}/api/v1/oversight/psf/businesses/${p.orgId}/card`}
+                    className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-accent hover:underline"
+                  >
+                    Download the membership card
                   </a>
                 ) : null}
                 {/* Renewals (2026-11-02): paid on the tracking page, renewed at once, no decision here. */}
                 {membership?.renewals.length ? (
                   <div className="flex flex-col gap-1.5 border-t border-separator pt-3">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted">Renewals</p>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted">{t("renewals")}</p>
                     <ul className="flex flex-col gap-1.5">
                       {membership.renewals.map((r) => (
                         <li key={`${r.paidAt}-${r.startsOn}`} className="flex flex-col gap-0.5 text-sm">
                           <span>
-                            {formatDay(r.startsOn)} to {formatDay(r.expiresOn)}
+                            {t("dateRange", { from: formatDay(r.startsOn), to: formatDay(r.expiresOn) })}
                           </span>
                           <span className="tabular text-xs text-muted">
-                            {r.tierName} · {formatMoney(r.amountRwf)} · paid {formatDay(r.paidAt)}
+                            {t("renewalDetail", { tier: r.tierName, amount: formatMoney(r.amountRwf), date: formatDay(r.paidAt) })}
                           </span>
                         </li>
                       ))}
@@ -361,7 +360,7 @@ export function PsfBusinessView({
                     {membership.history.applications.map((a) => (
                       <li key={a.id} className="flex items-center gap-2 text-sm">
                         <span className="min-w-0 flex-1 truncate">
-                          {a.tierName} · applied {formatDay(a.submittedAt)}
+                          {t("applicationHistory", { tier: a.tierName, date: formatDay(a.submittedAt) })}
                         </span>
                         <span className="text-xs text-muted">{a.status}</span>
                       </li>
@@ -376,7 +375,7 @@ export function PsfBusinessView({
                     intent="primary"
                     className="self-start"
                   >
-                    Decide its application
+                    {t("decideApplication")}
                   </ActionLink>
                 ) : null}
               </div>
@@ -384,14 +383,14 @@ export function PsfBusinessView({
               <EmptyBlock
                 size="sm"
                 icon="Persons"
-                title="Not on PSF's register"
-                description="It has not applied to PSF, or its registration on Injishi was not approved."
+                title={t("notOnRegister")}
+                description={t("notOnRegisterDescription")}
               />
             )}
           </SectionCard>
 
           <p className="text-xs text-muted">
-            {scope.title} · {scope.label}. Opening this page is logged, like every record you open.
+            {t("scopeAudit", { title: scope.title, label: scope.label })}
           </p>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { WorkspaceGrants } from "./authz/grants";
 import { DepartmentCategory } from "./ops";
 import { Domain, OrgRegistrationStatus, OrgRole, OversightRole, OversightScopeLevel, Uuid, WorkspaceKind } from "./primitives";
 /**
@@ -198,6 +199,18 @@ export const Permission = z.enum([
      */
     "lostfound.manage",
     /**
+     * Give a staff file its Injishi login (HR onboarding): send the invitation for an employee
+     * HR has put on file, into a role and some or every branch.
+     *
+     * The owner's and `hr`'s by default, and in `OWNER_BY_DEFAULT` so a manager does not inherit
+     * it; an owner may move it like any other permission (ADR-055). It is NOT the lock on the
+     * door: `team.manage` stays the owner's alone, so whoever holds only this cannot re-role or
+     * remove anybody and cannot change what a role may do. A role that reaches money, staff
+     * files, payroll or prices at this business (`accessNeedsOwner`) is only REQUESTED with it,
+     * and the owner approves the request on Team and roles before any invitation is sent.
+     */
+    "team.invite",
+    /**
      * Decide where the business's rent is paid out: add, change, retire and
      * make primary a bank account, MoMo number or MoMo Pay code (rentals
      * blueprint 2.1). Owner by default, because whoever holds it decides whose
@@ -316,6 +329,8 @@ const OWNER_BY_DEFAULT: readonly Permission[] = [
     // payout account decides where the rent goes.
     "lease.sign",
     "payout.manage",
+    // HR onboarding: giving a staff file its login.
+    "team.invite",
 ];
 /**
  * Role to permissions, inside a business workspace.
@@ -381,6 +396,7 @@ const ROLE_PERMISSIONS: Readonly<Record<OrgRole, ReadonlySet<Permission>>> = {
         "attendance.approve",
         "leave.approve",
         "payroll.draft",
+        "team.invite",
     ]),
     housekeeper: new Set<Permission>(["housekeeping.set", "ticket.advance"]),
     cashier: new Set<Permission>([
@@ -446,6 +462,7 @@ export const PERMISSION_LABEL: Readonly<Record<Permission, string>> = {
     "payroll.draft": "draft the pay run",
     "payroll.run": "confirm the pay run",
     "lostfound.manage": "keep the lost and found register",
+    "team.invite": "give staff their logins",
     "payout.manage": "choose where rent and booking money are paid out",
     "expense.manage": "record expenses",
     "tax.manage": "keep tax declarations and lease filings",
@@ -661,6 +678,7 @@ export const PERMISSION_AREA_OF: Readonly<Record<Permission, PermissionArea>> = 
     "payroll.draft": "people",
     "payroll.run": "people",
     "lostfound.manage": "front_desk",
+    "team.invite": "people",
     "pos.sell": "services",
     "pos.checkout": "services",
     "pos.discount": "services",
@@ -675,6 +693,38 @@ export const PERMISSION_AREA_OF: Readonly<Record<Permission, PermissionArea>> = 
     "customer.manage": "services",
     "customer.admin": "services",
 };
+/**
+ * What makes a login the owner's to approve when it is given with `team.invite` alone.
+ *
+ * A role holding any of these AT THIS BUSINESS reads the money, a staff file or the payroll, sets
+ * prices, or gives logins itself. HR may still ask for it, and the owner decides: whoever writes
+ * the staff file must not also be able to hand a colleague, or a second address of their own, the
+ * takings. Front-line roles (the desk, housekeeping) hold none of these by default, so their logins
+ * go out at once. Judged on the role's EFFECTIVE set, so a business that let its front desk read
+ * the takings gets the owner asked for a front desk login too.
+ */
+export const OWNER_APPROVED_ACCESS: readonly Permission[] = [
+    "money.view",
+    "refund.decide",
+    "ebm.manage",
+    "ebm.refund",
+    "people.view",
+    "people.manage",
+    "payroll.draft",
+    "payroll.run",
+    "team.invite",
+    "department.manage",
+    "outlet.manage",
+    "offer.manage",
+    "menu.manage",
+    "unit.manage",
+    "deposit.return",
+    "listing.manage",
+];
+/** Does a login into a role holding these permissions need the owner's approval? */
+export function accessNeedsOwner(permissions: readonly Permission[]): boolean {
+    return permissions.some((p) => OWNER_APPROVED_ACCESS.includes(p));
+}
 // ---------------------------------------------------------------------------
 // What each role may do, at THIS business
 // ---------------------------------------------------------------------------
@@ -849,6 +899,18 @@ export const WorkspaceAccess = z.object({
      * still parses a grant from an API built before it.
      */
     psfMembership: z.object({ canManage: z.boolean() }).nullable().default(null),
+    /**
+     * What the person holds HERE, in the shape every product reads (ADR-076
+     * contract section 3): the products the business has on, narrowed to the
+     * branches this member covers; the roles they hold, each with its scope;
+     * and the permissions those roles grant, under their new names.
+     *
+     * Set on every `business` workspace, absent on `broker` and `personal`.
+     * Optional so a client built before it still parses a grant. It sits
+     * beside `permissions` rather than replacing it: the flat field keeps
+     * today's keys until stage 9 (D-20).
+     */
+    grants: WorkspaceGrants.optional(),
 });
 export type WorkspaceAccess = z.infer<typeof WorkspaceAccess>;
 /**

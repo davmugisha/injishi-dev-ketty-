@@ -14,6 +14,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.pipe';
@@ -30,6 +31,7 @@ import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.
  */
 @Controller({ path: 'ops/rentals', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('residence')
 export class OpsRentalsController {
   constructor(private readonly profiles: RentalsProfileService) {}
 

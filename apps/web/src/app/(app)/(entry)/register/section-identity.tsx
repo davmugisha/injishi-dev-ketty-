@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   TypedIdentityRequest,
   type AccountDocumentType,
@@ -83,6 +84,7 @@ export function SectionIdentity({
    */
   online?: boolean;
 }) {
+  const t = useTranslations("registerForms.identity");
   const onFile = identity?.onFile ?? null;
   const scan = identity?.scan ?? null;
   const [documentType, setDocumentType] = useState<AccountDocumentType>(scan?.documentType ?? "national_id");
@@ -121,7 +123,7 @@ export function SectionIdentity({
   const back = onBack ? (
     <Button variant="ghost" onClick={onBack}>
       <ArrowLeft size={16} aria-hidden />
-      Back
+      {t("back")}
     </Button>
   ) : null;
 
@@ -129,11 +131,11 @@ export function SectionIdentity({
     // The steps open once the first read has answered, so no identity here means that read failed.
     return (
       <>
-        <p className="text-sm text-muted-foreground">We couldn&apos;t read your ID details just now.</p>
+        <p className="text-sm text-muted-foreground">{t("readFailed")}</p>
         <div className="flex flex-wrap items-center gap-2">
           {back}
           <Button variant="secondary" onClick={() => onIdentity()} disabled={!online}>
-            Try again
+            {t("tryAgain")}
           </Button>
         </div>
       </>
@@ -151,15 +153,15 @@ export function SectionIdentity({
         <div className="-mt-2 flex flex-wrap gap-2">
           {mayRetype && scan ? (
             <Button variant="ghost" size="sm" onClick={() => setChanging(true)}>
-              Change these details
+              {t("changeDetails")}
             </Button>
           ) : null}
           <Button variant="outline" size="sm" onClick={() => void replaceId()} pending={clearing} disabled={!online}>
-            Use a different ID
+            {t("useDifferentId")}
           </Button>
         </div>
         {clearProblem ? (
-          <Callout tone="danger" icon={<TriangleAlert size={16} aria-hidden />} title="That did not go through">
+          <Callout tone="danger" icon={<TriangleAlert size={16} aria-hidden />} title={t("failedTitle")}>
             {clearProblem}
           </Callout>
         ) : null}
@@ -171,7 +173,7 @@ export function SectionIdentity({
         {back || !hideNext ? (
           <div className="flex flex-wrap items-center gap-2">
             {back}
-            {hideNext ? null : <Button onClick={onNext}>Next</Button>}
+            {hideNext ? null : <Button onClick={onNext}>{t("next")}</Button>}
           </div>
         ) : null}
       </>
@@ -210,11 +212,7 @@ export function SectionIdentity({
     return (
       <>
         <p className="text-sm">
-          {changing
-            ? "Type your details again, exactly as they are printed on your ID. PSF checks them against your photos."
-            : scan.outcome === "manual_needed"
-            ? "Your photos are saved. Now type your details as they are printed on your ID, and PSF checks them against the photos."
-            : "Type your details as they are printed on your ID. PSF checks them against your photos before approving."}
+          {changing ? t("typedChanging") : scan.outcome === "manual_needed" ? t("typedManual") : t("typedNormal")}
         </p>
         <TypedIdentityFields
           draft={{ ...draft, documentType: typedType, issuingCountry: typedType === "passport" ? draft.issuingCountry : "RW" }}
@@ -222,7 +220,7 @@ export function SectionIdentity({
           errors={{ ...errors, ...typedErrors }}
         />
         {typedProblem ? (
-          <Callout tone="danger" icon={<TriangleAlert size={16} aria-hidden />} title="That did not go through">
+          <Callout tone="danger" icon={<TriangleAlert size={16} aria-hidden />} title={t("failedTitle")}>
             {typedProblem}
           </Callout>
         ) : null}
@@ -234,16 +232,16 @@ export function SectionIdentity({
             disabled={!online}
             aria-describedby={online ? undefined : "register-typed-offline"}
           >
-            Confirm
+            {t("confirm")}
           </Button>
-          {online ? null : <Offline id="register-typed-offline">You're offline. Connect to save your ID details.</Offline>}
+          {online ? null : <Offline id="register-typed-offline">{t("offlineTyped")}</Offline>}
           {changing ? (
             <Button variant="ghost" onClick={() => setChanging(false)}>
-              Cancel
+              {t("cancel")}
             </Button>
           ) : scan.outcome === "machine_failed" ? (
             <Button variant="ghost" onClick={() => setTyping(false)}>
-              Scan again
+              {t("scanAgain")}
             </Button>
           ) : null}
         </div>
@@ -252,7 +250,7 @@ export function SectionIdentity({
   }
 
   // --- The scanner.
-  const intro = "Your own ID, whoever owns the business. The name on it is the one the registration carries.";
+  const intro = t("intro");
   const failed = last?.outcome === "machine_failed" ? last : null;
   return (
     <>
@@ -269,9 +267,9 @@ export function SectionIdentity({
         }}
       />
       {failed ? (
-        <Callout tone="danger" icon={<TriangleAlert size={16} aria-hidden />} title="That check did not pass" role="alert">
+        <Callout tone="danger" icon={<TriangleAlert size={16} aria-hidden />} title={t("scanFailedTitle")} role="alert">
           {failed.message}
-          {failed.mayContinue ? null : " After 3 tries you can carry on, and PSF checks your ID."}
+          {failed.mayContinue ? null : ` ${t("afterThree")}`}
         </Callout>
       ) : null}
       {back || (scan?.outcome === "machine_failed" && scan.mayContinue) ? (
@@ -279,7 +277,7 @@ export function SectionIdentity({
           {back}
           {scan?.outcome === "machine_failed" && scan.mayContinue ? (
             <Button variant="secondary" onClick={() => setTyping(true)}>
-              Continue, PSF will check it
+              {t("continuePsf")}
             </Button>
           ) : null}
         </div>
@@ -298,13 +296,14 @@ function Extras({
   onDraftChange: (next: PersonalDraft) => void;
   errors: Record<string, string>;
 }) {
+  const t = useTranslations("registerForms.identity");
   return (
     <div className="flex flex-col gap-4">
       <Field
-        label="Your phone"
+        label={t("phone")}
         required
         composite
-        hint="For PSF to reach you, and for mobile money. Pick your country, then the number as you dial it."
+        hint={t("phoneHint")}
         error={errors["phoneE164"]}
       >
         <PhoneInput
@@ -315,10 +314,9 @@ function Extras({
         />
       </Field>
       <div className="flex flex-col gap-1">
-        <p className="text-sm font-semibold">Where you live</p>
+        <p className="text-sm font-semibold">{t("whereLive")}</p>
         <p className="text-xs text-muted-foreground">
-          Your ID does not give your home address, and your account needs one. Province, district and sector are
-          enough.
+          {t("whereLiveHint")}
         </p>
         <div className="mt-3">
           <AddressPicker
@@ -335,11 +333,12 @@ function Extras({
 
 /** A complete profile answers what an ID does not; it can still be changed. */
 function OnFile({ onEdit }: { onEdit: () => void }) {
+  const t = useTranslations("registerForms.identity");
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-card bg-secondary px-4 py-3 text-sm">
-      <span>Your phone and home address are on your account.</span>
+      <span>{t("onFile")}</span>
       <Button variant="ghost" size="sm" onClick={onEdit}>
-        Update them
+        {t("updateThem")}
       </Button>
     </div>
   );

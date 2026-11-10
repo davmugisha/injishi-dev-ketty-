@@ -9,7 +9,7 @@ import {
   VersioningType,
 } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_FILTER, NestFactory, Reflector } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR, NestFactory, Reflector } from '@nestjs/core';
 import {
   FastifyAdapter,
   NestFastifyApplication,
@@ -23,6 +23,7 @@ import {
   AUTH_REGISTRY,
   type AuthRegistry,
 } from './modules/auth/auth.module';
+import { AccessContextInterceptor } from './shared/auth/access-context';
 import { resolveAuthSurface } from './shared/config/auth-surface';
 import { PLATFORM, type Platform } from './shared/config/platform';
 import { scrubForeignSessionCookies } from './shared/http/foreign-session-cookies';
@@ -82,7 +83,13 @@ import { ReportingExceptionFilter } from './shared/observability/reporting-excep
   ],
   // ADR-063 AC-12: a request that fails with a 500 is reported, then answered
   // exactly as Nest's own handler would. The worker has no HTTP, so it never runs.
-  providers: [{ provide: APP_FILTER, useClass: ReportingExceptionFilter }],
+  //
+  // ADR-076 contract section 8: every handler runs inside the access context
+  // its guards wrote, which is what `AuditWriter` stamps on each audit row.
+  providers: [
+    { provide: APP_FILTER, useClass: ReportingExceptionFilter },
+    { provide: APP_INTERCEPTOR, useClass: AccessContextInterceptor },
+  ],
 })
 export class AppModule {
   /** HTTP + WS process (:8000). */

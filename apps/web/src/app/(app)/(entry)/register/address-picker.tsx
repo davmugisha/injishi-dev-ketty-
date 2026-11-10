@@ -8,6 +8,7 @@ import {
   type Village,
 } from "@injishi/contracts";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@injishi/web-ui";
 
 import {
@@ -105,30 +106,19 @@ function LoadStatus({
   retry: () => void;
 }) {
   // Read before the early return: a hook runs on every render or none.
+  const t = useTranslations("registerForms.address");
   const online = useOnline();
   if (phase !== "error" && phase !== "empty") return null;
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
       <span>{phase === "error"
         ? online
-          ? `We couldn't load the ${level} list.`
-          : `You're offline. Connect to load the ${level} list.`
-        : `No ${level} options were returned.`}</span>
-      <Button variant="ghost" size="sm" onClick={retry}>Try again</Button>
+          ? t("loadError", { level })
+          : t("loadOffline", { level })
+        : t("loadEmpty", { level })}</span>
+      <Button variant="ghost" size="sm" onClick={retry}>{t("tryAgain")}</Button>
     </div>
   );
-}
-
-function optionPlaceholder(
-  phase: OptionsPhase,
-  level: string,
-  parent: string,
-): string {
-  if (phase === "idle") return `Pick a ${parent} first`;
-  if (phase === "loading") return `Loading ${level} options…`;
-  if (phase === "error") return `Could not load ${level}`;
-  if (phase === "empty") return `No ${level} options`;
-  return `Choose a ${level}`;
 }
 
 /** Turn the draft into the wire shape, or null when it is not answered yet. */
@@ -169,8 +159,8 @@ export function AddressPicker({
   idPrefix,
   errorPrefix = "address",
   requireVillage = false,
-  streetLabel = "Street address",
-  streetHint = "Optional — not every plot has one.",
+  streetLabel: streetLabelProp,
+  streetHint: streetHintProp,
 }: {
   draft: AddressDraft;
   onChange: (next: AddressDraft) => void;
@@ -194,6 +184,22 @@ export function AddressPicker({
   streetLabel?: string;
   streetHint?: string;
 }) {
+  const t = useTranslations("registerForms.address");
+  const streetLabel = streetLabelProp ?? t("streetLabel");
+  const streetHint = streetHintProp ?? t("streetHint");
+  const levelWord = (level: "province" | "district" | "sector" | "cell" | "village"): string => t(`levels.${level}`);
+  const parentWord = (parent: "country" | "province" | "district" | "sector" | "cell"): string => t(`parents.${parent}`);
+  const placeholder = (
+    phase: OptionsPhase,
+    level: "province" | "district" | "sector" | "cell" | "village",
+    parent: "country" | "province" | "district" | "sector" | "cell",
+  ): string => {
+    if (phase === "idle") return t("pickFirst", { parent: parentWord(parent) });
+    if (phase === "loading") return t("loading", { level: levelWord(level) });
+    if (phase === "error") return t("loadFailed", { level: levelWord(level) });
+    if (phase === "empty") return t("noOptions", { level: levelWord(level) });
+    return t("choose", { level: levelWord(level) });
+  };
   const isRwanda = draft.country === "RW";
   const provinces = useAddressOptions<Province>(isRwanda ? "1" : "", fetchProvinces);
   const districts = useAddressOptions<District>(isRwanda ? draft.provinceId : "", fetchDistricts);
@@ -205,12 +211,12 @@ export function AddressPicker({
   return (
     <div className="space-y-4">
       {rwandaOnly ? null : (
-        <Field label="Country" required error={errors[`${errorPrefix}.country`]}>
+        <Field label={t("country")} required error={errors[`${errorPrefix}.country`]}>
           <SelectField
             id={`${idPrefix}-country`}
             value={draft.country}
             options={COUNTRY_OPTIONS}
-            placeholder="Choose a country"
+            placeholder={t("chooseCountry")}
             invalid={Boolean(errors[`${errorPrefix}.country`])}
             onChange={(country) =>
               onChange({
@@ -226,7 +232,7 @@ export function AddressPicker({
 
       {isRwanda ? (
         <>
-          <Field label="Province" required error={errors[`${errorPrefix}.provinceId`]}>
+          <Field label={t("field.province")} required error={errors[`${errorPrefix}.provinceId`]}>
             <SelectField
               id={`${idPrefix}-province`}
               value={draft.provinceId}
@@ -235,7 +241,7 @@ export function AddressPicker({
                 value: String(p.id),
                 label: p.name,
               }))}
-              placeholder={optionPlaceholder(provinces.phase, "province", "country")}
+              placeholder={placeholder(provinces.phase, "province", "country")}
               invalid={Boolean(errors[`${errorPrefix}.provinceId`])}
               onChange={(provinceId) =>
                 onChange({
@@ -249,9 +255,9 @@ export function AddressPicker({
               }
             />
           </Field>
-          <LoadStatus level="province" phase={provinces.phase} retry={provinces.retry} />
+          <LoadStatus level={levelWord("province")} phase={provinces.phase} retry={provinces.retry} />
 
-          <Field label="District" required error={errors[`${errorPrefix}.districtId`]}>
+          <Field label={t("field.district")} required error={errors[`${errorPrefix}.districtId`]}>
             <SelectField
               id={`${idPrefix}-district`}
               value={draft.districtId}
@@ -260,7 +266,7 @@ export function AddressPicker({
                 value: String(d.id),
                 label: d.name,
               }))}
-              placeholder={optionPlaceholder(districts.phase, "district", "province")}
+              placeholder={placeholder(districts.phase, "district", "province")}
               invalid={Boolean(errors[`${errorPrefix}.districtId`])}
               onChange={(districtId) =>
                 onChange({
@@ -273,9 +279,9 @@ export function AddressPicker({
               }
             />
           </Field>
-          <LoadStatus level="district" phase={districts.phase} retry={districts.retry} />
+          <LoadStatus level={levelWord("district")} phase={districts.phase} retry={districts.retry} />
 
-          <Field label="Sector" required error={errors[`${errorPrefix}.sectorId`]}>
+          <Field label={t("field.sector")} required error={errors[`${errorPrefix}.sectorId`]}>
             <SelectField
               id={`${idPrefix}-sector`}
               value={draft.sectorId}
@@ -284,21 +290,21 @@ export function AddressPicker({
                 value: String(sector.id),
                 label: sector.name,
               }))}
-              placeholder={optionPlaceholder(sectors.phase, "sector", "district")}
+              placeholder={placeholder(sectors.phase, "sector", "district")}
               invalid={Boolean(errors[`${errorPrefix}.sectorId`])}
               onChange={(sectorId) =>
                 onChange({ ...draft, sectorId, cellId: "", villageId: "" })
               }
             />
           </Field>
-          <LoadStatus level="sector" phase={sectors.phase} retry={sectors.retry} />
+          <LoadStatus level={levelWord("sector")} phase={sectors.phase} retry={sectors.retry} />
 
           {collectVillage ? (
             <>
               <Field
-                label="Cell"
+                label={t("field.cell")}
                 required={requireVillage}
-                hint={requireVillage ? "Follows the sector" : "Optional — it narrows the village list."}
+                hint={requireVillage ? t("cellHintRequired") : t("cellHintOptional")}
                 error={errors[`${errorPrefix}.cellId`]}
               >
                 <SelectField
@@ -309,19 +315,19 @@ export function AddressPicker({
                     value: String(cell.id),
                     label: cell.name,
                   }))}
-                  placeholder={optionPlaceholder(cells.phase, "cell", "sector")}
+                  placeholder={placeholder(cells.phase, "cell", "sector")}
                   invalid={Boolean(errors[`${errorPrefix}.cellId`])}
                   onChange={(cellId) =>
                     onChange({ ...draft, cellId, villageId: "" })
                   }
                 />
               </Field>
-              <LoadStatus level="cell" phase={cells.phase} retry={cells.retry} />
+              <LoadStatus level={levelWord("cell")} phase={cells.phase} retry={cells.retry} />
 
               <Field
-                label="Village"
+                label={t("field.village")}
                 required={requireVillage}
-                hint={requireVillage ? "Follows the cell" : "Optional — but it is what gets someone to the door."}
+                hint={requireVillage ? t("villageHintRequired") : t("villageHintOptional")}
                 error={errors[`${errorPrefix}.villageId`]}
               >
                 <SelectField
@@ -332,12 +338,12 @@ export function AddressPicker({
                     value: String(village.id),
                     label: village.name,
                   }))}
-                  placeholder={optionPlaceholder(villages.phase, "village", "cell")}
+                  placeholder={placeholder(villages.phase, "village", "cell")}
                   invalid={Boolean(errors[`${errorPrefix}.villageId`])}
                   onChange={(villageId) => onChange({ ...draft, villageId })}
                 />
               </Field>
-              <LoadStatus level="village" phase={villages.phase} retry={villages.retry} />
+              <LoadStatus level={levelWord("village")} phase={villages.phase} retry={villages.retry} />
             </>
           ) : null}
 
@@ -349,7 +355,7 @@ export function AddressPicker({
             <TextInput
               id={`${idPrefix}-street`}
 
-              placeholder="KG 11 Ave"
+              placeholder={t("streetPlaceholder")}
               value={draft.street}
               onChange={(e) => onChange({ ...draft, street: e.target.value })}
             />
@@ -357,9 +363,9 @@ export function AddressPicker({
         </>
       ) : (
         <Field
-          label="Address"
+          label={t("field.address")}
           required
-          hint="Write it the way it is written where you live."
+          hint={t("addressHint")}
           error={errors[`${errorPrefix}.addressText`]}
         >
           <TextArea

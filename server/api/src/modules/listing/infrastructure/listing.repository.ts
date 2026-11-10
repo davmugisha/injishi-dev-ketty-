@@ -26,6 +26,7 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import { productOnSql } from '../../../shared/entitlements/entitlement-check';
 import { buildFacilities } from '../domain/facilities';
 import { blurLocation } from '../domain/location-blur';
 
@@ -114,15 +115,24 @@ const operatorParty = alias(outletParties, 'operator_party');
  * states one rule in two places, and reinstatement would then leave the operator
  * to publish again, punishing a business for a suspension that was lifted.
  *
- * A module constant rather than a method, because it is the same two column
+ * A module constant rather than a method, because it is the same
  * comparisons on every call. Exported for explore (mobile spec 0005, D-e), so the
  * guest's search and `/properties` read one rule and cannot drift. It names the
  * `listings` and `orgs` tables themselves, so a query embedding it joins them
  * unaliased.
+ *
+ * And a third, since ADR-076 slice G: the business has Marketplace switched
+ * on. A business whose Marketplace Injishi switched off is left out of every
+ * public read the same way a suspended one is, and comes back the moment it is
+ * switched on again (ADR-074 "Guest and public routes": a public listing
+ * filters such properties out rather than refusing). Every existing business
+ * holds it from the switch on migration, so nothing listed today disappears.
+ * Explore inherits it with the constant.
  */
 export const PUBLICLY_VISIBLE = and(
   eq(listings.status, 'published'),
   eq(orgs.registrationStatus, 'active'),
+  productOnSql(orgs.id, 'marketplace'),
 );
 
 /**

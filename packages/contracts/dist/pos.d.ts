@@ -2899,11 +2899,11 @@ export declare const PosSetupStep: z.ZodObject<{
     count: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     count: number;
-    key: "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "products" | "receipts" | "team";
+    key: "products" | "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "receipts" | "team";
     done: boolean;
 }, {
     count: number;
-    key: "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "products" | "receipts" | "team";
+    key: "products" | "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "receipts" | "team";
     done: boolean;
 }>;
 export type PosSetupStep = z.infer<typeof PosSetupStep>;
@@ -2916,11 +2916,11 @@ export declare const PosSetup: z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         count: number;
-        key: "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "products" | "receipts" | "team";
+        key: "products" | "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "receipts" | "team";
         done: boolean;
     }, {
         count: number;
-        key: "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "products" | "receipts" | "team";
+        key: "products" | "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "receipts" | "team";
         done: boolean;
     }>, "many">;
     doneCount: z.ZodNumber;
@@ -2931,7 +2931,7 @@ export declare const PosSetup: z.ZodObject<{
     doneCount: number;
     steps: {
         count: number;
-        key: "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "products" | "receipts" | "team";
+        key: "products" | "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "receipts" | "team";
         done: boolean;
     }[];
 }, {
@@ -2940,7 +2940,7 @@ export declare const PosSetup: z.ZodObject<{
     doneCount: number;
     steps: {
         count: number;
-        key: "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "products" | "receipts" | "team";
+        key: "products" | "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "receipts" | "team";
         done: boolean;
     }[];
 }>;

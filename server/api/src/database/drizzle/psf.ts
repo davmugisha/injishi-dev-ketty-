@@ -49,7 +49,6 @@ import {
   psfCompanyTypeEnum,
   psfContactRoleEnum,
   psfDeclineReasonEnum,
-  psfMembershipFamilyEnum,
   psfMembershipSourceEnum,
   psfOwnershipEnum,
   psfPriceKindEnum,
@@ -58,12 +57,26 @@ import {
 } from './enums';
 import { districts, sectors } from './geography';
 import { orgs } from './org';
+import { psfSubsectors } from './psf-catalogue';
+
+/** PSF's levels (0137): Golden Circle and the rest, which the National Manager can add to. */
+export const psfLevels = pgTable('psf_levels', {
+  code: text('code').primaryKey(),
+  nameEn: text('name_en').notNull(),
+  blurbEn: text('blurb_en'),
+  sortOrder: smallint('sort_order').notNull(),
+  active: boolean('active').notNull().default(true),
+  updatedByUserId: uuid('updated_by_user_id').references(() => users.id),
+  ...timestamps,
+});
 
 export const psfMembershipTiers = pgTable(
   'psf_membership_tiers',
   {
     code: text('code').primaryKey(),
-    family: psfMembershipFamilyEnum('family').notNull(),
+    family: text('family')
+      .notNull()
+      .references(() => psfLevels.code),
     nameEn: text('name_en').notNull(),
     // Null until PSF supplies it; the screens show English instead.
     nameRw: text('name_rw'),
@@ -78,6 +91,8 @@ export const psfMembershipTiers = pgTable(
     benefitsRw: text('benefits_rw').array(),
     sortOrder: smallint('sort_order').notNull(),
     active: boolean('active').notNull().default(true),
+    /** What its membership card's ribbon says, like Bronze; none prints no ribbon (0138). */
+    cardBadge: text('card_badge'),
     updatedByUserId: uuid('updated_by_user_id').references(() => users.id),
     ...timestamps,
   },
@@ -127,6 +142,27 @@ export const psfTierFees = pgTable(
   ],
 );
 
+/**
+ * A kind of business's price in one district (0135, 2026-11-05): a salon may cost RWF 1M in Kicukiro and RWF 3M
+ * in Gasabo. Optional; it is the floor for that kind there, inside the band that holds it.
+ */
+export const psfServiceFees = pgTable(
+  'psf_service_fees',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    subsectorId: uuid('subsector_id')
+      .notNull()
+      .references(() => psfSubsectors.id, { onDelete: 'cascade' }),
+    districtId: integer('district_id')
+      .notNull()
+      .references(() => districts.id),
+    amountRwf: amount('amount_rwf').notNull(),
+    updatedByUserId: uuid('updated_by_user_id').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex('psf_service_fees_place_uk').on(t.subsectorId, t.districtId), check('psf_service_fees_positive', sql`${t.amountRwf} > 0`)],
+);
+
 export const psfMembershipApplications = pgTable(
   'psf_membership_applications',
   {
@@ -165,6 +201,10 @@ export const psfMembershipApplications = pgTable(
     // How the business came in (0132): a new application, or a holder of an old PSF card joining the
     // new module (no fee now, a new number, the year on its card).
     intake: text('intake').$type<'new' | 'card_holder'>().notNull().default('new'),
+    // Sent back to fix (0134): PSF never rejects. Set, it waits on the business, out of the queue.
+    returnedAt: timestamp('returned_at', { withTimezone: true }),
+    returnedByUserId: uuid('returned_by_user_id').references(() => users.id),
+    returnNote: text('return_note'),
 
     // Member profile, as filed.
     companyName: text('company_name').notNull(),
@@ -374,6 +414,10 @@ export const psfMembershipClaims = pgTable(
       .references(() => orgs.id, { onDelete: 'cascade' }),
     // Null when the member sent its card without the number (0131); the confirming officer types it.
     membershipNumber: text('membership_number'),
+    // Sent back (0134): the card needs resending; it stays `claimed`, waiting on the business.
+    returnedAt: timestamp('returned_at', { withTimezone: true }),
+    returnedByUserId: uuid('returned_by_user_id').references(() => users.id),
+    returnNote: text('return_note'),
     status: text('status').$type<'claimed' | 'confirmed' | 'rejected'>().notNull().default('claimed'),
     claimedByUserId: uuid('claimed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
     claimedAt: timestamp('claimed_at', { withTimezone: true }).notNull().defaultNow(),
@@ -462,6 +506,8 @@ export const psfApplicationBranches = pgTable(
       .notNull()
       .references(() => sectors.id),
     street: text('street').notNull(),
+    // What this branch pays a year, by its own district and kind (0135). Null on one from before.
+    feeRwf: amount('fee_rwf'),
     status: psfBranchStatusEnum('status').notNull().default('pending'),
     decidedAt: timestamp('decided_at', { withTimezone: true }),
     decidedByUserId: uuid('decided_by_user_id').references(() => users.id),
@@ -499,6 +545,8 @@ export const psfMembershipFormFields = pgTable(
     options: jsonb('options').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     sortOrder: smallint('sort_order').notNull().default(0),
     active: boolean('active').notNull().default(true),
+    /** Which step of the public form it sits on (0137). */
+    step: text('step').notNull().default('business'),
     ...timestamps,
   },
   (t) => [
@@ -521,10 +569,59 @@ export type PsfMembershipFormFieldRow = typeof psfMembershipFormFields.$inferSel
  * and the band may change. Early renewal extends the current membership row; a
  * lapsed one gets a new row under the same number. One row per attempt.
  */
+/**
+ * Who each fee is for (0136, 2026-11-05): 60% the district, 40% headquarters, the rounding to headquarters.
+ * One line per payment per district. A record of what is owed: the money goes to PSF's one account.
+ */
+/** The form's built-in fields as PSF changed them (0137); no row is the form's own wording. */
+export const psfFormFieldSettings = pgTable('psf_form_field_settings', {
+  fieldKey: text('field_key').primaryKey(),
+  label: text('label'),
+  helpText: text('help_text'),
+  required: boolean('required'),
+  visible: boolean('visible').notNull().default(true),
+  sortOrder: smallint('sort_order'),
+  updatedByUserId: uuid('updated_by_user_id').references(() => users.id),
+  ...timestamps,
+});
+
+/** The split's history (0137): the newest row is the rate. A change applies to new payments only. */
+export const psfSplitRates = pgTable('psf_split_rates', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  districtPercent: smallint('district_percent').notNull(),
+  setByUserId: uuid('set_by_user_id').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const psfFeeAllocations = pgTable(
+  'psf_fee_allocations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sourceKind: text('source_kind').$type<'application' | 'renewal'>().notNull(),
+    sourceId: uuid('source_id').notNull(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    districtId: integer('district_id')
+      .notNull()
+      .references(() => districts.id),
+    amountRwf: amount('amount_rwf').notNull(),
+    districtRwf: amount('district_rwf').notNull(),
+    headquartersRwf: amount('headquarters_rwf').notNull(),
+    /** The rate this payment went by (0137): a later change does not rewrite it. */
+    districtPercent: smallint('district_percent').notNull().default(60),
+    paidAt: timestamp('paid_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('psf_fee_allocations_line_uk').on(t.sourceKind, t.sourceId, t.districtId), index('psf_fee_allocations_district_idx').on(t.districtId, t.paidAt)],
+);
+
 export const psfMembershipRenewals = pgTable(
   'psf_membership_renewals',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    // A renewal, or an upgrade (0136): a higher band paid in full, a new year starting that day.
+    kind: text('kind').$type<'renewal' | 'upgrade'>().notNull().default('renewal'),
     orgId: uuid('org_id')
       .notNull()
       .references(() => orgs.id, { onDelete: 'cascade' }),

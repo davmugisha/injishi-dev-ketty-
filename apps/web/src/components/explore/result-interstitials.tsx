@@ -1,5 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Button } from "@injishi/web-ui";
 import { LifebuoyIcon } from "@/components/icons";
 import { PROMO_BAR } from "@/data/promotions";
@@ -51,6 +52,7 @@ export function BundleBanner() {
 }
 
 export function EditorialCard() {
+  const t = useTranslations("search");
   const pillar = SERVICE_PILLARS[0];
   if (!pillar) return null;
   return (
@@ -72,7 +74,7 @@ export function EditorialCard() {
       </div>
       <div className="flex flex-col justify-center gap-2 p-6">
         <span className="text-2xs font-bold uppercase tracking-widest text-accent-text">
-          Why book with Injishi
+          {t("whyBookWithUs")}
         </span>
         <h3 className="text-xl font-bold text-foreground">
           {pillar.lead}
@@ -83,7 +85,7 @@ export function EditorialCard() {
           href={`/how-it-works#${pillar.id}`}
           className="mt-1 flex w-max items-center gap-1.5 text-sm font-bold text-accent-text hover:underline"
         >
-          Learn more
+          {t("learnMore")}
           <ArrowRight className="size-4" strokeWidth={2.5} aria-hidden />
         </Link>
       </div>
@@ -111,11 +113,12 @@ const DISTRICT_IMAGE: Readonly<Record<string, string>> = {
 };
 
 export function BrandRail() {
+  const t = useTranslations("search");
   const districts = SEARCH_DISTRICTS.filter((d) => DISTRICT_IMAGE[d.slug]);
   if (districts.length === 0) return null;
   return (
     <section data-interstitial="brand" className="flex flex-col gap-3">
-      <h3 className="text-lg font-bold text-foreground">Explore stays by district</h3>
+      <h3 className="text-lg font-bold text-foreground">{t("exploreByDistrict")}</h3>
       <div className="-mx-1 flex snap-x snap-mandatory gap-3 scrollbar overflow-x-auto px-1 pb-1">
         {districts.map((district) => (
           <Link
@@ -161,6 +164,7 @@ export function BrandRail() {
  * component does not carry the bug forward into a page it was rebuilt for.
  */
 export function SupportInterstitial() {
+  const t = useTranslations("search");
   return (
     <section
       data-interstitial="support"
@@ -168,13 +172,13 @@ export function SupportInterstitial() {
     >
       <LifebuoyIcon className="size-10" />
       <h3 className="text-xl">
-        Need <b className="font-bold">help?</b>
+        {t("needHelp")}
       </h3>
       <p className="text-sm text-background/80">
-        Our customer representatives are here to assist you!
+        {t("supportReps")}
       </p>
       <Button asChild variant="inverse" size="sm" className="mt-1 w-max">
-        <Link href="/support">Start now</Link>
+        <Link href="/support">{t("startNow")}</Link>
       </Button>
     </section>
   );

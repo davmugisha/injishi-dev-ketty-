@@ -2,6 +2,7 @@
 
 import { CircleCheck } from "@gravity-ui/icons";
 import { Alert, Card, Chip } from "@heroui/react";
+import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import type { StepKey } from "@/server/mutations/setup";
 
@@ -28,6 +29,7 @@ export function StepCard({
   lead: string;
   children: ReactNode;
 }) {
+  const t = useTranslations("setup");
   return (
     <Card render={(p) => <section {...p} />} aria-labelledby={`step-${id}`} className="gap-4 p-5">
       <Card.Header className="flex flex-row items-start gap-3">
@@ -41,7 +43,7 @@ export function StepCard({
           <Card.Description>{lead}</Card.Description>
         </div>
         <Chip size="sm" variant="soft" color={done ? "success" : "default"}>
-          {done ? "Done" : "To do"}
+          {done ? t("done") : t("toDo")}
         </Chip>
       </Card.Header>
       {children}
@@ -50,6 +52,7 @@ export function StepCard({
 }
 
 export function Outcome({ result, okText }: { result: Result | null; okText: string }) {
+  const t = useTranslations("setup");
   if (!result) return null;
   return result.ok ? (
     <p role="status" className="flex items-center gap-1.5 text-[13px] text-success">
@@ -59,7 +62,7 @@ export function Outcome({ result, okText }: { result: Result | null; okText: str
   ) : (
     <Alert status="danger" role="alert">
       <Alert.Content>
-        <Alert.Title>Not saved</Alert.Title>
+        <Alert.Title>{t("notSaved")}</Alert.Title>
         <Alert.Description>{result.error}</Alert.Description>
       </Alert.Content>
     </Alert>
@@ -83,3 +86,65 @@ export function useStep() {
 
 export const SELECT =
   "h-10 w-full rounded-xl border border-separator bg-field px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus";
+
+/**
+ * A stored choice list's labels, from the catalog: one key per value (`frontDesk: { limited: … }`).
+ *
+ * The contracts carry the same lists in English (`FRONT_DESK_LABEL`), which is right for the API and the
+ * database. A screen the owner reads fills them from `@injishi/i18n` instead, so no select is half translated.
+ */
+export function labelsOf<T extends string>(
+  values: readonly T[],
+  t: (key: string) => string,
+): Readonly<Record<T, string>> {
+  return Object.fromEntries(values.map((value) => [value, t(value)])) as Readonly<Record<T, string>>;
+}
+
+/** The english unit and price words a setup read carries (`SetupVocabulary`). */
+export type SetupWords = {
+  unitSingular: string;
+  unitPlural: string;
+  typePlural: string;
+  pricePeriod: string;
+  priceBasis: string;
+};
+
+/** The catalog's key for each unit a business sells: the server's own singular word names it. */
+const UNIT_KEY: Readonly<Record<string, string>> = {
+  room: "room",
+  tent: "tent",
+  apartment: "apartment",
+  villa: "villa",
+  unit: "unit",
+  offering: "offering",
+};
+
+/** The catalog's key for each way a price is counted: the server's own phrase names it. */
+const PERIOD_KEY: Readonly<Record<string, string>> = {
+  "per room, per night": "roomNight",
+  "per night, for the whole place": "unitNight",
+  "per tent, per night": "tentNight",
+  "per month": "month",
+  each: "each",
+};
+
+/**
+ * The words a step uses for what it sells, in the reader's language.
+ *
+ * `GET /ops/setup` words a business in English (`setupVocabularyFor`), which the API shares with the guest pages;
+ * a sentence assembled here would end "combien de rooms". A kind this page does not know yet keeps the server's
+ * words rather than showing nothing. A lodge lets "rooms and cottages", and reads as its rooms here.
+ */
+export function useSetupWords(words: SetupWords): SetupWords {
+  const t = useTranslations("setup.words");
+  const unit = UNIT_KEY[words.unitSingular];
+  const period = PERIOD_KEY[words.pricePeriod];
+  if (!unit) return words;
+  return {
+    ...words,
+    unitSingular: t(`unit.${unit}.one`),
+    unitPlural: t(`unit.${unit}.other`),
+    typePlural: t(`typePlural.${unit}`),
+    pricePeriod: period ? t(`pricePeriod.${period}`) : words.pricePeriod,
+  };
+}

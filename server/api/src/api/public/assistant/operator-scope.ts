@@ -45,15 +45,14 @@ export class OperatorScopeResolver {
       }
     }
 
-    const access = await this.workspaces.resolveForUser(input.userId, input.workspaceId);
-    if (!access) return NONE;
+    // The guard's one resolution (ADR-076 A-17): the grant and the member's
+    // coverage from the same statement.
+    const resolved = await this.workspaces.accessFor(input.userId, input.workspaceId);
+    if (!resolved) return NONE;
 
     try {
-      const branchScope = resolveBranchScope(
-        await this.workspaces.coveredProperties(input.userId, access),
-        input.branchHeader,
-      );
-      return { workspace: { ...access, branchScope }, stepUpNeeded: false };
+      const branchScope = resolveBranchScope(resolved.covered, input.branchHeader);
+      return { workspace: { ...resolved.access, branchScope }, stepUpNeeded: false };
     } catch (error) {
       // A branch the member does not cover: the guard refuses with a 4xx, so
       // the assistant gets no workspace rather than a wider one.

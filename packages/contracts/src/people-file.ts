@@ -365,6 +365,17 @@ export const StaffAnnouncement = z.object({
 export type StaffAnnouncement = z.infer<typeof StaffAnnouncement>;
 export const StaffAnnouncementList = z.object({ announcements: z.array(StaffAnnouncement) });
 export type StaffAnnouncementList = z.infer<typeof StaffAnnouncementList>;
+/** One announcement as the person it is for reads it (`GET /me/work/:employeeId/announcements`). */
+export const MyAnnouncement = z.object({
+    id: Uuid,
+    title: z.string(),
+    body: z.string(),
+    postedAt: z.string(),
+    expiresOn: IsoDate.nullable(),
+});
+export type MyAnnouncement = z.infer<typeof MyAnnouncement>;
+export const MyAnnouncementList = z.object({ announcements: z.array(MyAnnouncement) });
+export type MyAnnouncementList = z.infer<typeof MyAnnouncementList>;
 export const CreateStaffAnnouncementRequest = z
     .object({
     title: z.string().trim().min(2, "Give it a title.").max(120),

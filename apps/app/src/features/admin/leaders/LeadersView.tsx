@@ -17,24 +17,28 @@ import {
   formatNumber,
   IconAction,
   PageContent,
-  PersonCell,
   type PlaceChain,
-  PlacePicker,
-  placeLine,
 } from "@injishi/ui";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
-import { loadGuestPlaces } from "../../guests/places";
+import {
+  ALL,
+  AreaFilter,
+  CountStrip,
+  ListBar,
+  ListFilter,
+  ListSearch,
+  ListUrlProvider,
+  useListUrl,
+} from "../list/list-kit";
+import { EntityMark } from "../list/stat-cards";
 import { AppointPanel, type AppointPrefill, ROLE_CHOICES } from "./AppointPanel";
 import { endAppointment } from "./actions";
 
-const KIND_TABS = [
-  { id: "all", label: "All" },
-  { id: "leader", label: "Local leaders" },
-  { id: "reviewer", label: "Business reviewers" },
-  { id: "officer", label: "Other officers" },
-] as const;
+/** The kind tabs, in the order the list shows them: every post, then leaders, reviewers, other officers. */
+const KIND_TABS = ["all", "leader", "reviewer", "officer"] as const;
 
 /** A waiting area's (or a coverage gap's) place as the place picker holds it. */
 export function chainOf(
@@ -58,13 +62,16 @@ function EndDialog({ appointment, onClose }: { appointment: OversightAppointment
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const t = useTranslations("adminLeaders.list");
+  const tr = useTranslations("admin.roles");
+  const person = appointment.name ?? appointment.email;
   return (
     <FormDialog
       isOpen
       onOpenChange={(open) => (open ? undefined : onClose())}
-      title={`End ${appointment.name ?? appointment.email}'s appointment?`}
-      description={`${appointment.roleLabel}, ${appointment.area}`}
-      submitLabel="End appointment"
+      title={t("endTitle", { name: person })}
+      description={`${tr(appointment.role)}, ${appointment.area}`}
+      submitLabel={t("endSubmit")}
       submitIcon="PersonXmark"
       isPending={pending}
       validationErrors={error ? { reason: error } : undefined}
@@ -76,7 +83,7 @@ function EndDialog({ appointment, onClose }: { appointment: OversightAppointment
             setError(result.fieldErrors?.reason ?? result.error);
             return;
           }
-          toast.success("Appointment ended");
+          toast.success(t("ended"));
           onClose();
           router.refresh();
         });
@@ -90,38 +97,11 @@ function EndDialog({ appointment, onClose }: { appointment: OversightAppointment
         fullWidth
         className="gap-1"
       >
-        <Label>Why</Label>
-        <TextArea rows={3} placeholder="Moved to another district" />
-        <Description>Kept in the audit log.</Description>
+        <Label>{t("why")}</Label>
+        <TextArea rows={3} placeholder={t("whyPlaceholder")} />
+        <Description>{t("keptInAudit")}</Description>
         <FieldError>{error}</FieldError>
       </TextField>
-    </FormDialog>
-  );
-}
-
-/** Narrow the list to an area: picked down the cascade, applied on Apply. */
-function AreaFilterDialog({
-  value,
-  onApply,
-  onClose,
-}: {
-  value: PlaceChain;
-  onApply: (chain: PlaceChain) => void;
-  onClose: () => void;
-}) {
-  const [chain, setChain] = useState<PlaceChain>(value);
-  return (
-    <FormDialog
-      isOpen
-      onOpenChange={(open) => (open ? undefined : onClose())}
-      title="Show one area"
-      submitLabel="Apply"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onApply(chain);
-      }}
-    >
-      <PlacePicker label="Area" value={chain} onChange={setChain} loadPlaces={loadGuestPlaces} reserveSpace={false} />
     </FormDialog>
   );
 }
@@ -133,7 +113,23 @@ function AreaFilterDialog({
  * and area) and ending (with a reason); and the areas where guests wait for a leader, each with an
  * Appoint shortcut.
  */
-export function LeadersView({
+export function LeadersView(props: {
+  list: OversightAppointmentList;
+  bodies: GovernmentBody[];
+  canAppoint: boolean;
+  /** The area filter in the address, as a chain. */
+  areaChain: PlaceChain;
+  /** `?appoint=` from the coverage page: open the form with this role and area. */
+  initialAppoint: AppointPrefill | null;
+}) {
+  return (
+    <ListUrlProvider>
+      <Leaders {...props} />
+    </ListUrlProvider>
+  );
+}
+
+function Leaders({
   list,
   bodies,
   canAppoint,
@@ -143,33 +139,25 @@ export function LeadersView({
   list: OversightAppointmentList;
   bodies: GovernmentBody[];
   canAppoint: boolean;
-  /** The area filter in the address, as a chain. */
   areaChain: PlaceChain;
-  /** `?appoint=` from the coverage page: open the form with this role and area. */
   initialAppoint: AppointPrefill | null;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
-  const params = useSearchParams();
+  const url = useListUrl();
+  const t = useTranslations("adminLeaders.list");
+  // The kinds sit beside the list's words in the catalog, as adminLeaders.tabs.
+  const tk = useTranslations("adminLeaders.tabs");
+  // The posts as People and the appointment form name them: one catalog, one word per role.
+  const tr = useTranslations("admin.roles");
   const [appoint, setAppoint] = useState<AppointPrefill | null | false>(initialAppoint ?? false);
   const [ending, setEnding] = useState<OversightAppointment | null>(null);
-  const [areaOpen, setAreaOpen] = useState(false);
-
-  const go = (changes: Record<string, string | null>) => {
-    const next = new URLSearchParams(params.toString());
-    for (const [k, v] of Object.entries(changes)) {
-      if (v === null || v === "") next.delete(k);
-      else next.set(k, v);
-    }
-    next.delete("appoint");
-    const qs = next.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  };
-
-  const kind = params.get("kind") ?? "all";
-  const role = params.get("role");
-  const areaWords = placeLine(areaChain);
+  // "Never opened a guest" is read from the rows this page already has.
+  const neverOpened = url.get("opened") === "never";
+  const rows = neverOpened
+    ? list.appointments.filter((a) => a.kind === "leader" && a.delivered > 0 && a.seen === 0)
+    : list.appointments;
   const total = list.counts.leader + list.counts.reviewer + list.counts.officer;
+  const usedBodies = bodies.filter((b) => b.active);
 
   return (
     <PageContent>
@@ -177,90 +165,80 @@ export function LeadersView({
         actions={
           canAppoint ? (
             <ActionButton icon="PersonPlus" intent="primary" onPress={() => setAppoint(null)}>
-              Appoint
+              {t("appoint")}
             </ActionButton>
           ) : null
         }
       />
+      <CountStrip
+        label="Appointments by kind"
+        param="kind"
+        items={[
+          { id: "leader", label: tk("leader"), icon: "House", value: list.counts.leader },
+          { id: "reviewer", label: tk("reviewer"), icon: "ShieldCheck", value: list.counts.reviewer },
+          { id: "officer", label: tk("officer"), icon: "Persons", value: list.counts.officer },
+        ]}
+      />
+      <ListBar
+        keys={["q", "kind", "role", "body", "opened"]}
+        found={rows.length}
+        noun={{ one: t("nounOne"), many: t("nounMany") }}
+        search={<ListSearch placeholder="Name, email or title" />}
+      >
+        <ListFilter
+          param="kind"
+          name={t("show")}
+          options={KIND_TABS.map((id) => ({
+            id,
+            label: tk(id),
+            count: id === "all" ? total : list.counts[id],
+          }))}
+        />
+        <ListFilter
+          param="role"
+          name={t("role")}
+          icon="Persons"
+          options={[{ id: ALL, label: t("all") }, ...ROLE_CHOICES.map((r) => ({ id: r.id, label: tr(r.id) }))]}
+        />
+        <ListFilter
+          param="body"
+          name="Body"
+          icon="Briefcase"
+          options={[
+            { id: ALL, label: t("all") },
+            ...usedBodies.map((b) => ({
+              id: b.code,
+              label: b.abbreviation ? `${b.abbreviation}, ${b.nameEn}` : b.nameEn,
+            })),
+          ]}
+        />
+        <AreaFilter chain={areaChain} depth="village" />
+        <ListFilter
+          param="opened"
+          name={t("opened")}
+          icon="Eye"
+          options={[
+            { id: ALL, label: t("all") },
+            { id: "never", label: t("neverOpened") },
+          ]}
+        />
+      </ListBar>
 
       <div className="flex min-w-0 flex-col gap-5">
         <DataTable<OversightAppointment>
-          label="Appointments"
-          rows={list.appointments}
+          label={t("label")}
+          rows={rows}
           rowKey={(a) => a.id}
-          noun={{ one: "appointment", many: "appointments" }}
-          search={{ placeholder: "Name, email or area", text: (a) => `${a.name ?? ""} ${a.email} ${a.area}` }}
-          filters={[
-            {
-              id: "kind",
-              name: "Show",
-              options: KIND_TABS.map((t) => ({
-                id: t.id,
-                label: t.label,
-                count: t.id === "all" ? total : list.counts[t.id],
-              })),
-              value: kind,
-              onChange: (k) => go({ kind: k === "all" ? null : k, role: null }),
-            },
-            {
-              id: "role",
-              name: "Role",
-              options: [{ id: "all", label: "All" }, ...ROLE_CHOICES.map((r) => ({ id: r.id, label: r.label }))],
-              value: role ?? "all",
-              onChange: (v) => go({ role: v === "all" ? null : v }),
-            },
-            {
-              id: "opened",
-              name: "Opened",
-              icon: "Eye",
-              options: [
-                { id: "all", label: "All" },
-                { id: "never", label: "Never opened a guest" },
-              ],
-              match: (a) => a.kind === "leader" && a.delivered > 0 && a.seen === 0,
-            },
-          ]}
-          onClearFilters={() =>
-            go({
-              kind: null,
-              role: null,
-              provinceId: null,
-              districtId: null,
-              sectorId: null,
-              cellId: null,
-              villageId: null,
-            })
-          }
-          toolbarEnd={
-            <>
-              <ActionButton
-                icon="MapPin"
-                size="sm"
-                intent="ghost"
-                onPress={() => setAreaOpen(true)}
-                className="max-w-56"
-              >
-                <span className="truncate">{areaWords || "Everywhere"}</span>
-              </ActionButton>
-              {areaWords ? (
-                <IconAction
-                  icon="Xmark"
-                  label="Show every area"
-                  onPress={() =>
-                    go({ provinceId: null, districtId: null, sectorId: null, cellId: null, villageId: null })
-                  }
-                />
-              ) : null}
-            </>
-          }
+          noun={{ one: t("nounOne"), many: t("nounMany") }}
+          onRowAction={(a) => router.push(`/admin/people/${a.userId}`)}
           empty={
             <EmptyBlock
               icon="Persons"
-              title="Nobody appointed yet"
+              title={t("empty")}
               action={
                 canAppoint ? (
                   <ActionButton icon="PersonPlus" onPress={() => setAppoint(null)}>
-                    Appoint
+                    {t("appoint")}
                   </ActionButton>
                 ) : undefined
               }
@@ -269,46 +247,54 @@ export function LeadersView({
           columns={[
             {
               id: "person",
-              header: "Person",
+              header: t("person"),
               isRowHeader: true,
               sortValue: (a) => a.name ?? a.email,
-              cell: (a) => <PersonCell name={a.name ?? a.email} secondary={a.name ? a.email : "No name yet"} />,
+              cell: (a) => (
+                <span className="flex min-w-0 items-center gap-3 text-sm">
+                  <EntityMark name={a.name ?? a.email} />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate font-medium">{a.name ?? a.email}</span>
+                    <span className="truncate text-xs text-muted">{a.name ? a.email : t("noNameYet")}</span>
+                  </span>
+                </span>
+              ),
             },
             {
               id: "role",
-              header: "Role",
-              sortValue: (a) => a.roleLabel,
+              header: t("role"),
+              sortValue: (a) => tr(a.role),
               cell: (a) => (
                 <div className="flex min-w-0 flex-col text-sm">
-                  <span className="truncate">{a.roleLabel}</span>
+                  <span className="truncate">{tr(a.role)}</span>
                   <span className="truncate text-xs text-muted">{a.title ?? a.bodyName ?? a.bodyCode}</span>
                 </div>
               ),
             },
             {
               id: "area",
-              header: "Area",
+              header: t("area"),
               sortValue: (a) => a.area,
               cell: (a) => <span className="text-sm whitespace-normal">{a.area}</span>,
             },
             {
               id: "guests",
-              header: "Guests",
+              header: t("guests"),
               align: "end",
               hideBelow: "lg",
               sortValue: (a) => a.delivered,
               cell: (a) =>
                 a.kind === "leader" ? (
                   <span className="text-sm whitespace-nowrap tabular">
-                    {formatNumber(a.seen)} of {formatNumber(a.delivered)} opened
+                    {t("openedOf", { seen: formatNumber(a.seen), delivered: formatNumber(a.delivered) })}
                   </span>
                 ) : (
-                  <span className="text-xs whitespace-nowrap text-muted">Not a leader</span>
+                  <span className="text-xs whitespace-nowrap text-muted">{t("notLeader")}</span>
                 ),
             },
             {
               id: "since",
-              header: "Since",
+              header: t("since"),
               hideBelow: "xl",
               sortValue: (a) => a.grantedAt,
               cell: (a) => <span className="text-sm whitespace-nowrap">{formatDay(a.grantedAt)}</span>,
@@ -319,7 +305,7 @@ export function LeadersView({
               ? (a) => (
                   <IconAction
                     icon="PersonXmark"
-                    label={`End ${a.name ?? a.email}'s appointment`}
+                    label={t("endAppointment", { name: a.name ?? a.email })}
                     onPress={() => setEnding(a)}
                   />
                 )
@@ -327,29 +313,13 @@ export function LeadersView({
           }
           mobile={{
             title: (a) => a.name ?? a.email,
-            description: (a) => `${a.roleLabel} · ${a.area}`,
+            description: (a) => `${tr(a.role)} · ${a.area}`,
           }}
         />
       </div>
 
       {appoint !== false ? <AppointPanel bodies={bodies} prefill={appoint} onClose={() => setAppoint(false)} /> : null}
       {ending ? <EndDialog appointment={ending} onClose={() => setEnding(null)} /> : null}
-      {areaOpen ? (
-        <AreaFilterDialog
-          value={areaChain}
-          onClose={() => setAreaOpen(false)}
-          onApply={(chain) => {
-            setAreaOpen(false);
-            go({
-              provinceId: chain.province ? String(chain.province.id) : null,
-              districtId: chain.district ? String(chain.district.id) : null,
-              sectorId: chain.sector ? String(chain.sector.id) : null,
-              cellId: chain.cell ? String(chain.cell.id) : null,
-              villageId: chain.village ? String(chain.village.id) : null,
-            });
-          }}
-        />
-      ) : null}
     </PageContent>
   );
 }

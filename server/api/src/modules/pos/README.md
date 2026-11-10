@@ -110,8 +110,8 @@ all; `finance` keeps exactly its ADR-069 seven, and a business can grant it more
 
 ## Customers (CRM, phase 1)
 
-Added after the M1 venue work, and the only POS feature since phase 1 that needs a MIGRATION: `0135_customers`
-(additive: one new table, one new NULLABLE `pos_orders.customer_id`; rollback in `drizzle/rollbacks/0135_customers.down.sql`).
+Added after the M1 venue work, and the only POS feature since phase 1 that needs a MIGRATION: `0153_customers`
+(additive: one new table, one new NULLABLE `pos_orders.customer_id`; rollback in `drizzle/rollbacks/0153_customers.down.sql`).
 
 | Screen | API (`/api/v1/ops/pos`) | Needs |
 |---|---|---|

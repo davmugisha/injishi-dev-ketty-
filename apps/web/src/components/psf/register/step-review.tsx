@@ -5,7 +5,7 @@ import {
   ENTERPRISE_REGISTRATION_KIND_LABEL,
   PSF_COMPANY_TYPE_LABEL,
   PSF_CONTACT_ROLE_LABEL,
-  PSF_FAMILY_LABEL,
+  psfFamilyName,
   PSF_OWNER_GROUP_SHORT,
   PSF_OWNERSHIP_LABEL,
   PSF_TRADE_DIRECTION_LABEL,
@@ -18,6 +18,7 @@ import { PhoneInput } from "@/app/(app)/(entry)/register/phone-input";
 import { Field, Notice } from "@/app/(app)/(entry)/register/wizard-ui";
 
 import { rwf, type Errors, type PsfDraft, type StepKey } from "./draft";
+import { usePsfField } from "./form-config";
 import { LogoField } from "./logo-field";
 
 /** What the business agrees to share, in the words PSF's consent was written in. */
@@ -37,6 +38,8 @@ export function StepReview({
   tiers,
   catalogue,
   goTo,
+  branchesRwf = 0,
+  branchCount = 0,
 }: {
   draft: PsfDraft;
   onChange: (next: Partial<PsfDraft>) => void;
@@ -44,7 +47,11 @@ export function StepReview({
   tiers: PsfTier[] | null;
   catalogue: PsfCatalogue | null;
   goTo: (step: StepKey) => void;
+  /** What its branches pay (2026-11-05), each by its own district and kind. */
+  branchesRwf?: number;
+  branchCount?: number;
 }) {
+  const logo = usePsfField("logo");
   const tier = tiers?.find((t) => t.code === draft.tierCode);
   const membershipRwf = Number(draft.amount.replace(/[^\d]/g, "")) || 0;
   const cluster = catalogue?.clusters.find((c) => c.code === draft.clusterCode);
@@ -104,7 +111,7 @@ export function StepReview({
       step: "membership",
       title: "Membership",
       rows: [
-        ["Membership", draft.family ? PSF_FAMILY_LABEL[draft.family] : "—"],
+        ["Membership", tier?.familyName || (draft.family ? psfFamilyName(draft.family) : "—")],
         ["Band", tier?.nameEn ?? "—"],
         ["A year", draft.amount ? rwf(Number(draft.amount)) : "Set by PSF"],
       ],
@@ -140,8 +147,12 @@ export function StepReview({
       </div>
 
       {/* Here rather than with the business: it uploads under the ID check's token, which exists only by now. */}
+      {logo.visible ? (
       <section className="rounded-card border border-border bg-card p-5 sm:p-6">
         <LogoField
+          label={logo.label}
+          hint={logo.hint}
+          required={Boolean(logo.required)}
           checkToken={draft.applicant?.checkToken ?? null}
           objectKey={draft.logoObjectKey}
           name={draft.logoName}
@@ -149,6 +160,7 @@ export function StepReview({
           onChange={onChange}
         />
       </section>
+      ) : null}
 
       <section className="flex flex-col gap-5 rounded-card border border-border bg-card p-5 sm:p-6">
         {draft.cardHolder ? (
@@ -185,9 +197,18 @@ export function StepReview({
             </dt>
             <dd className="font-semibold tabular-nums">{membershipRwf ? rwf(membershipRwf) : "—"}</dd>
           </div>
+          {branchCount > 0 ? (
+            <div className="flex items-baseline justify-between gap-4 px-4 py-3">
+              <dt>
+                <span className="font-medium">{branchCount === 1 ? "1 branch" : `${branchCount} branches`}, first year</span>
+                <span className="block text-xs text-muted-foreground">Each by its own district and kind of business.</span>
+              </dt>
+              <dd className="font-semibold tabular-nums">{rwf(branchesRwf)}</dd>
+            </div>
+          ) : null}
           <div className="flex items-baseline justify-between gap-4 bg-secondary/60 px-4 py-3">
             <dt className="font-semibold">You pay now</dt>
-            <dd className="text-2xl font-semibold tabular-nums">{membershipRwf ? rwf(membershipRwf) : "—"}</dd>
+            <dd className="text-2xl font-semibold tabular-nums">{membershipRwf ? rwf(membershipRwf + branchesRwf) : "—"}</dd>
           </div>
         </dl>
         <p className="flex items-start gap-2 text-sm text-muted-foreground">

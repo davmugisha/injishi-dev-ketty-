@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@injishi/web-ui";
 import { GoogleMark } from "@/components/icons/marks";
 import { InlineError } from "@/components/auth/auth-feedback";
@@ -15,15 +16,6 @@ import { absoluteRedirect } from "@/lib/redirect";
  * says what happened, whether they are signed in, and the one next step — which
  * is always "or use your email", because that path is right there and works.
  */
-const GOOGLE_MESSAGES = {
-  bounced:
-    "Google sign-in didn't finish, so you're not signed in. Try again, or use your email below.",
-  refused:
-    "Google sign-in couldn't start. Try again, or use your email below.",
-  unreachable:
-    "We couldn't reach Google sign-in just now — that's on our side. Try again, or use your email below.",
-} as const;
-
 /**
  * Google sign-in (ADR-017, AC-11).
  *
@@ -44,9 +36,10 @@ export default function GoogleButton({
   redirectTo: string;
   bounced?: boolean;
 }) {
+  const t = useTranslations("signin");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(
-    bounced ? GOOGLE_MESSAGES.bounced : null,
+    bounced ? t("googleBounced") : null,
   );
   const [attempt, setAttempt] = useState(0);
 
@@ -87,11 +80,11 @@ export default function GoogleButton({
           `&redirect=${encodeURIComponent(redirectTo)}`,
       });
       // `failed.message` is the library's, not ours, and is never shown.
-      if (failed) fail(GOOGLE_MESSAGES.refused);
+      if (failed) fail(t("googleRefused"));
       // On success the client navigates the browser to Google, so there is
       // nothing to reset: this page is on its way out.
     } catch {
-      fail(GOOGLE_MESSAGES.unreachable);
+      fail(t("googleUnreachable"));
     }
   }
 
@@ -105,7 +98,7 @@ export default function GoogleButton({
         data-cy="google-button"
       >
         <GoogleMark className="size-4 shrink-0" />
-        {busy ? "Opening Google…" : "Continue with Google"}
+        {busy ? t("googleOpening") : t("googleContinue")}
       </Button>
       {error ? <InlineError key={attempt}>{error}</InlineError> : null}
     </div>

@@ -326,6 +326,31 @@ export class RotationService {
     return count;
   }
 
+  // --- What a person may ask ------------------------------------------------------------
+
+  /** The active rotations of a branch, for someone asking to join one, and the one they are on. */
+  async forPerson(
+    orgId: string,
+    propertyId: string,
+    employeeId: string,
+  ): Promise<{
+    rotations: { id: string; name: string; stepNames: string[]; rule: RotationPattern['rule']; ruleValue: number }[];
+    currentRotation: { patternId: string; name: string; startsOn: string } | null;
+  }> {
+    const scope = { coverage: 'limited' as const, selectedPropertyId: null, propertyIds: [propertyId], includesUnbranched: false };
+    const [rows, running] = await Promise.all([this.rotations.patterns(orgId, scope, propertyId), this.rotations.runningFor(employeeId)]);
+    const active = await this.presentPatterns(rows.filter((r) => r.status === 'active'));
+    return {
+      rotations: active.map((p) => ({ id: p.id, name: p.name, stepNames: p.stepNames, rule: p.rule, ruleValue: p.ruleValue })),
+      currentRotation: running ? { patternId: running.patternId, name: running.patternName, startsOn: running.startsOn } : null,
+    };
+  }
+
+  /** A person's running assignment. */
+  runningFor(employeeId: string): Promise<AssignmentRow | null> {
+    return this.rotations.runningFor(employeeId);
+  }
+
   // --- Presenting ---------------------------------------------------------------------
 
   private async pattern(ws: ScopedWorkspace, id: string): Promise<RotationPattern> {

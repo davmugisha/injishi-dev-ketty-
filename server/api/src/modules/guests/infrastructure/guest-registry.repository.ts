@@ -3,7 +3,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { GuestHostKind, IdKind, LeaderRole } from '@injishi/contracts';
 import { sql, type SQL } from 'drizzle-orm';
 
-import { auditEvents, guestRegistrationRoutes, guestRegistrations, outboxEvents } from '../../../database/drizzle/schema';
+import { guestRegistrationRoutes, guestRegistrations, outboxEvents } from '../../../database/drizzle/schema';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import type { Area, PlannedRoute } from '../domain/guest-routing';
 
@@ -1133,12 +1134,12 @@ export class GuestRegistryRepository {
     tx: DbOrTx,
     entry: { actorUserId: string | null; registrationId: string; eventType: string; diff?: Record<string, unknown>; reason?: string | null; districtId?: number | null },
   ): Promise<void> {
-    await tx.insert(auditEvents).values({
+    await AuditWriter.write(tx, {
       actorUserId: entry.actorUserId,
       subjectType: 'guest_registration',
       subjectId: entry.registrationId,
       eventType: entry.eventType,
-      payloadDiff: (entry.diff ?? null) as never,
+      payloadDiff: entry.diff ?? null,
       reason: entry.reason ?? null,
       districtId: entry.districtId ?? null,
     });

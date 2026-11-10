@@ -11,7 +11,6 @@ import {
 import { and, eq } from 'drizzle-orm';
 
 import {
-  auditEvents,
   guestStays,
   properties,
   rooms,
@@ -28,6 +27,7 @@ import {
  * two copies of a bearer-credential generator is two places for one of them to
  * quietly become `Math.random`.
  */
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import {
   CLAIM_CODE_RETRIES,
   isClaimCodeCollision,
@@ -91,19 +91,16 @@ export class AdminUserActionsService {
         .where(eq(sessions.userId, userId))
         .returning({ id: sessions.id });
 
-      const [audit] = await tx
-        .insert(auditEvents)
-        .values({
-          actorUserId,
-          subjectType: 'user',
-          subjectId: userId,
-          eventType: 'admin.user.sessions_revoked',
-          // The count, never the tokens. A session token is a credential, and
-          // an audit log that stored them would be a log of live keys.
-          payloadDiff: { sessions: { revoked: revoked.length } } as never,
-          reason,
-        })
-        .returning({ id: auditEvents.id });
+      const audit = await AuditWriter.write(tx, {
+        actorUserId,
+        subjectType: 'user',
+        subjectId: userId,
+        eventType: 'admin.user.sessions_revoked',
+        // The count, never the tokens. A session token is a credential, and
+        // an audit log that stored them would be a log of live keys.
+        payloadDiff: { sessions: { revoked: revoked.length } } as never,
+        reason,
+      });
 
       return AdminSessionsRevoked.parse({
         userId,
@@ -197,27 +194,24 @@ export class AdminUserActionsService {
         .where(eq(rooms.id, stay.roomId))
         .limit(1);
 
-      const [audit] = await tx
-        .insert(auditEvents)
-        .values({
-          actorUserId,
-          // `guest_stay` exists as a subject since migration 0029. Before it,
-          // this row carried a NULL subject type with the stay id in
-          // `subject_id` — findable by nobody who queried by subject, which is
-          // how an audit trail is read.
-          subjectType: 'guest_stay',
-          subjectId: stayId,
-          eventType: 'admin.stay.claim_code_reissued',
-          payloadDiff: {
-            claimCode: {
-              from: stay.claimCode === null ? 'none' : 'replaced',
-              to: 'issued',
-            },
-          } as never,
-          reason,
-          districtId: where?.districtId ?? null,
-        })
-        .returning({ id: auditEvents.id });
+      const audit = await AuditWriter.write(tx, {
+        actorUserId,
+        // `guest_stay` exists as a subject since migration 0029. Before it,
+        // this row carried a NULL subject type with the stay id in
+        // `subject_id` — findable by nobody who queried by subject, which is
+        // how an audit trail is read.
+        subjectType: 'guest_stay',
+        subjectId: stayId,
+        eventType: 'admin.stay.claim_code_reissued',
+        payloadDiff: {
+          claimCode: {
+            from: stay.claimCode === null ? 'none' : 'replaced',
+            to: 'issued',
+          },
+        } as never,
+        reason,
+        districtId: where?.districtId ?? null,
+      });
 
       return AdminClaimCodeReissued.parse({
         stayId,

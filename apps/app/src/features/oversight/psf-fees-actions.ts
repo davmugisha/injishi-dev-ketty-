@@ -26,3 +26,19 @@ export async function setPsfFeeAction(tierCode: string, districtId: number | nul
     throw error;
   }
 }
+
+/** A kind of business's price in a district, or null to clear it (2026-11-05). */
+export async function setPsfServiceFeeAction(subsectorId: string, districtId: number, amountRwf: number | null): Promise<PsfFeeResult> {
+  await requirePersona("PsfFees");
+  try {
+    const ctx = await requestContext();
+    return { ok: true, value: await ctx.api.put<PsfOfficerFeesView>("/api/v1/oversight/psf/service-fees", { subsectorId, districtId, amountRwf }) };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      const issue = (error.body as { issues?: { message?: string }[] } | null)?.issues?.[0]?.message;
+      return { ok: false, error: issue ?? error.message };
+    }
+    if (error instanceof ApiUnreachableError) return { ok: false, error: "The Injishi service did not answer. Try again." };
+    throw error;
+  }
+}

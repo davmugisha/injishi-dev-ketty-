@@ -429,14 +429,14 @@ export declare const DocumentVersion: z.ZodObject<{
     status: "submitted" | "approved" | "rejected";
     id: string;
     uploadedAt: string;
-    uploadedByName: string | null;
     rejectReason: string | null;
+    uploadedByName: string | null;
 }, {
     status: "submitted" | "approved" | "rejected";
     id: string;
     uploadedAt: string;
-    uploadedByName: string | null;
     rejectReason: string | null;
+    uploadedByName: string | null;
 }>;
 export type DocumentVersion = z.infer<typeof DocumentVersion>;
 export declare const EmployeeDocument: z.ZodObject<{
@@ -477,14 +477,14 @@ export declare const EmployeeDocument: z.ZodObject<{
         status: "submitted" | "approved" | "rejected";
         id: string;
         uploadedAt: string;
-        uploadedByName: string | null;
         rejectReason: string | null;
+        uploadedByName: string | null;
     }, {
         status: "submitted" | "approved" | "rejected";
         id: string;
         uploadedAt: string;
-        uploadedByName: string | null;
         rejectReason: string | null;
+        uploadedByName: string | null;
     }>, "many">;
     updatedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
@@ -501,8 +501,8 @@ export declare const EmployeeDocument: z.ZodObject<{
     title: string;
     updatedAt: string;
     dueOn: string | null;
-    requestId: string | null;
     rejectReason: string | null;
+    requestId: string | null;
     remindDaysBefore: number | null;
     formats: ("pdf" | "jpg" | "png" | "heic")[];
     maxMb: number;
@@ -510,8 +510,8 @@ export declare const EmployeeDocument: z.ZodObject<{
         status: "submitted" | "approved" | "rejected";
         id: string;
         uploadedAt: string;
-        uploadedByName: string | null;
         rejectReason: string | null;
+        uploadedByName: string | null;
     }[];
 }, {
     status: "submitted" | "approved" | "rejected" | "requested";
@@ -527,8 +527,8 @@ export declare const EmployeeDocument: z.ZodObject<{
     title: string;
     updatedAt: string;
     dueOn: string | null;
-    requestId: string | null;
     rejectReason: string | null;
+    requestId: string | null;
     remindDaysBefore: number | null;
     formats: ("pdf" | "jpg" | "png" | "heic")[];
     maxMb: number;
@@ -536,8 +536,8 @@ export declare const EmployeeDocument: z.ZodObject<{
         status: "submitted" | "approved" | "rejected";
         id: string;
         uploadedAt: string;
-        uploadedByName: string | null;
         rejectReason: string | null;
+        uploadedByName: string | null;
     }[];
 }>;
 export type EmployeeDocument = z.infer<typeof EmployeeDocument>;
@@ -580,14 +580,14 @@ export declare const EmployeeDocumentList: z.ZodObject<{
             status: "submitted" | "approved" | "rejected";
             id: string;
             uploadedAt: string;
-            uploadedByName: string | null;
             rejectReason: string | null;
+            uploadedByName: string | null;
         }, {
             status: "submitted" | "approved" | "rejected";
             id: string;
             uploadedAt: string;
-            uploadedByName: string | null;
             rejectReason: string | null;
+            uploadedByName: string | null;
         }>, "many">;
         updatedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
@@ -604,8 +604,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         title: string;
         updatedAt: string;
         dueOn: string | null;
-        requestId: string | null;
         rejectReason: string | null;
+        requestId: string | null;
         remindDaysBefore: number | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
@@ -613,8 +613,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
             status: "submitted" | "approved" | "rejected";
             id: string;
             uploadedAt: string;
-            uploadedByName: string | null;
             rejectReason: string | null;
+            uploadedByName: string | null;
         }[];
     }, {
         status: "submitted" | "approved" | "rejected" | "requested";
@@ -630,8 +630,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         title: string;
         updatedAt: string;
         dueOn: string | null;
-        requestId: string | null;
         rejectReason: string | null;
+        requestId: string | null;
         remindDaysBefore: number | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
@@ -639,8 +639,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
             status: "submitted" | "approved" | "rejected";
             id: string;
             uploadedAt: string;
-            uploadedByName: string | null;
             rejectReason: string | null;
+            uploadedByName: string | null;
         }[];
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -658,8 +658,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         title: string;
         updatedAt: string;
         dueOn: string | null;
-        requestId: string | null;
         rejectReason: string | null;
+        requestId: string | null;
         remindDaysBefore: number | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
@@ -667,8 +667,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
             status: "submitted" | "approved" | "rejected";
             id: string;
             uploadedAt: string;
-            uploadedByName: string | null;
             rejectReason: string | null;
+            uploadedByName: string | null;
         }[];
     }[];
 }, {
@@ -686,8 +686,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         title: string;
         updatedAt: string;
         dueOn: string | null;
-        requestId: string | null;
         rejectReason: string | null;
+        requestId: string | null;
         remindDaysBefore: number | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
@@ -695,8 +695,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
             status: "submitted" | "approved" | "rejected";
             id: string;
             uploadedAt: string;
-            uploadedByName: string | null;
             rejectReason: string | null;
+            uploadedByName: string | null;
         }[];
     }[];
 }>;
@@ -1398,6 +1398,65 @@ export declare const StaffAnnouncementList: z.ZodObject<{
     }[];
 }>;
 export type StaffAnnouncementList = z.infer<typeof StaffAnnouncementList>;
+/** One announcement as the person it is for reads it (`GET /me/work/:employeeId/announcements`). */
+export declare const MyAnnouncement: z.ZodObject<{
+    id: z.ZodString;
+    title: z.ZodString;
+    body: z.ZodString;
+    postedAt: z.ZodString;
+    expiresOn: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    id: string;
+    expiresOn: string | null;
+    title: string;
+    body: string;
+    postedAt: string;
+}, {
+    id: string;
+    expiresOn: string | null;
+    title: string;
+    body: string;
+    postedAt: string;
+}>;
+export type MyAnnouncement = z.infer<typeof MyAnnouncement>;
+export declare const MyAnnouncementList: z.ZodObject<{
+    announcements: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        title: z.ZodString;
+        body: z.ZodString;
+        postedAt: z.ZodString;
+        expiresOn: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        expiresOn: string | null;
+        title: string;
+        body: string;
+        postedAt: string;
+    }, {
+        id: string;
+        expiresOn: string | null;
+        title: string;
+        body: string;
+        postedAt: string;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    announcements: {
+        id: string;
+        expiresOn: string | null;
+        title: string;
+        body: string;
+        postedAt: string;
+    }[];
+}, {
+    announcements: {
+        id: string;
+        expiresOn: string | null;
+        title: string;
+        body: string;
+        postedAt: string;
+    }[];
+}>;
+export type MyAnnouncementList = z.infer<typeof MyAnnouncementList>;
 export declare const CreateStaffAnnouncementRequest: z.ZodIntersection<z.ZodObject<{
     title: z.ZodString;
     body: z.ZodString;

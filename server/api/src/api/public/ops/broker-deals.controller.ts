@@ -11,7 +11,7 @@ import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, UseGuards 
 import { BrokerDealsService } from '../../../modules/brokers/application/broker-deals.service';
 import { BrokerPayoutsService } from '../../../modules/brokers/application/broker-payouts.service';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
-import { CurrentWorkspace, RequirePermission, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
+import { CurrentWorkspace, RequirePermission, RequireProduct, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -23,6 +23,8 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/broker-deals', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+// The hotel's side of the broker network is Marketplace's (owner, 2026-10-30), its money included.
+@RequireProduct('marketplace')
 export class OpsBrokerDealsController {
   constructor(
     private readonly deals: BrokerDealsService,

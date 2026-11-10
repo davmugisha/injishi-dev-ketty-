@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ArrowLeft, Info } from "lucide-react";
 import { Button } from "@injishi/web-ui";
 
@@ -48,19 +49,25 @@ export function SectionLocation({
   /** Back: the section before, reopened with its answers. */
   onBack?: (() => void) | null;
 }) {
+  const t = useTranslations("registerForms.location");
+  const levelWord = (level: string): string => {
+    if (level === "province") return t("levels.province");
+    if (level === "district") return t("levels.district");
+    if (level === "sector") return t("levels.sector");
+    if (level === "cell") return t("levels.cell");
+    return t("levels.village");
+  };
   const missing = missingLevels(address);
   const back = onBack ? (
     <Button variant="ghost" onClick={onBack}>
       <ArrowLeft size={16} aria-hidden />
-      Back
+      {t("back")}
     </Button>
   ) : null;
   return (
     <>
-      <Callout tone="info" icon={<Info size={16} aria-hidden />} title={prefilled ? "Filled in from RRA" : "Where it is"}>
-        {prefilled
-          ? "Filled in from the address RRA holds for this TIN. Pick the cell and village to finish."
-          : "Pick where it is, level by level, down to the village."}
+      <Callout tone="info" icon={<Info size={16} aria-hidden />} title={prefilled ? t("filledTitle") : t("whereTitle")}>
+        {prefilled ? t("filledBody") : t("pickBody")}
       </Callout>
       <AddressPicker
         idPrefix="register-location"
@@ -68,8 +75,8 @@ export function SectionLocation({
         rwandaOnly
         collectVillage
         requireVillage
-        streetLabel="Street or landmark (optional)"
-        streetHint="A road, or something a visitor can find it by."
+        streetLabel={t("streetLabel")}
+        streetHint={t("streetHint")}
         draft={address}
         onChange={onChange}
         errors={errors}
@@ -77,10 +84,10 @@ export function SectionLocation({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {back}
         <Button onClick={onSave} disabled={missing.length > 0} aria-describedby="register-location-why">
-          Save location
+          {t("save")}
         </Button>
         <span id="register-location-why" className="text-xs text-muted-foreground">
-          {missing.length ? `Pick the ${missing.join(" and ")} to save.` : "You can change it until you pay."}
+          {missing.length ? t("missing", { levels: missing.map(levelWord).join(` ${t("and")} `) }) : t("changeable")}
         </span>
       </div>
     </>

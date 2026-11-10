@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { RentalsSettingsView } from "@/features/rentals/settings/RentalsSettingsView";
 import { NoRentalsBusiness, SETTINGS_TABS, type SettingsTab } from "@/features/rentals/shared";
 import { requirePersona } from "@/lib/session";
+import { productOn } from "@/server/access";
 import {
   can,
   landlordScope,
@@ -21,14 +22,17 @@ export default async function RentalsSettingsPage({ searchParams }: { searchPara
   await requirePersona("RentalsSettings");
   const scope = await landlordScope();
   if (!scope) return <NoRentalsBusiness title="Settings" />;
+  // Getting paid is Pay's (payouts and where they go), so it is shown, and read, only while Pay is on;
+  // the rest of the screen is Residence's (ADR-076 G14).
+  const payOn = productOn(scope.workspace.grants, "pay");
   const { tab: raw } = await searchParams;
-  const tab: SettingsTab = (SETTINGS_TABS as readonly string[]).includes(raw ?? "")
-    ? (raw as SettingsTab)
-    : "getting-paid";
+  const asked = (SETTINGS_TABS as readonly string[]).includes(raw ?? "") ? (raw as SettingsTab) : null;
+  const first: SettingsTab = payOn ? "getting-paid" : "location";
+  const tab: SettingsTab = asked && (asked !== "getting-paid" || payOn) ? asked : first;
   const canTeam = can(scope, "team.manage");
   const [profile, accounts, properties, setup, team] = await Promise.all([
     rentalsProfile(),
-    orNull(payoutAccounts()),
+    payOn ? orNull(payoutAccounts()) : Promise.resolve(null),
     rentalProperties(),
     orNull(rentalsSetup()),
     tab === "team" && canTeam ? orNull(rentalsTeam()) : Promise.resolve(null),
@@ -49,6 +53,7 @@ export default async function RentalsSettingsPage({ searchParams }: { searchPara
         brokers: can(scope, "lease.manage"),
         team: canTeam,
       }}
+      payOn={payOn}
     />
   );
 }

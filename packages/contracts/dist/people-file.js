@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateDisciplinaryActionResponse = exports.CreateDisciplinaryActionRequest = exports.DisciplinaryActionList = exports.DisciplinaryAction = exports.UpdateStaffAnnouncementRequest = exports.CreateStaffAnnouncementRequest = exports.StaffAnnouncementList = exports.StaffAnnouncement = exports.UpdateStaffPolicyRequest = exports.CreateStaffPolicyRequest = exports.StaffPolicyList = exports.StaffPolicy = exports.HrTargets = exports.UpdateDocumentDatesRequest = exports.DecideDocumentRequest = exports.UploadEmployeeDocumentRequest = exports.CreateDocumentRequestRequest = exports.DocumentRequestList = exports.DocumentRequestSummary = exports.EmployeeDocumentList = exports.EmployeeDocument = exports.DocumentVersion = exports.CreateEmployeeNoteRequest = exports.EmployeeNoteList = exports.EmployeeNote = exports.UpdatePayAccountRequest = exports.CreatePayAccountRequest = exports.PayAccountList = exports.PayAccount = exports.UpdateHrSettingsRequest = exports.HrSettings = exports.UpdateHrCatalogItemRequest = exports.CreateHrCatalogItemRequest = exports.HrCatalogList = exports.HrCatalogItem = exports.HrCatalogStatus = exports.HrCatalogKind = exports.SetEmployeePhotoRequest = exports.FileLink = exports.HrUpload = exports.HrUploadPurpose = exports.LengthUnit = exports.DisciplinaryKind = exports.HrAudience = exports.PublishStatus = exports.DocumentFormat = exports.DocumentStatus = exports.PayAccountStatus = exports.PayAccountKind = exports.HR_PERMISSIONS = void 0;
-exports.OrgChart = exports.OrgChartNode = void 0;
+exports.DisciplinaryActionList = exports.DisciplinaryAction = exports.UpdateStaffAnnouncementRequest = exports.CreateStaffAnnouncementRequest = exports.MyAnnouncementList = exports.MyAnnouncement = exports.StaffAnnouncementList = exports.StaffAnnouncement = exports.UpdateStaffPolicyRequest = exports.CreateStaffPolicyRequest = exports.StaffPolicyList = exports.StaffPolicy = exports.HrTargets = exports.UpdateDocumentDatesRequest = exports.DecideDocumentRequest = exports.UploadEmployeeDocumentRequest = exports.CreateDocumentRequestRequest = exports.DocumentRequestList = exports.DocumentRequestSummary = exports.EmployeeDocumentList = exports.EmployeeDocument = exports.DocumentVersion = exports.CreateEmployeeNoteRequest = exports.EmployeeNoteList = exports.EmployeeNote = exports.UpdatePayAccountRequest = exports.CreatePayAccountRequest = exports.PayAccountList = exports.PayAccount = exports.UpdateHrSettingsRequest = exports.HrSettings = exports.UpdateHrCatalogItemRequest = exports.CreateHrCatalogItemRequest = exports.HrCatalogList = exports.HrCatalogItem = exports.HrCatalogStatus = exports.HrCatalogKind = exports.SetEmployeePhotoRequest = exports.FileLink = exports.HrUpload = exports.HrUploadPurpose = exports.LengthUnit = exports.DisciplinaryKind = exports.HrAudience = exports.PublishStatus = exports.DocumentFormat = exports.DocumentStatus = exports.PayAccountStatus = exports.PayAccountKind = exports.HR_PERMISSIONS = void 0;
+exports.OrgChart = exports.OrgChartNode = exports.CreateDisciplinaryActionResponse = exports.CreateDisciplinaryActionRequest = void 0;
 const zod_1 = require("zod");
 const people_1 = require("./people");
 /**
@@ -325,6 +325,15 @@ exports.StaffAnnouncement = zod_1.z.object({
     updatedAt: zod_1.z.string(),
 });
 exports.StaffAnnouncementList = zod_1.z.object({ announcements: zod_1.z.array(exports.StaffAnnouncement) });
+/** One announcement as the person it is for reads it (`GET /me/work/:employeeId/announcements`). */
+exports.MyAnnouncement = zod_1.z.object({
+    id: Uuid,
+    title: zod_1.z.string(),
+    body: zod_1.z.string(),
+    postedAt: zod_1.z.string(),
+    expiresOn: IsoDate.nullable(),
+});
+exports.MyAnnouncementList = zod_1.z.object({ announcements: zod_1.z.array(exports.MyAnnouncement) });
 exports.CreateStaffAnnouncementRequest = zod_1.z
     .object({
     title: zod_1.z.string().trim().min(2, "Give it a title.").max(120),

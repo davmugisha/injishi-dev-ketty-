@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AttendanceLocation = exports.AttendanceFigures = exports.CancelRosterEntryRequest = exports.CreateRosterEntryRequest = exports.RosterEntry = exports.CreateShiftTemplateRequest = exports.ShiftTemplateQuery = exports.ShiftTemplateList = exports.ShiftTemplate = exports.ShiftTemplateStatus = exports.OffboardEmployeeRequest = exports.CreateContractResponse = exports.CreateContractRequest = exports.UpdateEmployeeRequest = exports.CreateEmployeeRequest = exports.EmployeeFile = exports.EmployeeDepartment = exports.Employee = exports.EmployeeFull = exports.EmergencyContact = exports.EmployeeAddress = exports.EmployeeBasic = exports.EmploymentContract = exports.EmploymentContractFull = exports.EmploymentContractBasic = exports.RosterCard = exports.EMPLOYEE_MISSING_DETAIL_LABEL = exports.EmployeeMissingDetail = exports.TimeOfDay = exports.LeaveEndHalf = exports.LeaveStartHalf = exports.LeaveRequestStatus = exports.LeaveCarry = exports.LeaveReset = exports.LeavePayment = exports.LeaveEntryKind = exports.LeaveAccrual = exports.DayKind = exports.AttendancePendingReason = exports.AttendanceStatus = exports.AttendanceSource = exports.RosterStatus = exports.ContractStatus = exports.WageBasis = exports.ContractType = exports.EmployeeStatus = exports.HrIdDocumentType = exports.TagTone = exports.MaritalStatus = exports.HrSex = void 0;
-exports.LeaveDecisionRequest = exports.CreateMyLeaveRequestRequest = exports.CreateLeaveRequestRequest = exports.LeaveAsk = exports.LeaveRequest = exports.LeaveBalances = exports.LeaveBalance = exports.LeaveLot = exports.LeaveLedgerEntry = exports.UpdateLeaveTypeRequest = exports.CreateLeaveTypeRequest = exports.LeaveTypeList = exports.LeaveType = exports.LeaveTypeStatus = exports.CorrectAttendanceRequest = exports.ClockOutRequest = exports.ClockInRequest = exports.AttendanceRecord = void 0;
+exports.LeaveDecisionRequest = exports.CreateMyLeaveRequestRequest = exports.CreateLeaveRequestRequest = exports.LeaveAsk = exports.LeaveRequest = exports.LeaveBalances = exports.LeaveBalance = exports.LeaveLot = exports.LeaveLedgerEntry = exports.UpdateLeaveTypeRequest = exports.CreateLeaveTypeRequest = exports.LeaveTypeList = exports.LeaveType = exports.LeaveTypeStatus = exports.RejectAttendanceRequest = exports.CorrectAttendanceRequest = exports.ClockOutRequest = exports.ClockInRequest = exports.AttendanceRecord = void 0;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const phone_1 = require("./phone");
@@ -40,7 +40,8 @@ exports.RosterStatus = zod_1.z.enum(["scheduled", "cancelled"]);
 /** `phone` and `kiosk` arrive with 058-time (AC-TM9, AC-TM10). */
 exports.AttendanceSource = zod_1.z.enum(["supervisor", "self", "phone", "kiosk"]);
 /** `closed` becomes `superseded` only when a correction replaces it. */
-exports.AttendanceStatus = zod_1.z.enum(["open", "closed", "superseded"]);
+/** `rejected`: HR found the person was not at work, so the record counts for nothing (058-time, clock-in rules). */
+exports.AttendanceStatus = zod_1.z.enum(["open", "closed", "superseded", "rejected"]);
 /**
  * Why a phone punch waits for a person to validate it (mobile spec 0003, D-ao),
  * in this order: the location reasons first, then `late_sync`, a punch that
@@ -431,6 +432,8 @@ exports.AttendanceRecord = zod_1.z.object({
     figures: exports.AttendanceFigures.nullable(),
     /** How far from the branch a phone punch was, for whoever validates it (AC-TM9); never the coordinates. */
     location: exports.AttendanceLocation.nullable(),
+    /** The tablet a punch came from: its PIN pad, or the code on its screen a phone scanned. */
+    kioskId: primitives_1.Uuid.nullable(),
 });
 const Instant = zod_1.z.string().datetime({ offset: true, message: "A time is an ISO instant." });
 exports.ClockInRequest = zod_1.z.object({
@@ -446,6 +449,10 @@ exports.CorrectAttendanceRequest = zod_1.z.object({
     clockInAt: Instant,
     clockOutAt: Instant,
     note: zod_1.z.string().trim().min(3, "Say what was wrong.").max(300),
+});
+/** `POST /ops/attendance/:id/reject`: the person was not at work, so the clock-in counts for nothing. */
+exports.RejectAttendanceRequest = zod_1.z.object({
+    note: zod_1.z.string().trim().min(3, "Say why it does not count.").max(300),
 });
 // ---------------------------------------------------------------------------
 // Leave

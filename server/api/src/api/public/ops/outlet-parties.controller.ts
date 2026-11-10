@@ -21,6 +21,7 @@ import {
   CurrentWorkspace,
   RequireEveryBranch,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -35,6 +36,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/outlet-parties', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('outlets')
 export class OpsOutletPartiesController {
   constructor(private readonly outlets: OutletsService) {}
 

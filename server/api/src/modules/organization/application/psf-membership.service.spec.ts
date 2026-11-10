@@ -18,6 +18,7 @@ import type { ProfileService } from '../../user/application/profile.service';
 import type { PsfMembershipMailer } from '../infrastructure/psf-membership.mailer';
 import {
   OpenPsfApplicationExists,
+  psfFeeSplit,
   type PsfMembershipRepository,
   type PsfOrgFacts,
 } from '../infrastructure/psf-membership.repository';
@@ -158,10 +159,11 @@ function setup(env: Record<string, string> = {}): {
       declaredFeeRwf: 150000,
     }),
     approve: vi.fn().mockResolvedValue({ orgId: ORG }),
-    decline: vi.fn().mockResolvedValue({ orgId: ORG }),
+    sendBack: vi.fn().mockResolvedValue({ orgId: ORG }),
     workspaceIdFor: vi.fn().mockResolvedValue(WS),
     recordPayment: vi.fn().mockResolvedValue({ tierCode: TIER.code, membershipNumber: 'PSF/GAS/0042' }),
     recordRemittance: vi.fn().mockResolvedValue(undefined),
+    recordFeeAllocations: vi.fn().mockResolvedValue(undefined),
     districtsByProvince: vi.fn().mockResolvedValue(new Map([[1, [101, 102, 103]]])),
     queuePage: vi.fn().mockResolvedValue({ rows: [], more: false }),
     endExpired: vi.fn().mockResolvedValue([]),
@@ -174,7 +176,7 @@ function setup(env: Record<string, string> = {}): {
     approved: vi.fn().mockResolvedValue(undefined),
     member: vi.fn().mockResolvedValue(undefined),
     claimConfirmed: vi.fn().mockResolvedValue(undefined),
-    declined: vi.fn().mockResolvedValue(undefined),
+    sentBack: vi.fn().mockResolvedValue(undefined),
     expiring: vi.fn().mockResolvedValue(undefined),
     expired: vi.fn().mockResolvedValue(undefined),
   };
@@ -328,10 +330,10 @@ describe('PsfMembershipService · deciding (AC-11 to AC-14, the PSF path)', () =
     const gasabo = [{ ...country[0], scopeLevel: 'district' as const, provinceId: 1, districtId: 102 }];
     for (const grants of [country, province, gasabo]) {
       await expect(service.approve('u-officer', grants, APP, { membershipNumber: 'PSF/1' })).rejects.toBeInstanceOf(ForbiddenException);
-      await expect(service.decline('u-officer', grants, APP, { reason: 'details_incomplete' })).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.sendBack('u-officer', grants, APP, { note: 'Fix the name.' })).rejects.toBeInstanceOf(ForbiddenException);
     }
     expect(repo.approve).not.toHaveBeenCalled();
-    expect(repo.decline).not.toHaveBeenCalled();
+    expect(repo.sendBack).not.toHaveBeenCalled();
   });
 
   it('a card holder (2026-11-02) is a member at once: its new number and the year on its card, no fee', async () => {
@@ -417,12 +419,18 @@ describe('PsfMembershipService · deciding (AC-11 to AC-14, the PSF path)', () =
     expect(mail.approved).not.toHaveBeenCalled();
   });
 
-  it('declining a paid application keeps its fee and passes it on to PSF: nothing is refunded', async () => {
+  it('sending back keeps a paid fee held and nothing is paid out: the application stays open (2026-11-05)', async () => {
     const { repo, mail, payments, service } = setup({ PSF_PAYOUT_DESTINATION: 'bank', PSF_PAYOUT_REF: '000400012345', PSF_PAYOUT_BANK_CODE: '040', PSF_PAYOUT_NAME: 'Private Sector Federation', PSF_PAYOUT_ID_NUMBER: '1198080012345678', PSF_PAYOUT_PHONE: '+250788000100' });
-    repo.applicationById.mockResolvedValue({ id: APP, orgId: ORG, status: 'declined', paidAt: new Date(), paidAmountRwf: 150000 });
-    await service.decline('u-officer', kicukiro, APP, { reason: 'details_incomplete' });
-    expect(payments.payout).toHaveBeenCalledWith(expect.objectContaining({ amountRwf: 150000, memo: 'PSF membership fee' }));
-    expect(mail.declined).toHaveBeenCalledWith(ORG, 'details_incomplete', null);
+    await service.sendBack('u-officer', kicukiro, APP, { note: 'Send the RDB certificate.' });
+    expect(repo.sendBack).toHaveBeenCalledWith({ applicationId: APP, officerUserId: 'u-officer', note: 'Send the RDB certificate.' });
+    expect(payments.payout).not.toHaveBeenCalled();
+    expect(mail.sentBack).toHaveBeenCalledWith(ORG, 'Send the RDB certificate.');
+  });
+
+  it('an application sent back cannot be decided until the business resends it', async () => {
+    const { repo, service } = setup();
+    repo.officerApplication.mockResolvedValue({ id: APP, orgId: ORG, districtId: 103, status: 'submitted', officerHasStake: false, returnedAt: new Date() });
+    await expect(service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/1' })).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('a tier PSF prices itself needs the officer’s amount', async () => {
@@ -440,12 +448,6 @@ describe('PsfMembershipService · deciding (AC-11 to AC-14, the PSF path)', () =
     repo.approve.mockResolvedValue(null);
     await expect(service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/1' })).rejects.toBeInstanceOf(ConflictException);
     expect(mail.approved).not.toHaveBeenCalled();
-  });
-
-  it('a decline mails the reason and the note', async () => {
-    const { mail, service } = setup();
-    await service.decline('u-officer', kicukiro, APP, { reason: 'other', note: 'Send the certificate.' });
-    expect(mail.declined).toHaveBeenCalledWith(ORG, 'other', 'Send the certificate.');
   });
 
   it('a district officer reads their district only, and a country officer everything', async () => {
@@ -601,6 +603,14 @@ describe('PsfMembershipService · the form completed from You (2026-11-03)', () 
   });
 });
 
+describe('the 60/40 split (2026-11-05)', () => {
+  it('gives the district 60%, and headquarters 40% with the rounding', () => {
+    expect(psfFeeSplit(1_000_000)).toEqual({ districtRwf: 600_000, headquartersRwf: 400_000 });
+    expect(psfFeeSplit(1)).toEqual({ districtRwf: 0, headquartersRwf: 1 });
+    expect(psfFeeSplit(333)).toEqual({ districtRwf: 199, headquartersRwf: 134 });
+  });
+});
+
 describe('buildPsfApplicationRow', () => {
   it('copies the price shown, files the registration it is given, and keeps the declared amount', () => {
     const row = buildPsfApplicationRow({
@@ -659,25 +669,69 @@ describe('membership claims (0121): a typed number is a claim until PSF confirms
       claim: vi.fn().mockResolvedValue({ id: 'c1', orgId: 'o1', membershipNumber: 'PSF-123-456', status: 'claimed', districtId: GASABO }),
       tierCodes: vi.fn().mockResolvedValue(['indatwa_10k', 'golden_circle']),
       confirmClaim: vi.fn().mockResolvedValue(undefined),
-      rejectClaim: vi.fn().mockResolvedValue(true),
+      sendBackClaim: vi.fn().mockResolvedValue(true),
+      resendClaimCard: vi.fn().mockResolvedValue(true),
+      orgFacts: vi.fn().mockResolvedValue(null),
       upsertMemberList: vi.fn().mockResolvedValue(undefined),
       claimsTheListConfirms: vi.fn().mockResolvedValue([]),
       // The new number PSF gives (2026-11-02) is free unless a test says otherwise.
       currentHolderOf: vi.fn().mockResolvedValue(null),
       ...over,
     };
-    const mail = { claimConfirmed: vi.fn().mockResolvedValue(undefined), claimRejected: vi.fn().mockResolvedValue(undefined) };
+    const mail = { claimConfirmed: vi.fn().mockResolvedValue(undefined), cardSentBack: vi.fn().mockResolvedValue(undefined), cardResent: vi.fn().mockResolvedValue(undefined) };
     const service = new PsfMembershipService(
       repo as unknown as PsfMembershipRepository,
       mail as unknown as PsfMembershipMailer,
       {} as unknown as ProfileService,
       {} as unknown as PaymentPort,
-      { get: () => undefined } as unknown as ConfigService,
+      { get: (key: string) => (key === 'BETTER_AUTH_SECRET' ? 'test-secret' : undefined) } as unknown as ConfigService,
       {} as unknown as PsfReportRepository,
       {} as unknown as PsfRenewalRepository,
     );
     return { service, repo, mail };
   }
+
+  describe('the signed link that resends a card (2026-11-05)', () => {
+    const returned = { id: 'c1', orgId: 'o1', status: 'claimed', returnedAt: new Date(), returnNote: 'Blurred', districtId: 102 };
+    const linked = async (): Promise<ClaimsHarness & { token: string }> => {
+      const built = claimsService({
+        claim: vi.fn().mockResolvedValue(returned),
+        sendBackClaim: vi.fn().mockResolvedValue(true),
+        orgFacts: vi.fn().mockResolvedValue({ legalName: 'Spec Coffee' }),
+      });
+      await built.service.sendBackClaim(OFFICER, [grant], 'c1', { reason: 'Blurred' });
+      return { ...built, token: (built.mail.cardSentBack as Mock).mock.calls[0]![2] as string };
+    };
+
+    it('opens the claim it was signed for, with what to fix', async () => {
+      const { service, token } = await linked();
+      await expect(service.claimCardView(token)).resolves.toEqual({ businessName: 'Spec Coffee', note: 'Blurred' });
+    });
+
+    it('refuses a token someone changed', async () => {
+      const { service, token } = await linked();
+      const [payload = '', signature = ''] = token.split('.');
+      const forged = Buffer.from(JSON.stringify({ c: 'another-claim', e: Date.now() + 1000 })).toString('base64url');
+      await expect(service.claimCardView(`${forged}.${signature}`)).rejects.toThrow('out of date');
+      await expect(service.claimCardView(`${payload}.x`)).rejects.toThrow('out of date');
+    });
+
+    it('refuses a token past its 30 days', async () => {
+      const { service, token } = await linked();
+      vi.useFakeTimers({ now: Date.now() + 31 * 24 * 3600 * 1000 });
+      try {
+        await expect(service.claimCardView(token)).rejects.toThrow('out of date');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('refuses once the card has been resent', async () => {
+      const { service, repo, token } = await linked();
+      (repo.claim as Mock).mockResolvedValue({ ...returned, returnedAt: null });
+      await expect(service.claimCardView(token)).rejects.toThrow('out of date');
+    });
+  });
 
   it('confirms a claim with the tier and dates PSF gives, as the officer, and tells the business', async () => {
     const { service, repo, mail } = claimsService();
@@ -702,14 +756,26 @@ describe('membership claims (0121): a typed number is a claim until PSF confirms
     expect(repo.confirmClaim).not.toHaveBeenCalled();
   });
 
-  it('rejects with the reason the business is told; a decided claim is not decided twice', async () => {
-    const { service, mail } = claimsService();
-    await service.rejectClaim(OFFICER, [grant], 'c1', { reason: 'Not in our records' });
-    expect(mail.claimRejected).toHaveBeenCalledWith('o1', 'PSF-123-456', 'Not in our records');
+  it('sends a card back with a signed link; a decided claim is not sent back', async () => {
+    const { service, mail, repo } = claimsService();
+    await service.sendBackClaim(OFFICER, [grant], 'c1', { reason: 'The photo is blurred' });
+    expect(repo.sendBackClaim).toHaveBeenCalledWith('c1', OFFICER, 'The photo is blurred');
+    expect(mail.cardSentBack).toHaveBeenCalledWith('o1', 'The photo is blurred', expect.stringMatching(/^[\w-]+\.[\w-]+$/));
     const decided = claimsService({
       claim: vi.fn().mockResolvedValue({ id: 'c1', orgId: 'o1', membershipNumber: 'PSF-123-456', status: 'confirmed', districtId: GASABO }),
     });
-    await expect(decided.service.rejectClaim(OFFICER, [grant], 'c1', { reason: 'Again' })).rejects.toThrow('already been decided');
+    await expect(decided.service.sendBackClaim(OFFICER, [grant], 'c1', { reason: 'Again' })).rejects.toThrow();
+  });
+
+  it('the signed link opens only its claim, and a forged one is refused', async () => {
+    const { service, mail, repo } = claimsService();
+    await service.sendBackClaim(OFFICER, [grant], 'c1', { reason: 'The photo is blurred' });
+    const token = mail.cardSentBack.mock.calls[0][2] as string;
+    repo.claim.mockResolvedValue({ id: 'c1', orgId: 'o1', status: 'claimed', returnedAt: new Date(), returnNote: 'The photo is blurred', districtId: GASABO });
+    await service.resendClaimCard(token, 'key/new-card');
+    expect(repo.resendClaimCard).toHaveBeenCalledWith(expect.objectContaining({ id: 'c1' }), 'key/new-card');
+    expect(mail.cardResent).toHaveBeenCalledWith('o1');
+    await expect(service.resendClaimCard(`${token.split('.')[0]}.forged`, 'key/x')).rejects.toThrow('out of date');
   });
 
   it("an uploaded list keeps PSF's rows, skips what is not a number, and confirms the claims it matches", async () => {

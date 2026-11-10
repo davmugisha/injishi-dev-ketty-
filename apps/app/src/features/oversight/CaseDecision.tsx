@@ -26,6 +26,7 @@ import {
 import { RadioButtonGroup } from "@heroui-pro/react";
 import type { CaseOfficer, CaseStage, RejectionReason } from "@injishi/data/fixtures/oversight";
 import { toneColor } from "@injishi/ui";
+import { useTranslations } from "next-intl";
 import { CardHeading, InlineTitle, ToneChip } from "./shared";
 
 export type Choice = "verify" | "reject";
@@ -44,8 +45,8 @@ interface LiveDecision {
 }
 
 const CHOICES = [
-  { id: "verify", label: "Verify", Icon: CircleCheck, desc: "Documents support the registration" },
-  { id: "reject", label: "Reject", Icon: CircleXmark, desc: "With a reason code the business sees" },
+  { id: "verify", Icon: CircleCheck },
+  { id: "reject", Icon: CircleXmark },
 ] as const;
 
 /** The verifying officer's decision: verify or reject, then the two-person approval that follows. */
@@ -83,45 +84,39 @@ export function CaseDecision({
   onCancelInfo: () => void;
   live?: LiveDecision;
 }) {
+  const t = useTranslations("officialReview.decision");
+  const flow = useTranslations("officialFlow");
   const decided = stage === "verified" || stage === "rejected";
-  const approver = officers.find((o) => o.duty === "approver")?.name ?? "The approving officer";
+  const approver = officers.find((o) => o.duty === "approver")?.name ?? t("approverRole");
   const oneStep = live?.gate === "review";
   // Both open the business: the approver's gate, and the manager's one-step review.
   const approving = live?.gate === "approval" || oneStep;
-  const passLabel = oneStep ? "Reviewed" : approving ? "Approve" : "Verify";
+  const passLabel = oneStep ? t("reviewAndApprove") : approving ? t("approveBusiness") : t("verify");
   const choices = CHOICES.map((c) =>
     c.id === "verify"
-      ? {
-          ...c,
-          label: passLabel,
-          desc: oneStep
-            ? "The documents are genuine: approve the business"
-            : approving
-              ? "The checked documents support opening the business"
-              : c.desc,
-        }
-      : c,
+      ? { ...c, label: passLabel, desc: t("docsSupport") }
+      : { ...c, label: t("reject"), desc: t("explanationHint") },
   );
 
   return (
     <Card render={(p) => <section {...p} />} aria-labelledby="dec-h" className="gap-3.5 p-[18px]">
       <Card.Header>
-        <CardHeading id="dec-h">Your Decision</CardHeading>
+        <CardHeading id="dec-h">{t("title")}</CardHeading>
         <Card.Description>
           {live
             ? oneStep
-              ? "You are the PSF District Manager. Your review is the decision: marking it reviewed approves the business."
+              ? t("managerRole")
               : approving
-                ? "You are the approving officer. You did not field verify this case."
-                : "You are the field verifier. A different officer approves."
-            : "You are the verifying officer. A different officer approves."}
+                ? t("approverRole")
+                : t("fieldRole")
+            : t("fieldRole")}
         </Card.Description>
       </Card.Header>
 
       {stage === "review" ? (
         <>
           <RadioButtonGroup
-            aria-label="Decision"
+            aria-label={t("title")}
             layout="grid"
             value={choice}
             onChange={(v) => onChoice(v === "reject" ? "reject" : "verify")}
@@ -148,15 +143,15 @@ export function CaseDecision({
               {live?.blocked ? (
                 <p className="flex items-start gap-2 text-[13px] leading-[18px] text-muted">
                   <Lock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                  <span>You field verified this case, so another approving officer has to decide it.</span>
+                  <span>{t("otherApprover")}</span>
                 </p>
               ) : missing.length ? (
                 <p className="flex items-start gap-2 text-[13px] leading-[18px] text-muted">
                   <Lock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                   <span>
                     {live
-                      ? `${passLabel} unlocks when you have read every document. Still unread: ${missing.join(", ")}.`
-                      : `Verify unlocks when all six checks are done. Still open: ${missing.join(", ")}.`}
+                      ? t("documentRead", { action: passLabel, missing: missing.join(", ") })
+                      : t("missingChecks", { missing: missing.join(", ") })}
                   </span>
                 </p>
               ) : null}
@@ -164,17 +159,17 @@ export function CaseDecision({
                 <Check className="size-4" />
                 {live
                   ? oneStep
-                    ? "Mark reviewed and approve"
+                    ? t("reviewAndApprove")
                     : approving
-                      ? "Approve this business"
-                      : "Record verification"
-                  : "Record verification"}
+                      ? t("approveBusiness")
+                      : t("recordVerification")
+                  : t("recordVerification")}
               </Button>
             </>
           ) : (
             <>
               <RadioGroup value={reason} onChange={onReason} className="gap-2">
-                <Label>Reason code</Label>
+                <Label>{t("reasonCode")}</Label>
                 {reasons.map((r) => (
                   <Radio key={r.id} value={r.id}>
                     <Radio.Content>
@@ -187,12 +182,12 @@ export function CaseDecision({
                 ))}
               </RadioGroup>
               <TextField fullWidth isRequired value={note} onChange={onNote} className="gap-1">
-                <Label>Explanation sent to the business</Label>
+                <Label>{t("explanation")}</Label>
                 <TextArea rows={3} />
-                <Description>Required. The business sees this text and your reason code.</Description>
+                <Description>{t("explanationHint")}</Description>
               </TextField>
               <Button variant="danger-soft" fullWidth isDisabled={!note.trim() || !!live?.busy} onPress={onReject}>
-                Record rejection
+                {t("recordRejection")}
               </Button>
             </>
           )}
@@ -202,7 +197,7 @@ export function CaseDecision({
       {live?.error ? (
         <Alert status="danger" role="alert">
           <Alert.Content>
-            <Alert.Title>The registry did not record that</Alert.Title>
+            <Alert.Title>{t("registryFailure")}</Alert.Title>
             <Alert.Description>{live.error}</Alert.Description>
           </Alert.Content>
         </Alert>
@@ -216,21 +211,21 @@ export function CaseDecision({
           <Alert.Content>
             <Alert.Title>
               {stage === "rejected"
-                ? "Rejection recorded · the business has been told"
+                ? t("rejectionRecorded")
                 : approving
                   ? live.outcome === "active"
-                    ? "Approved · the business is open"
-                    : "Approved · it opens once the owner claims it"
-                  : "Verification recorded · sent for approval"}
+                    ? t("approvedOpen")
+                    : t("approvedClaim")
+                  : t("sentForApproval")}
             </Alert.Title>
             <Alert.Description>
               {stage === "rejected"
-                ? "The owner sees your reason code and explanation by email, and can fix it and resubmit with no new fee."
+                ? t("rejectionMail")
                 : approving
                   ? live.outcome === "active"
-                    ? "We emailed the business that it is approved, with a link to set up its property on Injishi."
-                    : "We emailed the registrant. The business opens once the owner claims it."
-                  : "An approving officer in the district now has this case. The business is emailed when they approve. You cannot approve a case you verified."}
+                    ? t("approvalMail")
+                    : t("claimMail")
+                  : t("secondOfficer")}
             </Alert.Description>
           </Alert.Content>
         </Alert>
@@ -245,22 +240,22 @@ export function CaseDecision({
             <Alert.Content>
               <Alert.Title>
                 {stage === "rejected"
-                  ? "Rejection recorded · held for a second officer"
-                  : "Verification recorded · sent for approval"}
+                  ? flow("rejectionHeld")
+                  : flow("verifySent")}
               </Alert.Title>
               <Alert.Description>
                 {stage === "rejected"
-                  ? `${approver} must confirm before the business is told. You cannot confirm your own rejection.`
-                  : `${approver} now has this case in his approval queue. You cannot approve a case you verified.`}
+                  ? flow("approverConfirm", { approver })
+                  : flow("approverQueue", { approver })}
               </Alert.Description>
             </Alert.Content>
           </Alert>
           <Button variant="secondary" fullWidth isDisabled>
-            Approve · not allowed for the verifier
+            {flow("verifierBlocked")}
           </Button>
           <Button variant="ghost" fullWidth onPress={onWithdraw}>
             <ArrowUturnCcwLeft className="size-4" />
-            Withdraw before approval
+            {flow("withdraw")}
           </Button>
         </>
       ) : null}
@@ -272,15 +267,14 @@ export function CaseDecision({
               <Envelope />
             </Alert.Indicator>
             <Alert.Content>
-              <Alert.Title>Waiting for the business · SLA clock paused</Alert.Title>
+              <Alert.Title>{t("waitingBusiness")}</Alert.Title>
               <Alert.Description>
-                You asked for a readable tourism licence page 2 and the owner’s ID. Response due Saturday 24 Oct.
-                Decisions are locked until they reply or you cancel the request.
+                {flow("infoResponse")}
               </Alert.Description>
             </Alert.Content>
           </Alert>
           <Button variant="ghost" fullWidth onPress={onCancelInfo}>
-            Cancel request
+            {flow("cancelRequest")}
           </Button>
         </>
       ) : null}
@@ -288,22 +282,21 @@ export function CaseDecision({
       <Separator />
 
       <div className="flex flex-col gap-2.5">
-        <InlineTitle>Two-Person Approval</InlineTitle>
+        <InlineTitle>{t("twoPerson")}</InlineTitle>
         {live ? (
           <p className="text-[12px] leading-4 text-muted">
-            Two officers decide every registration: a field verifier, then an approving officer who did not verify it.
-            The registry refuses an approval by the officer who verified.
+            {flow("twoPersonLead")}
           </p>
         ) : null}
         {officers.map((p) => {
           const state =
             p.duty === "verifier"
               ? decided
-                ? { label: "Recorded", tone: "success" as const }
-                : { label: "In progress", tone: "accent" as const }
+                ? { label: flow("recorded"), tone: "success" as const }
+                : { label: flow("inProgress"), tone: "accent" as const }
               : decided
-                ? { label: "Notified · pending", tone: "warning" as const }
-                : { label: "Not yet", tone: "default" as const };
+                ? { label: flow("notifiedPending"), tone: "warning" as const }
+                : { label: flow("notYet"), tone: "default" as const };
           return (
             <div key={p.id} className="flex items-center gap-2.5">
               <Avatar size="sm" variant="soft" color={toneColor(p.avatarTone)} className="shrink-0">
@@ -319,8 +312,7 @@ export function CaseDecision({
         })}
         {live ? null : (
           <p className="text-[12px] leading-4 text-muted">
-            Rubavu District policy: every verification or rejection is confirmed by a second officer. The verifier is
-            excluded from the approver pool for this case.
+            {flow("districtPolicy")}
           </p>
         )}
       </div>

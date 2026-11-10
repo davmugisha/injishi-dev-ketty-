@@ -30,11 +30,12 @@ import {
 } from '@injishi/contracts';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 
-import { auditEvents, oversightAssignments, users } from '../../../database/drizzle/schema';
+import { oversightAssignments, userProfiles, users } from '../../../database/drizzle/schema';
 import { GuestRoutingService } from '../../../modules/guests/application/guest-routing.service';
 import { appointmentMail } from '../../../modules/guests/domain/guest-mail';
 import { placeWords, toCsv } from '../../../modules/guests/domain/guest-words';
 import { GuestNotifier } from '../../../modules/guests/infrastructure/guest-notifier';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { type AppointmentRow, LocalLeadersRepository, type ResolvedArea, type WaitingRow } from './local-leaders.repository';
 import { OversightGrantsService } from './oversight-grants.service';
@@ -69,7 +70,7 @@ function presentAppointment(row: AppointmentRow): OversightAppointment {
       ? LEADER_ROLE_LABEL[row.role]
       : // A PSF manager is named by the level they are posted at (2026-11-02).
         row.role === 'psf_membership_officer' && row.scopeLevel === 'province'
-        ? 'PSF Province Manager'
+        ? 'PSF Regional Manager'
         : row.role === 'psf_membership_officer' && row.scopeLevel === 'country'
           ? 'PSF National Manager'
           : OVERSIGHT_ROLE_LABEL[row.role],
@@ -227,6 +228,13 @@ export class LocalLeadersService {
       } else if (!found?.name?.trim() && body.name) {
         await tx.update(users).set({ name: body.name, updatedAt: now }).where(eq(users.id, userId));
       }
+      // A phone from Add person (2026-11-09): display only, and never over one they already have.
+      if (body.phone) {
+        await tx
+          .insert(userProfiles)
+          .values({ userId, phoneE164: body.phone })
+          .onConflictDoUpdate({ target: userProfiles.userId, set: { phoneE164: body.phone, updatedAt: now }, setWhere: isNull(userProfiles.phoneE164) });
+      }
 
       const [dupe] = await tx
         .select({ id: oversightAssignments.id })
@@ -273,11 +281,13 @@ export class LocalLeadersService {
         cellId: body.scopeLevel === 'cell' || body.scopeLevel === 'village' ? area.cellId : null,
         villageId: body.scopeLevel === 'village' ? area.villageId : null,
         assignedByUserId: actorUserId,
+        idDocumentType: body.idDocument?.documentType ?? null,
+        idDocumentNumber: body.idDocument?.documentNumber ?? null,
       };
       const [created] = await tx.insert(oversightAssignments).values(values).returning({ id: oversightAssignments.id });
       if (!created) throw new Error('Appointment insert returned no row.');
 
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId,
         subjectType: 'user',
         subjectId: userId,
@@ -296,7 +306,7 @@ export class LocalLeadersService {
             villageId: values.villageId,
             createdUser,
           },
-        } as never,
+        },
         reason: body.reason,
         districtId: values.districtId,
       });
@@ -327,6 +337,12 @@ export class LocalLeadersService {
     area: { villageId: number | null; cellId: number | null; sectorId: number | null; districtId: number | null },
   ): Promise<void> {
     try {
+      const [profile] = await this.db
+        .select({ locale: userProfiles.locale })
+        .from(users)
+        .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
+        .where(sql`lower(${users.email}) = lower(${email})`)
+        .limit(1);
       await this.notifier.send(
         email,
         appointmentMail({
@@ -334,7 +350,8 @@ export class LocalLeadersService {
           roleLabel: appointment.roleLabel,
           area: appointment.area,
           // A PSF manager lands on the PSF console (2026-11-02), as the team's own appointments do.
-          next: leader ? '/officer/guests' : appointment.role === 'psf_membership_officer' ? '/psf' : '/officer',
+          next: leader ? '/officer/guests' : appointment.role === 'psf_membership_officer' || appointment.role === 'psf_business_officer' ? '/psf' : '/officer',
+          locale: profile?.locale === 'fr' || profile?.locale === 'rw' ? profile.locale : 'en',
         }),
         'appointment',
       );
@@ -363,12 +380,12 @@ export class LocalLeadersService {
           villageId: oversightAssignments.villageId,
         });
       if (!row) throw new NotFoundException('No live appointment has that id.');
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId,
         subjectType: 'user',
         subjectId: row.userId,
         eventType: 'admin.user.oversight_revoked',
-        payloadDiff: { oversight: { assignmentId: row.id, oversightRole: row.role, governmentBodyCode: row.governmentBodyCode } } as never,
+        payloadDiff: { oversight: { assignmentId: row.id, oversightRole: row.role, governmentBodyCode: row.governmentBodyCode } },
         reason,
         districtId: row.districtId,
       });

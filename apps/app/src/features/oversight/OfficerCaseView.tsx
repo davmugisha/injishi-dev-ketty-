@@ -14,6 +14,7 @@ import type {
 } from "@injishi/data/fixtures/oversight";
 import { Icon, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import NextLink from "next/link";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import { caseRef } from "@/server/sources/oversight";
@@ -32,6 +33,7 @@ const STAGE_CHIP: Record<CaseStage, { label: string; tone: Tone }> = {
 
 /** One verification case: documents, checks, the officer's decision and what the business is told. */
 export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: RejectionReason[] }) {
+  const t = useTranslations("officialCase");
   const [stage, setStage] = useState<CaseStage>(file.stage);
   const [checks, setChecks] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(file.checks.map((c) => [c.id, c.recorded !== null])),
@@ -300,16 +302,16 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
           : null;
   const audit = auditTop ? [auditTop, ...file.audit.slice(0, gate ? 6 : 5)] : file.audit;
 
-  const chip = STAGE_CHIP[stage];
+  const chip = { ...STAGE_CHIP[stage], label: t(`status.${stage}`) };
 
   return (
     <PageContent className="text-[14px] leading-5">
-      {live ? <TopbarStatus kind="chip" tone="default" dot="default" label="Every record you open is logged" /> : null}
+      {live ? <TopbarStatus kind="chip" tone="default" dot="default" label={t("recordsLogged")} /> : null}
       <PageHeader
         eyebrow={
           <>
             <NextLink href={screenHref("OfficerHome")} className="text-inherit no-underline hover:underline">
-              Queues
+              {t("queues")}
             </NextLink>
             <span aria-hidden="true">›</span>
             <span>{file.queue}</span>
@@ -337,19 +339,19 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
           <>
             <LinkButton href={screenHref("OfficerHome")} variant="ghost">
               <ArrowLeft className="size-4" />
-              Queues
+              {t("queues")}
             </LinkButton>
             {live ? null : (
               <Button variant="secondary" isDisabled={locked} onPress={() => setInfoOpen(true)}>
                 <Envelope className="size-4" />
-                Request more information
+                {t("requestInformation")}
               </Button>
             )}
           </>
         }
       />
 
-      <Card render={(p) => <section {...p} />} aria-label="Approval progress" className="px-[18px] py-3.5">
+      <Card render={(p) => <section {...p} />} aria-label={t("approvalProgress")} className="px-[18px] py-3.5">
         <Stepper size="sm" currentStep={stepper.current} className="w-full">
           {stepper.items.map(([title, sub]) => (
             <Stepper.Step key={title}>
@@ -368,8 +370,8 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
         <div className="flex min-w-0 flex-[999_1_600px] flex-col gap-4">
           <Card render={(p) => <section {...p} />} aria-labelledby="biz-h" className="gap-3 p-[18px]">
             <Card.Header>
-              <CardHeading id="biz-h">Business and Claim</CardHeading>
-              <Card.Description>Declared by the business · checked against the documents below</Card.Description>
+              <CardHeading id="biz-h">{t("businessClaim")}</CardHeading>
+              <Card.Description>{t("declaredChecked")}</Card.Description>
             </Card.Header>
             <FactGrid min={200} className="gap-x-5 gap-y-3" items={file.facts} />
             <Alert>
@@ -377,13 +379,13 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
                 <ShieldCheck />
               </Alert.Indicator>
               <Alert.Content>
-                <Alert.Title>Nothing is activated on paperwork alone</Alert.Title>
+                <Alert.Title>{t("paperworkAlone")}</Alert.Title>
                 <Alert.Description>
                   {live
                     ? gate === "review"
-                      ? `${file.business} is registered only after you have checked its documents and marked it reviewed. Injishi records the decision; it does not make it.`
-                      : `${file.business} is registered only after an officer has checked its documents and a second officer approves. Injishi records the decision; it does not make it.`
-                    : "Isangano Lakeside Hotel shows as registered with Rubavu District only after you verify and a second officer approves. Injishi records the decision; it does not make it."}
+                      ? t("registeredAfterReview", { business: file.business })
+                      : t("registeredAfterApproval", { business: file.business })
+                    : t("sampleRegistration")}
                 </Alert.Description>
               </Alert.Content>
             </Alert>
@@ -394,22 +396,22 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
           <Card render={(p) => <section {...p} />} aria-labelledby="chk-h" className="gap-3 p-[18px]">
             <Card.Header className="flex flex-row items-start gap-3">
               <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <CardHeading id="chk-h">{live ? "Documents read" : "Checks"}</CardHeading>
+              <CardHeading id="chk-h">{live ? t("documentsRead") : t("checks")}</CardHeading>
                 <Card.Description>
                   {live
                     ? gate === "field"
-                      ? "Open each document, then tick it. The registry records your name and time. Every document must be read before you can verify."
+                      ? t("readDocsField")
                       : gate === "review"
-                        ? "Open each document, then tick it. The registry records your name and time. Every document must be read before you mark the business reviewed."
-                        : "Recorded by the field verifier. You decide on what they saw."
-                    : "Every check records your name and time. All six are needed to verify."}
+                        ? t("readDocsReview")
+                        : t("verifierRecorded")
+                    : t("allChecks")}
                 </Card.Description>
               </div>
               <span className="font-semibold tabular">
                 {done} of {file.checks.length}
               </span>
             </Card.Header>
-            <ProgressBar value={pct} aria-label="Checks complete">
+            <ProgressBar value={pct} aria-label={t("checksComplete")}>
               <ProgressBar.Track>
                 <ProgressBar.Fill />
               </ProgressBar.Track>
@@ -417,7 +419,7 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
             <ul className="flex flex-col gap-0.5">
               {file.checks.map((c) => {
                 const on = !!checks[c.id];
-                const when = on ? (c.recorded ?? "You · just now") : "Open";
+                const when = on ? (c.recorded ?? t("youNow")) : t("open");
                 return (
                   <li key={c.id} className="flex items-start justify-between gap-3 border-t border-separator py-2">
                     <Checkbox
@@ -466,7 +468,7 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
 
           <Card render={(p) => <section {...p} />} aria-labelledby="ev-h" className="gap-2.5 p-[18px]">
             <Card.Header>
-              <CardHeading id="ev-h">Events Sent to the Business</CardHeading>
+              <CardHeading id="ev-h">{t("events")}</CardHeading>
               <Card.Description>
                 {live
                   ? `What ${file.owner} sees in Injishi and by email`
@@ -493,8 +495,8 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
 
           <Card render={(p) => <section {...p} />} aria-labelledby="aud-h" className="gap-3 p-[18px]">
             <Card.Header>
-              <CardHeading id="aud-h">Case Audit Trail</CardHeading>
-              <Card.Description>Newest first · entries cannot be edited or deleted</Card.Description>
+              <CardHeading id="aud-h">{t("auditTrail")}</CardHeading>
+              <Card.Description>{t("newestFirst")}</Card.Description>
             </Card.Header>
             <Timeline size="sm" density="compact">
               {audit.map((a) => (

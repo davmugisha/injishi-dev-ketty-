@@ -172,10 +172,14 @@ export interface OrgNode {
 
 export interface OffboardingTask {
   id: string;
+  /** Whose checklist the step is on. */
+  employeeId: string;
   title: string;
   detail: string;
   /** Owner-only step: HR sees it but cannot tick it. */
   ownerOnly: boolean;
+  /** The person looking holds what an owner-only step asks (`team.manage`), so they can tick it. */
+  canTickOwnerOnly?: boolean;
   done: boolean;
   board: BoardId | null;
   linkLabel: string | null;
@@ -196,6 +200,8 @@ export interface RosterGroup {
   shifts: ShiftCode[];
   /** Minimum cover Monday → Sunday. */
   min: number[];
+  /** The minimums as saved, Monday first, for editing. */
+  minByWeekday?: number[];
   note: string;
 }
 
@@ -207,6 +213,10 @@ export interface RosterStaff {
   rotation: string;
   /** Seven shift codes, Monday → Sunday, per week. */
   shifts: Record<WeekId, string>;
+  /** The real hours of each day with a shift ("08–17"), per week. */
+  times?: Record<WeekId, (string | null)[]>;
+  /** How long each day's shift is, in hours; 0 for no shift. */
+  lengths?: Record<WeekId, number[]>;
 }
 
 export interface RosterWeek {
@@ -226,13 +236,30 @@ export interface RosterWeek {
    * carries it so a reload still offers to publish them; the prototype starts every week at 0.
    */
   pendingChanges?: number;
+  /** Each shift letter's real hours at this branch ("08–17"), as a new shift would get them. */
+  shiftTimes?: Partial<Record<"M" | "E" | "N", string>>;
+  /** How long each shift letter is at this branch, in hours. */
+  shiftLengths?: Partial<Record<"M" | "E" | "N", number>>;
 }
 
 export interface ShiftSwap {
   id: string;
   a: string;
   b: string;
+  /** The roster week the day falls in; absent means this week. */
+  week?: WeekId;
+  /** The day's place in that week, 0 to 6; -1 when it is not on the grid. */
   day: number;
+  /** A swap, another shift, or joining a rotation. Absent means a swap. */
+  kind?: "swap" | "change" | "rotation";
+  /** Still waiting for the colleague to say yes. */
+  waiting?: boolean;
+  /** The colleague has no login, so someone who manages the roster says yes for them. */
+  canAcceptFor?: boolean;
+  /** The colleague's first name, for the waiting line. */
+  colleague?: string;
+  /** The day has passed with no decision. */
+  overdue?: boolean;
   title: string;
   detail: string;
 }
@@ -245,6 +272,31 @@ export interface Rotation {
   staff: number;
   /** Short pattern per rotation code, shown when editing a shift ("Rotation A · Weekends off."). */
   patterns: Record<string, string>;
+  /** Its patterns (one, or a staggered family), each with its steps in order. */
+  members?: RotationMember[];
+  /** Who is on it now. */
+  people?: RotationPerson[];
+}
+
+export interface RotationMember {
+  id: string;
+  code: string;
+  description: string;
+  /** Each step's shift name, or "Off". */
+  steps: string[];
+  rule: "every_n_days" | "weekly" | "monthly";
+  ruleValue: number;
+}
+
+export interface RotationPerson {
+  assignmentId: string;
+  employeeId: string;
+  name: string;
+  title: string | null;
+  patternId: string;
+  code: string;
+  startsOn: string;
+  startStep: number;
 }
 
 export interface PublicHoliday {
@@ -273,6 +325,19 @@ export interface ClockRecord {
   tone: Tone;
   /** Set on desk entries added from the Attendance screen (ISO time); newest show first. */
   addedAt?: string;
+  /** The person's staff file, when HR can act on the row. */
+  employeeId?: string;
+  /** What HR can do from the row: clock in someone with no clock-in, or clock out someone on shift. */
+  action?: "clock_in" | "clock_out" | null;
+  /** A clock-in from a phone nobody has checked: HR counts it, or marks it not counted. */
+  check?: { recordId: string; why: string } | null;
+  /** "07:00": the shift's start, offered as the clock-in time. */
+  shiftStart?: string;
+  /**
+   * A clock-in of an earlier day the person never clocked out of: it blocks today's until closed.
+   * `since` reads "Fri 16 Oct"; `clockIn` and `clockOut` are "06:52" and the end offered, "14:52".
+   */
+  stale?: { recordId: string; date: string; since: string; clockIn: string; clockOut: string };
   /** Desk entries: date typed by HR, reason picked and the justification on file. */
   date?: string;
   reason?: string;
@@ -317,6 +382,8 @@ export interface DeskEmployee {
   dept: string;
   property: string;
   shift: string;
+  /** Absent, missed a clock-out, or has no kiosk PIN this week: listed first. */
+  due?: boolean;
 }
 
 export interface AttendanceSummary {
@@ -401,6 +468,26 @@ export interface LeaveCalendarEntry {
   type: string;
   step: "approved";
   cal: [number, number];
+}
+
+/** One stretch of leave on the Leave page's calendar: approved or still pending, this year or later. */
+export interface LeaveStretch {
+  id: string;
+  name: string;
+  type: string;
+  from: string;
+  to: string;
+  days: number;
+  approved: boolean;
+}
+
+/** Days of leave taken in one month of this year, for the Leave page's chart. */
+export interface LeaveMonth {
+  /** The month, "2026-03". */
+  id: string;
+  annual: number;
+  sick: number;
+  other: number;
 }
 
 // ── Data ─────────────────────────────────────────────────────────────────────
@@ -517,7 +604,7 @@ const rosterGaps: RosterGap[] = [
 const payRunSummary: PayRunSummary[] = [
   {
     id: "2026-10",
-    title: "October 2026 Pay Run",
+    title: "October 2026 pay run",
     entities: "Amahoro Hospitality Ltd and Amahoro Residences Ltd",
     payDate: "Fri 23 Oct",
     status: "Awaiting confirmation",
@@ -1512,6 +1599,7 @@ const orgChart: OrgNode[] = [
 const offboarding: OffboardingTask[] = [
   {
     id: "letter",
+    employeeId: "pm",
     title: "Resignation accepted and filed",
     detail: "Letter dated 20 Sep · accepted by Joseph Habimana",
     ownerOnly: false,
@@ -1521,6 +1609,7 @@ const offboarding: OffboardingTask[] = [
   },
   {
     id: "interview",
+    employeeId: "pm",
     title: "Exit interview",
     detail: "Scheduled Fri 16 Oct with Diane Ingabire · answers kept anonymous in reports",
     ownerOnly: false,
@@ -1530,6 +1619,7 @@ const offboarding: OffboardingTask[] = [
   },
   {
     id: "settle",
+    employeeId: "pm",
     title: "Final settlement calculated",
     detail: "Pro-rata pay to 20 Oct, 6 untaken leave days, advance recovery RWF 35,000 · in the October run",
     ownerOnly: false,
@@ -1539,6 +1629,7 @@ const offboarding: OffboardingTask[] = [
   },
   {
     id: "assets",
+    employeeId: "pm",
     title: "Assets returned",
     detail: "1 of 3 back · uniforms returned; Lake Bar keys and locker key outstanding",
     ownerOnly: false,
@@ -1548,6 +1639,7 @@ const offboarding: OffboardingTask[] = [
   },
   {
     id: "access",
+    employeeId: "pm",
     title: "Injishi access revoked",
     detail: "Owner action · scheduled by Didier Mugenzi for 20 Oct 23:59 · kiosk PIN disabled at the same time",
     ownerOnly: true,
@@ -1557,6 +1649,7 @@ const offboarding: OffboardingTask[] = [
   },
   {
     id: "cert",
+    employeeId: "pm",
     title: "Certificate of service issued",
     detail: "Generated from the file and signed by the owner on the last day",
     ownerOnly: false,
@@ -1712,9 +1805,27 @@ const rotations: Rotation[] = [
 ];
 
 const holidays: PublicHoliday[] = [
-  { id: "2026-12-25", name: "Christmas Day", date: "Friday 25 December 2026", rostered: "Week 52 · not drafted" },
-  { id: "2026-12-26", name: "Boxing Day", date: "Saturday 26 December 2026", rostered: "Week 52 · not drafted" },
-  { id: "2027-01-01", name: "New Year’s Day", date: "Friday 1 January 2027", rostered: "2027 list not loaded" },
+  {
+    id: "2026-12-25",
+    name: "Christmas Day",
+    date: "Friday 25 December 2026",
+
+    rostered: "Week 52 · not drafted",
+  },
+  {
+    id: "2026-12-26",
+    name: "Boxing Day",
+    date: "Saturday 26 December 2026",
+
+    rostered: "Week 52 · not drafted",
+  },
+  {
+    id: "2027-01-01",
+    name: "New Year’s Day",
+    date: "Friday 1 January 2027",
+
+    rostered: "2027 list not loaded",
+  },
 ];
 
 type RecordRow = [
@@ -2248,7 +2359,7 @@ const leaveRequests: LeaveRequest[] = [
     hrReason: null,
     homeStep: "Beatrice approved · now with you",
     balanceAfter: "6 days",
-    homeWarn: "Housekeeping already short that day",
+    homeWarn: "Housekeeping already low on staff that day",
     balance: "Annual 7 → 6 days",
     roster: "Saturday morning shift released",
     attach: "None needed",
@@ -2459,8 +2570,300 @@ const leaveTypes: LeaveType[] = [
   },
 ];
 
+const leaveStretches: LeaveStretch[] = [
+  {
+    id: "ag-1",
+    name: "Yvonne Uwase",
+    type: "Annual leave",
+    from: "2026-10-21",
+    to: "2026-10-22",
+    days: 2,
+    approved: true,
+  },
+  {
+    id: "ag-2",
+    name: "Eric Habimana",
+    type: "Annual leave",
+    from: "2026-11-12",
+    to: "2026-11-13",
+    days: 2,
+    approved: false,
+  },
+  {
+    id: "ag-3",
+    name: "Odette Mukamazimpaka",
+    type: "Sick leave",
+    from: "2026-10-14",
+    to: "2026-10-14",
+    days: 1,
+    approved: true,
+  },
+];
+
+const leaveByMonth: LeaveMonth[] = [
+  { id: "2026-01", annual: 4, sick: 3, other: 0 },
+  { id: "2026-02", annual: 6, sick: 2, other: 0 },
+  { id: "2026-03", annual: 5, sick: 1, other: 0 },
+  { id: "2026-04", annual: 9, sick: 2, other: 0 },
+  { id: "2026-05", annual: 16, sick: 1, other: 0 },
+  { id: "2026-06", annual: 7, sick: 3, other: 0 },
+  { id: "2026-07", annual: 11, sick: 2, other: 0 },
+  { id: "2026-08", annual: 15, sick: 1, other: 0 },
+  { id: "2026-09", annual: 8, sick: 2, other: 0 },
+  { id: "2026-10", annual: 6, sick: 2, other: 0 },
+];
+
 const leaveCalendar: LeaveCalendarEntry[] = [
   { id: "cal-yvonne", name: "Yvonne Uwase", type: "Annual leave", step: "approved", cal: [9, 2] },
+];
+
+// ── New employee (/employees/new) and a file's login ───────────────────────────────
+
+/** The staff roles a login may be given into; `owner` changes hands only by transfer. */
+export type AccessRoleId = "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+
+/** One role as the access step offers it: what it is for and what it may do at this business. */
+export interface AccessRoleView {
+  id: AccessRoleId;
+  label: string;
+  summary: string;
+  /** With HR's rights alone, a login into this role waits for the owner's approval. */
+  needsOwner: boolean;
+  /** Its permissions by area, in plain words. */
+  areas: { label: string; permissions: string[] }[];
+}
+
+/** What a login may be given with, at one employer. */
+export interface AccessOptionsView {
+  /** The person may give logins at all. */
+  canGrant: boolean;
+  /** The person manages the team: every role goes out at once. */
+  grantsEveryRole: boolean;
+  roles: AccessRoleView[];
+  branches: { id: string; name: string }[];
+}
+
+/** One employer HR keeps files for, with what its new employee form offers. */
+export interface NewEmployeeEmployer {
+  /** The business workspace. */
+  id: string;
+  name: string;
+  kind: "hospitality" | "residence";
+  branches: { id: string; name: string }[];
+  positions: { id: string; title: string }[];
+  employeeTypes: { id: string; title: string }[];
+  /** Who a new person may report to: active files of this employer. */
+  managers: { id: string; name: string; title: string }[];
+  access: AccessOptionsView;
+}
+
+/** The new employee form's choices (People › Employees › Add employee). */
+export interface NewEmployeeForm {
+  id: string;
+  employers: NewEmployeeEmployer[];
+  /** Banks a salary may be paid to, for the payment step. */
+  banks: string[];
+  /** Today in Kigali, the default start date. */
+  today: string;
+}
+
+/** Where one file's login stands, as the file's Access tab shows it. */
+export interface EmployeeAccessView extends AccessOptionsView {
+  employeeId: string;
+  state: "active" | "invited" | "awaiting_owner" | "none";
+  /** "Front office / Receptionist · every branch · last active 2 h ago". */
+  member: { email: string | null; role: string; branches: string; lastActive: string } | null;
+  invitation: { email: string; role: string; branches: string; sent: string; expires: string } | null;
+  request: {
+    status: "pending" | "approved" | "declined" | "cancelled";
+    email: string;
+    role: string;
+    branches: string;
+    requested: string;
+    decided: string | null;
+    decisionNote: string | null;
+  } | null;
+}
+
+/** A login HR asked for, as the owner decides it on Team and roles. */
+export interface AccessRequestView {
+  id: string;
+  employeeId: string;
+  name: string;
+  initials: string;
+  /** "Night auditor · EMP-0094" */
+  job: string;
+  email: string;
+  role: string;
+  branches: string;
+  /** "Asked by Diane Ingabire · 18 Oct" */
+  asked: string;
+  note: string | null;
+  status: "pending" | "approved" | "declined" | "cancelled";
+  /** "Approved by Didier Mugenzi · 18 Oct", or the decline with its reason. */
+  outcome: string | null;
+}
+
+const ACCESS_ROLES: AccessRoleView[] = [
+  {
+    id: "receptionist",
+    label: "Front office / Receptionist",
+    summary: "Bookings, check-in, desk payments.",
+    needsOwner: false,
+    areas: [
+      {
+        label: "Front desk",
+        permissions: [
+          "approve reservations",
+          "assign rooms",
+          "check guests in",
+          "check guests out",
+          "reply to messages",
+          "keep the lost and found register",
+        ],
+      },
+      {
+        label: "Money & tax",
+        permissions: ["add charges to a bill", "record payments", "close a bill and sign its receipt"],
+      },
+      { label: "Services & outlets", permissions: ["update service orders"] },
+      { label: "People", permissions: ["clock staff in and out"] },
+    ],
+  },
+  {
+    id: "housekeeper",
+    label: "Housekeeper",
+    summary: "Room status and maintenance.",
+    needsOwner: false,
+    areas: [{ label: "Rooms & housekeeping", permissions: ["set room status", "update maintenance tickets"] }],
+  },
+  {
+    id: "finance",
+    label: "Finance",
+    summary: "Money, payments, EBM and refunds.",
+    needsOwner: true,
+    areas: [
+      {
+        label: "Money & tax",
+        permissions: [
+          "add charges to a bill",
+          "record payments",
+          "view money",
+          "connect the RRA EBM account",
+          "close a bill and sign its receipt",
+          "refund a signed receipt",
+          "answer a guest's refund request",
+        ],
+      },
+    ],
+  },
+  {
+    id: "hr",
+    label: "HR",
+    summary: "Staff files, roster, leave, pay drafts.",
+    needsOwner: true,
+    areas: [
+      {
+        label: "People",
+        permissions: [
+          "view staff files",
+          "manage staff files and contracts",
+          "manage the roster",
+          "clock staff in and out",
+          "correct and approve attendance",
+          "decide leave",
+          "draft the pay run",
+          "give staff their logins",
+        ],
+      },
+    ],
+  },
+  {
+    id: "manager",
+    label: "Manager",
+    summary: "Runs the property. No team changes.",
+    needsOwner: true,
+    areas: [
+      {
+        label: "Front desk",
+        permissions: [
+          "approve reservations",
+          "assign rooms",
+          "check guests in",
+          "check guests out",
+          "reply to messages",
+        ],
+      },
+      { label: "Money & tax", permissions: ["view money", "record payments", "refund a signed receipt"] },
+      { label: "Property & listings", permissions: ["manage listings and inventory", "create and retire offers"] },
+    ],
+  },
+];
+
+const ISANGANO_BRANCHES = [
+  { id: "isangano", name: "Isangano Lakeside Hotel" },
+  { id: "ishyamba", name: "Ishyamba Forest Lodge" },
+];
+
+const newEmployeeForm: NewEmployeeForm[] = [
+  {
+    id: "form",
+    today: "2026-10-18",
+    banks: [
+      "Bank of Kigali",
+      "Equity Bank Rwanda",
+      "I&M Bank Rwanda",
+      "BPR Bank Rwanda",
+      "Access Bank Rwanda",
+      "Ecobank Rwanda",
+      "KCB Bank Rwanda",
+      "NCBA Bank Rwanda",
+      "GT Bank Rwanda",
+      "Urwego Bank",
+    ],
+    employers: [
+      {
+        id: "hospitality",
+        name: "Amahoro Hospitality Ltd",
+        kind: "hospitality",
+        branches: ISANGANO_BRANCHES,
+        positions: [
+          { id: "fdo", title: "Front desk agent" },
+          { id: "hk", title: "Room attendant" },
+          { id: "na", title: "Night auditor" },
+          { id: "cook", title: "Cook" },
+          { id: "waiter", title: "Waiter" },
+        ],
+        employeeTypes: [
+          { id: "ft", title: "Full time" },
+          { id: "pt", title: "Part time" },
+          { id: "intern", title: "Intern" },
+        ],
+        managers: [
+          { id: "aline", name: "Aline Uwase", title: "Front office manager" },
+          { id: "beatrice", name: "Beatrice Mukamana", title: "Housekeeping supervisor" },
+        ],
+        access: { canGrant: true, grantsEveryRole: false, roles: ACCESS_ROLES, branches: ISANGANO_BRANCHES },
+      },
+    ],
+  },
+];
+
+const accessRequests: AccessRequestView[] = [
+  {
+    id: "req-claudine",
+    employeeId: "claudine",
+    name: "Claudine Uwimana",
+    initials: "CU",
+    job: "Accounts assistant · EMP-0094",
+    email: "claudine.uwimana@amahoro.rw",
+    role: "Finance",
+    branches: "Every branch",
+    asked: "Asked by Diane Ingabire · 18 Oct",
+    note: "Starts Monday; will take over supplier payments from Grace.",
+    status: "pending",
+    outcome: null,
+  },
 ];
 
 export const fixtures = {
@@ -2493,4 +2896,10 @@ export const fixtures = {
   "people.leaveBalances": leaveBalances,
   "people.leaveTypes": leaveTypes,
   "people.leaveCalendar": leaveCalendar,
+  "people.leaveByMonth": leaveByMonth,
+  "people.leaveStretches": leaveStretches,
+  "people.extraDays": [],
+  "people.documentsToCheck": [],
+  "people.newEmployeeForm": newEmployeeForm,
+  "people.accessRequests": accessRequests,
 } satisfies FixtureSet;

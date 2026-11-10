@@ -8,7 +8,6 @@ import {
   ChevronRight,
   CircleCheck,
   CircleCheckFill,
-  CircleInfo,
   FileText,
   Hourglass,
   PaperPlane,
@@ -41,22 +40,26 @@ import type {
   LeaveType,
   RequestStatus,
   Shift,
+  ShiftChoices,
   StaffProfile,
   StaffRequest,
+  SwapAsk,
   SwapColleague,
 } from "../../model/staff.ts";
 import { useHrActions } from "../mount.tsx";
 import { reported } from "../reported.ts";
 
-interface StaffScheduleData {
-  /** The caller's own profile; null when none is on file (never another person's). */
-  profile: StaffProfile | null;
+export interface StaffScheduleData {
+  profile: StaffProfile;
   shifts: Shift[];
   colleagues: SwapColleague[];
+  /** Swaps colleagues asked of this person, waiting for their answer. */
+  asks: SwapAsk[];
   requests: StaffRequest[];
   leaveTypes: LeaveType[];
   balance: LeaveBalance;
   approvers: LeaveApprover[];
+  choices: ShiftChoices;
 }
 
 type Tab = "shifts" | "leave" | "requests";
@@ -81,7 +84,8 @@ function shiftHours(time: string | null): number {
   return (end - start) / 60;
 }
 
-const fmtDays = (n: number) => String(Number.isInteger(n) ? n : n.toFixed(1));
+/** Whole days, rounded down: nobody is shown more leave than they have. */
+const fmtDays = (n: number) => String(Math.max(0, Math.floor(n)));
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTH_NAMES = [
@@ -138,22 +142,32 @@ function weekdaysBetween(from: string, to: string): number | null {
 
 /** Shifts, leave and requests of a staff member (artifact: StaffSchedule). */
 export function StaffScheduleView({ persona, data }: { persona: Persona; data: StaffScheduleData }) {
-  const { askLeaveAction, cancelRequestAction } = useHrActions();
-  const { profile, shifts, colleagues, leaveTypes, balance, approvers } = data;
-  // The line manager the API names as the first approver, or plain words when it names nobody.
-  const manager = approvers.find((a) => a.role === "Your line manager")?.name.split(" ")[0] ?? "";
-  const boss = manager || "your line manager";
-  const notYetSwap = `Swaps cannot be asked from the phone yet. Ask ${boss} to arrange it.`;
+  const {
+    answerSwapAction,
+    askLeaveAction,
+    askRotationAction,
+    askShiftChangeAction,
+    askSwapAction,
+    cancelRequestAction,
+  } = useHrActions();
+  const { profile, shifts, colleagues, asks, leaveTypes, balance, approvers, choices } = data;
   const [tab, setTab] = useState<Tab>("shifts");
   const [week, setWeek] = useState(0);
   const [swapFor, setSwapFor] = useState<string | null>(null);
   const [mate, setMate] = useState(colleagues[0]?.id ?? "");
   const [leaveType, setLeaveType] = useState(leaveTypes[0]?.id ?? "annual");
-  // The form starts empty: only what the person types is sent.
   const [note, setNote] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [justSent, setJustSent] = useState("");
+  // What the sheet asks for: a colleague to swap with, or a different shift.
+  const [askMode, setAskMode] = useState<"swap" | "change">("swap");
+  const [wanted, setWanted] = useState(choices.shifts[0]?.id ?? "");
+  const [askNote, setAskNote] = useState("");
+  const [rotationSheet, setRotationSheet] = useState(false);
+  const [rotationId, setRotationId] = useState(choices.rotations[0]?.id ?? "");
+  const [rotationFrom, setRotationFrom] = useState("");
+  const [rotationNote, setRotationNote] = useState("");
   const swapped: Record<string, string> = Object.fromEntries(
     shifts.filter((s) => s.swapPendingWith).map((s) => [s.id, s.swapPendingWith ?? ""]),
   );
@@ -170,16 +184,15 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
     asked === null
       ? "Write both dates as “15 Dec 2026” to see the days."
       : type.usesBalance
-        ? `About ${asked} weekdays. If approved, with the ${pendingDays} days already asked for, you have ${fmtDays(left)} days left. HR counts your rostered days and public holidays.`
-        : "This does not change your annual leave balance.";
+        ? `About ${asked} weekdays. If approved, ${fmtDays(left)} days left, after the ${Math.round(pendingDays)} already asked for. HR confirms the count.`
+        : "Does not change your annual leave.";
 
-  const weekShifts = shifts.filter((s) => s.week === 0);
-  const firstDay = dayOf(weekShifts[0]?.long ?? "");
-  const lastDay = dayOf(weekShifts[weekShifts.length - 1]?.long ?? "");
-  const plusDays = (d: Date | null, n: number) => (d ? new Date(d.getTime() + n * 86_400_000) : null);
-  const weekLabel = week === 0 ? spanLabel(firstDay, lastDay) : spanLabel(plusDays(lastDay, 1), plusDays(lastDay, 7));
-  const working = weekShifts.filter((s) => !s.isOff);
-  const next = weekShifts.find((s) => !s.isOff && !s.isToday);
+  const thisWeek = shifts.filter((s) => s.week === 0);
+  const weekShifts = shifts.filter((s) => s.week === week);
+  const weekLabel = spanLabel(dayOf(weekShifts[0]?.long ?? ""), dayOf(weekShifts[weekShifts.length - 1]?.long ?? ""));
+  const nothingPublished = weekShifts.every((s) => s.isOff);
+  const working = thisWeek.filter((s) => !s.isOff);
+  const next = thisWeek.find((s) => !s.isOff && !s.isToday);
   const hours = working.reduce((a, s) => a + shiftHours(s.time), 0);
   const swapShift = shifts.find((s) => s.id === swapFor);
   const mateDoc = colleagues.find((c) => c.id === mate) ?? colleagues[0];
@@ -190,21 +203,53 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
   };
 
   const sendSwap = () => {
+    const day = swapFor;
+    const who = mateDoc;
     setSwapFor(null);
-    toast.danger(notYetSwap);
+    if (!day || !who) return;
+    startTransition(async () => {
+      if (!reported(await askSwapAction(day, who.id))) return;
+      toast.success(`Sent to ${who.first}.`);
+    });
   };
+
+  const sendChange = () => {
+    const day = swapFor;
+    const reason = askNote;
+    setSwapFor(null);
+    if (!day || !wanted) return;
+    startTransition(async () => {
+      if (!reported(await askShiftChangeAction(day, wanted, reason))) return;
+      toast.success("Sent to your manager.");
+    });
+  };
+
+  const sendRotation = () => {
+    const from = rotationFrom;
+    const reason = rotationNote;
+    setRotationSheet(false);
+    startTransition(async () => {
+      if (!reported(await askRotationAction(rotationId, from, reason))) return;
+      setRotationFrom("");
+      setRotationNote("");
+      toast.success("Sent to your manager.");
+    });
+  };
+
+  const answer = (ask: SwapAsk, reply: "accept" | "decline") =>
+    startTransition(async () => {
+      if (!reported(await answerSwapAction(ask.id, reply))) return;
+      toast.success(
+        reply === "accept" ? `You said yes. Your manager decides now.` : `You said no. ${ask.first} keeps the shift.`,
+      );
+    });
 
   const sendLeave = () => {
     const reason = note.trim().replace(/\.$/, "");
     startTransition(async () => {
       if (!reported(await askLeaveAction({ leaveTypeId: type.id, from, to, reason }))) return;
       setTab("requests");
-      setFrom("");
-      setTo("");
-      setNote("");
-      setJustSent(
-        approvers.length ? `Sent for approval: ${approvers.map((a) => a.name).join(", then ")}.` : "Sent for approval.",
-      );
+      setJustSent("Your manager sees it first, then HR checks your balance.");
     });
   };
 
@@ -217,14 +262,12 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
 
   return (
     <>
+      <PhoneToasts />
       <PhoneTop>
         <Avatar size="sm" variant="soft" color="accent">
           <Avatar.Fallback>{persona.initials}</Avatar.Fallback>
         </Avatar>
-        <PhoneTitle
-          title="My schedule"
-          sub={[persona.name, profile?.department, profile?.site].filter(Boolean).join(" · ")}
-        />
+        <PhoneTitle title="My schedule" sub={`${persona.name} · ${profile.department} · ${profile.site}`} />
       </PhoneTop>
 
       <div className="shrink-0 px-[16px] pb-[8px]">
@@ -279,31 +322,81 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
               </Button>
             </div>
 
-            {week === 0 ? (
-              <>
-                {next ? (
-                  <Card render={renderSection} aria-label="Next shift" className="gap-[4px] p-[16px]">
-                    <span className="text-xs leading-4 text-muted">Next shift</span>
-                    <span className="text-xl leading-[26px] font-semibold">
-                      {next.long} · {next.time}
-                    </span>
-                    <span className="text-[13px] leading-[18px] text-muted">
-                      {next.area} · {working.length} shifts this week · {hours} hours
-                    </span>
-                  </Card>
-                ) : null}
+            <>
+              {asks.map((ask) => (
+                <Card
+                  key={ask.id}
+                  render={renderSection}
+                  aria-label={`${ask.from} asks to swap`}
+                  className="gap-[10px] border border-warning p-[16px]"
+                >
+                  <div className="flex items-center gap-[12px]">
+                    <Avatar size="sm" variant="soft" color="warning">
+                      <Avatar.Fallback>{ask.initials}</Avatar.Fallback>
+                    </Avatar>
+                    <div className="flex min-w-0 flex-col">
+                      <span className="font-semibold">{ask.from} asks to swap</span>
+                      <span className="text-[13px] leading-[18px] text-muted">{ask.when}</span>
+                    </div>
+                  </div>
+                  {ask.note ? <p className="text-[13px] leading-[18px]">“{ask.note}”</p> : null}
+                  <div className="grid grid-cols-2 gap-[8px]">
+                    <Button
+                      variant="secondary"
+                      size="lg"
+                      className="min-h-12"
+                      isDisabled={pending}
+                      onPress={() => answer(ask, "decline")}
+                    >
+                      No
+                    </Button>
+                    <Button size="lg" className="min-h-12" isDisabled={pending} onPress={() => answer(ask, "accept")}>
+                      Yes, swap
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+              {week === 0 && next ? (
+                <Card render={renderSection} aria-label="Next shift" className="gap-[4px] p-[16px]">
+                  <span className="text-xs leading-4 text-muted">Next shift</span>
+                  <span className="text-xl leading-[26px] font-semibold">
+                    {next.long} · {next.time}
+                  </span>
+                  <span className="text-[13px] leading-[18px] text-muted">
+                    {next.area} · {working.length} shifts this week · {hours} hours
+                  </span>
+                </Card>
+              ) : null}
 
-                <ListView aria-label="Shifts this week" items={weekShifts} className="shrink-0">
+              {nothingPublished && week === 1 ? (
+                <Card variant="secondary">
+                  <EmptyState size="sm">
+                    <EmptyState.Header>
+                      <EmptyState.Media variant="icon">
+                        <Calendar />
+                      </EmptyState.Media>
+                      <EmptyState.Title>Not published yet</EmptyState.Title>
+                    </EmptyState.Header>
+                  </EmptyState>
+                </Card>
+              ) : (
+                <ListView
+                  aria-label={week === 0 ? "Shifts this week" : "Shifts next week"}
+                  items={weekShifts}
+                  className="shrink-0"
+                >
                   {(d) => {
                     const pendingWith = swapped[d.id];
                     const chip = d.isToday
                       ? { label: "Today", color: "accent" as const }
                       : d.isOff
-                        ? { label: "Day off", color: "default" as const }
+                        ? null
                         : pendingWith
                           ? { label: "Swap pending", color: "warning" as const }
-                          : null;
-                    const canSwap = !d.isToday && !d.isOff && !pendingWith;
+                          : d.changePending
+                            ? { label: "Change asked", color: "warning" as const }
+                            : null;
+                    const canSwap = !d.isToday && !pendingWith && !d.changePending;
                     return (
                       <ListView.Item
                         id={d.id}
@@ -325,13 +418,16 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
                             <Button
                               variant="secondary"
                               className="min-h-11"
-                              aria-label={`Swap ${d.long}`}
+                              aria-label={`Ask about ${d.long}`}
                               onPress={() => {
                                 setSwapFor(d.id);
+                                setAskMode(d.isOff ? "change" : "swap");
                                 setMate(colleagues[0]?.id ?? "");
+                                setWanted(choices.shifts[0]?.id ?? "");
+                                setAskNote("");
                               }}
                             >
-                              Swap
+                              Ask
                             </Button>
                           ) : null}
                           {chip ? (
@@ -344,25 +440,23 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
                     );
                   }}
                 </ListView>
-                <p className="text-xs leading-4 text-muted">
-                  Need a day off instead? Use Leave. Swaps need your colleague to agree, then {boss} approves.
-                </p>
-              </>
-            ) : (
-              <Card variant="secondary">
-                <EmptyState size="sm">
-                  <EmptyState.Header>
-                    <EmptyState.Media variant="icon">
-                      <Calendar />
-                    </EmptyState.Media>
-                    <EmptyState.Title>Not published yet</EmptyState.Title>
-                    <EmptyState.Description>
-                      Next week's shifts show here once the roster is published.
-                    </EmptyState.Description>
-                  </EmptyState.Header>
-                </EmptyState>
+              )}
+
+              <Card render={renderSection} aria-label="Rotation" className="flex-row items-center gap-[12px] p-[16px]">
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-xs leading-4 text-muted">My rotation</span>
+                  <span className="font-semibold">{choices.current?.name ?? "Not on a rotation"}</span>
+                  {choices.current ? (
+                    <span className="text-[13px] leading-[18px] text-muted">Since {choices.current.since}</span>
+                  ) : null}
+                </div>
+                {choices.rotations.length > 0 ? (
+                  <Button variant="secondary" className="min-h-11" onPress={() => setRotationSheet(true)}>
+                    {choices.current ? "Change" : "Join"}
+                  </Button>
+                ) : null}
               </Card>
-            )}
+            </>
           </>
         ) : null}
 
@@ -380,8 +474,8 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
               </div>
               <Meter
                 aria-label="Annual leave used"
-                value={balance.entitlement > 0 ? Math.round((balance.used / balance.entitlement) * 100) : 0}
-                valueLabel={`${pendingDays} days asked for`}
+                value={Math.round((balance.used / balance.entitlement) * 100)}
+                valueLabel={`${Math.round(pendingDays)} days asked for`}
                 className="flex flex-col gap-[6px]"
               >
                 <div className="flex items-center justify-between gap-[8px]">
@@ -395,8 +489,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
                 </Meter.Track>
               </Meter>
               <p className="text-xs leading-4 text-muted">
-                You earn {balance.accrual} days each month. Up to {balance.carryOver} days carry over into{" "}
-                {balance.carryYear}.
+                You earn {balance.accrual} days a month. Up to {balance.carryOver} carry into {balance.carryYear}.
               </p>
               <KeyValueList
                 items={[
@@ -440,11 +533,11 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
               <div className="grid grid-cols-2 gap-[8px]">
                 <TextField value={from} onChange={setFrom} fullWidth className="flex flex-col gap-1">
                   <Label>From</Label>
-                  <Input className="min-h-11" placeholder="15 Dec 2026" />
+                  <Input className="min-h-11" />
                 </TextField>
                 <TextField value={to} onChange={setTo} fullWidth className="flex flex-col gap-1">
                   <Label>To</Label>
-                  <Input className="min-h-11" placeholder="19 Dec 2026" />
+                  <Input className="min-h-11" />
                 </TextField>
               </div>
               <Alert>
@@ -480,17 +573,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
                   ))}
                 </ol>
               </div>
-              <p className="flex items-start gap-[8px] text-xs leading-4 text-muted">
-                <CircleInfo className="mt-[1px] size-4 shrink-0" aria-hidden="true" />
-                <span>It is sent with the dates and note you typed, to the people above in order.</span>
-              </p>
-              <Button
-                size="lg"
-                fullWidth
-                className="min-h-14"
-                isDisabled={pending || asked === null}
-                onPress={sendLeave}
-              >
+              <Button size="lg" fullWidth className="min-h-14" isDisabled={pending} onPress={sendLeave}>
                 <PaperPlane className="size-4" />
                 Send leave request
               </Button>
@@ -510,6 +593,18 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
                   <Alert.Description>{justSent}</Alert.Description>
                 </Alert.Content>
               </Alert>
+            ) : null}
+            {requests.length === 0 && choices.answered.length === 0 ? (
+              <Card variant="secondary">
+                <EmptyState size="sm">
+                  <EmptyState.Header>
+                    <EmptyState.Media variant="icon">
+                      <Hourglass />
+                    </EmptyState.Media>
+                    <EmptyState.Title>No requests yet</EmptyState.Title>
+                  </EmptyState.Header>
+                </EmptyState>
+              </Card>
             ) : null}
             {requests.map((q) => {
               const s = STATUS[q.status];
@@ -552,6 +647,30 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
                 </Card>
               );
             })}
+            {choices.answered.map((a) => (
+              <Card
+                key={a.id}
+                render={renderArticle}
+                aria-label={`Swap you answered for ${a.from}`}
+                className="gap-[4px] px-[16px] py-[14px]"
+              >
+                <div className="flex items-start gap-[10px]">
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="text-xs leading-4 text-muted">Swap you answered</span>
+                    <span className="font-semibold">{a.when}</span>
+                    <span className="text-[13px] leading-[18px] text-muted">{a.note || `For ${a.from}`}</span>
+                  </div>
+                  <Chip
+                    size="sm"
+                    variant="soft"
+                    color={a.status === "approved" ? "success" : a.status === "declined" ? "danger" : "warning"}
+                    className="shrink-0"
+                  >
+                    {a.status === "approved" ? "Approved" : a.status === "declined" ? "Declined" : "With your manager"}
+                  </Chip>
+                </div>
+              </Card>
+            ))}
           </>
         ) : null}
       </PhoneBody>
@@ -559,23 +678,121 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
       <PhoneSheet
         isOpen={!!swapShift}
         onOpenChange={(o) => !o && setSwapFor(null)}
-        heading={swapShift ? `Swap ${swapShift.long} · ${swapShift.time}` : "Swap"}
-        description="Pick a colleague who can take it. Only housekeeping staff with the same training are shown."
+        heading={swapShift ? (swapShift.time ? `${swapShift.long} · ${swapShift.time}` : swapShift.long) : "Ask"}
       >
-        <RadioButtonGroup aria-label="Colleague" value={mate} onChange={setMate} className="flex flex-col gap-[8px]">
-          {colleagues.map((c) => (
+        {swapShift && !swapShift.isOff ? (
+          <Segment
+            aria-label="What to ask for"
+            size="lg"
+            selectedKey={askMode}
+            onSelectionChange={(k) => setAskMode(String(k) === "change" ? "change" : "swap")}
+            className="w-full"
+          >
+            <Segment.Item id="swap" className="h-11 flex-1">
+              Swap
+            </Segment.Item>
+            <Segment.Item id="change" className="h-11 flex-1">
+              <Segment.Separator />
+              Different shift
+            </Segment.Item>
+          </Segment>
+        ) : null}
+        {askMode === "change" ? (
+          <>
+            <RadioButtonGroup
+              aria-label="Shift"
+              value={wanted}
+              onChange={setWanted}
+              className="flex flex-col gap-[8px]"
+            >
+              {choices.shifts.map((c) => (
+                <RadioButtonGroup.Item
+                  key={c.id}
+                  value={c.id}
+                  className="min-h-14 w-full flex-row items-center gap-[12px] px-[14px] py-[10px]"
+                >
+                  <RadioButtonGroup.ItemContent className="flex-1">
+                    <Label className="font-semibold">{c.name}</Label>
+                    <Description className="text-xs leading-4 tabular">{c.hours}</Description>
+                  </RadioButtonGroup.ItemContent>
+                  <RadioButtonGroup.Indicator className="static">
+                    <CircleCheckFill className="size-4 text-accent" />
+                  </RadioButtonGroup.Indicator>
+                </RadioButtonGroup.Item>
+              ))}
+            </RadioButtonGroup>
+            <TextField value={askNote} onChange={setAskNote} fullWidth className="flex flex-col gap-1">
+              <Label>Note (optional)</Label>
+              <TextArea rows={2} />
+            </TextField>
+            <div className="grid grid-cols-[1fr_2fr] gap-[8px]">
+              <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSwapFor(null)}>
+                Cancel
+              </Button>
+              <Button size="lg" fullWidth className="min-h-14" isDisabled={pending || !wanted} onPress={sendChange}>
+                Ask your manager
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <RadioButtonGroup
+              aria-label="Colleague"
+              value={mate}
+              onChange={setMate}
+              className="flex flex-col gap-[8px]"
+            >
+              {colleagues.map((c) => (
+                <RadioButtonGroup.Item
+                  key={c.id}
+                  value={c.id}
+                  isDisabled={c.busy}
+                  className="min-h-14 w-full flex-row items-center gap-[12px] px-[14px] py-[10px]"
+                >
+                  <Avatar size="sm" variant="soft" color="accent">
+                    <Avatar.Fallback>{c.initials}</Avatar.Fallback>
+                  </Avatar>
+                  <RadioButtonGroup.ItemContent className="flex-1">
+                    <Label className="font-semibold">{c.name}</Label>
+                    <Description className="text-xs leading-4">{c.note}</Description>
+                  </RadioButtonGroup.ItemContent>
+                  <RadioButtonGroup.Indicator className="static">
+                    <CircleCheckFill className="size-4 text-accent" />
+                  </RadioButtonGroup.Indicator>
+                </RadioButtonGroup.Item>
+              ))}
+            </RadioButtonGroup>
+            <p className="text-xs leading-4 text-muted">
+              {mateDoc?.first} says yes, then your manager approves. It stays yours until then.
+            </p>
+            <div className="grid grid-cols-[1fr_2fr] gap-[8px]">
+              <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSwapFor(null)}>
+                Cancel
+              </Button>
+              <Button size="lg" fullWidth className="min-h-14" isDisabled={pending || !mateDoc} onPress={sendSwap}>
+                Ask {mateDoc?.first}
+              </Button>
+            </div>
+          </>
+        )}
+      </PhoneSheet>
+
+      <PhoneSheet isOpen={rotationSheet} onOpenChange={setRotationSheet} heading="Ask for a rotation">
+        <RadioButtonGroup
+          aria-label="Rotation"
+          value={rotationId}
+          onChange={setRotationId}
+          className="flex flex-col gap-[8px]"
+        >
+          {choices.rotations.map((r) => (
             <RadioButtonGroup.Item
-              key={c.id}
-              value={c.id}
-              isDisabled={c.busy}
+              key={r.id}
+              value={r.id}
               className="min-h-14 w-full flex-row items-center gap-[12px] px-[14px] py-[10px]"
             >
-              <Avatar size="sm" variant="soft" color="accent">
-                <Avatar.Fallback>{c.initials}</Avatar.Fallback>
-              </Avatar>
               <RadioButtonGroup.ItemContent className="flex-1">
-                <Label className="font-semibold">{c.name}</Label>
-                <Description className="text-xs leading-4">{c.note}</Description>
+                <Label className="font-semibold">{r.name}</Label>
+                <Description className="text-xs leading-4">{r.steps.join(" · ")}</Description>
               </RadioButtonGroup.ItemContent>
               <RadioButtonGroup.Indicator className="static">
                 <CircleCheckFill className="size-4 text-accent" />
@@ -583,19 +800,29 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
             </RadioButtonGroup.Item>
           ))}
         </RadioButtonGroup>
-        <p className="text-xs leading-4 text-muted">
-          {mateDoc?.first} says yes first, then {boss} approves. The shift stays yours until then.
-        </p>
+        <TextField value={rotationFrom} onChange={setRotationFrom} fullWidth className="flex flex-col gap-1">
+          <Label>Start on</Label>
+          <Input type="date" className="min-h-11" />
+        </TextField>
+        <TextField value={rotationNote} onChange={setRotationNote} fullWidth className="flex flex-col gap-1">
+          <Label>Note (optional)</Label>
+          <TextArea rows={2} />
+        </TextField>
         <div className="grid grid-cols-[1fr_2fr] gap-[8px]">
-          <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSwapFor(null)}>
+          <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setRotationSheet(false)}>
             Cancel
           </Button>
-          <Button size="lg" fullWidth className="min-h-14" onPress={sendSwap}>
-            Ask {mateDoc?.first}
+          <Button
+            size="lg"
+            fullWidth
+            className="min-h-14"
+            isDisabled={pending || !rotationId || !rotationFrom}
+            onPress={sendRotation}
+          >
+            Ask your manager
           </Button>
         </div>
       </PhoneSheet>
-      <PhoneToasts />
     </>
   );
 }

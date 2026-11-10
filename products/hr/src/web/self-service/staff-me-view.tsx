@@ -12,12 +12,14 @@ import {
   CircleQuestion,
   Comment,
   FileText,
-  Fingerprint,
   Hourglass,
   LifeRing,
   Lock,
+  Megaphone,
   PaperPlane,
+  Plus,
   ShieldKeyhole,
+  Star,
   Suitcase,
 } from "@gravity-ui/icons";
 import {
@@ -25,6 +27,7 @@ import {
   Button,
   Card,
   Chip,
+  Input,
   Label,
   TextArea,
   TextField,
@@ -33,26 +36,33 @@ import {
   toast,
 } from "@heroui/react";
 import { ItemCard, ListView, Segment } from "@heroui-pro/react";
-import { formatRwf, Icon, PhoneBody, PhoneTop, StatusDot, toneColor } from "@injishi/ui";
+import { formatRwf, Icon, LinkButton, PhoneBody, PhoneTop, StatusDot, toneColor } from "@injishi/ui";
 import { PhoneSheet, PhoneToasts, renderAsButton, renderSection, ToneTile } from "@injishi/ui/phone";
 import NextLink from "next/link";
-import { type ComponentPropsWithRef, Fragment, useState, useTransition } from "react";
+import { type ComponentPropsWithRef, Fragment, useRef, useState, useTransition } from "react";
 import type { Persona } from "../../model/shared.ts";
 import type {
   HelpTicket,
   HelpTopic,
   LeaveBalance,
+  LeaveType,
   LoanedAsset,
   Payslip,
+  RequestStatus,
+  StaffAnnouncement,
+  StaffClaim,
   StaffDocument,
+  StaffLoan,
+  StaffOwnReview,
   StaffProfile,
   StaffRequest,
+  StaffTone,
 } from "../../model/staff.ts";
-import { useBoardHref, useHrActions } from "../mount.tsx";
+import { useBoardHref, useHrActions, useHrFeature } from "../mount.tsx";
+import { pressKey, reported } from "../reported.ts";
 
-interface StaffMeData {
-  /** The caller's own profile; null when none is on file (never another person's). */
-  profile: StaffProfile | null;
+export interface StaffMeData {
+  profile: StaffProfile;
   payslips: Payslip[];
   balance: LeaveBalance;
   requests: StaffRequest[];
@@ -60,18 +70,34 @@ interface StaffMeData {
   assets: LoanedAsset[];
   tickets: HelpTicket[];
   topics: HelpTopic[];
-  /** The caller's clock-in time today from their attendance record ("07:02"), or null when not clocked in. */
-  clockedInAt: string | null;
+  /** Money the person asked to be paid back. */
+  claims: StaffClaim[];
+  /** The person's loans and advances: read only, HR records them. */
+  loans: StaffLoan[];
+  /** The kinds of leave the person may ask more days of. */
+  leaveTypes: LeaveType[];
+  /** What HR posted that is for this person, newest first. */
+  announcements: StaffAnnouncement[];
+  /** The person's own reviews, the latest cycle first. */
+  reviews: StaffOwnReview[];
 }
+
+/** What a new hire most often hands in; "Other" takes a title of one's own. */
+const USUAL_DOCUMENTS = ["ID copy", "Certificate", "Driving licence", "Other"];
 
 const COPY = {
   en: {
     me: "Me",
     payslips: "Payslips",
     leave: "Leave",
+    clock: "Clock times",
     docs: "My documents",
     assets: "Assets on loan",
     help: "Help desk",
+    news: "From HR",
+    review: "My review",
+    money: "Money back",
+    loans: "Loans and advances",
     lang: "Language",
     signout: "Sign out",
   },
@@ -79,27 +105,34 @@ const COPY = {
     me: "Njye",
     payslips: "Impapuro z’umushahara",
     leave: "Ikiruhuko",
+    clock: "Amasaha yanjye",
     docs: "Inyandiko zanjye",
     assets: "Ibikoresho nahawe",
     help: "Ubufasha",
+    news: "Amatangazo",
+    review: "Isuzuma ryanjye",
+    money: "Gusubizwa amafaranga",
+    loans: "Inguzanyo na avansi",
     lang: "Ururimi",
     signout: "Sohoka",
   },
 };
 
-const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "bio", "0", "del"] as const;
+const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "gap", "0", "del"] as const;
 
-/**
- * Why the payslip lock does not open: no API checks a payslip PIN or a fingerprint for a person, so this phone
- * cannot tell whether a PIN is right. Rather than let any PIN through, the payslips stay locked.
- */
-const PIN_UNAVAILABLE =
-  "Checking a payslip PIN is not available yet, so payslips stay locked on the phone. Ask HR for your payslip.";
+/** A request's answer, as a chip; whatever still waits can be taken back. */
+const ASK_STATUS: Record<RequestStatus, { chip: string; tone: StaffTone; canCancel: boolean }> = {
+  colleague: { chip: "With a colleague", tone: "default", canCancel: true },
+  manager: { chip: "Waiting", tone: "warning", canCancel: true },
+  approved: { chip: "Approved", tone: "success", canCancel: false },
+  declined: { chip: "Declined", tone: "danger", canCancel: false },
+  cancelled: { chip: "Cancelled", tone: "default", canCancel: false },
+};
 
-/** Renders the leave card as a Next link. Its one caller passes the schedule's href, so there is no fallback. */
+/** The leave card's link: the card always passes the schedule's address as `href`. */
 function renderLeaveLink(props: ComponentPropsWithRef<"a">) {
-  const { href = "", ...rest } = props;
-  return <NextLink href={href} {...rest} />;
+  const { href, ...rest } = props;
+  return <NextLink href={href ?? ""} {...rest} />;
 }
 
 function SectionTitle({ id, children }: { id: string; children: string }) {
@@ -114,30 +147,186 @@ function SectionTitle({ id, children }: { id: string; children: string }) {
 export function StaffMeView({
   persona,
   data,
+  initialPayslips = "locked",
 }: {
   persona: Persona;
   data: StaffMeData;
-  /** Ignored: the payslips open only behind a PIN this phone can check, and none can be checked yet. */
   initialPayslips?: "locked" | "unlocked";
 }) {
+  const {
+    checkPayslipPinAction,
+    signOut,
+    askClaimAction,
+    askExtraDaysAction,
+    askFixAction,
+    askHelpAction,
+    cancelClaimAction,
+    cancelRequestAction,
+    handInDocumentAction,
+    replyHelpAction,
+    sendSelfReviewAction,
+  } = useHrActions();
   const screenHref = useBoardHref();
-  const { signOut } = useHrActions();
-  const { profile, payslips, balance, requests, assets, topics } = data;
-  const [unlocked, setUnlocked] = useState(false);
-  const [sheet, setSheet] = useState<"" | "pin" | "help">("");
+  // Features Injishi may switch off for the business: their sections, and the buttons opening them, go.
+  const claimsOn = useHrFeature("claims");
+  const loansOn = useHrFeature("loans");
+  const deskOn = useHrFeature("helpDesk");
+  const newsOn = useHrFeature("announcements");
+  const reviewsOn = useHrFeature("reviews");
+  const assetsOn = useHrFeature("assets");
+  const { profile, payslips, balance, requests, assets, topics, claims, loans, leaveTypes, announcements, reviews } =
+    data;
+  const [unlocked, setUnlocked] = useState(initialPayslips === "unlocked");
+  const [sheet, setSheet] = useState<
+    "" | "pin" | "help" | "reply" | "news" | "review" | "doc" | "claim" | "extra" | "fix"
+  >("");
+  // The announcement being read, the question being answered, the review being written.
+  const [reading, setReading] = useState<StaffAnnouncement | null>(null);
+  const [replyTo, setReplyTo] = useState<HelpTicket | null>(null);
+  const [reviewing, setReviewing] = useState<StaffOwnReview | null>(null);
+  const [words, setWords] = useState("");
+  // Handing in a document: the one HR asked for, or a new one under a title.
+  const [docFor, setDocFor] = useState<StaffDocument | null>(null);
+  const [docTitle, setDocTitle] = useState(USUAL_DOCUMENTS[0] as string);
+  const [otherTitle, setOtherTitle] = useState("");
+  const [picked, setPicked] = useState<File | null>(null);
+  const filePick = useRef<HTMLInputElement>(null);
+  // Money back and extra days.
+  const [amount, setAmount] = useState("");
+  const [what, setWhat] = useState("");
+  const [extraType, setExtraType] = useState(leaveTypes.find((l) => l.usesBalance)?.id ?? leaveTypes[0]?.id ?? "");
+  const [extraDays, setExtraDays] = useState("1");
+  const [extraWhy, setExtraWhy] = useState("");
+  // Asking for a day's clock times to be put right.
+  const [fixDay, setFixDay] = useState("");
+  const [fixIn, setFixIn] = useState("");
+  const [fixOut, setFixOut] = useState("");
+  const [fixWhy, setFixWhy] = useState("");
+  const [sending, startSending] = useTransition();
   const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState(false);
+  const [pinError, setPinError] = useState("");
   const [openSlip, setOpenSlip] = useState<string | null>("sep");
+  const [pdfSaved, setPdfSaved] = useState(false);
   const [lang, setLang] = useState<"en" | "rw">("en");
-  const [topic, setTopic] = useState("uniform");
+  const [topic, setTopic] = useState(topics[0]?.id ?? "pay");
+  const [question, setQuestion] = useState("");
+  const [asking, startAsking] = useTransition();
   const [signingOut, startSignOut] = useTransition();
   const t = COPY[lang];
+
+  /** Open the document sheet: for one HR asked for, or (null) a new one. */
+  const openDoc = (d: StaffDocument | null) => {
+    setDocFor(d);
+    setDocTitle(USUAL_DOCUMENTS[0] as string);
+    setOtherTitle("");
+    setPicked(null);
+    setSheet("doc");
+  };
+  const sendDoc = () => {
+    const title = docTitle === "Other" ? otherTitle.trim() : docTitle;
+    const form = new FormData();
+    if (picked) form.append("file", picked);
+    if (docFor) form.append("documentId", docFor.id);
+    else form.append("title", title);
+    startSending(async () => {
+      if (!reported(await handInDocumentAction(form))) return;
+      setSheet("");
+      toast.success(`${docFor?.name ?? title} sent to HR.`);
+    });
+  };
+  const sendClaim = () => {
+    const form = new FormData();
+    form.append("amount", amount);
+    form.append("reason", what);
+    form.append("key", pressKey());
+    if (picked) form.append("receipt", picked);
+    startSending(async () => {
+      if (!reported(await askClaimAction(form))) return;
+      setSheet("");
+      toast.success("Sent for approval. Once approved it comes with your pay.");
+    });
+  };
+  const sendExtra = () =>
+    startSending(async () => {
+      const days = Number(extraDays.replace(",", "."));
+      if (!reported(await askExtraDaysAction({ leaveTypeId: extraType, days, reason: extraWhy }))) return;
+      setSheet("");
+      toast.success("Sent. Nothing is added until approved.");
+    });
+  const sendFix = () =>
+    startSending(async () => {
+      if (!reported(await askFixAction({ workDate: fixDay, inAt: fixIn, outAt: fixOut, reason: fixWhy }))) return;
+      setSheet("");
+      toast.success("Sent. Your hours change only when it is approved.");
+    });
+  /** What the person asked for and the answer: extra days under leave, corrections under clock times. */
+  const askList = (label: string, asks: StaffRequest[]) => (
+    <ListView aria-label={label} items={asks} className="shrink-0">
+      {(q) => {
+        const s = ASK_STATUS[q.status];
+        return (
+          <ListView.Item id={q.id} textValue={q.title} className="min-h-14">
+            <ListView.ItemContent>
+              <div className="flex min-w-0 flex-col">
+                <ListView.Title className="whitespace-normal">{q.title}</ListView.Title>
+                <ListView.Description className="whitespace-normal">
+                  {[q.sub, q.steps].filter(Boolean).join(" · ")}
+                </ListView.Description>
+              </div>
+            </ListView.ItemContent>
+            <ListView.ItemAction>
+              {s.canCancel ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="min-h-11"
+                  isDisabled={sending}
+                  onPress={() =>
+                    startSending(async () => {
+                      if (reported(await cancelRequestAction(q.id))) toast.success("Taken back.");
+                    })
+                  }
+                >
+                  Take back
+                </Button>
+              ) : null}
+              <Chip size="sm" variant="soft" color={toneColor(s.tone)}>
+                {s.chip}
+              </Chip>
+            </ListView.ItemAction>
+          </ListView.Item>
+        );
+      }}
+    </ListView>
+  );
+  /** The phone's own file picker: a photo from the camera, or a file already on the phone. */
+  const photoField = (label: string) => (
+    <>
+      <input
+        ref={filePick}
+        type="file"
+        accept="image/*,application/pdf"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={(e) => {
+          setPicked(e.target.files?.[0] ?? null);
+          e.target.value = "";
+        }}
+      />
+      <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => filePick.current?.click()}>
+        <Camera className="size-4" />
+        {picked ? `${picked.name} · change` : label}
+      </Button>
+    </>
+  );
 
   const pending = payslips.find((p) => p.status === "pending");
   const available = payslips.filter((p) => p.status === "available");
   const cur = available.find((p) => p.id === openSlip);
   const asked = requests.filter((q) => q.status === "manager").reduce((a, q) => a + q.days, 0);
-  const topicDoc = topics.find((x) => x.id === topic) ?? topics[0];
+  const extraAsks = requests.filter((q) => q.id.startsWith("extra:"));
+  const clockFixes = requests.filter((q) => q.id.startsWith("fix:"));
 
   const documents: StaffDocument[] = data.documents;
   const tickets: HelpTicket[] = data.tickets;
@@ -146,34 +335,37 @@ export function StaffMeView({
     const next = (pin + d).slice(0, 4);
     if (next.length < 4) {
       setPin(next);
-      setPinError(false);
+      setPinError("");
       return;
     }
-    // A full PIN cannot be checked against anything, so it opens nothing.
     setPin("");
-    setPinError(true);
+    startSending(async () => {
+      const result = await checkPayslipPinAction(next);
+      if (result.ok) {
+        setPinError("");
+        setUnlocked(true);
+        setSheet("");
+      } else setPinError(result.error);
+    });
   };
 
   const closeSheet = () => {
     setSheet("");
     setPin("");
+    setReplyTo(null);
   };
 
   return (
     <>
+      <PhoneToasts />
       <PhoneTop>
         <h1 className="flex-1 text-[22px] leading-7 font-semibold">{t.me}</h1>
-        {data.clockedInAt ? (
+        {profile.clockedInAt ? (
           <Chip color="success" variant="soft">
             <StatusDot tone="success" />
-            <Chip.Label>In since {data.clockedInAt}</Chip.Label>
+            <Chip.Label>In since {profile.clockedInAt}</Chip.Label>
           </Chip>
-        ) : (
-          <Chip variant="soft">
-            <StatusDot tone="default" />
-            <Chip.Label>Not clocked in</Chip.Label>
-          </Chip>
-        )}
+        ) : null}
       </PhoneTop>
 
       <PhoneBody>
@@ -184,16 +376,53 @@ export function StaffMeView({
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="text-base leading-[22px] font-semibold">{persona.name}</span>
             <span className="text-[13px] leading-[18px] text-muted">
-              {[persona.role, profile?.workplace].filter(Boolean).join(" · ")}
+              {persona.role} · {profile.workplace}
             </span>
-            {/* From the caller's own HR file; what it does not carry is said to be not on file. */}
             <span className="text-xs leading-4 text-muted tabular">
-              {`${profile?.staffNo ? `Staff no. ${profile.staffNo}` : "Staff number not on file"} · ${
-                profile?.since ? `since ${profile.since}` : "start date not on file"
-              }`}
+              Staff no. {profile.staffNo}
+              {profile.since ? ` · since ${profile.since}` : ""}
             </span>
           </div>
         </Card>
+
+        {newsOn && announcements.length > 0 ? (
+          <section className="flex flex-col gap-[8px]" aria-labelledby="news-h">
+            <SectionTitle id="news-h">{t.news}</SectionTitle>
+            <ListView
+              aria-label={t.news}
+              items={announcements.slice(0, 5)}
+              className="shrink-0"
+              onAction={(key) => {
+                setReading(announcements.find((a) => a.id === String(key)) ?? null);
+                setSheet("news");
+              }}
+            >
+              {(a) => (
+                <ListView.Item id={a.id} textValue={a.title} className="min-h-14">
+                  <ListView.ItemContent>
+                    <Megaphone className="size-4 shrink-0" aria-hidden="true" />
+                    <div className="flex min-w-0 flex-col">
+                      <ListView.Title className="whitespace-normal">{a.title}</ListView.Title>
+                      <ListView.Description>{a.meta}</ListView.Description>
+                    </div>
+                  </ListView.ItemContent>
+                  <ListView.ItemAction>
+                    <ChevronRight className="size-4 text-muted" aria-hidden="true" />
+                  </ListView.ItemAction>
+                </ListView.Item>
+              )}
+            </ListView>
+          </section>
+        ) : null}
+
+        <div className="grid grid-cols-2 gap-[8px]">
+          <LinkButton href="/clock" variant="secondary" className="min-h-12 w-full">
+            Clock in or out
+          </LinkButton>
+          <LinkButton href="/me" variant="secondary" className="min-h-12 w-full">
+            All my HR
+          </LinkButton>
+        </div>
 
         <section className="flex flex-col gap-[8px]" aria-labelledby="pay-h">
           <div className="flex min-h-11 items-center justify-between">
@@ -218,7 +447,7 @@ export function StaffMeView({
               onClick={() => {
                 setSheet("pin");
                 setPin("");
-                setPinError(false);
+                setPinError("");
               }}
               className="min-h-16 w-full cursor-pointer text-left"
             >
@@ -228,7 +457,7 @@ export function StaffMeView({
               <ItemCard.Content>
                 <ItemCard.Title>Payslips are locked</ItemCard.Title>
                 <ItemCard.Description className="whitespace-normal">
-                  Enter your PIN to see your pay. It locks again when you leave.
+                  Enter your PIN to see your pay.
                 </ItemCard.Description>
               </ItemCard.Content>
               <ItemCard.Action>
@@ -269,7 +498,8 @@ export function StaffMeView({
                       <div className="flex min-w-0 flex-col">
                         <ListView.Title>{p.month}</ListView.Title>
                         <ListView.Description className="tabular">
-                          Net {formatRwf(p.net ?? 0)} · paid {p.paid}
+                          Net {formatRwf(p.net ?? 0)}
+                          {p.paid ? ` · paid ${p.paid}` : " · payment on its way"}
                         </ListView.Description>
                       </div>
                     </ListView.ItemContent>
@@ -292,7 +522,7 @@ export function StaffMeView({
                     <h3 id="slip-h" className="text-[15px] leading-[22px] font-semibold">
                       {cur.month} payslip
                     </h3>
-                    <span className="text-xs leading-4 text-muted">{cur.employer}</span>
+                    {cur.employer ? <span className="text-xs leading-4 text-muted">{cur.employer}</span> : null}
                   </div>
                   <dl className="flex flex-col gap-[6px]">
                     {cur.lines.map((l) => {
@@ -315,40 +545,58 @@ export function StaffMeView({
                       );
                     })}
                   </dl>
-                  <p className="flex items-start gap-[8px] text-xs leading-4 text-muted">
-                    <CircleCheck className="mt-[1px] size-4 shrink-0" aria-hidden="true" />
-                    <span>
-                      Paid {cur.paid} to {cur.payTo} · ref {cur.ref}
-                    </span>
-                  </p>
-                  <p className="text-xs leading-4 text-muted">
-                    {cur.rules}. Run confirmed by {cur.confirmedBy} on {cur.confirmed}.
-                  </p>
-                  <div className="grid grid-cols-2 gap-[8px]">
+                  {cur.paid ? (
+                    <p className="flex items-start gap-[8px] text-xs leading-4 text-muted">
+                      <CircleCheck className="mt-[1px] size-4 shrink-0" aria-hidden="true" />
+                      <span>
+                        Paid {cur.paid}
+                        {cur.payTo ? ` to ${cur.payTo}` : ""}
+                        {cur.ref ? ` · ref ${cur.ref}` : ""}
+                      </span>
+                    </p>
+                  ) : null}
+                  {cur.confirmedBy ? (
+                    <p className="text-xs leading-4 text-muted">
+                      {cur.rules}. Run confirmed by {cur.confirmedBy} on {cur.confirmed}.
+                    </p>
+                  ) : null}
+                  <div className={deskOn ? "grid grid-cols-2 gap-[8px]" : "grid gap-[8px]"}>
                     <Button
                       variant="secondary"
                       size="lg"
                       fullWidth
                       className="min-h-12"
-                      onPress={() => toast.warning("Saving a payslip PDF on the phone is not available yet.")}
+                      onPress={() => {
+                        // A payslip from the person's own file downloads the PDF the API drew.
+                        if (cur.pdfHref) window.location.assign(cur.pdfHref);
+                        else setPdfSaved(true);
+                      }}
                     >
                       <ArrowDownToLine className="size-4" />
                       Save PDF
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="lg"
-                      fullWidth
-                      className="min-h-12"
-                      onPress={() => {
-                        setTopic("pay");
-                        setSheet("help");
-                      }}
-                    >
-                      <CircleQuestion className="size-4" />
-                      Ask about it
-                    </Button>
+                    {deskOn ? (
+                      <Button
+                        variant="ghost"
+                        size="lg"
+                        fullWidth
+                        className="min-h-12"
+                        onPress={() => {
+                          setTopic("pay");
+                          setQuestion("");
+                          setSheet("help");
+                        }}
+                      >
+                        <CircleQuestion className="size-4" />
+                        Ask about it
+                      </Button>
+                    ) : null}
                   </div>
+                  {pdfSaved ? (
+                    <p role="status" className="text-xs leading-4 text-muted">
+                      Saved to this phone. Opens with your PIN.
+                    </p>
+                  ) : null}
                 </Card>
               ) : null}
             </>
@@ -371,16 +619,52 @@ export function StaffMeView({
               <ChevronRight className="size-4 text-muted" />
             </ItemCard.Action>
           </ItemCard>
+          {leaveTypes.length > 0 ? (
+            <Button
+              variant="ghost"
+              className="min-h-11 self-start"
+              onPress={() => {
+                setExtraDays("1");
+                setExtraWhy("");
+                setSheet("extra");
+              }}
+            >
+              <Plus className="size-4" />
+              Ask for extra days
+            </Button>
+          ) : null}
+          {extraAsks.length > 0 ? askList("Extra days asked for", extraAsks) : null}
+        </section>
+
+        <section className="flex flex-col gap-[8px]" aria-labelledby="ck-h">
+          <div className="flex min-h-11 items-center justify-between">
+            <SectionTitle id="ck-h">{t.clock}</SectionTitle>
+            <Button
+              variant="ghost"
+              className="min-h-11"
+              onPress={() => {
+                setFixDay("");
+                setFixIn("");
+                setFixOut("");
+                setFixWhy("");
+                setSheet("fix");
+              }}
+            >
+              <Plus className="size-4" />
+              Ask
+            </Button>
+          </div>
+          {clockFixes.length === 0 ? (
+            <p className="text-xs leading-4 text-muted">Forgot to clock, or a time is wrong? Ask HR to put it right.</p>
+          ) : (
+            askList(t.clock, clockFixes)
+          )}
         </section>
 
         <section className="flex flex-col gap-[8px]" aria-labelledby="doc-h">
           <div className="flex min-h-11 items-center justify-between">
             <SectionTitle id="doc-h">{t.docs}</SectionTitle>
-            <Button
-              variant="ghost"
-              className="min-h-11"
-              onPress={() => toast.warning("Documents cannot be sent from the phone yet. Hand the paper to HR.")}
-            >
+            <Button variant="ghost" className="min-h-11" onPress={() => openDoc(null)}>
               <Camera className="size-4" />
               Add
             </Button>
@@ -396,6 +680,12 @@ export function StaffMeView({
                   </div>
                 </ListView.ItemContent>
                 <ListView.ItemAction>
+                  {d.canSend ? (
+                    <Button size="sm" variant="secondary" className="min-h-11" onPress={() => openDoc(d)}>
+                      <Camera className="size-4" />
+                      Send
+                    </Button>
+                  ) : null}
                   <Chip size="sm" variant="soft" color={toneColor(d.tone)}>
                     {d.chip}
                   </Chip>
@@ -406,53 +696,231 @@ export function StaffMeView({
           <p className="text-xs leading-4 text-muted">Only you and HR can see these.</p>
         </section>
 
-        <section className="flex flex-col gap-[8px]" aria-labelledby="as-h">
-          <SectionTitle id="as-h">{t.assets}</SectionTitle>
-          <ListView aria-label={t.assets} items={assets} className="shrink-0">
-            {(a) => (
-              <ListView.Item id={a.id} textValue={a.name} className="min-h-14">
-                <ListView.ItemContent>
-                  <Icon name={a.icon} className="size-4 shrink-0" />
-                  <div className="flex min-w-0 flex-col">
-                    <ListView.Title>{a.name}</ListView.Title>
-                    <ListView.Description>{a.meta}</ListView.Description>
-                  </div>
-                </ListView.ItemContent>
-                <ListView.ItemAction>
-                  <Chip size="sm" variant="soft" color={toneColor(a.tone)}>
-                    {a.chip}
-                  </Chip>
-                </ListView.ItemAction>
-              </ListView.Item>
+        {claimsOn ? (
+          <section className="flex flex-col gap-[8px]" aria-labelledby="mb-h">
+            <div className="flex min-h-11 items-center justify-between">
+              <SectionTitle id="mb-h">{t.money}</SectionTitle>
+              <Button
+                variant="ghost"
+                className="min-h-11"
+                onPress={() => {
+                  setAmount("");
+                  setWhat("");
+                  setPicked(null);
+                  setSheet("claim");
+                }}
+              >
+                <Plus className="size-4" />
+                Ask
+              </Button>
+            </div>
+            {claims.length === 0 ? (
+              <p className="text-xs leading-4 text-muted">
+                Paid for something at work? Ask for it back. It comes with your pay.
+              </p>
+            ) : (
+              <ListView aria-label={t.money} items={claims} className="shrink-0">
+                {(c) => (
+                  <ListView.Item id={c.id} textValue={c.title} className="min-h-14">
+                    <ListView.ItemContent>
+                      <Icon name="Receipt" className="size-4 shrink-0" />
+                      <div className="flex min-w-0 flex-col">
+                        <ListView.Title>{c.title}</ListView.Title>
+                        <ListView.Description>{c.meta}</ListView.Description>
+                      </div>
+                    </ListView.ItemContent>
+                    <ListView.ItemAction>
+                      {c.canCancel ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="min-h-11"
+                          isDisabled={sending}
+                          onPress={() =>
+                            startSending(async () => {
+                              if (reported(await cancelClaimAction(c.id))) toast.success("Taken back.");
+                            })
+                          }
+                        >
+                          Take back
+                        </Button>
+                      ) : null}
+                      <Chip size="sm" variant="soft" color={toneColor(c.tone)}>
+                        {c.chip}
+                      </Chip>
+                    </ListView.ItemAction>
+                  </ListView.Item>
+                )}
+              </ListView>
             )}
-          </ListView>
-        </section>
+          </section>
+        ) : null}
 
-        <section className="flex flex-col gap-[8px]" aria-labelledby="hd-h">
-          <SectionTitle id="hd-h">{t.help}</SectionTitle>
-          <ListView aria-label={t.help} items={tickets} className="shrink-0">
-            {(k) => (
-              <ListView.Item id={k.id} textValue={k.title} className="min-h-14">
-                <ListView.ItemContent>
-                  <LifeRing className="size-4 shrink-0" aria-hidden="true" />
-                  <div className="flex min-w-0 flex-col">
-                    <ListView.Title>{k.title}</ListView.Title>
-                    <ListView.Description className="tabular">{k.meta}</ListView.Description>
-                  </div>
-                </ListView.ItemContent>
-                <ListView.ItemAction>
-                  <Chip size="sm" variant="soft" color={toneColor(k.tone)}>
-                    {k.chip}
-                  </Chip>
-                </ListView.ItemAction>
-              </ListView.Item>
+        {loansOn ? (
+          <section className="flex flex-col gap-[8px]" aria-labelledby="ln-h">
+            <div className="flex min-h-11 items-center justify-between">
+              <SectionTitle id="ln-h">{t.loans}</SectionTitle>
+              {deskOn ? (
+                <Button
+                  variant="ghost"
+                  className="min-h-11"
+                  onPress={() => {
+                    // An advance is asked through the help desk: HR reads it under Pay and records it if it is agreed.
+                    setTopic("pay");
+                    setQuestion("I would like a salary advance of RWF ");
+                    setSheet("help");
+                  }}
+                >
+                  <Plus className="size-4" />
+                  Ask for an advance
+                </Button>
+              ) : null}
+            </div>
+            {loans.length === 0 ? (
+              <p className="text-xs leading-4 text-muted">You have no loan or advance.</p>
+            ) : (
+              <ListView aria-label={t.loans} items={loans} className="shrink-0">
+                {(l) => (
+                  <ListView.Item id={l.id} textValue={l.title} className="min-h-14">
+                    <ListView.ItemContent>
+                      <Icon name="Wallet" className="size-4 shrink-0" />
+                      <div className="flex min-w-0 flex-col">
+                        <ListView.Title>{l.title}</ListView.Title>
+                        <ListView.Description>{l.meta}</ListView.Description>
+                      </div>
+                    </ListView.ItemContent>
+                    <ListView.ItemAction>
+                      <Chip size="sm" variant="soft" color={toneColor(l.tone)}>
+                        {l.chip}
+                      </Chip>
+                    </ListView.ItemAction>
+                  </ListView.Item>
+                )}
+              </ListView>
             )}
-          </ListView>
-          <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSheet("help")}>
-            <Comment className="size-4" />
-            Ask HR or IT
-          </Button>
-        </section>
+          </section>
+        ) : null}
+
+        {assetsOn ? (
+          <section className="flex flex-col gap-[8px]" aria-labelledby="as-h">
+            <SectionTitle id="as-h">{t.assets}</SectionTitle>
+            <ListView aria-label={t.assets} items={assets} className="shrink-0">
+              {(a) => (
+                <ListView.Item id={a.id} textValue={a.name} className="min-h-14">
+                  <ListView.ItemContent>
+                    <Icon name={a.icon} className="size-4 shrink-0" />
+                    <div className="flex min-w-0 flex-col">
+                      <ListView.Title>{a.name}</ListView.Title>
+                      <ListView.Description>{a.meta}</ListView.Description>
+                    </div>
+                  </ListView.ItemContent>
+                  <ListView.ItemAction>
+                    <Chip size="sm" variant="soft" color={toneColor(a.tone)}>
+                      {a.chip}
+                    </Chip>
+                  </ListView.ItemAction>
+                </ListView.Item>
+              )}
+            </ListView>
+          </section>
+        ) : null}
+
+        {deskOn ? (
+          <section className="flex flex-col gap-[8px]" aria-labelledby="hd-h">
+            <SectionTitle id="hd-h">{t.help}</SectionTitle>
+            <ListView aria-label={t.help} items={tickets} className="shrink-0">
+              {(k) => (
+                <ListView.Item id={k.id} textValue={k.title} className="min-h-14">
+                  <ListView.ItemContent>
+                    <LifeRing className="size-4 shrink-0" aria-hidden="true" />
+                    <div className="flex min-w-0 flex-col">
+                      <ListView.Title>{k.title}</ListView.Title>
+                      {k.answer ? (
+                        <span className="mt-1 rounded-lg bg-surface-secondary px-2.5 py-1.5 text-[13px] leading-[18px] whitespace-normal">
+                          {k.answer}
+                        </span>
+                      ) : null}
+                      <ListView.Description className="tabular">{k.meta}</ListView.Description>
+                    </div>
+                  </ListView.ItemContent>
+                  <ListView.ItemAction className="flex flex-col items-end gap-1">
+                    <Chip size="sm" variant="soft" color={toneColor(k.tone)}>
+                      {k.chip}
+                    </Chip>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="min-h-11"
+                      onPress={() => {
+                        setReplyTo(k);
+                        setWords("");
+                        setSheet("reply");
+                      }}
+                    >
+                      Reply
+                    </Button>
+                  </ListView.ItemAction>
+                </ListView.Item>
+              )}
+            </ListView>
+            <Button
+              variant="secondary"
+              size="lg"
+              fullWidth
+              className="min-h-14"
+              onPress={() => {
+                setQuestion("");
+                setSheet("help");
+              }}
+            >
+              <Comment className="size-4" />
+              Ask HR or IT
+            </Button>
+          </section>
+        ) : null}
+
+        {reviewsOn && reviews.length > 0 ? (
+          <section className="flex flex-col gap-[8px]" aria-labelledby="rv-h">
+            <SectionTitle id="rv-h">{t.review}</SectionTitle>
+            <ListView aria-label={t.review} items={reviews.slice(0, 3)} className="shrink-0">
+              {(r) => (
+                <ListView.Item id={r.id} textValue={r.title} className="min-h-14">
+                  <ListView.ItemContent>
+                    <Star className="size-4 shrink-0" aria-hidden="true" />
+                    <div className="flex min-w-0 flex-col">
+                      <ListView.Title className="whitespace-normal">{r.title}</ListView.Title>
+                      {r.note ? (
+                        <span className="mt-1 rounded-lg bg-surface-secondary px-2.5 py-1.5 text-[13px] leading-[18px] whitespace-normal">
+                          {r.note}
+                        </span>
+                      ) : null}
+                      <ListView.Description>{r.meta}</ListView.Description>
+                    </div>
+                  </ListView.ItemContent>
+                  <ListView.ItemAction className="flex flex-col items-end gap-1">
+                    <Chip size="sm" variant="soft" color={toneColor(r.tone)}>
+                      {r.chip}
+                    </Chip>
+                    {r.canWrite ? (
+                      <Button
+                        size="sm"
+                        variant={r.note ? "ghost" : "secondary"}
+                        className="min-h-11"
+                        onPress={() => {
+                          setReviewing(r);
+                          setWords(r.note ?? "");
+                          setSheet("review");
+                        }}
+                      >
+                        {r.note ? "Change" : "Write"}
+                      </Button>
+                    ) : null}
+                  </ListView.ItemAction>
+                </ListView.Item>
+              )}
+            </ListView>
+          </section>
+        ) : null}
 
         <section className="flex flex-col gap-[8px]" aria-labelledby="lang-h">
           <SectionTitle id="lang-h">{t.lang}</SectionTitle>
@@ -484,7 +952,7 @@ export function StaffMeView({
           <ArrowRightFromSquare className="size-4" />
           {t.signout}
         </Button>
-        <p className="text-center text-xs leading-4 text-muted">Shared phone? Sign out at the end of every shift.</p>
+        <p className="text-center text-xs leading-4 text-muted">Shared phone? Sign out after every shift.</p>
       </PhoneBody>
 
       <PhoneSheet
@@ -497,7 +965,7 @@ export function StaffMeView({
           </ToneTile>
         }
         heading="Enter your PIN"
-        description="Payslips show your salary, so we check it is you."
+        description="To see your payslips."
       >
         <div
           role="img"
@@ -514,25 +982,15 @@ export function StaffMeView({
           ))}
         </div>
         {pinError ? (
-          <p role="alert" className="text-center text-[13px] text-warning-soft-foreground">
-            {PIN_UNAVAILABLE}
+          <p role="alert" className="text-[13px] text-danger-soft-foreground">
+            {pinError}
           </p>
         ) : null}
         <div className="grid w-full grid-cols-3 gap-[8px]">
           {KEYS.map((k) => (
             <Fragment key={k}>
-              {k === "bio" ? (
-                <Button
-                  variant="ghost"
-                  aria-label="Use fingerprint"
-                  className="h-14 w-full"
-                  onPress={() => {
-                    setPin("");
-                    setPinError(true);
-                  }}
-                >
-                  <Fingerprint className="size-5" />
-                </Button>
+              {k === "gap" ? (
+                <span aria-hidden="true" />
               ) : k === "del" ? (
                 <Button
                   variant="ghost"
@@ -567,7 +1025,7 @@ export function StaffMeView({
         isOpen={sheet === "help"}
         onOpenChange={(o) => !o && closeSheet()}
         heading="Ask HR or IT"
-        description="Sending a question from the phone is not available yet. Ask HR in person."
+        description="HR answers here, usually within a day."
       >
         <ToggleButtonGroup
           aria-label="Topic"
@@ -587,7 +1045,7 @@ export function StaffMeView({
             </ToggleButton>
           ))}
         </ToggleButtonGroup>
-        <TextField key={topic} defaultValue={topicDoc.draft} fullWidth className="flex flex-col gap-1">
+        <TextField value={question} onChange={setQuestion} fullWidth className="flex flex-col gap-1">
           <Label>Your question</Label>
           <TextArea rows={3} />
         </TextField>
@@ -599,17 +1057,285 @@ export function StaffMeView({
             size="lg"
             fullWidth
             className="min-h-14"
-            onPress={() => {
-              setSheet("");
-              toast.warning("Questions cannot be sent to HR or IT from the phone yet. Ask HR in person.");
-            }}
+            isPending={asking}
+            isDisabled={!question.trim()}
+            onPress={() =>
+              startAsking(async () => {
+                const r = await askHelpAction(topic, question);
+                if (!r.ok) {
+                  toast.danger(r.error);
+                  return;
+                }
+                setSheet("");
+                setQuestion("");
+                toast.success("Sent to HR. The answer shows here.");
+              })
+            }
           >
             <PaperPlane className="size-4" />
             Send
           </Button>
         </div>
       </PhoneSheet>
-      <PhoneToasts />
+
+      <PhoneSheet
+        isOpen={sheet === "reply"}
+        onOpenChange={(o) => !o && setSheet("")}
+        heading="Reply to HR"
+        description={replyTo?.title ?? ""}
+      >
+        {replyTo?.answer ? (
+          <p className="rounded-lg bg-surface-secondary px-2.5 py-1.5 text-[13px] leading-[18px]">{replyTo.answer}</p>
+        ) : null}
+        <TextField value={words} onChange={setWords} fullWidth className="flex flex-col gap-1">
+          <Label>Your reply</Label>
+          <TextArea rows={3} />
+        </TextField>
+        <div className="grid grid-cols-[1fr_2fr] gap-[8px]">
+          <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSheet("")}>
+            Cancel
+          </Button>
+          <Button
+            size="lg"
+            fullWidth
+            className="min-h-14"
+            isPending={sending}
+            isDisabled={words.trim().length < 2}
+            onPress={() =>
+              startSending(async () => {
+                if (!replyTo || !reported(await replyHelpAction(replyTo.id, words))) return;
+                setSheet("");
+                toast.success("Sent to HR.");
+              })
+            }
+          >
+            <PaperPlane className="size-4" />
+            Send
+          </Button>
+        </div>
+      </PhoneSheet>
+
+      <PhoneSheet
+        isOpen={sheet === "news"}
+        onOpenChange={(o) => !o && setSheet("")}
+        heading={reading?.title ?? ""}
+        description={reading?.meta ?? ""}
+      >
+        <p className="text-sm leading-5 whitespace-pre-line">{reading?.body}</p>
+        <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSheet("")}>
+          Close
+        </Button>
+      </PhoneSheet>
+
+      <PhoneSheet
+        isOpen={sheet === "review"}
+        onOpenChange={(o) => !o && setSheet("")}
+        heading="My review"
+        description="HR and your manager read this."
+      >
+        <TextField value={words} onChange={setWords} fullWidth className="flex flex-col gap-1">
+          <Label>What went well, and what you would change</Label>
+          <TextArea rows={4} />
+        </TextField>
+        <div className="grid grid-cols-[1fr_2fr] gap-[8px]">
+          <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSheet("")}>
+            Cancel
+          </Button>
+          <Button
+            size="lg"
+            fullWidth
+            className="min-h-14"
+            isPending={sending}
+            isDisabled={words.trim().length < 3}
+            onPress={() =>
+              startSending(async () => {
+                if (!reviewing || !reported(await sendSelfReviewAction(reviewing.id, words))) return;
+                setSheet("");
+                toast.success("Your review is sent.");
+              })
+            }
+          >
+            <PaperPlane className="size-4" />
+            Send
+          </Button>
+        </div>
+      </PhoneSheet>
+
+      <PhoneSheet
+        isOpen={sheet === "doc"}
+        onOpenChange={(o) => !o && setSheet("")}
+        heading={docFor ? `Send ${docFor.name}` : "Hand in a document"}
+        description="Clear photo or PDF, up to 10 MB. HR checks it first."
+      >
+        {docFor ? null : (
+          <ToggleButtonGroup
+            aria-label="What it is"
+            selectionMode="single"
+            disallowEmptySelection
+            isDetached
+            selectedKeys={[docTitle]}
+            onSelectionChange={(keys) => {
+              const k = [...keys][0];
+              if (k) setDocTitle(String(k));
+            }}
+            className="flex-wrap justify-start gap-[6px]"
+          >
+            {USUAL_DOCUMENTS.map((name) => (
+              <ToggleButton key={name} id={name} className="h-11">
+                {name}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        )}
+        {!docFor && docTitle === "Other" ? (
+          <TextField value={otherTitle} onChange={setOtherTitle} fullWidth className="flex flex-col gap-1">
+            <Label>What it is</Label>
+            <Input placeholder="Food handler's certificate" />
+          </TextField>
+        ) : null}
+        {photoField("Take a photo or choose a file")}
+        <div className="grid grid-cols-[1fr_2fr] gap-[8px]">
+          <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSheet("")}>
+            Cancel
+          </Button>
+          <Button
+            size="lg"
+            fullWidth
+            className="min-h-14"
+            isPending={sending}
+            isDisabled={!picked || (!docFor && docTitle === "Other" && otherTitle.trim().length < 2)}
+            onPress={sendDoc}
+          >
+            <PaperPlane className="size-4" />
+            Send
+          </Button>
+        </div>
+      </PhoneSheet>
+
+      <PhoneSheet
+        isOpen={sheet === "claim"}
+        onOpenChange={(o) => !o && setSheet("")}
+        heading="Ask for money back"
+        description="Once approved, it comes with your pay."
+      >
+        <TextField value={amount} onChange={setAmount} fullWidth className="flex flex-col gap-1">
+          <Label>Amount in RWF</Label>
+          <Input inputMode="numeric" placeholder="12000" />
+        </TextField>
+        <TextField value={what} onChange={setWhat} fullWidth className="flex flex-col gap-1">
+          <Label>What it was for</Label>
+          <TextArea rows={2} placeholder="Taxi to the supplier for the laundry order" />
+        </TextField>
+        {photoField("Photo of the receipt (optional)")}
+        <div className="grid grid-cols-[1fr_2fr] gap-[8px]">
+          <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSheet("")}>
+            Cancel
+          </Button>
+          <Button
+            size="lg"
+            fullWidth
+            className="min-h-14"
+            isPending={sending}
+            isDisabled={!amount.trim() || what.trim().length < 3}
+            onPress={sendClaim}
+          >
+            <PaperPlane className="size-4" />
+            Send for approval
+          </Button>
+        </div>
+      </PhoneSheet>
+
+      <PhoneSheet
+        isOpen={sheet === "fix"}
+        onOpenChange={(o) => !o && setSheet("")}
+        heading="Ask to fix a clock time"
+        description="For a wrong time, or a day with no record."
+      >
+        <TextField value={fixDay} onChange={setFixDay} fullWidth className="flex flex-col gap-1">
+          <Label>Which day</Label>
+          <Input type="date" />
+        </TextField>
+        <div className="grid grid-cols-2 gap-[8px]">
+          <TextField value={fixIn} onChange={setFixIn} fullWidth className="flex flex-col gap-1">
+            <Label>Clock in</Label>
+            <Input type="time" />
+          </TextField>
+          <TextField value={fixOut} onChange={setFixOut} fullWidth className="flex flex-col gap-1">
+            <Label>Clock out</Label>
+            <Input type="time" />
+          </TextField>
+        </div>
+        <TextField value={fixWhy} onChange={setFixWhy} fullWidth className="flex flex-col gap-1">
+          <Label>What happened</Label>
+          <TextArea rows={2} placeholder="I forgot to clock out after my shift" />
+        </TextField>
+        <div className="grid grid-cols-[1fr_2fr] gap-[8px]">
+          <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSheet("")}>
+            Cancel
+          </Button>
+          <Button
+            size="lg"
+            fullWidth
+            className="min-h-14"
+            isPending={sending}
+            isDisabled={!fixDay || !fixIn || !fixOut || fixWhy.trim().length < 3}
+            onPress={sendFix}
+          >
+            <PaperPlane className="size-4" />
+            Ask
+          </Button>
+        </div>
+      </PhoneSheet>
+
+      <PhoneSheet
+        isOpen={sheet === "extra"}
+        onOpenChange={(o) => !o && setSheet("")}
+        heading="Ask for extra days"
+        description="Days on top of your leave. Nothing is added until approved."
+      >
+        <ToggleButtonGroup
+          aria-label="Kind of leave"
+          selectionMode="single"
+          disallowEmptySelection
+          isDetached
+          selectedKeys={[extraType]}
+          onSelectionChange={(keys) => {
+            const k = [...keys][0];
+            if (k) setExtraType(String(k));
+          }}
+          className="flex-wrap justify-start gap-[6px]"
+        >
+          {leaveTypes.map((l) => (
+            <ToggleButton key={l.id} id={l.id} className="h-11">
+              {l.label}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+        <TextField value={extraDays} onChange={setExtraDays} fullWidth className="flex flex-col gap-1">
+          <Label>How many days</Label>
+          <Input inputMode="decimal" />
+        </TextField>
+        <TextField value={extraWhy} onChange={setExtraWhy} fullWidth className="flex flex-col gap-1">
+          <Label>Why</Label>
+          <TextArea rows={2} placeholder="I worked the Easter weekend for the wedding" />
+        </TextField>
+        <div className="grid grid-cols-[1fr_2fr] gap-[8px]">
+          <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSheet("")}>
+            Cancel
+          </Button>
+          <Button
+            size="lg"
+            fullWidth
+            className="min-h-14"
+            isPending={sending}
+            isDisabled={!extraType || !extraDays.trim() || extraWhy.trim().length < 3}
+            onPress={sendExtra}
+          >
+            <PaperPlane className="size-4" />
+            Ask
+          </Button>
+        </div>
+      </PhoneSheet>
     </>
   );
 }

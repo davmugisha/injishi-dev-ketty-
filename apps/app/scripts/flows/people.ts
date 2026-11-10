@@ -225,7 +225,11 @@ export const flows: Flow[] = [
         "Damascene is still absent",
       );
       const desk = await read<DeskEmployee>(after, "people.deskEmployees");
-      check(!desk.some((d) => d.name === "Damascene Tuyisenge"), "Damascene still needs a desk entry");
+      // Desk entry lists everyone on staff: once clocked in he moves from "Needs a record" to "Everyone else".
+      check(
+        !desk.some((d) => d.name === "Damascene Tuyisenge" && d.due !== false),
+        "Damascene still needs a desk entry",
+      );
       step(`desk entry: Damascene in at ${inAt}, no longer absent`);
 
       await refused(409, () => saveDeskEntry(hr, entry), "a second clock-in while one is open");
@@ -253,7 +257,10 @@ export const flows: Flow[] = [
       let now = await read<OffboardingTask>(await as("hr"), "people.offboarding");
       check(now.find((t) => t.id === open.id)?.done === true, `"${open.title}" is not ticked`);
       step(`ticked "${open.title}"`);
-      await refused(409, () => setChecklistStep(hr, open.id, true), "ticking a done step again");
+      // One checklist for HR: ticking what is ticked changes nothing and is not an error.
+      await setChecklistStep(hr, open.id, true);
+      now = await read<OffboardingTask>(await as("hr"), "people.offboarding");
+      check(now.find((t) => t.id === open.id)?.done === true, `a second tick of "${open.title}" undid it`);
       await setChecklistStep(hr, open.id, false);
       now = await read<OffboardingTask>(await as("hr"), "people.offboarding");
       check(now.find((t) => t.id === open.id)?.done === false, `"${open.title}" is still ticked`);

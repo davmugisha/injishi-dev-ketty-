@@ -2,12 +2,14 @@
 
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Badge, Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 
 import { AssistantWidget } from "@/components/assistant/assistant-widget";
+import { LanguageMenu } from "@/components/layout/language-menu";
 
-import { SAVE_STATE_TEXT, type SaveState } from "./register-draft";
+import { type SaveState } from "./register-draft";
 
 /**
  * The frame every registration screen sits in (Register.dc.html, 2026-10-19).
@@ -58,14 +60,17 @@ export function RegisterShell({
   rail?: ReactNode;
   children: ReactNode;
 }) {
+  const t = useTranslations("common");
   const change = onChangeKind ? (
     <Button variant="ghost" size="sm" onClick={onChangeKind}>
-      Change<span className="sr-only"> the business type</span>
+      {t("change")}
+      <span className="sr-only"> {t("changeBusinessType")}</span>
     </Button>
   ) : changeKindHref ? (
     <Button asChild variant="ghost" size="sm">
       <a href={changeKindHref}>
-        Change<span className="sr-only"> the business type</span>
+        {t("change")}
+        <span className="sr-only"> {t("changeBusinessType")}</span>
       </a>
     </Button>
   ) : null;
@@ -74,14 +79,15 @@ export function RegisterShell({
     <>
       <header className="sticky top-0 z-30 border-b border-border bg-background">
         <div className="mx-auto flex max-w-page flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:px-8">
-          <a href="/" aria-label="Injishi, home" className="flex shrink-0 items-center">
+          <a href="/" aria-label={t("home")} className="flex shrink-0 items-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/shared/img/injishi-extended.svg" alt="Injishi" className="h-6 w-auto dark:hidden" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/shared/img/injishi-extended-white.svg" alt="Injishi" className="hidden h-6 w-auto dark:block" />
           </a>
-          {demo ? <Badge variant="subtle" size="sm">Demo data</Badge> : null}
+          {demo ? <Badge variant="subtle" size="sm">{t("demoData")}</Badge> : null}
           <span className="grow" />
+          <LanguageMenu />
           {save ? <SaveStatus {...save} /> : null}
           {!heading && kindLabel ? (
             <span className="flex items-center gap-1">
@@ -140,23 +146,25 @@ function SaveStatus({
   savedAt: string | null;
   onRetry: () => void;
 }) {
+  const t = useTranslations("register");
+  const tc = useTranslations("common");
   const at = savedAt ? new Date(savedAt) : null;
   const when = at && !Number.isNaN(at.getTime()) ? at.toLocaleTimeString("en-GB", KIGALI_CLOCK) : null;
   return (
     <span
       id="register-save-status"
       role="status"
-      title={state === "saved" && when ? `Saved at ${when}` : undefined}
+      title={state === "saved" && when ? t("shell.savedAt", { time: when }) : undefined}
       className={cn(
         "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium",
         state === "failed" ? "bg-destructive/10 text-foreground" : "bg-secondary text-secondary-foreground",
       )}
     >
-      {SAVE_STATE_TEXT[state]}
+      {t(`shell.save.${state}`)}
       {state === "failed" ? (
         // At least 24 px tall: the pill is small, and its one control still has to be easy to hit.
         <Button variant="link" size="sm" onClick={onRetry} className="min-h-6">
-          Retry
+          {tc("retry")}
         </Button>
       ) : null}
     </span>
@@ -195,6 +203,7 @@ export function StepFrame({
   primary: StepPrimary | null;
   children: ReactNode;
 }) {
+  const t = useTranslations("common");
   return (
     <section
       aria-labelledby="register-step-title"
@@ -202,7 +211,7 @@ export function StepFrame({
     >
       <div className="flex flex-col gap-1.5">
         <span id="register-step-position" className="text-sm font-semibold md:hidden">
-          Step {position.n} of {position.of} · {title}
+          {t("stepOf", { n: position.n, of: position.of, title })}
         </span>
         <span aria-hidden className="grid gap-1 md:hidden" style={{ gridTemplateColumns: `repeat(${position.of}, minmax(0, 1fr))` }}>
           {Array.from({ length: position.of }, (_, i) => (
@@ -228,7 +237,7 @@ export function StepFrame({
         ) : null}
         <Button variant="ghost" onClick={onBack ?? undefined} disabled={onBack === null} className="md:order-1">
           <ArrowLeft size={16} aria-hidden />
-          Back
+          {t("back")}
         </Button>
         {primary ? (
           <Button
@@ -332,10 +341,11 @@ export function StepCard({
 
 /** A quiet placeholder while the account or the registration is read. */
 export function StepSkeleton() {
+  const t = useTranslations("common");
   return (
     <div
       aria-busy="true"
-      aria-label="Loading your registration"
+      aria-label={t("loadingRegistration")}
       className="flex flex-col gap-5 rounded-card border border-border bg-card p-5 sm:p-7"
     >
       <span className="h-7 w-1/2 animate-pulse rounded bg-secondary" />

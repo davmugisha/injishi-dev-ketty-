@@ -65,7 +65,14 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 # ADR-034: packages/ is the source of the shared packages (not a vendor mirror).
 COPY packages ./packages
 COPY server/api ./server/api
-RUN pnpm --filter @injishi/api build
+# Emit only (server/api/tsconfig.image.json). A type checked build of the API
+# needs ~2.5 GB of heap, more than the 3.8 GB VPS that builds this image can
+# give it beside the stacks it runs, and #119 tipped every deploy into "heap out
+# of memory". The JavaScript is identical either way; CI type checks every
+# commit (`ci: typecheck`, and `ci: build api` runs the full `nest build`).
+# The emit alone peaks near 1.7 GB, so the heap ceiling is lifted to 2.5 GB to
+# keep the collector from thrashing at Node's ~2 GB default on that host.
+RUN NODE_OPTIONS=--max-old-space-size=2560 pnpm --filter @injishi/api build:image
 # Flatten the workspace into a standalone tree with production deps only. This
 # is what keeps @nestjs/cli, typescript and vitest out of the runtime image.
 # `--legacy` is required on pnpm 10 outside inject-workspace-packages mode.

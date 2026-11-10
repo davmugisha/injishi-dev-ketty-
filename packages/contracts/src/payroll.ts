@@ -87,6 +87,8 @@ export const Payslip = z.object({
     paidMethod: z.enum(["bank", "momo", "cash"]).nullable(),
     paidReference: z.string().nullable(),
     sentAt: z.string().nullable(),
+    /** The owner's payslip, read by someone without `team.manage`: every figure is zero and it has no lines. */
+    confidential: z.boolean().optional(),
 });
 export type Payslip = z.infer<typeof Payslip>;
 /** The rule rows a run was computed from, so the figures can be traced. */
@@ -126,6 +128,8 @@ export const PayRunBlocker = z.object({
     displayName: z.string(),
     message: z.string(),
     remedies: z.array(PayRunRemedy).optional(),
+    /** A clock record that stops the month: clocked out or validated, it stops no more. */
+    record: z.object({ id: Uuid, workDate: IsoDate, clockInAt: z.string() }).optional(),
 });
 export type PayRunBlocker = z.infer<typeof PayRunBlocker>;
 export const PayRun = z.object({
@@ -137,6 +141,16 @@ export const PayRun = z.object({
     ruleVersions: z.array(PayRunRuleVersion),
     confirmedAt: z.string().nullable(),
     confirmedByUserId: Uuid.nullable(),
+    /** The name of who confirmed it, or their email when the account has no name. */
+    confirmedByName: z.string().nullable(),
+    /**
+     * Handed to whoever confirms (`POST .../submit`). A submitted draft is
+     * locked until it is confirmed or withdrawn; null while it is prepared.
+     */
+    submittedAt: z.string().nullable(),
+    submittedByName: z.string().nullable(),
+    /** What whoever submitted said to whoever confirms. */
+    submitNote: z.string().nullable(),
     headcount: z.number().int(),
     grossRwf: z.number().int(),
     netRwf: z.number().int(),
@@ -154,3 +168,9 @@ export const PayRunDetail = z.object({
 export type PayRunDetail = z.infer<typeof PayRunDetail>;
 export const CreatePayRunRequest = z.object({ period: PayPeriod });
 export type CreatePayRunRequest = z.infer<typeof CreatePayRunRequest>;
+/** `POST /ops/pay-runs/:id/submit`: hand the draft to whoever confirms, with a word if there is one. */
+export const SubmitPayRunRequest = z.object({ note: z.string().trim().max(500).nullable().optional() });
+export type SubmitPayRunRequest = z.infer<typeof SubmitPayRunRequest>;
+/** `POST /ops/pay-runs/:id/withdraw`: take a submitted draft back to change it; whoever confirms says why. */
+export const WithdrawPayRunRequest = z.object({ reason: z.string().trim().max(500).nullable().optional() });
+export type WithdrawPayRunRequest = z.infer<typeof WithdrawPayRunRequest>;

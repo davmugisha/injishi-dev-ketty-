@@ -95,7 +95,13 @@ export interface PayInput {
   /** Money that is not income (a reimbursement, a loan paid out). */
   passthrough?: readonly PayslipLine[];
   paye: PayeRule;
+  /** The contributions this business pays: the optional ones it chose are already in, the rest left out. */
   rssb: RssbRule;
+  /**
+   * A private health insurer's monthly premium per person, each side's part in whole francs:
+   * taken after PAYE, like a contribution, never a share of pay.
+   */
+  fixedContributions?: readonly { code: string; label: string; employeeRwf: number; employerRwf: number }[];
 }
 
 export interface ComputedPayslip {
@@ -114,7 +120,7 @@ export interface ComputedPayslip {
 }
 
 /** The hours in a working day of a daily or hourly wage, until a contract carries its own (AC-PY2). */
-export const DAY_HOURS = 8;
+const DAY_HOURS = 8;
 
 /** The lines `basic` is made of (AC-PY6): the wages, net of unpaid leave. */
 const BASIC_CODES = new Set(['wage', 'unpaid_leave', 'partly_paid_leave', 'daily_wage', 'hourly_wage', 'paid_leave']);
@@ -176,14 +182,14 @@ export function wageForDays(wageRwf: number, days: number): number {
  * `wage × days × percent / (30 × 100)`, half up: the share of a day's wage a
  * partly paid leave does not pay. Halves and a whole percentage keep it exact.
  */
-export function wageForPartialDays(wageRwf: number, days: number, percent: number): number {
+function wageForPartialDays(wageRwf: number, days: number, percent: number): number {
   if (!Number.isInteger(percent) || percent < 0 || percent > 100) throw new Error(`Cannot take ${percent}% of a day.`);
   const halves = Math.round(days * 2);
   return divide(BigInt(wageRwf) * BigInt(halves) * BigInt(percent), 6000n, 'half_up');
 }
 
 /** `wage × hundredths / 3000`: a monthly wage by its share of the month (AC-PY1). */
-export function wageForShare(wageRwf: number, hundredths: number): number {
+function wageForShare(wageRwf: number, hundredths: number): number {
   return divide(BigInt(wageRwf) * BigInt(hundredths), 3000n, 'half_up');
 }
 
@@ -253,6 +259,16 @@ function minutesText(minutes: number): string {
   return h === 0 ? `${m} min` : `${h} h ${String(m).padStart(2, '0')}`;
 }
 
+/** "RWF 520,000". */
+function rwfText(n: number): string {
+  return `RWF ${n.toLocaleString('en-US')}`;
+}
+
+/** A share of a month in hundredths of a day: "27", or "27.5" for a part day. */
+function shareText(hundredths: number): string {
+  return String(Math.round(hundredths) / 100);
+}
+
 function daysText(days: number): string {
   return `${days} day${days === 1 ? '' : 's'}`;
 }
@@ -284,7 +300,7 @@ export function computePayslip(input: PayInput): ComputedPayslip {
           code: 'wage',
           label: 'Monthly wage',
           contractId: contract.id,
-          basis: share === 3000 ? `${contract.wageRwf} a month, the full month` : `${contract.wageRwf} a month × ${(share / 100).toFixed(2)}/30`,
+          basis: share === 3000 ? `${rwfText(contract.wageRwf)} a month, the full month` : `${rwfText(contract.wageRwf)} a month × ${shareText(share)}/30 days`,
           amountRwf: wageForShare(contract.wageRwf, share),
           taxable: true,
           contributable: true,
@@ -298,7 +314,7 @@ export function computePayslip(input: PayInput): ComputedPayslip {
           code: 'unpaid_leave',
           label: 'Unpaid leave',
           contractId: contract.id,
-          basis: `${daysText(unpaid)} × ${contract.wageRwf}/30`,
+          basis: `${daysText(unpaid)} × ${rwfText(contract.wageRwf)}/30`,
           amountRwf: -wageForDays(contract.wageRwf, unpaid),
           taxable: true,
           contributable: true,
@@ -316,7 +332,7 @@ export function computePayslip(input: PayInput): ComputedPayslip {
           code: 'partly_paid_leave',
           label: 'Partly paid leave',
           contractId: contract.id,
-          basis: `${daysText(taken)} × ${percent}% unpaid × ${contract.wageRwf}/30`,
+          basis: `${daysText(taken)} × ${percent}% unpaid × ${rwfText(contract.wageRwf)}/30`,
           amountRwf: -wageForPartialDays(contract.wageRwf, taken, percent),
           taxable: true,
           contributable: true,
@@ -452,10 +468,9 @@ export function computePayslip(input: PayInput): ComputedPayslip {
     sum(lines.filter((l) => l.side === 'earning' && l.taxable !== false)) - sum(lines.filter((l) => l.side === 'deduction' && l.beforeTax)),
   );
 
-  // (2) Contributions, each on its own base, the two shares apart.
+  // (2) Contributions, each on its own base, the two shares apart. One on net pay waits for PAYE.
   const contributionRounding = input.rssb.rounding ?? 'half_up';
-  for (const c of input.rssb.contributions) {
-    const raw = c.base === 'gross' ? gross : c.base === 'basic' ? basic : contributable;
+  const contribute = (c: RssbRule['contributions'][number], raw: number): void => {
     const base = c.capRwf !== undefined ? Math.min(raw, c.capRwf) : raw;
     const capNote = c.capRwf !== undefined && raw > c.capRwf ? ` (capped at ${c.capRwf})` : '';
     // A contribution only one side pays (the business alone, for occupational
@@ -481,6 +496,10 @@ export function computePayslip(input: PayInput): ComputedPayslip {
         side: 'employer',
       });
     }
+  };
+  for (const c of input.rssb.contributions) {
+    if (c.base === 'net') continue;
+    contribute(c, c.base === 'gross' ? gross : c.base === 'basic' ? basic : contributable);
   }
   const employeeContributions = sum(lines.filter((l) => l.side === 'employee'));
 
@@ -499,15 +518,29 @@ export function computePayslip(input: PayInput): ComputedPayslip {
     taxable: 'taxable earnings',
     taxable_less_employee_contributions: 'taxable earnings less employee contributions',
   };
+  const payeRwf = payeOn(payeBase, input.paye);
   lines.push({
     code: 'paye',
     label: 'PAYE',
     contractId: null,
     basis: `bands on ${payeBase}, ${baseWords[input.paye.taxableBase]}`,
-    amountRwf: payeOn(payeBase, input.paye),
+    amountRwf: payeRwf,
     side: 'employee',
     taxBase: payeBase,
   });
+
+  // (3b) What is a share of net pay (CBHI): gross less PAYE and the contributions above.
+  const netBase = Math.max(0, gross - employeeContributions - payeRwf);
+  for (const c of input.rssb.contributions) if (c.base === 'net') contribute(c, netBase);
+  // A private insurer's premium: a fixed sum each side, not a share of pay.
+  for (const f of input.fixedContributions ?? []) {
+    if (f.employeeRwf > 0) {
+      lines.push({ code: f.code, label: `${f.label}, employee share`, contractId: null, basis: 'fixed monthly premium', amountRwf: f.employeeRwf, side: 'employee' });
+    }
+    if (f.employerRwf > 0) {
+      lines.push({ code: f.code, label: `${f.label}, employer share`, contractId: null, basis: 'fixed monthly premium', amountRwf: f.employerRwf, side: 'employer' });
+    }
+  }
 
   // (4) Deductions after tax, then loans and deduction adjustments.
   for (const c of deductions.filter((x) => !x.beforeTax)) {
@@ -526,7 +559,7 @@ export function computePayslip(input: PayInput): ComputedPayslip {
  * The amount columns from the lines (AC-Y4, AC-PY6a). Every column is a sum of
  * its lines, so the payslip can never say something its lines do not.
  */
-export function totals(lines: PayslipLine[], contractId: string, payableDays: number): ComputedPayslip {
+function totals(lines: PayslipLine[], contractId: string, payableDays: number): ComputedPayslip {
   const grossRwf = sum(lines.filter((l) => l.side === 'earning'));
   const payeRwf = sum(lines.filter((l) => l.side === 'employee' && l.code === 'paye'));
   const employeeContributionsRwf = sum(lines.filter((l) => l.side === 'employee' && l.code !== 'paye'));

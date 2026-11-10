@@ -23,7 +23,8 @@ import {
 import { assistantConversations } from './assistant';
 import { users } from './auth';
 import { timestamps } from './columns';
-import { adapterModeEnum, adapterNameEnum, adapterStatusEnum, announcementStateEnum, auditSubjectTypeEnum, complianceArtifactTypeEnum, domainKindEnum, dsrRequestTypeEnum, dsrStateEnum, escalationStateEnum, escalationSubjectTypeEnum, escalationTypeEnum, flagScopeEnum, recordDataClassEnum, staffRoleEnum, supportTicketStateEnum, translationStatusEnum } from './enums';
+import { adapterModeEnum, adapterNameEnum, adapterStatusEnum, announcementStateEnum, auditSubjectTypeEnum, complianceArtifactTypeEnum, domainKindEnum, dsrRequestTypeEnum, dsrStateEnum, escalationStateEnum, escalationSubjectTypeEnum, escalationTypeEnum, flagScopeEnum, grantFamilyEnum, recordDataClassEnum, staffRoleEnum, supportTicketStateEnum, translationStatusEnum } from './enums';
+import { orgMemberships } from './org';
 
 export const adminUsers = pgTable('admin_users', {
   userId: uuid('user_id')
@@ -111,6 +112,26 @@ export const auditEvents = pgTable(
     occurredAt: timestamp('occurred_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
+    /*
+     * The access the act was done under (ADR-076 contract section 8), filled by
+     * `AuditWriter` from the request's access context, never by a caller. All
+     * nullable: a family has no such thing for some of them (a staff act names
+     * no membership), and every row written before migration 0134 has none.
+     */
+    /** The member who acted, when there is one, including a member with no account (slice D). */
+    actorMembershipId: uuid('actor_membership_id').references(() => orgMemberships.id),
+    grantFamily: grantFamilyEnum('grant_family'),
+    /** The keys of the roles the actor held where they acted. */
+    roleKeys: text('role_keys').array(),
+    /** The permissions the route was granted on: what it declared, not all the actor holds. */
+    permissions: text('permissions').array(),
+    /** Where the act was allowed, as an array of `RoleScope`. */
+    scope: jsonb('scope'),
+    /** The enrolled device, from slice D on. No table to reference yet. */
+    deviceId: uuid('device_id'),
+    deviceUserSessionId: uuid('device_user_session_id'),
+    /** The supervisor whose override approved this one act (slice D). */
+    overrideByMembershipId: uuid('override_by_membership_id').references(() => orgMemberships.id),
   },
   (t) => [
     index('audit_events_actor_idx').on(t.actorUserId),

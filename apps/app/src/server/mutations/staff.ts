@@ -8,6 +8,7 @@ import { ApiError, ApiUnreachableError, apiBaseUrl, apiOrigin } from "../api";
 import { forgetOperations, readWorkOrders } from "../sources/operations";
 import { forgetStaff, myFile, readPhone } from "../sources/staff";
 import type { SourceContext } from "../sources/types";
+import { askFix as askFixOnFile, MeInputError } from "./me";
 import { advanceHousekeepingTask } from "./platform";
 
 /** A plain-words refusal raised before the API is asked (an unreadable date, an unknown place). */
@@ -312,13 +313,185 @@ export async function askLeave(
   return created.id;
 }
 
-/** "Cancel request": a staff.requests id, `leave:<id>` or `shift:<id>`. */
+/**
+ * "Ask <colleague>": a swap of one day's shift (`POST /me/work/:id/shift-requests`). The colleague
+ * says yes first, then whoever decides (the line manager); the shift stays the person's until then.
+ */
+export async function askSwap(ctx: SourceContext, day: string, colleagueId: string): Promise<string> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new StaffInputError("Pick a shift of this week.");
+  const { employeeId } = await myFile(ctx);
+  const created = await ctx.api.post<{ id: string }>(`/api/v1/me/work/${employeeId}/shift-requests`, {
+    kind: "swap",
+    swapEmployeeId: colleagueId,
+    from: day,
+    to: day,
+    // The sheet asks no reason: the request is the question, and the colleague reads it as one.
+    reason: "Can you take this shift for me?",
+  });
+  forgetStaff(ctx);
+  return created.id;
+}
+
+/** Ask for a different shift on a day, or for a shift on a day off (`POST /me/work/:id/shift-requests`). */
+export async function askShiftChange(
+  ctx: SourceContext,
+  day: string,
+  shiftTemplateId: string,
+  reason: string,
+): Promise<void> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new StaffInputError("Pick a day first.");
+  const { employeeId } = await myFile(ctx);
+  await ctx.api.post(`/api/v1/me/work/${employeeId}/shift-requests`, {
+    kind: "change",
+    shiftTemplateId,
+    from: day,
+    to: day,
+    reason: reason.trim() || "Can I work this shift instead?",
+  });
+  forgetStaff(ctx);
+}
+
+/** Ask to join a rotation from a day (`POST /me/work/:id/shift-requests`). */
+export async function askRotation(
+  ctx: SourceContext,
+  rotationPatternId: string,
+  from: string,
+  reason: string,
+): Promise<void> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) throw new StaffInputError("Choose the day to start.");
+  const { employeeId } = await myFile(ctx);
+  await ctx.api.post(`/api/v1/me/work/${employeeId}/shift-requests`, {
+    kind: "rotation",
+    rotationPatternId,
+    from,
+    to: from,
+    reason: reason.trim() || "Can I join this rotation?",
+  });
+  forgetStaff(ctx);
+}
+
+/** Prove it is the person before their pay shows (`POST /me/work/:id/kiosk-pin/check`). */
+export async function checkPayslipPin(ctx: SourceContext, pin: string): Promise<void> {
+  const { employeeId } = await myFile(ctx);
+  await ctx.api.post(`/api/v1/me/work/${employeeId}/kiosk-pin/check`, { pin });
+}
+
+/** Say yes to a swap a colleague asked (it goes on to whoever decides), or no (it ends). */
+export async function answerSwap(ctx: SourceContext, requestId: string, answer: "accept" | "decline"): Promise<void> {
+  const { employeeId } = await myFile(ctx);
+  await ctx.api.post(`/api/v1/me/work/${employeeId}/shift-requests/${encodeURIComponent(requestId)}/${answer}`, {});
+  forgetStaff(ctx);
+}
+
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+
+/** A photo or a PDF from the phone, checked before it travels: the API checks it again by its first bytes. */
+function fileOf(value: FormDataEntryValue | null, what: string): File {
+  if (!(value instanceof File) || value.size === 0) throw new StaffInputError(`Take a photo of the ${what} first.`);
+  if (value.size > MAX_FILE_BYTES) throw new StaffInputError("A photo or a PDF must be 10 MB or smaller.");
+  return value;
+}
+
+/**
+ * "Send" on My documents: the photo first (`POST /me/work/:id/documents/files`), then the document
+ * that names it, for one HR asked for (`documentId`) or a new one under a title. It waits for HR to
+ * check it, as an upload at the office does.
+ */
+export async function handInDocument(ctx: SourceContext, form: FormData): Promise<void> {
+  const { employeeId } = await myFile(ctx);
+  const file = fileOf(form.get("file"), "document");
+  const documentId = String(form.get("documentId") ?? "").trim();
+  const title = String(form.get("title") ?? "").trim();
+  if (!documentId && title.length < 2) throw new StaffInputError("Say what the document is.");
+  const upload = new FormData();
+  upload.append("file", file, file.name || "document.jpg");
+  const stored = await ctx.api.post<{ key: string }>(`/api/v1/me/work/${employeeId}/documents/files`, upload);
+  await ctx.api.post(
+    `/api/v1/me/work/${employeeId}/documents`,
+    documentId ? { documentId, fileKey: stored.key } : { title, fileKey: stored.key },
+  );
+  forgetStaff(ctx);
+}
+
+/** "Ask for money back": an amount and what it was for, with a photo of the receipt if there is one. */
+export async function askClaim(ctx: SourceContext, form: FormData): Promise<void> {
+  const { employeeId } = await myFile(ctx);
+  const amountRwf = Number(String(form.get("amount") ?? "").replace(/[^0-9]/g, ""));
+  const reason = String(form.get("reason") ?? "").trim();
+  if (!Number.isInteger(amountRwf) || amountRwf <= 0) throw new StaffInputError("Write the amount in francs.");
+  if (reason.length < 3) throw new StaffInputError("Say what it was for.");
+  const receipt = form.get("receipt");
+  let receiptKey: string | null = null;
+  if (receipt instanceof File && receipt.size > 0) {
+    const upload = new FormData();
+    const file = fileOf(receipt, "receipt");
+    upload.append("file", file, file.name || "receipt.jpg");
+    receiptKey = (await ctx.api.post<{ key: string }>(`/api/v1/me/work/${employeeId}/files`, upload)).key;
+  }
+  // A money command: one key per press, so a second tap of Send is the same claim, never a second one.
+  const idempotencyKey = String(form.get("key") ?? "").trim() || crypto.randomUUID();
+  await ctx.api.post(
+    `/api/v1/me/work/${employeeId}/claims`,
+    { kind: "reimbursement", amountRwf, reason, receiptKey },
+    { idempotencyKey },
+  );
+  forgetStaff(ctx);
+}
+
+/** Take back money asked for, while it is still waiting. */
+export async function cancelClaim(ctx: SourceContext, claimId: string): Promise<void> {
+  const { employeeId } = await myFile(ctx);
+  await ctx.api.post(`/api/v1/me/work/${employeeId}/claims/${encodeURIComponent(claimId)}/cancel`, {});
+  forgetStaff(ctx);
+}
+
+/** "Ask for extra days": days on top of what a kind of leave gives. Nothing is added until it is approved. */
+export async function askExtraDays(
+  ctx: SourceContext,
+  input: { leaveTypeId: string; days: number; reason: string },
+): Promise<void> {
+  const { employeeId } = await myFile(ctx);
+  if (!(input.days > 0) || input.days * 2 !== Math.round(input.days * 2))
+    throw new StaffInputError("Ask for whole or half days.");
+  if (input.reason.trim().length < 3) throw new StaffInputError("Say why you need them.");
+  await ctx.api.post(`/api/v1/me/work/${employeeId}/leave/allocation-requests`, {
+    kind: "extra",
+    leaveTypeId: input.leaveTypeId,
+    days: input.days,
+    reason: input.reason.trim(),
+  });
+  forgetStaff(ctx);
+}
+
+/** "Ask to fix a clock time": a day's times put right, or a day with no record written. */
+export async function askFix(
+  ctx: SourceContext,
+  input: { workDate: string; inAt: string; outAt: string; reason: string },
+): Promise<void> {
+  const { employeeId } = await myFile(ctx);
+  try {
+    await askFixOnFile(ctx, employeeId, { ...input, recordId: null });
+  } catch (error) {
+    if (error instanceof MeInputError) throw new StaffInputError(error.message);
+    throw error;
+  }
+  forgetStaff(ctx);
+}
+
+/** "Cancel request": a staff.requests id, `leave:<id>`, `shift:<id>`, `extra:<id>` or `fix:<id>`. */
 export async function cancelRequest(ctx: SourceContext, requestId: string): Promise<void> {
   const [kind, id] = requestId.split(":");
-  if (!id || (kind !== "leave" && kind !== "shift"))
+  if (!id || (kind !== "leave" && kind !== "shift" && kind !== "extra" && kind !== "fix"))
     throw new StaffInputError("This request cannot be cancelled here.");
   const { employeeId } = await myFile(ctx);
-  const path = kind === "leave" ? "leave/requests" : "shift-requests";
+  const path =
+    kind === "leave"
+      ? "leave/requests"
+      : kind === "extra"
+        ? "leave/allocation-requests"
+        : kind === "fix"
+          ? "attendance/requests"
+          : "shift-requests";
   await ctx.api.post(`/api/v1/me/work/${employeeId}/${path}/${encodeURIComponent(id)}/cancel`, {});
   forgetStaff(ctx);
 }

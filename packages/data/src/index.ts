@@ -14,6 +14,7 @@ import type {
 
 export * from "./navigation.ts";
 export * from "./personas.ts";
+export * from "./screen-requires.ts";
 export * from "./screens.ts";
 export type * from "./types.ts";
 
@@ -99,6 +100,8 @@ export function navPlace(
 /** Screens any signed-in person may open. */
 export const SHARED_BOARDS: readonly BoardId[] = [
   "Account",
+  // Every signed-in person's own HR: what is shown is their own file or nothing (ADR-058).
+  "MyHr",
   "Notifications",
   "GlobalSearch",
   "Assistant",

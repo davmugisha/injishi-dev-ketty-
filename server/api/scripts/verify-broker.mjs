@@ -23,7 +23,7 @@
 //   node scripts/verify-broker.mjs
 //
 // Three sign ins per run (broker@, samuel@, landlord@), one each: inside the
-// five per hour OTP cap, but a sixth run within the hour for one account is a
+// ten per hour OTP cap, but an eleventh run within the hour for one account is a
 // 429. On a sample database `delete from auth_otp_requests;` clears it.
 import pg from 'pg';
 

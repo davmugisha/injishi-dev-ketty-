@@ -4,7 +4,8 @@ import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 
 import {
   PSF_CONSENT_VERSION,
   PSF_DECLINE_REASON_LABEL,
-  PSF_FAMILY_LABEL,
+  psfFamilyName,
+  defaultPsfMembershipDates,
   maskEmail,
   normalizeBusinessCode,
   normalizePsfNumber,
@@ -29,6 +30,10 @@ import {
   type PsfTrackView,
   type PsfVerifiedApplicant,
   type PsfCardUploadResult,
+  type PsfQuote,
+  type PsfQuoteQuery,
+  type PsfClaimCardView,
+  type PsfResendRequest,
   type PsfLogoUploadResult,
 } from '@injishi/contracts';
 import {
@@ -61,13 +66,14 @@ import {
   DuplicateTinError,
   OrganizationRepository,
 } from '../infrastructure/organization.repository';
-import { renderPsfCertificate } from '../infrastructure/psf-certificate.renderer';
+import { renderPsfCard, renderPsfCertificate, type PsfCertificateFacts } from '../infrastructure/psf-certificate.renderer';
 import { PsfMembershipMailer } from '../infrastructure/psf-membership.mailer';
 import { PsfMembershipRepository } from '../infrastructure/psf-membership.repository';
 import { PsfPublicRepository, type PsfTrackRow } from '../infrastructure/psf-public.repository';
 import { PsfRenewalRepository } from '../infrastructure/psf-renewal.repository';
 import { kigaliDateOf, psfRenewalTerms } from '../domain/psf-renewal-rules';
 import { buildPsfApplicationRow } from './psf-application-row';
+import { PsfSetupService } from './psf-setup.service';
 import { PsfMembershipService } from './psf-membership.service';
 import { RegistrationService } from './registration.service';
 
@@ -115,6 +121,7 @@ export class PsfPublicService {
     private readonly identity: IdentityService,
     @Inject(SMS_PORT) private readonly sms: SmsPort,
     @Inject(PAYMENT_PORT) private readonly payments: PaymentPort,
+    private readonly setup: PsfSetupService,
     private readonly mail: PsfMembershipMailer,
     private readonly storage: StorageService,
     private readonly renewals: PsfRenewalRepository,
@@ -244,10 +251,43 @@ export class PsfPublicService {
     const cardHolder = membership.intake === 'card_holder';
     const tier = cardHolder
       ? await this.cardHolderTier(membership.tierCode)
-      : await this.bandOrRefuse(business.address.districtId, membership.tierCode, membership.declaredFeeRwf, ['membership']);
+      : await this.bandOrRefuse(business.address.districtId, membership.tierCode, membership.declaredFeeRwf, ['membership'], business.subsectorId);
     // Refused above when missing, for a new application.
     const declared = cardHolder ? 0 : (membership.declaredFeeRwf as number);
+    // Each branch pays by its own district and kind (2026-11-05); a card holder pays nothing now.
+    const quote = await this.psf.quote({
+      district: business.address.districtId,
+      tierCode: tier.code,
+      subsectorId: business.subsectorId ?? null,
+      branches: cardHolder ? [] : business.branches.map((b) => b.address.districtId),
+    });
     if (cardHolder) await this.cardOrRefuse(membership.cardObjectKey);
+    // What PSF's form settings ask (2026-11-06), here as well as in the browser, and its extra answers.
+    const extraAnswers = await this.setup.assertSubmission(
+      {
+        website: business.website,
+        businessActivity: business.businessActivity,
+        ownerGroups: business.ownerGroups,
+        cell: business.address.cellId,
+        village: business.address.villageId,
+        street: business.address.street,
+        photo: contact.photoObjectKey,
+        email: contact.email,
+        logo: business.logoObjectKey,
+      },
+      input.extras,
+    );
+    // The photo, when given: a key the upload minted under this form's ID check (2026-11-05).
+    if (contact.photoObjectKey) {
+      const photo = isObjectKey(contact.photoObjectKey) ? await this.storage.describe(contact.photoObjectKey) : null;
+      if (!photo || photo.kind !== 'org_logo' || (await this.repo.ownerPhotoInUse(contact.photoObjectKey))) {
+        throw fieldError(['contact', 'photoObjectKey'], 'Add your passport photo again, then send the form.');
+      }
+      // A PDF cannot print a WebP, and a photo that does not print is a card without a face.
+      if (photo.mime !== 'image/jpeg' && photo.mime !== 'image/png') {
+        throw fieldError(['contact', 'photoObjectKey'], 'Send the passport photo as a JPEG or PNG.');
+      }
+    }
     const association = await this.psf.associationForRegistration(business.associationCode);
     if (business.subsectorId) {
       await this.psf.subsectorForRegistration(business.subsectorId, association.clusterCode, business.address.districtId);
@@ -301,7 +341,7 @@ export class PsfPublicService {
         companyType: business.companyType,
         ownership: business.ownership,
         ownershipOther: business.ownershipOther,
-        businessActivity: business.businessActivity,
+        businessActivity: business.businessActivity ?? '',
         tradeDirection: business.tradeDirection,
         tradeGoods: business.tradeGoods,
         tradeCountries: business.tradeCountries,
@@ -339,11 +379,13 @@ export class PsfPublicService {
         registrationNumber: business.registrationKind === 'tin' || business.registrationKind === 'none' ? null : registrationNumber,
         logoObjectKey: business.logoObjectKey ?? null,
         cardObjectKey: cardHolder ? (membership.cardObjectKey ?? null) : null,
-        application: row,
-        branches: business.branches.map((b) => ({
+        ownerPhotoKey: contact.photoObjectKey ?? null,
+        application: { ...row, extraAnswers },
+        branches: business.branches.map((b, i) => ({
           districtId: b.address.districtId,
           sectorId: b.address.sectorId,
           street: b.address.street,
+          feeRwf: quote.branches[i]?.amountRwf ?? null,
         })),
       });
     } catch (error) {
@@ -357,12 +399,12 @@ export class PsfPublicService {
     // A card holder goes straight to PSF: nothing to pay, its card for the District Manager to check.
     const charged = cardHolder
       ? await this.fileCardHolder(created.orgId, created.applicationId)
-      : await this.chargeAtSubmit(created.orgId, created.applicationId, declared, contact.phoneE164);
+      : await this.chargeAtSubmit(created.orgId, created.applicationId, declared + quote.branchesRwf, contact.phoneE164);
     const facts = await this.psfRepo.orgFacts(created.orgId);
     return {
       docId: created.docId,
       businessCode: facts?.businessCode ?? null,
-      totalRwf: declared,
+      totalRwf: declared + quote.branchesRwf,
       feePaid: charged.paid,
       feeProblem: charged.problem,
     };
@@ -392,6 +434,55 @@ export class PsfPublicService {
       if (app && facts) await this.psf.afterFiled(orgId, app.requestedTierName, facts.registrationStatus);
     }
     return { paid: true, problem: null };
+  }
+
+  /** What a form's choices cost beyond the band's price (2026-11-05). */
+  quote(input: PsfQuoteQuery): Promise<PsfQuote> {
+    return this.psf.quote({ district: input.district, tierCode: input.tierCode, subsectorId: input.subsectorId ?? null, branches: (input.branches ?? '').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0) });
+  }
+
+  /** The business's corrections (2026-11-05): back to PSF's queue, and its officers told. */
+  async resend(docId: string, input: PsfResendRequest): Promise<PsfTrackView> {
+    const row = await this.rowOrNotFound(docId);
+    if (!row.returnedAt || row.status !== 'submitted') throw new ConflictException('This application is not waiting for a correction.');
+    if (input.cardObjectKey) await this.cardOrRefuse(input.cardObjectKey);
+    await this.setup.assertFieldFilled('businessActivity', input.businessActivity, ['businessActivity']);
+    const moved = await this.psfRepo.resend({
+      applicationId: row.applicationId,
+      orgId: row.orgId,
+      legalName: input.legalName,
+      streetAddress: input.streetAddress,
+      website: input.website ?? null,
+      companyType: input.companyType,
+      ownership: input.ownership,
+      ownershipOther: input.ownershipOther ?? null,
+      businessActivity: input.businessActivity,
+      cardObjectKey: input.cardObjectKey ?? null,
+    });
+    if (!moved) throw new ConflictException('This application is not waiting for a correction.');
+    const app = await this.psfRepo.applicationById(row.applicationId);
+    await this.mail.queueEntered(row.orgId, row.applicationId, row.tierName, app?.submittedByUserId ? 'registration' : 'psf_form');
+    return this.track(docId);
+  }
+
+  /** A new card for an application sent back: the docID stands in for the form's ID check. */
+  async uploadResendCard(docId: string, file: { body: Buffer; mime: string; filename: string }): Promise<PsfCardUploadResult> {
+    const row = await this.rowOrNotFound(docId);
+    if (!row.returnedAt) throw new ConflictException('This application is not waiting for a correction.');
+    const stored = await this.storage.putCertificate({ ...file, uploadedByUserId: null });
+    return { objectKey: stored.objectKey, sizeBytes: stored.sizeBytes, filename: stored.filename };
+  }
+
+  /** The signed link's page (2026-11-05): a card holder from registration sending its card again. */
+  claimCardView(token: string): Promise<PsfClaimCardView> {
+    return this.psf.claimCardView(token);
+  }
+
+  async resendClaimCard(token: string, file: { body: Buffer; mime: string; filename: string }): Promise<void> {
+    // Checked before the file is stored, so a dead link stores nothing.
+    await this.psf.claimCardView(token);
+    const stored = await this.storage.putCertificate({ ...file, uploadedByUserId: null });
+    await this.psf.resendClaimCard(token, stored.objectKey);
   }
 
   /** A card holder's old PSF card (2026-11-02), under the form's ID check, like the logo. */
@@ -457,6 +548,21 @@ export class PsfPublicService {
       paymentMode: receipt.mode,
       paidAt: receipt.occurredAt,
     });
+    // Who it is for (2026-11-05): each branch's share to its district, the rest to the head office's.
+    const [branchLines, payer] = await Promise.all([this.psfRepo.branchesOf(applicationId), this.psfRepo.orgFacts(orgId)]);
+    const branchTotal = branchLines.reduce((sum, b) => sum + (b.feeRwf ?? 0), 0);
+    if (payer?.districtId) {
+      await this.psfRepo.recordFeeAllocations({
+        sourceKind: 'application',
+        sourceId: applicationId,
+        orgId,
+        paidAt: receipt.occurredAt,
+        lines: [
+          { districtId: payer.districtId, amountRwf: membershipFeeRwf - branchTotal },
+          ...branchLines.map((b) => ({ districtId: b.districtId, amountRwf: b.feeRwf ?? 0 })),
+        ],
+      });
+    }
     if (await this.orgs.settlePublicPsfPayment(orgId)) {
       await this.registration.runTinCheck(orgId);
       const app = await this.psfRepo.applicationById(applicationId);
@@ -503,13 +609,28 @@ export class PsfPublicService {
 
   /** The member's certificate as a PDF, or a 409 while there is none. */
   async certificate(docId: string): Promise<{ filename: string; content: Buffer }> {
+    const facts = await this.paperFacts(docId);
+    return { filename: `PSF-certificate-${facts.membershipNumber.replace(/[^A-Za-z0-9-]+/g, '-')}.pdf`, content: await renderPsfCertificate(facts) };
+  }
+
+  /** The membership card as a PDF (2026-11-05), with the certificate's facts. */
+  async card(docId: string): Promise<{ filename: string; content: Buffer }> {
+    const facts = await this.paperFacts(docId);
+    return { filename: `PSF-card-${facts.membershipNumber.replace(/[^A-Za-z0-9-]+/g, '-')}.pdf`, content: await renderPsfCard(facts) };
+  }
+
+  private async paperFacts(docId: string): Promise<PsfCertificateFacts> {
     const { view } = await this.certificateFacts(docId);
     const m = view.membership!;
-    const content = await renderPsfCertificate({
+    return {
       businessName: view.business.name,
       businessCode: view.business.code,
       districtName: view.business.districtName,
-      levelName: m.family ? PSF_FAMILY_LABEL[m.family] : view.request.familyName,
+      sectorName: [view.business.clusterName, view.business.subsectorName].filter(Boolean).join(' · ') || null,
+      levelName: m.familyName ?? view.request.familyName,
+      levelCode: m.family ?? view.request.family,
+      badge: m.badge,
+      ownerName: view.contact.name,
       membershipNumber: m.number,
       startsOn: m.startsOn ?? '',
       expiresOn: m.expiresOn ?? '',
@@ -518,8 +639,8 @@ export class PsfPublicService {
       // The QR opens the member's card (2026-11-02), which anyone may check.
       trackUrl: this.mail.cardLink(m.number),
       businessLogo: await this.logoForCertificate(docId),
-    });
-    return { filename: `PSF-certificate-${m.number.replace(/[^A-Za-z0-9-]+/g, '-')}.pdf`, content };
+      ownerPhoto: await this.ownerPhotoOf(docId),
+    };
   }
 
   /**
@@ -537,6 +658,19 @@ export class PsfPublicService {
     }
   }
 
+  /** The owner's photo as a certificate embeds it, or none. */
+  private async ownerPhotoOf(docId: string): Promise<{ bytes: Buffer; mime: 'image/png' | 'image/jpeg' } | null> {
+    try {
+      const row = await this.rowOrNotFound(docId);
+      const key = await this.psfRepo.ownerPhotoKey(row.orgId);
+      if (!key) return null;
+      const mime = (await this.storage.describe(key))?.mime;
+      return mime === 'image/png' || mime === 'image/jpeg' ? { bytes: await this.storage.readBytes(key), mime } : null;
+    } catch {
+      return null;
+    }
+  }
+
   async emailCertificate(docId: string): Promise<{ sentTo: string }> {
     const { view, row } = await this.certificateFacts(docId);
     if (!row.applicantEmail) {
@@ -545,10 +679,12 @@ export class PsfPublicService {
     const { content } = await this.certificate(docId);
     const m = view.membership!;
     try {
+      const card = await this.card(docId).then((c) => c.content).catch(() => null);
       await this.mail.certificate(
         row.applicantEmail,
         { name: view.contact.name, legalName: view.business.name, tierName: m.tierName, membershipNumber: m.number, expiresOn: m.expiresOn, docId: view.docId },
         content,
+        card,
       );
     } catch {
       throw new ServiceUnavailableException('We could not send the email just now. Try again in a moment, or download the certificate.');
@@ -570,11 +706,12 @@ export class PsfPublicService {
     if (row.registrationStatus !== 'pending_payment') {
       return { status: 'paid', message: null, view: await this.view(row) };
     }
-    // The payment at submit, again: the membership fee, under the same key.
+    // The payment at submit, again: the membership fee and its branches', under the same key.
+    const branches = await this.psfRepo.branchesOf(row.applicationId);
     const charged = await this.chargeAtSubmit(
       row.orgId,
       row.applicationId,
-      row.declaredFeeRwf ?? 0,
+      (row.declaredFeeRwf ?? 0) + branches.reduce((sum, b) => sum + (b.feeRwf ?? 0), 0),
       row.applicantPhoneE164 ?? row.phoneE164,
     );
     return {
@@ -698,9 +835,24 @@ export class PsfPublicService {
       throw new ConflictException('There is no PSF membership to renew on this application yet.');
     }
     if (row.districtId === null) throw new ConflictException('This business has no district, so PSF has no price for it.');
-    const terms = psfRenewalTerms({ expiresOn: latest.expiresOn, ended: latest.endedAt !== null, today: kigaliDateOf(new Date()) });
+    const today = kigaliDateOf(new Date());
+    const renewalTerms = psfRenewalTerms({ expiresOn: latest.expiresOn, ended: latest.endedAt !== null, today });
+    // An upgrade (2026-11-05): any time while a member, a new year from today. Only to a higher band: below.
+    const terms = input.upgrade ? { ...renewalTerms, open: true, startsOn: today, expiresOn: defaultPsfMembershipDates(today).expiresOn } : renewalTerms;
     if (!terms.open) throw new ConflictException(terms.reason);
-    const tier = await this.bandOrRefuse(row.districtId, input.tierCode, input.declaredFeeRwf, []);
+    if (input.upgrade && (latest.endedAt !== null || latest.expiresOn < today)) {
+      throw new ConflictException('This membership has ended. Renew it instead.');
+    }
+    const tier = await this.bandOrRefuse(row.districtId, input.tierCode, input.declaredFeeRwf, [], row.subsectorId);
+    if (input.upgrade) {
+      const prices = (await this.psf.feesIn(row.districtId)).fees;
+      const priceOf = (code: string | null): number => prices.find((f) => f.tierCode === code)?.amountRwf ?? 0;
+      if (priceOf(tier.code) <= priceOf(latest.tierCode)) throw fieldError(['tierCode'], 'An upgrade is to a higher band than the one you hold.');
+    }
+    // The year covers its admitted branches too, at today's prices (2026-11-05).
+    const admitted = (await this.psfRepo.branchesOf(row.applicationId)).filter((b) => b.status === 'admitted');
+    const quote = await this.psf.quote({ district: row.districtId, tierCode: tier.code, subsectorId: row.subsectorId, branches: admitted.map((b) => b.districtId) });
+    const total = input.declaredFeeRwf + quote.branchesRwf;
 
     // The same band, amount and phone again is the same prompt; anything else is a new one. No phone is
     // Check payment (2026-11-02): the prompt already waiting for this band and amount, on its own phone.
@@ -709,8 +861,9 @@ export class PsfPublicService {
       waiting !== null &&
       waiting.membershipId === latest.id &&
       waiting.tierCode === tier.code &&
-      waiting.amountRwf === input.declaredFeeRwf &&
-      waiting.startsOn === terms.startsOn;
+      waiting.amountRwf === total &&
+      waiting.startsOn === terms.startsOn &&
+      waiting.kind === (input.upgrade ? 'upgrade' : 'renewal');
     const phoneE164 = input.phoneE164 ?? (sameRequest ? waiting.payerPhoneE164 : null);
     const instrument = psfInstrument(phoneE164);
     if (!instrument || !phoneE164) return { status: 'declined', message: PSF_NO_INSTRUMENT_MESSAGE, view: await this.track(docId) };
@@ -723,10 +876,11 @@ export class PsfPublicService {
             applicationId: row.applicationId,
             membershipNumber: latest.membershipNumber,
             tierCode: tier.code,
-            amountRwf: input.declaredFeeRwf,
+            amountRwf: total,
             payerPhoneE164: phoneE164,
             startsOn: terms.startsOn,
             expiresOn: terms.expiresOn,
+            kind: input.upgrade ? 'upgrade' : 'renewal',
           });
 
     let receipt;
@@ -768,6 +922,14 @@ export class PsfPublicService {
     });
     // Only the call that applied it remits and tells, so a race stays silent.
     if (paid) {
+      // Who it is for (2026-11-05): each admitted branch's share to its district, the rest to the head office's.
+      await this.psfRepo.recordFeeAllocations({
+        sourceKind: 'renewal',
+        sourceId: paid.id,
+        orgId: row.orgId,
+        paidAt: receipt.occurredAt,
+        lines: [{ districtId: row.districtId, amountRwf: input.declaredFeeRwf }, ...quote.branches],
+      });
       await this.psf.remitRenewal(paid.id, row.orgId, paid.amountRwf, (ref) => this.renewals.recordRemittance(paid.id, ref));
       await this.mail.renewed(row.orgId, {
         membershipNumber: paid.membershipNumber,
@@ -802,6 +964,8 @@ export class PsfPublicService {
     return {
       ...terms,
       tierCode: latest.tierCode,
+      subsectorId: null,
+      branchDistrictIds: [],
       pending: pending
         ? { tierCode: pending.tierCode, tierName: pending.tierName, amountRwf: pending.amountRwf, phoneMasked: maskPhone(pending.payerPhoneE164) }
         : null,
@@ -819,6 +983,8 @@ export class PsfPublicService {
     tierCode: string,
     declared: number | undefined,
     at: string[],
+    /** The business's kind: its price in the district, when it has one, is the floor (2026-11-05). */
+    subsectorId?: string | null,
   ): Promise<NonNullable<Awaited<ReturnType<PsfMembershipRepository['tier']>>>> {
     const tier = await this.psfRepo.tier(tierCode);
     if (!tier || !tier.active) throw fieldError([...at, 'tierCode'], 'That membership is not offered any more. Pick another.');
@@ -829,6 +995,13 @@ export class PsfPublicService {
     }
     const ceiling = band?.ceilingRwf ?? null;
     const rwf = (n: number): string => `RWF ${n.toLocaleString('en-US')}`;
+    const { floorRwf } = await this.psf.quote({ district: districtId, tierCode: tier.code, subsectorId, branches: [] });
+    if (floorRwf !== null && ceiling !== null && floorRwf > ceiling) {
+      throw fieldError([...at, 'tierCode'], `This kind of business costs ${rwf(floorRwf)} a year in your district. Pick the band that holds it.`);
+    }
+    if (floorRwf !== null && declared !== undefined && declared < floorRwf) {
+      throw fieldError([...at, 'declaredFeeRwf'], `This kind of business costs at least ${rwf(floorRwf)} a year in your district.`);
+    }
     if (declared === undefined || declared < price) {
       throw fieldError(
         [...at, 'declaredFeeRwf'],
@@ -850,10 +1023,14 @@ export class PsfPublicService {
     if (row.status === 'withdrawn') return 'withdrawn';
     if (row.registrationStatus === 'rejected') return 'declined';
     if (row.registrationStatus === 'pending_payment') return 'fee_due';
+    if (row.returnedAt) return 'sent_back';
     return 'under_review';
   }
 
   private async view(row: PsfTrackRow): Promise<PsfTrackView> {
+    // The level as PSF names it today (2026-11-06).
+    const levels = await this.psfRepo.levels();
+    const familyName = levels.find((l) => l.code === row.tierFamily)?.nameEn ?? psfFamilyName(row.tierFamily);
     // The newest membership of the business, so a renewal after a lapse (a new
     // row under the same number) is what shows.
     const [latest, fee, events, branches, paidRenewals, pendingRenewal] = await Promise.all([
@@ -866,6 +1043,12 @@ export class PsfPublicService {
       row.status === 'member' ? this.renewals.pending(row.orgId) : Promise.resolve(null),
     ]);
     const membership = latest && latest.source !== 'self_declared' ? latest : null;
+    // The band held now, which an upgrade may have moved to a higher level than the application asked for.
+    const [heldTier, ownerPhotoKey] = await Promise.all([
+      membership?.tierCode ? this.psfRepo.tier(membership.tierCode) : Promise.resolve(null),
+      membership ? this.psfRepo.ownerPhotoKey(row.orgId) : Promise.resolve(null),
+    ]);
+    const heldFamily = heldTier?.family ?? row.tierFamily;
     const stage = this.stageOf(row, Boolean(membership?.endedAt));
     const now = new Date();
     const reviewFrom = row.queuedAt ?? events.find((e) => e.to === 'active')?.at ?? null;
@@ -935,6 +1118,20 @@ export class PsfPublicService {
       docId: row.docId,
       intake: row.intake,
       stage,
+      sentBack:
+        stage === 'sent_back' && row.returnedAt
+          ? {
+              note: row.returnNote ?? '',
+              at: row.returnedAt.toISOString(),
+              legalName: row.companyName,
+              streetAddress: row.streetAddress,
+              website: row.website,
+              companyType: row.companyType,
+              ownership: row.ownership,
+              ownershipOther: row.ownershipOther,
+              businessActivity: row.businessActivity,
+            }
+          : null,
       submittedAt: row.createdAt.toISOString(),
       waitingDays: stage === 'under_review' && reviewFrom ? wholeDaysBetween(reviewFrom, now) : null,
       business: {
@@ -954,7 +1151,7 @@ export class PsfPublicService {
       },
       request: {
         family: row.tierFamily,
-        familyName: PSF_FAMILY_LABEL[row.tierFamily],
+        familyName,
         tierName: row.tierName,
         declaredFeeRwf: row.declaredFeeRwf,
       },
@@ -984,7 +1181,10 @@ export class PsfPublicService {
             number: membership.membershipNumber,
             tierName: membership.tierName ?? row.tierName,
             tierCode: membership.tierCode,
-            family: row.tierFamily,
+            family: heldFamily,
+            familyName: levels.find((l) => l.code === heldFamily)?.nameEn ?? psfFamilyName(heldFamily),
+            badge: heldTier?.cardBadge ?? null,
+            hasPhoto: Boolean(ownerPhotoKey),
             feeRwf: membership.annualFeeRwf,
             startsOn: membership.startsOn,
             expiresOn: membership.expiresOn,
@@ -1000,8 +1200,14 @@ export class PsfPublicService {
       events: timeline,
       payments,
       // There is no registration fee (2026-10-23): what is due is the membership fee.
-      dueRwf: stage === 'fee_due' ? (row.paidAt ? 0 : (row.declaredFeeRwf ?? 0)) : null,
-      renewal: row.status === 'member' ? this.renewalState(membership, pendingRenewal) : null,
+      dueRwf: stage === 'fee_due' ? (row.paidAt ? 0 : (row.declaredFeeRwf ?? 0) + branches.reduce((sum, b) => sum + (b.feeRwf ?? 0), 0)) : null,
+      renewal:
+        row.status === 'member'
+          ? (() => {
+              const state = this.renewalState(membership, pendingRenewal);
+              return state && { ...state, subsectorId: row.subsectorId, branchDistrictIds: branches.filter((b) => b.status === 'admitted').map((b) => b.districtId) };
+            })()
+          : null,
       renewals: paidRenewals.map((r) => ({
         paidAt: (r.paidAt ?? r.createdAt).toISOString(),
         membershipNumber: r.membershipNumber,

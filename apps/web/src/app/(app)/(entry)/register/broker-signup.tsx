@@ -10,6 +10,7 @@ import {
 } from "@injishi/contracts";
 import { CircleAlert, CircleCheck, Smartphone } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@injishi/web-ui";
 
 import { fetchDistricts, fetchProvinces } from "@/data/geography";
@@ -35,11 +36,12 @@ export function BrokerSignup({
   busy: boolean;
   onRegister: (homeDistrictId: number, feePaymentId: string) => void;
 }) {
+  const t = useTranslations("registerForms.broker");
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [provinceId, setProvinceId] = useState("");
   const [districtId, setDistrictId] = useState("");
-  const [geoError, setGeoError] = useState("");
+  const [geoError, setGeoError] = useState<"" | "provinces" | "districts">("");
 
   const [amount, setAmount] = useState<number | null>(null);
   const [method, setMethod] = useState<BrokerFeeMethod>("mtn_momo");
@@ -52,7 +54,7 @@ export function BrokerSignup({
   const pressKey = useRef<string | null>(null);
 
   useEffect(() => {
-    void fetchProvinces().then((r) => (r.status === "ok" ? setProvinces(r.data) : setGeoError("We couldn't load the provinces.")));
+    void fetchProvinces().then((r) => (r.status === "ok" ? setProvinces(r.data) : setGeoError("provinces")));
     void fetchBrokerFee().then((r) => {
       if (r.status !== "ok") return;
       setAmount(r.data.amountRwf);
@@ -67,7 +69,7 @@ export function BrokerSignup({
     void fetchDistricts(Number(provinceId)).then((r) => {
       if (!current) return;
       if (r.status === "ok") setDistricts(r.data);
-      else setGeoError("We couldn't load the districts.");
+      else setGeoError("districts");
     });
     return () => {
       current = false;
@@ -92,7 +94,7 @@ export function BrokerSignup({
     setPayError("");
     const parsed = BrokerFeeCheckoutRequest.safeParse({ method, phone });
     if (!parsed.success) {
-      setPhoneError(parsed.error.issues[0]?.message ?? "Enter your mobile money number.");
+      setPhoneError(parsed.error.issues[0]?.message ?? t("phoneRequired"));
       return;
     }
     pressKey.current ??= crypto.randomUUID();
@@ -109,17 +111,17 @@ export function BrokerSignup({
 
   const paid = payment?.status === "paid";
   const failed = payment?.status === "failed";
-  const fee = amount === null ? "the fee" : formatRwf(amount);
+  const fee = amount === null ? t("feeFallback") : formatRwf(amount);
 
   return (
     <div className="flex flex-col gap-6 border-t border-border pt-6">
       <section aria-labelledby="broker-district" className="flex flex-col gap-3">
         <h3 id="broker-district" className="text-base font-semibold">
-          District you work in
+          {t("districtTitle")}
         </h3>
-        <p className="-mt-2 text-xs text-muted-foreground">The free plan shows the homes in this district.</p>
+        <p className="-mt-2 text-xs text-muted-foreground">{t("freePlan")}</p>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Province" required>
+          <Field label={t("province")} required>
             <SelectField
               value={provinceId}
               onChange={(v) => {
@@ -127,22 +129,22 @@ export function BrokerSignup({
                 setDistrictId("");
               }}
               options={provinces.map((p) => ({ value: String(p.id), label: provinceLabel(p.name) }))}
-              placeholder="Choose a province"
+              placeholder={t("chooseProvince")}
             />
           </Field>
-          <Field label="District" required>
+          <Field label={t("district")} required>
             <SelectField
               value={districtId}
               onChange={setDistrictId}
               options={districts.map((d) => ({ value: String(d.id), label: d.name }))}
-              placeholder={provinceId ? "Choose a district" : "Choose a province first"}
+              placeholder={provinceId ? t("chooseDistrict") : t("chooseProvinceFirst")}
               disabled={!provinceId}
             />
           </Field>
         </div>
         {geoError ? (
           <p className="text-sm text-destructive" role="alert">
-            {geoError}
+            {geoError === "provinces" ? t("geoProvinces") : t("geoDistricts")}
           </p>
         ) : null}
       </section>
@@ -150,32 +152,32 @@ export function BrokerSignup({
       <section aria-labelledby="broker-fee" className="flex flex-col gap-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 id="broker-fee" className="text-base font-semibold">
-            Registration fee
+            {t("feeTitle")}
           </h3>
           <span className="text-lg font-semibold tabular-nums">{amount === null ? "" : formatRwf(amount)}</span>
         </div>
 
         {paid ? (
-          <Callout tone="success" icon={<CircleCheck size={16} aria-hidden />} title="Paid">
+          <Callout tone="success" icon={<CircleCheck size={16} aria-hidden />} title={t("paid")}>
             {payment?.methodWords}
           </Callout>
         ) : waiting ? (
-          <Callout tone="info" icon={<Smartphone size={16} aria-hidden />} title="Approve the prompt on your phone">
-            We sent {fee} to {payment?.methodWords}. This page updates when you approve it.
+          <Callout tone="info" icon={<Smartphone size={16} aria-hidden />} title={t("promptTitle")}>
+            {t("promptBody", { fee, method: payment?.methodWords ?? "" })}
           </Callout>
         ) : (
           <>
             <div className="grid gap-2.5 sm:grid-cols-2">
-              <ChoiceCard name="broker-fee-method" value="mtn_momo" checked={method === "mtn_momo"} title="MTN MoMo" onSelect={() => setMethod("mtn_momo")} />
+              <ChoiceCard name="broker-fee-method" value="mtn_momo" checked={method === "mtn_momo"} title={t("momo")} onSelect={() => setMethod("mtn_momo")} />
               <ChoiceCard
                 name="broker-fee-method"
                 value="airtel_money"
                 checked={method === "airtel_money"}
-                title="Airtel Money"
+                title={t("airtel")}
                 onSelect={() => setMethod("airtel_money")}
               />
             </div>
-            <Field label="Mobile money number" error={phoneError} required>
+            <Field label={t("phone")} error={phoneError} required>
               <TextInput
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -186,18 +188,18 @@ export function BrokerSignup({
               />
             </Field>
             {failed ? (
-              <Callout tone="danger" icon={<CircleAlert size={16} aria-hidden />} title="The payment did not go through">
-                {payment?.failureReason ?? "Nothing was taken. Try again."}
+              <Callout tone="danger" icon={<CircleAlert size={16} aria-hidden />} title={t("payFailedTitle")}>
+                {payment?.failureReason ?? t("nothingTaken")}
               </Callout>
             ) : null}
             {payError ? (
-              <Callout tone="danger" icon={<CircleAlert size={16} aria-hidden />} title="That did not go through">
+              <Callout tone="danger" icon={<CircleAlert size={16} aria-hidden />} title={t("failedTitle")}>
                 {payError}
               </Callout>
             ) : null}
             <div>
               <Button onClick={() => void pay()} disabled={paying || amount === null}>
-                {paying ? "Sending the prompt…" : failed ? "Try again" : `Pay ${fee}`}
+                {paying ? t("sending") : failed ? t("tryAgain") : t("pay", { fee })}
               </Button>
             </div>
           </>
@@ -209,11 +211,11 @@ export function BrokerSignup({
           onClick={() => payment && districtId && onRegister(Number(districtId), payment.id)}
           disabled={busy || !paid || !districtId}
         >
-          {busy ? "Registering…" : "Register as a broker"}
+          {busy ? t("registering") : t("register")}
         </Button>
         {!paid || !districtId ? (
           <span className="text-xs text-muted-foreground">
-            {!districtId && !paid ? "Choose your district and pay the fee." : !districtId ? "Choose your district." : "Pay the fee first."}
+            {!districtId && !paid ? t("needBoth") : !districtId ? t("needDistrict") : t("needPaid")}
           </span>
         ) : null}
       </div>

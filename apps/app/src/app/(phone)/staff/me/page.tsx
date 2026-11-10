@@ -3,8 +3,10 @@ import type {
   HelpTicket,
   HelpTopic,
   LeaveBalance,
+  LeaveType,
   LoanedAsset,
   Payslip,
+  StaffClaim,
   StaffDocument,
   StaffRequest,
 } from "@injishi/data/fixtures/staff";
@@ -15,11 +17,12 @@ import { notFound } from "next/navigation";
 import { HrMount } from "@/features/hr/hr-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument, requestContext } from "@/server/data";
-import { myClockIn, myProfile, staffReadRefusal } from "@/server/sources/staff";
+import { hrFeaturesOff } from "@/server/hr-features";
+import { hasOwnPin, myAnnouncements, myLoans, myProfile, myReviews, staffReadRefusal } from "@/server/sources/staff";
 
 export const metadata: Metadata = { title: screens.StaffMe.pageTitle };
 
-export default async function StaffMePage({ searchParams }: { searchParams: Promise<{ payslips?: string }> }) {
+export default async function StaffMePage() {
   const persona = await requirePersona("StaffMe");
   const read = await Promise.all([
     // The caller's own HR file, never a sample profile (null reads "not on file").
@@ -31,24 +34,42 @@ export default async function StaffMePage({ searchParams }: { searchParams: Prom
     getCollection<LoanedAsset>("staff.assets"),
     getCollection<HelpTicket>("staff.helpTickets"),
     getCollection<HelpTopic>("staff.helpTopics"),
+    getCollection<StaffClaim>("staff.claims"),
+    getCollection<LeaveType>("staff.leaveTypes"),
+    requestContext().then(myAnnouncements),
+    requestContext().then(myReviews),
+    requestContext().then(myLoans),
   ]).catch((error: unknown) => {
     const refusal = staffReadRefusal(error);
     if (refusal === null) throw error;
     return refusal;
   });
   if (typeof read === "string") return <NothingYet title="Me" message={`Your own page cannot be shown yet. ${read}`} />;
-  const [profile, payslips, balance, requests, documents, assets, tickets, topics] = read;
+  const [
+    profile,
+    payslips,
+    balance,
+    requests,
+    documents,
+    assets,
+    tickets,
+    topics,
+    claims,
+    leaveTypes,
+    announcements,
+    reviews,
+    loans,
+  ] = read;
   if (!topics.length) notFound();
+  if (!profile) return <NothingYet title="Me" message="You are not on file at this business yet. Ask HR." />;
   if (!balance) return <NothingYet title="Me" message="Leave is not set up for your business yet. Ask HR." />;
-  // When the caller clocked in, from their own attendance record (null when they are not clocked in).
-  const clockedInAt = await myClockIn(await requestContext());
-  const { payslips: payslipsParam } = await searchParams;
+  const pinNeeded = await requestContext().then(hasOwnPin);
   return (
-    <HrMount>
+    <HrMount off={await hrFeaturesOff()}>
       <StaffMeView
         persona={persona}
         data={{
-          profile: profile ?? null,
+          profile,
           payslips,
           balance,
           requests,
@@ -56,9 +77,13 @@ export default async function StaffMePage({ searchParams }: { searchParams: Prom
           assets,
           tickets,
           topics,
-          clockedInAt,
+          claims,
+          leaveTypes,
+          announcements,
+          reviews,
+          loans,
         }}
-        initialPayslips={payslipsParam === "unlocked" ? "unlocked" : "locked"}
+        initialPayslips={pinNeeded ? "locked" : "unlocked"}
       />
     </HrMount>
   );

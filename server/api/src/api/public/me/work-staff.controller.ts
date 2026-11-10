@@ -7,7 +7,11 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 
 /**
  * The staff phone's own reads -> /api/v1/me/work/:employeeId (real-data 1.3.3): the person's papers,
- * who will decide their leave and the next public holiday. `SessionGuard` only, as every `me/work` route: ownership is the
+ * who will decide their leave and the next public holiday.
+ *
+ * The papers are at `papers`: the contracts and documents on the file, in one short list for the
+ * phone's "my file". `documents` is the documents themselves, with what the office asked for and
+ * a way to hand one in (`work-documents.controller.ts`). `SessionGuard` only, as every `me/work` route: ownership is the
  * guard, and an id that is not the caller's answers 404.
  */
 @Controller({ path: 'me/work', version: '1' })
@@ -15,8 +19,8 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 export class MeWorkStaffController {
   constructor(private readonly staff: MyStaffService) {}
 
-  @Get(':employeeId/documents')
-  documents(@Param('employeeId', ParseUUIDPipe) employeeId: string, @CurrentUser() user: SessionUser): Promise<MyDocumentList> {
+  @Get(':employeeId/papers')
+  papers(@Param('employeeId', ParseUUIDPipe) employeeId: string, @CurrentUser() user: SessionUser): Promise<MyDocumentList> {
     return this.staff.documents(user.id, employeeId);
   }
 

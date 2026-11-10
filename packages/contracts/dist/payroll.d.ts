@@ -194,6 +194,8 @@ export declare const Payslip: z.ZodObject<{
     paidMethod: z.ZodNullable<z.ZodEnum<["bank", "momo", "cash"]>>;
     paidReference: z.ZodNullable<z.ZodString>;
     sentAt: z.ZodNullable<z.ZodString>;
+    /** The owner's payslip, read by someone without `team.manage`: every figure is zero and it has no lines. */
+    confidential: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     status: "confirmed" | "draft";
     id: string;
@@ -229,6 +231,7 @@ export declare const Payslip: z.ZodObject<{
     paidMethod: "cash" | "momo" | "bank" | null;
     paidReference: string | null;
     sentAt: string | null;
+    confidential?: boolean | undefined;
 }, {
     status: "confirmed" | "draft";
     id: string;
@@ -264,6 +267,7 @@ export declare const Payslip: z.ZodObject<{
     paidMethod: "cash" | "momo" | "bank" | null;
     paidReference: string | null;
     sentAt: string | null;
+    confidential?: boolean | undefined;
 }>;
 export type Payslip = z.infer<typeof Payslip>;
 /** The rule rows a run was computed from, so the figures can be traced. */
@@ -294,17 +298,41 @@ export declare const PayRunBlocker: z.ZodObject<{
     displayName: z.ZodString;
     message: z.ZodString;
     remedies: z.ZodOptional<z.ZodArray<z.ZodEnum<["defer_installment", "waive_adjustment", "hold_payslip"]>, "many">>;
+    /** A clock record that stops the month: clocked out or validated, it stops no more. */
+    record: z.ZodOptional<z.ZodObject<{
+        id: z.ZodString;
+        workDate: z.ZodString;
+        clockInAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        workDate: string;
+        clockInAt: string;
+    }, {
+        id: string;
+        workDate: string;
+        clockInAt: string;
+    }>>;
 }, "strip", z.ZodTypeAny, {
     code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_attendance" | "negative_net" | "missing_overtime_rule" | "overtime_day_unknown" | "missing_settlement_rule" | "missing_rssb_employer_number";
     message: string;
     employeeId: string | null;
     displayName: string;
+    record?: {
+        id: string;
+        workDate: string;
+        clockInAt: string;
+    } | undefined;
     remedies?: ("defer_installment" | "waive_adjustment" | "hold_payslip")[] | undefined;
 }, {
     code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_attendance" | "negative_net" | "missing_overtime_rule" | "overtime_day_unknown" | "missing_settlement_rule" | "missing_rssb_employer_number";
     message: string;
     employeeId: string | null;
     displayName: string;
+    record?: {
+        id: string;
+        workDate: string;
+        clockInAt: string;
+    } | undefined;
     remedies?: ("defer_installment" | "waive_adjustment" | "hold_payslip")[] | undefined;
 }>;
 export type PayRunBlocker = z.infer<typeof PayRunBlocker>;
@@ -329,6 +357,16 @@ export declare const PayRun: z.ZodObject<{
     }>, "many">;
     confirmedAt: z.ZodNullable<z.ZodString>;
     confirmedByUserId: z.ZodNullable<z.ZodString>;
+    /** The name of who confirmed it, or their email when the account has no name. */
+    confirmedByName: z.ZodNullable<z.ZodString>;
+    /**
+     * Handed to whoever confirms (`POST .../submit`). A submitted draft is
+     * locked until it is confirmed or withdrawn; null while it is prepared.
+     */
+    submittedAt: z.ZodNullable<z.ZodString>;
+    submittedByName: z.ZodNullable<z.ZodString>;
+    /** What whoever submitted said to whoever confirms. */
+    submitNote: z.ZodNullable<z.ZodString>;
     headcount: z.ZodNumber;
     grossRwf: z.ZodNumber;
     netRwf: z.ZodNumber;
@@ -340,6 +378,8 @@ export declare const PayRun: z.ZodObject<{
     id: string;
     grossRwf: number;
     confirmedAt: string | null;
+    submittedAt: string | null;
+    submittedByName: string | null;
     periodStart: string;
     period: string;
     netRwf: number;
@@ -353,12 +393,16 @@ export declare const PayRun: z.ZodObject<{
         configEntryId: string;
     }[];
     confirmedByUserId: string | null;
+    confirmedByName: string | null;
+    submitNote: string | null;
     headcount: number;
 }, {
     status: "confirmed" | "draft";
     id: string;
     grossRwf: number;
     confirmedAt: string | null;
+    submittedAt: string | null;
+    submittedByName: string | null;
     periodStart: string;
     period: string;
     netRwf: number;
@@ -372,6 +416,8 @@ export declare const PayRun: z.ZodObject<{
         configEntryId: string;
     }[];
     confirmedByUserId: string | null;
+    confirmedByName: string | null;
+    submitNote: string | null;
     headcount: number;
 }>;
 export type PayRun = z.infer<typeof PayRun>;
@@ -398,6 +444,16 @@ export declare const PayRunDetail: z.ZodObject<{
         }>, "many">;
         confirmedAt: z.ZodNullable<z.ZodString>;
         confirmedByUserId: z.ZodNullable<z.ZodString>;
+        /** The name of who confirmed it, or their email when the account has no name. */
+        confirmedByName: z.ZodNullable<z.ZodString>;
+        /**
+         * Handed to whoever confirms (`POST .../submit`). A submitted draft is
+         * locked until it is confirmed or withdrawn; null while it is prepared.
+         */
+        submittedAt: z.ZodNullable<z.ZodString>;
+        submittedByName: z.ZodNullable<z.ZodString>;
+        /** What whoever submitted said to whoever confirms. */
+        submitNote: z.ZodNullable<z.ZodString>;
         headcount: z.ZodNumber;
         grossRwf: z.ZodNumber;
         netRwf: z.ZodNumber;
@@ -409,6 +465,8 @@ export declare const PayRunDetail: z.ZodObject<{
         id: string;
         grossRwf: number;
         confirmedAt: string | null;
+        submittedAt: string | null;
+        submittedByName: string | null;
         periodStart: string;
         period: string;
         netRwf: number;
@@ -422,12 +480,16 @@ export declare const PayRunDetail: z.ZodObject<{
             configEntryId: string;
         }[];
         confirmedByUserId: string | null;
+        confirmedByName: string | null;
+        submitNote: string | null;
         headcount: number;
     }, {
         status: "confirmed" | "draft";
         id: string;
         grossRwf: number;
         confirmedAt: string | null;
+        submittedAt: string | null;
+        submittedByName: string | null;
         periodStart: string;
         period: string;
         netRwf: number;
@@ -441,6 +503,8 @@ export declare const PayRunDetail: z.ZodObject<{
             configEntryId: string;
         }[];
         confirmedByUserId: string | null;
+        confirmedByName: string | null;
+        submitNote: string | null;
         headcount: number;
     }>;
     payslips: z.ZodArray<z.ZodObject<{
@@ -530,6 +594,8 @@ export declare const PayRunDetail: z.ZodObject<{
         paidMethod: z.ZodNullable<z.ZodEnum<["bank", "momo", "cash"]>>;
         paidReference: z.ZodNullable<z.ZodString>;
         sentAt: z.ZodNullable<z.ZodString>;
+        /** The owner's payslip, read by someone without `team.manage`: every figure is zero and it has no lines. */
+        confidential: z.ZodOptional<z.ZodBoolean>;
     }, "strip", z.ZodTypeAny, {
         status: "confirmed" | "draft";
         id: string;
@@ -565,6 +631,7 @@ export declare const PayRunDetail: z.ZodObject<{
         paidMethod: "cash" | "momo" | "bank" | null;
         paidReference: string | null;
         sentAt: string | null;
+        confidential?: boolean | undefined;
     }, {
         status: "confirmed" | "draft";
         id: string;
@@ -600,6 +667,7 @@ export declare const PayRunDetail: z.ZodObject<{
         paidMethod: "cash" | "momo" | "bank" | null;
         paidReference: string | null;
         sentAt: string | null;
+        confidential?: boolean | undefined;
     }>, "many">;
     blockers: z.ZodArray<z.ZodObject<{
         code: z.ZodEnum<["missing_rssb_number", "missing_id", "open_attendance", "unvalidated_attendance", "negative_net", "missing_overtime_rule", "overtime_day_unknown", "missing_settlement_rule", "missing_rssb_employer_number"]>;
@@ -608,17 +676,41 @@ export declare const PayRunDetail: z.ZodObject<{
         displayName: z.ZodString;
         message: z.ZodString;
         remedies: z.ZodOptional<z.ZodArray<z.ZodEnum<["defer_installment", "waive_adjustment", "hold_payslip"]>, "many">>;
+        /** A clock record that stops the month: clocked out or validated, it stops no more. */
+        record: z.ZodOptional<z.ZodObject<{
+            id: z.ZodString;
+            workDate: z.ZodString;
+            clockInAt: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            id: string;
+            workDate: string;
+            clockInAt: string;
+        }, {
+            id: string;
+            workDate: string;
+            clockInAt: string;
+        }>>;
     }, "strip", z.ZodTypeAny, {
         code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_attendance" | "negative_net" | "missing_overtime_rule" | "overtime_day_unknown" | "missing_settlement_rule" | "missing_rssb_employer_number";
         message: string;
         employeeId: string | null;
         displayName: string;
+        record?: {
+            id: string;
+            workDate: string;
+            clockInAt: string;
+        } | undefined;
         remedies?: ("defer_installment" | "waive_adjustment" | "hold_payslip")[] | undefined;
     }, {
         code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_attendance" | "negative_net" | "missing_overtime_rule" | "overtime_day_unknown" | "missing_settlement_rule" | "missing_rssb_employer_number";
         message: string;
         employeeId: string | null;
         displayName: string;
+        record?: {
+            id: string;
+            workDate: string;
+            clockInAt: string;
+        } | undefined;
         remedies?: ("defer_installment" | "waive_adjustment" | "hold_payslip")[] | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -627,6 +719,8 @@ export declare const PayRunDetail: z.ZodObject<{
         id: string;
         grossRwf: number;
         confirmedAt: string | null;
+        submittedAt: string | null;
+        submittedByName: string | null;
         periodStart: string;
         period: string;
         netRwf: number;
@@ -640,6 +734,8 @@ export declare const PayRunDetail: z.ZodObject<{
             configEntryId: string;
         }[];
         confirmedByUserId: string | null;
+        confirmedByName: string | null;
+        submitNote: string | null;
         headcount: number;
     };
     payslips: {
@@ -677,12 +773,18 @@ export declare const PayRunDetail: z.ZodObject<{
         paidMethod: "cash" | "momo" | "bank" | null;
         paidReference: string | null;
         sentAt: string | null;
+        confidential?: boolean | undefined;
     }[];
     blockers: {
         code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_attendance" | "negative_net" | "missing_overtime_rule" | "overtime_day_unknown" | "missing_settlement_rule" | "missing_rssb_employer_number";
         message: string;
         employeeId: string | null;
         displayName: string;
+        record?: {
+            id: string;
+            workDate: string;
+            clockInAt: string;
+        } | undefined;
         remedies?: ("defer_installment" | "waive_adjustment" | "hold_payslip")[] | undefined;
     }[];
 }, {
@@ -691,6 +793,8 @@ export declare const PayRunDetail: z.ZodObject<{
         id: string;
         grossRwf: number;
         confirmedAt: string | null;
+        submittedAt: string | null;
+        submittedByName: string | null;
         periodStart: string;
         period: string;
         netRwf: number;
@@ -704,6 +808,8 @@ export declare const PayRunDetail: z.ZodObject<{
             configEntryId: string;
         }[];
         confirmedByUserId: string | null;
+        confirmedByName: string | null;
+        submitNote: string | null;
         headcount: number;
     };
     payslips: {
@@ -741,12 +847,18 @@ export declare const PayRunDetail: z.ZodObject<{
         paidMethod: "cash" | "momo" | "bank" | null;
         paidReference: string | null;
         sentAt: string | null;
+        confidential?: boolean | undefined;
     }[];
     blockers: {
         code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_attendance" | "negative_net" | "missing_overtime_rule" | "overtime_day_unknown" | "missing_settlement_rule" | "missing_rssb_employer_number";
         message: string;
         employeeId: string | null;
         displayName: string;
+        record?: {
+            id: string;
+            workDate: string;
+            clockInAt: string;
+        } | undefined;
         remedies?: ("defer_installment" | "waive_adjustment" | "hold_payslip")[] | undefined;
     }[];
 }>;
@@ -759,4 +871,22 @@ export declare const CreatePayRunRequest: z.ZodObject<{
     period: string;
 }>;
 export type CreatePayRunRequest = z.infer<typeof CreatePayRunRequest>;
+/** `POST /ops/pay-runs/:id/submit`: hand the draft to whoever confirms, with a word if there is one. */
+export declare const SubmitPayRunRequest: z.ZodObject<{
+    note: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+}, "strip", z.ZodTypeAny, {
+    note?: string | null | undefined;
+}, {
+    note?: string | null | undefined;
+}>;
+export type SubmitPayRunRequest = z.infer<typeof SubmitPayRunRequest>;
+/** `POST /ops/pay-runs/:id/withdraw`: take a submitted draft back to change it; whoever confirms says why. */
+export declare const WithdrawPayRunRequest: z.ZodObject<{
+    reason: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+}, "strip", z.ZodTypeAny, {
+    reason?: string | null | undefined;
+}, {
+    reason?: string | null | undefined;
+}>;
+export type WithdrawPayRunRequest = z.infer<typeof WithdrawPayRunRequest>;
 //# sourceMappingURL=payroll.d.ts.map

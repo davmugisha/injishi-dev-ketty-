@@ -143,31 +143,8 @@ export function psfMemberMail(input: {
       ...(input.paymentReference ? ([['Payment reference', input.paymentReference]] as [string, string][]) : []),
       ['Valid', `${input.startsOn} to ${input.expiresOn}`],
     ],
-    after: ['The fee goes to PSF. Injishi keeps none of it.'],
+    after: ['The fee goes to PSF. The PSF Membership Hub keeps none of it.'],
     cta: { label: 'See your membership', href: input.link },
-  });
-}
-
-export function psfDeclinedMail(input: {
-  to: Addressee;
-  legalName: string;
-  reasonLabel: string;
-  note: string | null;
-  link: string;
-}): RegistrationMail {
-  return compose({
-    subject: `Your PSF membership application for ${input.legalName} was declined`,
-    heading: 'PSF application declined',
-    greeting: greeting(input.to),
-    paragraphs: [
-      'A PSF District Manager declined this application. Your business keeps its code.',
-      'You can correct it and apply again.',
-    ],
-    details: [
-      ['Reason', input.reasonLabel],
-      ...(input.note ? ([['From the officer', input.note]] as [string, string][]) : []),
-    ],
-    cta: { label: 'Apply again', href: input.link },
   });
 }
 
@@ -247,7 +224,7 @@ export function psfRenewedMail(input: {
       ['Payment reference', input.paymentReference],
       ['Valid', `${input.startsOn} to ${input.expiresOn}`],
     ],
-    after: ['The fee goes to PSF. Injishi keeps none of it.'],
+    after: ['The fee goes to PSF. The PSF Membership Hub keeps none of it.'],
     cta: { label: 'See your membership', href: input.link },
   });
 }
@@ -272,24 +249,46 @@ export function psfClaimConfirmedMail(input: {
 }
 
 /** PSF could not confirm the number a business typed (0121): why, and how to become a member. */
-export function psfClaimRejectedMail(input: {
-  to: Addressee;
-  legalName: string;
-  membershipNumber: string;
-  reason: string;
-  link: string;
-}): RegistrationMail {
+/** PSF sent the application back (2026-11-05): what to fix, and where. It stays open; nothing is lost. */
+export function psfSentBackMail(input: { to: Addressee; legalName: string; note: string; link: string }): RegistrationMail {
   return compose({
-    subject: `PSF could not confirm the membership of ${input.legalName}`,
-    heading: 'PSF could not confirm your membership number',
+    subject: `PSF needs a correction for ${input.legalName}`,
+    heading: 'PSF sent your application back to fix',
     greeting: greeting(input.to),
-    paragraphs: [
-      `PSF checked membership number ${input.membershipNumber} for ${input.legalName} and could not confirm it.`,
-      `PSF's reason: ${input.reason}`,
-      'If the number was mistyped, contact your PSF district office. You can also apply for membership from your portal.',
-    ],
-    cta: { label: 'Apply for membership', href: input.link },
+    paragraphs: ['A PSF District Manager needs a correction before deciding. Your application stays open, with its docID and anything you paid.'],
+    details: [['What to fix', input.note]],
+    cta: { label: 'Fix and resend', href: input.link },
   });
+}
+
+/** PSF sent a card back (2026-11-05): the signed link opens the page to send it again. */
+export function psfCardSentBackMail(input: { to: Addressee; legalName: string; note: string; link: string }): RegistrationMail {
+  return compose({
+    subject: `PSF needs your card again for ${input.legalName}`,
+    heading: 'PSF asks you to send your card again',
+    greeting: greeting(input.to),
+    paragraphs: ['A PSF District Manager could not confirm your membership from the card you sent. Your request stays open.'],
+    details: [['What to fix', input.note]],
+    cta: { label: 'Send the card again', href: input.link },
+  });
+}
+
+/** The card came back: the officer's claims screen. */
+export function psfCardResentMail(input: { to: Addressee; legalName: string; link: string }): RegistrationMail {
+  return compose({
+    subject: `New card sent: ${input.legalName}`,
+    heading: 'A card holder sent their card again',
+    greeting: greeting(input.to),
+    paragraphs: [`${input.legalName} sent the card you asked for. It is waiting under Card holders.`],
+    cta: { label: 'Open Card holders', href: input.link },
+  });
+}
+
+/** PSF's card page for a card sent back, by its signed token. */
+export function psfClaimCardLink(webUrl: string, token: string): string {
+  const url = new URL('/psf/card-resend', webUrl);
+  url.searchParams.set('token', token);
+  return url.toString();
 }
 
 /** The membership certificate, attached as a PDF, sent when the member or an officer asks. */

@@ -5,6 +5,7 @@ import { Alert, Avatar, Button, Card, Chip, Input, Table } from "@heroui/react";
 import { EmptyState } from "@heroui-pro/react";
 import { PageContent, PageHeader } from "@injishi/ui";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { dayMonth, rwf } from "@/server/format";
 import type { PsfQueuePage, PsfScope } from "@/server/sources/psf";
@@ -16,6 +17,7 @@ import type { PsfQueuePage, PsfScope } from "@/server/sources/psf";
  * whose head office is elsewhere is here because a branch is in the district.
  */
 export function PsfQueueView({ scope, page, q }: { scope: PsfScope; page: PsfQueuePage; q: string }) {
+  const t = useTranslations("psfConsole.queue");
   const router = useRouter();
   const [search, setSearch] = useState(q);
   const reporting = scope.level !== "district";
@@ -30,17 +32,16 @@ export function PsfQueueView({ scope, page, q }: { scope: PsfScope; page: PsfQue
     <PageContent>
       <PageHeader
         eyebrow={`${scope.title} · ${scope.label}`}
-        title="Membership applications"
-        description={`${page.total} waiting on PSF${q ? ` matching “${q}”` : ""}. Businesses asking to join PSF: each paid when it applied, and waits for your decision.`}
+        title={t("title")}
+        description={`${t("waitingOn", { count: page.total })}${q ? ` · ${t("matching", { query: q })}` : ""}. ${t("waitingLead")}`}
       />
 
       {reporting ? (
         <Alert status="accent">
           <Alert.Content>
-            <Alert.Title>For reporting</Alert.Title>
+            <Alert.Title>{t("reporting")}</Alert.Title>
             <Alert.Description>
-              Each application is approved or declined by the PSF District Manager of its district. You see every one in{" "}
-              {scope.label}.
+              {t("reportingLead", { place: scope.label })}
             </Alert.Description>
           </Alert.Content>
         </Alert>
@@ -54,14 +55,14 @@ export function PsfQueueView({ scope, page, q }: { scope: PsfScope; page: PsfQue
         }}
       >
         <Input
-          aria-label="Search applications"
-          placeholder="Search a business, code or docID"
+          aria-label={t("searchApplications")}
+          placeholder={t("searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1"
         />
         <Button type="submit" variant="secondary">
-          <Magnifier className="size-4" /> Search
+          <Magnifier className="size-4" /> {t("searchApplications")}
         </Button>
       </form>
 
@@ -71,16 +72,16 @@ export function PsfQueueView({ scope, page, q }: { scope: PsfScope; page: PsfQue
             <Table>
               <Table.ScrollContainer>
                 <Table.Content
-                  aria-label="Applications waiting on PSF"
+                  aria-label={t("title")}
                   onRowAction={(key) => router.push(`/psf/${String(key)}`)}
                 >
                   <Table.Header>
-                    <Table.Column isRowHeader>Business</Table.Column>
-                    <Table.Column>Sector</Table.Column>
-                    {showDistrict ? <Table.Column>District</Table.Column> : null}
-                    <Table.Column>Membership</Table.Column>
-                    <Table.Column>Paid</Table.Column>
-                    <Table.Column>Waiting</Table.Column>
+                    <Table.Column isRowHeader>{t("business")}</Table.Column>
+                    <Table.Column>{t("sector")}</Table.Column>
+                    {showDistrict ? <Table.Column>{t("district")}</Table.Column> : null}
+                    <Table.Column>{t("membership")}</Table.Column>
+                    <Table.Column>{t("paid")}</Table.Column>
+                    <Table.Column>{t("waiting")}</Table.Column>
                   </Table.Header>
                   <Table.Body>
                     {page.items.map((item) => (
@@ -96,24 +97,23 @@ export function PsfQueueView({ scope, page, q }: { scope: PsfScope; page: PsfQue
                                 {/* A holder of an old PSF card joining the new module (2026-11-02): no fee, a new number. */}
                                 {item.intake === "card_holder" ? (
                                   <Chip size="sm" variant="soft" color="accent">
-                                    Card holder
+                                    {t("cardHolder")}
                                   </Chip>
                                 ) : null}
                                 {item.decidesHere && !item.canDecide ? (
                                   <Chip size="sm" variant="soft" color="warning">
-                                    Your business
+                                    {t("yourBusiness")}
                                   </Chip>
                                 ) : null}
                                 {item.branchesPending > 0 ? (
                                   <Chip size="sm" variant="soft" color="accent">
-                                    {item.headOfficeInScope ? "" : "Branch only · "}
-                                    {item.branchesPending === 1 ? "1 branch to admit" : `${item.branchesPending} branches to admit`}
+                                    {item.headOfficeInScope ? "" : t("branchOnly")}
+                                    {t("branchToAdmit", { count: item.branchesPending })}
                                   </Chip>
                                 ) : null}
                               </span>
                               <span className="text-[12px] leading-4 text-muted tabular">
-                                {[item.docId, item.businessCode].filter(Boolean).join(" · ")} · sent {dayMonth(item.queuedAt ?? item.submittedAt)} from{" "}
-                                {item.origin === "psf_form" ? "the PSF form" : "Injishi registration"}
+                                {[item.docId, item.businessCode].filter(Boolean).join(" · ")} · {t("sent")} {dayMonth(item.queuedAt ?? item.submittedAt)} {t(item.origin === "psf_form" ? "fromPsf" : "fromInjishi")}
                               </span>
                             </span>
                           </span>
@@ -126,10 +126,10 @@ export function PsfQueueView({ scope, page, q }: { scope: PsfScope; page: PsfQue
                         </Table.Cell>
                         {showDistrict ? <Table.Cell>{item.districtName ?? "—"}</Table.Cell> : null}
                         <Table.Cell>{item.requestedTierName}</Table.Cell>
-                        <Table.Cell className="tabular">{item.intake === "card_holder" ? "No fee now" : item.paidRwf ? rwf(item.paidRwf) : "—"}</Table.Cell>
+                          <Table.Cell className="tabular">{item.intake === "card_holder" ? t("noFeeNow") : item.paidRwf ? rwf(item.paidRwf) : "—"}</Table.Cell>
                         <Table.Cell>
                           <Chip size="sm" variant="soft" color={item.waitingDays > 7 ? "danger" : item.waitingDays === 0 ? "success" : "default"}>
-                            {item.waitingDays === 0 ? "New today" : `${item.waitingDays} day${item.waitingDays === 1 ? "" : "s"}`}
+                            {item.waitingDays === 0 ? t("newToday") : t("days", { count: item.waitingDays })}
                           </Chip>
                         </Table.Cell>
                       </Table.Row>
@@ -141,9 +141,9 @@ export function PsfQueueView({ scope, page, q }: { scope: PsfScope; page: PsfQue
           ) : (
             <EmptyState className="py-12">
               <EmptyState.Header>
-                <EmptyState.Title>{q ? "Nothing matches that search" : "Nothing waiting on PSF"}</EmptyState.Title>
+                <EmptyState.Title>{q ? t("nothingMatches") : t("nothingWaiting")}</EmptyState.Title>
                 <EmptyState.Description>
-                  {q ? "Try a business name, its code like KIC0001, or its docID." : "Paid applications in your region appear here as they arrive."}
+                  {q ? t("trySearch") : t("emptyQueue")}
                 </EmptyState.Description>
               </EmptyState.Header>
             </EmptyState>

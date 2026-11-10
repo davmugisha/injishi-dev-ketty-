@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { CompareToggle } from "@/components/explore/compare";
@@ -225,6 +226,7 @@ function EmptyResults({
   onReset: () => void;
   onPickDistrict: (slug: string) => void;
 }) {
+  const t = useTranslations("search");
   const searchedFor =
     SEARCH_DISTRICTS.find((district) => district.slug === intent.districts[0])?.name ??
     intent.query.trim();
@@ -239,18 +241,17 @@ function EmptyResults({
     return (
       <div data-empty-results className="mb-20 flex flex-col items-center gap-4 py-20 text-center">
         <p className="text-xl text-page-fg">
-          {searchedFor ? `Nothing is listed in ${searchedFor} yet.` : "Nothing is listed yet."}
+          {searchedFor ? t("nothingInPlace", { place: searchedFor }) : t("noStaysListed")}
         </p>
         <p className="max-w-[46ch] text-sm text-page-fg-70">
-          Injishi lists a place only after it passes verification, and the first hosts are going
-          through it now, Kigali first.
+          {t("catalogueEmptyLead")}
         </p>
         <div className="mt-2 flex flex-wrap justify-center gap-3">
           <Button asChild>
-            <Link href={LIST_HREF}>List your place</Link>
+            <Link href={LIST_HREF}>{t("listYourPlace")}</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href={supportHref("opening")}>Tell me when stays open</Link>
+            <Link href={supportHref("opening")}>{t("notifyWhenOpen")}</Link>
           </Button>
         </div>
       </div>
@@ -261,13 +262,13 @@ function EmptyResults({
     <div data-empty-results className="mb-20 flex flex-col items-center gap-4 py-20 text-center">
       <p className="text-xl text-page-fg">
         {searchedFor
-          ? `No stays in ${searchedFor} yet.`
-          : "No stays match these filters yet."}
+          ? t("noResultsPlace", { place: searchedFor })
+          : t("noResultsFilter")}
       </p>
       <p className="max-w-[46ch] text-sm text-page-fg-70">
         {searchedFor
-          ? "We are still signing up hosts there. These districts have verified stays now:"
-          : "Try widening the price range or clearing a filter."}
+          ? t("hostsJoiningLead")
+          : t("widenFiltersLead")}
       </p>
 
       {alternatives.length > 0 ? (

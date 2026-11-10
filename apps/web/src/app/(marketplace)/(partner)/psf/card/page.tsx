@@ -3,7 +3,7 @@ import Link from "next/link";
 import { BadgeCheck, CircleAlert } from "lucide-react";
 import { PsfMemberCard } from "@injishi/contracts";
 
-import { apiFetchParsed } from "@/lib/api";
+import { API_URL, apiFetchParsed } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "PSF membership card",
@@ -77,10 +77,23 @@ export default async function PsfCardPage({ searchParams }: { searchParams: Prom
               </span>
             </div>
 
-            <p className="mt-8 text-2xl font-semibold tracking-tight sm:text-3xl">{card.businessName}</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {[card.businessCode ? `Business code ${card.businessCode}` : null, card.districtName].filter(Boolean).join(" · ")}
-            </p>
+            <div className="mt-8 flex items-start gap-4">
+              {card.hasPhoto ? (
+                // The owner's photo (2026-11-05), so whoever checks the card can see who holds it.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={`${API_URL}/api/v1/psf/card/photo?number=${encodeURIComponent(card.membershipNumber)}`}
+                  alt="The card holder"
+                  className="h-28 w-22 shrink-0 rounded-card object-cover ring-1 ring-border"
+                />
+              ) : null}
+              <div className="min-w-0">
+                <p className="text-2xl font-semibold tracking-tight sm:text-3xl">{card.businessName}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {[card.businessCode ? `Business code ${card.businessCode}` : null, card.districtName].filter(Boolean).join(" · ")}
+                </p>
+              </div>
+            </div>
 
             <dl className="mt-6 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
               {[

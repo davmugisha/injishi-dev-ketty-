@@ -14,14 +14,17 @@ import {
   screenByPath,
   screenHref,
   type TopbarStatus,
+  type WorkspaceContext,
 } from "@injishi/data";
 import { ActionLink, EmptyBlock, Icon, IconAction, LinkButton, PageContent } from "@injishi/ui";
 import NextLink from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { sampleCollectionsByBoard } from "@/lib/coverage.generated";
 import { openToRealPeople, SAMPLE_ONLY } from "@/lib/real-screens";
 import { BrandMark } from "../brand";
+import { LanguageSelect } from "../language-select";
 import { BusinessSwitcher } from "./BusinessSwitcher";
 import { QuickSearch } from "./QuickSearch";
 import { SampleDataPill } from "./SampleData";
@@ -40,13 +43,29 @@ function NavMenu({
   pathname: string;
   idPrefix?: string;
 }) {
+  const t = useTranslations("workspaceNav");
+  const itemKeys: Record<string, string> = {
+    businesses: "businesses", people: "people", government: "government", brokers: "brokers", leaders: "leaders",
+    coverage: "coverage", subscriptions: "subscriptions", prices: "prices", apps: "apps", claims: "claims",
+    registrations: "registrations", register: "register", decisions: "decisions", overview: "overview",
+    "r-membership": "r-membership", "r-approvals": "r-approvals", "r-economy": "r-economy", "r-members": "r-members",
+    fees: "fees", subtypes: "subtypes", team: "team", guests: "guests", reports: "reports", queues: "queues",
+    queue: "queue", "officer-home": "officer-home",
+  };
+  const groupKeys: Record<string, string> = {
+    "To do": "todo", Records: "records", Reports: "reports", Settings: "settings", Government: "government",
+    "PSF membership": "psf", Oversight: "oversight", "Local guests": "localGuests", Reviews: "reviews",
+  };
   return (
     <>
       {groups.map((group, gi) => (
         <Sidebar.Group key={`${group.label ?? "main"}-${gi}`}>
-          {group.label ? <Sidebar.GroupLabel>{group.label}</Sidebar.GroupLabel> : null}
-          <Sidebar.Menu aria-label={group.label ?? "Main"}>
-            {group.items.map((item) => (
+          {group.label ? <Sidebar.GroupLabel>{groupKeys[group.label] ? t(`groups.${groupKeys[group.label]}`) : group.label}</Sidebar.GroupLabel> : null}
+          <Sidebar.Menu aria-label={group.label ? (groupKeys[group.label] ? t(`groups.${groupKeys[group.label]}`) : group.label) : "Main"}>
+            {group.items.map((item) => {
+              const id = item.id.startsWith("psf-") ? item.id.slice(4) : item.id;
+              const label = itemKeys[id] ? t(`items.${itemKeys[id]}`) : item.label;
+              return (
               <Sidebar.MenuItem
                 key={item.id}
                 id={`${idPrefix}${item.id}`}
@@ -56,13 +75,13 @@ function NavMenu({
                     ? pathname === item.href || pathname.startsWith(`${item.href}/`)
                     : current === item.board || navPlace([group], current)?.item === item
                 }
-                textValue={item.label}
-                tooltip={item.chip ? `${item.label} · ${item.chip}` : item.label}
+                textValue={label}
+                tooltip={item.chip ? `${label} · ${item.chip}` : label}
               >
                 <Sidebar.MenuIcon>
                   <Icon name={item.icon} />
                 </Sidebar.MenuIcon>
-                <Sidebar.MenuLabel>{item.label}</Sidebar.MenuLabel>
+                <Sidebar.MenuLabel>{label}</Sidebar.MenuLabel>
                 {item.chip ? (
                   <Sidebar.MenuChip
                     className={item.alert ? "font-semibold text-danger" : "font-semibold"}
@@ -72,7 +91,8 @@ function NavMenu({
                   </Sidebar.MenuChip>
                 ) : null}
               </Sidebar.MenuItem>
-            ))}
+              );
+            })}
           </Sidebar.Menu>
         </Sidebar.Group>
       ))}
@@ -142,9 +162,14 @@ function CollapseToggle() {
   );
 }
 
-/** Desktop app shell for operator, institution and Injishi staff workspaces (artifact: .ij-app). */
+/**
+ * Desktop app shell for operator, institution and Injishi staff workspaces (artifact: .ij-app). `switcher`
+ * is the account's own business context (ADR-076 G13), and `nav` is already narrowed to what this person may
+ * open (G12).
+ */
 export function WorkspaceShell({
   persona,
+  switcher,
   nav,
   altNav,
   live: liveWorkspace = false,
@@ -152,6 +177,7 @@ export function WorkspaceShell({
   children,
 }: {
   persona: Persona;
+  switcher: WorkspaceContext | null;
   /**
    * The signed-in person is one of the demo's own people (2026-10-30). Only they see the registry's sample
    * pills, the "Sample data" chip and the fixture-backed search, assistant and notification count; a real
@@ -226,7 +252,7 @@ export function WorkspaceShell({
         </NextLink>
         <CollapseToggle />
       </div>
-      <BusinessSwitcher persona={persona} />
+      <BusinessSwitcher persona={persona} context={switcher} />
     </Sidebar.Header>
   );
 
@@ -291,6 +317,7 @@ export function WorkspaceShell({
           </LinkButton>
         )}
         <Navbar.Spacer />
+        <LanguageSelect />
         {samples ? <SampleDataPill board={current} /> : null}
         <div className="hidden items-center gap-2 lg:flex" data-topbar-status="">
           {pills.map((p, i) => (

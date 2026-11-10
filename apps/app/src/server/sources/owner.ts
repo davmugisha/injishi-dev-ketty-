@@ -26,6 +26,7 @@ import type {
   Tone,
 } from "@injishi/data/fixtures/owner";
 import type { RequestOptions } from "../api";
+import { approvalHistory, approvalInbox } from "../approvals";
 import type { Workspace } from "../auth";
 import { clock, dayMonth, dayMonthYear, kigaliDate } from "../format";
 import { defineSources, type SourceContext } from "./types";
@@ -745,6 +746,10 @@ function memberships(psf: ApiPsf | null, hotel: ApiCertificates | undefined): Co
 // ── Sources ──────────────────────────────────────────────────────────────────────────────────────────
 
 export const sources = defineSources({
+  // What is really waiting on the owner, and what they decided lately (server/approvals.ts).
+  "owner.approvalRequests": { naturalKey: "id", list: approvalInbox },
+  "owner.approvalHistory": { naturalKey: "id", list: approvalHistory },
+
   "owner.teamRolesMembers": {
     naturalKey: "name",
     list: (ctx): Promise<TeamRolesMember[]> => teamMembers(ctx),

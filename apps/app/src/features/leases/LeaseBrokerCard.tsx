@@ -147,11 +147,24 @@ function RateDialog({ lease, onClose }: { lease: LeaseDetail; onClose: () => voi
  * The broker who brought the tenant (2026-10-25): who, the fee agreed as a record (owed until marked
  * paid; the money moves outside Injishi), and the landlord's rating once the tenancy has started.
  */
-export function LeaseBrokerCard({ lease, canManage }: { lease: LeaseDetail; canManage: boolean }) {
+export function LeaseBrokerCard({
+  lease,
+  canManage: mayManage,
+  marketplaceOn,
+}: {
+  lease: LeaseDetail;
+  canManage: boolean;
+  /**
+   * Whether Marketplace is on for this business. Choosing a broker, the fee and the rating are its broker
+   * network's routes, so while it is off the card only shows the broker already named (ADR-076 G14).
+   */
+  marketplaceOn: boolean;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState<"edit" | "fee" | "rate" | null>(null);
   const [pending, start] = useTransition();
   const broker = lease.broker;
+  const canManage = mayManage && marketplaceOn;
   const changeable = canManage && editable(lease.status);
   if (!broker && !changeable) return null;
 

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreatePayRunRequest = exports.PayRunDetail = exports.PayRun = exports.PayRunBlocker = exports.PayRunRemedy = exports.PayRunBlockerCode = exports.PayRunRuleVersion = exports.Payslip = exports.PayslipLine = exports.PayslipLineRef = exports.PayslipLineSide = exports.PayRunStatus = exports.PayPeriod = void 0;
+exports.WithdrawPayRunRequest = exports.SubmitPayRunRequest = exports.CreatePayRunRequest = exports.PayRunDetail = exports.PayRun = exports.PayRunBlocker = exports.PayRunRemedy = exports.PayRunBlockerCode = exports.PayRunRuleVersion = exports.Payslip = exports.PayslipLine = exports.PayslipLineRef = exports.PayslipLineSide = exports.PayRunStatus = exports.PayPeriod = void 0;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const primitives_1 = require("./primitives");
@@ -85,6 +85,8 @@ exports.Payslip = zod_1.z.object({
     paidMethod: zod_1.z.enum(["bank", "momo", "cash"]).nullable(),
     paidReference: zod_1.z.string().nullable(),
     sentAt: zod_1.z.string().nullable(),
+    /** The owner's payslip, read by someone without `team.manage`: every figure is zero and it has no lines. */
+    confidential: zod_1.z.boolean().optional(),
 });
 /** The rule rows a run was computed from, so the figures can be traced. */
 exports.PayRunRuleVersion = zod_1.z.object({
@@ -120,6 +122,8 @@ exports.PayRunBlocker = zod_1.z.object({
     displayName: zod_1.z.string(),
     message: zod_1.z.string(),
     remedies: zod_1.z.array(exports.PayRunRemedy).optional(),
+    /** A clock record that stops the month: clocked out or validated, it stops no more. */
+    record: zod_1.z.object({ id: primitives_1.Uuid, workDate: booking_1.IsoDate, clockInAt: zod_1.z.string() }).optional(),
 });
 exports.PayRun = zod_1.z.object({
     id: primitives_1.Uuid,
@@ -130,6 +134,16 @@ exports.PayRun = zod_1.z.object({
     ruleVersions: zod_1.z.array(exports.PayRunRuleVersion),
     confirmedAt: zod_1.z.string().nullable(),
     confirmedByUserId: primitives_1.Uuid.nullable(),
+    /** The name of who confirmed it, or their email when the account has no name. */
+    confirmedByName: zod_1.z.string().nullable(),
+    /**
+     * Handed to whoever confirms (`POST .../submit`). A submitted draft is
+     * locked until it is confirmed or withdrawn; null while it is prepared.
+     */
+    submittedAt: zod_1.z.string().nullable(),
+    submittedByName: zod_1.z.string().nullable(),
+    /** What whoever submitted said to whoever confirms. */
+    submitNote: zod_1.z.string().nullable(),
     headcount: zod_1.z.number().int(),
     grossRwf: zod_1.z.number().int(),
     netRwf: zod_1.z.number().int(),
@@ -144,4 +158,8 @@ exports.PayRunDetail = zod_1.z.object({
     blockers: zod_1.z.array(exports.PayRunBlocker),
 });
 exports.CreatePayRunRequest = zod_1.z.object({ period: exports.PayPeriod });
+/** `POST /ops/pay-runs/:id/submit`: hand the draft to whoever confirms, with a word if there is one. */
+exports.SubmitPayRunRequest = zod_1.z.object({ note: zod_1.z.string().trim().max(500).nullable().optional() });
+/** `POST /ops/pay-runs/:id/withdraw`: take a submitted draft back to change it; whoever confirms says why. */
+exports.WithdrawPayRunRequest = zod_1.z.object({ reason: zod_1.z.string().trim().max(500).nullable().optional() });
 //# sourceMappingURL=payroll.js.map

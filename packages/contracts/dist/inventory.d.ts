@@ -284,10 +284,10 @@ export declare const BranchArchiveReason: z.ZodObject<{
     /** Names of the members limited to this branch alone. Set for `last_branch_of_member`. */
     members: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
-    code: "head_office" | "guest_in_house" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
+    code: "guest_in_house" | "head_office" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
     members?: string[] | undefined;
 }, {
-    code: "head_office" | "guest_in_house" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
+    code: "guest_in_house" | "head_office" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
     members?: string[] | undefined;
 }>;
 export type BranchArchiveReason = z.infer<typeof BranchArchiveReason>;
@@ -299,22 +299,22 @@ export declare const BranchArchiveRefusal: z.ZodObject<{
         /** Names of the members limited to this branch alone. Set for `last_branch_of_member`. */
         members: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
     }, "strip", z.ZodTypeAny, {
-        code: "head_office" | "guest_in_house" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
+        code: "guest_in_house" | "head_office" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
         members?: string[] | undefined;
     }, {
-        code: "head_office" | "guest_in_house" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
+        code: "guest_in_house" | "head_office" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
         members?: string[] | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     message: string;
     reasons: {
-        code: "head_office" | "guest_in_house" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
+        code: "guest_in_house" | "head_office" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
         members?: string[] | undefined;
     }[];
 }, {
     message: string;
     reasons: {
-        code: "head_office" | "guest_in_house" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
+        code: "guest_in_house" | "head_office" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
         members?: string[] | undefined;
     }[];
 }>;
@@ -1957,6 +1957,7 @@ export declare const PropertySetupCounts: z.ZodObject<{
     published: number;
     staff: number;
     roomTypes: number;
+    outlets: number;
     rooms: number;
     amenities: number;
     departments: number;
@@ -1965,11 +1966,11 @@ export declare const PropertySetupCounts: z.ZodObject<{
     contactDetails: number;
     departmentHeads: number;
     pricedRoomTypes: number;
-    outlets: number;
 }, {
     published: number;
     staff: number;
     roomTypes: number;
+    outlets: number;
     rooms: number;
     amenities: number;
     departments: number;
@@ -1978,7 +1979,6 @@ export declare const PropertySetupCounts: z.ZodObject<{
     contactDetails: number;
     departmentHeads: number;
     pricedRoomTypes: number;
-    outlets: number;
 }>;
 export type PropertySetupCounts = z.infer<typeof PropertySetupCounts>;
 export declare const PropertySetupProgress: z.ZodObject<{
@@ -2024,6 +2024,7 @@ export declare const PropertySetupProgress: z.ZodObject<{
         published: number;
         staff: number;
         roomTypes: number;
+        outlets: number;
         rooms: number;
         amenities: number;
         departments: number;
@@ -2032,11 +2033,11 @@ export declare const PropertySetupProgress: z.ZodObject<{
         contactDetails: number;
         departmentHeads: number;
         pricedRoomTypes: number;
-        outlets: number;
     }, {
         published: number;
         staff: number;
         roomTypes: number;
+        outlets: number;
         rooms: number;
         amenities: number;
         departments: number;
@@ -2045,7 +2046,6 @@ export declare const PropertySetupProgress: z.ZodObject<{
         contactDetails: number;
         departmentHeads: number;
         pricedRoomTypes: number;
-        outlets: number;
     }>;
 }, "strip", z.ZodTypeAny, {
     domain: "hospitality" | "residence" | "enterprise";
@@ -2059,6 +2059,7 @@ export declare const PropertySetupProgress: z.ZodObject<{
         published: number;
         staff: number;
         roomTypes: number;
+        outlets: number;
         rooms: number;
         amenities: number;
         departments: number;
@@ -2067,7 +2068,6 @@ export declare const PropertySetupProgress: z.ZodObject<{
         contactDetails: number;
         departmentHeads: number;
         pricedRoomTypes: number;
-        outlets: number;
     };
     propertyName: string | null;
     propertyId: string | null;
@@ -2082,6 +2082,7 @@ export declare const PropertySetupProgress: z.ZodObject<{
         published: number;
         staff: number;
         roomTypes: number;
+        outlets: number;
         rooms: number;
         amenities: number;
         departments: number;
@@ -2090,7 +2091,6 @@ export declare const PropertySetupProgress: z.ZodObject<{
         contactDetails: number;
         departmentHeads: number;
         pricedRoomTypes: number;
-        outlets: number;
     };
     propertyName: string | null;
     propertyId: string | null;

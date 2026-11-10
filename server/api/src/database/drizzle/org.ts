@@ -107,6 +107,8 @@ export const orgs = pgTable(
     // 2026-10-23: the business's own logo, optional, given on the public PSF
     // form and printed on its membership certificate (`org_logo` objects).
     logoObjectKey: text('logo_object_key').references((): AnyPgColumn => storedObjects.objectKey),
+    // The owner's passport photo (0136), printed on its PSF card and certificate.
+    psfOwnerPhotoKey: text('psf_owner_photo_key'),
     /**
      * The `Idempotency-Key` of the Pay press that created this registration
      * (ADR-075 AC-14). Unique, so a retried press, a double press or two tabs
@@ -264,7 +266,7 @@ export const userProfiles = pgTable(
       .primaryKey()
       .references(() => users.id, { onDelete: 'cascade' }),
     displayName: text('display_name'),
-    /** The language the person reads Injishi in (the guest account's choice). */
+    /** The language this person prefers Injishi and their account emails to use. */
     locale: text('locale').notNull().default('en'),
     avatarObjectKey: text('avatar_object_key'),
     phoneE164: text('phone_e164'),

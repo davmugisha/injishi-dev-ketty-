@@ -84,11 +84,16 @@ export type PsfDeclineReason = "details_incomplete" | "not_eligible_for_tier" | 
 
 /** GET /api/v1/oversight/psf-applications/:id */
 export interface PsfOfficerApplication {
+  /** Answers to the questions PSF added to the form (2026-11-06). */
+  extraAnswers: { label: string; value: string }[];
   id: string;
   /** Where it was sent from (2026-11-02): the public PSF form, or Injishi's business registration. */
   origin: "psf_form" | "registration";
   /** New, or a card holder joining the new module (2026-11-02): confirmed with a new number and its card's year. */
   intake: "new" | "card_holder";
+  /** Sent back to fix (2026-11-05): when, and what the District Manager asked. */
+  returnedAt: string | null;
+  returnNote: string | null;
   status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
   requestedTierName: string;
   declaredFeeRwf: number | null;
@@ -313,6 +318,7 @@ export interface PsfBusinessesFilter {
   district?: number;
   group?: PsfOwnerGroup;
   tin?: "with" | "without";
+  rdb?: "with" | "without";
 }
 
 /** The register of businesses in the officer's region. */
@@ -330,6 +336,7 @@ export function readPsfBusinesses(
   if (query.district) params.set("district", String(query.district));
   if (query.group) params.set("group", query.group);
   if (query.tin) params.set("tin", query.tin);
+  if (query.rdb) params.set("rdb", query.rdb);
   if (query.cursor) params.set("cursor", query.cursor);
   const qs = params.toString();
   return ctx.api.get<PsfBusinessesPage>(`/api/v1/oversight/psf/businesses${qs ? `?${qs}` : ""}`);

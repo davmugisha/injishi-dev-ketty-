@@ -47,6 +47,7 @@ export function RentalsSettingsView({
   setup,
   team,
   can,
+  payOn,
 }: {
   tab: SettingsTab;
   profile: LandlordProfileView;
@@ -56,6 +57,8 @@ export function RentalsSettingsView({
   /** The team, for a person who manages it. */
   team: { members: OperatorTeamMember[]; invitations: OperatorStaffInvitation[] } | null;
   can: SettingsPermissions;
+  /** Whether Pay is on for this business. Getting paid is Pay's, so its tab goes while Pay is off (ADR-076 G14). */
+  payOn: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -66,13 +69,15 @@ export function RentalsSettingsView({
       <FilterTabs
         label="Settings"
         variant="tabs"
-        tabs={SETTINGS_TABS.filter((id) => id !== "team" || can.team).map((id) => ({ id, label: LABEL[id] }))}
+        tabs={SETTINGS_TABS.filter((id) => (id !== "team" || can.team) && (id !== "getting-paid" || payOn)).map(
+          (id) => ({ id, label: LABEL[id] }),
+        )}
         selectedKey={tab}
         onSelectionChange={(key) => router.replace(`${pathname}?tab=${key}`, { scroll: false })}
       />
       <div className="grid min-w-0 gap-5 lg:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-5 *:last:flex-1 lg:col-span-2">
-          {tab === "getting-paid" ? <PayoutAccounts accounts={accounts} canManage={can.payouts} /> : null}
+          {tab === "getting-paid" && payOn ? <PayoutAccounts accounts={accounts} canManage={can.payouts} /> : null}
           {tab === "location" ? <Location properties={properties} canEdit={can.location} /> : null}
           {tab === "lease-defaults" ? (
             <LeaseDefaults defaults={profile.leaseDefaults} canEdit={can.leaseDefaults} />

@@ -5,7 +5,12 @@ import { Throttle } from '@nestjs/throttler';
 import { PlacementMessagesService } from '../../../../modules/rentals/application/placement-messages.service';
 import type { ScopedWorkspace } from '../../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../../shared/auth/session.guard';
-import { CurrentWorkspace, RequireAnyPermission, WorkspaceGuard } from '../../../../shared/auth/workspace.guard';
+import {
+  CurrentWorkspace,
+  RequireAnyPermission,
+  RequireProduct,
+  WorkspaceGuard,
+} from '../../../../shared/auth/workspace.guard';
 import { UserThrottlerGuard } from '../../../../shared/http/user-throttler.guard';
 import type { FileReply } from '../pay-runs.controller';
 import { MESSAGE_FORM_LIMITS, sendMessageFile } from './messages.controller';
@@ -17,10 +22,12 @@ import { normaliseFormFields, parseFields, readForm, type FormRequest } from './
  * Every route is `lease.manage` or `message.send`, as the Brokers screen is; a
  * placement on another business's unit, or outside the reader's buildings,
  * is 404. The unread count is in `/ops/rentals/messages/unread`, with the
- * tenants' lines, so the sidebar shows one number.
+ * tenants' lines, so the sidebar shows one number. Marketplace's, with the
+ * rest of the broker network (ADR-076 slice G).
  */
 @Controller({ path: 'ops/rentals/placement-messages', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('marketplace')
 export class OpsPlacementMessagesController {
   constructor(private readonly messages: PlacementMessagesService) {}
 

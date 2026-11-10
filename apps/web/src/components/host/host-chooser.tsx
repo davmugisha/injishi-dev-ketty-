@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@injishi/utils";
 import { HostKindIcons } from "@/components/icons/search";
@@ -26,7 +27,8 @@ type HostPropertyKind = (typeof HOST_PROPERTY_KINDS)[number];
  * Each tile goes straight to `/register` with its kind (`hostKindHref`).
  */
 
-export function HostChooser({ className }: { className?: string }) {
+export async function HostChooser({ className }: { className?: string }) {
+  const t = await getTranslations("host");
   return (
     <section
       aria-labelledby="host-chooser-title"
@@ -40,10 +42,10 @@ export function HostChooser({ className }: { className?: string }) {
           id="host-chooser-title"
           className="text-xl font-medium tracking-tight text-page-fg lg:text-2xl"
         >
-          What kind of place do you have?
+          {t("chooserTitle")}
         </h2>
         <p className="mt-1 text-sm text-page-fg-70">
-          Pick one to start. We ask the rest after you sign in.
+          {t("chooserLead")}
         </p>
       </header>
 
@@ -52,12 +54,12 @@ export function HostChooser({ className }: { className?: string }) {
           {HOST_PROPERTY_KIND_GROUPS.map((group) => (
             <div key={group.id}>
               <h3 className="mb-2 text-2xs font-semibold tracking-[0.08em] text-page-fg-70 uppercase">
-                {group.label}
+                {t(`groups.${group.id}`)}
               </h3>
               <ul className="m-0 grid list-none grid-cols-1 gap-2 p-0 min-[420px]:grid-cols-2">
                 {group.kinds.map((kind) => (
                   <li key={kind.value}>
-                    <KindTile kind={kind} />
+                    <KindTile kind={kind} label={t(`names.${kind.value}`)} blurb={t(`kinds.${kind.value}`)} />
                   </li>
                 ))}
               </ul>
@@ -69,7 +71,7 @@ export function HostChooser({ className }: { className?: string }) {
   );
 }
 
-function KindTile({ kind }: { kind: HostPropertyKind }) {
+function KindTile({ kind, label, blurb }: { kind: HostPropertyKind; label: string; blurb: string }) {
   // No fallback and no cast: `HostKindIcons` is total over `HostKind`
   // and `kind.value` is one, so a missing mark is a compile error
   // rather than a blank circle (ADR-011 call 7).
@@ -89,8 +91,8 @@ function KindTile({ kind }: { kind: HostPropertyKind }) {
       </span>
 
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="text-sm font-medium text-page-fg">{kind.label}</span>
-        <span className="line-clamp-2 text-xs leading-snug text-page-fg-70">{kind.blurb}</span>
+        <span className="text-sm font-medium text-page-fg">{label}</span>
+        <span className="line-clamp-2 text-xs leading-snug text-page-fg-70">{blurb}</span>
       </span>
 
       <ArrowRight

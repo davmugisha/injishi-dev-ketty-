@@ -2,6 +2,7 @@
 
 import { Award, Check, Coffee, Waves, Wallet, X } from "lucide-react";
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@injishi/utils";
 import { facetSelection, facetTogglePatch } from "@/components/explore/explore-filters";
 import { buildFacetGroups } from "@/data/explore-facets";
@@ -43,6 +44,7 @@ export function ActiveFilterChips({
   /** Place and filters in one commit (two calls would race the URL). */
   onClearAll: () => void;
 }) {
+  const t = useTranslations("search");
   const chips = useMemo<Chip[]>(() => {
     const out: Chip[] = [];
 
@@ -111,7 +113,7 @@ export function ActiveFilterChips({
     <div
       data-active-filters
       role="region"
-      aria-label="Filters applied"
+      aria-label={t("filtersApplied")}
       className="flex flex-wrap items-center gap-2"
     >
       {chips.map((chip) => (
@@ -119,7 +121,7 @@ export function ActiveFilterChips({
           key={chip.key}
           type="button"
           onClick={() => apply(chip.change)}
-          aria-label={`Remove filter: ${chip.label}`}
+          aria-label={t("removeFilter", { label: chip.label })}
           className="group flex h-8 max-w-full items-center gap-1.5 rounded-full bg-foreground py-1 pl-3 pr-2 text-xs font-semibold text-background transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <span className="truncate">{chip.label}</span>
@@ -133,7 +135,7 @@ export function ActiveFilterChips({
         onClick={onClearAll}
         className="h-8 rounded-full px-2 text-xs font-bold text-accent-text underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        Clear all
+        {t("clearAll")}
       </button>
     </div>
   );
@@ -146,10 +148,10 @@ export function ActiveFilterChips({
  * chip no listed stay would answer is left out rather than shown at zero.
  */
 const QUICK = [
-  { id: "breakfast", label: "Breakfast included", Icon: Coffee },
-  { id: "pool", label: "Pool", Icon: Waves },
-  { id: "rated_8", label: "Rated 8+", Icon: Award },
-  { id: "under_50k", label: "Under 50K", Icon: Wallet },
+  { id: "breakfast", key: "quickBreakfast", Icon: Coffee },
+  { id: "pool", key: "quickPool", Icon: Waves },
+  { id: "rated_8", key: "quickRated", Icon: Award },
+  { id: "under_50k", key: "quickUnderPrice", Icon: Wallet },
 ] as const;
 
 export function QuickFilters({
@@ -163,6 +165,7 @@ export function QuickFilters({
   refinement: ExploreRefinement;
   onRefinementChange: (next: Partial<ExploreRefinement>) => void;
 }) {
+  const t = useTranslations("search");
   const counts = useMemo(() => {
     const groups = buildFacetGroups((_id, field) =>
       poolExcluding(listings, intent, refinement, field),
@@ -174,10 +177,11 @@ export function QuickFilters({
   return (
     <div
       role="group"
-      aria-label="Quick filters"
+      aria-label={t("quickFilters")}
       className="-mx-1 flex gap-2 overflow-x-auto px-1 py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      {QUICK.map(({ id, label, Icon }) => {
+      {QUICK.map(({ id, key, Icon }) => {
+        const label = t(key);
         const on = refinement.popular.includes(id);
         const count = counts.get(id) ?? 0;
         if (!on && count === 0) return null;

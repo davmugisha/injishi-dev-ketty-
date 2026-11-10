@@ -2451,7 +2451,7 @@ export declare const OperatorFolioCharge: z.ZodObject<{
     amountRwf: number;
     description: string | null;
     departmentName: string | null;
-    chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
+    chargeType: "payment" | "deposit" | "refund" | "pos" | "room" | "service_order" | "tax" | "service_charge" | "adjustment" | "discount";
     departmentId: string | null;
     quantity: number;
     unitPriceRwf: number | null;
@@ -2469,7 +2469,7 @@ export declare const OperatorFolioCharge: z.ZodObject<{
     amountRwf: number;
     description: string | null;
     departmentName: string | null;
-    chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
+    chargeType: "payment" | "deposit" | "refund" | "pos" | "room" | "service_order" | "tax" | "service_charge" | "adjustment" | "discount";
     departmentId: string | null;
     quantity: number;
     unitPriceRwf: number | null;
@@ -2531,7 +2531,7 @@ export declare const OperatorFolioDetail: z.ZodObject<{
         amountRwf: number;
         description: string | null;
         departmentName: string | null;
-        chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
+        chargeType: "payment" | "deposit" | "refund" | "pos" | "room" | "service_order" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
         unitPriceRwf: number | null;
@@ -2549,7 +2549,7 @@ export declare const OperatorFolioDetail: z.ZodObject<{
         amountRwf: number;
         description: string | null;
         departmentName: string | null;
-        chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
+        chargeType: "payment" | "deposit" | "refund" | "pos" | "room" | "service_order" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
         unitPriceRwf: number | null;
@@ -2574,7 +2574,7 @@ export declare const OperatorFolioDetail: z.ZodObject<{
         amountRwf: number;
         description: string | null;
         departmentName: string | null;
-        chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
+        chargeType: "payment" | "deposit" | "refund" | "pos" | "room" | "service_order" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
         unitPriceRwf: number | null;
@@ -2607,7 +2607,7 @@ export declare const OperatorFolioDetail: z.ZodObject<{
         amountRwf: number;
         description: string | null;
         departmentName: string | null;
-        chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
+        chargeType: "payment" | "deposit" | "refund" | "pos" | "room" | "service_order" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
         unitPriceRwf: number | null;
@@ -2654,7 +2654,7 @@ export declare const PostChargeRequest: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     amountRwf: number;
     description: string;
-    chargeType: "deposit" | "refund" | "room" | "service_order" | "pos" | "service_charge" | "adjustment" | "discount";
+    chargeType: "deposit" | "refund" | "pos" | "room" | "service_order" | "service_charge" | "adjustment" | "discount";
     quantity: number;
     departmentId?: string | undefined;
     taxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
@@ -2662,7 +2662,7 @@ export declare const PostChargeRequest: z.ZodObject<{
 }, {
     amountRwf: number;
     description: string;
-    chargeType: "deposit" | "refund" | "room" | "service_order" | "pos" | "service_charge" | "adjustment" | "discount";
+    chargeType: "deposit" | "refund" | "pos" | "room" | "service_order" | "service_charge" | "adjustment" | "discount";
     departmentId?: string | undefined;
     quantity?: number | undefined;
     taxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
@@ -2722,7 +2722,7 @@ export declare const PostChargeResult: z.ZodObject<{
         amountRwf: number;
         description: string | null;
         departmentName: string | null;
-        chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
+        chargeType: "payment" | "deposit" | "refund" | "pos" | "room" | "service_order" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
         unitPriceRwf: number | null;
@@ -2740,7 +2740,7 @@ export declare const PostChargeResult: z.ZodObject<{
         amountRwf: number;
         description: string | null;
         departmentName: string | null;
-        chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
+        chargeType: "payment" | "deposit" | "refund" | "pos" | "room" | "service_order" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
         unitPriceRwf: number | null;
@@ -2767,7 +2767,7 @@ export declare const PostChargeResult: z.ZodObject<{
         amountRwf: number;
         description: string | null;
         departmentName: string | null;
-        chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
+        chargeType: "payment" | "deposit" | "refund" | "pos" | "room" | "service_order" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
         unitPriceRwf: number | null;
@@ -2801,7 +2801,7 @@ export declare const PostChargeResult: z.ZodObject<{
         amountRwf: number;
         description: string | null;
         departmentName: string | null;
-        chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
+        chargeType: "payment" | "deposit" | "refund" | "pos" | "room" | "service_order" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
         unitPriceRwf: number | null;
@@ -2945,7 +2945,7 @@ export declare const CloseFolioResult: z.ZodObject<{
         amountRwf: number;
         description: string | null;
         departmentName: string | null;
-        chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
+        chargeType: "payment" | "deposit" | "refund" | "pos" | "room" | "service_order" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
         unitPriceRwf: number | null;
@@ -2963,7 +2963,7 @@ export declare const CloseFolioResult: z.ZodObject<{
         amountRwf: number;
         description: string | null;
         departmentName: string | null;
-        chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
+        chargeType: "payment" | "deposit" | "refund" | "pos" | "room" | "service_order" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
         unitPriceRwf: number | null;
@@ -3006,7 +3006,7 @@ export declare const CloseFolioResult: z.ZodObject<{
         amountRwf: number;
         description: string | null;
         departmentName: string | null;
-        chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
+        chargeType: "payment" | "deposit" | "refund" | "pos" | "room" | "service_order" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
         unitPriceRwf: number | null;
@@ -3045,7 +3045,7 @@ export declare const CloseFolioResult: z.ZodObject<{
         amountRwf: number;
         description: string | null;
         departmentName: string | null;
-        chargeType: "payment" | "deposit" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount";
+        chargeType: "payment" | "deposit" | "refund" | "pos" | "room" | "service_order" | "tax" | "service_charge" | "adjustment" | "discount";
         departmentId: string | null;
         quantity: number;
         unitPriceRwf: number | null;

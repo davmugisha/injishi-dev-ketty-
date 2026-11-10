@@ -1,10 +1,10 @@
 "use client";
 
 import { Button, Checkbox } from "@injishi/web-ui";
+import { useTranslations } from "next-intl";
 import { StepButton } from "@/components/shared/step-button";
 import {
   DEFAULT_GUESTS,
-  GUEST_AGES,
   GUEST_LIMITS,
   type GuestCounts,
   type GuestField,
@@ -25,13 +25,13 @@ import {
  */
 const ROWS: {
   field: GuestField;
-  label: string;
-  singular: string;
-  helper: string;
+  labelKey: "adults" | "children" | "infants";
+  personKey: "adult" | "child" | "infant";
+  ageKey: "adultAge" | "childAge" | "infantAge";
 }[] = [
-  { field: "adults", label: "Adults", singular: "adult", helper: GUEST_AGES.adults },
-  { field: "children", label: "Children", singular: "child", helper: GUEST_AGES.children },
-  { field: "infants", label: "Infants", singular: "infant", helper: GUEST_AGES.infants },
+  { field: "adults", labelKey: "adults", personKey: "adult", ageKey: "adultAge" },
+  { field: "children", labelKey: "children", personKey: "child", ageKey: "childAge" },
+  { field: "infants", labelKey: "infants", personKey: "infant", ageKey: "infantAge" },
 ];
 
 export function GuestPanel({
@@ -49,6 +49,7 @@ export function GuestPanel({
   onChange: (next: GuestCounts | null) => void;
   onDone: () => void;
 }) {
+  const t = useTranslations("search");
   const party = guests ?? DEFAULT_GUESTS;
 
   const set = (field: GuestField, value: number) =>
@@ -62,7 +63,7 @@ export function GuestPanel({
   return (
     <div className="w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-card bg-white shadow-[0_18px_50px_-12px_rgba(4,35,48,0.35)] ring-1 ring-black/5">
       <div className="px-6 pt-5">
-        {ROWS.map(({ field, label, singular, helper }) => {
+        {ROWS.map(({ field, labelKey, personKey, ageKey }) => {
           const value = party[field];
           const { min, max } = GUEST_LIMITS[field];
           return (
@@ -71,16 +72,16 @@ export function GuestPanel({
               className="flex items-center justify-between border-b border-black/5 py-4 last:border-b-0"
             >
               <span>
-                <span className="block text-base leading-tight text-ink">{label}</span>
+                  <span className="block text-base leading-tight text-ink">{t(labelKey)}</span>
                 <span className="block text-sm leading-tight text-ink/65">
-                  {helper}
+                  {t(ageKey)}
                 </span>
               </span>
               <span className="flex items-center gap-1">
                 <StepButton
                   tone="overlay"
                   sign="minus"
-                  label={`Remove one ${singular}`}
+                  label={t("removeOne", { person: t(personKey) })}
                   disabled={value <= min}
                   onClick={() => set(field, value - 1)}
                 />
@@ -93,7 +94,7 @@ export function GuestPanel({
                 <StepButton
                   tone="overlay"
                   sign="plus"
-                  label={`Add one ${singular}`}
+                  label={t("addOne", { person: t(personKey) })}
                   disabled={value >= max}
                   onClick={() => set(field, value + 1)}
                 />
@@ -113,10 +114,10 @@ export function GuestPanel({
       >
         <span className="block">
           <span className="block text-base leading-tight text-ink">
-            I’m travelling with pets
+            {t("travellingPets")}
           </span>
           <span className="block text-sm leading-tight text-ink/65">
-            Shows only stays that allow them
+            {t("petsHint")}
           </span>
         </span>
       </Checkbox>
@@ -129,10 +130,10 @@ export function GuestPanel({
           onClick={() => onChange(null)}
           className="text-ink/50 hover:text-ink"
         >
-          Reset
+          {t("reset")}
         </Button>
         <Button variant="primary" size="sm" onClick={onDone} className="h-auto px-6 py-2">
-          Done
+          {t("done")}
         </Button>
       </div>
     </div>

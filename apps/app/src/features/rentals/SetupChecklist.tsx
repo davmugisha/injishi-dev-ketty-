@@ -1,8 +1,9 @@
 "use client";
 
 import { Chip, ProgressBar } from "@heroui/react";
-import { RENTALS_SETUP_STEP_LABEL, type RentalsSetupView } from "@injishi/contracts";
+import type { RentalsSetupView } from "@injishi/contracts";
 import { ActionLink, Icon, SectionCard } from "@injishi/ui";
+import { useTranslations } from "next-intl";
 import { SETUP_STEP_HREF } from "./shared";
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
@@ -13,33 +14,35 @@ const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).jo
  */
 export function SetupChecklist({
   setup,
-  title = "Get set up",
+  title,
   headingLevel = 2,
   className,
 }: {
   setup: RentalsSetupView;
+  /** Overrides the card's own heading, already translated by its caller. */
   title?: string;
   headingLevel?: 2 | 3;
   className?: string;
 }) {
+  const t = useTranslations("rentalsSetup");
   const done = setup.steps.filter((s) => s.done).length;
   const total = setup.steps.length;
   return (
     <SectionCard
-      title={title}
-      description={setup.complete ? undefined : `${done} of ${total} done`}
+      title={title ?? t("getSetUp")}
+      description={setup.complete ? undefined : t("doneOfTotal", { done, total })}
       headingLevel={headingLevel}
       className={className}
       actions={
         setup.complete ? (
           <Chip size="sm" color="success" variant="soft">
-            Done
+            {t("done")}
           </Chip>
         ) : null
       }
     >
       <ProgressBar
-        aria-label="Setup progress"
+        aria-label={t("progress")}
         value={done}
         maxValue={total}
         size="sm"
@@ -69,8 +72,8 @@ export function SetupChecklist({
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className={cx("text-sm font-medium", s.done && "text-muted")}>
-                  {RENTALS_SETUP_STEP_LABEL[s.step]}
-                  <span className="sr-only">{s.done ? ", done" : ", to do"}</span>
+                  {t(`steps.${s.step}`)}
+                  <span className="sr-only">{s.done ? t("doneSuffix") : t("toDoSuffix")}</span>
                 </span>
                 <span className="truncate text-xs text-muted">{s.detail}</span>
               </span>
@@ -78,9 +81,9 @@ export function SetupChecklist({
                 href={SETUP_STEP_HREF[s.step]}
                 size="sm"
                 intent={next ? "primary" : s.done ? "ghost" : "secondary"}
-                aria-label={`${s.done ? "Change" : "Start"}: ${RENTALS_SETUP_STEP_LABEL[s.step]}`}
+                aria-label={`${s.done ? t("change") : t("start")}: ${t(`steps.${s.step}`)}`}
               >
-                {s.done ? "Change" : next ? "Start" : "Open"}
+                {s.done ? t("change") : next ? t("start") : t("open")}
               </ActionLink>
             </li>
           );

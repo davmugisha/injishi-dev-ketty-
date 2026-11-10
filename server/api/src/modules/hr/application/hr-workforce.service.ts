@@ -3,25 +3,20 @@ import type {
   CoverRequirementList,
   EmployeeDependantList,
   ExpiringDocumentList,
-  HrChecklistItem,
-  HrChecklistItemList,
-  HrChecklistKind,
   HrCompensation,
   HrTeamList,
   PayAccountLabel,
+  SaveCoverRequest,
 } from '@injishi/contracts';
-import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 
 import { assertInBranchScope, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
-import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { addDays, kigaliToday } from '../domain/hr-calendar';
-import { writeHrAudit } from '../infrastructure/hr-audit';
 import {
   HrWorkforceRepository,
-  type ChecklistRow,
   type PayAccountRow,
 } from '../infrastructure/hr-workforce.repository';
-import { assertPersonInReach, orgOf } from './hr-access';
+import { orgOf } from './hr-access';
 
 /**
  * The workforce reads the new interface's HR screens draw with (real-data,
@@ -33,10 +28,7 @@ import { assertPersonInReach, orgOf } from './hr-access';
  */
 @Injectable()
 export class HrWorkforceService {
-  constructor(
-    @Inject(DRIZZLE) private readonly db: Database,
-    private readonly workforce: HrWorkforceRepository,
-  ) {}
+  constructor(private readonly workforce: HrWorkforceRepository) {}
 
   /**
    * `GET /ops/hr/teams`: the teams of the caller's branches and where each person works.
@@ -79,6 +71,27 @@ export class HrWorkforceService {
     return { requirements: rows };
   }
 
+  /** `PUT /ops/roster/cover`: set a team's minimum cover at its own branch. */
+  async saveCover(ws: ScopedWorkspace, userId: string, body: SaveCoverRequest): Promise<CoverRequirementList> {
+    const orgId = orgOf(ws);
+    const team = await this.workforce.teamOf(orgId, body.teamId);
+    if (!team) throw new NotFoundException('That team is not in this business.');
+    assertInBranchScope(ws, team.propertyId);
+    const wanted = [...new Set(body.shiftTemplateIds)];
+    const found = await this.workforce.activeShiftIds(orgId, team.propertyId, wanted);
+    if (found.length !== wanted.length) {
+      throw new UnprocessableEntityException('Every shift must be an active shift of the team\'s branch.');
+    }
+    await this.workforce.saveCover(orgId, userId, {
+      teamId: team.id,
+      propertyId: team.propertyId,
+      shiftTemplateIds: wanted,
+      minByWeekday: body.minByWeekday,
+      note: body.note ?? null,
+    });
+    return this.cover(ws, team.propertyId);
+  }
+
   /** `GET /ops/hr/compensation`: what each contract pays and why, and where pay goes. */
   async compensation(ws: ScopedWorkspace): Promise<HrCompensation> {
     const orgId = orgOf(ws);
@@ -116,47 +129,6 @@ export class HrWorkforceService {
     return { documents };
   }
 
-  /** `GET /ops/hr/checklists`: one kind of checklist, for everybody in scope or one person. */
-  async checklists(ws: ScopedWorkspace, checklist: HrChecklistKind, employeeId: string | undefined): Promise<HrChecklistItemList> {
-    const orgId = orgOf(ws);
-    const rows = await this.workforce.checklists(orgId, ws.branchScope, checklist, employeeId ?? null);
-    return { items: rows.map(presentItem) };
-  }
-
-  /**
-   * `POST /ops/hr/checklist-items/:id`: tick a step or take the tick back. A
-   * step marked owner only (taking an account away, which is staffing the
-   * business) also needs `team.manage`, the owner's alone (AC-O2). The tick
-   * and its audit row commit together.
-   */
-  async markChecklistItem(ws: ScopedWorkspace, userId: string, id: string, done: boolean): Promise<HrChecklistItem> {
-    const orgId = orgOf(ws);
-    const item = await this.workforce.findChecklistItem(id);
-    if (!item || item.orgId !== orgId) throw new NotFoundException();
-    // A write on a person outside the caller's branches is 403 in words (ADR-058).
-    assertPersonInReach(ws, item.workPropertyId);
-    if (item.ownerOnly && !ws.permissions.includes('team.manage')) {
-      throw new ForbiddenException('Only someone who manages the team can tick this step.');
-    }
-    await this.db.transaction(async (tx) => {
-      const moved = await this.workforce.markChecklistItem(tx, id, done, userId);
-      if (!moved) {
-        throw new ConflictException(done ? 'That step is already done.' : 'That step is not ticked.');
-      }
-      await writeHrAudit(tx, {
-        actorUserId: userId,
-        subjectType: 'employee',
-        subjectId: item.employeeId,
-        eventType: done ? 'hr.checklist_step_done' : 'hr.checklist_step_reopened',
-        orgId,
-        diff: { checklist: item.checklist, code: item.code },
-      });
-    });
-    const updated = await this.workforce.findChecklistItem(id);
-    if (!updated) throw new NotFoundException();
-    return presentItem(updated);
-  }
-
   /** `GET /ops/hr/dependants`: beneficiaries and dependants, beneficiaries first. */
   async dependants(ws: ScopedWorkspace, employeeId: string | undefined): Promise<EmployeeDependantList> {
     const orgId = orgOf(ws);
@@ -176,21 +148,6 @@ export class HrWorkforceService {
         .map((r) => ({ ...r, beneficiaryPercent: r.beneficiaryPercent === null ? null : Number(r.beneficiaryPercent) })),
     };
   }
-}
-
-function presentItem(row: ChecklistRow): HrChecklistItem {
-  return {
-    id: row.id,
-    employeeId: row.employeeId,
-    checklist: row.checklist,
-    code: row.code,
-    title: row.title,
-    detail: row.detail,
-    ownerOnly: row.ownerOnly,
-    sortOrder: row.sortOrder,
-    doneAt: row.doneAt ? row.doneAt.toISOString() : null,
-    doneByName: row.doneAt ? row.doneByName : null,
-  };
 }
 
 /**

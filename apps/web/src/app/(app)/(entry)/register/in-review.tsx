@@ -1,19 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  BUSINESS_KIND_LABEL,
-  REJECTION_REASON_LABEL,
-  type RegistrationSummary,
-  stepForRejectionReason,
-} from "@injishi/contracts";
+import { REJECTION_REASON_LABEL, type RegistrationSummary, stepForRejectionReason } from "@injishi/contracts";
 import { Alert } from "@heroui/react";
+import { formatLocale, isLocale } from "@injishi/i18n";
 import { Avatar, AvatarFallback, Badge, Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { Check, X } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { fetchRegistration } from "@/data/registration";
-import { setupIsOpen, setupLink, setupNote } from "@/lib/setup-link";
+import { setupIsOpen, setupLink } from "@/lib/setup-link";
 
 import { StepCard } from "./register-shell";
 import { Notice } from "./wizard-ui";
@@ -48,12 +45,15 @@ interface Stage {
 
 const KIGALI: Intl.DateTimeFormatOptions = { timeZone: "Africa/Kigali" };
 
-function onDay(iso: string | null): string | null {
+/** The page's own messages, under `registerForms.inReview`. */
+type InReviewMessages = ReturnType<typeof useTranslations<"registerForms.inReview">>;
+
+function onDay(iso: string | null, locale: string): string | null {
   if (!iso) return null;
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? null
-    : d.toLocaleDateString("en-GB", { ...KIGALI, day: "numeric", month: "short", year: "numeric" });
+    : d.toLocaleDateString(locale, { ...KIGALI, day: "numeric", month: "short", year: "numeric" });
 }
 
 /**
@@ -61,77 +61,84 @@ function onDay(iso: string | null): string | null {
  * residence carries a UPI and no TIN, so it skips that check and goes straight on to the district (the API's
  * `runTinCheck`), and its UPI was only ever format checked, as Business said when it was typed.
  */
-function firstStageSub(summary: RegistrationSummary, paid: string | null): string {
-  const paidOn = (lead: string) => (paid ? `${lead}${paid}. ` : "");
+function firstStageSub(summary: RegistrationSummary, paid: string | null, t: InReviewMessages): string {
+  // Each case is its own catalog message: the sentence is not built by gluing a paid clause onto a stem, so a
+  // locale that words the two differently is free to.
   if (summary.domain === "residence") {
-    return summary.status === "submitted"
-      ? `${paidOn("Paid ")}It goes on to your district in a moment. There is no TIN to check for a residence.`
-      : `${paidOn("")}UPI format checked when you entered it.`;
+    if (summary.status === "submitted")
+      return paid ? t("residenceSubmittedPaid", { paid }) : t("residenceSubmitted");
+    return paid ? t("residenceCheckedPaid", { paid }) : t("residenceChecked");
   }
-  return summary.status === "submitted"
-    ? `${paidOn("Paid ")}RRA is confirming the TIN once more, which usually takes seconds.`
-    : `${paidOn("")}TIN checked when you entered it.`;
+  if (summary.status === "submitted")
+    return paid ? t("businessSubmittedPaid", { paid }) : t("businessSubmitted");
+  return paid ? t("businessCheckedPaid", { paid }) : t("businessChecked");
 }
 
-function stagesFor(summary: RegistrationSummary): Stage[] {
+function stagesFor(summary: RegistrationSummary, paid: string | null, t: InReviewMessages): Stage[] {
   const s = summary.status;
-  const paid = onDay(summary.submittedAt);
   const checked = s === "field_verified" || s === "approved" || s === "active";
   const approved = s === "approved" || s === "active";
   const open = setupIsOpen(summary);
   return [
     {
-      title: "Registered and paid",
-      sub: firstStageSub(summary, paid),
+      title: t("stagePaid"),
+      sub: firstStageSub(summary, paid, t),
       state: s === "submitted" ? "current" : "done",
     },
     {
-      title: "Document review",
-      sub:
-        s === "rejected"
-          ? "Sent back. Once you resubmit, it goes straight back to the reviewing officer."
-          : checked
-            ? "An officer checked your documents."
-            : "An officer reviews the documents you uploaded, online. You do not need to do anything.",
+      title: t("stageDocs"),
+      sub: s === "rejected" ? t("sentBackBody") : checked ? t("docsChecked") : t("docsReviewing"),
       state: s === "rejected" ? "problem" : checked ? "done" : s === "tin_verified" ? "current" : "todo",
     },
     {
-      title: "Approval",
-      sub: approved
-        ? s === "approved"
-          ? "Approved. It opens once the owner claims it."
-          : "Approved."
-        : "Your district's PSF officer approves it once the documents are checked.",
+      title: t("stageApproval"),
+      sub: approved ? (s === "approved" ? t("approvedOwner") : t("approved")) : t("approvalPending"),
       state: approved ? "done" : s === "field_verified" ? "current" : "todo",
     },
     {
-      title: "Set up and publish",
-      sub:
-        s === "active"
-          ? "Open now. Publish when the required steps are done."
-          : open
-            ? "Open now: get your listing ready while we review. You can publish once you are approved."
-            : "Opens once you are approved. Guests see nothing until you publish.",
+      title: t("stageSetup"),
+      sub: s === "active" ? t("setupActive") : open ? t("setupOpen") : t("setupLocked"),
       state: open ? "current" : "todo",
     },
   ];
 }
 
-function chipFor(summary: RegistrationSummary): { label: string; variant: "accent" | "success" | "danger" } {
+/**
+ * What the page says about setup, by where the registration stands. The rule is `setup-link.ts`'s (a hospitality
+ * business may set up while it is reviewed; a residence waits for approval); only the words are here.
+ */
+function setupNote(summary: RegistrationSummary, t: InReviewMessages): string {
+  switch (summary.status) {
+    case "active":
+      return t("setupNoteActive");
+    case "approved":
+      return t("setupNoteApproved");
+    case "rejected":
+      return t("setupNoteRejected");
+    case "submitted":
+    case "tin_verified":
+    case "field_verified":
+      return summary.domain === "residence" ? t("setupNoteReviewResidence") : t("setupNoteReviewStay");
+    default:
+      return t("setupNoteUnpaid");
+  }
+}
+
+function chipFor(summary: RegistrationSummary, t: InReviewMessages): { label: string; variant: "accent" | "success" | "danger" } {
   switch (summary.status) {
     case "rejected":
-      return { label: "Needs one fix", variant: "danger" };
+      return { label: t("chipFix"), variant: "danger" };
     case "active":
-      return { label: "Approved", variant: "success" };
+      return { label: t("chipApproved"), variant: "success" };
     case "approved":
-      return { label: "Approved · waiting for the owner", variant: "success" };
+      return { label: t("chipApprovedOwner"), variant: "success" };
     case "field_verified":
-      return { label: "In review · approval", variant: "accent" };
+      return { label: t("chipApproval"), variant: "accent" };
     case "tin_verified":
-      return { label: "In review · documents", variant: "accent" };
+      return { label: t("chipDocs"), variant: "accent" };
     default:
       // A residence has no TIN, so it has no TIN check to be in.
-      return { label: summary.domain === "residence" ? "In review" : "In review · TIN check", variant: "accent" };
+      return { label: summary.domain === "residence" ? t("chipReview") : t("chipTin"), variant: "accent" };
   }
 }
 
@@ -147,6 +154,9 @@ export function InReview({
   onStartNew: () => void;
 }) {
   const [checking, setChecking] = useState(false);
+  const t = useTranslations("registerForms.inReview");
+  const tk = useTranslations("register.kinds.items");
+  const locale = useLocale();
 
   // Poll while a machine holds it (the RRA check settles in seconds), and stop
   // once a person does: a document review takes days, and asking the API every
@@ -175,12 +185,12 @@ export function InReview({
 
   const active = summary.status === "active";
   const rejected = summary.status === "rejected";
-  const chip = chipFor(summary);
+  const chip = chipFor(summary, t);
   // The kind the org carries (ADR-075 D-h), a venue's included: a Bar & Restaurant has no accommodation class, so
   // reading the class left it with no word. Other names no kind.
   const kindWord =
-    summary.businessKind && summary.businessKind !== "other" ? BUSINESS_KIND_LABEL[summary.businessKind] : null;
-  const paid = onDay(summary.submittedAt);
+    summary.businessKind && summary.businessKind !== "other" ? tk(`${summary.businessKind}.label`) : null;
+  const paid = onDay(summary.submittedAt, formatLocale(isLocale(locale) ? locale : "en"));
   const reason = summary.rejectionReason;
   const setupHref = setupLink(summary, process.env.NEXT_PUBLIC_WEB_URL, process.env.NEXT_PUBLIC_PMS_URL);
 
@@ -195,15 +205,15 @@ export function InReview({
         }
         title={
           active || summary.status === "approved"
-            ? `${summary.legalName} is approved`
+            ? t("titleApproved", { name: summary.legalName })
             : rejected
-              ? `${summary.legalName} needs one fix`
-              : `${summary.legalName} is registered`
+              ? t("titleFix", { name: summary.legalName })
+              : t("titleRegistered", { name: summary.legalName })
         }
         lead={
           active
-            ? "Set up your property and publish when you are ready."
-            : `${kindWord ? `${kindWord} · ` : ""}${paid ? `Registration fee paid ${paid}. ` : "Registration fee paid. "}We email you at each step, so there is nothing to refresh.`
+            ? t("leadActive")
+            : `${kindWord ? `${kindWord} · ` : ""}${paid ? t("leadPaid", { date: paid }) : t("leadNoDate")}`
         }
       >
         {rejected ? (
@@ -211,28 +221,27 @@ export function InReview({
             <Alert.Indicator />
             <Alert.Content>
               <Alert.Title>
-                Sent back: {reason ? REJECTION_REASON_LABEL[reason] : "the reviewing officer recorded no reason."}
+                {t("sentBackTitle", {
+                  reason: reason ? REJECTION_REASON_LABEL[reason] : t("noReason"),
+                })}
               </Alert.Title>
               <Alert.Description>
                 {summary.rejectionNotes ? <>&ldquo;{summary.rejectionNotes}&rdquo; </> : null}
-                Fix that one thing and resubmit. There is no new fee.
+                {t("fixThat")}
               </Alert.Description>
             </Alert.Content>
             <Button variant="danger" size="sm" onClick={onFix} className="shrink-0 self-center">
-              Fix it
+              {t("fixIt")}
             </Button>
           </Alert>
         ) : null}
 
         {summary.status === "approved" ? (
-          <Notice tone="info">
-            You registered this business for its owner, so it opens once they accept the
-            invitation we sent them. Nothing more is needed from you.
-          </Notice>
+          <Notice tone="info">{t("ownerNotice")}</Notice>
         ) : null}
 
         <ol className="flex flex-col">
-          {stagesFor(summary).map((stage, i) => (
+          {stagesFor(summary, paid, t).map((stage, i) => (
             <li key={stage.title} className="flex gap-3.5 border-t border-border py-3.5 first:border-t-0">
               <Avatar className="size-8">
                 <AvatarFallback
@@ -246,9 +255,9 @@ export function InReview({
                   )}
                 >
                   {stage.state === "done" ? (
-                    <Check size={16} aria-label="Done" />
+                    <Check size={16} aria-label={t("done")} />
                   ) : stage.state === "problem" ? (
-                    <X size={16} aria-label="Sent back" />
+                    <X size={16} aria-label={t("sentBack")} />
                   ) : (
                     <span aria-hidden>{i + 1}</span>
                   )}
@@ -257,7 +266,7 @@ export function InReview({
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="text-sm font-semibold">
                   {stage.title}
-                  {stage.state === "current" ? <span className="sr-only"> (now)</span> : null}
+                  {stage.state === "current" ? <span className="sr-only">{t("now")}</span> : null}
                 </span>
                 <span className="text-sm tabular-nums text-muted-foreground">{stage.sub}</span>
               </div>
@@ -268,11 +277,11 @@ export function InReview({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
           {summary.status === "submitted" ? null : (
             <Button variant="link" size="sm" pending={checking} onClick={() => void refresh()}>
-              {checking ? "Checking…" : "Check for an update"}
+              {checking ? t("checking") : t("checkUpdate")}
             </Button>
           )}
           <Button variant="link" size="sm" onClick={onStartNew}>
-            Register another business
+            {t("registerAnother")}
           </Button>
         </div>
       </StepCard>
@@ -284,13 +293,13 @@ export function InReview({
         >
           <div className="flex min-w-0 flex-1 basis-72 flex-col gap-1.5">
             <h2 id="register-prepare" className="text-lg font-semibold">
-              Set up your property
+              {t("setupTitle")}
             </h2>
-            <p className="text-sm text-muted-foreground">{setupNote(summary.status, summary.domain)}</p>
+            <p className="text-sm text-muted-foreground">{setupNote(summary, t)}</p>
           </div>
           {setupHref ? (
             <Button asChild>
-              <a href={setupHref}>Set up your property</a>
+              <a href={setupHref}>{t("setupCta")}</a>
             </Button>
           ) : null}
         </section>
@@ -324,25 +333,26 @@ export function FixBusiness({
 }) {
   const reason = summary.rejectionReason;
   const where = reason ? stepForRejectionReason(reason) : "none";
+  const t = useTranslations("registerForms.inReview");
   const fixHint = {
-    identity: "It is about who owns the business: have the owner's ID, or your authority to act for them, ready for the verifier.",
-    business: "It is about the business's own details: have your RRA certificate ready, so the verifier can match the TIN and the name.",
-    documents: "It is about a document: have a clear, current copy of it ready for the verifier.",
-    none: "Read the officer's note, put it right, and the verifier checks it again.",
+    identity: t("fixHintIdentity"),
+    business: t("fixHintBusiness"),
+    documents: t("fixHintDocuments"),
+    none: t("fixHintNone"),
   }[where];
 
   return (
     <StepCard
       id="register-fix"
-      title="Your business"
-      lead={`${summary.legalName}, sent back for one fix.`}
+      title={t("fixTitle")}
+      lead={t("fixLead", { name: summary.legalName })}
       footer={
         <>
           <Button variant="ghost" onClick={onBack}>
-            Back
+            {t("back")}
           </Button>
           <Button onClick={onResubmit} pending={busy}>
-            {busy ? "Sending…" : "Resubmit for review, no new fee"}
+            {busy ? t("sending") : t("resubmit")}
           </Button>
         </>
       }
@@ -350,18 +360,14 @@ export function FixBusiness({
       <Alert status="danger">
         <Alert.Indicator />
         <Alert.Content>
-          <Alert.Title>{reason ? REJECTION_REASON_LABEL[reason] : "The officer recorded no reason."}</Alert.Title>
+          <Alert.Title>{reason ? REJECTION_REASON_LABEL[reason] : t("fixNoReason")}</Alert.Title>
           <Alert.Description>
             {summary.rejectionNotes ? <>&ldquo;{summary.rejectionNotes}&rdquo; </> : null}
             {fixHint}
           </Alert.Description>
         </Alert.Content>
       </Alert>
-      <Notice tone="info">
-        The details you registered cannot be changed online yet, and a document cannot be added to
-        a registration once it is sent. Resubmitting sends it straight back to the district
-        verifier, who checks the fix with you. You are not charged again.
-      </Notice>
+      <Notice tone="info">{t("fixNotice")}</Notice>
       {error ? <Notice tone="danger">{error}</Notice> : null}
     </StepCard>
   );

@@ -20,6 +20,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.pipe';
@@ -31,6 +32,7 @@ import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.
  */
 @Controller({ path: 'ops/units', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('residence')
 export class OpsUnitsController {
   constructor(private readonly units: UnitsService) {}
 
@@ -95,6 +97,7 @@ export class OpsUnitsController {
 /** Blocks → /api/v1/ops/blocks: the buildings, wings or blocks units stand in. */
 @Controller({ path: 'ops/blocks', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('residence')
 export class OpsBlocksController {
   constructor(private readonly units: UnitsService) {}
 

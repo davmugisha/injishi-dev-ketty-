@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { StaySearchBar } from "@/components/search/stay-search-bar";
 import { ArtDirectedImage } from "@/components/shared/art-directed-image";
 
@@ -11,7 +13,9 @@ import { ArtDirectedImage } from "@/components/shared/art-directed-image";
  * licence on `/legal/photo-credits`. It was removed on 2026-10-21; do not bring
  * footage back without a recorded licence and a poster-only small screen.
  */
-export function HomeHero() {
+export async function HomeHero() {
+  const t = await getTranslations("home");
+
   return (
     <section className="relative z-[11] h-dvh min-h-[680px] w-full overflow-hidden">
       {/* One even wash, no gradient: the photograph's brightest band is sky,
@@ -26,7 +30,7 @@ export function HomeHero() {
 
       <ArtDirectedImage
         stem="rwanda-lake-kivu"
-        alt="Sunset over water with silhouetted mountains"
+        alt={t("hero.imageAlt")}
         sizes="100vw"
         width={1920}
         height={746}
@@ -38,10 +42,10 @@ export function HomeHero() {
       <div className="absolute inset-0 z-10 flex flex-col items-center px-5 pb-20 pt-28 lg:pb-28">
         <div className="my-auto flex w-full flex-col items-center">
           <h1 className="mb-1.5 text-center text-display-sm font-medium text-white max-lg:max-w-tile lg:text-display-md">
-            Stay anywhere<span className="font-bold"> in Rwanda</span>
+            {t.rich("hero.title", { em: (chunks) => <span className="font-bold">{chunks}</span> })}
           </h1>
           <p className="animate-fade-up mb-8 text-center text-xl leading-[1.2] text-white opacity-0 [animation-fill-mode:forwards] max-lg:max-w-tile lg:text-3xl">
-            Book any accommodation without a phone call.
+            {t("hero.subtitle")}
           </p>
 
           <div className="animate-fade-up w-full opacity-0 [animation-delay:0.2s] [animation-fill-mode:forwards] max-lg:max-w-form lg:w-auto">

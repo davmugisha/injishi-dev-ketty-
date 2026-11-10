@@ -41,6 +41,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../../shared/auth/workspace.guard';
 import { UserThrottlerGuard } from '../../../../shared/http/user-throttler.guard';
@@ -63,6 +64,7 @@ import { signingContext, type SigningRequest } from './signing-context';
  */
 @Controller({ path: 'ops/leases', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('residence')
 export class OpsLeasesController {
   constructor(
     private readonly reads: LeaseReadsService,

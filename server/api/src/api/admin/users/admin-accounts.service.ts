@@ -7,6 +7,7 @@ import {
   type AdminChangeMemberRoleRequest,
   type AdminCreateUserRequest,
   type AdminSetStaffRolesRequest,
+  type AdminUpdateUserRequest,
   type OrgRole,
   type StaffAccess,
   type StaffRole,
@@ -16,11 +17,12 @@ import {
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 
-import { adminUsers, auditEvents, orgMemberships, orgs, userProfiles, users } from '../../../database/drizzle/schema';
+import { adminUsers, orgMemberships, orgs, userProfiles, users } from '../../../database/drizzle/schema';
 import { compose, greeting } from '../../../modules/organization/domain/registration-mail';
 import { GuestNotifier } from '../../../modules/guests/infrastructure/guest-notifier';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { StaffRolesService, endStaffIfEmpty, liveCustomRoleCount } from './staff-roles.service';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 
 type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 
@@ -90,6 +92,107 @@ export class AdminAccountsService {
     });
     if (result.created) await this.sendInvitation(input.email, input.name);
     return AdminCreateUserResponse.parse(result);
+  }
+
+  /**
+   * Change a person's details (2026-11-09): name, sign-in email, profile phone, language, date of birth and
+   * gender. Only what is sent and different changes; one audit row lists each change from and to. A new email
+   * must be free, is unproved until they sign in with it, and the old address is told, so a change made in
+   * error or in bad faith is seen by the person it affects.
+   */
+  async updateUser(
+    userId: string,
+    input: AdminUpdateUserRequest,
+    actor: { userId: string; access: StaffAccess },
+  ): Promise<{ userId: string; changed: string[] }> {
+    const outcome = await this.db.transaction(async (tx) => {
+      const [person] = await tx
+        .select({ name: users.name, email: users.email })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      if (!person) throw new NotFoundException('No user has that id.');
+      const [profile] = await tx
+        .select({
+          phone: userProfiles.phoneE164,
+          locale: userProfiles.locale,
+          dob: userProfiles.dob,
+          gender: userProfiles.gender,
+        })
+        .from(userProfiles)
+        .where(eq(userProfiles.userId, userId))
+        .limit(1);
+
+      const diff: Record<string, { from: unknown; to: unknown }> = {};
+      const now = new Date();
+      const userSet: Partial<typeof users.$inferInsert> = {};
+      if (input.name !== undefined && input.name !== (person.name ?? '')) {
+        diff.name = { from: person.name, to: input.name };
+        userSet.name = input.name;
+      }
+      if (input.email !== undefined && input.email !== person.email.toLowerCase()) {
+        const [taken] = await tx
+          .select({ id: users.id })
+          .from(users)
+          .where(and(sql`lower(${users.email}) = ${input.email}`, ne(users.id, userId)))
+          .limit(1);
+        if (taken) throw new ConflictException('Another account already signs in with that email.');
+        diff.email = { from: person.email, to: input.email };
+        userSet.email = input.email;
+        userSet.emailVerified = false;
+      }
+      if (Object.keys(userSet).length > 0) {
+        await tx.update(users).set({ ...userSet, updatedAt: now }).where(eq(users.id, userId));
+      }
+
+      const profileSet: Partial<typeof userProfiles.$inferInsert> = {};
+      const phone = input.phone === undefined ? undefined : input.phone || null;
+      if (phone !== undefined && phone !== (profile?.phone ?? null)) {
+        diff.phone = { from: profile?.phone ?? null, to: phone };
+        profileSet.phoneE164 = phone;
+      }
+      if (input.locale !== undefined && input.locale !== (profile?.locale ?? 'en')) {
+        diff.locale = { from: profile?.locale ?? 'en', to: input.locale };
+        profileSet.locale = input.locale;
+      }
+      if (input.dateOfBirth !== undefined && input.dateOfBirth !== (profile?.dob ?? null)) {
+        diff.dateOfBirth = { from: profile?.dob ?? null, to: input.dateOfBirth };
+        profileSet.dob = input.dateOfBirth;
+      }
+      if (input.gender !== undefined && input.gender !== (profile?.gender ?? null)) {
+        diff.gender = { from: profile?.gender ?? null, to: input.gender };
+        profileSet.gender = input.gender;
+      }
+      if (Object.keys(profileSet).length > 0) {
+        await tx
+          .insert(userProfiles)
+          .values({ userId, ...profileSet })
+          .onConflictDoUpdate({ target: userProfiles.userId, set: { ...profileSet, updatedAt: now } });
+      }
+
+      const changed = Object.keys(diff);
+      if (changed.length > 0) {
+        await this.audit(tx, actor.userId, 'user', userId, 'admin.user.details_changed', diff, input.reason);
+      }
+      return { changed, oldEmail: person.email, name: (userSet.name ?? person.name) as string | null };
+    });
+    if (outcome.changed.includes('email') && input.email) {
+      await this.notifier.send(
+        outcome.oldEmail,
+        compose({
+          subject: 'Your Injishi sign-in email was changed',
+          heading: 'Your sign-in email was changed',
+          greeting: greeting({ name: outcome.name }),
+          paragraphs: [
+            `Injishi staff changed the email you sign in with to ${input.email}. Codes to sign in now go there.`,
+            'If you did not ask for this, reply to this email or contact Injishi straight away.',
+          ],
+          cta: { label: 'Sign in to Injishi', href: `${this.notifier.appUrl}/sign-in` },
+        }),
+        'sign-in email changed',
+      );
+    }
+    return { userId, changed: outcome.changed };
   }
 
   /** The invitation: sign in with an emailed code, no password. Sent on create and on resend. */
@@ -440,11 +543,6 @@ export class AdminAccountsService {
     payloadDiff: Record<string, unknown>,
     reason: string,
   ): Promise<string> {
-    const [row] = await tx
-      .insert(auditEvents)
-      .values({ actorUserId, subjectType, subjectId, eventType, payloadDiff: payloadDiff as never, reason })
-      .returning({ id: auditEvents.id });
-    if (!row) throw new Error('Audit insert returned no row.');
-    return row.id;
+    return (await AuditWriter.write(tx, { actorUserId, subjectType, subjectId, eventType, payloadDiff: payloadDiff as never, reason })).id;
   }
 }

@@ -13,6 +13,7 @@ import type {
   ReportingRequirement,
 } from "@injishi/data/fixtures/oversight";
 import { GateChip, Icon, PageContent, PageHeader } from "@injishi/ui";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { CardHeading, FactGrid, HBar, ToneChip } from "./shared";
 
@@ -30,7 +31,7 @@ type MadeExport = DataExport & { sensitive: boolean };
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
-function occupancyRows(month: OccupancyMonth, sectors: OccupancySector[]) {
+function occupancyRows(month: OccupancyMonth, sectors: OccupancySector[], districtName: string) {
   let soldTotal = 0;
   const rows = sectors.map((s) => {
     const occ = s.suppressed ? 60 : (month.occupancy[s.id] ?? 0);
@@ -52,7 +53,7 @@ function occupancyRows(month: OccupancyMonth, sectors: OccupancySector[]) {
   const occTotal = roomsTotal && month.days ? Math.round((soldTotal / (roomsTotal * month.days)) * 100) : 0;
   rows.push({
     id: "district",
-    name: "Rubavu District",
+    name: districtName,
     businesses: String(bizTotal),
     rooms: fmt(roomsTotal),
     sold: fmt(soldTotal),
@@ -65,6 +66,7 @@ function occupancyRows(month: OccupancyMonth, sectors: OccupancySector[]) {
 
 /** Occupancy shared with the district, and the guest-stay reporting that is not enabled. */
 export function DelegatedReportsView({ data }: { data: DelegatedReportsData }) {
+  const t = useTranslations("delegatedReports");
   const [monthId, setMonthId] = useState(data.months.find((m) => m.id === "sep")?.id ?? data.months.at(-1)?.id ?? "");
   const [exportOpen, setExportOpen] = useState(false);
   const [channel, setChannel] = useState(data.channels.find((c) => c.approved)?.id ?? "file");
@@ -74,25 +76,25 @@ export function DelegatedReportsView({ data }: { data: DelegatedReportsData }) {
   const [requested, setRequested] = useState(false);
 
   const month = data.months.find((m) => m.id === monthId) ?? data.months[0];
-  const rows = month ? occupancyRows(month, data.sectors) : [];
+  const rows = month ? occupancyRows(month, data.sectors, t("districtName")) : [];
   const exports = [...made, ...data.exports];
   const extra: AccessLogEntry[] = [];
   if (requested) {
     extra.push({
       id: "log-mr-0027",
-      when: "12 Oct · now",
-      action: "Requested mandate",
-      record: "MR-0027 · guest-stay reporting",
-      purpose: "Mandate administration",
+      when: t("now"),
+      action: t("requestedMandate"),
+      record: t("mandateRecord"),
+      purpose: t("mandateAdministration"),
     });
   }
   for (const item of made) {
     extra.push({
       id: `log-${item.id}`,
-      when: "12 Oct · now",
-      action: item.sensitive ? "Requested sensitive export" : "Exported encrypted file",
+      when: t("now"),
+      action: item.sensitive ? t("requestedSensitive") : t("exportedFile"),
       record: item.id,
-      purpose: "Tourism planning",
+      purpose: t("tourismPlanning"),
     });
   }
   const log = [...extra, ...data.log].slice(0, 7);
@@ -106,35 +108,32 @@ export function DelegatedReportsView({ data }: { data: DelegatedReportsData }) {
           id,
           sensitive: true,
           icon: "Clock",
-          title: `${id} · ${month.name} with unsuppressed sectors`,
-          detail: "Requested just now by you · sent to Jean-Claude Mugabo for review",
-          state: "Awaiting second review",
+          title: t("madeUnsuppressedTitle", { id, month: month.name }),
+          detail: t("madeUnsuppressedDetail"),
+          state: t("awaitingReview"),
           tone: "warning",
         }
       : {
           id,
           sensitive: false,
           icon: "FileCheck",
-          title: `${id} · ${month.name}`,
-          detail: "Encrypted file ready · key sent by SMS to phone ending 41 · link expires in 24 h",
-          state: "Ready",
+          title: t("madeTitle", { id, month: month.name }),
+          detail: t("madeDetail"),
+          state: t("ready"),
           tone: "success",
         };
     setMade((cur) => [item, ...cur]);
     setExportOpen(false);
     setPurpose(false);
     setUnsuppressed(false);
-    toast.success(
-      unsuppressed ? `${id} sent for second-officer review` : `${id} encrypted · key sent separately by SMS`,
-      {
-        indicator: <Lock className="size-4" />,
-      },
-    );
+    toast.success(unsuppressed ? t("toastReview", { id }) : t("toastEncrypted", { id }), {
+      indicator: <Lock className="size-4" />,
+    });
   };
 
   return (
     <PageContent className="text-[14px] leading-5">
-      <PageHeader eyebrow="Rubavu District · Delegated data" title="Delegated Data" />
+      <PageHeader eyebrow={t("eyebrow")} title={t("title")} />
 
       <div className="flex flex-wrap items-start gap-4">
         <Card
@@ -146,16 +145,13 @@ export function DelegatedReportsView({ data }: { data: DelegatedReportsData }) {
             <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 id="occ-h" className="text-[15px] leading-[22px] font-semibold">
-                  Occupancy by Sector
+                  {t("occupancy")}
                 </h2>
-                <ToneChip tone="success">Enabled · verified mandate</ToneChip>
+                <ToneChip tone="success">{t("enabled")}</ToneChip>
               </div>
-              <p className="text-[13px] leading-[18px] text-muted">
-                Aggregated monthly totals from participating businesses. No guest data, no personal data, no business
-                names.
-              </p>
+              <p className="text-[13px] leading-[18px] text-muted">{t("occupancyLead")}</p>
             </div>
-            <Segment aria-label="Month" selectedKey={monthId} onSelectionChange={(k) => setMonthId(String(k))}>
+            <Segment aria-label={t("month")} selectedKey={monthId} onSelectionChange={(k) => setMonthId(String(k))}>
               {data.months.map((m) => (
                 <Segment.Item key={m.id} id={m.id}>
                   <Segment.Separator />
@@ -173,13 +169,13 @@ export function DelegatedReportsView({ data }: { data: DelegatedReportsData }) {
 
           <Table>
             <Table.ScrollContainer>
-              <Table.Content aria-label="Occupancy by sector">
+              <Table.Content aria-label={t("occupancy")}>
                 <Table.Header>
-                  <Table.Column isRowHeader>Sector</Table.Column>
-                  <Table.Column className="text-right">Reporting businesses</Table.Column>
-                  <Table.Column className="text-right">Rooms</Table.Column>
-                  <Table.Column className="text-right">Room-nights sold</Table.Column>
-                  <Table.Column className="min-w-[180px]">Occupancy</Table.Column>
+                  <Table.Column isRowHeader>{t("sector")}</Table.Column>
+                  <Table.Column className="text-right">{t("reportingBusinesses")}</Table.Column>
+                  <Table.Column className="text-right">{t("rooms")}</Table.Column>
+                  <Table.Column className="text-right">{t("roomNightsSold")}</Table.Column>
+                  <Table.Column className="min-w-[180px]">{t("occupancyCol")}</Table.Column>
                 </Table.Header>
                 <Table.Body>
                   {rows.map((r) => (
@@ -193,7 +189,11 @@ export function DelegatedReportsView({ data }: { data: DelegatedReportsData }) {
                           <span className="flex items-center gap-2.5">
                             <HBar
                               value={r.occ}
-                              label={r.total ? `District occupancy ${r.occ} percent` : `Occupancy ${r.occ} percent`}
+                              label={
+                                r.total
+                                  ? t("districtOccupancy", { percent: r.occ })
+                                  : t("occupancyPercent", { percent: r.occ })
+                              }
                               className="min-w-0 flex-1"
                             />
                             <span className="w-9 text-right tabular">{r.occ}%</span>
@@ -201,7 +201,7 @@ export function DelegatedReportsView({ data }: { data: DelegatedReportsData }) {
                         ) : (
                           <span className="flex items-center gap-1.5 text-[13px] text-muted">
                             <EyeSlash className="size-4" aria-hidden="true" />
-                            Suppressed · under 3 businesses
+                            {t("suppressed")}
                           </span>
                         )}
                       </Table.Cell>
@@ -214,12 +214,11 @@ export function DelegatedReportsView({ data }: { data: DelegatedReportsData }) {
 
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <p className="min-w-0 flex-[1_1_320px] text-[12px] leading-4 text-muted">
-              {month?.note} Source: monthly room-night submissions from participating businesses, totalled by Injishi
-              before sharing.
+              {month?.note} {t("sourceNote")}
             </p>
             <Button onPress={() => setExportOpen(true)}>
               <Lock className="size-4" />
-              Export via approved channel
+              {t("exportVia")}
             </Button>
           </div>
         </Card>
@@ -231,22 +230,20 @@ export function DelegatedReportsView({ data }: { data: DelegatedReportsData }) {
         >
           <div className="flex flex-wrap items-center gap-2">
             <h2 id="gs-h" className="min-w-0 flex-1 text-[15px] leading-[22px] font-semibold">
-              Guest-Stay Reporting
+              {t("guestStay")}
             </h2>
-            <ToneChip tone="default">Not enabled</ToneChip>
+            <ToneChip tone="default">{t("notEnabled")}</ToneChip>
           </div>
           <EmptyState size="sm" className="py-2">
             <EmptyState.Header>
               <EmptyState.Media variant="icon">
                 <Lock />
               </EmptyState.Media>
-              <EmptyState.Title>Not enabled</EmptyState.Title>
-              <EmptyState.Description>
-                Legal authority, exact fields, frequency and secure channel have not been verified.
-              </EmptyState.Description>
+              <EmptyState.Title>{t("notEnabled")}</EmptyState.Title>
+              <EmptyState.Description>{t("notEnabledLead")}</EmptyState.Description>
             </EmptyState.Header>
           </EmptyState>
-          <span className="text-[12px] text-muted">Needed before any guest data is shared</span>
+          <span className="text-[12px] text-muted">{t("neededBefore")}</span>
           <ul className="flex flex-col">
             {data.requirements.map((n) => (
               <li key={n.id} className="flex flex-col gap-0 border-t border-separator py-[7px]">
@@ -258,27 +255,21 @@ export function DelegatedReportsView({ data }: { data: DelegatedReportsData }) {
               </li>
             ))}
           </ul>
-          <p className="text-[13px] leading-[18px]">
-            Until every item is verified, no guest or stay data leaves any business for this purpose, and businesses are
-            not asked to send it.
-          </p>
+          <p className="text-[13px] leading-[18px]">{t("noDataLeaves")}</p>
           {requested ? (
             <Alert status="accent" role="status">
               <Alert.Indicator>
                 <PaperPlane />
               </Alert.Indicator>
               <Alert.Content>
-                <Alert.Title>Sent to Emmanuel Nsengiyumva · MR-0027</Alert.Title>
-                <Alert.Description>
-                  The District decides whether to pursue it and must supply the legal basis. Injishi compliance only
-                  checks what the District provides.
-                </Alert.Description>
+                <Alert.Title>{t("sentTo")}</Alert.Title>
+                <Alert.Description>{t("sentToLead")}</Alert.Description>
               </Alert.Content>
             </Alert>
           ) : (
             <Button variant="secondary" fullWidth onPress={() => setRequested(true)}>
               <PaperPlane className="size-4" />
-              Ask the District to start a mandate request
+              {t("askMandate")}
             </Button>
           )}
         </Card>
@@ -291,8 +282,8 @@ export function DelegatedReportsView({ data }: { data: DelegatedReportsData }) {
           className="min-w-0 flex-[1_1_360px] gap-3 p-[18px]"
         >
           <Card.Header>
-            <CardHeading id="ex-h">Exports and Reviews</CardHeading>
-            <Card.Description>Encrypted files only · sensitive disclosures need a second officer</Card.Description>
+            <CardHeading id="ex-h">{t("exportsReviews")}</CardHeading>
+            <Card.Description>{t("exportsLead")}</Card.Description>
           </Card.Header>
           <ListView aria-labelledby="ex-h" variant="secondary" items={exports}>
             {(x) => (
@@ -319,21 +310,19 @@ export function DelegatedReportsView({ data }: { data: DelegatedReportsData }) {
         >
           <Card.Header className="flex flex-row items-start gap-3">
             <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <CardHeading id="log-h">My Access Log</CardHeading>
-              <Card.Description>
-                Everything you opened or exported under this mandate · entries cannot be edited
-              </Card.Description>
+              <CardHeading id="log-h">{t("accessLog")}</CardHeading>
+              <Card.Description>{t("accessLogLead")}</Card.Description>
             </div>
-            <GateChip icon={<ShieldExclamation className="size-3" />}>Retention configured · unverified</GateChip>
+            <GateChip icon={<ShieldExclamation className="size-3" />}>{t("retention")}</GateChip>
           </Card.Header>
           <Table variant="secondary">
             <Table.ScrollContainer>
-              <Table.Content aria-label="My access log">
+              <Table.Content aria-label={t("accessLog")}>
                 <Table.Header>
-                  <Table.Column isRowHeader>When</Table.Column>
-                  <Table.Column>Action</Table.Column>
-                  <Table.Column>Record</Table.Column>
-                  <Table.Column>Purpose</Table.Column>
+                  <Table.Column isRowHeader>{t("when")}</Table.Column>
+                  <Table.Column>{t("action")}</Table.Column>
+                  <Table.Column>{t("record")}</Table.Column>
+                  <Table.Column>{t("purpose")}</Table.Column>
                 </Table.Header>
                 <Table.Body>
                   {log.map((l) => (
@@ -348,10 +337,7 @@ export function DelegatedReportsView({ data }: { data: DelegatedReportsData }) {
               </Table.Content>
             </Table.ScrollContainer>
           </Table>
-          <p className="text-[12px] leading-4 text-muted">
-            Your signatory and Injishi compliance can review this log. Corrections and revocations are added as new
-            entries.
-          </p>
+          <p className="text-[12px] leading-4 text-muted">{t("logFooter")}</p>
         </Card>
       </div>
 
@@ -398,22 +384,21 @@ function ExportDialog({
   onOpenChange: (open: boolean) => void;
   onSubmit: () => void;
 }) {
+  const t = useTranslations("delegatedReports");
   return (
     <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
       <Modal.Container>
         <Modal.Dialog aria-labelledby="exd-h" className="sm:max-w-[640px]">
-          <Modal.CloseTrigger aria-label="Close" />
+          <Modal.CloseTrigger aria-label={t("cancel")} />
           <Modal.Header className="flex flex-col items-start gap-1">
             <Modal.Heading id="exd-h" className="text-lg leading-[26px] font-semibold">
-              Export Occupancy by Sector · {monthLabel}
+              {t("exportTitle", { month: monthLabel })}
             </Modal.Heading>
-            <p className="text-[13px] leading-[18px] text-muted">
-              Only channels approved for this mandate can be used. The export is logged with your stated purpose.
-            </p>
+            <p className="text-[13px] leading-[18px] text-muted">{t("exportLead")}</p>
           </Modal.Header>
           <Modal.Body className="flex flex-col gap-4">
             <RadioButtonGroup
-              aria-label="Channel"
+              aria-label={t("channel")}
               layout="grid"
               value={channel}
               onChange={(v) => {
@@ -441,10 +426,8 @@ function ExportDialog({
                     <Checkbox.Indicator />
                   </Checkbox.Control>
                   <span className="flex min-w-0 flex-col">
-                    <span className="font-medium">
-                      I will use this only for tourism planning, as the mandate states
-                    </span>
-                    <span className="text-[12px] leading-4 text-muted">Required · recorded with the export</span>
+                    <span className="font-medium">{t("purposeCheck")}</span>
+                    <span className="text-[12px] leading-4 text-muted">{t("purposeRequired")}</span>
                   </span>
                 </Checkbox.Content>
               </Checkbox>
@@ -454,10 +437,8 @@ function ExportDialog({
                     <Checkbox.Indicator />
                   </Checkbox.Control>
                   <span className="flex min-w-0 flex-col">
-                    <span className="font-medium">Include sectors with fewer than 3 businesses</span>
-                    <span className="text-[12px] leading-4 text-muted">
-                      Sensitive · needs a second officer’s review
-                    </span>
+                    <span className="font-medium">{t("includeSmall")}</span>
+                    <span className="text-[12px] leading-4 text-muted">{t("sensitiveReview")}</span>
                   </span>
                 </Checkbox.Content>
               </Checkbox>
@@ -468,28 +449,22 @@ function ExportDialog({
                   <PersonsLock />
                 </Alert.Indicator>
                 <Alert.Content>
-                  <Alert.Title>Sensitive disclosure · second officer review</Alert.Title>
-                  <Alert.Description>
-                    Unsuppressed sectors can identify a single business. Jean-Claude Mugabo must review your purpose
-                    before the file is produced. Nothing is exported until then.
-                  </Alert.Description>
+                  <Alert.Title>{t("sensitiveTitle")}</Alert.Title>
+                  <Alert.Description>{t("sensitiveLead")}</Alert.Description>
                 </Alert.Content>
               </Alert>
             ) : null}
             <p className="flex items-start gap-2 text-[13px] leading-[18px] text-muted">
               <Key className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-              <span>
-                The file is encrypted. Its key is sent separately by SMS to your registered phone ending 41, and the
-                download link expires after 24 hours.
-              </span>
+              <span>{t("keyNote")}</span>
             </p>
           </Modal.Body>
           <Modal.Footer className="flex flex-wrap items-center justify-end gap-2">
             <Button variant="secondary" onPress={() => onOpenChange(false)}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button isDisabled={!purpose} onPress={onSubmit}>
-              {unsuppressed ? "Send for second-officer review" : "Export encrypted file"}
+              {unsuppressed ? t("sendForReview") : t("exportFile")}
             </Button>
           </Modal.Footer>
         </Modal.Dialog>

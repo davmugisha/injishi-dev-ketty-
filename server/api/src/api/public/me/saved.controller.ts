@@ -13,10 +13,14 @@ import {
   type SavedPlace,
 } from '@injishi/contracts';
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { z } from 'zod';
 
 import { MarketplaceService } from '../../../modules/marketplace/application/marketplace.service';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
+
+const LanguagePreferenceInput = z.object({ locale: z.enum(['en', 'rw', 'fr']) }).strict();
+type LanguagePreferenceInput = z.infer<typeof LanguagePreferenceInput>;
 
 /*
  * The guest's own marketplace rows (real-data leaf 1.3.2). `SessionGuard` alone, and no
@@ -153,6 +157,26 @@ export class MeGuestContactController {
     @CurrentUser() user: SessionUser,
   ): Promise<GuestContact> {
     return this.market.updateContact(user.id, body);
+  }
+}
+
+/** The account-wide interface language, independent of persona or workspace. */
+@Controller({ path: 'me/preferences/language', version: '1' })
+@UseGuards(SessionGuard)
+export class MeLanguagePreferenceController {
+  constructor(private readonly market: MarketplaceService) {}
+
+  @Get()
+  read(@CurrentUser() user: SessionUser): Promise<{ locale: string }> {
+    return this.market.languagePreference(user.id);
+  }
+
+  @Patch()
+  save(
+    @Body(new ZodValidationPipe(LanguagePreferenceInput)) body: LanguagePreferenceInput,
+    @CurrentUser() user: SessionUser,
+  ): Promise<{ locale: string }> {
+    return this.market.updateLanguagePreference(user.id, body.locale);
   }
 }
 

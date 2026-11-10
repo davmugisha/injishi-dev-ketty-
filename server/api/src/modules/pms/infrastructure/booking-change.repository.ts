@@ -3,7 +3,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 
 import {
-  auditEvents,
   bookingChanges,
   bookings,
   escrows,
@@ -15,6 +14,7 @@ import { DRIZZLE, type Database } from '../../../shared/database/database.module
 import type { ChangePrice } from '../domain/booking-change';
 import { hasFreeUnitEveryNight } from '../domain/sellable-capacity';
 import { readNightlyCapacity } from './sellable-capacity.query';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 
 /** A reservation as a change reads it, with what decides whether it may still change. */
 export interface ChangeableBooking {
@@ -283,7 +283,7 @@ export class BookingChangeRepository {
           .where(and(eq(roomAssignments.bookingId, input.bookingId), eq(roomAssignments.status, 'assigned')));
       }
 
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.actorUserId,
         subjectType: 'booking',
         subjectId: input.bookingId,

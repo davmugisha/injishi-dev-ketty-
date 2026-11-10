@@ -157,6 +157,31 @@ export interface SwapColleague {
   busy: boolean;
 }
 
+/** Money the person asked to be paid back, and the office's answer (058-payroll AC-PY9). */
+export interface StaffClaim {
+  id: string;
+  /** "RWF 12,000 · Taxi to the supplier". */
+  title: string;
+  meta: string;
+  chip: string;
+  tone: StaffTone;
+  /** Still waiting: the person may take it back. */
+  canCancel: boolean;
+}
+
+/** A swap a colleague asked of this person, waiting for their yes or no (058-time AC-TM5). */
+export interface SwapAsk {
+  id: string;
+  /** Who asks, their first name and initials. */
+  from: string;
+  first: string;
+  initials: string;
+  /** "Sat 17 Oct", or "Sat 17 Oct – Sun 18 Oct". */
+  when: string;
+  /** What they said. */
+  note: string;
+}
+
 export type RequestStatus = "colleague" | "manager" | "approved" | "declined" | "cancelled";
 
 export interface StaffRequest {
@@ -235,6 +260,8 @@ export interface Payslip {
   rules: string;
   payTo: string;
   lines: PayslipLine[];
+  /** The payslip as a PDF the person downloads, when it comes from their own file. */
+  pdfHref?: string;
 }
 
 export interface StaffDocument {
@@ -244,6 +271,8 @@ export interface StaffDocument {
   meta: string;
   chip: string;
   tone: StaffTone;
+  /** HR asked for it, or sent it back: the person sends a photo of it from the phone. */
+  canSend?: boolean;
 }
 
 export interface LoanedAsset {
@@ -261,6 +290,8 @@ export interface HelpTicket {
   meta: string;
   chip: string;
   tone: StaffTone;
+  /** HR's last answer, when there is one. */
+  answer?: string | null;
 }
 
 export interface HelpTopic {
@@ -700,6 +731,12 @@ const shifts: Shift[] = [
   },
 ];
 
+/** No colleague is asking the housekeeper for a swap in the prototype. */
+const swapAsks: SwapAsk[] = [];
+
+/** The housekeeper has asked for no money back in the prototype. */
+const claims: StaffClaim[] = [];
+
 const swapColleagues: SwapColleague[] = [
   { id: "grace", initials: "GM", name: "Grace Mutoni", first: "Grace", note: "Free that day", busy: false },
   {
@@ -961,8 +998,8 @@ const helpTickets: HelpTicket[] = [
 ];
 
 const helpTopics: HelpTopic[] = [
-  { id: "pay", label: "Pay", draft: "I have a question about my September payslip." },
-  { id: "uniform", label: "Uniform", draft: "My shoes are worn out. Can I get a new pair, size 39?" },
+  { id: "pay", label: "Pay", draft: "" },
+  { id: "uniform", label: "Uniform", draft: "" },
   { id: "leave", label: "Leave", draft: "" },
   { id: "phone", label: "Phone or app", draft: "" },
   { id: "other", label: "Other", draft: "" },
@@ -1240,6 +1277,8 @@ export const fixtures = {
   "staff.problemReports": problemReports,
   "staff.shifts": shifts,
   "staff.swapColleagues": swapColleagues,
+  "staff.swapAsks": swapAsks,
+  "staff.claims": claims,
   "staff.requests": requests,
   "staff.leaveTypes": leaveTypes,
   "staff.leaveBalances": leaveBalances,

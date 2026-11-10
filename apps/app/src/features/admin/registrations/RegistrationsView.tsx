@@ -1,31 +1,49 @@
 "use client";
 
-import { Button, Input, Label, TextField } from "@heroui/react";
-import type { AdminOrgRow, OrgRegistrationStatus } from "@injishi/contracts";
+import { Button, Input, Label, Switch, TextField } from "@heroui/react";
+import type {
+  AdminOrgListResponse,
+  AdminOrgRow,
+  AdminOrgStage,
+  HrFeature,
+  HrFeatureList,
+  OrgRegistrationStatus,
+} from "@injishi/contracts";
 import {
-  DataTable,
   DateText,
   EmptyBlock,
-  EventTimeline,
-  FlowStepper,
-  KeyValueList,
+  type IconKey,
   LoadingBlock,
   PageContent,
-  SidePanel,
+  type PlaceChain,
+  SectionCard,
+  ServerDataGrid,
   StatusChip,
   type StatusTone,
   type TimelineEvent,
 } from "@injishi/ui";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
-import type { RegistrationEvent } from "@/server/admin/registrations";
-import type { StarGradeState } from "@/server/admin/registrations";
-import { decideStarGradeAction, loadRegistrationTimeline, loadStarGrade } from "./actions";
+import type { RegistrationEvent, StarGradeState } from "@/server/admin/registrations";
+import {
+  ALL,
+  AreaFilter,
+  CountStrip,
+  ListBar,
+  ListFilter,
+  ListSearch,
+  ListUrlProvider,
+  SinceFilter,
+  useListUrl,
+} from "../list/list-kit";
+import { EntityMark } from "../list/stat-cards";
+import { decideStarGradeAction, loadHrFeatures, loadStarGrade, setHrFeatureAction } from "./actions";
 
 /** Where a registration stands, in the order it moves: paid, a field visit, a second officer's approval. */
-type Stage = "unpaid" | "visit" | "approval" | "active" | "rejected" | "suspended";
+export type Stage = "unpaid" | "visit" | "approval" | "active" | "rejected" | "suspended";
 
-const STAGE: Record<OrgRegistrationStatus, Stage> = {
+export const STAGE: Record<OrgRegistrationStatus, Stage> = {
   pending_payment: "unpaid",
   submitted: "visit",
   tin_verified: "visit",
@@ -36,7 +54,7 @@ const STAGE: Record<OrgRegistrationStatus, Stage> = {
   suspended: "suspended",
 };
 
-const STAGE_WORDS: Record<Stage, { label: string; tone: StatusTone }> = {
+export const STAGE_WORDS: Record<Stage, { label: string; tone: StatusTone }> = {
   unpaid: { label: "Fee not paid", tone: "default" },
   visit: { label: "Waiting for a field visit", tone: "warning" },
   approval: { label: "Waiting for approval", tone: "info" },
@@ -45,33 +63,23 @@ const STAGE_WORDS: Record<Stage, { label: string; tone: StatusTone }> = {
   suspended: { label: "Suspended", tone: "danger" },
 };
 
-const STEPS = [
+export const STEPS = [
   { id: "paid", title: "Registered and paid", description: "The business" },
   { id: "visit", title: "Document review", description: "Document review officer" },
   { id: "approval", title: "Approval", description: "A second officer" },
   { id: "active", title: "Active", description: "Can use Injishi" },
 ];
 
-const STEP_INDEX: Record<Stage, number> = { unpaid: 0, visit: 1, approval: 2, active: 4, rejected: 1, suspended: 4 };
-
-const TABS = ["all", "visit", "approval", "active", "closed"] as const;
-type Tab = (typeof TABS)[number];
-const TAB_LABEL: Record<Tab, string> = {
-  all: "All",
-  visit: "Field visit",
-  approval: "Approval",
-  active: "Active",
-  closed: "Rejected or suspended",
+export const STEP_INDEX: Record<Stage, number> = {
+  unpaid: 0,
+  visit: 1,
+  approval: 2,
+  active: 4,
+  rejected: 1,
+  suspended: 4,
 };
-const inTab = (tab: Tab, s: Stage): boolean =>
-  tab === "all" ||
-  (tab === "closed"
-    ? s === "rejected" || s === "suspended"
-    : tab === "visit"
-      ? s === "visit" || s === "unpaid"
-      : s === tab);
 
-const kindWords = (o: AdminOrgRow): string =>
+export const kindWords = (o: AdminOrgRow): string =>
   o.domain === "residence"
     ? o.residenceClass === "residential_property_manager"
       ? "Residence, managed for the owner"
@@ -81,7 +89,7 @@ const kindWords = (o: AdminOrgRow): string =>
       : o.domain.charAt(0).toUpperCase() + o.domain.slice(1);
 
 /** One audit line in the officers' words: which gate, passed or refused, by which post. */
-function eventWords(e: RegistrationEvent): TimelineEvent {
+export function eventWords(e: RegistrationEvent): TimelineEvent {
   const [, gate, outcome] = e.eventType.split(".");
   const passed = outcome === "passed";
   const by = e.actorName?.trim();
@@ -110,7 +118,7 @@ function eventWords(e: RegistrationEvent): TimelineEvent {
  * 0118: the star grade a stay said, confirmed here once checked against its RDB grading certificate. Guests see
  * stars only from then; a lapsed or mismatched certificate is withdrawn the same way. Both take a reason.
  */
-function StarGradeSection({ orgId }: { orgId: string }) {
+export function StarGradeSection({ orgId }: { orgId: string }) {
   const [state, setState] = useState<StarGradeState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reason, setReason] = useState("");
@@ -154,7 +162,9 @@ function StarGradeSection({ orgId }: { orgId: string }) {
       <TextField value={reason} onChange={setReason} fullWidth>
         <Label>Why</Label>
         <Input
-          placeholder={state.verifiedAt ? "The grading certificate has expired" : "RDB grading certificate checked, valid to 2027"}
+          placeholder={
+            state.verifiedAt ? "The grading certificate has expired" : "RDB grading certificate checked, valid to 2027"
+          }
         />
       </TextField>
       <div className="flex flex-wrap gap-2">
@@ -173,132 +183,174 @@ function StarGradeSection({ orgId }: { orgId: string }) {
   );
 }
 
-function RegistrationPanel({ org, onClose }: { org: AdminOrgRow; onClose: () => void }) {
-  const [events, setEvents] = useState<RegistrationEvent[] | null>(null);
+/**
+ * The business's optional HR features, which Injishi switches (the owner does not). Off hides a feature from the
+ * business's screens and refuses new work through it; nothing is deleted. One still carrying work says why it
+ * cannot be switched off yet.
+ */
+export function HrFeaturesSection({ orgId }: { orgId: string }) {
+  const [list, setList] = useState<HrFeatureList | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const stage = STAGE[org.registrationStatus];
+  const [busy, setBusy] = useState<HrFeature | null>(null);
   useEffect(() => {
     let live = true;
-    void loadRegistrationTimeline(org.id).then((r) => {
+    void loadHrFeatures(orgId).then((r) => {
       if (!live) return;
-      if (r.ok) setEvents(r.value);
+      if (r.ok) setList(r.value);
       else setError(r.error);
     });
     return () => {
       live = false;
     };
-  }, [org.id]);
-  const history: TimelineEvent[] = [
-    { id: "registered", at: org.createdAt, title: "Registered and paid", detail: kindWords(org), tone: "success" },
-    ...[...(events ?? [])].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt)).map(eventWords),
-    ...(stage === "visit" || stage === "approval"
-      ? [
-          {
-            id: "next",
-            at: new Date().toISOString(),
-            title: stage === "visit" ? "Waiting for a field visit" : "Waiting for a second officer to approve",
-            detail:
-              stage === "visit"
-                ? "Any field verification officer of the district"
-                : "An approving officer who did not do the visit",
-            tone: "current" as const,
-          },
-        ]
-      : []),
-  ];
+  }, [orgId]);
+  const flip = async (feature: HrFeature, on: boolean) => {
+    setBusy(feature);
+    setError(null);
+    const r = await setHrFeatureAction(orgId, feature, on);
+    setBusy(null);
+    if (r.ok) setList(r.value);
+    else setError(r.error);
+  };
   return (
-    <SidePanel
-      isOpen
-      onOpenChange={(open) => (open ? undefined : onClose())}
-      title={org.legalName}
-      description={kindWords(org)}
+    <SectionCard
+      title="HR features"
+      description="Injishi switches these, not the owner. Off hides one; nothing is deleted."
     >
-      <div className="flex flex-col gap-5">
-        <FlowStepper label="Registration steps" steps={STEPS} current={STEP_INDEX[stage]} orientation="vertical" />
-        <KeyValueList
-          items={[
-            {
-              label: "Status",
-              value: <StatusChip tone={STAGE_WORDS[stage].tone}>{STAGE_WORDS[stage].label}</StatusChip>,
-            },
-            { label: "District", value: org.districtName ?? "Not given" },
-            ...(org.upi ? [{ label: "UPI", value: <span className="tabular">{org.upi}</span> }] : []),
-            ...(org.tin ? [{ label: "TIN", value: <span className="tabular">{org.tin}</span> }] : []),
-            { label: "Registered", value: <DateText value={org.createdAt} style="long" /> },
-          ]}
-        />
-        {org.domain === "hospitality" ? <StarGradeSection orgId={org.id} /> : null}
-        <section className="flex flex-col gap-2">
-          <h3 className="text-sm font-semibold">History</h3>
-          {error ? (
-            <p className="text-sm text-danger">{error}</p>
-          ) : events === null ? (
-            <LoadingBlock shape="list" label="Loading the history" />
-          ) : (
-            <EventTimeline label={`History of ${org.legalName}`} events={history} />
-          )}
-        </section>
-        <p className="text-xs text-muted">
-          Two officers decide every registration: a field verification officer visits, then an approving officer who did
-          not do the visit approves. Injishi records the decisions; it does not make them.
-        </p>
-      </div>
-    </SidePanel>
+      {list ? (
+        <ul className="m-0 flex list-none flex-col divide-y divide-separator rounded-xl border border-separator p-0">
+          {list.features.map((f) => (
+            <li key={f.id} className="flex items-start gap-3 px-3 py-2.5">
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-sm font-medium">{f.label}</span>
+                <span className="text-xs text-muted">{f.detail}</span>
+                {f.on && f.blockedOff ? <span className="text-xs text-warning">{f.blockedOff}</span> : null}
+              </span>
+              <Switch
+                size="sm"
+                isSelected={f.on}
+                isDisabled={busy !== null || (f.on && Boolean(f.blockedOff))}
+                onChange={(on) => void flip(f.id, on)}
+                aria-label={`${f.label}: ${f.on ? "on" : "off"}`}
+              >
+                <Switch.Content>
+                  <Switch.Control>
+                    <Switch.Thumb />
+                  </Switch.Control>
+                </Switch.Content>
+              </Switch>
+            </li>
+          ))}
+        </ul>
+      ) : error ? null : (
+        <LoadingBlock shape="list" rows={3} label="Loading the HR features" />
+      )}
+      {error ? <p className="m-0 text-sm text-danger">{error}</p> : null}
+    </SectionCard>
   );
 }
 
+const STRIP: { id: AdminOrgStage; label: string; icon: IconKey; status?: "warning" | "danger" }[] = [
+  { id: "review", label: "Waiting for review", icon: "Clock", status: "warning" },
+  { id: "approval", label: "Waiting for approval", icon: "ShieldCheck" },
+  { id: "active", label: "Active", icon: "CircleCheck" },
+  { id: "unpaid", label: "Fee not paid", icon: "CreditCard" },
+  { id: "closed", label: "Rejected or suspended", icon: "CircleXmark", status: "danger" },
+];
+
+const DOMAIN_OPTIONS = [
+  { id: ALL, label: "All" },
+  { id: "hospitality", label: "Hospitality" },
+  { id: "residence", label: "Residence" },
+  { id: "enterprise", label: "Other business" },
+];
+
 /**
- * Every business that registered, for Injishi staff: where each stands on its way (paid, field visit,
- * approval, active), filtered by stage and searched by name or UPI, with each one's history in a panel.
- * Real records only, read from the admin API.
+ * Every business that registered, for Injishi staff (filters on the server, 2026-11-09): counts per stage
+ * that are also the quickest filter, then search, kind, area and when they registered, all in the URL; one
+ * page at a time, each business's history in a panel. Real records only, read from the admin API.
  */
-export function RegistrationsView({ orgs }: { orgs: AdminOrgRow[] }) {
-  const [open, setOpen] = useState<AdminOrgRow | null>(null);
-  const count = (t: Tab) => orgs.filter((o) => inTab(t, STAGE[o.registrationStatus])).length;
+export function RegistrationsView({ list, areaChain }: { list: AdminOrgListResponse; areaChain: PlaceChain }) {
+  return (
+    <ListUrlProvider>
+      <Registrations list={list} areaChain={areaChain} />
+    </ListUrlProvider>
+  );
+}
+
+function Registrations({ list, areaChain }: { list: AdminOrgListResponse; areaChain: PlaceChain }) {
+  const url = useListUrl();
+  const router = useRouter();
+  const counts = list.stageCounts ?? {};
   return (
     <PageContent>
       <AreaHeader />
-      <DataTable<AdminOrgRow>
-        label="Registrations"
-        rows={orgs}
-        rowKey={(o) => o.id}
+      <CountStrip
+        label="Businesses by stage"
+        param="stage"
+        items={STRIP.map((s) => ({
+          id: s.id,
+          label: s.label,
+          icon: s.icon,
+          value: counts[s.id] ?? 0,
+          status: (counts[s.id] ?? 0) > 0 ? s.status : undefined,
+        }))}
+      />
+      <ListBar
+        keys={["q", "stage", "domain", "since"]}
+        found={list.meta.total}
         noun={{ one: "business", many: "businesses" }}
-        search={{ placeholder: "Name, UPI or TIN", text: (o) => `${o.legalName} ${o.upi ?? ""} ${o.tin ?? ""}` }}
-        filters={[
-          {
-            id: "stage",
-            name: "Stage",
-            options: TABS.map((t) => ({ id: t, label: TAB_LABEL[t], count: count(t) })),
-            match: (o, v) => inTab(v as Tab, STAGE[o.registrationStatus]),
-          },
-        ]}
-        onRowAction={setOpen}
-        defaultSort={{ column: "registered", direction: "descending" }}
-        empty={<EmptyBlock icon="Briefcase" title="No registrations yet" />}
+        search={<ListSearch placeholder="Name, UPI or TIN" />}
+      >
+        <ListFilter
+          param="stage"
+          name="Stage"
+          options={[
+            { id: ALL, label: "All" },
+            ...STRIP.map((s) => ({ id: s.id, label: s.label, count: counts[s.id] })),
+          ]}
+        />
+        <ListFilter param="domain" name="Kind" icon="Briefcase" options={DOMAIN_OPTIONS} />
+        <AreaFilter chain={areaChain} depth="district" />
+        <SinceFilter name="Registered" />
+      </ListBar>
+      <ServerDataGrid<AdminOrgRow>
+        label="Businesses"
+        rows={list.items}
+        rowKey={(o) => o.id}
+        isLoading={url.pending}
+        onRowAction={(o) => router.push(`/admin/businesses/${o.id}`)}
+        paging={{
+          page: list.meta.page,
+          pageSize: list.meta.pageSize,
+          total: list.meta.total,
+          onPageChange: (page) => url.set({ page: String(page) }),
+        }}
+        empty={
+          <EmptyBlock size="sm" icon="Briefcase" title="No business matches" description="Try clearing a filter." />
+        }
         columns={[
           {
             id: "name",
             header: "Business",
             isRowHeader: true,
-            sortValue: (o) => o.legalName,
+            minWidth: 240,
             cell: (o) => (
-              <div className="flex min-w-0 flex-col text-sm">
-                <span className="truncate font-medium">{o.legalName}</span>
-                <span className="truncate text-xs text-muted">{kindWords(o)}</span>
+              <div className="flex min-w-0 items-center gap-3">
+                <EntityMark name={o.legalName} kind={o.domain} />
+                <div className="flex min-w-0 flex-col text-sm">
+                  <span className="truncate font-medium">{o.legalName}</span>
+                  <span className="truncate text-xs text-muted">
+                    {kindWords(o)}
+                    {o.tin ? ` · TIN ${o.tin}` : o.upi ? ` · UPI ${o.upi}` : ""}
+                  </span>
+                </div>
               </div>
             ),
           },
-          {
-            id: "district",
-            header: "District",
-            hideBelow: "xl",
-            sortValue: (o) => o.districtName ?? "",
-            cell: (o) => o.districtName ?? "Not given",
-          },
+          { id: "district", header: "District", cell: (o) => o.districtName ?? "Not given" },
           {
             id: "progress",
             header: "Progress",
-            hideBelow: "lg",
             cell: (o) => {
               const at = STEP_INDEX[STAGE[o.registrationStatus]];
               const bad = STAGE[o.registrationStatus] === "rejected" || STAGE[o.registrationStatus] === "suspended";
@@ -323,19 +375,12 @@ export function RegistrationsView({ orgs }: { orgs: AdminOrgRow[] }) {
           {
             id: "status",
             header: "Status",
-            sortValue: (o) => o.registrationStatus,
             cell: (o) => {
               const w = STAGE_WORDS[STAGE[o.registrationStatus]];
               return <StatusChip tone={w.tone}>{w.label}</StatusChip>;
             },
           },
-          {
-            id: "registered",
-            header: "Registered",
-            align: "end",
-            sortValue: (o) => o.createdAt,
-            cell: (o) => <DateText value={o.createdAt} />,
-          },
+          { id: "registered", header: "Registered", align: "end", cell: (o) => <DateText value={o.createdAt} /> },
         ]}
         mobile={{
           title: (o) => o.legalName,
@@ -346,7 +391,6 @@ export function RegistrationsView({ orgs }: { orgs: AdminOrgRow[] }) {
           },
         }}
       />
-      {open ? <RegistrationPanel org={open} onClose={() => setOpen(null)} /> : null}
     </PageContent>
   );
 }

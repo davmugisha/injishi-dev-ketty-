@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 import withSerwistInit from "@serwist/next";
+import createNextIntlPlugin from "next-intl/plugin";
 import { appHandoffRedirects, appHandoffRscRewrites, oldZoneRedirects } from "./src/lib/app-handoff";
 
 /**
@@ -85,7 +86,7 @@ const nextConfig: NextConfig = {
    * stage 9 retires `web-ui`. A product added here owes its stylesheet import
    * in the same change (`pnpm check:manifests` refuses one without it).
    */
-  transpilePackages: ["@injishi/web-ui", "@injishi/ui", "@injishi/utils"],
+  transpilePackages: ["@injishi/i18n", "@injishi/web-ui", "@injishi/ui", "@injishi/utils"],
   experimental: {
     // The 404 for a URL that matches no route group. apps/web has five root
     // layouts and no app/layout.tsx, so a plain not-found.tsx would have no
@@ -262,5 +263,14 @@ const withSerwist = withSerwistInit({
   ],
 });
 
-export default (phase: string): NextConfig =>
-  phase === PHASE_DEVELOPMENT_SERVER ? nextConfig : withSerwist(nextConfig);
+/**
+ * The message request config (locale + catalogs) is read from `i18n/request.ts`
+ * on every request. Wrapped around both branches so the dev server and the
+ * production build resolve the same locale.
+ */
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
+
+export default (phase: string): NextConfig => {
+  const config = phase === PHASE_DEVELOPMENT_SERVER ? nextConfig : withSerwist(nextConfig);
+  return withNextIntl(config);
+};

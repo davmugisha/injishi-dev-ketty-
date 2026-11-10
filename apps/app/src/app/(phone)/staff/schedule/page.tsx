@@ -5,6 +5,7 @@ import type {
   LeaveType,
   Shift,
   StaffRequest,
+  SwapAsk,
   SwapColleague,
 } from "@injishi/data/fixtures/staff";
 import { StaffScheduleView } from "@injishi/product-hr/web";
@@ -13,7 +14,8 @@ import type { Metadata } from "next";
 import { HrMount } from "@/features/hr/hr-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument, requestContext } from "@/server/data";
-import { myProfile, staffReadRefusal } from "@/server/sources/staff";
+import { hrFeaturesOff } from "@/server/hr-features";
+import { myProfile, shiftChoices, staffReadRefusal } from "@/server/sources/staff";
 
 export const metadata: Metadata = { title: screens.StaffSchedule.pageTitle };
 
@@ -25,10 +27,12 @@ export default async function StaffSchedulePage() {
     requestContext().then(myProfile),
     getCollection<Shift>("staff.shifts"),
     getCollection<SwapColleague>("staff.swapColleagues"),
+    getCollection<SwapAsk>("staff.swapAsks"),
     getCollection<StaffRequest>("staff.requests"),
     getCollection<LeaveType>("staff.leaveTypes"),
     getDocument<LeaveBalance>("staff.leaveBalances", persona.id),
     getCollection<LeaveApprover>("staff.leaveApprovers"),
+    requestContext().then(shiftChoices),
   ]).catch((error: unknown) => {
     const refusal = staffReadRefusal(error);
     if (refusal === null) throw error;
@@ -36,14 +40,15 @@ export default async function StaffSchedulePage() {
   });
   if (typeof read === "string")
     return <NothingYet title="Schedule" message={`Your shifts and leave cannot be shown yet. ${read}`} />;
-  const [profile, shifts, colleagues, requests, leaveTypes, balance, approvers] = read;
+  const [profile, shifts, colleagues, asks, requests, leaveTypes, balance, approvers, choices] = read;
+  if (!profile) return <NothingYet title="Schedule" message="You are not on file at this business yet. Ask HR." />;
   if (!balance || !leaveTypes.length)
     return <NothingYet title="Schedule" message="Leave is not set up for your business yet. Ask HR." />;
   return (
-    <HrMount>
+    <HrMount off={await hrFeaturesOff()}>
       <StaffScheduleView
         persona={persona}
-        data={{ profile: profile ?? null, shifts, colleagues, requests, leaveTypes, balance, approvers }}
+        data={{ profile, shifts, colleagues, asks, requests, leaveTypes, balance, approvers, choices }}
       />
     </HrMount>
   );

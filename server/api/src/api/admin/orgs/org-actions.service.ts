@@ -12,8 +12,9 @@ import {
 } from '@nestjs/common';
 import { and, desc, eq } from 'drizzle-orm';
 
-import { auditEvents } from '../../../database/drizzle/governance';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import { orgs, tinVerifications } from '../../../database/drizzle/org';
+import { EntitlementDefaults } from '../../../shared/entitlements/entitlement-defaults';
 import { RegistrationService } from '../../../modules/organization/application/registration.service';
 import { recordRegistrationEvent } from '../../../modules/organization/infrastructure/registration-events';
 import {
@@ -79,7 +80,7 @@ export class AdminOrgActionsService {
         .update(orgs)
         .set({ starGradeVerifiedAt: verifiedAt, starGradeVerifiedBy: confirm ? actorUserId : null, updatedAt: new Date() })
         .where(eq(orgs.id, orgId));
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId,
         subjectType: 'org',
         subjectId: orgId,
@@ -156,23 +157,24 @@ export class AdminOrgActionsService {
         to: edge.to,
         mover: { trigger: 'staff', actorUserId },
       });
+      // A reinstatement is a move into `active`, so the rule runs; it writes
+      // nothing, because the business's rows persisted through the suspension
+      // (ADR-076 G2).
+      if (edge.to === 'active') await EntitlementDefaults.applyTx(tx, orgId);
 
-      const [audit] = await tx
-        .insert(auditEvents)
-        .values({
-          actorUserId,
-          subjectType: 'org',
-          subjectId: orgId,
-          eventType: edge.eventType,
-          payloadDiff: {
-            registrationStatus: { from: edge.from, to: edge.to },
-          } as never,
-          reason,
-          // Copied onto the row, as the registration gates do, so district
-          // reporting can count suspensions without joining back to `orgs`.
-          districtId: moved.districtId,
-        })
-        .returning({ id: auditEvents.id });
+      const audit = await AuditWriter.write(tx, {
+        actorUserId,
+        subjectType: 'org',
+        subjectId: orgId,
+        eventType: edge.eventType,
+        payloadDiff: {
+          registrationStatus: { from: edge.from, to: edge.to },
+        } as never,
+        reason,
+        // Copied onto the row, as the registration gates do, so district
+        // reporting can count suspensions without joining back to `orgs`.
+        districtId: moved.districtId,
+      });
 
       return AdminOrgStatusChange.parse({
         orgId,
@@ -269,23 +271,20 @@ export class AdminOrgActionsService {
 
     let auditEventId: string | undefined;
     try {
-      const [audit] = await this.db
-        .insert(auditEvents)
-        .values({
-          actorUserId,
-          subjectType: 'org',
-          subjectId: orgId,
-          eventType: 'admin.org.tin_rechecked',
-          payloadDiff: {
-            registrationStatus: { from: org.status, to: registrationStatus },
-            tinVerificationId: after.id,
-            result: after.result,
-            adapterMode: after.adapterMode,
-          } as never,
-          reason,
-          districtId: org.districtId,
-        })
-        .returning({ id: auditEvents.id });
+      const audit = await AuditWriter.write(this.db, {
+        actorUserId,
+        subjectType: 'org',
+        subjectId: orgId,
+        eventType: 'admin.org.tin_rechecked',
+        payloadDiff: {
+          registrationStatus: { from: org.status, to: registrationStatus },
+          tinVerificationId: after.id,
+          result: after.result,
+          adapterMode: after.adapterMode,
+        } as never,
+        reason,
+        districtId: org.districtId,
+      });
       auditEventId = audit?.id;
     } catch (err) {
       this.log.error(

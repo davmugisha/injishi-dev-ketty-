@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { EntitlementsModule } from '../../../modules/entitlements/entitlements.module';
 import { OrganizationModule } from '../../../modules/organization/organization.module';
 import { AdminSharedModule } from '../admin-shared.module';
 import { AdminBrokerActionsService } from '../brokers/broker-actions.service';
@@ -7,6 +8,9 @@ import { AdminBrokerPlansService } from '../brokers/broker-plans-admin.service';
 import { AdminBrokersController } from '../brokers/brokers.controller';
 import { AdminBrokersService } from '../brokers/brokers.service';
 import { AdminOrgActionsService } from './org-actions.service';
+import { HrFeaturesModule } from '../../../modules/hr/hr-features.module';
+import { AdminOrgHrFeaturesController } from './org-hr-features.controller';
+import { AdminOrgProductsController } from './org-products.controller';
 import { AdminOrgsController } from './orgs.controller';
 import { AdminOrgsService } from './orgs.service';
 import { AdminPsfController } from './psf-admin.controller';
@@ -38,8 +42,16 @@ import { AdminPsfController } from './psf-admin.controller';
  * service.
  */
 @Module({
-  imports: [AdminSharedModule, OrganizationModule],
-  controllers: [AdminOrgsController, AdminBrokersController, AdminPsfController],
+  // `EntitlementsModule` for its one export, `EntitlementsService`, behind the
+  // products routes (ADR-076 G6): the same rule as `RegistrationService` above.
+  imports: [AdminSharedModule, OrganizationModule, EntitlementsModule, HrFeaturesModule],
+  controllers: [
+    AdminOrgsController,
+    AdminOrgProductsController,
+    AdminOrgHrFeaturesController,
+    AdminBrokersController,
+    AdminPsfController,
+  ],
   providers: [
     AdminOrgsService,
     AdminOrgActionsService,

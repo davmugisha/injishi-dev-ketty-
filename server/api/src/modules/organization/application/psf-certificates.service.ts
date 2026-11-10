@@ -1,8 +1,8 @@
-import { PSF_FAMILY_LABEL, normalizeBusinessCode, type PsfMemberCard } from '@injishi/contracts';
+import { psfFamilyName, normalizeBusinessCode, type PsfMemberCard } from '@injishi/contracts';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { StorageService } from '../../storage/application/storage.service';
-import { renderPsfCertificate } from '../infrastructure/psf-certificate.renderer';
+import { renderPsfCard, renderPsfCertificate, type PsfCertificateFacts } from '../infrastructure/psf-certificate.renderer';
 import { PsfMembershipMailer, psfCertificateFilename } from '../infrastructure/psf-membership.mailer';
 import { PsfMembershipRepository } from '../infrastructure/psf-membership.repository';
 
@@ -20,13 +20,28 @@ export class PsfCertificatesService {
   ) {}
 
   async forOrg(orgId: string): Promise<{ filename: string; content: Buffer }> {
+    const f = await this.factsOf(orgId);
+    return { filename: psfCertificateFilename(f.membershipNumber), content: await renderPsfCertificate(f) };
+  }
+
+  /** The membership card as a PDF (2026-11-05), with the same facts as the certificate. */
+  async cardForOrg(orgId: string): Promise<{ filename: string; content: Buffer }> {
+    const f = await this.factsOf(orgId);
+    return { filename: psfCertificateFilename(f.membershipNumber).replace('certificate', 'card'), content: await renderPsfCard(f) };
+  }
+
+  private async factsOf(orgId: string): Promise<PsfCertificateFacts> {
     const f = await this.repo.memberCertificateFacts(orgId);
     if (!f) throw new NotFoundException('This business is not a PSF member, so it has no certificate.');
-    const content = await renderPsfCertificate({
+    return {
       businessName: f.legalName,
       businessCode: f.businessCode,
       districtName: f.districtName,
-      levelName: PSF_FAMILY_LABEL[f.tierFamily],
+      sectorName: f.sectorName,
+      levelName: await this.levelName(f.tierFamily),
+      levelCode: f.tierFamily,
+      badge: f.cardBadge,
+      ownerName: f.ownerName,
       membershipNumber: f.membershipNumber,
       startsOn: f.startsOn ?? '',
       expiresOn: f.expiresOn ?? '',
@@ -34,9 +49,30 @@ export class PsfCertificatesService {
       issuedBy: f.districtName ? `PSF ${f.districtName} district office` : 'PSF',
       // The QR opens the member's card (2026-11-02), which anyone may check.
       trackUrl: this.mail.cardLink(f.membershipNumber),
-      businessLogo: await this.logo(f.logoObjectKey),
-    });
-    return { filename: psfCertificateFilename(f.membershipNumber), content };
+      businessLogo: await this.image(f.logoObjectKey),
+      ownerPhoto: await this.image(f.ownerPhotoKey),
+    };
+  }
+
+  /** The owner's photo as stored (2026-11-05), or null. */
+  async photo(key: string | null): Promise<{ bytes: Buffer; mime: string } | null> {
+    if (!key) return null;
+    try {
+      const described = await this.storage.describe(key);
+      return { bytes: await this.storage.readBytes(key), mime: described?.mime ?? 'image/jpeg' };
+    } catch {
+      return null;
+    }
+  }
+
+  /** The owner's photo for a business, or for the membership number on its card. */
+  async photoOfOrg(orgId: string): Promise<{ bytes: Buffer; mime: string } | null> {
+    return this.photo(await this.repo.ownerPhotoKey(orgId));
+  }
+
+  async photoOfNumber(membershipNumber: string): Promise<{ bytes: Buffer; mime: string } | null> {
+    const f = await this.repo.memberCardByNumber(membershipNumber.trim(), normalizeBusinessCode(membershipNumber));
+    return f ? this.photo(f.ownerPhotoKey) : null;
   }
 
   /** The card a certificate's QR code opens: by number, the latest membership that carries it. */
@@ -51,11 +87,12 @@ export class PsfCertificatesService {
         businessName: f.legalName,
         businessCode: f.businessCode,
         districtName: f.districtName,
-        levelName: PSF_FAMILY_LABEL[f.tierFamily],
+        levelName: await this.levelName(f.tierFamily),
         tierName: f.tierName,
         membershipNumber: f.membershipNumber,
         startsOn: f.startsOn,
         expiresOn: f.expiresOn,
+        hasPhoto: f.ownerPhotoKey !== null,
       },
     };
   }
@@ -69,7 +106,20 @@ export class PsfCertificatesService {
     }
   }
 
-  private async logo(key: string | null): Promise<{ bytes: Buffer; mime: 'image/png' | 'image/jpeg' } | null> {
+  /** The card to attach beside the certificate: a mail still goes without it. */
+  async pdfOfCardOrNull(orgId: string): Promise<Buffer | null> {
+    try {
+      return (await this.cardForOrg(orgId)).content;
+    } catch {
+      return null;
+    }
+  }
+
+  private async levelName(code: string): Promise<string> {
+    return (await this.repo.levels()).find((l) => l.code === code)?.nameEn ?? psfFamilyName(code);
+  }
+
+  private async image(key: string | null): Promise<{ bytes: Buffer; mime: 'image/png' | 'image/jpeg' } | null> {
     if (!key) return null;
     try {
       const mime = (await this.storage.describe(key))?.mime ?? 'image/png';

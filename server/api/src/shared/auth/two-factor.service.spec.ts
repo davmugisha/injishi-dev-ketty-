@@ -6,7 +6,6 @@ import type { OtpMailer } from '../../modules/auth/infrastructure/otp-mailer';
 import type { Platform } from '../config/platform';
 import type { Database } from '../database/database.module';
 import { TwoFactorService } from './two-factor.service';
-import type { WorkspaceService } from './workspace.service';
 
 /**
  * Which step-up code is issued, and that it is always mailed.
@@ -40,7 +39,6 @@ describe('TwoFactorService.sendCode', () => {
     const service = new TwoFactorService(
       db as unknown as Database,
       platform,
-      {} as WorkspaceService,
       { send } as unknown as OtpMailer,
     );
     return { service, send, stored };

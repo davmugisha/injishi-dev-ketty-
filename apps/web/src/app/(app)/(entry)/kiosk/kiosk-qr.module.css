@@ -1,0 +1,10 @@
+/*
+ * The entrance code's two colours. `QrCode` reads the receipt's custom
+ * properties, so the tablet sets the same pair the receipt does: the palette's
+ * lightest and darkest ink, in light and dark mode alike, because a phone's
+ * camera needs the contrast. The symbol paints its own light border.
+ */
+.qr {
+  --receipt-qr-light: var(--ink-50);
+  --receipt-ink: var(--ink-950);
+}

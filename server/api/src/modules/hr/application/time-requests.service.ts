@@ -27,11 +27,12 @@ import { DRIZZLE, type Database } from '../../../shared/database/database.module
 import { runBulk } from '../../../shared/lists/bulk';
 import { pageOf } from '../../../shared/lists/list-query';
 import { isCalendarDate } from '../../pms/domain/pricing';
-import { eachDate, kigaliDateOf, lastOfMonth, monthOf, shiftInstants } from '../domain/hr-calendar';
+import { addDays, eachDate, kigaliDateOf, kigaliToday, lastOfMonth, monthOf, shiftInstants } from '../domain/hr-calendar';
 import { EmployeesRepository, violatedConstraint, type EmployeeRow, type Tx } from '../infrastructure/employees.repository';
 import { writeHrAudit } from '../infrastructure/hr-audit';
 import { writeHrEvent } from '../infrastructure/hr-events';
 import { LeaveRepository } from '../infrastructure/leave.repository';
+import { RotationRepository } from '../infrastructure/rotation.repository';
 import {
   TimeRequestsRepository,
   type AttendanceRequestRow,
@@ -40,6 +41,7 @@ import {
 import { TimeRepository } from '../infrastructure/time.repository';
 import { rosterCard } from './employee-presenter';
 import { assertPersonInReach, orgOf } from './hr-access';
+import { RotationService } from './rotation.service';
 import { TimeService } from './time.service';
 
 const AHEAD_MS = 5 * 60_000;
@@ -71,6 +73,8 @@ export class TimeRequestsService {
     private readonly time: TimeRepository,
     private readonly leave: LeaveRepository,
     private readonly timeService: TimeService,
+    private readonly rotationPatterns: RotationRepository,
+    private readonly rotationService: RotationService,
   ) {}
 
   // --- Shift requests (AC-TM5) ----------------------------------------------------------
@@ -102,16 +106,27 @@ export class TimeRequestsService {
   }
 
   /**
-   * Raise a shift or swap request for a person. A swap names a colleague at the
-   * same branch and waits for them to accept (or, when they have no account,
-   * for someone who manages the roster to accept for them).
+   * Raise a shift, swap or rotation request for a person. A swap names a colleague
+   * at the same branch and waits for them to accept (or, when they have no account,
+   * for someone who manages the roster to accept for them). A day that has passed,
+   * or a swap with no shift to move, is refused here rather than at the decision.
    */
   async createShift(actor: RequestActor, employee: EmployeeRow, body: CreateMyShiftRequestRequest): Promise<string> {
     if (employee.status !== 'active') throw new ConflictException(`${employee.legalName} has left.`);
     if (!isCalendarDate(body.from) || !isCalendarDate(body.to)) throw new UnprocessableEntityException('That is not a real date.');
+    if (body.from < kigaliToday()) throw new UnprocessableEntityException('That day has passed.');
     let templateId: string | null = null;
     let colleague: EmployeeRow | null = null;
-    if (body.kind === 'change') {
+    let rotationPatternId: string | null = null;
+    if (body.kind === 'rotation') {
+      const pattern = await this.rotationPatterns.findPattern(body.rotationPatternId);
+      if (!pattern || pattern.orgId !== actor.orgId || pattern.status !== 'active' || pattern.propertyId !== employee.workPropertyId) {
+        throw new UnprocessableEntityException('Ask for an active rotation of the branch the person works at.');
+      }
+      const running = await this.rotationPatterns.runningFor(employee.id);
+      if (running?.patternId === pattern.id) throw new ConflictException('You are already on this rotation.');
+      rotationPatternId = pattern.id;
+    } else if (body.kind === 'change') {
       const template = await this.time.findTemplate(body.shiftTemplateId);
       if (!template || template.orgId !== actor.orgId || template.status !== 'active' || template.propertyId !== employee.workPropertyId) {
         throw new UnprocessableEntityException('Ask for an active shift of the branch the person works at.');
@@ -126,6 +141,19 @@ export class TimeRequestsService {
       if (colleague.workPropertyId !== employee.workPropertyId) {
         throw new UnprocessableEntityException('A swap is with a colleague at the same branch.');
       }
+      const people = [employee.id, colleague.id];
+      const [existing, leaveA, leaveB] = await Promise.all([
+        this.time.scheduledOn(people, body.from, body.to),
+        this.leave.approvedBetween(employee.id, body.from, body.to),
+        this.leave.approvedBetween(colleague.id, body.from, body.to),
+      ]);
+      const away = [...leaveA, ...leaveB];
+      let movable = false;
+      for (const date of eachDate(body.from, body.to)) {
+        if (away.some((l) => l.startsOn <= date && l.endsOn >= date)) continue;
+        if (existing.some((e) => e.workDate === date)) movable = true;
+      }
+      if (!movable) throw new UnprocessableEntityException('Neither of you has a shift to swap that day.');
     }
     return this.db.transaction(async (tx) => {
       const id = await this.requests.insertShift(tx, {
@@ -134,6 +162,7 @@ export class TimeRequestsService {
         kind: body.kind,
         shiftTemplateId: templateId,
         swapEmployeeId: colleague?.id ?? null,
+        rotationPatternId,
         fromDate: body.from,
         toDate: body.to,
         reason: body.reason.trim(),
@@ -194,14 +223,17 @@ export class TimeRequestsService {
     });
   }
 
-  /** The colleague says no: the swap is cancelled. */
+  /** The colleague says no: the swap is refused, and the person who asked reads why. */
   async declineSwap(actor: RequestActor, id: string, colleagueId: string): Promise<void> {
     const row = await this.requests.findShift(id);
     if (!row || row.orgId !== actor.orgId || row.swapEmployeeId !== colleagueId) throw new NotFoundException();
     await this.db.transaction(async (tx) => {
-      if (!(await this.requests.moveShift(tx, row.id, ['awaiting_colleague'], 'cancelled'))) {
-        throw new ConflictException('This swap is not waiting for you any more.');
-      }
+      const name = row.swapPreferredName?.trim() || row.swapLegalName || 'Your colleague';
+      const moved = await this.requests.moveShift(tx, row.id, ['awaiting_colleague'], 'rejected', {
+        decidedByUserId: actor.userId,
+        decisionNote: `${name} said no.`,
+      });
+      if (!moved) throw new ConflictException('This swap is not waiting for you any more.');
       await writeHrAudit(tx, {
         actorUserId: actor.userId,
         subjectType: 'employee',
@@ -272,6 +304,7 @@ export class TimeRequestsService {
     }
     if (row.status === 'awaiting_colleague') throw new ConflictException('The colleague has not accepted this swap yet.');
     if (row.status !== 'requested') throw new ConflictException('This request is no longer open.');
+    if (row.kind === 'rotation') return this.approveRotation(ws, userId, row, me, note);
     const people = [row.employeeId, ...(row.swapEmployeeId ? [row.swapEmployeeId] : [])];
     try {
       await this.db.transaction(async (tx) => {
@@ -288,6 +321,7 @@ export class TimeRequestsService {
           throw new ConflictException('The shift asked for has been retired since.');
         }
         const now = new Date();
+        let moved = 0;
         for (const date of eachDate(row.fromDate, row.toDate)) {
           if (row.kind === 'change' && template) {
             if (onLeave(row.employeeId, date)) continue;
@@ -310,6 +344,7 @@ export class TimeRequestsService {
               publishedAt: published ? now : null,
               shiftRequestId: row.id,
             });
+            moved++;
           } else if (row.swapEmployeeId) {
             if (onLeave(row.employeeId, date) || onLeave(row.swapEmployeeId, date)) continue;
             const a = existing.filter((e) => e.employeeId === row.employeeId && e.workDate === date);
@@ -333,9 +368,12 @@ export class TimeRequestsService {
                 publishedAt: e.publishedAt ? now : null,
                 shiftRequestId: row.id,
               });
+              moved++;
             }
           }
         }
+        // Leave taken or a shift moved since the ask can leave nothing to do: say so, and change nothing.
+        if (moved === 0) throw new ConflictException('Nothing would change: there is no shift to move on those days. Decline it instead.');
         for (const p of people) {
           await writeHrAudit(tx, {
             actorUserId: userId,
@@ -362,6 +400,53 @@ export class TimeRequestsService {
       }
       throw error;
     }
+    return this.shiftById(row.id, me);
+  }
+
+  /**
+   * Approve asking to join a rotation: the person comes off any rotation they are on the day before,
+   * and joins this one from the day asked (today, if that has passed). Its drafts are written at once.
+   */
+  private async approveRotation(
+    ws: ScopedWorkspace,
+    userId: string,
+    row: ShiftRequestRow,
+    me: string | null,
+    note: string | null,
+  ): Promise<ShiftRequest> {
+    const orgId = orgOf(ws);
+    if (!row.rotationPatternId) throw new ConflictException('This request names no rotation.');
+    const today = kigaliToday();
+    const startsOn = row.fromDate > today ? row.fromDate : today;
+    const running = await this.rotationService.runningFor(row.employeeId);
+    if (running?.patternId === row.rotationPatternId) throw new ConflictException('They are already on this rotation.');
+    if (running) {
+      const dayBefore = addDays(startsOn, -1);
+      await this.rotationService.end(ws, userId, running.id, { endsOn: dayBefore > running.startsOn ? dayBefore : running.startsOn });
+    }
+    await this.rotationService.assign(ws, userId, { employeeId: row.employeeId, patternId: row.rotationPatternId, startsOn, startStep: 0 });
+    await this.db.transaction(async (tx) => {
+      if (!(await this.requests.moveShift(tx, row.id, ['requested'], 'approved', { decidedByUserId: userId, decisionNote: note }))) {
+        throw new ConflictException('This request was decided a moment ago.');
+      }
+      await writeHrAudit(tx, {
+        actorUserId: userId,
+        subjectType: 'employee',
+        subjectId: row.employeeId,
+        eventType: 'hr.shift_request_approved',
+        orgId,
+        diff: { shiftRequestId: row.id, kind: row.kind, startsOn },
+        reason: note,
+      });
+      await writeHrEvent(tx, {
+        trigger: 'shift_request.decided',
+        aggregateType: 'shift_request',
+        aggregateId: row.id,
+        change: `approved:${row.employeeId}`,
+        workspaceId: ws.workspaceId,
+        payload: { shiftRequestId: row.id, employeeId: row.employeeId },
+      });
+    });
     return this.shiftById(row.id, me);
   }
 
@@ -619,6 +704,7 @@ export function presentShift(row: ShiftRequestRow, me: string | null): ShiftRequ
     kind: row.kind,
     shiftTemplate: row.shiftTemplateId && row.shiftTemplateName ? { id: row.shiftTemplateId, name: row.shiftTemplateName } : null,
     swapWith: card(row.swapEmployeeId, row.swapPreferredName, row.swapLegalName, row.swapPositionTitle),
+    rotation: row.rotationPatternId && row.rotationName ? { id: row.rotationPatternId, name: row.rotationName } : null,
     fromDate: row.fromDate,
     toDate: row.toDate,
     reason: row.reason,

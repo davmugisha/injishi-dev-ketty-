@@ -96,6 +96,61 @@ export default tseslint.config(
             'OpsBrokerMessagesController.read',
             'OpsBrokerMessagesController.file',
           ],
+          /**
+           * ADR-076 G10: the business controllers that answer to no one
+           * product yet. Each names its owner and the ADR-074 stage that
+           * decides its product (3 hr, 4 pms with property, 5 outlets and pos,
+           * 6 finance, pay and fiscal, 7 account, residence, marketplace).
+           * Every other `WorkspaceGuard` route that declares a permission
+           * declares `@RequireProduct` or `@RequireAnyProduct`.
+           */
+          productAllow: [
+            // The support assistant's operator tools (ADR-061), which edit a
+            // listing for the person who approves it. Its own product, or
+            // property's, is decided with the access model (stage 8).
+            'AssistantController',
+            // A host deciding a booking request: PMS's, outside `ops/`, so not
+            // in slice G's table. Decided when PMS moves (stage 4).
+            'BookingDecisionsController',
+            // The business's licences and registrations on file:
+            // platform/compliance, read by listings and money. Stage 7.
+            'OpsCertificatesController',
+            // Fiscal (EBM and the RRA item codes), a platform capability whose
+            // product set ADR-074 does not name. Moves to platform/fiscal at
+            // stage 6, which names it.
+            'OpsEbmController',
+            'OpsRraController',
+            // Communications (the guest inbox and the desk's reply templates),
+            // a platform capability whose product set ADR-074 does not name.
+            // Named when PMS moves (stage 4).
+            'OpsThreadsController',
+            'OpsMessageTemplatesController',
+            // Saved list views (058-list-framework): HR's lists and the owner's
+            // Reports tabs share the route. Decided when HR moves (stage 3).
+            'OpsListViewsController',
+            // The owner's home and Reports, which read across every product.
+            // Account's or Finance's: stage 6 or 7.
+            'OpsOwnerDashboardController',
+            'OpsReportsController',
+            // Revenue: Finance's (`finance.money.view`). Stage 6.
+            'OpsRevenueController',
+            // Offers and refund requests: PMS's by their new keys
+            // (`pms.offer.manage`, `pms.refund.decide`), outside slice G's
+            // table. Stage 4.
+            'OpsOffersController',
+            'OpsRefundRequestsController',
+            // Maintenance work orders and condition signals: PMS's by their new
+            // key (`pms.ticket.advance`), outside slice G's table. Stage 4.
+            'OpsWorkOrdersController',
+            'OpsConditionSignalsController',
+            // The staff phone. Slice G's table puts `staff-phone` under HR, but
+            // these two serve housekeeping and maintenance work (cleaning
+            // steps, minibar counts, found items, work order timers) and
+            // declare PMS's permissions. Neither product is enforced until
+            // `/architect` settles which; by content it is PMS (stage 4).
+            'OpsHousekeepingPhoneController',
+            'OpsWorkOrderTimeController',
+          ],
         },
       ],
     },

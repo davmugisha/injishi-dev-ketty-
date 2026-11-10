@@ -37,10 +37,32 @@
  * (`MeController.setActiveWorkspace` is the one today). A read that merely
  * seems harmless is not that: an empty permission set must still be refused it,
  * and only a declaration does that. Every entry carries a comment saying why.
+ *
+ * THE TWIN CHECK, the route's product (ADR-074 "Entitlement is not
+ * permission", ADR-076 G10):
+ *
+ *   - A `WorkspaceGuard` handler that declares a permission also declares
+ *     `@RequireProduct(...)` or, for a platform capability route,
+ *     `@RequireAnyProduct(...)`, on itself or its class. Without one the route
+ *     stays open at a business that has switched its product off.
+ *   - A `StaffGuard` or `OversightGuard` handler declares neither: `admin` and
+ *     `membership` are never entitlements, and a PSF officer reviews
+ *     businesses that run nothing yet.
+ *
+ * The `productAllow` option names the controllers that answer to no one
+ * product yet, by CLASS name (a product belongs to the controller, so one entry
+ * covers its handlers). Each entry carries a comment naming its owner and the
+ * stage that decides its product.
  */
 
 /** The decorators that put a request through a permission-resolving guard. */
 const PERMISSION_GUARDS = new Set(['WorkspaceGuard', 'StaffGuard']);
+
+/** The guards whose routes never declare a product. */
+const NO_PRODUCT_GUARDS = new Set(['StaffGuard', 'OversightGuard']);
+
+/** The decorators that declare which product a route belongs to. */
+const PRODUCT_DECLARATIONS = new Set(['RequireProduct', 'RequireAnyProduct']);
 
 /** The decorators that declare which power a route needs. */
 const PERMISSION_DECLARATIONS = new Set([
@@ -96,6 +118,13 @@ function declaresPermission(node) {
   );
 }
 
+/** Does this node carry a product declaration of its own? */
+function declaresProduct(node) {
+  return (node.decorators ?? []).some((decorator) =>
+    PRODUCT_DECLARATIONS.has(decoratorName(decorator)),
+  );
+}
+
 /** The HTTP verbs this handler answers. */
 function httpMethodsOn(node) {
   const methods = new Set();
@@ -137,6 +166,12 @@ const rule = {
             description:
               'Routes that are guarded but declare no permission on purpose, as "Class.method". Each one is an exception the ADR names.',
           },
+          productAllow: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Controllers, by class name, whose WorkspaceGuard routes declare no product yet. Each entry names its owner and the stage that decides it (ADR-076 G10).',
+          },
         },
         additionalProperties: false,
       },
@@ -144,11 +179,16 @@ const rule = {
     messages: {
       missing:
         '`{{route}}` runs behind {{guard}} but declares no permission, so every member of the workspace may reach it, including one whose permission set is empty (ADR-012, AC-1; audit H1). Add `@{{declaration}}(...)` to the handler or its controller. If it is genuinely meant to need only workspace membership, name it in this rule\'s `allow` option with a comment saying why.',
+      productMissing:
+        '`{{route}}` runs behind WorkspaceGuard and declares a permission but no product, so it stays open at a business that has switched its product off (ADR-076 G10). Add `@RequireProduct(...)` (or `@RequireAnyProduct(...)` for a platform capability) to the handler or its controller, or name the controller in this rule\'s `productAllow` option with its owner and the stage that decides it.',
+      productOnStaff:
+        '`{{route}}` runs behind {{guard}} and declares a product. Staff and oversight routes never do: `admin` and `membership` are not entitlements, and a PSF officer reviews businesses that run nothing yet (ADR-074).',
     },
   },
 
   create(context) {
     const allow = new Set(context.options?.[0]?.allow ?? []);
+    const productAllow = new Set(context.options?.[0]?.productAllow ?? []);
 
     /**
      * Walk one class: read the guards and any declaration it carries, then
@@ -159,6 +199,7 @@ const rule = {
       const className = node.id?.name ?? null;
       const classGuards = guardsOn(node);
       const classDeclares = declaresPermission(node);
+      const classProduct = declaresProduct(node);
 
       for (const member of node.body.body) {
         if (member.type !== 'MethodDefinition') continue;
@@ -167,12 +208,40 @@ const rule = {
         if (verbs.size === 0) continue;
 
         const guards = new Set([...classGuards, ...guardsOn(member)]);
+        const route = routeKey(className, memberName(member));
+        const hasProduct = classProduct || declaresProduct(member);
+
+        // The twin check, staff and oversight side: never a product.
+        const noProductGuard = [...guards].find((g) => NO_PRODUCT_GUARDS.has(g));
+        if (noProductGuard && hasProduct) {
+          context.report({
+            node: member.key ?? member,
+            messageId: 'productOnStaff',
+            data: { route, guard: noProductGuard },
+          });
+        }
+
         const guard = [...guards].find((g) => PERMISSION_GUARDS.has(g));
         if (!guard) continue;
 
-        if (classDeclares || declaresPermission(member)) continue;
+        const permitted = classDeclares || declaresPermission(member);
 
-        const route = routeKey(className, memberName(member));
+        // The twin check, business side: a declared permission needs a product.
+        if (
+          guard === 'WorkspaceGuard' &&
+          permitted &&
+          !hasProduct &&
+          !productAllow.has(className ?? '')
+        ) {
+          context.report({
+            node: member.key ?? member,
+            messageId: 'productMissing',
+            data: { route },
+          });
+        }
+
+        if (permitted) continue;
+
         if (allow.has(route)) continue;
 
         context.report({

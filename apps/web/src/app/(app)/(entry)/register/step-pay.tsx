@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, CircleCheck, CircleAlert, FlaskConical, Landmark, Smartphone } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   networkForMsisdn,
   paymentRuleProblem,
@@ -140,6 +141,7 @@ export function StepPay({
   onSettled: (settled: RegistrationFeeAttemptStatus) => void;
   onEnded: (ended: RegistrationFeeAttemptStatus) => void;
 }) {
+  const t = useTranslations("register.payment");
   const detected = (() => {
     const national = normaliseMsisdn(phone);
     return national ? networkForMsisdn(national) : null;
@@ -154,7 +156,7 @@ export function StepPay({
       className="items-start gap-3"
       controlClassName="mt-0.5"
     >
-      <span className="text-sm">I understand the registration fee is not refundable.</span>
+      <span className="text-sm">{t("notRefundable")}</span>
     </Checkbox>
   );
 
@@ -162,29 +164,29 @@ export function StepPay({
     <>
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-card bg-secondary px-4 py-4">
         <div className="flex flex-col gap-0.5">
-          <span className="text-sm text-muted-foreground">Registration fee for {kindPhrase}</span>
-          <span className="text-2xl font-semibold tabular-nums">{fee === null ? "Not available yet" : formatRwf(fee)}</span>
+          <span className="text-sm text-muted-foreground">{t("registrationFee", { kind: kindPhrase })}</span>
+          <span className="text-2xl font-semibold tabular-nums">{fee === null ? t("notAvailable") : formatRwf(fee)}</span>
         </div>
         <div className="flex items-center gap-2">
           {feeMode === "test" && !paid ? (
             <Badge variant="warning" size="sm">
-              Test payment
+              {t("testPayment")}
             </Badge>
           ) : null}
           <Badge variant={paid ? "success" : "default"} size="sm">
-            {paid ? "Paid" : waiting ? "Waiting for your approval" : "Not paid"}
+            {paid ? t("paid") : waiting ? t("waiting") : t("notPaid")}
           </Badge>
         </div>
       </div>
 
       {paid ? (
         <>
-          <Callout tone="success" icon={<CircleCheck size={16} aria-hidden />} title="Paid. PSF reviews it next">
-            {paidOn ? `The fee was recorded on ${paidOn}. ` : ""}We email you when PSF has decided.
+          <Callout tone="success" icon={<CircleCheck size={16} aria-hidden />} title={t("paidNext")}>
+            {paidOn ? t("feeRecorded", { date: paidOn }) : ""}{t("emailDecision")}
           </Callout>
           <div>
             <Button onClick={onSeeStatus}>
-              See where it stands
+              {t("seeStatus")}
               <ArrowRight size={16} aria-hidden />
             </Button>
           </div>
@@ -193,41 +195,39 @@ export function StepPay({
         <PaymentPrompt
           attempt={attempt}
           poll={(token) => fetchRegistrationFeeAttempt(orgId, token)}
-          landsAs="your registration's next step"
+          landsAs={t("nextStep")}
           onSettled={onSettled}
           onEnded={onEnded}
         />
       ) : feeMode === "free" ? (
         <>
-          <Callout tone="info" icon={<Landmark size={16} aria-hidden />} title="No payment is taken yet">
-            Payments are not switched on for registrations yet, so no money moves. Pressing Submit records the fee against
-            this registration and sends it to PSF for review.
+          <Callout tone="info" icon={<Landmark size={16} aria-hidden />} title={t("noPayment")}>
+            {t("noPaymentInfo")}
           </Callout>
           {notRefundable}
         </>
       ) : (
         <>
           {endedReason ? (
-            <Callout tone="danger" role="alert" icon={<CircleAlert size={16} aria-hidden />} title="That payment did not go through">
-              {endedReason} You can try again.
+            <Callout tone="danger" role="alert" icon={<CircleAlert size={16} aria-hidden />} title={t("failed")}>
+              {endedReason} {t("tryAgain")}
             </Callout>
           ) : null}
           {feeMode === "test" ? (
-            <Callout tone="warning" icon={<FlaskConical size={16} aria-hidden />} title="This is a test payment">
-              This stack takes no real money. The prompt is simulated, and a number ending 0000 is declined so you can see
-              that path too.
+            <Callout tone="warning" icon={<FlaskConical size={16} aria-hidden />} title={t("testInfoTitle")}>
+              {t("testInfo")}
             </Callout>
           ) : null}
           <div className="flex flex-col gap-4">
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <DetectedMark width={22} height={22} aria-hidden />
               {detected
-                ? `We will send a ${NETWORK_LABEL[detected]} prompt to this number. Approve it on that phone.`
-                : "Enter the mobile money number to pay from. We send a prompt to that phone to approve."}
+                ? t("sendPrompt", { network: NETWORK_LABEL[detected] })
+                : t("enterNumber")}
             </p>
             <CheckoutFieldGroup>
               <CheckoutField
-                label="Mobile money number"
+                label={t("phone")}
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
@@ -239,7 +239,7 @@ export function StepPay({
               />
             </CheckoutFieldGroup>
             <p className="text-xs text-muted-foreground">
-              Accepted: {networks.map((n) => NETWORK_LABEL[n]).join(" or ")}. Nothing is taken until you approve the prompt.
+              {t("accepted", { networks: networks.map((n) => NETWORK_LABEL[n]).join(" or ") })}
             </p>
           </div>
           {notRefundable}

@@ -119,6 +119,14 @@ export const AdminAuditSubjectType = z.enum([
     "tax_declaration",
     // People (migration 0125): a custom staff role made, changed or archived.
     "staff_role",
+    // ADR-076 (migration 0134). A product switched on or off is filed under its
+    // entitlement row (slice G); roles, memberships, ownership transfers and
+    // enrolled devices get theirs in slices R, O and D.
+    "entitlement",
+    "role",
+    "membership",
+    "ownership_transfer",
+    "device",
 ]);
 export type AdminAuditSubjectType = z.infer<typeof AdminAuditSubjectType>;
 /**
@@ -277,6 +285,9 @@ export const AdminEscalationType = z.enum([
     "off_platform_leakage",
     "listing_non_compliance",
     "review_abuse",
+    // ADR-076 G4 (migration 0134): a business became active with a kind nobody
+    // could resolve, so it holds `account` only until a person decides.
+    "business_kind_unresolved",
 ]);
 export type AdminEscalationType = z.infer<typeof AdminEscalationType>;
 /** `escalation_state`. */
@@ -478,16 +489,39 @@ export const AdminOrgRow = z.object({
 });
 export type AdminOrgRow = z.infer<typeof AdminOrgRow>;
 /** Query params for `GET /api/v1/admin/orgs`. */
+/**
+ * Where a registration stands, as the Businesses list groups it (2026-11-09): the statuses an admin reads as
+ * one step. `review` is waiting on a document review or field visit, `approval` on the second officer.
+ */
+export const AdminOrgStage = z.enum(["unpaid", "review", "approval", "active", "closed"]);
+export type AdminOrgStage = z.infer<typeof AdminOrgStage>;
+export const ADMIN_ORG_STAGE_STATUSES: Readonly<Record<AdminOrgStage, readonly OrgRegistrationStatus[]>> = {
+    unpaid: ["pending_payment"],
+    review: ["submitted", "tin_verified"],
+    approval: ["field_verified"],
+    active: ["approved", "active"],
+    closed: ["rejected", "suspended"],
+};
+/** A calendar day, YYYY-MM-DD, for "registered from" style filters. */
+const DayQuery = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 2026-11-09.");
 export const AdminOrgListQuery = z.object({
     /** Free text over legal name, TIN and UPI. */
     q: z.string().optional(),
+    /** The business's district's province (2026-11-09). */
+    provinceId: z.coerce.number().int().positive().optional(),
     districtId: z.coerce.number().int().positive().optional(),
     domain: Domain.optional(),
     registrationStatus: OrgRegistrationStatus.optional(),
+    stage: AdminOrgStage.optional(),
+    /** Registered on or after this day (Kigali time). */
+    createdFrom: DayQuery.optional(),
     ...pageQuery,
 });
 export type AdminOrgListQuery = z.infer<typeof AdminOrgListQuery>;
-export const AdminOrgListResponse = listOf(AdminOrgRow);
+export const AdminOrgListResponse = listOf(AdminOrgRow).extend({
+    /** How many match every filter but the stage, per stage, for the counts above the list. */
+    stageCounts: z.record(AdminOrgStage, z.number().int().nonnegative()).optional(),
+});
 export type AdminOrgListResponse = z.infer<typeof AdminOrgListResponse>;
 /**
  * Is anyone appointed to take this business's current stage? (ADR-053, AC-G9)
@@ -804,6 +838,8 @@ export const AdminAuditQuery = z.object({
     q: z.string().optional(),
     subjectType: AdminAuditSubjectType.optional(),
     actorUserId: Uuid.optional(),
+    /** On or after this Kigali day (2026-11-09). */
+    createdFrom: DayQuery.optional(),
     ...pageQuery,
 });
 export type AdminAuditQuery = z.infer<typeof AdminAuditQuery>;
@@ -1013,12 +1049,19 @@ export const AdminUserListQuery = z.object({
     status: z.lazy(() => AdminAccountStatus).optional(),
     /** A built-in staff role (`ops`) or a custom role's id. */
     role: z.string().trim().max(64).optional(),
+    /** Joined on or after this Kigali day (2026-11-09). */
+    createdFrom: DayQuery.optional(),
+    /** Signed in: never, within the last 30 days, or not for 90 days or more (never included). */
+    signedIn: z.enum(["never", "last30", "over90"]).optional(),
     sort: z.enum(["name", "email", "createdAt", "lastSignInAt"]).optional(),
     dir: z.enum(["asc", "desc"]).optional(),
     ...pageQuery,
 });
 export type AdminUserListQuery = z.infer<typeof AdminUserListQuery>;
-export const AdminUserListResponse = listOf(AdminUserRow);
+export const AdminUserListResponse = listOf(AdminUserRow).extend({
+    /** How many match every filter but the status, per status, for the counts above the list (2026-11-09). */
+    statusCounts: z.record(z.lazy(() => AdminAccountStatus), z.number().int().nonnegative()).optional(),
+});
 export type AdminUserListResponse = z.infer<typeof AdminUserListResponse>;
 /**
  * A stay that ended without anyone claiming it.
@@ -1624,8 +1667,55 @@ export type AdminActionRequest = z.infer<typeof AdminActionRequest>;
  */
 export const AdminPersonDetail = AdminUserRow.extend({
     oversightGrants: z.array(AdminOversightGrant),
+    /** Their details in full (2026-11-09), for the Details card and its edit form. The read is already logged. */
+    details: z.lazy(() => AdminPersonDetails),
 });
 export type AdminPersonDetail = z.infer<typeof AdminPersonDetail>;
+export const ADMIN_LOCALES = ["en", "rw", "fr"] as const;
+export const ADMIN_LOCALE_LABEL: Record<(typeof ADMIN_LOCALES)[number], string> = {
+    en: "English",
+    rw: "Kinyarwanda",
+    fr: "French",
+};
+export const ADMIN_GENDERS = ["female", "male", "other"] as const;
+export const ADMIN_GENDER_LABEL: Record<(typeof ADMIN_GENDERS)[number], string> = {
+    female: "Female",
+    male: "Male",
+    other: "Other",
+};
+/** A person's own details, as staff see and edit them. */
+export const AdminPersonDetails = z.object({
+    /** The phone shown on their profile. Display only: it never signs them in. */
+    phone: z.string().nullable(),
+    /** The phone they proved with a code, which can sign them in. Not editable here. */
+    provedPhone: z.string().nullable(),
+    locale: z.enum(ADMIN_LOCALES),
+    dateOfBirth: z.string().nullable(),
+    gender: z.enum(ADMIN_GENDERS).nullable(),
+    /** Where they live, in words ("Kacyiru sector, Gasabo"), or null. Set by them, not here. */
+    address: z.string().nullable(),
+});
+export type AdminPersonDetails = z.infer<typeof AdminPersonDetails>;
+/**
+ * Change a person's details (`PATCH /api/v1/admin/users/:userId`, 2026-11-09). Only the fields sent change.
+ * A new email is how they sign in from then on, so the old address is told.
+ */
+export const AdminUpdateUserRequest = z.object({
+    name: z.string().trim().min(2, "Give the person's full name.").max(200).optional(),
+    email: z.string().trim().toLowerCase().email("Use an email address like name@example.com.").optional(),
+    /** Empty clears it. */
+    phone: z.lazy(() => AdminDisplayPhone).optional(),
+    locale: z.enum(ADMIN_LOCALES).optional(),
+    dateOfBirth: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 1990-05-21.")
+        .refine((d) => d < new Date().toISOString().slice(0, 10), "A date of birth is in the past.")
+        .nullable()
+        .optional(),
+    gender: z.enum(ADMIN_GENDERS).nullable().optional(),
+    reason: AdminReasonQuery.shape.reason,
+});
+export type AdminUpdateUserRequest = z.infer<typeof AdminUpdateUserRequest>;
 /**
  * Create an account by email (`POST /api/v1/admin/users`). The person signs in
  * with the code emailed to that address; nothing else is set for them. An
@@ -1639,7 +1729,7 @@ export const AdminCreateUserRequest = z.object({
      * not a proved number, so it never signs anyone in. Empty means none.
      */
     phone: z.lazy(() => AdminDisplayPhone).optional(),
-    /** A staff role to give them in the same step. A government or PSF post is appointed from Leaders. */
+    /** A staff role to give them in the same step. A post goes as an appointment instead (it makes the account). */
     grant: z.lazy(() => AdminInitialGrant).optional(),
     reason: AdminReasonQuery.shape.reason,
 });

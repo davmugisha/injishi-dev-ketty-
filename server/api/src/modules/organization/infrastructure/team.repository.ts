@@ -2,11 +2,11 @@ import type { OrgRole } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { users } from '../../../database/drizzle/auth';
 import { sessions } from '../../../database/drizzle/auth-sessions';
 import {
-  auditEvents,
   orgMembershipBranches,
   orgMemberships,
   properties,
@@ -181,7 +181,7 @@ export class TeamRepository {
         .set({ orgRole: input.orgRole, updatedAt: new Date() })
         .where(eq(orgMemberships.id, membership.id));
 
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.actorUserId,
         subjectType: 'user',
         subjectId: input.userId,
@@ -269,7 +269,7 @@ export class TeamRepository {
         );
       }
 
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.actorUserId,
         subjectType: 'user',
         subjectId: input.userId,

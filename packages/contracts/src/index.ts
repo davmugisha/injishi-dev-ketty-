@@ -8,6 +8,13 @@
 export * from "./primitives";
 export * from "./phone";
 export * from "./authz";
+// Injishi Account (ADR-076 slice G): products and entitlements, the grants a
+// client reads, the new permission names, and the refusal layers and codes.
+export * from "./authz/products";
+export * from "./authz/legacy-keys";
+export * from "./authz/grants";
+export * from "./authz/refusals";
+export * from "./authz/entitlements";
 export * from "./staff-authz";
 export * from "./rdb";
 export * from "./business-kind";
@@ -44,14 +51,21 @@ export * from "./platform";
 export * from "./training";
 export * from "./psf";
 export * from "./psf-public";
+export * from "./psf-setup";
+export * from "./psf-papers";
 export * from "./business-code";
 export * from "./identity";
 export * from "./registration-draft";
 export * from "./people";
 export * from "./people-file";
+// A staff file's login, given or requested while putting the person on file (HR onboarding).
+export * from "./staff-access";
 export * from "./time";
 export * from "./leave";
 export * from "./payroll-items";
+export * from "./payroll-contributions";
+export * from "./hr-desk";
+export * from "./talent";
 export * from "./payroll";
 export * from "./checklists";
 export * from "./shift-templates";
@@ -59,6 +73,8 @@ export * from "./list-query";
 export * from "./owner";
 export * from "./hr-lists";
 export * from "./hr-workforce";
+export * from "./hr-features";
+export * from "./hr-report";
 export * from "./redaction";
 export * from "./housekeeping-board";
 export * from "./maintenance";

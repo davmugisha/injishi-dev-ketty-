@@ -196,12 +196,12 @@ export declare const ListGroup: z.ZodObject<{
     count: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     count: number;
-    key: string | null;
     label: string;
+    key: string | null;
 }, {
     count: number;
-    key: string | null;
     label: string;
+    key: string | null;
 }>;
 export type ListGroup = z.infer<typeof ListGroup>;
 export declare const ListCount: z.ZodObject<{
@@ -220,11 +220,11 @@ export declare const ListStage: z.ZodObject<{
     key: z.ZodString;
     label: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    key: string;
     label: string;
+    key: string;
 }, {
-    key: string;
     label: string;
+    key: string;
 }>;
 export type ListStage = z.infer<typeof ListStage>;
 /** `ListPage` of a given row schema. */
@@ -240,12 +240,12 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
         count: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }, {
         count: number;
-        key: string | null;
         label: string;
+        key: string | null;
     }>, "many">>;
     statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         value: z.ZodString;
@@ -261,47 +261,47 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
         key: z.ZodString;
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        key: string;
         label: string;
+        key: string;
     }, {
-        key: string;
         label: string;
+        key: string;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: T["_output"][];
     total: number;
     page: number;
     pageSize: 10 | 100 | 50 | 25;
-    groups?: {
-        count: number;
-        key: string | null;
-        label: string;
-    }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
-    stages?: {
-        key: string;
+    groups?: {
+        count: number;
         label: string;
+        key: string | null;
+    }[] | undefined;
+    stages?: {
+        label: string;
+        key: string;
     }[] | undefined;
 }, {
     items: T["_input"][];
     total: number;
     page: number;
     pageSize: 10 | 100 | 50 | 25;
-    groups?: {
-        count: number;
-        key: string | null;
-        label: string;
-    }[] | undefined;
     statusCounts?: {
         value: string;
         count: number;
     }[] | undefined;
-    stages?: {
-        key: string;
+    groups?: {
+        count: number;
         label: string;
+        key: string | null;
+    }[] | undefined;
+    stages?: {
+        label: string;
+        key: string;
     }[] | undefined;
 }>;
 export type ListPage<T> = {
@@ -961,12 +961,12 @@ export declare const BulkRequest: z.ZodObject<{
     ids: z.ZodArray<z.ZodString, "many">;
     params: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
 }, "strip", z.ZodTypeAny, {
-    action: string;
     ids: string[];
+    action: string;
     params?: Record<string, unknown> | undefined;
 }, {
-    action: string;
     ids: string[];
+    action: string;
     params?: Record<string, unknown> | undefined;
 }>;
 export type BulkRequest = z.infer<typeof BulkRequest>;

@@ -27,15 +27,18 @@
  * seconds, a refusal after a little longer, and a half typed number or PIN
  * after a pause, so the next person never inherits the last one's digits.
  */
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { Check, Clock, Link2, Wifi, WifiOff } from "lucide-react";
-import type { KioskPunchResult, KioskSession } from "@injishi/contracts";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { Check, Clock, Link2, QrCode as QrIcon, Wifi, WifiOff } from "lucide-react";
+import type { KioskPunchResult, KioskQr, KioskSession } from "@injishi/contracts";
 import { Badge, Button, Card, Input, Label, Toaster, toastDwellMs, type Toast } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 
-import { forgetKiosk, pairKiosk, punch, readSession } from "./kiosk-api";
+import { QrCode } from "@/components/shared/qr-code";
+
+import { forgetKiosk, pairKiosk, punch, readQr, readSession } from "./kiosk-api";
 import { clockTime, driftLabel, shortDate, useKioskNow } from "./kiosk-clock";
 import { KioskKeypad } from "./kiosk-keypad";
+import qrStyles from "./kiosk-qr.module.css";
 import {
   ALT,
   DonePanel,
@@ -444,8 +447,8 @@ export function AttendanceKiosk() {
                     </StatusDisc>
                     <PanelHeading>Pair this tablet</PanelHeading>
                     <p className="text-base">
-                      In the operator app, Staff › Kiosks shows an 8-digit code for ten minutes when a kiosk is added. Type it here,
-                      once.
+                      In the operator app, Attendance › Clock-in rules shows an 8-digit code for ten minutes when a tablet is added.
+                      Type it here, once.
                     </p>
                     <EntryField
                       id="kiosk-pair"
@@ -552,6 +555,7 @@ export function AttendanceKiosk() {
         </main>
 
         <aside aria-label="This kiosk" className="flex min-w-0 flex-col gap-4">
+          {paired && online ? <ScanCard /> : null}
           <Card className="gap-2.5 px-5.5 py-5 shadow-surface">
             <h2 className="text-base font-bold">This kiosk</h2>
             <dl className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-2.5 text-sm">
@@ -605,6 +609,56 @@ export function AttendanceKiosk() {
       </div>
       <Toaster toasts={toast ? [toast] : []} />
     </div>
+  );
+}
+
+/**
+ * The code phones scan to clock in (clock-in rules). It changes every 30 seconds and a scan is good
+ * for 90, so a photo of it sent home has run out before it is any use. When it cannot be had the
+ * card says so and the PIN pad carries on.
+ */
+function ScanCard() {
+  const [qr, setQr] = useState<KioskQr | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const next = async () => {
+      const got = await readQr();
+      if (stopped) return;
+      setFailed(got === null);
+      if (got) setQr(got);
+      timer = setTimeout(() => void next(), got ? Math.max(1_000, got.refreshInMs) : 5_000);
+    };
+    void next();
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
+  return (
+    <Card className="items-center gap-3 px-5.5 py-5 text-center shadow-surface">
+      <h2 className="flex items-center gap-2 text-base font-bold">
+        <QrIcon aria-hidden className="size-5" strokeWidth={1.8} />
+        Clock in with your phone
+      </h2>
+      {qr && !failed ? (
+        <span className={`overflow-hidden rounded ${qrStyles.qr}`}>
+          <QrCode
+            value={qr.url}
+            size={208}
+            light="var(--white)"
+            ink="var(--ink)"
+            label="Scan with your phone's camera to clock in or out"
+          />
+        </span>
+      ) : (
+        <p className="py-8 text-sm text-muted-foreground">{failed ? "The code could not load. Use your PIN below." : "Loading the code…"}</p>
+      )}
+      <p className="text-sm text-muted-foreground">Scan with your phone's camera. The code changes every 30 seconds.</p>
+    </Card>
   );
 }
 

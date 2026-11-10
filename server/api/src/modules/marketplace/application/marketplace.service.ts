@@ -359,6 +359,17 @@ export class MarketplaceService {
     };
   }
 
+  async languagePreference(userId: string): Promise<{ locale: GuestLocale }> {
+    const row = await this.repository.languagePreference(userId);
+    const locale = GuestLocale.safeParse(row);
+    return { locale: locale.success ? locale.data : 'en' };
+  }
+
+  async updateLanguagePreference(userId: string, locale: GuestLocale): Promise<{ locale: GuestLocale }> {
+    await this.repository.updateLanguagePreference(userId, locale);
+    return { locale };
+  }
+
   /**
    * A verified identity's legal name is not edited from the account page: it is what hosts check at the
    * desk. Spacing and case may differ; anything else is a 409 naming the verified name.

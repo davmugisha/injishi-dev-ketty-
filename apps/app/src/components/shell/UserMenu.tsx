@@ -1,6 +1,14 @@
 "use client";
 
-import { ArrowRightFromSquare, ChevronsExpandVertical, Moon, Person, PersonsLock, Sun } from "@gravity-ui/icons";
+import {
+  ArrowRightFromSquare,
+  Briefcase,
+  ChevronsExpandVertical,
+  Moon,
+  Person,
+  PersonsLock,
+  Sun,
+} from "@gravity-ui/icons";
 import { Avatar, Button, Chip, Dropdown, Label, Separator } from "@heroui/react";
 import { type Persona, screenHref } from "@injishi/data";
 import { useRouter } from "next/navigation";
@@ -19,6 +27,7 @@ export function UserMenu({ persona, compact = false }: { persona: Persona; compa
   const dark = resolvedTheme === THEME.dark;
 
   const onAction = (key: React.Key) => {
+    if (key === "me") router.push(screenHref("MyHr"));
     if (key === "account") router.push(screenHref("Account"));
     if (key === "theme") setTheme(dark ? THEME.light : THEME.dark);
     if (key === "switch" || key === "sign-out") startTransition(() => signOut());
@@ -52,6 +61,10 @@ export function UserMenu({ persona, compact = false }: { persona: Persona; compa
       </Button>
       <Dropdown.Popover placement="top start" className="min-w-[240px]">
         <Dropdown.Menu aria-label="Account" onAction={onAction}>
+          <Dropdown.Item id="me" textValue="Me">
+            <Briefcase className="size-4 text-muted" />
+            <Label>Me</Label>
+          </Dropdown.Item>
           <Dropdown.Item id="account" textValue="Account and privacy">
             <Person className="size-4 text-muted" />
             <Label>Account and privacy</Label>

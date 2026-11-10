@@ -21,6 +21,7 @@ exports.stayBandOf = stayBandOf;
 exports.reportTimingOf = reportTimingOf;
 exports.appointmentKindOf = appointmentKindOf;
 const zod_1 = require("zod");
+const admin_1 = require("./admin");
 const countries_1 = require("./countries");
 const phone_1 = require("./phone");
 const primitives_1 = require("./primitives");
@@ -916,6 +917,8 @@ exports.OversightAppointmentQuery = zod_1.z.object({
     cellId: AreaId.optional(),
     villageId: AreaId.optional(),
     q: zod_1.z.string().trim().max(120).optional(),
+    /** A government body's code (2026-11-09): the posts held under it. */
+    body: zod_1.z.string().trim().max(32).optional(),
 });
 /** A place's names from the province down, as far as it is known: a form prefills the place picker with it. */
 exports.PlaceNames = zod_1.z.object({
@@ -966,6 +969,8 @@ exports.AppointOfficerRequest = zod_1.z
     .object({
     email: zod_1.z.string({ required_error: "Enter their email address." }).trim().toLowerCase().email("Enter their email address."),
     name: zod_1.z.string().trim().min(2, "Enter their full name.").max(120, "That name is too long.").nullable().optional(),
+    /** A phone for their profile (2026-11-09), from Add person; display only, kept when they already have one. */
+    phone: zod_1.z.lazy(() => admin_1.AdminDisplayPhone).optional(),
     role: primitives_1.OversightRole,
     governmentBodyCode: zod_1.z.string({ required_error: "Pick the government body." }).trim().min(1, "Pick the government body."),
     governmentTitle: zod_1.z
@@ -979,9 +984,24 @@ exports.AppointOfficerRequest = zod_1.z
     sectorId: PlaceId,
     cellId: PlaceId,
     villageId: PlaceId,
+    /** Their ID (2026-11-05): required for a PSF BDE, stored with the appointment. */
+    idDocument: zod_1.z
+        .object({ documentType: zod_1.z.enum(["national_id", "passport"]), documentNumber: zod_1.z.string().trim().transform((n) => n.replace(/\s+/g, "").toUpperCase()) })
+        .optional(),
     reason,
 })
     .superRefine((v, ctx) => {
+    if (v.role === "psf_business_officer") {
+        const id = v.idDocument;
+        const ok = id && (id.documentType === "national_id" ? /^\d{16}$/.test(id.documentNumber) : /^[A-Z0-9]{6,12}$/.test(id.documentNumber));
+        if (!ok) {
+            ctx.addIssue({
+                code: zod_1.z.ZodIssueCode.custom,
+                path: ["idDocument"],
+                message: id?.documentType === "passport" ? "Enter their passport number: 6 to 12 letters or digits." : "Enter their National ID: 16 digits.",
+            });
+        }
+    }
     const allowed = exports.OVERSIGHT_ROLE_SCOPES[v.role];
     if (!allowed.includes(v.scopeLevel)) {
         ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, path: ["scopeLevel"], message: "Pick an area at the level this role covers." });

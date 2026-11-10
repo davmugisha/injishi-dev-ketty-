@@ -24,6 +24,7 @@ import {
   AdminSetStaffRolesRequest,
   type AdminStaffRolesResponse,
   type AdminSuspensionChange,
+  AdminUpdateUserRequest,
 } from "@injishi/contracts";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -157,6 +158,18 @@ export async function revokeCustomRole(
 }
 
 /** Suspend (`on`) or reactivate an account. */
+/** Change a person's details; only the fields sent change, and the audit log keeps each from and to. */
+export async function updateDetails(
+  userId: string,
+  input: unknown,
+): Promise<PeopleActionResult<{ userId: string; changed: string[] }>> {
+  if (!UUID.test(userId)) return { ok: false, error: "That person was not found." };
+  const parsed = AdminUpdateUserRequest.safeParse(input);
+  if (!parsed.success) return invalid(parsed.error.issues);
+  const api = await currentApi();
+  return run(() => api.patch<{ userId: string; changed: string[] }>(`/api/v1/admin/users/${userId}`, parsed.data));
+}
+
 export async function setSuspended(
   userId: string,
   on: boolean,

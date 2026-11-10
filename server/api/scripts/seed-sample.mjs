@@ -59,6 +59,7 @@ import { fileURLToPath } from 'node:url';
 
 import pg from 'pg';
 
+import { backfillEntitlements } from './entitlements-backfill.mjs';
 import { markHeadOffices } from './head-offices.mjs';
 import {
   propertiesWithoutDepartments,
@@ -204,6 +205,11 @@ const units = await withClient(async (client) =>
 if (units !== null) {
   console.log(`Rental units: ${units} written for residence rooms that had none (no leases are seeded).`);
 }
+// ADR-076 G3, for the same reason again: the seeds write orgs after migration
+// 0134 switched products on, so every seeded business would hold none and every
+// product route would refuse it. The migration's backfill runs once more.
+const entitled = await withClient((client) => backfillEntitlements(client));
+console.log(`Products switched on: ${entitled} entitlement row(s) written.`);
 
 // Only a complete run is a reset. The update trigger allows `seeded_at` alone.
 const seededAt = await withClient(async (client) => {

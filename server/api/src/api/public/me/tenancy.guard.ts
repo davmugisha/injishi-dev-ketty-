@@ -1,9 +1,10 @@
 import { CanActivate, ExecutionContext, Injectable, InternalServerErrorException, NotFoundException, createParamDecorator } from '@nestjs/common';
 
 import { TENANCY_NOT_FOUND, TenanciesService, type TenancyRef } from '../../../modules/rentals/application/tenancies.service';
+import { accessContextFor, type RequestWithAccessContext } from '../../../shared/auth/access-context';
 
 /** The slice of the request this guard reads and writes. */
-interface TenancyRequest {
+interface TenancyRequest extends RequestWithAccessContext {
   user?: { id: string };
   params?: Record<string, string | undefined>;
   tenancy?: TenancyRef;
@@ -19,6 +20,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * the invitation), and answers 404 for a draft (the landlord's alone) and for
  * anyone else's lease, in the same words as for a lease that does not exist.
  * The resolved tenancy rides on the request for `@CurrentTenancy()`.
+ *
+ * A tenant acts on their own tenancy, so the request's access context is
+ * `self` (ADR-076 G16): every audit row a tenant's act writes says so, never
+ * a business grant they do not hold.
  */
 @Injectable()
 export class TenancyGuard implements CanActivate {
@@ -31,6 +36,7 @@ export class TenancyGuard implements CanActivate {
     if (!userId) throw new InternalServerErrorException('TenancyGuard used without SessionGuard before it.');
     if (!leaseId || !UUID.test(leaseId)) throw new NotFoundException(TENANCY_NOT_FOUND);
     request.tenancy = await this.tenancies.resolve(userId, leaseId);
+    request.accessContext = accessContextFor('self', userId);
     return true;
   }
 }

@@ -4,7 +4,12 @@ import { type HostGuest, HostGuestQuery, type LandlordGuestList, LandlordGuestRe
 import { GuestRegistryService } from '../../../modules/guests/application/guest-registry.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
-import { CurrentWorkspace, RequirePermission, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
+import {
+  CurrentWorkspace,
+  RequirePermission,
+  RequireProduct,
+  WorkspaceGuard,
+} from '../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -17,6 +22,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/guests', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('residence')
 export class OpsGuestsController {
   constructor(private readonly guests: GuestRegistryService) {}
 

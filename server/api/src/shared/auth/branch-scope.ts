@@ -1,6 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { NEEDS_EVERY_BRANCH_MESSAGE, type WorkspaceAccess } from '@injishi/contracts';
 import { inArray, isNull, or, sql, type AnyColumn, type SQL } from 'drizzle-orm';
+
+import { accessRefusal } from './access-refusal';
 
 /**
  * Which branches a request may touch (ADR-054, Branch scope enforcement).
@@ -74,7 +76,8 @@ export function resolveBranchScope(
     ? covered.find((id) => id.toLowerCase() === claimed.toLowerCase())
     : undefined;
   if (!match) {
-    throw new NotFoundException('That branch is not available to you.');
+    // `layer: "scope"`, `code: "not_found"` (ADR-076 G11), status unchanged.
+    throw accessRefusal('not_found', 'That branch is not available to you.');
   }
   return {
     coverage,
@@ -132,6 +135,6 @@ export function assertInBranchScope(
  */
 export function assertCoversEveryBranch(ws: Pick<WorkspaceAccess, 'branchCoverage'>): void {
   if (ws.branchCoverage === 'limited') {
-    throw new ForbiddenException(NEEDS_EVERY_BRANCH_MESSAGE);
+    throw accessRefusal('out_of_scope', NEEDS_EVERY_BRANCH_MESSAGE);
   }
 }

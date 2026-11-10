@@ -37,7 +37,7 @@ const month = (iso: string) => MONTH[Number(iso.slice(5, 7)) - 1];
 /** "Thu" */
 export const weekdayShort = (iso: string) => WEEKDAY[weekdayIndex(iso)].slice(0, 3);
 /** "Thursday" */
-export const weekdayLong = (iso: string) => WEEKDAY[weekdayIndex(iso)];
+const weekdayLong = (iso: string) => WEEKDAY[weekdayIndex(iso)];
 /** "Thu 15" */
 export const shortDay = (iso: string) => `${weekdayShort(iso)} ${dayNo(iso)}`;
 /** "Thursday 15 October" */
@@ -46,21 +46,15 @@ export const longDay = (iso: string) => `${weekdayLong(iso)} ${dayNo(iso)} ${mon
 export const fullDay = (iso: string) => `${longDay(iso)} ${iso.slice(0, 4)}`;
 /** "15 Oct 2026" */
 export const dayMonthYear = (iso: string) => `${dayNo(iso)} ${month(iso).slice(0, 3)} ${iso.slice(0, 4)}`;
-/** "October" */
-export const monthLong = (iso: string) => month(iso);
 /** "15" */
 export const dayOfMonth = (iso: string) => String(dayNo(iso));
+
+/** "Mar", from any day of it. */
+export const monthShort = (iso: string) => month(iso).slice(0, 3);
 
 /** "15–21 Oct", or "29 Oct – 4 Nov" across months. */
 export function rangeShort(from: string, to: string): string {
   return from.slice(0, 7) === to.slice(0, 7)
     ? `${dayNo(from)}–${dayNo(to)} ${month(to).slice(0, 3)}`
     : `${dayNo(from)} ${month(from).slice(0, 3)} – ${dayNo(to)} ${month(to).slice(0, 3)}`;
-}
-
-/** "15 October – 4 November", or "15–21 October". */
-export function rangeLong(from: string, to: string): string {
-  return from.slice(0, 7) === to.slice(0, 7)
-    ? `${dayNo(from)}–${dayNo(to)} ${month(to)}`
-    : `${dayNo(from)} ${month(from)} – ${dayNo(to)} ${month(to)}`;
 }

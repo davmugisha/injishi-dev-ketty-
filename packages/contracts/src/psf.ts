@@ -28,7 +28,7 @@ import { EnterpriseRegistrationKind, OversightDecisionQuery, PsfApplicationInput
  * The families PSF prices membership in. `ordinary` and `junior_giants` are
  * retired (2026-10-15) and stay only so the rows that name them still read.
  */
-export const PsfMembershipFamily = z.enum(["golden_circle", "indashyikirwa", "indatwa", "ordinary", "junior_giants"]);
+export const PsfMembershipFamily = z.string().trim().min(1).max(60);
 export type PsfMembershipFamily = z.infer<typeof PsfMembershipFamily>;
 /**
  * A fixed amount, a min to max band, a floor with no ceiling (`minimum`, which
@@ -123,7 +123,7 @@ export function isPsfApplicant(facts: PsfApplicantFacts): boolean {
 // ---------------------------------------------------------------------------
 // Words
 // ---------------------------------------------------------------------------
-export const PSF_FAMILY_LABEL: Readonly<Record<PsfMembershipFamily, string>> = {
+export const PSF_FAMILY_LABEL: Readonly<Record<string, string>> = {
     golden_circle: "Golden Circle",
     indashyikirwa: "Indashyikirwa",
     indatwa: "Indatwa",
@@ -131,13 +131,29 @@ export const PSF_FAMILY_LABEL: Readonly<Record<PsfMembershipFamily, string>> = {
     junior_giants: "Junior Giants",
 };
 /** One line on who each family is for, as the tier picker introduces it. */
-export const PSF_FAMILY_BLURB: Readonly<Record<PsfMembershipFamily, string>> = {
+export const PSF_FAMILY_BLURB: Readonly<Record<string, string>> = {
     golden_circle: "For large companies and major investors.",
     indashyikirwa: "For established businesses leading their sector.",
     indatwa: "For small and growing businesses. Pick the band you can afford.",
     ordinary: "Retired.",
     junior_giants: "Retired.",
 };
+/** A level's name when only its code is at hand; the API's `familyName` is the one PSF edits. */
+export function psfFamilyName(code: string): string {
+    return PSF_FAMILY_LABEL[code] ?? code.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+}
+/** The levels a list of bands belongs to, in the order the API sent them (PSF's own). */
+export function psfLevelsOf<T extends { family: string; familyName?: string; familyBlurb?: string }>(tiers: readonly T[]): {
+    family: string;
+    name: string;
+    blurb: string;
+}[] {
+    const seen = new Map<string, { family: string; name: string; blurb: string }>();
+    for (const t of tiers) {
+        if (!seen.has(t.family)) seen.set(t.family, { family: t.family, name: t.familyName || psfFamilyName(t.family), blurb: t.familyBlurb || (PSF_FAMILY_BLURB[t.family] ?? "") });
+    }
+    return [...seen.values()];
+}
 /** The families a business can still pick, in the order PSF ranks them. */
 export const PSF_OFFERED_FAMILIES: readonly PsfMembershipFamily[] = ["golden_circle", "indashyikirwa", "indatwa"];
 export const PSF_APPLICATION_STATUS_LABEL: Readonly<Record<PsfApplicationStatus, string>> = {
@@ -241,10 +257,9 @@ export const PSF_OUT_OF_SCOPE_MESSAGE = "This business is outside the region you
  *
  * A PSF membership officer may be posted for the whole country, a province or
  * one district, and sees exactly the businesses of that region. Injishi's admin
- * posts only the Province Managers (2026-11-02); each Province
- * Manager posts its districts' District Managers, and a District Manager its
- * district's BDEs, from the PSF console's Team screen, so neither is offered to
- * admin here.
+ * posts only the Regional Managers (2026-11-02); each Province
+ * Manager posts its districts' District Managers from the PSF console's Team
+ * screen. Admin also creates each district's BDEs (2026-11-05).
  */
 export const OVERSIGHT_ROLE_POSTING: Readonly<Partial<Record<OversightRole, {
     governmentBodyCode: string;
@@ -253,13 +268,15 @@ export const OVERSIGHT_ROLE_POSTING: Readonly<Partial<Record<OversightRole, {
 }>>> = {
     psf_membership_officer: {
         governmentBodyCode: "PSF",
-        scopeLevels: ["province"],
-        message: "Injishi appoints PSF's Province Managers, at PSF. A Province Manager appoints its District Managers from the PSF console.",
+        // The National Manager too (2026-11-06, the owner): the whole country, the split, bands and form.
+        scopeLevels: ["country", "province"],
+        message: "Injishi appoints PSF's National and Regional Managers, at PSF. A Regional Manager appoints its District Managers from the PSF console.",
     },
     psf_business_officer: {
         governmentBodyCode: "PSF",
-        scopeLevels: [],
-        message: "A BDE (Business Development & Empowerment) is appointed by the PSF District Manager of that district, from the PSF console.",
+        // Injishi's admin creates BDEs (2026-11-05, the owner), each for one district, with their ID.
+        scopeLevels: ["district"],
+        message: "A BDE (Business Development & Empowerment) is posted at PSF, for one district.",
     },
 };
 // ---------------------------------------------------------------------------
@@ -268,6 +285,9 @@ export const OVERSIGHT_ROLE_POSTING: Readonly<Partial<Record<OversightRole, {
 export const PsfTier = z.object({
     code: z.string(),
     family: PsfMembershipFamily,
+    /** The level's name and line, as PSF keeps them (`psf_levels`, 2026-11-06). */
+    familyName: z.string().default(""),
+    familyBlurb: z.string().default(""),
     nameEn: z.string(),
     nameRw: z.string().nullable(),
     priceKind: PsfPriceKind,
@@ -757,6 +777,11 @@ export const PsfQueueQuery = OversightDecisionQuery;
 export type PsfQueueQuery = z.infer<typeof PsfQueueQuery>;
 export const PsfOfficerApplication = PsfApplication.extend({
     orgId: Uuid,
+    /** Answers to the questions PSF added to the form (2026-11-06), each with its question. */
+    extraAnswers: z.array(z.object({ label: z.string(), value: z.string() })).default([]),
+    /** Sent back to fix (2026-11-05): when, and what the District Manager asked. Null while with PSF. */
+    returnedAt: z.string().nullable().default(null),
+    returnNote: z.string().nullable().default(null),
     /** New, or a card holder joining the new module (2026-11-02): confirmed with dates, no fee. */
     intake: PsfApplicationIntake.default("new"),
     /** Where it was sent from: the public PSF form, or Injishi's business registration. */
@@ -798,6 +823,11 @@ export const PsfApproveRequest = z.object({
     expiresOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use yyyy-mm-dd.").optional(),
 });
 export type PsfApproveRequest = z.infer<typeof PsfApproveRequest>;
+/** PSF never rejects (2026-11-05): an application goes back with what to fix. */
+export const PsfSendBackRequest = z.object({
+    note: z.string().trim().min(3, "Say what they should fix.").max(1000, "That note is too long."),
+});
+export type PsfSendBackRequest = z.infer<typeof PsfSendBackRequest>;
 /** Declining an application (AC-12). A note is required with `other`. */
 export const PsfDeclineRequest = z
     .object({
@@ -825,12 +855,13 @@ export type PsfDeclineRequest = z.infer<typeof PsfDeclineRequest>;
  *   lapsed             a membership that ended, and none current
  *   declined           the last application was declined, none open
  */
-export const PsfStanding = z.enum(["not_applied", "claimed", "applied", "awaiting_payment", "member", "lapsed", "declined"]);
+export const PsfStanding = z.enum(["not_applied", "claimed", "applied", "sent_back", "awaiting_payment", "member", "lapsed", "declined"]);
 export type PsfStanding = z.infer<typeof PsfStanding>;
 export const PSF_STANDING_LABEL: Readonly<Record<PsfStanding, string>> = {
     not_applied: "Not applied",
     claimed: "Card holder, waiting for PSF",
     applied: "Waiting for approval",
+    sent_back: "Sent back to fix",
     awaiting_payment: "Approved, to pay",
     member: "Member",
     lapsed: "Lapsed",
@@ -863,6 +894,8 @@ export const PsfBusinessesQuery = z.object({
     payment: z.enum(["due"]).optional(),
     group: PsfOwnerGroup.optional(),
     tin: z.enum(["with", "without"]).optional(),
+    /** Whether it has an RDB certificate on file (2026-11-05). */
+    rdb: z.enum(["with", "without"]).optional(),
     kind: PsfBusinessKind.optional(),
     cursor: z.string().max(200).optional(),
 });
@@ -1149,6 +1182,9 @@ export const PsfMembershipClaim = z.object({
     /** The next number in its district's run (2026-11-02): every card holder gets a new one. */
     suggestedMembershipNumber: z.string().nullable().default(null),
     status: PsfClaimStatus,
+    /** Sent back (2026-11-05): waiting for the business to resend its card. Null otherwise. */
+    returnedAt: z.string().nullable().default(null),
+    returnNote: z.string().nullable().default(null),
     claimedAt: z.string(),
     claimedByName: z.string().nullable(),
     decidedAt: z.string().nullable(),

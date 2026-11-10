@@ -2,6 +2,7 @@ import {
   KioskPairRequest,
   KioskPunchRequest,
   type KioskPunchResult,
+  type KioskQr,
   type KioskSession,
 } from '@injishi/contracts';
 import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
@@ -73,6 +74,13 @@ export class KioskController {
   @UseGuards(KioskGuard)
   session(@CurrentKiosk() kiosk: KioskContext): KioskSession {
     return this.kiosks.session(kiosk);
+  }
+
+  /** The code the tablet shows for phones to scan: a new one every 30 seconds. */
+  @Get('qr')
+  @UseGuards(KioskGuard)
+  qr(@CurrentKiosk() kiosk: KioskContext): KioskQr {
+    return this.kiosks.qr(kiosk);
   }
 
   /** In when the person has no open record, else out. Validated as it is written. */

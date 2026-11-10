@@ -170,19 +170,22 @@ await expectReads(housekeeper, {
  * publishing still waits for `active`. The workspace is still listed — the
  * pipeline is rendered from the grant — and the only lists readable from it
  * are the ones setting up a listing reads: its properties, its rate plans and
- * its rooms. Every other operator list is refused. This expected NOTHING
- * readable until that change, and a read beyond these three is the leak.
+ * its rooms. Every other operator list is refused.
+ *
+ * ADR-076 (#115) put the operational layer in front of the permission check:
+ * a business that is not `active` is refused 403 `registration_stage` on any
+ * route that declares a permission or a product (076-grants-and-entitlements,
+ * Error codes), and it holds only `account` until activation, so the listing
+ * routes' products are off for it too. ADR-075 sets up and publishes after
+ * approval. So a business in review reads NOTHING from its workspace again,
+ * as before `0c1dbfb1`; any operator list it can read is the leak.
  */
-console.log('\npending@injishi.com — a business in review reads only what setting up its listing needs');
+console.log('\npending@injishi.com — a business in review reads no operator list until it is active (ADR-076)');
 const pending = await sessionFor('pending@injishi.com');
 if (!pending.workspaceId) {
   check('pending@injishi.com holds a business workspace', 'none', 'one');
 } else {
-  await expectReads(pending, {
-    '/inventory/rate-plans': OK,
-    '/inventory/properties?workspaceId=WORKSPACE': OK,
-    '/ops/rooms': OK,
-  });
+  await expectReads(pending, {});
 }
 
 /*

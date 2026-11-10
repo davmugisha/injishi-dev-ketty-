@@ -120,8 +120,11 @@ export async function apiRequest<T>(
   if (options.idempotencyKey) headers["idempotency-key"] = options.idempotencyKey;
   if (options.userAgent) headers["user-agent"] = options.userAgent.slice(0, 500);
   let payload: string | FormData | undefined;
-  if (options.form) {
-    payload = options.form;
+  // A file upload, as `form` or as a FormData body: fetch writes the multipart boundary into the
+  // content type itself.
+  const form = options.form ?? (options.body instanceof FormData ? options.body : undefined);
+  if (form) {
+    payload = form;
   } else if (options.body !== undefined) {
     headers["content-type"] = "application/json";
     payload = JSON.stringify(options.body);

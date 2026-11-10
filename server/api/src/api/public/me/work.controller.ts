@@ -1,5 +1,6 @@
 import {
   ChangeMyKioskPinRequest,
+  CheckMyKioskPinRequest,
   CreateMyAttendanceRequestRequest,
   CreateMyShiftRequestRequest,
   MonthQuery,
@@ -10,6 +11,7 @@ import {
   type KioskPinState,
   type MyAttendance,
   type MyAttendanceRequestList,
+  type MyClock,
   type MyMonthlySummary,
   type MyRoster,
   type MyShiftOptions,
@@ -78,6 +80,12 @@ export class MeWorkController {
     @CurrentUser() user: SessionUser,
   ): Promise<MyWorkToday> {
     return this.work.today(user.id, employeeId);
+  }
+
+  /** The clock-in card: how the branch clocks in, whether the person is in, their shift. */
+  @Get(':employeeId/clock')
+  clock(@Param('employeeId', ParseUUIDPipe) employeeId: string, @CurrentUser() user: SessionUser): Promise<MyClock> {
+    return this.work.clock(user.id, employeeId);
   }
 
   @Post(':employeeId/clock-in')
@@ -226,6 +234,16 @@ export class MeWorkController {
     @CurrentUser() user: SessionUser,
   ): Promise<KioskPinState> {
     return this.work.pinState(user.id, employeeId);
+  }
+
+  @Post(':employeeId/kiosk-pin/check')
+  @HttpCode(200)
+  checkPin(
+    @Param('employeeId', ParseUUIDPipe) employeeId: string,
+    @Body(new ZodValidationPipe(CheckMyKioskPinRequest)) body: CheckMyKioskPinRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<{ ok: true }> {
+    return this.work.checkPin(user.id, employeeId, body.pin);
   }
 
   @Put(':employeeId/kiosk-pin')

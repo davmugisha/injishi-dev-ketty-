@@ -16,6 +16,7 @@ import {
 } from "@injishi/ui";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { rwf } from "@/server/format";
 import { ExportMenu } from "@/components/ExportMenu";
@@ -45,6 +46,7 @@ export interface RegisterFilters {
   district: string;
   group: string;
   tin: string;
+  rdb: string;
 }
 
 const STANDINGS: { id: RegisterView; label: string }[] = [
@@ -53,6 +55,7 @@ const STANDINGS: { id: RegisterView; label: string }[] = [
   { id: "renewal_due", label: "Renewal due" },
   { id: "payment_due", label: "Awaiting payment" },
   { id: "applied", label: "Waiting for approval" },
+  { id: "sent_back", label: "Sent back" },
   { id: "claimed", label: "Card holders" },
   { id: "awaiting_payment", label: "Approved, to pay" },
   { id: "lapsed", label: "Lapsed" },
@@ -63,6 +66,7 @@ const STANDINGS: { id: RegisterView; label: string }[] = [
 const TONE: Record<PsfStanding, "success" | "warning" | "danger" | "default"> = {
   member: "success",
   applied: "warning",
+  sent_back: "warning",
   claimed: "warning",
   awaiting_payment: "warning",
   lapsed: "danger",
@@ -85,6 +89,7 @@ function apiFilter(f: RegisterFilters): PsfBusinessesFilter {
     district: f.district ? Number(f.district) : undefined,
     group: (f.group || undefined) as PsfOwnerGroup | undefined,
     tin: (f.tin || undefined) as "with" | "without" | undefined,
+    rdb: (f.rdb || undefined) as "with" | "without" | undefined,
   };
 }
 
@@ -109,6 +114,7 @@ export function PsfRegisterView({
   filters: RegisterFilters;
   tiers: { code: string; nameEn: string }[];
 }) {
+  const t = useTranslations("psfConsole.queue");
   const router = useRouter();
   const [search, setSearch] = useState(filters.q);
   const [problem, setProblem] = useState<string | null>(null);
@@ -117,7 +123,7 @@ export function PsfRegisterView({
   const payments = filters.view === "payment_due";
   const showDistrict = scope.level !== "district";
   const districts = scope.provinces.flatMap((pr) => pr.districts);
-  const narrowed = Boolean(filters.q || filters.view || filters.cluster || filters.tier || filters.district || filters.group || filters.tin);
+  const narrowed = Boolean(filters.q || filters.view || filters.cluster || filters.tier || filters.district || filters.group || filters.tin || filters.rdb);
   const open = (orgId: string) => router.push(`/psf/register/${orgId}`);
 
   const go = (next: Partial<RegisterFilters>) => {
@@ -127,7 +133,7 @@ export function PsfRegisterView({
     if (f.view === "renewal_due") params.set("renewal", "due");
     else if (f.view === "payment_due") params.set("payment", "due");
     else if (f.view) params.set("standing", f.view);
-    for (const k of ["cluster", "tier", "district", "group", "tin"] as const) if (f[k]) params.set(k, f[k]);
+    for (const k of ["cluster", "tier", "district", "group", "tin", "rdb"] as const) if (f[k]) params.set(k, f[k]);
     const qs = params.toString();
     router.push(qs ? `/psf/register?${qs}` : "/psf/register");
   };
@@ -160,6 +166,7 @@ export function PsfRegisterView({
       filters.district ? (districts.find((d) => String(d.id) === filters.district)?.name ?? null) : null,
       filters.group ? PSF_OWNER_GROUP_SHORT[filters.group as PsfOwnerGroup] : null,
       filters.tin === "with" ? "With a TIN" : filters.tin === "without" ? "Without a TIN" : null,
+      filters.rdb === "with" ? "With an RDB certificate" : filters.rdb === "without" ? "Without an RDB certificate" : null,
       filters.q ? `“${filters.q}”` : null,
     ];
     return {
@@ -227,12 +234,12 @@ export function PsfRegisterView({
     <PageContent>
       <PageHeader
         eyebrow={`${scope.title} · ${scope.label}`}
-        title="Businesses"
-        description={`Every business in ${summary.regionLabel} on PSF's register, and how it stands with PSF. Open one to see its documents, its approval and whether guests can book it.`}
+        title={t("business")}
+        description={t("waitingLead")}
       />
 
       <KpiStrip
-        label="On the register"
+        label={t("business")}
         items={[
           { id: "total", label: "Businesses", value: summary.total, format: "count", icon: "FolderHouse" },
           {
@@ -334,17 +341,17 @@ export function PsfRegisterView({
           }}
         >
           <Input
-            aria-label="Search businesses"
-            placeholder="Search by name or business code"
+            aria-label={t("searchApplications")}
+            placeholder={t("searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="min-w-[16rem] flex-1"
           />
           <Button type="submit" variant="secondary">
-            <Magnifier className="size-4" /> Search
+            <Magnifier className="size-4" /> {t("searchApplications")}
           </Button>
         </form>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Standing with PSF">
+        <fieldset className="flex min-w-0 flex-wrap gap-1.5" aria-label={t("applicationStatus")}>
           {STANDINGS.map((st) => (
             <Button
               key={st.id || "all"}
@@ -356,8 +363,8 @@ export function PsfRegisterView({
               {st.label}
             </Button>
           ))}
-        </div>
-        <div className="flex flex-wrap items-end gap-3" role="group" aria-label="Narrow the list">
+        </fieldset>
+        <fieldset className="flex min-w-0 flex-wrap items-end gap-3" aria-label="Narrow the list">
           {select(
             "Sector",
             filters.cluster,
@@ -376,6 +383,10 @@ export function PsfRegisterView({
             { value: "with", label: "With a TIN" },
             { value: "without", label: "Without a TIN" },
           ])}
+          {select("RDB certificate", filters.rdb, "rdb", [
+            { value: "with", label: "With a certificate" },
+            { value: "without", label: "Without a certificate" },
+          ])}
           {narrowed ? (
             <Button
               size="sm"
@@ -388,9 +399,9 @@ export function PsfRegisterView({
               Clear all
             </Button>
           ) : null}
-        </div>
+        </fieldset>
         <DataTable
-          label="Businesses"
+          label={t("business")}
           rows={page.items}
           rowKey={(b) => b.orgId}
           onRowAction={(b) => open(b.orgId)}

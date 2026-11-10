@@ -1,4 +1,4 @@
-import type { EnterpriseRegistrationKind, OrgRegistrationStatus, PsfDeclineReason, PsfMembershipFamily, PsfOwnerGroup } from '@injishi/contracts';
+import type { EnterpriseRegistrationKind, OrgRegistrationStatus, PsfCompanyType, PsfDeclineReason, PsfMembershipFamily, PsfOwnerGroup, PsfOwnership } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, gt, isNull, sql } from 'drizzle-orm';
 
@@ -28,6 +28,18 @@ export interface PsfTrackRow {
   docId: string;
   /** New, or a card holder joining the new module (0132). */
   intake: 'new' | 'card_holder';
+  /** Its kind of business, which can set its price (0135). */
+  subsectorId: string | null;
+  /** Sent back to fix (0134), and what the business may correct. */
+  returnedAt: Date | null;
+  returnNote: string | null;
+  companyName: string;
+  streetAddress: string;
+  website: string | null;
+  companyType: PsfCompanyType;
+  ownership: PsfOwnership;
+  ownershipOther: string | null;
+  businessActivity: string;
   /** The business's logo (2026-10-23), when it gave one. */
   logoObjectKey: string | null;
   status: 'submitted' | 'approved' | 'member' | 'declined' | 'withdrawn';
@@ -132,6 +144,12 @@ export class PsfPublicRepository {
     return Boolean(row);
   }
 
+  /** Whether a passport photo's key is already on a business (2026-11-05): one upload files one business. */
+  async ownerPhotoInUse(objectKey: string): Promise<boolean> {
+    const [row] = await this.db.select({ id: orgs.id }).from(orgs).where(eq(orgs.psfOwnerPhotoKey, objectKey)).limit(1);
+    return Boolean(row);
+  }
+
   /** Spend a token, once: false when another submit spent it first. */
   async spendCheck(id: string): Promise<boolean> {
     const rows = await this.db
@@ -171,6 +189,16 @@ export class PsfPublicRepository {
         orgId: orgs.id,
         docId: psfMembershipApplications.docId,
         intake: psfMembershipApplications.intake,
+        subsectorId: orgs.psfSubsectorId,
+        returnedAt: psfMembershipApplications.returnedAt,
+        returnNote: psfMembershipApplications.returnNote,
+        companyName: psfMembershipApplications.companyName,
+        streetAddress: psfMembershipApplications.streetAddress,
+        website: psfMembershipApplications.website,
+        companyType: psfMembershipApplications.companyType,
+        ownership: psfMembershipApplications.ownership,
+        ownershipOther: psfMembershipApplications.ownershipOther,
+        businessActivity: psfMembershipApplications.businessActivity,
         status: psfMembershipApplications.status,
         createdAt: psfMembershipApplications.createdAt,
         queuedAt: psfMembershipApplications.queuedAt,

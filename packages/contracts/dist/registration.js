@@ -598,6 +598,8 @@ exports.HospitalityBusiness = businessBase.extend({
      * same transaction as the business. Forbidden with a Yes.
      */
     psfApplication: exports.PsfApplicationInput.optional(),
+    /** The owner's passport photo (2026-11-05), when it applies or holds a card: on its card and certificate. */
+    psfOwnerPhotoKey: zod_1.z.string().trim().min(1).max(200).optional(),
     eacStarGrade: zod_1.z.number().int().min(1).max(5).optional(),
     /** Part of a franchise, and how (ADR-075 AC-8). Absent means No. */
     franchise: exports.FranchiseDeclaration.optional(),

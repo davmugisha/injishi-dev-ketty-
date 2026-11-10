@@ -18,6 +18,7 @@ import {
   type StyleSpecification,
 } from "maplibre-gl";
 import { useTheme } from "next-themes";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -556,6 +557,7 @@ function SearchAreaSwitch({
   checked: boolean;
   onChange: (on: boolean) => void;
 }) {
+  const t = useTranslations("search");
   return (
     <button
       type="button"
@@ -584,19 +586,20 @@ function SearchAreaSwitch({
           )}
         />
       </span>
-      Search as I move the map
+      {t("searchArea")}
     </button>
   );
 }
 
 function MapLoading() {
+  const t = useTranslations("search");
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-surface-secondary">
       <div className="flex flex-col items-center gap-3 text-muted-foreground">
         <span className="flex size-12 animate-pulse items-center justify-center rounded-full bg-card shadow-control">
           <MapIcon className="size-5" strokeWidth={2} aria-hidden />
         </span>
-        <span className="text-xs font-medium">Loading the map…</span>
+        <span className="text-xs font-medium">{t("mapLoading")}</span>
       </div>
     </div>
   );
@@ -726,10 +729,11 @@ function ClusterPin({
   members: PlottedListing[];
   highlighted: boolean;
 }) {
+  const t = useTranslations("search");
   return (
     <button
       type="button"
-      aria-label={`${members.length} stays here. Zoom in`}
+      aria-label={t("clusterZoom", { count: members.length })}
       className="group/pin block cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <PinShape
@@ -780,17 +784,18 @@ function MapControls({
   onZoomOut: () => void;
   onFitAll?: () => void;
 }) {
+  const t = useTranslations("search");
   const button =
     "flex size-10 items-center justify-center text-foreground transition-colors hover:bg-surface-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
   const surface = "overflow-hidden rounded-card bg-card/90 shadow-control ring-1 ring-border backdrop-blur-md";
   return (
     <div className="absolute right-3 top-3 z-20 flex flex-col gap-2">
       <div className={cn("flex flex-col", surface)}>
-        <button type="button" onClick={onZoomIn} aria-label="Zoom in" title="Zoom in" className={button}>
+        <button type="button" onClick={onZoomIn} aria-label={t("zoomIn")} title={t("zoomIn")} className={button}>
           <Plus className="size-4" strokeWidth={2.4} aria-hidden />
         </button>
         <span aria-hidden className="mx-2.5 h-px bg-border" />
-        <button type="button" onClick={onZoomOut} aria-label="Zoom out" title="Zoom out" className={button}>
+        <button type="button" onClick={onZoomOut} aria-label={t("zoomOut")} title={t("zoomOut")} className={button}>
           <Minus className="size-4" strokeWidth={2.4} aria-hidden />
         </button>
       </div>
@@ -799,8 +804,8 @@ function MapControls({
           <button
             type="button"
             onClick={onFitAll}
-            aria-label="Show all stays"
-            title="Show all stays"
+            aria-label={t("showAllStays")}
+            title={t("showAllStays")}
             className={button}
           >
             <LocateFixed className="size-4" strokeWidth={2.2} aria-hidden />
@@ -926,6 +931,7 @@ function EmptyMapOverlay({
   listingCount: number;
   catalogueEmpty: boolean;
 }) {
+  const t = useTranslations("search");
   if (catalogueEmpty) {
     return (
       <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-6">
@@ -933,9 +939,9 @@ function EmptyMapOverlay({
           <span className="flex size-10 items-center justify-center rounded-full bg-surface-secondary">
             <MapPin className="size-5 text-muted-foreground" strokeWidth={1.8} aria-hidden />
           </span>
-          <p className="text-sm font-bold text-foreground">Nothing is listed yet</p>
+          <p className="text-sm font-bold text-foreground">{t("noStaysListed")}</p>
           <p className="text-xs text-muted-foreground">
-            Stays appear here as their hosts pass verification.
+            {t("mapEmptyLead")}
           </p>
         </div>
       </div>

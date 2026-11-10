@@ -13,9 +13,10 @@ import {
   type PsfOwnership,
 } from "@injishi/contracts";
 
-import { ChoiceCard, Field, Fieldset, SelectField, TextArea, TextInput, TileCard } from "@/app/(app)/(entry)/register/wizard-ui";
+import { ChoiceCard, SelectField, TextArea, TextInput, TileCard } from "@/app/(app)/(entry)/register/wizard-ui";
 
 import { TYPE_IT, type Errors, type PsfDraft } from "./draft";
+import { PsfExtras, PsfField, PsfFieldset, usePsfOrder } from "./form-config";
 
 const CLUSTER_ICON: Record<string, typeof Sprout> = {
   agriculture: Sprout,
@@ -54,6 +55,10 @@ export function StepBusiness({
   errors: Errors;
   catalogue: PsfCatalogue | null;
 }) {
+  // What sits in a wrapper takes its first field's place, so the form's order holds as PSF moves fields.
+  const companyOrder = usePsfOrder("companyType");
+  const kindOrder = usePsfOrder("subsectorId");
+  const associationOrder = usePsfOrder("associationCode");
   const cluster = catalogue?.clusters.find((c) => c.code === draft.clusterCode) ?? null;
   // The cluster's catch-all row (`trade_other`) is not offered as a name: it is
   // what "type it" files under, beside the name the business gives.
@@ -81,7 +86,7 @@ export function StepBusiness({
 
       {/* How it is registered comes first: the TIN is what PSF and RRA know the business by. */}
       <Section number={1} title="Registration">
-        <Fieldset legend="How is it registered?" hint="A TIN is not required to join PSF." error={e("registrationKind")}>
+        <PsfFieldset name="registrationKind" legend="How is it registered?" hint="A TIN is not required to join PSF." error={e("registrationKind")}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {(Object.keys(ENTERPRISE_REGISTRATION_KIND_LABEL) as EnterpriseRegistrationKind[]).map((k) => (
               <ChoiceCard
@@ -102,9 +107,9 @@ export function StepBusiness({
               />
             ))}
           </div>
-        </Fieldset>
+        </PsfFieldset>
         {draft.registrationKind === "tin" ? (
-          <Field label="TIN" required error={e("tin")}>
+          <PsfField name="tin" label="TIN" required error={e("tin")}>
             <TextInput
               id="psf-tin"
               className="w-full font-mono tracking-wider sm:max-w-tile"
@@ -113,20 +118,20 @@ export function StepBusiness({
               value={draft.tin}
               onChange={(ev) => onChange({ tin: ev.target.value.replace(/\D/g, "").slice(0, 9) })}
             />
-          </Field>
+          </PsfField>
         ) : null}
         {["rca", "rgb", "other"].includes(draft.registrationKind) ? (
-          <Field label="Registration number" hint="As printed on your certificate." required error={e("registrationNumber")}>
+          <PsfField name="registrationNumber" label="Registration number" hint="As printed on your certificate." required error={e("registrationNumber")}>
             <TextInput
               id="psf-reg-number"
               className="w-full sm:max-w-tile"
               value={draft.registrationNumber}
               onChange={(ev) => onChange({ registrationNumber: ev.target.value })}
             />
-          </Field>
+          </PsfField>
         ) : null}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <Field label="Kind of company" required error={e("companyType")}>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2" style={{ order: companyOrder }}>
+          <PsfField name="companyType" label="Kind of company" required error={e("companyType")}>
             <SelectField
               id="psf-company-type"
               value={draft.companyType}
@@ -134,8 +139,8 @@ export function StepBusiness({
               onChange={(v) => onChange({ companyType: v as PsfCompanyType })}
               options={Object.entries(PSF_COMPANY_TYPE_LABEL).map(([value, label]) => ({ value, label }))}
             />
-          </Field>
-          <Field label="Ownership" required error={e("ownership")}>
+          </PsfField>
+          <PsfField name="ownership" label="Ownership" required error={e("ownership")}>
             <SelectField
               id="psf-ownership"
               value={draft.ownership}
@@ -143,31 +148,31 @@ export function StepBusiness({
               onChange={(v) => onChange({ ownership: v as PsfOwnership })}
               options={Object.entries(PSF_OWNERSHIP_LABEL).map(([value, label]) => ({ value, label }))}
             />
-          </Field>
+          </PsfField>
         </div>
         {draft.ownership === "other" ? (
-          <Field label="What is the ownership?" required error={e("ownershipOther")}>
+          <PsfField orderAs="ownership" label="What is the ownership?" required error={e("ownershipOther")}>
             <TextInput id="psf-ownership-other" className="w-full" value={draft.ownershipOther} onChange={(ev) => onChange({ ownershipOther: ev.target.value })} />
-          </Field>
+          </PsfField>
         ) : null}
       </Section>
 
       <Section number={2} title="The business">
-        <Field
-          label="Business name"
+        <PsfField
+          name="legalName" label="Business name"
           hint="As your customers and your certificate know it. Every branch goes by this name too."
           required
           error={e("legalName")}
         >
           <TextInput id="psf-legal-name" className="w-full" value={draft.legalName} onChange={(ev) => onChange({ legalName: ev.target.value })} />
-        </Field>
-        <Field label="Website (optional)" error={e("website")}>
+        </PsfField>
+        <PsfField name="website" label="Website (optional)" error={e("website")}>
           <TextInput id="psf-website" className="w-full" placeholder="https://" value={draft.website} onChange={(ev) => onChange({ website: ev.target.value })} />
-        </Field>
+        </PsfField>
       </Section>
 
       <Section number={3} title="Sector">
-        <Fieldset legend="Your sector" hint="PSF groups its members by sector. Pick yours, then the association you belong to." error={e("clusterCode")}>
+        <PsfFieldset name="clusterCode" legend="Your sector" hint="PSF groups its members by sector. Pick yours, then the association you belong to." error={e("clusterCode")}>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {(catalogue?.clusters ?? []).map((c) => {
               const Icon = CLUSTER_ICON[c.code] ?? Briefcase;
@@ -185,11 +190,11 @@ export function StepBusiness({
             })}
             {catalogue === null ? [0, 1, 2, 3].map((i) => <span key={i} className="h-24 animate-pulse rounded-card bg-secondary" />) : null}
           </div>
-        </Fieldset>
+        </PsfFieldset>
         {cluster ? (
-          <div className="flex flex-col gap-3">
-            <Field
-              label="Kind of business"
+          <div className="flex flex-col gap-3" style={{ order: kindOrder }}>
+            <PsfField
+              name="subsectorId" label="Kind of business"
               hint={`The part of ${cluster.nameEn} your business is in. Not on the list? Choose Other and type it.`}
               required
               error={e("subsectorId")}
@@ -207,22 +212,23 @@ export function StepBusiness({
                   { value: TYPE_IT, label: "Other" },
                 ]}
               />
-            </Field>
+            </PsfField>
             {draft.subsectorId === TYPE_IT ? (
-              <Field label="What kind of business is it?" hint="A few words, like “Beekeeping” or “Solar installation”." required error={e("subsectorOther")}>
+              <PsfField orderAs="subsectorId" label="What kind of business is it?" hint="A few words, like “Beekeeping” or “Solar installation”." required error={e("subsectorOther")}>
                 <TextInput
                   id="psf-subsector-other"
                   className="w-full"
                   value={draft.subsectorOther}
                   onChange={(ev) => onChange({ subsectorOther: ev.target.value })}
                 />
-              </Field>
+              </PsfField>
             ) : null}
           </div>
         ) : null}
         {cluster && draft.subsectorId ? (
-          <div className="flex flex-col gap-3">
-            <Field
+          <div className="flex flex-col gap-3" style={{ order: associationOrder }}>
+            <PsfField
+              name="associationCode"
               label="Your association"
               hint="Pick yours from PSF's list. Not there? Choose the last line and type it."
               required
@@ -242,9 +248,10 @@ export function StepBusiness({
                   ...(otherCode ? [{ value: TYPE_IT, label: "Not on the list: I will type it" }] : []),
                 ]}
               />
-            </Field>
+            </PsfField>
             {typing ? (
-              <Field
+              <PsfField
+                orderAs="associationCode"
                 label="Name of your association"
                 hint={`Or what the business does, if it belongs to none. PSF files it under ${cluster.nameEn} and places you.`}
                 required
@@ -258,13 +265,13 @@ export function StepBusiness({
                   value={draft.associationOther}
                   onChange={(ev) => onChange({ associationOther: ev.target.value })}
                 />
-              </Field>
+              </PsfField>
             ) : null}
           </div>
         ) : null}
         {cluster ? (
           <>
-            <Field label="What does the business do?" hint="In a few words, like “Fresh produce shop” or “Metal fabrication”." required error={e("businessActivity")}>
+            <PsfField name="businessActivity" label="What does the business do?" hint="In a few words, like “Fresh produce shop” or “Metal fabrication”." required error={e("businessActivity")}>
               <TextArea
                 id="psf-activity"
                 className="w-full"
@@ -272,8 +279,8 @@ export function StepBusiness({
                 value={draft.businessActivity}
                 onChange={(ev) => onChange({ businessActivity: ev.target.value })}
               />
-            </Field>
-            <Fieldset legend="Who owns it (optional)" hint="PSF’s Specialized cluster supports these businesses. Tick any that are true.">
+            </PsfField>
+            <PsfFieldset name="ownerGroups" legend="Who owns it (optional)" hint="PSF’s Specialized cluster supports these businesses. Tick any that are true.">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {GROUPS.map((g) => {
                   const on = draft.ownerGroups.includes(g.key);
@@ -304,9 +311,10 @@ export function StepBusiness({
                   );
                 })}
               </div>
-            </Fieldset>
+            </PsfFieldset>
           </>
         ) : null}
+        <PsfExtras step="business" draft={draft} onChange={onChange} errors={errors} />
       </Section>
 
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Input } from "@injishi/web-ui";
 import { FacetBlock } from "@/components/explore/filter-primitives";
 import { PriceFilter } from "@/components/explore/price-filter";
@@ -97,10 +98,11 @@ export function FilterRailBody({
  * fail the very check that proves the real groups all have some.
  */
 function NameSearch({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const t = useTranslations("search");
   return (
     <div className="border-b border-separator py-4">
       <label className="relative block">
-        <span className="sr-only">Search by property name</span>
+        <span className="sr-only">{t("searchByName")}</span>
         <Search
           className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           strokeWidth={2}
@@ -111,7 +113,7 @@ function NameSearch({ value, onChange }: { value: string; onChange: (value: stri
           data-rail-name-search
           value={value}
           onChange={(event) => onChange(event.currentTarget.value)}
-          placeholder="Search by property name"
+          placeholder={t("searchByName")}
           className="w-full pl-9"
         />
       </label>

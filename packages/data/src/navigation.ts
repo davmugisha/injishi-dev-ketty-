@@ -573,17 +573,18 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
           icon: "LifeRing",
           board: "StaffServices",
         },
+        {
+          id: "hr-report",
+          label: "Reports",
+          icon: "ChartColumn",
+          board: "HrReport",
+        },
       ],
     },
     {
       label: "More",
+      // Guest messages are the desk's; the API refuses them to HR.
       items: [
-        {
-          id: "messages",
-          label: "Messages",
-          icon: "Comments",
-          board: "Messages",
-        },
         {
           id: "departments",
           label: "Departments",
@@ -840,6 +841,7 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
     {
       label: "Reports",
       items: [
+        { id: "money", label: "Money", icon: "Wallet", board: "PsfMoney" },
         { id: "overview", label: "Overview", icon: "ChartColumn", board: "PsfReport", href: "/psf/report/overview" },
         {
           id: "r-membership",
@@ -864,6 +866,7 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
       items: [
         { id: "fees", label: "Fees", icon: "CreditCard", board: "PsfFees" },
         { id: "subtypes", label: "Subtypes", icon: "Tag", board: "PsfSubtypes" },
+        { id: "setup", label: "PSF setup", icon: "Gear", board: "PsfSetup" },
         { id: "team", label: "Team", icon: "Persons", board: "PsfTeam" },
       ],
     },
@@ -886,7 +889,13 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
       label: "Reports",
       items: [
         { id: "overview", label: "Overview", icon: "ChartColumn", board: "PsfReport", href: "/psf/report/overview" },
-        { id: "r-membership", label: "Membership activity", icon: "ChartPie", board: "PsfReport", href: "/psf/report/membership" },
+        {
+          id: "r-membership",
+          label: "Membership activity",
+          icon: "ChartPie",
+          board: "PsfReport",
+          href: "/psf/report/membership",
+        },
         { id: "r-economy", label: "District economy", icon: "Wallet", board: "PsfReport", href: "/psf/report/economy" },
         { id: "r-members", label: "Member register", icon: "Persons", board: "PsfReport", href: "/psf/report/members" },
       ],

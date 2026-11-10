@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requirePersona } from "@/lib/session";
 import { ApiError, ApiUnreachableError } from "@/server/api";
 import { requestContext } from "@/server/data";
+import { askTicket, type HelpTopicId, replyTicket, sendSelfReview } from "@/server/mutations/hr-desk";
 import * as staff from "@/server/mutations/staff";
 import { NoWorkspaceError } from "@/server/sources/types";
 
@@ -132,6 +133,116 @@ export async function askLeaveAction(input: {
   return run("StaffSchedule", "/staff/schedule", async () => staff.askLeave(await ctx(), input));
 }
 
+export async function askSwapAction(day: string, colleagueId: string): Promise<ActionResult<string>> {
+  return run("StaffSchedule", "/staff/schedule", async () => staff.askSwap(await ctx(), day, colleagueId));
+}
+
+export async function checkPayslipPinAction(pin: string): Promise<ActionResult> {
+  return run("StaffMe", "/staff/me", async () => done(staff.checkPayslipPin(await ctx(), pin)));
+}
+
+export async function askShiftChangeAction(
+  day: string,
+  shiftTemplateId: string,
+  reason: string,
+): Promise<ActionResult> {
+  return run("StaffSchedule", "/staff/schedule", async () =>
+    done(staff.askShiftChange(await ctx(), day, shiftTemplateId, reason)),
+  );
+}
+
+export async function askRotationAction(
+  rotationPatternId: string,
+  from: string,
+  reason: string,
+): Promise<ActionResult> {
+  return run("StaffSchedule", "/staff/schedule", async () =>
+    done(staff.askRotation(await ctx(), rotationPatternId, from, reason)),
+  );
+}
+
+export async function answerSwapAction(requestId: string, answer: "accept" | "decline"): Promise<ActionResult> {
+  return run("StaffSchedule", "/staff/schedule", async () => done(staff.answerSwap(await ctx(), requestId, answer)));
+}
+
+// ── /staff/me ─────────────────────────────────────────────────────────────────────────────────────
+
+/** A document's photo and what it is (or which document HR asked for), as the sheet's form sends it. */
+export async function handInDocumentAction(form: FormData): Promise<ActionResult> {
+  return run("StaffMe", "/staff/me", async () => done(staff.handInDocument(await ctx(), form)));
+}
+
+export async function askClaimAction(form: FormData): Promise<ActionResult> {
+  return run("StaffMe", "/staff/me", async () => done(staff.askClaim(await ctx(), form)));
+}
+
+export async function cancelClaimAction(claimId: string): Promise<ActionResult> {
+  return run("StaffMe", "/staff/me", async () => done(staff.cancelClaim(await ctx(), claimId)));
+}
+
+export async function askExtraDaysAction(input: {
+  leaveTypeId: string;
+  days: number;
+  reason: string;
+}): Promise<ActionResult> {
+  return run("StaffMe", "/staff/me", async () => done(staff.askExtraDays(await ctx(), input)));
+}
+
 export async function cancelRequestAction(requestId: string): Promise<ActionResult> {
-  return run("StaffSchedule", "/staff/schedule", async () => done(staff.cancelRequest(await ctx(), requestId)));
+  const result = await run("StaffSchedule", "/staff/schedule", async () =>
+    done(staff.cancelRequest(await ctx(), requestId)),
+  );
+  // Me lists clock corrections too.
+  revalidatePath("/staff/me");
+  return result;
+}
+
+/** Ask for a day's clock times to be put right, or a day with no record to be written. */
+export async function askFixAction(input: {
+  workDate: string;
+  inAt: string;
+  outAt: string;
+  reason: string;
+}): Promise<ActionResult> {
+  const result = await run("StaffMe", "/staff/me", async () => done(staff.askFix(await ctx(), input)));
+  revalidatePath("/staff/schedule");
+  return result;
+}
+
+/** Ask HR or IT from the phone: the topic, and the question as typed (its first line is the subject). */
+export async function askHelpAction(topic: string, text: string): Promise<ActionResult> {
+  return run("StaffMe", "/staff/me", async () => {
+    const body = text.trim();
+    if (body.length < 2) throw new staff.StaffInputError("Write your question.");
+    const map: Record<string, HelpTopicId> = {
+      pay: "pay",
+      leave: "leave",
+      uniform: "uniform",
+      phone: "it",
+      documents: "documents",
+    };
+    const subject = body.split(/\r?\n/)[0].slice(0, 80);
+    await askTicket(await ctx(), { topic: map[topic] ?? "other", subject, body });
+    return undefined;
+  });
+}
+
+/** Write again on a question to HR; a resolved one opens again. */
+export async function replyHelpAction(ticketId: string, text: string): Promise<ActionResult> {
+  return run("StaffMe", "/staff/me", async () => {
+    const body = text.trim();
+    if (body.length < 2) throw new staff.StaffInputError("Write your reply.");
+    await replyTicket(await ctx(), ticketId, body);
+    return undefined;
+  });
+}
+
+/** The person's own part of their review. */
+export async function sendSelfReviewAction(reviewId: string, note: string): Promise<ActionResult> {
+  return run("StaffMe", "/staff/me", async () => {
+    const words = note.trim();
+    if (words.length < 3) throw new staff.StaffInputError("Write a few words.");
+    await sendSelfReview(await ctx(), reviewId, words);
+    return undefined;
+  });
 }

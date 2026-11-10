@@ -606,12 +606,12 @@ export declare const StayRefundRequestView: z.ZodObject<{
     propertyName: string | null;
     guestName: string | null;
     roomLabel: string | null;
+    approvedRwf: number | null;
     requestedRwf: number | null;
     policyEligible: boolean;
     policyMaxRwf: number;
     policyRule: string;
     policyRefusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
-    approvedRwf: number | null;
     refusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
     refusalLabel: string | null;
 }, {
@@ -627,12 +627,12 @@ export declare const StayRefundRequestView: z.ZodObject<{
     propertyName: string | null;
     guestName: string | null;
     roomLabel: string | null;
+    approvedRwf: number | null;
     requestedRwf: number | null;
     policyEligible: boolean;
     policyMaxRwf: number;
     policyRule: string;
     policyRefusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
-    approvedRwf: number | null;
     refusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
     refusalLabel: string | null;
 }>;
@@ -675,12 +675,12 @@ export declare const StayRefundRequestList: z.ZodObject<{
         propertyName: string | null;
         guestName: string | null;
         roomLabel: string | null;
+        approvedRwf: number | null;
         requestedRwf: number | null;
         policyEligible: boolean;
         policyMaxRwf: number;
         policyRule: string;
         policyRefusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
-        approvedRwf: number | null;
         refusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
         refusalLabel: string | null;
     }, {
@@ -696,12 +696,12 @@ export declare const StayRefundRequestList: z.ZodObject<{
         propertyName: string | null;
         guestName: string | null;
         roomLabel: string | null;
+        approvedRwf: number | null;
         requestedRwf: number | null;
         policyEligible: boolean;
         policyMaxRwf: number;
         policyRule: string;
         policyRefusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
-        approvedRwf: number | null;
         refusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
         refusalLabel: string | null;
     }>, "many">;
@@ -719,12 +719,12 @@ export declare const StayRefundRequestList: z.ZodObject<{
         propertyName: string | null;
         guestName: string | null;
         roomLabel: string | null;
+        approvedRwf: number | null;
         requestedRwf: number | null;
         policyEligible: boolean;
         policyMaxRwf: number;
         policyRule: string;
         policyRefusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
-        approvedRwf: number | null;
         refusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
         refusalLabel: string | null;
     }[];
@@ -742,12 +742,12 @@ export declare const StayRefundRequestList: z.ZodObject<{
         propertyName: string | null;
         guestName: string | null;
         roomLabel: string | null;
+        approvedRwf: number | null;
         requestedRwf: number | null;
         policyEligible: boolean;
         policyMaxRwf: number;
         policyRule: string;
         policyRefusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
-        approvedRwf: number | null;
         refusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
         refusalLabel: string | null;
     }[];

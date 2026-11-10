@@ -3,12 +3,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import { type SQL, and, desc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 
 import {
-  auditEvents,
   orgInvitations,
   orgMembershipBranches,
   orgMemberships,
   orgs,
   properties,
+  staffAccessRequests,
   users,
   workspaces,
 } from '../../../database/drizzle/schema';
@@ -16,6 +16,7 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import { ensureStaffFileTx } from '../../hr/infrastructure/staff-file';
 
 /** Any reason an acceptance writes nothing. Rolls the transaction back. */
@@ -153,7 +154,7 @@ export class StaffInvitationRepository {
         })
         .returning({ id: orgInvitations.id });
       if (!row) throw new Error('Invitation insert returned no row.');
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.invitedByUserId,
         subjectType: 'org',
         subjectId: input.orgId,
@@ -320,10 +321,19 @@ export class StaffInvitationRepository {
       if (spent.length === 0) throw new StaffInvitationRefused('no_live_invitation');
 
       // Every way into a business ends with a file (ADR-058, 058-self-service
-      // AC-J2): a thin one is written in this transaction when the membership
-      // has no active file, so the Staff list never misses somebody who joined
-      // through Team.
-      await ensureStaffFileTx(tx, { orgId: input.orgId, membershipId });
+      // AC-J2): the file HR gave this login for is linked (HR onboarding), and
+      // a thin one is written only when there is none, so the Staff list never
+      // misses somebody who joined through Team nor lists them twice.
+      const [given] = await tx
+        .select({ employeeId: staffAccessRequests.employeeId })
+        .from(staffAccessRequests)
+        .where(eq(staffAccessRequests.invitationId, invitation.id))
+        .limit(1);
+      await ensureStaffFileTx(tx, {
+        orgId: input.orgId,
+        membershipId,
+        employeeId: given?.employeeId ?? null,
+      });
 
       const [workspace] = await tx
         .select({ id: workspaces.id })
@@ -332,7 +342,7 @@ export class StaffInvitationRepository {
         .limit(1);
       if (!workspace) throw new StaffInvitationRefused('no_live_invitation');
 
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.userId,
         subjectType: 'org',
         subjectId: input.orgId,

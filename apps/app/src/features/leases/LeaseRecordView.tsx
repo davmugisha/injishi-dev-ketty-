@@ -172,6 +172,7 @@ export function LeaseRecordView({
   open,
   today,
   autoStart,
+  marketplaceOn,
   can,
 }: {
   lease: LeaseDetail;
@@ -183,6 +184,8 @@ export function LeaseRecordView({
   open: RecordOpen | null;
   today: string;
   autoStart: boolean;
+  /** Whether Marketplace is on for this business: the broker card's controls are its routes. */
+  marketplaceOn: boolean;
   can: { manage: boolean; sign: boolean; record: boolean; message?: boolean; settle?: boolean };
 }) {
   const router = useRouter();
@@ -468,7 +471,7 @@ export function LeaseRecordView({
                 ]}
               />
             </SectionCard>
-            <LeaseBrokerCard lease={lease} canManage={can.manage} />
+            <LeaseBrokerCard lease={lease} canManage={can.manage} marketplaceOn={marketplaceOn} />
             {lease.invitation ? (
               <SectionCard
                 title="Invitation"

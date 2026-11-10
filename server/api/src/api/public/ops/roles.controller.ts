@@ -15,6 +15,7 @@ import {
 import {
   CurrentWorkspace,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
@@ -41,6 +42,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/roles', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('account')
 export class OpsRolesController {
   constructor(private readonly roles: RolePermissionsService) {}
 

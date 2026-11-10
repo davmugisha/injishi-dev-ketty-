@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { getLocale, getMessages } from "next-intl/server";
+import { NextIntlClientProvider } from "next-intl";
 
 import BaseChrome from "@/components/app/base-chrome";
 import { HeroRouter } from "@/components/heroui/router";
@@ -63,16 +65,20 @@ export const metadata: Metadata = {
 };
 export const viewport = pwaViewport;
 
-export default function AppLayout({ children }: { children: ReactNode }) {
+export default async function AppLayout({ children }: { children: ReactNode }) {
+  const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
+
   return (
     <html
-      lang="en"
+      lang={locale}
       className={outfit.variable}
       suppressHydrationWarning
     >
       <body className="antialiased">
         <BaseChrome />
-        <HeroRouter>{children}</HeroRouter>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <HeroRouter>{children}</HeroRouter>
+        </NextIntlClientProvider>
         {/* The same counter as the marketplace root, so `/host` into `/register`
             and `/sign-in` is one journey in the numbers (`lib/analytics.ts`). */}
         <AnalyticsScript />

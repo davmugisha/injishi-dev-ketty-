@@ -80,6 +80,10 @@ const HR_SET = [
   'people.manage',
   'people.view',
   'roster.manage',
+  // HR onboarding (#119): HR gives a staff file its login. A login into a role
+  // that reaches money, staff files or payroll is only requested with it, and
+  // the owner approves (OWNER_APPROVED_ACCESS in @injishi/contracts).
+  'team.invite',
 ];
 
 /**
@@ -223,12 +227,13 @@ async function main() {
     // by default and may grant (OWNER_BY_DEFAULT): the full file, and since
     // ADR-069 D-e both halves of the pay run, drafting it and confirming it.
     // Rentals blueprint 2.1 added signing a lease and choosing the payout account.
+    // HR onboarding (#119) added giving a staff file its login (team.invite).
     check('owner is the whole permission enum', OWNER_ALL, Permission.options.length);
     const managerLacks = forRole('owner').filter((p) => !forRole('manager').includes(p)).sort();
     check(
-      'manager is the owner minus team.manage, people.manage, payroll.draft, payroll.run, lease.sign and payout.manage',
+      'manager is the owner minus team.manage, team.invite, people.manage, payroll.draft, payroll.run, lease.sign and payout.manage',
       managerLacks,
-      ['lease.sign', 'payout.manage', 'payroll.draft', 'payroll.run', 'people.manage', 'team.manage'],
+      ['lease.sign', 'payout.manage', 'payroll.draft', 'payroll.run', 'people.manage', 'team.invite', 'team.manage'],
     );
     // 9 until ADR-058, which gave the desk attendance.record: the desk is who is
     // at the door when the night shift arrives. 11 since ADR-072, which gave it
@@ -241,7 +246,7 @@ async function main() {
 
     console.log('\n=== finance and hr: a job each, and nothing beside it (ADR-069 D-b) ===');
     check('finance holds exactly its ten', [...forRole('finance')].sort(), FINANCE_SET);
-    check('hr holds exactly its seven', [...forRole('hr')].sort(), HR_SET);
+    check('hr holds exactly its eight', [...forRole('hr')].sort(), HR_SET);
     // The lock on the door stays the owner's (OWNER_ONLY, LOCKED_PERMISSIONS).
     check('finance may NOT manage the team', can('finance', 'team.manage'), false);
     check('hr may NOT manage the team', can('hr', 'team.manage'), false);

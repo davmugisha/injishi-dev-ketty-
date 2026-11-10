@@ -31,12 +31,13 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
- * Checklists -> /api/v1/ops/hr/checklist-templates, /checklist-board, /checklists (POST) and
+ * Checklists -> /api/v1/ops/hr/checklist-templates, /checklists and
  * /checklist-tasks (ADR-058).
  *
  * What a business does when somebody joins and when somebody leaves. Read by
@@ -49,6 +50,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/hr', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsChecklistsController {
   constructor(private readonly checklists: ChecklistsService) {}
 
@@ -90,12 +92,8 @@ export class OpsChecklistsController {
     return this.checklists.deleteTemplate(workspace, user.id, id);
   }
 
-  /**
-   * Every checklist in the caller's branches, and who joined or is leaving with none.
-   * At `checklist-board` since the new interface's own checklists took
-   * `GET /ops/hr/checklists` (hr-workforce.controller, merged from main 2026-10-26).
-   */
-  @Get('checklist-board')
+  /** Every checklist in the caller's branches, and who joined or is leaving with none. */
+  @Get('checklists')
   @RequireAnyPermission('people.view', 'people.manage')
   board(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<ChecklistBoard> {
     return this.checklists.board(workspace);

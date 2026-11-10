@@ -49,11 +49,12 @@ describe("the five staff roles", () => {
    * permission being dropped and misses one being SWAPPED, and a swap is what
    * actually moves a boundary.
    */
-  test("the matrix holds forty permissions", () => {
-    // Thirty-three platform powers (ADR-053, managing a business's members
-    // 2026-10-29, suspending an account and reading the roles 2026-11-02) and
-    // seven `training.*` powers (ADR-049).
-    assert.equal(StaffPermission.options.length, 40);
+  test("the matrix holds forty one permissions", () => {
+    // Thirty-four platform powers (ADR-053, managing a business's members
+    // 2026-10-29, suspending an account and reading the roles 2026-11-02, and
+    // switching a business's products on or off, ADR-076 G6) and seven
+    // `training.*` powers (ADR-049).
+    assert.equal(StaffPermission.options.length, 41);
   });
 
   test("trainer holds four training powers and no platform power (ADR-049)", () => {
@@ -76,6 +77,7 @@ describe("the five staff roles", () => {
       "admin.business.review",
       "admin.business.suspend",
       "admin.business.reinstate",
+      "admin.business.entitlement.edit",
       "admin.user.view",
       "admin.user.session.revoke",
       "admin.user.suspend",
@@ -91,7 +93,7 @@ describe("the five staff roles", () => {
       "admin.localization.view",
       "admin.localization.edit",
     ]);
-    assert.equal(staffPermissionsForRoles(["ops"]).length, 21);
+    assert.equal(staffPermissionsForRoles(["ops"]).length, 22);
   });
 
   test("compliance reads, and acts only inside compliance", () => {

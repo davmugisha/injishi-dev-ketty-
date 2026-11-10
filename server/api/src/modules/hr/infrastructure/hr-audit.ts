@@ -1,4 +1,5 @@
-import { auditEvents } from '../../../database/drizzle/schema';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
+import { HR_FILE_FIELDS } from '../../../shared/audit/personal-fields';
 import type { Database } from '../../../shared/database/database.module';
 
 type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -12,35 +13,10 @@ type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
  * number, an RSSB number, a wage, a date of birth, a name, a phone) is written
  * as `"changed"`, never as itself: the audit trail is read by platform staff,
  * who have no business reading a person's HR file (index contract 10).
+ *
+ * Written through `AuditWriter` (ADR-076 contract section 8), which adds the
+ * access the act was done under and applies the personal field rule once more.
  */
-
-/** Fields whose VALUE never enters an audit row. */
-const PERSONAL = new Set([
-  'legalName',
-  'preferredName',
-  'phone',
-  'email',
-  'dateOfBirth',
-  'sex',
-  'idDocumentType',
-  'idDocumentNumber',
-  'rssbNumber',
-  'wageRwf',
-  // 058-people-file AC-PF1: family, home, emergency contact and the photo.
-  'maritalStatus',
-  'childrenCount',
-  'villageId',
-  'street',
-  'emergencyName',
-  'emergencyPhone',
-  'emergencyRelation',
-  'photoKey',
-  // Where pay goes (AC-PF3).
-  'bankName',
-  'accountNumber',
-  'branchName',
-  'momoPhone',
-]);
 
 /**
  * `{ field: { from, to } }` for a structural field, `{ field: "changed" }` for a
@@ -54,7 +30,7 @@ export function auditDiff(
   for (const [key, to] of Object.entries(after)) {
     const from = before ? before[key] : undefined;
     if (before && from === to) continue;
-    diff[key] = PERSONAL.has(key) ? 'changed' : { from: from ?? null, to: to ?? null };
+    diff[key] = HR_FILE_FIELDS.has(key) ? 'changed' : { from: from ?? null, to: to ?? null };
   }
   return diff;
 }
@@ -73,12 +49,12 @@ export async function writeHrAudit(
     reason?: string | null;
   },
 ): Promise<void> {
-  await tx.insert(auditEvents).values({
+  await AuditWriter.write(tx, {
     actorUserId: row.actorUserId,
     subjectType: row.subjectType,
     subjectId: row.subjectId,
     eventType: row.eventType,
-    payloadDiff: { orgId: row.orgId, ...(row.diff ?? {}) } as never,
+    payloadDiff: { orgId: row.orgId, ...(row.diff ?? {}) },
     reason: row.reason ?? null,
   });
 }

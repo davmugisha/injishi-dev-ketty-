@@ -188,10 +188,10 @@ describe("the officer's decisions (AC-11, AC-12)", () => {
 });
 
 describe("the membership officer's posting and console (AC-10)", () => {
-  test("is PSF, appointed by admin for a province only, and opens the membership console", () => {
+  test("is PSF, appointed by admin for the country or a province, and opens the membership console", () => {
     assert.equal(OversightRole.options.includes("psf_membership_officer"), true);
-    // Admin appoints Province Managers (2026-11-02); they appoint District Managers, who appoint BDEs.
-    assert.deepEqual(OVERSIGHT_ROLE_POSTING.psf_membership_officer.scopeLevels, ["province"]);
+    // Admin appoints the National Manager (2026-11-06) and Regional Managers (2026-11-02); they appoint District Managers, who appoint BDEs.
+    assert.deepEqual(OVERSIGHT_ROLE_POSTING.psf_membership_officer.scopeLevels, ["country", "province"]);
     assert.equal(OVERSIGHT_ROLE_POSTING.psf_membership_officer.governmentBodyCode, "PSF");
     assert.equal(oversightConsoleFor("psf_membership_officer"), "membership");
   });

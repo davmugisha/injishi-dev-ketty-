@@ -23,26 +23,28 @@ import {
   SectionCard,
   StatusChip,
 } from "@injishi/ui";
+import { psfFeeTotal } from "@injishi/contracts";
 import NextLink from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { useId } from "react";
 import { ExportMenu } from "@/components/ExportMenu";
 import type { ExportTable } from "@/lib/table-export";
 import type { PsfReport, PsfScope } from "@/server/sources/psf";
 
+import { FeeStrip, FeeViewSwitch, useFeeAmount, useFeeView } from "./psf-fee-view";
 import { PSF_REPORTS, type PsfReportId } from "./psf-reports";
 
 export { PSF_REPORTS, type PsfReportId };
 
-type Months = PsfReport["months"];
 
 const reportHref = (id: PsfReportId) => `/psf/report/${id}`;
 const businessHref = (orgId: string) => `/psf/register/${orgId}`;
 
-/** "2026-10" → "Oct", or "Oct 2026" in full. */
-function monthLabel(month: string, full = false): string {
+/** "2026-10" → "Oct", or "Oct 2026" in full, in the reader's language. */
+function monthLabel(month: string, full = false, locale = "en-GB"): string {
   const [y, m] = month.split("-").map(Number) as [number, number];
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     ...(full ? { year: "numeric" } : {}),
     timeZone: "UTC",
@@ -50,38 +52,39 @@ function monthLabel(month: string, full = false): string {
 }
 
 /** A KPI's change against the period before, for the strip's trend line. */
-function trend(kpi: { value: number; previous: number }, goodWhen: "up" | "down" = "up"): KpiItem["trend"] {
+function trend(
+  kpi: { value: number; previous: number },
+  goodWhen: "up" | "down" = "up",
+  versus = "the period before",
+): KpiItem["trend"] {
   if (kpi.previous === 0) return undefined;
   return {
     percent: Math.round(((kpi.value - kpi.previous) / kpi.previous) * 100),
     goodWhen,
-    versus: "the period before",
+    versus,
   };
 }
 
-const days = (n: number | null) =>
-  n === null ? "—" : n < 1 ? "Under a day" : `${formatNumber(Math.round(n))} ${Math.round(n) === 1 ? "day" : "days"}`;
-
-/** A median wait as a KPI: in hours under a day (0.1 of a day reads as nothing), else in days. */
-function waitKpi(id: string, n: number | null, from: string): KpiItem {
-  if (n === null)
-    return { id, label: "Time to decide", value: 0, format: "count", icon: "Clock", footnote: "Nothing decided yet" };
-  const hours = n < 1;
+/** The report titles and blurbs, in the reader's language. */
+function useReportMeta(): Record<PsfReportId, { title: string; blurb: string }> {
+  const t = useTranslations("psfReports");
   return {
-    id,
-    label: "Time to decide",
-    value: hours ? Math.max(1, Math.round(n * 24)) : Math.round(n * 10) / 10,
-    format: "count",
-    icon: "Clock",
-    footnote: `${hours ? "Median hours" : "Median days"}, ${from}`,
+    overview: { title: t("meta.overview.title"), blurb: t("meta.overview.blurb") },
+    membership: { title: t("meta.membership.title"), blurb: t("meta.membership.blurb") },
+    approvals: { title: t("meta.approvals.title"), blurb: t("meta.approvals.blurb") },
+    economy: { title: t("meta.economy.title"), blurb: t("meta.economy.blurb") },
+    members: { title: t("meta.members.title"), blurb: t("meta.members.blurb") },
   };
 }
+
+/** The months as the bar charts read them: counts, without the fees' breakdown. */
+const barMonths = (r: PsfReport) => r.months.map(({ fees: _fees, ...m }) => m);
 
 /** Members by tier, with the members whose membership names no tier (declared, not applied for). */
-function tierSlices(r: PsfReport) {
+function tierSlices(r: PsfReport, noTier: string) {
   const slices = r.byFamily.map((f) => ({ key: f.key, label: f.label, count: f.count }));
   const untiered = r.now.members - slices.reduce((n, f) => n + f.count, 0);
-  return untiered > 0 ? [...slices, { key: "none", label: "No tier", count: untiered }] : slices;
+  return untiered > 0 ? [...slices, { key: "none", label: noTier, count: untiered }] : slices;
 }
 
 // ── Export and print ──────────────────────────────────────────────────────────────────────────────
@@ -95,8 +98,11 @@ interface CsvSection {
 function csvFor(id: PsfReportId, r: PsfReport): CsvSection[] {
   const months: CsvSection = {
     title: "Month by month",
-    columns: ["Month", "Registered", "Applied", "Approved", "New members", "Fees (RWF)"],
-    rows: r.months.map((m) => [monthLabel(m.month, true), m.registered, m.applied, m.approved, m.members, m.feesRwf]),
+    columns: ["Month", "Registered", "Applied", "Approved", "New members", "New membership fees (RWF)", "Renewals (RWF)", "Upgrades (RWF)", "All fees (RWF)", "Districts' share (RWF)", "Headquarters' share (RWF)"],
+    rows: r.months.map((m) => {
+      const t = psfFeeTotal(m.fees);
+      return [monthLabel(m.month, true), m.registered, m.applied, m.approved, m.members, m.fees.application.totalRwf, m.fees.renewal.totalRwf, m.fees.upgrade.totalRwf, t.totalRwf, t.districtRwf, t.headquartersRwf];
+    }),
   };
   const k = r.kpis;
   switch (id) {
@@ -108,25 +114,31 @@ function csvFor(id: PsfReportId, r: PsfReport): CsvSection[] {
           rows: [
             ["Applied", k.applied.value, k.applied.previous],
             ["Approved", k.approved.value, k.approved.previous],
-            ["Declined", k.declined.value, k.declined.previous],
+            ["Sent back", k.declined.value, k.declined.previous],
             ["New members", k.newMembers.value, k.newMembers.previous],
             ["Renewed", k.renewed.value, k.renewed.previous],
+            ["Upgraded", k.upgraded.value, k.upgraded.previous],
             ["Card holders brought in", k.cardHolders.value, k.cardHolders.previous],
-            ["Membership fees (RWF)", k.membershipFeesRwf.value, k.membershipFeesRwf.previous],
+            ["New membership fees (RWF)", r.fees.current.application.totalRwf, r.fees.previous.application.totalRwf],
+            ["Renewals (RWF)", r.fees.current.renewal.totalRwf, r.fees.previous.renewal.totalRwf],
+            ["Upgrades (RWF)", r.fees.current.upgrade.totalRwf, r.fees.previous.upgrade.totalRwf],
+            ["All fees (RWF)", k.membershipFeesRwf.value, k.membershipFeesRwf.previous],
+            ["Districts' share (RWF)", psfFeeTotal(r.fees.current).districtRwf, psfFeeTotal(r.fees.previous).districtRwf],
+            ["Headquarters' share (RWF)", psfFeeTotal(r.fees.current).headquartersRwf, psfFeeTotal(r.fees.previous).headquartersRwf],
             ["Median days to decide", k.medianDecisionDays.value ?? "", k.medianDecisionDays.previous ?? ""],
           ],
         },
         months,
         {
           title: "Members by tier",
-          columns: ["Tier", "Members", "Fees (RWF)"],
+          columns: ["Tier", "Members", "Yearly fees (RWF)"],
           rows: r.byFamily.map((f) => [f.label, f.count, f.amountRwf]),
         },
         { title: "By owner group", columns: ["Group", "Businesses"], rows: r.byGroup.map((g) => [g.label, g.count]) },
         {
           title: "By PSF sector",
-          columns: ["Sector", "Businesses", "Fees (RWF)"],
-          rows: r.bySector.map((s) => [s.label, s.count, s.amountRwf]),
+          columns: ["Sector", "Businesses", "All fees (RWF)", "Districts' share (RWF)", "Headquarters' share (RWF)"],
+          rows: r.bySector.map((s) => [s.label, s.count, s.amountRwf, s.districtRwf, s.headquartersRwf]),
         },
       ];
     case "approvals": {
@@ -218,7 +230,7 @@ function csvFor(id: PsfReportId, r: PsfReport): CsvSection[] {
         },
         {
           title: "Members by tier",
-          columns: ["Tier", "Members", "Fees (RWF)"],
+          columns: ["Tier", "Members", "Yearly fees (RWF)"],
           rows: r.byFamily.map((f) => [f.label, f.count, f.amountRwf]),
         },
         months,
@@ -269,7 +281,9 @@ function MonthBars({
   className?: string;
   empty: string;
 }) {
-  const data = rows.map((r) => ({ ...r, label: monthLabel(r.month) }));
+  const t = useTranslations("psfReports");
+  const locale = useLocale();
+  const data = rows.map((r) => ({ ...r, label: monthLabel(r.month, false, locale) }));
   const total = (key: string) => rows.reduce((n, r) => n + Number(r[key] ?? 0), 0);
   const isEmpty = series.every((s) => total(s.key) === 0);
   return (
@@ -282,8 +296,11 @@ function MonthBars({
       empty={{ icon: "ChartColumn", title: empty }}
       summary={series.map((s) => `${formatNumber(total(s.key))} ${s.label.toLowerCase()}`).join(", ") + ` ${noun}.`}
       table={{
-        columns: ["Month", ...series.map((s) => s.label)],
-        rows: rows.map((r) => [monthLabel(r.month, true), ...series.map((s) => formatNumber(Number(r[s.key] ?? 0)))]),
+        columns: [t("common.month"), ...series.map((s) => s.label)],
+        rows: rows.map((r) => [
+          monthLabel(r.month, true, locale),
+          ...series.map((s) => formatNumber(Number(r[s.key] ?? 0))),
+        ]),
       }}
     >
       <BarChart data={data} height={240} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
@@ -320,8 +337,10 @@ function MoneyArea({
   className?: string;
   empty: string;
 }) {
+  const t = useTranslations("psfReports");
+  const locale = useLocale();
   const id = useId().replace(/:/g, "");
-  const data = rows.map((r) => ({ ...r, label: monthLabel(r.month) }));
+  const data = rows.map((r) => ({ ...r, label: monthLabel(r.month, false, locale) }));
   const total = rows.reduce((n, r) => n + r.value, 0);
   const best = rows.reduce<{ month: string; value: number } | null>((b, r) => (!b || r.value > b.value ? r : b), null);
   return (
@@ -331,10 +350,10 @@ function MoneyArea({
       description={description}
       isEmpty={total === 0}
       empty={{ icon: "Wallet", title: empty }}
-      summary={`${formatMoney(total)} in all.${best && best.value > 0 ? ` The best month was ${monthLabel(best.month, true)} with ${formatMoney(best.value)}.` : ""}`}
+      summary={`${t("common.inAll", { total: formatMoney(total) })}${best && best.value > 0 ? ` ${t("common.bestMonth", { month: monthLabel(best.month, true, locale), amount: formatMoney(best.value) })}` : ""}`}
       table={{
-        columns: ["Month", "RWF"],
-        rows: rows.map((r) => [monthLabel(r.month, true), formatMoney(r.value, { bare: true })]),
+        columns: [t("common.month"), "RWF"],
+        rows: rows.map((r) => [monthLabel(r.month, true, locale), formatMoney(r.value, { bare: true })]),
       }}
     >
       <AreaChart data={data} height={240} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
@@ -397,44 +416,54 @@ function Funnel({ steps }: { steps: { label: string; count: number }[] }) {
 // ── The reports ───────────────────────────────────────────────────────────────────────────────────
 
 function Overview({ r }: { r: PsfReport }) {
-  const k = r.kpis;
+  const t = useTranslations("psfReports");
+  const meta = useReportMeta();
+  const amount = useFeeAmount(r.fees.ourShare);
+  const view = useFeeView();
   const g = r.registrations;
+  const k = r.kpis;
   const e = r.economy;
   const n = r.now;
+  const days = (value: number | null) =>
+    value === null
+      ? "—"
+      : value < 1
+        ? t("common.underADay")
+        : t("common.days", { count: Math.round(value) });
   const cards: { id: PsfReportId; figures: { label: string; value: string }[]; spark: number[] }[] = [
     {
       id: "membership",
       figures: [
-        { label: "Applied", value: formatNumber(k.applied.value) },
-        { label: "Approved", value: formatNumber(k.approved.value) },
-        { label: "Fees", value: formatMoney(k.membershipFeesRwf.value, { compact: true }) },
+        { label: t("common.applied"), value: formatNumber(k.applied.value) },
+        { label: t("common.approved"), value: formatNumber(k.approved.value) },
+        { label: view === "ours" ? t("common.ourRevenue") : t("common.allFees"), value: formatMoney(amount(psfFeeTotal(r.fees.current)), { compact: true }) },
       ],
       spark: r.months.map((m) => m.applied),
     },
     {
       id: "approvals",
       figures: [
-        { label: "Approved", value: formatNumber(g.approvedInPeriod.value) },
-        { label: "Rejected", value: formatNumber(g.rejectedInPeriod.value) },
-        { label: "Time to decide", value: days(g.medianDaysToDecision) },
+        { label: t("common.approved"), value: formatNumber(g.approvedInPeriod.value) },
+        { label: t("common.rejected"), value: formatNumber(g.rejectedInPeriod.value) },
+        { label: t("common.timeToDecide"), value: days(g.medianDaysToDecision) },
       ],
       spark: g.months.map((m) => m.approved),
     },
     {
       id: "economy",
       figures: [
-        { label: "Bookings", value: formatNumber(e.bookings.value) },
-        { label: "Guest nights", value: formatNumber(e.guestNights.value) },
-        { label: "Booked", value: formatMoney(e.bookedValueRwf.value, { compact: true }) },
+        { label: t("common.bookings"), value: formatNumber(e.bookings.value) },
+        { label: t("common.guestNights"), value: formatNumber(e.guestNights.value) },
+        { label: t("overview.booked"), value: formatMoney(e.bookedValueRwf.value, { compact: true }) },
       ],
       spark: e.months.map((m) => m.guestNights),
     },
     {
       id: "members",
       figures: [
-        { label: "Members", value: formatNumber(n.members) },
-        { label: "Renew in 90 days", value: formatNumber(n.expiringIn90Days) },
-        { label: "Lapsed", value: formatNumber(n.lapsed) },
+        { label: t("overview.members"), value: formatNumber(n.members) },
+        { label: t("overview.renewIn90"), value: formatNumber(n.expiringIn90Days) },
+        { label: t("overview.lapsed"), value: formatNumber(n.lapsed) },
       ],
       spark: r.months.map((m) => m.members),
     },
@@ -442,67 +471,73 @@ function Overview({ r }: { r: PsfReport }) {
   return (
     <>
       <KpiStrip
-        label="Waiting on you"
+        label={t("overview.waitingOnYou")}
         items={[
           {
             id: "apps",
-            label: "Membership applications",
+            label: t("overview.membershipApplications"),
             value: n.waiting,
             format: "count",
             icon: "FileText",
             status: n.overdue > 0 ? "danger" : n.waiting > 0 ? "warning" : undefined,
             footnote:
               n.overdue > 0
-                ? `${formatNumber(n.overdue)} overdue · decide them`
+                ? t("overview.overdueDecide", { count: formatNumber(n.overdue) })
                 : n.waiting
-                  ? "Decide them"
-                  : "None waiting",
+                  ? t("overview.decideThem")
+                  : t("overview.noneWaiting"),
             href: "/psf",
           },
           {
             id: "approve",
-            label: "Businesses to approve",
+            label: t("overview.businessesToApprove"),
             value: g.waitingReview,
             format: "count",
             icon: "ShieldCheck",
             status: g.waitingReview > 0 ? "warning" : undefined,
-            footnote: g.oldestWaitingDays === null ? "None waiting" : `Oldest waiting ${days(g.oldestWaitingDays)}`,
+            footnote:
+              g.oldestWaitingDays === null
+                ? t("overview.noneWaiting")
+                : t("overview.oldestWaiting", { wait: days(g.oldestWaitingDays) }),
             href: "/officer",
           },
           {
             id: "claims",
-            label: "Card holders to confirm",
+            label: t("overview.cardHolders"),
             value: n.claimsWaiting,
             format: "count",
             icon: "CircleCheck",
             status: n.claimsWaiting > 0 ? "warning" : undefined,
-            footnote: n.claimsWaiting ? "Check the numbers" : "None waiting",
+            footnote: n.claimsWaiting ? t("overview.checkNumbers") : t("overview.noneWaiting"),
             href: "/psf/claims",
           },
           {
             id: "renew",
-            label: "Renewals due in 30 days",
+            label: t("overview.renewalsDue"),
             value: n.expiringIn30Days,
             format: "count",
             icon: "Clock",
             status: n.expiringIn30Days > 0 ? "warning" : undefined,
-            footnote: n.lapsed > 0 ? `${formatNumber(n.lapsed)} lapsed, not renewed` : "No lapsed members",
+            footnote:
+              n.lapsed > 0
+                ? t("overview.lapsedNotRenewed", { count: formatNumber(n.lapsed) })
+                : t("overview.noLapsed"),
             href: "/psf/register?standing=member",
           },
         ]}
       />
+      <FeeStrip kinds={r.fees.current} previous={r.fees.previous} ours={r.fees.ourShare} />
       <div className="grid min-w-0 gap-4 md:grid-cols-2">
         {cards.map((c) => {
-          const meta = PSF_REPORTS.find((x) => x.id === c.id);
           const spark = c.spark.map((v, i) => ({ i, v }));
           return (
             <SectionCard
               key={c.id}
-              title={meta?.title ?? c.id}
-              description={meta?.blurb}
+              title={meta[c.id].title}
+              description={meta[c.id].blurb}
               actions={
-                <ActionLink href={reportHref(c.id)} icon="ArrowRight" size="sm">
-                  Open
+                <ActionLink href={view === "ours" ? `${reportHref(c.id)}?fees=ours` : reportHref(c.id)} icon="ArrowRight" size="sm">
+                  {t("overview.openReport")}
                 </ActionLink>
               }
             >
@@ -521,9 +556,7 @@ function Overview({ r }: { r: PsfReport }) {
                   </BarChart>
                 </div>
               ) : (
-                <p className="flex h-14 items-center text-xs text-muted">
-                  Nothing to chart in the last twelve months yet.
-                </p>
+                <p className="flex h-14 items-center text-xs text-muted">{t("overview.nothingToChart")}</p>
               )}
             </SectionCard>
           );
@@ -534,128 +567,209 @@ function Overview({ r }: { r: PsfReport }) {
 }
 
 function Membership({ r }: { r: PsfReport }) {
+  const t = useTranslations("psfReports");
+  const periodBefore = t("common.periodBefore");
   const k = r.kpis;
+  const days = (value: number | null) =>
+    value === null
+      ? "—"
+      : value < 1
+        ? t("common.underADay")
+        : t("common.days", { count: Math.round(value) });
+  const waitKpi = (id: string, value: number | null, from: string): KpiItem => {
+    if (value === null)
+      return {
+        id,
+        label: t("common.timeToDecide"),
+        value: 0,
+        format: "count",
+        icon: "Clock",
+        footnote: t("common.nothingDecided"),
+      };
+    const hours = value < 1;
+    return {
+      id,
+      label: t("common.timeToDecide"),
+      value: hours ? Math.max(1, Math.round(value * 24)) : Math.round(value * 10) / 10,
+      format: "count",
+      icon: "Clock",
+      footnote: `${hours ? t("common.medianHours") : t("common.medianDays")}, ${from}`,
+    };
+  };
+  const amount = useFeeAmount(r.fees.ourShare);
+  const view = useFeeView();
   return (
     <>
       <KpiStrip
-        label="Membership in the period"
+        label={t("membership.title")}
         items={[
           {
             id: "applied",
-            label: "Applied",
+            label: t("common.applied"),
             value: k.applied.value,
             format: "count",
             icon: "FileText",
-            trend: trend(k.applied),
+            trend: trend(k.applied, "up", periodBefore),
           },
           {
             id: "approved",
-            label: "Approved",
+            label: t("common.approved"),
             value: k.approved.value,
             format: "count",
             icon: "CircleCheck",
-            trend: trend(k.approved),
+            trend: trend(k.approved, "up", periodBefore),
           },
           {
             id: "new",
-            label: "New members",
+            label: t("common.newMembers"),
             value: k.newMembers.value,
             format: "count",
             icon: "Persons",
-            trend: trend(k.newMembers),
+            trend: trend(k.newMembers, "up", periodBefore),
           },
-          {
-            id: "fees",
-            label: "Membership fees",
-            value: k.membershipFeesRwf.value,
-            format: "money",
-            icon: "Wallet",
-            trend: trend(k.membershipFeesRwf),
-          },
-          waitKpi("days", k.medianDecisionDays.value, "from applying"),
+          waitKpi("days", k.medianDecisionDays.value, t("membership.fromApplying")),
         ]}
       />
+      <FeeStrip kinds={r.fees.current} previous={r.fees.previous} ours={r.fees.ourShare} />
       {/* How members came in (2026-11-02): new, renewed, and old card holders brought into the new module. */}
       <KpiStrip
-        label="How members came in"
+        label={t("membership.howCameIn")}
         items={[
-          { id: "in-new", label: "New members", value: k.newMembers.value, format: "count", icon: "PersonPlus", trend: trend(k.newMembers) },
-          { id: "in-renewed", label: "Renewed", value: k.renewed.value, format: "count", icon: "ArrowRotateRight", trend: trend(k.renewed) },
-          { id: "in-cards", label: "Card holders brought in", value: k.cardHolders.value, format: "count", icon: "CreditCard", trend: trend(k.cardHolders) },
+          {
+            id: "in-new",
+            label: t("common.newMembers"),
+            value: k.newMembers.value,
+            format: "count",
+            icon: "PersonPlus",
+            trend: trend(k.newMembers, "up", periodBefore),
+          },
+          {
+            id: "in-renewed",
+            label: t("common.renewed"),
+            value: k.renewed.value,
+            format: "count",
+            icon: "ArrowRotateRight",
+            trend: trend(k.renewed, "up", periodBefore),
+          },
+          {
+            id: "in-upgraded",
+            label: t("common.upgraded"),
+            value: k.upgraded.value,
+            format: "count",
+            icon: "ArrowUp",
+            trend: trend(k.upgraded, "up", periodBefore),
+          },
+          {
+            id: "in-cards",
+            label: t("membership.cardHoldersBrought"),
+            value: k.cardHolders.value,
+            format: "count",
+            icon: "CreditCard",
+            trend: trend(k.cardHolders, "up", periodBefore),
+          },
         ]}
       />
+      {/* Who the fees are for (2026-11-05): a record, the money goes to PSF's one account. */}
+      <SectionCard title="Where the money goes" description={`Today, each fee splits ${r.split.districtPercent}% for its district and ${100 - r.split.districtPercent}% for headquarters. The money reaches PSF's one account. See Money for every region and district.`}>
+        <KpiStrip
+          label="The split"
+          items={[
+            { id: "split-total", label: "Fees in the period", value: r.split.totalRwf, format: "money", icon: "Wallet" },
+            { id: "split-district", label: "Districts' share", value: r.split.districtRwf, format: "money", icon: "MapPin" },
+            { id: "split-hq", label: "Headquarters' share", value: r.split.headquartersRwf, format: "money", icon: "Briefcase" },
+          ]}
+        />
+        {r.split.byDistrict.length > 1 ? (
+          <ul className="mt-3 flex flex-col divide-y divide-separator text-sm">
+            {r.split.byDistrict.map((d) => (
+              <li key={d.districtName} className="flex flex-wrap items-baseline justify-between gap-3 py-2">
+                <span className="font-medium">{d.districtName}</span>
+                <span className="tabular text-muted">
+                  {formatMoney(d.districtRwf)} of {formatMoney(d.totalRwf)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </SectionCard>
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <MonthBars
           className="lg:col-span-2"
-          title="Applications by month"
-          description="Made, and approved, each month"
-          rows={r.months}
+          title={t("membership.applicationsByMonth")}
+          description={t("membership.applicationsByMonthLead")}
+          rows={barMonths(r)}
           series={[
-            { key: "applied", label: "Applied" },
-            { key: "approved", label: "Approved" },
+            { key: "applied", label: t("common.applied") },
+            { key: "approved", label: t("common.approved") },
           ]}
-          noun="over the last twelve months"
-          empty="No application in these months"
+          noun={t("common.overTwelveMonths")}
+          empty={t("membership.noApplication")}
         />
         <CountDonut
-          title="Members by tier"
-          description="Today"
-          totalLabel="Members"
-          noun="members"
-          data={tierSlices(r)}
-          empty={{ icon: "Persons", title: "No member yet" }}
+          title={t("membership.membersByTier")}
+          description={t("common.today")}
+          totalLabel={t("membership.totalMemberships")}
+          noun={t("membership.memberNoun")}
+          data={tierSlices(r, t("common.noTier"))}
+          empty={{ icon: "Persons", title: t("membership.noMemberYet") }}
         />
       </div>
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <MoneyArea
           className="lg:col-span-2"
-          title="Membership fees by month"
-          description="What members paid PSF"
-          rows={r.months.map((m) => ({ month: m.month, value: m.feesRwf }))}
-          empty="No fee paid in these months"
+          title={view === "ours" ? t("membership.ourRevenueByMonth") : t("membership.allFeesByMonth")}
+          description={t("membership.feesByMonthLead")}
+          rows={r.months.map((m) => ({ month: m.month, value: amount(psfFeeTotal(m.fees)) }))}
+          empty={t("membership.noFeePaid")}
         />
         <CountDonut
-          title="Who owns them"
-          description="Businesses on the register"
-          totalLabel="Businesses"
-          noun="businesses"
+          title={t("membership.whoOwns")}
+          description={t("membership.onRegister")}
+          totalLabel={t("membership.totalBusinessesLabel")}
+          noun={t("membership.businessNoun")}
           data={r.byGroup.map((g) => ({ key: g.key, label: g.label, count: g.count }))}
-          empty={{ icon: "Persons", title: "No owner group declared yet", action: undefined }}
+          empty={{ icon: "Persons", title: t("membership.noOwnerGroup"), action: undefined }}
         />
       </div>
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
-        <SectionCard title="From application to member" description="Applications made in the period">
+        <SectionCard title={t("membership.fromApplicationToMember")} description={t("membership.applicationsInPeriod")}>
           <Funnel
             steps={[
-              { label: "Applied", count: r.funnel.registered },
-              { label: "Approved", count: r.funnel.approved },
-              { label: "Paid, now members", count: r.funnel.paid },
-              { label: "Declined", count: r.funnel.declined },
+              { label: t("common.applied"), count: r.funnel.registered },
+              { label: t("common.approved"), count: r.funnel.approved },
+              { label: t("membership.paidNowMembers"), count: r.funnel.paid },
+              { label: t("common.sentBack"), count: r.funnel.declined },
             ]}
           />
         </SectionCard>
-        <SectionCard title="By PSF sector" className="lg:col-span-2" contentClassName="gap-0">
+        <SectionCard title={t("membership.bySector")} className="lg:col-span-2" contentClassName="gap-0">
           <DataTable
-            label="By PSF sector"
+            label={t("membership.bySector")}
             rows={r.bySector}
             rowKey={(s) => s.key}
             defaultSort={{ column: "count", direction: "descending" }}
-            empty={<EmptyBlock size="sm" icon="Briefcase" title="No business in a PSF sector yet" />}
+            empty={<EmptyBlock size="sm" icon="Briefcase" title={t("membership.noSector")} />}
             columns={[
-              { id: "label", header: "Sector", isRowHeader: true, sortValue: (s) => s.label, cell: (s) => s.label },
+              {
+                id: "label",
+                header: t("common.sector"),
+                isRowHeader: true,
+                sortValue: (s) => s.label,
+                cell: (s) => s.label,
+              },
               {
                 id: "count",
-                header: "Businesses",
+                header: t("common.businesses"),
                 align: "end",
                 sortValue: (s) => s.count,
                 cell: (s) => <span className="tabular">{formatNumber(s.count)}</span>,
               },
               {
                 id: "fees",
-                header: "Fees",
+                header: view === "ours" ? t("common.ourRevenue") : t("common.allFees"),
                 align: "end",
-                sortValue: (s) => s.amountRwf,
-                cell: (s) => <span className="tabular">{formatMoney(s.amountRwf)}</span>,
+                sortValue: (s) => amount({ totalRwf: s.amountRwf, districtRwf: s.districtRwf, headquartersRwf: s.headquartersRwf }),
+                cell: (s) => <span className="tabular">{formatMoney(amount({ totalRwf: s.amountRwf, districtRwf: s.districtRwf, headquartersRwf: s.headquartersRwf }))}</span>,
               },
             ]}
             mobile={{
@@ -666,41 +780,68 @@ function Membership({ r }: { r: PsfReport }) {
         </SectionCard>
       </div>
       {r.districts.length > 0 ? (
-        <SectionCard title="By district" contentClassName="gap-0">
+        <SectionCard title={t("membership.byDistrict")} contentClassName="gap-0">
           <DataTable
-            label="By district"
+            label={t("membership.byDistrict")}
             rows={r.districts}
             rowKey={(d) => String(d.districtId)}
             defaultSort={{ column: "members", direction: "descending" }}
             columns={[
-              { id: "name", header: "District", isRowHeader: true, sortValue: (d) => d.name, cell: (d) => d.name },
+              {
+                id: "name",
+                header: t("common.district"),
+                isRowHeader: true,
+                sortValue: (d) => d.name,
+                cell: (d) => d.name,
+              },
               {
                 id: "waiting",
-                header: "Waiting",
+                header: t("common.waiting"),
                 align: "end",
                 sortValue: (d) => d.waiting,
                 cell: (d) => formatNumber(d.waiting),
               },
               {
                 id: "overdue",
-                header: "Overdue",
+                header: t("common.overdue"),
                 align: "end",
                 sortValue: (d) => d.overdue,
                 cell: (d) => formatNumber(d.overdue),
               },
               {
                 id: "members",
-                header: "Members",
+                header: t("common.members"),
                 align: "end",
                 sortValue: (d) => d.members,
                 cell: (d) => formatNumber(d.members),
               },
               {
-                id: "fees",
-                header: "Fees",
+                id: "fees-new",
+                header: t("membership.feesNew"),
                 align: "end",
-                sortValue: (d) => d.membershipFeesRwf,
-                cell: (d) => formatMoney(d.membershipFeesRwf),
+                sortValue: (d) => amount(d.fees.application),
+                cell: (d) => formatMoney(amount(d.fees.application)),
+              },
+              {
+                id: "fees-renewal",
+                header: t("membership.feesRenewals"),
+                align: "end",
+                sortValue: (d) => amount(d.fees.renewal),
+                cell: (d) => formatMoney(amount(d.fees.renewal)),
+              },
+              {
+                id: "fees-upgrade",
+                header: t("membership.feesUpgrades"),
+                align: "end",
+                sortValue: (d) => amount(d.fees.upgrade),
+                cell: (d) => formatMoney(amount(d.fees.upgrade)),
+              },
+              {
+                id: "fees",
+                header: view === "ours" ? t("common.ourRevenue") : t("common.allFees"),
+                align: "end",
+                sortValue: (d) => amount(psfFeeTotal(d.fees)),
+                cell: (d) => formatMoney(amount(psfFeeTotal(d.fees))),
               },
             ]}
             mobile={{ title: (d) => d.name, trailing: (d) => formatNumber(d.members) }}
@@ -711,104 +852,134 @@ function Membership({ r }: { r: PsfReport }) {
   );
 }
 
-const STATUS_WORD: Record<string, string> = {
-  active: "Open",
-  approved: "Approved, owner to claim",
-  rejected: "Rejected",
-  suspended: "Suspended",
-  submitted: "In review",
-  tin_verified: "In review",
-  field_verified: "Waiting for approval",
-};
-
 function Approvals({ r }: { r: PsfReport }) {
+  const t = useTranslations("psfReports");
+  const periodBefore = t("common.periodBefore");
   const g = r.registrations;
+  const days = (value: number | null) =>
+    value === null
+      ? "—"
+      : value < 1
+        ? t("common.underADay")
+        : t("common.days", { count: Math.round(value) });
+  const waitKpi = (id: string, value: number | null, from: string): KpiItem => {
+    if (value === null)
+      return {
+        id,
+        label: t("common.timeToDecide"),
+        value: 0,
+        format: "count",
+        icon: "Clock",
+        footnote: t("common.nothingDecided"),
+      };
+    const hours = value < 1;
+    return {
+      id,
+      label: t("common.timeToDecide"),
+      value: hours ? Math.max(1, Math.round(value * 24)) : Math.round(value * 10) / 10,
+      format: "count",
+      icon: "Clock",
+      footnote: `${hours ? t("common.medianHours") : t("common.medianDays")}, ${from}`,
+    };
+  };
+  const statusWord = (status: string): string => {
+    const words: Record<string, string> = {
+      active: t("approvals.status.open"),
+      approved: t("approvals.status.approved"),
+      rejected: t("approvals.status.rejected"),
+      suspended: t("approvals.status.suspended"),
+      submitted: t("approvals.status.submitted"),
+      tin_verified: t("approvals.status.submitted"),
+      field_verified: t("approvals.status.fieldVerified"),
+    };
+    return words[status] ?? status;
+  };
   return (
     <>
       <KpiStrip
-        label="Business approvals"
+        label={t("approvals.title")}
         items={[
           {
             id: "waiting",
-            label: "To review",
+            label: t("approvals.toReview"),
             value: g.waitingReview,
             format: "count",
             icon: "ShieldCheck",
             status: g.waitingReview > 0 ? "warning" : undefined,
-            footnote: g.waitingReview ? "Review them" : "None waiting",
+            footnote: g.waitingReview ? t("approvals.reviewThem") : t("overview.noneWaiting"),
             href: "/officer",
           },
           {
             id: "approved",
-            label: "Approved",
+            label: t("common.approved"),
             value: g.approvedInPeriod.value,
             format: "count",
             icon: "CircleCheck",
-            trend: trend(g.approvedInPeriod),
+            trend: trend(g.approvedInPeriod, "up", periodBefore),
           },
           {
             id: "rejected",
-            label: "Rejected",
+            label: t("common.rejected"),
             value: g.rejectedInPeriod.value,
             format: "count",
             icon: "FileCheck",
-            trend: trend(g.rejectedInPeriod, "down"),
+            trend: trend(g.rejectedInPeriod, "down", periodBefore),
           },
-          waitKpi("days", g.medianDaysToDecision, "from the fee"),
+          waitKpi("days", g.medianDaysToDecision, t("approvals.fromFee")),
           {
             id: "unpaid",
-            label: "Fee not paid",
+            label: t("approvals.feeNotPaid"),
             value: g.waitingPayment,
             format: "count",
             icon: "Wallet",
-            footnote: "Started, not yet in review",
+            footnote: t("approvals.startedNotReview"),
           },
         ]}
       />
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <MonthBars
           className="lg:col-span-2"
-          title="Registrations by month"
-          description="Fees paid, and the decisions taken"
+          title={t("approvals.registrationsByMonth")}
+          description={t("approvals.registrationsByMonthLead")}
           rows={g.months}
           series={[
-            { key: "submitted", label: "Fees paid" },
-            { key: "approved", label: "Approved" },
-            { key: "rejected", label: "Rejected" },
+            { key: "submitted", label: t("common.feesPaid") },
+            { key: "approved", label: t("common.approved") },
+            { key: "rejected", label: t("common.rejected") },
           ]}
-          noun="over the last twelve months"
-          empty="No registration in these months"
+          noun={t("common.overTwelveMonths")}
+          empty={t("approvals.noRegistration")}
         />
         <CountDonut
-          title="Where every registration stands"
-          description="Today"
-          totalLabel="Businesses"
-          noun="businesses"
+          title={t("approvals.whereStands")}
+          description={t("common.today")}
+          totalLabel={t("membership.totalBusinessesLabel")}
+          noun={t("membership.businessNoun")}
           data={[
-            { key: "review", label: "Waiting for review", count: g.waitingReview },
-            { key: "approval", label: "Waiting for approval", count: g.waitingApproval },
-            { key: "open", label: "Approved and open", count: g.active },
-            { key: "rejected", label: "Rejected", count: g.rejected },
-            { key: "suspended", label: "Suspended", count: g.suspended },
+            { key: "review", label: t("approvals.status.submitted"), count: g.waitingReview },
+            { key: "approval", label: t("approvals.status.fieldVerified"), count: g.waitingApproval },
+            { key: "open", label: t("approvals.status.open"), count: g.active },
+            { key: "rejected", label: t("approvals.status.rejected"), count: g.rejected },
+            { key: "suspended", label: t("approvals.status.suspended"), count: g.suspended },
           ]}
-          empty={{ icon: "ShieldCheck", title: "No registration yet" }}
+          empty={{ icon: "ShieldCheck", title: t("approvals.noRegistrationYet") }}
         />
       </div>
       <SectionCard
-        title="Businesses decided in the period"
-        description="Open one to see its documents, who decided and whether guests can book it"
+        title={t("approvals.decidedInPeriod")}
+        description={t("approvals.decidedInPeriodLead")}
         contentClassName="gap-0"
       >
         <DataTable
-          label="Businesses decided in the period"
+          label={t("approvals.decidedInPeriod")}
           rows={g.decided}
           rowKey={(d) => `${d.orgId}-${d.decidedAt}`}
           defaultSort={{ column: "when", direction: "descending" }}
-          empty={<EmptyBlock size="sm" icon="ShieldCheck" title="No business decided in this period" />}
+          empty={<EmptyBlock size="sm" icon="ShieldCheck" title={t("approvals.noDecided")} />}
           columns={[
             {
               id: "name",
-              header: "Business",
+              header: t("common.business"),
               isRowHeader: true,
               sortValue: (d) => d.legalName,
               cell: (d) => (
@@ -817,20 +988,35 @@ function Approvals({ r }: { r: PsfReport }) {
                 </NextLink>
               ),
             },
-            { id: "kind", header: "Kind", sortValue: (d) => d.kindLabel, cell: (d) => d.kindLabel },
+            { id: "kind", header: t("common.kind"), sortValue: (d) => d.kindLabel, cell: (d) => d.kindLabel },
             {
               id: "decision",
-              header: "Decision",
+              header: t("common.decision"),
               sortValue: (d) => d.decision,
               cell: (d) => (
                 <StatusChip tone={d.decision === "approved" ? "success" : "danger"}>
-                  {d.decision === "approved" ? "Approved" : "Rejected"}
+                  {d.decision === "approved" ? t("common.approved") : t("common.rejected")}
                 </StatusChip>
               ),
             },
-            { id: "by", header: "Decided by", sortValue: (d) => d.decidedBy ?? "", cell: (d) => d.decidedBy ?? "—" },
-            { id: "when", header: "Date", sortValue: (d) => d.decidedAt, cell: (d) => formatDay(d.decidedAt) },
-            { id: "now", header: "Now", sortValue: (d) => d.status, cell: (d) => STATUS_WORD[d.status] ?? d.status },
+            {
+              id: "by",
+              header: t("common.decidedBy"),
+              sortValue: (d) => d.decidedBy ?? "",
+              cell: (d) => d.decidedBy ?? "—",
+            },
+            {
+              id: "when",
+              header: t("common.date"),
+              sortValue: (d) => d.decidedAt,
+              cell: (d) => formatDay(d.decidedAt),
+            },
+            {
+              id: "now",
+              header: t("common.now"),
+              sortValue: (d) => d.status,
+              cell: (d) => statusWord(d.status),
+            },
           ]}
           mobile={{
             title: (d) => (
@@ -841,7 +1027,7 @@ function Approvals({ r }: { r: PsfReport }) {
             description: (d) => `${d.kindLabel} · ${formatDay(d.decidedAt)}`,
             trailing: (d) => (
               <StatusChip tone={d.decision === "approved" ? "success" : "danger"}>
-                {d.decision === "approved" ? "Approved" : "Rejected"}
+                {d.decision === "approved" ? t("common.approved") : t("common.rejected")}
               </StatusChip>
             ),
           }}
@@ -852,80 +1038,82 @@ function Approvals({ r }: { r: PsfReport }) {
 }
 
 function Economy({ r }: { r: PsfReport }) {
+  const t = useTranslations("psfReports");
+  const periodBefore = t("common.periodBefore");
   const e = r.economy;
   const open = e.activeBusinesses.reduce((n, b) => n + b.count, 0);
   return (
     <>
       <KpiStrip
-        label="District economy"
+        label={t("economy.title")}
         items={[
           {
             id: "open",
-            label: "Open businesses",
+            label: t("economy.openBusinesses"),
             value: open,
             format: "count",
             icon: "House",
-            footnote: "Approved on Injishi",
+            footnote: t("economy.approvedOnInjishi"),
           },
           {
             id: "bookings",
-            label: "Bookings arriving",
+            label: t("economy.bookingsArriving"),
             value: e.bookings.value,
             format: "count",
             icon: "Calendar",
-            trend: trend(e.bookings),
+            trend: trend(e.bookings, "up", periodBefore),
           },
           {
             id: "nights",
-            label: "Guest nights",
+            label: t("common.guestNights"),
             value: e.guestNights.value,
             format: "count",
             icon: "Persons",
-            trend: trend(e.guestNights),
+            trend: trend(e.guestNights, "up", periodBefore),
           },
           {
             id: "value",
-            label: "Booked value",
+            label: t("common.bookedValue"),
             value: e.bookedValueRwf.value,
             format: "money",
             icon: "Wallet",
-            trend: trend(e.bookedValueRwf),
+            trend: trend(e.bookedValueRwf, "up", periodBefore),
           },
         ]}
       />
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <MonthBars
           className="lg:col-span-2"
-          title="Stays by month"
-          description="By the month guests arrive"
+          title={t("economy.staysByMonth")}
+          description={t("economy.staysByMonthLead")}
           rows={e.months}
           series={[
-            { key: "bookings", label: "Bookings" },
-            { key: "guestNights", label: "Guest nights" },
+            { key: "bookings", label: t("common.bookings") },
+            { key: "guestNights", label: t("common.guestNights") },
           ]}
-          noun="over the last twelve months"
-          empty="No stay booked in these months"
+          noun={t("common.overTwelveMonths")}
+          empty={t("economy.noStayBooked")}
         />
         <CountDonut
-          title="Open businesses by kind"
-          description="Today"
-          totalLabel="Businesses"
-          noun="businesses"
+          title={t("economy.openByKind")}
+          description={t("common.today")}
+          totalLabel={t("economy.totalBusinessesLabel")}
+          noun={t("economy.businessNoun")}
           data={e.activeBusinesses.map((b) => ({ key: b.key, label: b.label, count: b.count }))}
-          empty={{ icon: "House", title: "No business is open yet" }}
+          empty={{ icon: "House", title: t("economy.noBusinessOpen") }}
         />
       </div>
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <MoneyArea
           className="lg:col-span-2"
-          title="Booked value by month"
-          description="What the stays arriving each month are worth"
+          title={t("economy.valueByMonth")}
+          description={t("economy.valueByMonthLead")}
           rows={e.months.map((m) => ({ month: m.month, value: m.valueRwf }))}
-          empty="No stay booked in these months"
+          empty={t("economy.noStayBooked")}
         />
-        <SectionCard title="Selling the most stays" description="In the period" contentClassName="gap-0">
+        <SectionCard title={t("economy.sellingMost")} description={t("economy.inPeriod")} contentClassName="gap-0">
           {e.topBusinesses.length === 0 ? (
-            <EmptyBlock size="sm" icon="House" title="No stay booked in this period" />
+            <EmptyBlock size="sm" icon="House" title={t("economy.noStayThisPeriod")} />
           ) : (
             <ol className="flex flex-col">
               {e.topBusinesses.map((b, i) => (
@@ -941,7 +1129,10 @@ function Economy({ r }: { r: PsfReport }) {
                       {b.legalName}
                     </NextLink>
                     <span className="text-xs text-muted">
-                      {formatNumber(b.bookings)} bookings · {formatNumber(b.guestNights)} guest nights
+                      {t("economy.bookingLine", {
+                        bookings: formatNumber(b.bookings),
+                        nights: formatNumber(b.guestNights),
+                      })}
                     </span>
                   </span>
                   <span className="text-sm font-medium tabular">{formatMoney(b.valueRwf, { compact: true })}</span>
@@ -956,20 +1147,21 @@ function Economy({ r }: { r: PsfReport }) {
 }
 
 function Members({ r }: { r: PsfReport }) {
+  const t = useTranslations("psfReports");
   const n = r.now;
   const windows = [
-    { month: "0", label: "Within 30 days", count: n.expiringIn30Days },
-    { month: "1", label: "31 to 60 days", count: Math.max(0, n.expiringIn60Days - n.expiringIn30Days) },
-    { month: "2", label: "61 to 90 days", count: Math.max(0, n.expiringIn90Days - n.expiringIn60Days) },
+    { month: "0", label: t("members.within30"), count: n.expiringIn30Days },
+    { month: "1", label: t("members.days31to60"), count: Math.max(0, n.expiringIn60Days - n.expiringIn30Days) },
+    { month: "2", label: t("members.days61to90"), count: Math.max(0, n.expiringIn90Days - n.expiringIn60Days) },
   ];
   return (
     <>
       <KpiStrip
-        label="Member register today"
+        label={t("members.title")}
         items={[
           {
             id: "members",
-            label: "Members",
+            label: t("members.memberLabel"),
             value: n.members,
             format: "count",
             icon: "Persons",
@@ -977,15 +1169,15 @@ function Members({ r }: { r: PsfReport }) {
           },
           {
             id: "unpaid",
-            label: "Approved, fee not paid",
+            label: t("members.approvedNotPaid"),
             value: n.awaitingPayment,
             format: "count",
             icon: "Wallet",
-            footnote: "Members once they pay",
+            footnote: t("members.membersOnceTheyPay"),
           },
           {
             id: "renew",
-            label: "Renew in 30 days",
+            label: t("members.renewIn30"),
             value: n.expiringIn30Days,
             format: "count",
             icon: "Clock",
@@ -993,12 +1185,12 @@ function Members({ r }: { r: PsfReport }) {
           },
           {
             id: "lapsed",
-            label: "Lapsed",
+            label: t("members.lapsed"),
             value: n.lapsed,
             format: "count",
             icon: "Calendar",
             status: n.lapsed > 0 ? "danger" : undefined,
-            footnote: "Past their end, not renewed",
+            footnote: t("members.pastEndNotRenewed"),
             href: "/psf/register?standing=lapsed",
           },
         ]}
@@ -1006,12 +1198,18 @@ function Members({ r }: { r: PsfReport }) {
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <ChartCard
           className="lg:col-span-2"
-          title="Renewals ahead"
-          description="Memberships ending in the next 90 days"
+          title={t("members.renewalsAhead")}
+          description={t("members.renewalsAheadLead")}
           isEmpty={n.expiringIn90Days === 0}
-          empty={{ icon: "Calendar", title: "No membership ends in the next 90 days" }}
-          summary={`${formatNumber(n.expiringIn90Days)} memberships end in the next 90 days, ${formatNumber(n.expiringIn30Days)} of them within 30.`}
-          table={{ columns: ["Window", "Memberships"], rows: windows.map((w) => [w.label, formatNumber(w.count)]) }}
+          empty={{ icon: "Calendar", title: t("members.noMembershipEnds") }}
+          summary={t("members.renewalsSummary", {
+            total: formatNumber(n.expiringIn90Days),
+            soon: formatNumber(n.expiringIn30Days),
+          })}
+          table={{
+            columns: [t("members.window"), t("members.memberships")],
+            rows: windows.map((w) => [w.label, formatNumber(w.count)]),
+          }}
         >
           <BarChart data={windows} height={220} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
             <BarChart.Grid vertical={false} />
@@ -1020,7 +1218,7 @@ function Members({ r }: { r: PsfReport }) {
             <BarChart.Tooltip cursor={{ fill: "var(--default)", opacity: 0.6 }} content={<BarChart.TooltipContent />} />
             <BarChart.Bar
               dataKey="count"
-              name="Memberships"
+              name={t("members.memberships")}
               fill={CHART_COLOR.cat(1)}
               radius={[4, 4, 0, 0]}
               maxBarSize={48}
@@ -1028,36 +1226,36 @@ function Members({ r }: { r: PsfReport }) {
           </BarChart>
         </ChartCard>
         <CountDonut
-          title="Standing"
-          description="Every business with PSF today"
-          totalLabel="Businesses"
-          noun="businesses"
+          title={t("members.standing")}
+          description={t("members.standingLead")}
+          totalLabel={t("members.totalBusinessesLabel")}
+          noun={t("members.businessNoun")}
           data={[
-            { key: "member", label: "Members", count: n.members },
-            { key: "unpaid", label: "Approved, not paid", count: n.awaitingPayment },
-            { key: "waiting", label: "Waiting on PSF", count: n.waiting },
-            { key: "lapsed", label: "Lapsed", count: n.lapsed },
+            { key: "member", label: t("members.memberLabel"), count: n.members },
+            { key: "unpaid", label: t("members.approvedNotPaidShort"), count: n.awaitingPayment },
+            { key: "waiting", label: t("members.waitingOnPsf"), count: n.waiting },
+            { key: "lapsed", label: t("members.lapsed"), count: n.lapsed },
           ]}
-          empty={{ icon: "Persons", title: "No business with PSF yet" }}
+          empty={{ icon: "Persons", title: t("members.noBusinessWithPsf") }}
         />
       </div>
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <MonthBars
           className="lg:col-span-2"
-          title="New members by month"
-          description="Memberships that began each month"
-          rows={r.months}
-          series={[{ key: "members", label: "New members" }]}
-          noun="over the last twelve months"
-          empty="No membership began in these months"
+          title={t("members.newByMonth")}
+          description={t("members.newByMonthLead")}
+          rows={barMonths(r)}
+          series={[{ key: "members", label: t("common.newMembers") }]}
+          noun={t("common.overTwelveMonths")}
+          empty={t("members.noMembershipBegan")}
         />
         <CountDonut
-          title="Members by tier"
-          description="Today"
-          totalLabel="Members"
-          noun="members"
-          data={tierSlices(r)}
-          empty={{ icon: "Persons", title: "No member yet" }}
+          title={t("membership.membersByTier")}
+          description={t("common.today")}
+          totalLabel={t("members.memberLabel")}
+          noun={t("members.memberNoun")}
+          data={tierSlices(r, t("common.noTier"))}
+          empty={{ icon: "Persons", title: t("membership.noMemberYet") }}
         />
       </div>
     </>
@@ -1081,15 +1279,18 @@ export function PsfReportsView({
   report: PsfReport;
   today: string;
 }) {
+  const t = useTranslations("psfReports");
+  const meta = useReportMeta();
   const router = useRouter();
   const pathname = usePathname();
-  const meta = PSF_REPORTS.find((r) => r.id === id) ?? PSF_REPORTS[0];
+  const params = useSearchParams();
+  const current = meta[id];
   const period = periodFromRange(report.from, report.to, today);
-  const span = `${formatDay(report.from)} to ${formatDay(report.to)}`;
+  const span = t("common.range", { from: formatDay(report.from), to: formatDay(report.to) });
   // Every part of the report, as CSV, Excel, PDF or Word (2026-11-02).
   const exportRows = async (): Promise<ExportTable> => ({
     filename: `psf-${id}-${report.from}-to-${report.to}`,
-    title: `PSF · ${meta.title}`,
+    title: `PSF · ${current.title}`,
     subtitle: `${report.regionLabel}, ${span} · ${scope.title}`,
     sections: csvFor(id, report).map((sec) => ({ title: sec.title, heading: sec.columns, rows: sec.rows })),
   });
@@ -1098,13 +1299,13 @@ export function PsfReportsView({
       <PageContent>
         <PageHeader
           eyebrow={`${scope.title} · ${report.regionLabel}`}
-          title={meta.title}
-          description={`${meta.blurb} ${span}.`}
+          title={current.title}
+          description={`${current.blurb} ${span}.`}
           actions={
             <div className="flex flex-wrap items-center gap-2 print:hidden">
               <ExportMenu load={exportRows} />
               <ActionButton icon="Printer" intent="primary" onPress={() => window.print()}>
-                Print
+                {t("common.print")}
               </ActionButton>
             </div>
           }
@@ -1115,12 +1316,11 @@ export function PsfReportsView({
             today={today}
             allowFuture
             maxDays={731}
-            onChange={(p) => router.push(`${pathname}?from=${p.start}&to=${p.end}`, { scroll: false })}
-            label="Report period"
+            onChange={(p) => router.push(`${pathname}?from=${p.start}&to=${p.end}${params.get("fees") === "ours" ? "&fees=ours" : ""}`, { scroll: false })}
+            label={t("common.reportPeriod")}
           />
-          <span className="text-xs text-muted">
-            Figures today, like renewals and standing, do not depend on the period.
-          </span>
+          <span className="text-xs text-muted">{t("common.periodNote")}</span>
+          {id === "overview" || id === "membership" ? <FeeViewSwitch ours={report.fees.ourShare} districtPercent={report.split.districtPercent} /> : null}
         </div>
         {id === "membership" ? (
           <Membership r={report} />

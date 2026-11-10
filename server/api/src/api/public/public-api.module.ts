@@ -1,3 +1,6 @@
+import { OpsAssetLoansController, OpsHrTicketsController } from './ops/hr-desk.controller';
+import { ApplicationsController } from './applications/applications.controller';
+import { OpsTalentController } from './ops/talent.controller';
 import { Module } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
 
@@ -13,6 +16,7 @@ import { OperationsModule } from '../../modules/operations/operations.module';
 import { OutletsModule } from '../../modules/outlets/outlets.module';
 import { OrganizationModule } from '../../modules/organization/organization.module';
 import { ListsModule } from '../../modules/lists/lists.module';
+import { HrFeaturesModule } from '../../modules/hr/hr-features.module';
 import { PeopleModule } from '../../modules/hr/people.module';
 import { RentalsModule } from '../../modules/rentals/rentals.module';
 import { StorageModule } from '../../modules/storage/storage.module';
@@ -37,8 +41,10 @@ import { LeaseInvitationsController } from './lease-invitations/lease-invitation
 import { MeStaysController } from './me/stays.controller';
 import { MeWorkController } from './me/work.controller';
 import { MeWorkChecklistsController } from './me/work-checklists.controller';
+import { MeWorkContentController } from './me/work-content.controller';
 import { MeWorkDocumentsController } from './me/work-documents.controller';
 import { MeWorkLeaveController } from './me/work-leave.controller';
+import { MeWorkDeskController } from './me/work-desk.controller';
 import { MeWorkPayController } from './me/work-pay.controller';
 import { KioskController } from './kiosk/kiosk.controller';
 import { TwoFactorController } from './me/two-factor.controller';
@@ -52,6 +58,7 @@ import {
   MeCollectionsController,
   MeConsentsController,
   MeGuestContactController,
+  MeLanguagePreferenceController,
   MeSavedController,
   MeTripFactsController,
 } from './me/saved.controller';
@@ -72,6 +79,7 @@ import { OpsDocumentRequestsController } from './ops/document-requests.controlle
 import { OpsDocumentsController } from './ops/documents.controller';
 import { OpsHrController } from './ops/hr.controller';
 import { OpsOrgChartController } from './ops/org-chart.controller';
+import { OpsHrFeaturesController } from './ops/hr-features.controller';
 import { OpsHrWorkforceController, OpsRosterCoverController } from './ops/hr-workforce.controller';
 import { OpsPayAccountsController } from './ops/pay-accounts.controller';
 import { OpsChecklistsController } from './ops/checklists.controller';
@@ -93,6 +101,7 @@ import {
   OpsPayClaimsController,
   OpsPayComponentsController,
   OpsPayFilesController,
+  OpsPayrollContributionsController,
   OpsPayrollController,
   OpsPayslipsController,
   OpsPayStructuresController,
@@ -207,6 +216,7 @@ import { UploadsController } from './uploads/uploads.controller';
 import { SupportModule } from './support/support.module';
 import { AssistantPublicModule } from './assistant/assistant.module';
 import { TrainingPublicModule } from './training/training.module';
+import { EntitlementCheck } from '../../shared/entitlements/entitlement-check';
 
 /**
  * Public API (/api/v1). Controllers here compose application services from the
@@ -241,6 +251,7 @@ import { TrainingPublicModule } from './training/training.module';
     OrganizationModule,
     // The HR module (ADR-058): files, roster, attendance, leave and pay.
     PeopleModule,
+    HrFeaturesModule,
     // Rentals, rebuilt (blueprint 2.2): residence businesses only.
     RentalsModule,
     // Brokers (P5): plans, opted-in homes, reveals, placements, the registration fee.
@@ -340,6 +351,7 @@ import { TrainingPublicModule } from './training/training.module';
     OpsOrgChartController,
     // The new interface's HR screens (real-data, people): teams, cover, compensation, checklists, dependants.
     OpsHrWorkforceController,
+    OpsHrFeaturesController,
     OpsRosterCoverController,
     // Saved list views for every list (058-list-framework).
     OpsListViewsController,
@@ -364,6 +376,11 @@ import { TrainingPublicModule } from './training/training.module';
     OpsLoansController,
     OpsPayClaimsController,
     OpsPayComponentsController,
+    OpsPayrollContributionsController,
+    OpsHrTicketsController,
+    OpsAssetLoansController,
+    OpsTalentController,
+    ApplicationsController,
     OpsPayStructuresController,
     OpsContractsController,
     OpsPayrollController,
@@ -459,14 +476,17 @@ import { TrainingPublicModule } from './training/training.module';
     MeCollectionsController,
     MeConsentsController,
     MeGuestContactController,
+    MeLanguagePreferenceController,
     MeTripFactsController,
     MeBusinessesController,
     MeWorkController,
     MeWorkLeaveController,
     MeWorkStaffController,
     MeWorkPayController,
+    MeWorkDeskController,
     MeWorkChecklistsController,
     MeWorkDocumentsController,
+    MeWorkContentController,
     KioskController,
     TwoFactorController,
     PasswordController,
@@ -476,7 +496,8 @@ import { TrainingPublicModule } from './training/training.module';
   ],
   // WorkspaceService is the one resolver of "which workspaces does this user
   // hold" (Spec 0004). WorkspaceGuard depends on it; DatabaseModule is @Global
-  // so DRIZZLE resolves without importing it here.
-  providers: [WorkspaceService, TwoFactorService, RealtimeGateway],
+  // so DRIZZLE resolves without importing it here. KioskGuard asks
+  // EntitlementCheck whether HR is on at a kiosk's branch (ADR-076 G9).
+  providers: [WorkspaceService, TwoFactorService, RealtimeGateway, EntitlementCheck],
 })
 export class PublicApiModule {}

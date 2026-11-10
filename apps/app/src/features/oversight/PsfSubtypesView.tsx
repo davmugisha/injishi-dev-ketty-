@@ -4,7 +4,9 @@ import { Alert, Button, Input } from "@heroui/react";
 import type { PsfSubsectorsView } from "@injishi/contracts";
 import { EmptyBlock, PageContent, PageHeader, SectionCard, StatusChip } from "@injishi/ui";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import type { PsfScope } from "@/server/sources/psf";
+import { psfSetupCall } from "./psf-setup-actions";
 import { createPsfSubtypeAction, updatePsfSubtypeAction } from "./psf-subtypes-actions";
 
 type View = PsfSubsectorsView;
@@ -19,6 +21,7 @@ type Saved = (next: View, message: string) => void;
  * the national list; a province or district officer adds subtypes for their districts.
  */
 export function PsfSubtypesView({ scope, initial }: { scope: PsfScope; initial: View }) {
+  const t = useTranslations("psfOperations.subtypes");
   const [view, setView] = useState(initial);
   const [note, setNote] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
   const saved: Saved = (next, message) => {
@@ -30,8 +33,8 @@ export function PsfSubtypesView({ scope, initial }: { scope: PsfScope; initial: 
     <PageContent>
       <PageHeader
         eyebrow={`${scope.title} · ${scope.label}`}
-        title="Subtypes"
-        description="The kinds of business and the associations the public PSF form offers, sector by sector."
+        title={t("title")}
+        description={t("description")}
       />
 
       <Alert status="accent">
@@ -55,6 +58,8 @@ export function PsfSubtypesView({ scope, initial }: { scope: PsfScope; initial: 
         </Alert>
       ) : null}
 
+      {view.places.some((p) => p.districtId === null) ? <AddSector onSaved={saved} onFailed={(text) => setNote({ tone: "danger", text })} /> : null}
+
       {view.clusters.map((c) => (
         <ClusterCard key={c.code} cluster={c} view={view} onSaved={saved} onFailed={(text) => setNote({ tone: "danger", text })} />
       ))}
@@ -62,10 +67,89 @@ export function PsfSubtypesView({ scope, initial }: { scope: PsfScope; initial: 
   );
 }
 
+/** The National Manager adds a sector (2026-11-06): it reaches the form at once, with an "Other" association. */
+function AddSector({ onSaved, onFailed }: { onSaved: Saved; onFailed: (text: string) => void }) {
+  const [name, setName] = useState("");
+  return (
+    <SectionCard title="Add a sector" description="A new sector on the public form, beside the ones below." contentClassName="gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Input aria-label="Sector name" className="w-64" value={name} onChange={(e) => setName(e.target.value)} />
+        <Button
+          size="sm"
+          variant="primary"
+          isDisabled={name.trim().length < 2}
+          onPress={async () => {
+            const res = await psfSetupCall<View>("post", "clusters", { name: name.trim() });
+            if (!res.ok) return onFailed(res.error);
+            onSaved(res.value, `${name.trim()} added to the form.`);
+            setName("");
+          }}
+        >
+          Add sector
+        </Button>
+      </div>
+    </SectionCard>
+  );
+}
+
+/** A sector's name and associations, for the National Manager (2026-11-06). */
+function SectorControls({ cluster, associations, onSaved, onFailed }: { cluster: Cluster; associations: Association[]; onSaved: Saved; onFailed: (text: string) => void }) {
+  const [name, setName] = useState(cluster.nameEn);
+  const [association, setAssociation] = useState("");
+  const call = async (method: "post" | "patch", path: string, body: unknown, message: string): Promise<boolean> => {
+    const res = await psfSetupCall<View>(method, path, body);
+    if (!res.ok) {
+      onFailed(res.error);
+      return false;
+    }
+    onSaved(res.value, message);
+    return true;
+  };
+  return (
+    <div className="flex flex-col gap-3 rounded-lg bg-surface-secondary p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Input aria-label="Sector name" className="w-56" value={name} onChange={(e) => setName(e.target.value)} />
+        <Button size="sm" variant="secondary" isDisabled={name.trim().length < 2 || name.trim() === cluster.nameEn} onPress={() => void call("patch", `clusters/${cluster.code}`, { name: name.trim() }, `Renamed to ${name.trim()}.`)}>
+          Rename sector
+        </Button>
+        <Button size="sm" variant="ghost" onPress={() => { if (window.confirm(`Take ${cluster.nameEn} off the form? Businesses already in it stay.`)) void call("patch", `clusters/${cluster.code}`, { active: false }, `${cluster.nameEn} is off the form.`); }}>
+          Retire sector
+        </Button>
+      </div>
+      <ul className="flex flex-wrap gap-2 text-sm">
+        {associations.map((a) => (
+          <li key={a.code} className="flex items-center gap-1 rounded-full border border-border px-3 py-1">
+            {a.nameEn}
+            <button type="button" aria-label={`Remove ${a.nameEn}`} className="text-muted hover:text-foreground" onClick={() => void call("patch", `associations/${a.code}`, { active: false }, `${a.nameEn} is off the form.`)}>
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap items-center gap-2">
+        <Input aria-label="Association name" placeholder="New association" className="w-72" value={association} onChange={(e) => setAssociation(e.target.value)} />
+        <Button
+          size="sm"
+          variant="secondary"
+          isDisabled={association.trim().length < 2}
+          onPress={async () => {
+            if (await call("post", "associations", { clusterCode: cluster.code, name: association.trim() }, `${association.trim()} added to ${cluster.nameEn}.`)) setAssociation("");
+          }}
+        >
+          Add association
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function ClusterCard({ cluster, view, onSaved, onFailed }: { cluster: Cluster; view: View; onSaved: Saved; onFailed: (text: string) => void }) {
+  const t = useTranslations("psfOperations.subtypes");
   const [adding, setAdding] = useState(false);
   const associations = view.associations.filter((a) => a.clusterCode === cluster.code && !a.code.endsWith("_other"));
   const offered = cluster.subsectors.filter((s) => s.active).length;
+  // Only a national post can add "National (every district)".
+  const national = view.places.some((p) => p.districtId === null);
   return (
     <SectionCard
       title={cluster.nameEn}
@@ -73,17 +157,18 @@ function ClusterCard({ cluster, view, onSaved, onFailed }: { cluster: Cluster; v
       actions={
         view.places.length && !adding ? (
           <Button size="sm" variant="secondary" onPress={() => setAdding(true)}>
-            Add a subtype
+            {t("add")}
           </Button>
         ) : null
       }
       contentClassName="gap-3"
     >
+      {national ? <SectorControls cluster={cluster} associations={associations} onSaved={onSaved} onFailed={onFailed} /> : null}
       {adding ? (
         <SubtypeForm
           associations={associations}
           places={view.places}
-          submitLabel="Add subtype"
+          submitLabel={t("add")}
           onCancel={() => setAdding(false)}
           onSubmit={async (v) => {
             const res = await createPsfSubtypeAction({ clusterCode: cluster.code, nameEn: v.nameEn, districtId: v.districtId, associationCodes: v.associationCodes });
@@ -95,7 +180,7 @@ function ClusterCard({ cluster, view, onSaved, onFailed }: { cluster: Cluster; v
         />
       ) : null}
       {cluster.subsectors.length === 0 ? (
-        <EmptyBlock size="sm" icon="Briefcase" title="No subtypes yet" description="The form lets a business in this sector type its own kind." />
+        <EmptyBlock size="sm" icon="Briefcase" title={t("empty")} description={t("description")} />
       ) : (
         <ul className="flex flex-col divide-y divide-separator">
           {cluster.subsectors.map((s) => (
@@ -120,6 +205,7 @@ function SubtypeRow({
   onSaved: Saved;
   onFailed: (text: string) => void;
 }) {
+  const t = useTranslations("psfOperations.subtypes");
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const names = sub.associationCodes.map((code) => associations.find((a) => a.code === code)?.nameEn).filter((n): n is string => Boolean(n));
@@ -131,7 +217,7 @@ function SubtypeRow({
           associations={associations}
           places={[]}
           initial={{ nameEn: sub.nameEn, districtId: sub.districtId, associationCodes: sub.associationCodes }}
-          submitLabel="Save"
+          submitLabel={t("save")}
           onCancel={() => setEditing(false)}
           onSubmit={async (v) => {
             const res = await updatePsfSubtypeAction(sub.id, { nameEn: v.nameEn, associationCodes: v.associationCodes });
@@ -150,15 +236,15 @@ function SubtypeRow({
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-center gap-2">
           <span className="font-medium text-foreground">{sub.nameEn}</span>
-          <StatusChip tone={sub.districtId ? "info" : "default"}>{sub.districtId ? `${sub.districtName} only` : "National"}</StatusChip>
-          {!sub.active ? <StatusChip tone="warning">Hidden from the form</StatusChip> : null}
+          <StatusChip tone={sub.districtId ? "info" : "default"}>{sub.districtName ?? "National"}</StatusChip>
+          {!sub.active ? <StatusChip tone="warning">{t("inactive")}</StatusChip> : null}
         </p>
         <p className="mt-0.5 text-xs text-muted">{names.length ? names.join(" · ") : "No association linked: the form offers the whole sector's."}</p>
       </div>
       {sub.canEdit ? (
         <div className="flex shrink-0 items-center gap-2">
           <Button size="sm" variant="secondary" isDisabled={busy} onPress={() => setEditing(true)}>
-            Edit
+            {t("edit")}
           </Button>
           <Button
             size="sm"
@@ -172,7 +258,7 @@ function SubtypeRow({
               onSaved(res.value, sub.active ? `${sub.nameEn} is hidden from the form.` : `${sub.nameEn} is offered again.`);
             }}
           >
-            {sub.active ? "Hide" : "Offer again"}
+            {sub.active ? t("inactive") : t("active")}
           </Button>
         </div>
       ) : (
@@ -197,6 +283,7 @@ function SubtypeForm({
   onCancel: () => void;
   onSubmit: (v: { nameEn: string; districtId: number | null; associationCodes: string[] }) => Promise<string | null>;
 }) {
+  const t = useTranslations("psfOperations.subtypes");
   const [nameEn, setName] = useState(initial?.nameEn ?? "");
   const [place, setPlace] = useState<string>(initial ? String(initial.districtId ?? "") : String(places[0]?.districtId ?? ""));
   const [codes, setCodes] = useState<string[]>(initial?.associationCodes ?? []);
@@ -209,7 +296,7 @@ function SubtypeForm({
       className="flex flex-col gap-4 rounded-xl bg-default/40 p-4"
       onSubmit={async (e) => {
         e.preventDefault();
-        if (nameEn.trim().length < 2) return setProblem("Give the subtype a name.");
+        if (nameEn.trim().length < 2) return setProblem(t("name"));
         setBusy(true);
         setProblem(await onSubmit({ nameEn: nameEn.trim(), districtId: place === "" ? null : Number(place), associationCodes: codes }));
         setBusy(false);
@@ -217,7 +304,7 @@ function SubtypeForm({
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-medium">
-          Name
+          {t("name")}
           <Input value={nameEn} onChange={(e) => setName(e.target.value)} placeholder="Like “Hospitality” or “Beekeeping”" />
         </label>
         {places.length ? (
@@ -238,8 +325,8 @@ function SubtypeForm({
         ) : null}
       </div>
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-medium">Associations it offers</legend>
-        <p className="text-xs text-muted">None picked: the form offers every association of the sector.</p>
+        <legend className="text-sm font-medium">{t("description")}</legend>
+        <p className="text-xs text-muted">{t("search")}</p>
         <div className="flex flex-wrap gap-1.5">
           {associations.map((a) => {
             const on = codes.includes(a.code);
@@ -257,7 +344,7 @@ function SubtypeForm({
           {submitLabel}
         </Button>
         <Button variant="ghost" isDisabled={busy} onPress={onCancel}>
-          Cancel
+          {t("cancel")}
         </Button>
       </div>
     </form>

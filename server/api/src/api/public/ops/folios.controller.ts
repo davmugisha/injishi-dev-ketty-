@@ -29,6 +29,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -55,6 +56,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/folios', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('pms')
 export class OpsFoliosController {
   constructor(private readonly folios: FolioService) {}
 

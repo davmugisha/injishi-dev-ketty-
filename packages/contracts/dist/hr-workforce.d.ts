@@ -266,6 +266,27 @@ export declare const CoverQuery: z.ZodObject<{
     propertyId?: string | undefined;
 }>;
 export type CoverQuery = z.infer<typeof CoverQuery>;
+/**
+ * `PUT /ops/roster/cover`: the fewest people a team needs, per weekday (Monday first), and the shifts
+ * that count. Saving again changes the team's minimum rather than adding another.
+ */
+export declare const SaveCoverRequest: z.ZodObject<{
+    teamId: z.ZodString;
+    shiftTemplateIds: z.ZodArray<z.ZodString, "many">;
+    minByWeekday: z.ZodArray<z.ZodNumber, "many">;
+    note: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+}, "strip", z.ZodTypeAny, {
+    teamId: string;
+    shiftTemplateIds: string[];
+    minByWeekday: number[];
+    note?: string | null | undefined;
+}, {
+    teamId: string;
+    shiftTemplateIds: string[];
+    minByWeekday: number[];
+    note?: string | null | undefined;
+}>;
+export type SaveCoverRequest = z.infer<typeof SaveCoverRequest>;
 /** The terms a contract was made on: its pay, why, and who made it. */
 export declare const ContractTerms: z.ZodObject<{
     contractId: z.ZodString;
@@ -504,128 +525,6 @@ export declare const ExpiringDocumentQuery: z.ZodObject<{
     withinDays?: number | undefined;
 }>;
 export type ExpiringDocumentQuery = z.infer<typeof ExpiringDocumentQuery>;
-export declare const HrChecklistKind: z.ZodEnum<["onboarding", "offboarding"]>;
-export type HrChecklistKind = z.infer<typeof HrChecklistKind>;
-export declare const HrChecklistItem: z.ZodObject<{
-    id: z.ZodString;
-    employeeId: z.ZodString;
-    checklist: z.ZodEnum<["onboarding", "offboarding"]>;
-    code: z.ZodString;
-    title: z.ZodString;
-    detail: z.ZodNullable<z.ZodString>;
-    /** Only someone who may manage the team ticks it. */
-    ownerOnly: z.ZodBoolean;
-    sortOrder: z.ZodNumber;
-    doneAt: z.ZodNullable<z.ZodString>;
-    doneByName: z.ZodNullable<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    code: string;
-    id: string;
-    sortOrder: number;
-    title: string;
-    detail: string | null;
-    employeeId: string;
-    doneAt: string | null;
-    doneByName: string | null;
-    checklist: "onboarding" | "offboarding";
-    ownerOnly: boolean;
-}, {
-    code: string;
-    id: string;
-    sortOrder: number;
-    title: string;
-    detail: string | null;
-    employeeId: string;
-    doneAt: string | null;
-    doneByName: string | null;
-    checklist: "onboarding" | "offboarding";
-    ownerOnly: boolean;
-}>;
-export type HrChecklistItem = z.infer<typeof HrChecklistItem>;
-export declare const HrChecklistItemList: z.ZodObject<{
-    items: z.ZodArray<z.ZodObject<{
-        id: z.ZodString;
-        employeeId: z.ZodString;
-        checklist: z.ZodEnum<["onboarding", "offboarding"]>;
-        code: z.ZodString;
-        title: z.ZodString;
-        detail: z.ZodNullable<z.ZodString>;
-        /** Only someone who may manage the team ticks it. */
-        ownerOnly: z.ZodBoolean;
-        sortOrder: z.ZodNumber;
-        doneAt: z.ZodNullable<z.ZodString>;
-        doneByName: z.ZodNullable<z.ZodString>;
-    }, "strip", z.ZodTypeAny, {
-        code: string;
-        id: string;
-        sortOrder: number;
-        title: string;
-        detail: string | null;
-        employeeId: string;
-        doneAt: string | null;
-        doneByName: string | null;
-        checklist: "onboarding" | "offboarding";
-        ownerOnly: boolean;
-    }, {
-        code: string;
-        id: string;
-        sortOrder: number;
-        title: string;
-        detail: string | null;
-        employeeId: string;
-        doneAt: string | null;
-        doneByName: string | null;
-        checklist: "onboarding" | "offboarding";
-        ownerOnly: boolean;
-    }>, "many">;
-}, "strip", z.ZodTypeAny, {
-    items: {
-        code: string;
-        id: string;
-        sortOrder: number;
-        title: string;
-        detail: string | null;
-        employeeId: string;
-        doneAt: string | null;
-        doneByName: string | null;
-        checklist: "onboarding" | "offboarding";
-        ownerOnly: boolean;
-    }[];
-}, {
-    items: {
-        code: string;
-        id: string;
-        sortOrder: number;
-        title: string;
-        detail: string | null;
-        employeeId: string;
-        doneAt: string | null;
-        doneByName: string | null;
-        checklist: "onboarding" | "offboarding";
-        ownerOnly: boolean;
-    }[];
-}>;
-export type HrChecklistItemList = z.infer<typeof HrChecklistItemList>;
-export declare const HrChecklistQuery: z.ZodObject<{
-    checklist: z.ZodEnum<["onboarding", "offboarding"]>;
-    employeeId: z.ZodOptional<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    checklist: "onboarding" | "offboarding";
-    employeeId?: string | undefined;
-}, {
-    checklist: "onboarding" | "offboarding";
-    employeeId?: string | undefined;
-}>;
-export type HrChecklistQuery = z.infer<typeof HrChecklistQuery>;
-/** Tick a step, or take the tick back. */
-export declare const MarkChecklistItemRequest: z.ZodObject<{
-    done: z.ZodBoolean;
-}, "strip", z.ZodTypeAny, {
-    done: boolean;
-}, {
-    done: boolean;
-}>;
-export type MarkChecklistItemRequest = z.infer<typeof MarkChecklistItemRequest>;
 export declare const DependantRelation: z.ZodEnum<["spouse", "child", "parent", "sibling", "other"]>;
 export type DependantRelation = z.infer<typeof DependantRelation>;
 export declare const EmployeeDependant: z.ZodObject<{

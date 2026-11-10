@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BrokerFeeQuote = exports.BrokerFeePayment = exports.BrokerFeeCheckoutRequest = exports.BrokerFeeMethod = exports.AdminBrokerSubscriptionList = exports.AdminBrokerSubscription = exports.AdminBrokerPlanList = exports.AdminBrokerPlanUpdate = exports.BrokerScope = exports.BrokerHomeDistrictRequest = exports.BrokerPlanChangeRequest = exports.BrokerPlanCheckoutRequest = exports.BrokerPlanOverview = exports.BrokerPlanPayment = exports.BrokerPlan = exports.BROKER_DISTRICT_CHANGE_DAYS = exports.BROKER_PLAN_GRACE_DAYS = exports.BrokerPaymentKind = exports.BrokerPaymentStatus = exports.BROKER_PAY_METHOD_LABEL = exports.BrokerPayMethod = exports.BrokerPlanStatus = exports.BrokerPlanCode = void 0;
+exports.BrokerFeeQuote = exports.BrokerFeePayment = exports.BrokerFeeCheckoutRequest = exports.BrokerFeeMethod = exports.AdminBrokerSubscriptionQuery = exports.AdminBrokerSubscriptionList = exports.AdminBrokerSubscription = exports.AdminBrokerPlanList = exports.AdminBrokerPlanUpdate = exports.BrokerScope = exports.BrokerHomeDistrictRequest = exports.BrokerPlanChangeRequest = exports.BrokerPlanCheckoutRequest = exports.BrokerPlanOverview = exports.BrokerPlanPayment = exports.BrokerPlan = exports.BROKER_DISTRICT_CHANGE_DAYS = exports.BROKER_PLAN_GRACE_DAYS = exports.BrokerPaymentKind = exports.BrokerPaymentStatus = exports.BROKER_PAY_METHOD_LABEL = exports.BrokerPayMethod = exports.BrokerPlanStatus = exports.BrokerPlanCode = void 0;
 exports.provinceLabel = provinceLabel;
 exports.brokerAreaLabel = brokerAreaLabel;
 const zod_1 = require("zod");
@@ -198,7 +198,24 @@ exports.AdminBrokerSubscription = zod_1.z.object({
     paidRwf: zod_1.z.number().int(),
     createdAt: zod_1.z.string(),
 });
-exports.AdminBrokerSubscriptionList = zod_1.z.object({ items: zod_1.z.array(exports.AdminBrokerSubscription), meta: admin_1.AdminListMeta });
+exports.AdminBrokerSubscriptionList = zod_1.z.object({
+    items: zod_1.z.array(exports.AdminBrokerSubscription),
+    meta: admin_1.AdminListMeta,
+    /** How many match every filter but the status, per status (2026-11-09). */
+    statusCounts: zod_1.z.record(exports.BrokerPlanStatus, zod_1.z.number().int().nonnegative()).optional(),
+});
+/** Query params for `GET /admin/brokers/subscriptions` (2026-11-09). */
+exports.AdminBrokerSubscriptionQuery = zod_1.z.object({
+    /** The broker's name or email. */
+    q: zod_1.z.string().trim().max(120).optional(),
+    status: exports.BrokerPlanStatus.optional(),
+    plan: exports.BrokerPlanCode.optional(),
+    provinceId: zod_1.z.coerce.number().int().positive().optional(),
+    /** Started on or after this Kigali day. */
+    createdFrom: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    page: zod_1.z.coerce.number().int().positive().optional(),
+    pageSize: zod_1.z.coerce.number().int().positive().max(100).optional(),
+});
 // --- Registration fee -------------------------------------------------------
 /** The two rails the registration fee is paid on. */
 exports.BrokerFeeMethod = zod_1.z.enum(["mtn_momo", "airtel_money"]);

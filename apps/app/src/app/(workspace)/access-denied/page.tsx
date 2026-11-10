@@ -1,4 +1,4 @@
-import { type BoardId, screens } from "@injishi/data";
+import { type BoardId, SCREEN_REQUIRES, screens } from "@injishi/data";
 import type {
   AccessAlternatives,
   AccessDenial,
@@ -16,6 +16,9 @@ export const metadata: Metadata = { title: screens.AccessDenied.pageTitle };
 
 const VARIANTS = ["denied", "stepup"] as const;
 
+/** The layers a screen is refused at (ADR-076 G14), as `requireScreen` names them. */
+const LAYERS = ["workspace", "operational", "entitlement", "permission"] as const;
+
 function isBoard(value: string): value is BoardId {
   return value in screens;
 }
@@ -32,11 +35,12 @@ function resolveDenial(from: string | undefined, denials: AccessDenial[]): Acces
 export default async function AccessDeniedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ variant?: string; from?: string }>;
+  searchParams: Promise<{ variant?: string; from?: string; layer?: string }>;
 }) {
   const persona = await requirePersona("AccessDenied");
-  const { variant: variantParam, from } = await searchParams;
+  const { variant: variantParam, from, layer: layerParam } = await searchParams;
   const variant = VARIANTS.find((v) => v === variantParam) ?? "denied";
+  const layer = LAYERS.find((l) => l === layerParam) ?? "permission";
   const [denials, alternatives, exports, purposes, history] = await Promise.all([
     getCollection<AccessDenial>("shared.accessDenials"),
     getCollection<AccessAlternatives>("shared.accessAlternatives"),
@@ -53,6 +57,8 @@ export default async function AccessDeniedPage({
       key={`${variant}:${denial.id}`}
       persona={persona}
       variant={variant}
+      layer={layer}
+      product={from && isBoard(from) ? SCREEN_REQUIRES[from].product : undefined}
       data={{ denial, alternatives: alt, dataExport, purposes, history }}
     />
   );

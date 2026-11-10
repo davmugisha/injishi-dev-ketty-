@@ -685,6 +685,8 @@ export declare const AdminBrokerSubscriptionList: z.ZodObject<{
         page: number;
         pageSize: number;
     }>;
+    /** How many match every filter but the status, per status (2026-11-09). */
+    statusCounts: z.ZodOptional<z.ZodRecord<z.ZodEnum<["active", "pending_payment", "past_due", "cancelled", "expired"]>, z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     items: {
         status: "pending_payment" | "active" | "cancelled" | "expired" | "past_due";
@@ -705,6 +707,7 @@ export declare const AdminBrokerSubscriptionList: z.ZodObject<{
         page: number;
         pageSize: number;
     };
+    statusCounts?: Partial<Record<"pending_payment" | "active" | "cancelled" | "expired" | "past_due", number>> | undefined;
 }, {
     items: {
         status: "pending_payment" | "active" | "cancelled" | "expired" | "past_due";
@@ -725,7 +728,37 @@ export declare const AdminBrokerSubscriptionList: z.ZodObject<{
         page: number;
         pageSize: number;
     };
+    statusCounts?: Partial<Record<"pending_payment" | "active" | "cancelled" | "expired" | "past_due", number>> | undefined;
 }>;
+/** Query params for `GET /admin/brokers/subscriptions` (2026-11-09). */
+export declare const AdminBrokerSubscriptionQuery: z.ZodObject<{
+    /** The broker's name or email. */
+    q: z.ZodOptional<z.ZodString>;
+    status: z.ZodOptional<z.ZodEnum<["active", "pending_payment", "past_due", "cancelled", "expired"]>>;
+    plan: z.ZodOptional<z.ZodEnum<["district", "province", "country"]>>;
+    provinceId: z.ZodOptional<z.ZodNumber>;
+    /** Started on or after this Kigali day. */
+    createdFrom: z.ZodOptional<z.ZodString>;
+    page: z.ZodOptional<z.ZodNumber>;
+    pageSize: z.ZodOptional<z.ZodNumber>;
+}, "strip", z.ZodTypeAny, {
+    status?: "pending_payment" | "active" | "cancelled" | "expired" | "past_due" | undefined;
+    provinceId?: number | undefined;
+    q?: string | undefined;
+    page?: number | undefined;
+    pageSize?: number | undefined;
+    createdFrom?: string | undefined;
+    plan?: "country" | "province" | "district" | undefined;
+}, {
+    status?: "pending_payment" | "active" | "cancelled" | "expired" | "past_due" | undefined;
+    provinceId?: number | undefined;
+    q?: string | undefined;
+    page?: number | undefined;
+    pageSize?: number | undefined;
+    createdFrom?: string | undefined;
+    plan?: "country" | "province" | "district" | undefined;
+}>;
+export type AdminBrokerSubscriptionQuery = z.infer<typeof AdminBrokerSubscriptionQuery>;
 export type AdminBrokerSubscriptionList = z.infer<typeof AdminBrokerSubscriptionList>;
 /** The two rails the registration fee is paid on. */
 export declare const BrokerFeeMethod: z.ZodEnum<["mtn_momo", "airtel_money"]>;

@@ -37,6 +37,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -55,6 +56,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/service-catalog', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('outlets')
 export class OpsServiceCatalogController {
   constructor(private readonly catalog: ServiceCatalogService) {}
 
@@ -134,6 +136,7 @@ export class OpsServiceCatalogController {
  */
 @Controller({ path: 'ops/service-orders', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('outlets')
 export class OpsServiceOrdersController {
   constructor(private readonly catalog: ServiceCatalogService) {}
 

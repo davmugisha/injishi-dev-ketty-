@@ -4,7 +4,7 @@ import { requirePersona } from "@/lib/session";
 import { ApiError, ApiUnreachableError } from "@/server/api";
 import { requestContext } from "@/server/data";
 import * as psf from "@/server/mutations/psf";
-import type { PsfDeclineReason, PsfOfficerApplication } from "@/server/sources/psf";
+import type { PsfOfficerApplication } from "@/server/sources/psf";
 
 /**
  * The PSF District Manager's decisions (2026-10-26). Each checks the application screen is the
@@ -33,8 +33,8 @@ export async function approvePsfAction(
   return run(async () => psf.approvePsf(await requestContext(), id, membershipNumber, card));
 }
 
-export async function declinePsfAction(id: string, reason: PsfDeclineReason, note?: string): Promise<PsfActionResult> {
-  return run(async () => psf.declinePsf(await requestContext(), id, reason, note));
+export async function sendBackPsfAction(id: string, note: string): Promise<PsfActionResult> {
+  return run(async () => psf.sendBackPsf(await requestContext(), id, note));
 }
 
 export async function decidePsfBranchAction(

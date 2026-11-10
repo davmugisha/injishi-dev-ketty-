@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { CalendarClock, Percent, Receipt, type LucideIcon } from "lucide-react";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { HOST_CHARGES, type HostCharge } from "@/data/host";
@@ -28,7 +29,8 @@ import { HOST_CHARGES, type HostCharge } from "@/data/host";
  * `id="host-charges"` is the anchor the chooser's fee line links to, and
  * `scroll-mt-24` keeps the heading clear of the fixed header when it lands.
  */
-export function HostCharges() {
+export async function HostCharges() {
+  const t = await getTranslations("host.sections");
   return (
     <section
       id="host-charges"
@@ -38,11 +40,11 @@ export function HostCharges() {
       <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16 xl:gap-24">
         <div className="flex flex-col gap-6">
           <div id="host-charges-title">
-            <SectionHeading lead="What it costs to " emphasis="list" />
+            <SectionHeading lead={t("costsLead")} emphasis={t("costsEmphasis")} />
           </div>
 
           <p className="text-base leading-normal text-page-fg lg:text-lg">
-            {HOST_CHARGES.lede}
+            {t("chargesLead")}
           </p>
 
           <ul className="flex flex-col divide-y divide-border border-y border-border">
@@ -55,9 +57,9 @@ export function HostCharges() {
                   </span>
                   <div className="flex flex-col gap-1">
                     <h3 className="text-base font-medium text-page-fg">
-                      {charge.title}
+                      {t(charge.icon === "fee" ? "feeTitle" : charge.icon === "plan" ? "planTitle" : "commissionTitle")}
                     </h3>
-                    <p className="text-base text-page-fg-70">{charge.body}</p>
+                    <p className="text-base text-page-fg-70">{t(charge.icon === "fee" ? "feeBody" : charge.icon === "plan" ? "planBody" : "commissionBody")}</p>
                   </div>
                 </li>
               );
@@ -70,7 +72,7 @@ export function HostCharges() {
             href="/how-it-works#escrow"
             className="w-max text-page-fg underline underline-offset-[4px]"
           >
-            How escrow and payouts work
+            {t("escrowLink")}
           </Link>
         </div>
 
@@ -82,27 +84,26 @@ export function HostCharges() {
             <p className="font-display text-display-sm font-medium lg:text-display-md">
               {HOST_CHARGES.stat.value}
             </p>
-            <p className="mt-2 text-white/70">{HOST_CHARGES.stat.label}</p>
+            <p className="mt-2 text-white/70">{t("commissionStat")}</p>
           </div>
 
           <dl className="m-0 flex flex-col divide-y divide-white/15 border-y border-white/15 text-sm">
             <div className="flex items-center justify-between gap-4 py-3.5">
-              <dt className="text-white/70">The guest pays</dt>
-              <dd className="m-0 font-medium">Your rate</dd>
+              <dt className="text-white/70">{t("guestPays")}</dt>
+              <dd className="m-0 font-medium">{t("yourRate")}</dd>
             </div>
             <div className="flex items-center justify-between gap-4 py-3.5">
-              <dt className="text-white/70">Injishi commission</dt>
-              <dd className="m-0 font-medium">None</dd>
+              <dt className="text-white/70">{t("commission")}</dt>
+              <dd className="m-0 font-medium">{t("none")}</dd>
             </div>
             <div className="flex items-center justify-between gap-4 py-3.5">
-              <dt className="text-white/70">You receive</dt>
-              <dd className="m-0 font-medium">Your rate</dd>
+              <dt className="text-white/70">{t("youReceive")}</dt>
+              <dd className="m-0 font-medium">{t("yourRate")}</dd>
             </div>
           </dl>
 
           <p className="text-sm text-white/60">
-            Held in escrow until the guest checks in. Only your bank or mobile
-            money provider&apos;s transfer charge comes off.
+            {t("escrowNote")}
           </p>
         </div>
       </div>

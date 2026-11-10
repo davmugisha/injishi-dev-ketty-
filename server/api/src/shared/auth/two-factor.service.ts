@@ -1,6 +1,5 @@
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
 import {
-  ForbiddenException,
   Inject,
   Injectable,
   UnprocessableEntityException,
@@ -11,14 +10,14 @@ import {
   OTP_LENGTH,
   OTP_MAX_ATTEMPTS,
 } from '@injishi/auth';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 import { OtpMailer } from '../../modules/auth/infrastructure/otp-mailer';
 import { sessions, twoFactorChallenges, users } from '../../database/drizzle/schema';
 import { PLATFORM, type Platform } from '../config/platform';
 import { maskEmail } from '../identity/mask';
 import { DRIZZLE, type Database } from '../database/database.module';
-import { WorkspaceService } from './workspace.service';
+import { accessRefusal } from './access-refusal';
 
 /**
  * The second factor (F-S02): a one-time code emailed at step-up.
@@ -58,6 +57,27 @@ export type TwoFactorRefusal = 'two_factor_required';
 /** A resend before this has elapsed is refused, so the mailbox is not flooded. */
 export const RESEND_COOLDOWN_SECONDS = 30;
 
+/** The sentence every client shows on the step-up screen. */
+export const TWO_FACTOR_REQUIRED_MESSAGE = 'Enter the code we emailed you to continue.';
+
+/** The refusal for a status already read, or null when the session may proceed. */
+export function twoFactorRefusal(
+  status: TwoFactorStatus,
+): { code: TwoFactorRefusal; message: string } | null {
+  if (!status.required || status.verified) return null;
+  return { code: 'two_factor_required', message: TWO_FACTOR_REQUIRED_MESSAGE };
+}
+
+/**
+ * Throw the step-up refusal for a status already read. The guard resolves the
+ * status inside its one access resolution, so it calls this rather than asking
+ * the database a second time.
+ */
+export function assertStepUp(status: TwoFactorStatus): void {
+  const refusal = twoFactorRefusal(status);
+  if (refusal) throw accessRefusal(refusal.code, refusal.message);
+}
+
 /** `samuel@injishi.com` → `sa••••@injishi.com`, for "we sent a code to …". One rule, in `shared/identity/mask`. */
 export { maskEmail };
 
@@ -89,22 +109,51 @@ export class TwoFactorService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     @Inject(PLATFORM) platform: Platform,
-    private readonly workspaces: WorkspaceService,
     private readonly mailer: OtpMailer,
   ) {
     this.isDemo = platform.environment === 'demo';
   }
 
-  /** Operators and officers must step up; a guest who holds nothing need not. */
+  /**
+   * Operators and officers must step up; a guest who holds nothing need not.
+   *
+   * The same rule the operator and officer screens read: a business workspace
+   * through an active membership, an own broker workspace, or a live oversight
+   * assignment. It used to list every workspace with its permissions to answer
+   * a yes or no, which made every guarded request resolve the caller's whole
+   * world twice (ADR-076 A-17); now it is three EXISTS in one statement,
+   * answered beside this session's stamp.
+   */
   async requiredFor(userId: string): Promise<boolean> {
-    const [held, grants] = await Promise.all([
-      this.workspaces.listForUser(userId),
-      this.workspaces.oversightGrantsForUser(userId),
-    ]);
-    return (
-      held.some((w) => w.kind === 'business' || w.kind === 'broker') ||
-      grants.length > 0
-    );
+    return (await this.stepUpFor(userId, null)).required;
+  }
+
+  /**
+   * Whether this person must step up, and whether THIS session has, in ONE
+   * query. `sessionId` null asks only the first question.
+   */
+  async stepUpFor(userId: string, sessionId: string | null): Promise<TwoFactorStatus> {
+    const result = await this.db.execute<{ verified_at: Date | null; required: boolean }>(sql`
+      SELECT
+        ${sessionId === null ? sql`NULL::timestamptz` : sql`(SELECT s.two_factor_verified_at FROM sessions s WHERE s.id = ${sessionId})`} AS verified_at,
+        (
+          EXISTS (
+            SELECT 1 FROM org_memberships m
+              JOIN workspaces w ON w.org_id = m.org_id
+             WHERE m.user_id = ${userId}::uuid AND m.status = 'active'
+          )
+          OR EXISTS (
+            SELECT 1 FROM workspaces w
+             WHERE w.user_id = ${userId}::uuid AND w.kind = 'broker'
+          )
+          OR EXISTS (
+            SELECT 1 FROM oversight_assignments a
+             WHERE a.user_id = ${userId}::uuid AND a.revoked_at IS NULL
+          )
+        ) AS required
+    `);
+    const row = result.rows[0];
+    return { required: row?.required === true, verified: row?.verified_at != null };
   }
 
   /** Has this session stepped up? Asked without the role question. */
@@ -135,11 +184,7 @@ export class TwoFactorService {
   }
 
   async statusFor(userId: string, sessionId: string): Promise<TwoFactorStatus> {
-    const [required, state] = await Promise.all([
-      this.requiredFor(userId),
-      this.stateFor(userId, sessionId),
-    ]);
-    return { required, ...state };
+    return this.stepUpFor(userId, sessionId);
   }
 
   /**
@@ -153,25 +198,16 @@ export class TwoFactorService {
     userId: string,
     sessionId: string,
   ): Promise<{ code: TwoFactorRefusal; message: string } | null> {
-    const status = await this.statusFor(userId, sessionId);
-    if (!status.required || status.verified) return null;
-    return {
-      code: 'two_factor_required',
-      message: 'Enter the code we emailed you to continue.',
-    };
+    return twoFactorRefusal(await this.statusFor(userId, sessionId));
   }
 
-  /** Throws the refusal a guard needs, in the shape the apps read. */
+  /**
+   * Throws the refusal a guard needs, in the shape the apps read: Nest's body
+   * with `code: 'two_factor_required'`, as always, and now `layer: 'session'`
+   * beside it (ADR-076 G11).
+   */
   async assertSatisfied(userId: string, sessionId: string): Promise<void> {
-    const refusal = await this.refusalFor(userId, sessionId);
-    if (refusal) {
-      throw new ForbiddenException({
-        statusCode: 403,
-        error: 'Forbidden',
-        message: refusal.message,
-        code: refusal.code,
-      });
-    }
+    assertStepUp(await this.statusFor(userId, sessionId));
   }
 
   /** The address a code goes to, for the screen that asks for it. */

@@ -52,6 +52,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -68,6 +69,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/leave/requests', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsLeaveController {
   constructor(private readonly leave: LeaveService) {}
 
@@ -176,6 +178,7 @@ export class OpsLeaveController {
  */
 @Controller({ path: 'ops/leave', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsLeaveViewsController {
   constructor(private readonly leave: LeaveService) {}
 
@@ -202,6 +205,7 @@ export class OpsLeaveViewsController {
  */
 @Controller({ path: 'ops/leave/types', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsLeaveTypesController {
   constructor(private readonly types: LeaveTypesService) {}
 
@@ -258,6 +262,7 @@ export class OpsLeaveTypesController {
  */
 @Controller({ path: 'ops/leave/allocation-requests', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsLeaveAllocationsController {
   constructor(private readonly allocations: LeaveAllocationsService) {}
 
@@ -334,6 +339,7 @@ export class OpsLeaveAllocationsController {
  */
 @Controller({ path: 'ops/leave/restricted-periods', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsRestrictedPeriodsController {
   constructor(private readonly periods: RestrictedPeriodsService) {}
 

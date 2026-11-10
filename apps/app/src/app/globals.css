@@ -126,6 +126,11 @@
   }
 }
 
+/* The neutral slice of a chart: --chart-1 to 5 are one green, so "other" needs a grey that reads in both themes. */
+:root {
+  --chart-other: color-mix(in oklab, var(--foreground) 35%, transparent);
+}
+
 /*
  * Printing a report (PSF reports, 2026-10-30): only the part marked `data-print-root` prints, without
  * the sidebar, the top bar or the page's own buttons, so "Print or save as PDF" gives the report alone.

@@ -2,12 +2,13 @@
 
 import { Building2, House, MapPin, Mountain, type LucideIcon } from "lucide-react";
 import { Button } from "@injishi/web-ui";
+import { useTranslations } from "next-intl";
 import { useMemo, useRef, useState } from "react";
 import { Input } from "@heroui/react";
 import { cn, pluralize } from "@injishi/utils";
 import type { Destination, DestinationKind } from "@/data/destinations";
 import { usePublishedStays } from "@/data/published-stays";
-import { KIND_LABELS, rankDestinations } from "@/lib/destination-search";
+import { rankDestinations } from "@/lib/destination-search";
 
 /**
  * The destination typeahead.
@@ -42,6 +43,7 @@ export function DestinationField({
   inputClassName?: string;
   onFocus?: () => void;
 }) {
+  const t = useTranslations("search");
   const [active, setActive] = useState(0);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -176,7 +178,7 @@ export function DestinationField({
                   <li key={hit.destination.id}>
                     {showHeading ? (
                       <p className="px-5 pb-1 pt-3 text-2xs font-medium text-ink/35">
-                        {KIND_LABELS[hit.destination.kind]}
+                        {t(({ district: "districts", landmark: "regions", area: "neighbourhoods", stay: "stays" })[hit.destination.kind])}
                       </p>
                     ) : null}
                     <Button
@@ -236,14 +238,14 @@ function Highlighted({ text, span }: { text: string; span: [number, number] | nu
 }
 
 function NoMatches({ query }: { query: string }) {
+  const t = useTranslations("search");
   return (
     <div className="px-5 pb-5 pt-1">
       <p className="text-base text-ink">
-        Nothing matches “{query.trim()}”.
+        {t("noMatches", { query: query.trim() })}
       </p>
       <p className="mt-1 text-sm text-ink/65">
-        Search a district, a park, or a neighbourhood. Or press Enter to look for it
-        across every stay.
+        {t("noMatchesHint")}
       </p>
     </div>
   );

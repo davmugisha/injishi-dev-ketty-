@@ -6,12 +6,14 @@ import { PSF_CONTACT_ROLE_LABEL, type PsfContactRole } from "@injishi/contracts"
 import { Button, Checkbox } from "@injishi/web-ui";
 
 import { PhoneInput } from "@/app/(app)/(entry)/register/phone-input";
-import { Field, Notice, SelectField, TextInput } from "@/app/(app)/(entry)/register/wizard-ui";
-import { confirmPsfIdentity, lookupPsfIdentity } from "@/data/psf";
+import { Notice, SelectField, TextInput } from "@/app/(app)/(entry)/register/wizard-ui";
+import { confirmPsfIdentity, lookupPsfIdentity, uploadPsfLogo } from "@/data/psf";
 import { apiResultMessage } from "@/lib/api";
 import { formatNationalId, nationalIdError } from "@/lib/rwanda-id";
 
 import type { Errors, PsfDraft } from "./draft";
+import { PsfExtras, PsfField, usePsfField, usePsfOrder } from "./form-config";
+import { PassportPhotoField } from "./photo-field";
 
 /**
  * Step 1, You: one number, checked once.
@@ -33,6 +35,9 @@ export function StepYou({
   onChange: (next: Partial<PsfDraft>) => void;
   errors: Errors;
 }) {
+  const photo = usePsfField("photo");
+  const phoneOrder = usePsfOrder("phone");
+  const roleOrder = usePsfOrder("role");
   const [consent, setConsent] = useState(false);
   const [phase, setPhase] = useState<"id" | "code">("id");
   const [checkId, setCheckId] = useState<string | null>(null);
@@ -131,7 +136,7 @@ export function StepYou({
         </div>
       ) : phase === "id" ? (
         <div className="flex flex-col gap-4">
-          <Field label="National ID number" hint="16 digits, as printed on your ID card." error={idProblem ?? errors.nid}>
+          <PsfField name="nationalId" label="National ID number" hint="16 digits, as printed on your ID card." error={idProblem ?? errors.nid}>
             <div className="flex flex-col gap-2 sm:flex-row">
               <TextInput
                 id="psf-nid"
@@ -145,7 +150,7 @@ export function StepYou({
                 <ShieldCheck size={16} aria-hidden /> Check my ID
               </Button>
             </div>
-          </Field>
+          </PsfField>
           <Checkbox isSelected={consent} onChange={(on: boolean) => setConsent(on)} className="items-start gap-3" controlClassName="mt-0.5">
             <span className="text-sm">
               I agree to a check of this number against the national register.
@@ -195,16 +200,16 @@ export function StepYou({
           <h3 className="text-base font-semibold">You in the business</h3>
         </div>
         {/* Two plain selects with no hint, so the boxes sit on one line. */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <Field label="Your role in the business" required error={errors["contact.role"]}>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2" style={{ order: roleOrder }}>
+          <PsfField name="role" label="Your role in the business" required error={errors["contact.role"]}>
             <SelectField
               id="psf-role"
               value={draft.role}
               onChange={(v) => onChange({ role: v as PsfContactRole })}
               options={Object.entries(PSF_CONTACT_ROLE_LABEL).map(([value, label]) => ({ value, label }))}
             />
-          </Field>
-          <Field label="Gender" required error={errors["contact.gender"]}>
+          </PsfField>
+          <PsfField name="gender" label="Gender" required error={errors["contact.gender"]}>
             <SelectField
               id="psf-gender"
               value={draft.gender}
@@ -215,18 +220,31 @@ export function StepYou({
                 { value: "male", label: "Male" },
               ]}
             />
-          </Field>
+          </PsfField>
         </div>
-        <div className="border-t border-border pt-6">
+        <div style={{ order: photo.order }} className="min-w-0">
+        <PassportPhotoField
+          label={photo.label}
+          hint={photo.hint}
+          required={Boolean(photo.required)}
+          hidden={!photo.visible}
+          objectKey={draft.photoObjectKey}
+          name={draft.photoName}
+          error={errors["contact.photoObjectKey"]}
+          upload={(file) => uploadPsfLogo(draft.applicant?.checkToken ?? "", file)}
+          onChange={({ objectKey, name }) => onChange({ photoObjectKey: objectKey, photoName: name })}
+        />
+        </div>
+        <div className="border-t border-border pt-6" style={{ order: phoneOrder - 1 }}>
           <h3 className="text-base font-semibold">How PSF reaches you</h3>
           <p className="text-sm text-muted-foreground">
             We text your docID and every decision to this phone. Email is optional, for a copy.
           </p>
         </div>
-        <Field label="Phone" required error={errors["contact.phoneE164"]}>
+        <PsfField name="phone" label="Phone" required error={errors["contact.phoneE164"]}>
           <PhoneInput id="psf-phone" value={draft.phone} onChange={(v) => onChange({ phone: v })} invalid={Boolean(errors["contact.phoneE164"])} />
-        </Field>
-        <Field label="Email (optional)" error={errors["contact.email"]}>
+        </PsfField>
+        <PsfField name="email" label="Email (optional)" error={errors["contact.email"]}>
           <TextInput
             id="psf-email"
             type="email"
@@ -235,7 +253,8 @@ export function StepYou({
             value={draft.email}
             onChange={(e) => onChange({ email: e.target.value })}
           />
-        </Field>
+        </PsfField>
+        <PsfExtras step="you" draft={draft} onChange={onChange} errors={errors} />
       </section>
     </div>
   );

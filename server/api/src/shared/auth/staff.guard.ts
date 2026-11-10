@@ -1,7 +1,6 @@
 import {
   CanActivate,
   ExecutionContext,
-  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   createParamDecorator,
@@ -18,40 +17,18 @@ import {
 } from '@injishi/contracts';
 
 import { REQUIRE_FRESH_STEP_UP } from './require-fresh-step-up.decorator';
+import { accessContextFor, type RequestWithAccessContext } from './access-context';
+import { accessRefusal } from './access-refusal';
 import { REQUIRE_STAFF_PERMISSION } from './require-staff-permission.decorator';
-import { TwoFactorService, type TwoFactorRefusal } from './two-factor.service';
+import { TWO_FACTOR_REQUIRED_MESSAGE, TwoFactorService } from './two-factor.service';
 import { WorkspaceService } from './workspace.service';
 import type { SessionRecord, SessionUser } from './session.guard';
 
-interface RequestWithStaff {
+interface RequestWithStaff extends RequestWithAccessContext {
   user?: SessionUser;
   session?: SessionRecord;
   staff?: StaffAccess;
 }
-
-/**
- * The step-up refusal, field for field the body `TwoFactorService.assertSatisfied`
- * throws.
- *
- * It has to exist here because the staff rule is not one that service knows
- * (see the guard's header), so for a staffer who holds nothing else there is no
- * service call that would throw it. The clients route on `code` alone — the
- * admin console's `refusalFor` turns it into `step_up` — so the one field that
- * must never drift is typed against the service's own `TwoFactorRefusal`:
- * renaming the code there fails the typecheck here, instead of silently turning
- * a staffer's step-up into "not allowed".
- */
-const STAFF_STEP_UP_REFUSAL: {
-  statusCode: 403;
-  error: 'Forbidden';
-  message: string;
-  code: TwoFactorRefusal;
-} = {
-  statusCode: 403,
-  error: 'Forbidden',
-  message: 'Enter the code we emailed you to continue.',
-  code: 'two_factor_required',
-};
 
 /**
  * The admin console's server-side boundary.
@@ -151,7 +128,7 @@ export class StaffGuard implements CanActivate {
       // Same answer for "never was staff" and "was staff until yesterday". A
       // probe learns nothing from the wording, and there is nothing useful to
       // tell a person who is not staff except that this is not for them.
-      throw new ForbiddenException('This console is for platform staff.');
+      throw accessRefusal('not_staff', 'This console is for platform staff.');
     }
 
     // The step-up (F-S02). The code is proved on a SESSION — the challenge and
@@ -178,12 +155,14 @@ export class StaffGuard implements CanActivate {
     // test is true for everyone who got this far; it is spelled out rather than
     // assumed so this guard and `/me/staff` read the same named rule, and a
     // change to who owes the code changes both at once.
+    // Refused with the body the shared check sends, field for field, so the
+    // console's `refusalFor` routes a staffer to the code screen on `code`.
     if (staffRequiresStepUp(access)) {
       const { verified } = await this.twoFactor.stateFor(
         request.user.id,
         sessionId,
       );
-      if (!verified) throw new ForbiddenException(STAFF_STEP_UP_REFUSAL);
+      if (!verified) throw accessRefusal('two_factor_required', TWO_FACTOR_REQUIRED_MESSAGE);
     }
 
     const required = this.reflector.getAllAndOverride<
@@ -198,7 +177,8 @@ export class StaffGuard implements CanActivate {
       // needs to know which power to ask for, and `STAFF_PERMISSION_LABEL` is
       // the wording the console shows for the same power — one phrasing, so a
       // support conversation is about the same thing on both ends.
-      throw new ForbiddenException(
+      throw accessRefusal(
+        'permission_missing',
         `Your staff role cannot ${STAFF_PERMISSION_LABEL[required]}.`,
       );
     }
@@ -214,15 +194,18 @@ export class StaffGuard implements CanActivate {
       fresh &&
       !(await this.twoFactor.verifiedWithin(sessionId, STAFF_GRANT_STEP_UP_SECONDS))
     ) {
-      throw new ForbiddenException({
-        statusCode: 403,
-        error: 'Forbidden',
-        message: 'Confirm it is you: enter a new code we email you, then try again.',
-        code: STAFF_STEP_UP_STALE,
-      });
+      throw accessRefusal(
+        STAFF_STEP_UP_STALE,
+        'Confirm it is you: enter a new code we email you, then try again.',
+      );
     }
 
     request.staff = access;
+    // The staff grant family, never mixed with a business role (ADR-074).
+    request.accessContext = accessContextFor('staff', request.user.id, {
+      roleKeys: access.roles,
+      permissions: required ? [required] : [],
+    });
     return true;
   }
 }

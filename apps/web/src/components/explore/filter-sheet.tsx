@@ -5,6 +5,7 @@ import { Button, Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from
 import { FilterRailBody } from "@/components/explore/explore-filters";
 import type { Listing } from "@/data/listings";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useTranslations } from "next-intl";
 import { refinementCount, type ExploreRefinement, type StayIntent } from "@/lib/search-params";
 
 /**
@@ -43,6 +44,7 @@ export function FilterSheet({
   resultCount: number;
   onClearAll: () => void;
 }) {
+  const t = useTranslations("search");
   // A side panel on desktop, a bottom sheet on a phone.
   const desktop = useMediaQuery("(min-width: 1024px)");
   const applied = refinementCount(refinement) + (intent.districts.length > 0 ? 1 : 0);
@@ -58,11 +60,11 @@ export function FilterSheet({
         }
       >
         <SheetHeader className="border-b border-separator px-5 py-4 text-left">
-          <SheetTitle>Filters</SheetTitle>
+          <SheetTitle>{t("filters")}</SheetTitle>
           <p className="text-xs text-muted-foreground" aria-live="polite">
             {applied === 0
-              ? "Nothing applied yet"
-              : `${applied} ${applied === 1 ? "filter" : "filters"} applied`}
+              ? t("nothingApplied")
+              : t("filterCount", { count: applied })}
             {applied > 0 ? (
               <>
                 {" · "}
@@ -71,7 +73,7 @@ export function FilterSheet({
                   onClick={onClearAll}
                   className="rounded font-bold text-accent-text underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  Clear all
+                  {t("clearAll")}
                 </button>
               </>
             ) : null}
@@ -91,7 +93,7 @@ export function FilterSheet({
         <div className="border-t border-separator p-4">
           <SheetClose asChild>
             <Button className="w-full" size="lg">
-              Show {resultCount} {resultCount === 1 ? "property" : "properties"}
+              {t("showProperties", { count: resultCount })}
             </Button>
           </SheetClose>
         </div>

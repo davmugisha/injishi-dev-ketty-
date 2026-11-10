@@ -18,6 +18,7 @@ export type MyDocumentRow = {
   status: string;
   issued_on: string | null;
   expires_on: string | null;
+  reject_reason: string | null;
   updated_at: string;
 };
 
@@ -52,6 +53,7 @@ export class MyStaffRepository {
   async documents(employeeId: string): Promise<MyDocumentRow[]> {
     const found = await this.db.execute<MyDocumentRow>(sql`
       select id, title, status::text as status, issued_on::text as issued_on, expires_on::text as expires_on,
+             reject_reason,
              to_char(updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as updated_at
         from employee_documents
        where employee_id = ${employeeId}

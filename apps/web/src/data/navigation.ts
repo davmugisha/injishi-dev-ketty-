@@ -7,6 +7,8 @@ import { GUIDES } from "@/data/guides";
  */
 interface NavLink {
   label: string;
+  /** The message key the header renders; `label` stays the English fallback for callers not yet on the catalog. */
+  labelKey?: string;
   href: string;
 }
 
@@ -25,11 +27,11 @@ export interface NavGroup {
  * bar and How it works in the drawer and the footer.
  */
 export const PRIMARY_NAV: NavLink[] = [
-  { label: "Home", href: "/" },
-  { label: "Explore", href: "/explore" },
+  { label: "Home", labelKey: "home", href: "/" },
+  { label: "Explore", labelKey: "explore", href: "/explore" },
   // A placeholder until the Services page exists. The old `/services`, a page
   // of fictional hotels at invented prices, was removed on 2026-10-29.
-  { label: "Services", href: "#" },
+  { label: "Services", labelKey: "services", href: "#" },
 ];
 
 /**

@@ -6,6 +6,7 @@ import {
   HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   Query,
@@ -18,6 +19,7 @@ import {
   type AdminCreateUserResponse,
   type AdminPersonDetail,
   AdminSetStaffRolesRequest,
+  AdminUpdateUserRequest,
   type AdminStaffRolesResponse,
   type AdminOversightGrant,
   AdminReasonQuery,
@@ -159,6 +161,19 @@ export class AdminUsersController {
     @CurrentUser() user: SessionUser,
   ): Promise<AdminPersonDetail> {
     return this.users.getUser(userId, user.id, stated.reason);
+  }
+
+  /** Change a person's details: name, sign-in email, profile phone, language, date of birth, gender. */
+  @Patch(':userId')
+  @RequireStaffPermission('admin.user.role.grant')
+  @RequireFreshStepUp()
+  updateUser(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body(new ZodValidationPipe(AdminUpdateUserRequest)) body: AdminUpdateUserRequest,
+    @CurrentUser() user: SessionUser,
+    @CurrentStaff() staff: StaffAccess,
+  ): Promise<{ userId: string; changed: string[] }> {
+    return this.accounts.updateUser(userId, body, { userId: user.id, access: staff });
   }
 
   /** Set a person's platform staff roles, the whole set; empty ends their staff access. */

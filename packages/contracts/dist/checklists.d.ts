@@ -5,8 +5,14 @@ export declare const CHECKLIST_KIND_LABEL: Readonly<Record<ChecklistKind, string
 export declare const ChecklistTemplateItem: z.ZodObject<{
     id: z.ZodString;
     label: z.ZodString;
+    /** A short stable name ("assets", "access") a screen can lead from; null for most steps. */
+    code: z.ZodNullable<z.ZodString>;
+    /** A line under the label: what exactly is to be done. */
+    detail: z.ZodNullable<z.ZodString>;
     /** The person does this themselves; otherwise the office does. */
     byEmployee: z.ZodBoolean;
+    /** Only someone who may manage the team ticks it (AC-O2). */
+    ownerOnly: z.ZodBoolean;
     /**
      * When it is due, in days from the day the checklist counts from: the first
      * day for somebody joining, the last day for somebody leaving. Negative is
@@ -25,18 +31,24 @@ export declare const ChecklistTemplateItem: z.ZodObject<{
         title: string;
     }>>;
 }, "strip", z.ZodTypeAny, {
+    code: string | null;
     id: string;
     label: string;
+    detail: string | null;
     byEmployee: boolean;
+    ownerOnly: boolean;
     dueAfterDays: number;
     jobPosition: {
         id: string;
         title: string;
     } | null;
 }, {
+    code: string | null;
     id: string;
     label: string;
+    detail: string | null;
     byEmployee: boolean;
+    ownerOnly: boolean;
     dueAfterDays: number;
     jobPosition: {
         id: string;
@@ -53,8 +65,14 @@ export declare const ChecklistTemplate: z.ZodObject<{
     items: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         label: z.ZodString;
+        /** A short stable name ("assets", "access") a screen can lead from; null for most steps. */
+        code: z.ZodNullable<z.ZodString>;
+        /** A line under the label: what exactly is to be done. */
+        detail: z.ZodNullable<z.ZodString>;
         /** The person does this themselves; otherwise the office does. */
         byEmployee: z.ZodBoolean;
+        /** Only someone who may manage the team ticks it (AC-O2). */
+        ownerOnly: z.ZodBoolean;
         /**
          * When it is due, in days from the day the checklist counts from: the first
          * day for somebody joining, the last day for somebody leaving. Negative is
@@ -73,18 +91,24 @@ export declare const ChecklistTemplate: z.ZodObject<{
             title: string;
         }>>;
     }, "strip", z.ZodTypeAny, {
+        code: string | null;
         id: string;
         label: string;
+        detail: string | null;
         byEmployee: boolean;
+        ownerOnly: boolean;
         dueAfterDays: number;
         jobPosition: {
             id: string;
             title: string;
         } | null;
     }, {
+        code: string | null;
         id: string;
         label: string;
+        detail: string | null;
         byEmployee: boolean;
+        ownerOnly: boolean;
         dueAfterDays: number;
         jobPosition: {
             id: string;
@@ -96,9 +120,12 @@ export declare const ChecklistTemplate: z.ZodObject<{
     id: string;
     kind: "onboarding" | "offboarding";
     items: {
+        code: string | null;
         id: string;
         label: string;
+        detail: string | null;
         byEmployee: boolean;
+        ownerOnly: boolean;
         dueAfterDays: number;
         jobPosition: {
             id: string;
@@ -111,9 +138,12 @@ export declare const ChecklistTemplate: z.ZodObject<{
     id: string;
     kind: "onboarding" | "offboarding";
     items: {
+        code: string | null;
         id: string;
         label: string;
+        detail: string | null;
         byEmployee: boolean;
+        ownerOnly: boolean;
         dueAfterDays: number;
         jobPosition: {
             id: string;
@@ -133,8 +163,14 @@ export declare const ChecklistTemplateList: z.ZodObject<{
         items: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             label: z.ZodString;
+            /** A short stable name ("assets", "access") a screen can lead from; null for most steps. */
+            code: z.ZodNullable<z.ZodString>;
+            /** A line under the label: what exactly is to be done. */
+            detail: z.ZodNullable<z.ZodString>;
             /** The person does this themselves; otherwise the office does. */
             byEmployee: z.ZodBoolean;
+            /** Only someone who may manage the team ticks it (AC-O2). */
+            ownerOnly: z.ZodBoolean;
             /**
              * When it is due, in days from the day the checklist counts from: the first
              * day for somebody joining, the last day for somebody leaving. Negative is
@@ -153,18 +189,24 @@ export declare const ChecklistTemplateList: z.ZodObject<{
                 title: string;
             }>>;
         }, "strip", z.ZodTypeAny, {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueAfterDays: number;
             jobPosition: {
                 id: string;
                 title: string;
             } | null;
         }, {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueAfterDays: number;
             jobPosition: {
                 id: string;
@@ -176,9 +218,12 @@ export declare const ChecklistTemplateList: z.ZodObject<{
         id: string;
         kind: "onboarding" | "offboarding";
         items: {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueAfterDays: number;
             jobPosition: {
                 id: string;
@@ -191,9 +236,12 @@ export declare const ChecklistTemplateList: z.ZodObject<{
         id: string;
         kind: "onboarding" | "offboarding";
         items: {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueAfterDays: number;
             jobPosition: {
                 id: string;
@@ -208,9 +256,12 @@ export declare const ChecklistTemplateList: z.ZodObject<{
         id: string;
         kind: "onboarding" | "offboarding";
         items: {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueAfterDays: number;
             jobPosition: {
                 id: string;
@@ -225,9 +276,12 @@ export declare const ChecklistTemplateList: z.ZodObject<{
         id: string;
         kind: "onboarding" | "offboarding";
         items: {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueAfterDays: number;
             jobPosition: {
                 id: string;
@@ -245,18 +299,27 @@ export declare const CreateChecklistTemplateRequest: z.ZodObject<{
     isDefault: z.ZodOptional<z.ZodBoolean>;
     items: z.ZodArray<z.ZodObject<{
         label: z.ZodString;
+        code: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        detail: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         byEmployee: z.ZodOptional<z.ZodBoolean>;
+        ownerOnly: z.ZodOptional<z.ZodBoolean>;
         dueAfterDays: z.ZodOptional<z.ZodNumber>;
         jobPositionId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         label: string;
+        code?: string | null | undefined;
+        detail?: string | null | undefined;
         jobPositionId?: string | null | undefined;
         byEmployee?: boolean | undefined;
+        ownerOnly?: boolean | undefined;
         dueAfterDays?: number | undefined;
     }, {
         label: string;
+        code?: string | null | undefined;
+        detail?: string | null | undefined;
         jobPositionId?: string | null | undefined;
         byEmployee?: boolean | undefined;
+        ownerOnly?: boolean | undefined;
         dueAfterDays?: number | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -264,8 +327,11 @@ export declare const CreateChecklistTemplateRequest: z.ZodObject<{
     kind: "onboarding" | "offboarding";
     items: {
         label: string;
+        code?: string | null | undefined;
+        detail?: string | null | undefined;
         jobPositionId?: string | null | undefined;
         byEmployee?: boolean | undefined;
+        ownerOnly?: boolean | undefined;
         dueAfterDays?: number | undefined;
     }[];
     isDefault?: boolean | undefined;
@@ -274,8 +340,11 @@ export declare const CreateChecklistTemplateRequest: z.ZodObject<{
     kind: "onboarding" | "offboarding";
     items: {
         label: string;
+        code?: string | null | undefined;
+        detail?: string | null | undefined;
         jobPositionId?: string | null | undefined;
         byEmployee?: boolean | undefined;
+        ownerOnly?: boolean | undefined;
         dueAfterDays?: number | undefined;
     }[];
     isDefault?: boolean | undefined;
@@ -292,26 +361,38 @@ export declare const UpdateChecklistTemplateRequest: z.ZodObject<Omit<{
     isDefault: z.ZodOptional<z.ZodBoolean>;
     items: z.ZodArray<z.ZodObject<{
         label: z.ZodString;
+        code: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        detail: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         byEmployee: z.ZodOptional<z.ZodBoolean>;
+        ownerOnly: z.ZodOptional<z.ZodBoolean>;
         dueAfterDays: z.ZodOptional<z.ZodNumber>;
         jobPositionId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         label: string;
+        code?: string | null | undefined;
+        detail?: string | null | undefined;
         jobPositionId?: string | null | undefined;
         byEmployee?: boolean | undefined;
+        ownerOnly?: boolean | undefined;
         dueAfterDays?: number | undefined;
     }, {
         label: string;
+        code?: string | null | undefined;
+        detail?: string | null | undefined;
         jobPositionId?: string | null | undefined;
         byEmployee?: boolean | undefined;
+        ownerOnly?: boolean | undefined;
         dueAfterDays?: number | undefined;
     }>, "many">;
 }, "kind">, "strip", z.ZodTypeAny, {
     name: string;
     items: {
         label: string;
+        code?: string | null | undefined;
+        detail?: string | null | undefined;
         jobPositionId?: string | null | undefined;
         byEmployee?: boolean | undefined;
+        ownerOnly?: boolean | undefined;
         dueAfterDays?: number | undefined;
     }[];
     isDefault?: boolean | undefined;
@@ -319,8 +400,11 @@ export declare const UpdateChecklistTemplateRequest: z.ZodObject<Omit<{
     name: string;
     items: {
         label: string;
+        code?: string | null | undefined;
+        detail?: string | null | undefined;
         jobPositionId?: string | null | undefined;
         byEmployee?: boolean | undefined;
+        ownerOnly?: boolean | undefined;
         dueAfterDays?: number | undefined;
     }[];
     isDefault?: boolean | undefined;
@@ -329,21 +413,30 @@ export type UpdateChecklistTemplateRequest = z.infer<typeof UpdateChecklistTempl
 export declare const ChecklistTask: z.ZodObject<{
     id: z.ZodString;
     label: z.ZodString;
+    code: z.ZodNullable<z.ZodString>;
+    detail: z.ZodNullable<z.ZodString>;
     byEmployee: z.ZodBoolean;
+    ownerOnly: z.ZodBoolean;
     dueOn: z.ZodString;
     doneAt: z.ZodNullable<z.ZodString>;
     doneByName: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    code: string | null;
     id: string;
     label: string;
+    detail: string | null;
     byEmployee: boolean;
+    ownerOnly: boolean;
     dueOn: string;
     doneAt: string | null;
     doneByName: string | null;
 }, {
+    code: string | null;
     id: string;
     label: string;
+    detail: string | null;
     byEmployee: boolean;
+    ownerOnly: boolean;
     dueOn: string;
     doneAt: string | null;
     doneByName: string | null;
@@ -375,21 +468,30 @@ export declare const EmployeeChecklist: z.ZodObject<{
     tasks: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         label: z.ZodString;
+        code: z.ZodNullable<z.ZodString>;
+        detail: z.ZodNullable<z.ZodString>;
         byEmployee: z.ZodBoolean;
+        ownerOnly: z.ZodBoolean;
         dueOn: z.ZodString;
         doneAt: z.ZodNullable<z.ZodString>;
         doneByName: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        code: string | null;
         id: string;
         label: string;
+        detail: string | null;
         byEmployee: boolean;
+        ownerOnly: boolean;
         dueOn: string;
         doneAt: string | null;
         doneByName: string | null;
     }, {
+        code: string | null;
         id: string;
         label: string;
+        detail: string | null;
         byEmployee: boolean;
+        ownerOnly: boolean;
         dueOn: string;
         doneAt: string | null;
         doneByName: string | null;
@@ -407,9 +509,12 @@ export declare const EmployeeChecklist: z.ZodObject<{
     };
     startedAt: string;
     tasks: {
+        code: string | null;
         id: string;
         label: string;
+        detail: string | null;
         byEmployee: boolean;
+        ownerOnly: boolean;
         dueOn: string;
         doneAt: string | null;
         doneByName: string | null;
@@ -429,9 +534,12 @@ export declare const EmployeeChecklist: z.ZodObject<{
     };
     startedAt: string;
     tasks: {
+        code: string | null;
         id: string;
         label: string;
+        detail: string | null;
         byEmployee: boolean;
+        ownerOnly: boolean;
         dueOn: string;
         doneAt: string | null;
         doneByName: string | null;
@@ -475,21 +583,30 @@ export declare const ChecklistBoard: z.ZodObject<{
         tasks: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             label: z.ZodString;
+            code: z.ZodNullable<z.ZodString>;
+            detail: z.ZodNullable<z.ZodString>;
             byEmployee: z.ZodBoolean;
+            ownerOnly: z.ZodBoolean;
             dueOn: z.ZodString;
             doneAt: z.ZodNullable<z.ZodString>;
             doneByName: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueOn: string;
             doneAt: string | null;
             doneByName: string | null;
         }, {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueOn: string;
             doneAt: string | null;
             doneByName: string | null;
@@ -507,9 +624,12 @@ export declare const ChecklistBoard: z.ZodObject<{
         };
         startedAt: string;
         tasks: {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueOn: string;
             doneAt: string | null;
             doneByName: string | null;
@@ -529,9 +649,12 @@ export declare const ChecklistBoard: z.ZodObject<{
         };
         startedAt: string;
         tasks: {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueOn: string;
             doneAt: string | null;
             doneByName: string | null;
@@ -588,9 +711,12 @@ export declare const ChecklistBoard: z.ZodObject<{
         };
         startedAt: string;
         tasks: {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueOn: string;
             doneAt: string | null;
             doneByName: string | null;
@@ -622,9 +748,12 @@ export declare const ChecklistBoard: z.ZodObject<{
         };
         startedAt: string;
         tasks: {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueOn: string;
             doneAt: string | null;
             doneByName: string | null;
@@ -690,21 +819,30 @@ export declare const MyChecklists: z.ZodObject<{
         tasks: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             label: z.ZodString;
+            code: z.ZodNullable<z.ZodString>;
+            detail: z.ZodNullable<z.ZodString>;
             byEmployee: z.ZodBoolean;
+            ownerOnly: z.ZodBoolean;
             dueOn: z.ZodString;
             doneAt: z.ZodNullable<z.ZodString>;
             doneByName: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueOn: string;
             doneAt: string | null;
             doneByName: string | null;
         }, {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueOn: string;
             doneAt: string | null;
             doneByName: string | null;
@@ -722,9 +860,12 @@ export declare const MyChecklists: z.ZodObject<{
         };
         startedAt: string;
         tasks: {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueOn: string;
             doneAt: string | null;
             doneByName: string | null;
@@ -744,9 +885,12 @@ export declare const MyChecklists: z.ZodObject<{
         };
         startedAt: string;
         tasks: {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueOn: string;
             doneAt: string | null;
             doneByName: string | null;
@@ -769,9 +913,12 @@ export declare const MyChecklists: z.ZodObject<{
         };
         startedAt: string;
         tasks: {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueOn: string;
             doneAt: string | null;
             doneByName: string | null;
@@ -794,9 +941,12 @@ export declare const MyChecklists: z.ZodObject<{
         };
         startedAt: string;
         tasks: {
+            code: string | null;
             id: string;
             label: string;
+            detail: string | null;
             byEmployee: boolean;
+            ownerOnly: boolean;
             dueOn: string;
             doneAt: string | null;
             doneByName: string | null;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@injishi/web-ui";
 import { ArrowLeft } from "lucide-react";
 
@@ -32,10 +33,11 @@ export function SectionFranchise({
   /** Back: the section before, reopened with its answers, or the step before. */
   onBack?: (() => void) | null;
 }) {
+  const t = useTranslations("registerForms.franchise");
   const back = onBack ? (
     <Button variant="ghost" onClick={onBack}>
       <ArrowLeft size={16} aria-hidden />
-      Back
+      {t("back")}
     </Button>
   ) : null;
   const role = draft.franchiseRole;
@@ -43,21 +45,21 @@ export function SectionFranchise({
 
   return (
     <>
-      <Fieldset legend="Part of a franchise?" error={errors["business.franchise"]}>
+      <Fieldset legend={t("legend")} error={errors["business.franchise"]}>
         <div className="mt-2 grid gap-3">
-          <ChoiceCard name="franchise" value="none" checked={role === "none"} title="No" onSelect={pick} />
+          <ChoiceCard name="franchise" value="none" checked={role === "none"} title={t("no")} onSelect={pick} />
           <ChoiceCard
             name="franchise"
             value="franchisee"
             checked={role === "franchisee"}
-            title="We run another company's brand"
+            title={t("franchisee")}
             onSelect={pick}
           />
           <ChoiceCard
             name="franchise"
             value="franchisor"
             checked={role === "franchisor"}
-            title="We own the brand and license it"
+            title={t("franchisor")}
             onSelect={pick}
           />
         </div>
@@ -65,7 +67,7 @@ export function SectionFranchise({
 
       {role === "franchisee" ? (
         <div className="flex max-w-form flex-col gap-4">
-          <Field label="Brand name" required error={errors["business.franchise.brandName"]}>
+          <Field label={t("brandName")} required error={errors["business.franchise.brandName"]}>
             <TextInput
               id="register-franchise-brand"
               className="w-full"
@@ -73,7 +75,7 @@ export function SectionFranchise({
               onChange={(e) => onChange({ ...draft, franchiseBrand: e.target.value })}
             />
           </Field>
-          <Field label="Franchisor's registered name" required error={errors["business.franchise.franchisorLegalName"]}>
+          <Field label={t("franchisorName")} required error={errors["business.franchise.franchisorLegalName"]}>
             <TextInput
               id="register-franchisor-name"
               className="w-full"
@@ -81,24 +83,22 @@ export function SectionFranchise({
               onChange={(e) => onChange({ ...draft, franchisorLegalName: e.target.value })}
             />
           </Field>
-          <Field label="Franchisor's country" required error={errors["business.franchise.franchisorCountry"]}>
+          <Field label={t("franchisorCountry")} required error={errors["business.franchise.franchisorCountry"]}>
             <SelectField
               value={draft.franchisorCountry}
               options={COUNTRY_OPTIONS}
-              placeholder="Choose a country"
+              placeholder={t("chooseCountry")}
               invalid={Boolean(errors["business.franchise.franchisorCountry"])}
               onChange={(franchisorCountry) => onChange({ ...draft, franchisorCountry })}
             />
           </Field>
-          <p className="text-xs text-muted-foreground">
-            You can add the franchise agreement on the Documents step. It is optional.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("agreementNote")}</p>
         </div>
       ) : null}
 
       {role === "franchisor" ? (
         <div className="flex max-w-form flex-col gap-4">
-          <Field label="Brand name" required error={errors["business.franchise.brandName"]}>
+          <Field label={t("brandName")} required error={errors["business.franchise.brandName"]}>
             <TextInput
               id="register-franchise-brand"
               className="w-full"
@@ -107,9 +107,9 @@ export function SectionFranchise({
             />
           </Field>
           <Field
-            label="Franchised locations"
+            label={t("locations")}
             required
-            hint="How many businesses run under your brand."
+            hint={t("locationsHint")}
             error={errors["business.franchise.franchisedLocations"]}
           >
             <TextInput
@@ -126,7 +126,7 @@ export function SectionFranchise({
       <div className="flex flex-wrap items-center gap-2">
         {back}
         <Button onClick={onNext} disabled={role === ""}>
-          Next
+          {t("next")}
         </Button>
       </div>
     </>

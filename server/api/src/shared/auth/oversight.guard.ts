@@ -2,7 +2,6 @@ import type { OversightGrant, OversightRole } from '@injishi/contracts';
 import {
   CanActivate,
   ExecutionContext,
-  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   SetMetadata,
@@ -10,6 +9,8 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
+import { accessContextFor, type RequestWithAccessContext } from './access-context';
+import { accessRefusal } from './access-refusal';
 import { TwoFactorService } from './two-factor.service';
 import { WorkspaceService } from './workspace.service';
 
@@ -85,11 +86,13 @@ export class OversightGuard implements CanActivate {
       );
     }
 
-    const request = context.switchToHttp().getRequest<{
-      user?: { id: string };
-      session?: { id: string };
-      oversightGrants?: OversightGrant[];
-    }>();
+    const request = context.switchToHttp().getRequest<
+      RequestWithAccessContext & {
+        user?: { id: string };
+        session?: { id: string };
+        oversightGrants?: OversightGrant[];
+      }
+    >();
     if (!request.user) {
       // SessionGuard did not run. Treating this as anonymous would turn a
       // wiring mistake into a silent 403 nobody investigates.
@@ -107,12 +110,19 @@ export class OversightGuard implements CanActivate {
     const grants = await this.workspaces.oversightGrantsForUser(request.user.id);
     const forRole = grants.filter((g) => required.includes(g.oversightRole));
     if (forRole.length === 0) {
-      throw new ForbiddenException(
+      throw accessRefusal(
+        'not_oversight',
         'You do not hold an oversight assignment for this console.',
       );
     }
 
     request.oversightGrants = forRole;
+    // The oversight grant family, never mixed with a business role (ADR-074).
+    // Its region scope is applied to the target by the service, so it is not a
+    // branch scope and is not recorded as one.
+    request.accessContext = accessContextFor('oversight', request.user.id, {
+      roleKeys: [...new Set(forRole.map((g) => g.oversightRole))],
+    });
     return true;
   }
 }
