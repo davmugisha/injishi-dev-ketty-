@@ -58,7 +58,7 @@ export default function Page() {
     if (access.status !== "resolved") return;
     // The emailed step-up first (F-S02), then the console.
     const factor = access.twoFactor;
-    if (factor && factor.required && !factor.verified) {
+    if (factor?.required && !factor.verified) {
       window.location.replace(twoFactorUrl(window.location.href));
       return;
     }

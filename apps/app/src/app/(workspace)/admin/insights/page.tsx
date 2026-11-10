@@ -1,6 +1,6 @@
 import { screens } from "@injishi/data";
 import type { Metadata } from "next";
-import { InsightsView } from "@/features/admin/health/HealthViews";
+import { InsightsView } from "@/features/admin/health/health-views";
 import { Refused } from "@/features/admin/people/Refused";
 import { requirePersona } from "@/lib/session";
 import { analytics } from "@/server/admin/health";

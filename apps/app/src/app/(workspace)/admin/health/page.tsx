@@ -1,6 +1,6 @@
 import { screens } from "@injishi/data";
 import type { Metadata } from "next";
-import { SystemHealthView } from "@/features/admin/health/HealthViews";
+import { SystemHealthView } from "@/features/admin/health/health-views";
 import { Refused } from "@/features/admin/people/Refused";
 import { requirePersona } from "@/lib/session";
 import { systemHealth } from "@/server/admin/health";

@@ -67,8 +67,8 @@ import {
   sendReview,
   tickTask,
 } from "./actions";
-import { ClockCard } from "./ClockCard";
-import { ShiftAsks } from "./ShiftAsks";
+import { ClockCard } from "./clock-card";
+import { ShiftAsks } from "./shift-asks";
 import { ME_TABS, type MeTab } from "./tabs";
 
 const TAB_LABEL: Record<MeTab, string> = {

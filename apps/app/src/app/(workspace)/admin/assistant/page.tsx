@@ -1,6 +1,6 @@
 import { screens } from "@injishi/data";
 import type { Metadata } from "next";
-import { AssistantUsageReportView } from "@/features/admin/health/HealthViews";
+import { AssistantUsageReportView } from "@/features/admin/health/health-views";
 import { Refused } from "@/features/admin/people/Refused";
 import { requirePersona } from "@/lib/session";
 import { assistantUsage } from "@/server/admin/health";

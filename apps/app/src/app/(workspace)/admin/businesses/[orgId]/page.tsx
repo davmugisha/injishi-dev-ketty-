@@ -2,7 +2,7 @@ import { screens } from "@injishi/data";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Refused } from "@/features/admin/people/Refused";
-import { BusinessView } from "@/features/admin/registrations/BusinessView";
+import { BusinessView } from "@/features/admin/registrations/business-view";
 import { requirePersona } from "@/lib/session";
 import { staffAccess } from "@/server/admin/leaders";
 import { psfBusiness } from "@/server/admin/psf";

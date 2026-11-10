@@ -24,7 +24,7 @@ import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { sampleCollectionsByBoard } from "@/lib/coverage.generated";
 import { openToRealPeople, SAMPLE_ONLY } from "@/lib/real-screens";
 import { BrandMark } from "../brand";
-import { LanguageSelect } from "../LanguageSelect";
+import { LanguageSelect } from "../language-select";
 import { BusinessSwitcher } from "./BusinessSwitcher";
 import { QuickSearch } from "./QuickSearch";
 import { SampleDataPill } from "./SampleData";

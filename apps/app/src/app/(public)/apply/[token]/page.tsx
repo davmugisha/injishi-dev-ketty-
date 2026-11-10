@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { ApplicationPage } from "@/features/apply/ApplicationPage";
+import { ApplicationPage } from "@/features/apply/application-page";
 import { readApplication, sessionCookie } from "@/features/apply/application";
 
 export const metadata: Metadata = { title: "Your application · Injishi", robots: { index: false, follow: false } };

@@ -18,7 +18,7 @@ export const staysScope = cache(async (): Promise<StaysScope | null> => {
   const account = await currentAccount();
   if (!account) return null;
   const workspace = workspaceFor(account, "hospitality");
-  if (!workspace || workspace.domain !== "hospitality") return null;
+  if (workspace?.domain !== "hospitality") return null;
   return { workspace, permissions: workspace.permissions };
 });
 

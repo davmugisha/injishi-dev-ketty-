@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AdminOverviewView } from "@/features/admin/overview/AdminOverviewView";
+import { AdminOverviewView } from "@/features/admin/overview/admin-overview-view";
 import { requirePersona } from "@/lib/session";
 import { brokerSubscriptions } from "@/server/admin/brokers";
 import { leaderCoverage } from "@/server/admin/leaders";

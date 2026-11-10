@@ -2,7 +2,6 @@
 
 import { Timeline } from "@heroui-pro/react";
 import {
-  ORG_CERTIFICATE_KIND_LABEL,
   type OrgCertificateKind,
   type OversightDocument,
   type PsfBusinessDetail,

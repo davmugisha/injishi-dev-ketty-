@@ -351,7 +351,7 @@ export function PsfRegisterView({
             <Magnifier className="size-4" /> {t("searchApplications")}
           </Button>
         </form>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("applicationStatus")}>
+        <fieldset className="flex min-w-0 flex-wrap gap-1.5" aria-label={t("applicationStatus")}>
           {STANDINGS.map((st) => (
             <Button
               key={st.id || "all"}
@@ -363,8 +363,8 @@ export function PsfRegisterView({
               {st.label}
             </Button>
           ))}
-        </div>
-        <div className="flex flex-wrap items-end gap-3" role="group" aria-label="Narrow the list">
+        </fieldset>
+        <fieldset className="flex min-w-0 flex-wrap items-end gap-3" aria-label="Narrow the list">
           {select(
             "Sector",
             filters.cluster,
@@ -399,7 +399,7 @@ export function PsfRegisterView({
               Clear all
             </Button>
           ) : null}
-        </div>
+        </fieldset>
         <DataTable
           label={t("business")}
           rows={page.items}

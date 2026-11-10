@@ -1,7 +1,7 @@
 import { AdminPayoutStatus } from "@injishi/contracts";
 import { screens } from "@injishi/data";
 import type { Metadata } from "next";
-import { type MoneyTab, MoneyView } from "@/features/admin/money/MoneyView";
+import { type MoneyTab, MoneyView } from "@/features/admin/money/money-view";
 import { Refused } from "@/features/admin/people/Refused";
 import { requirePersona } from "@/lib/session";
 import { failedCharges, ledger, payouts, reconRuns } from "@/server/admin/finance";

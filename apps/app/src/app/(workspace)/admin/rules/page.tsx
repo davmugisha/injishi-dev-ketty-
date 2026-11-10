@@ -1,7 +1,7 @@
 import { screens } from "@injishi/data";
 import type { Metadata } from "next";
 import { Refused } from "@/features/admin/people/Refused";
-import { type SettingsTab, SettingsView } from "@/features/admin/settings/SettingsView";
+import { type SettingsTab, SettingsView } from "@/features/admin/settings/settings-view";
 import { requirePersona } from "@/lib/session";
 import { governmentBodies, staffAccess } from "@/server/admin/leaders";
 import { type Search, wordOf } from "@/server/admin/list";

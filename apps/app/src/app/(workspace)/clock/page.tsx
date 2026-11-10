@@ -1,7 +1,7 @@
 import type { MyHr } from "@injishi/data/fixtures/shared";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { ScanClock } from "@/features/me/ScanClock";
+import { ScanClock } from "@/features/me/scan-clock";
 import { requireScreen } from "@/lib/session";
 import { getCollection } from "@/server/data";
 

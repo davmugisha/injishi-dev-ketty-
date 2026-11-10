@@ -1,7 +1,7 @@
 import { AdminAuditSubjectType } from "@injishi/contracts";
 import { screens } from "@injishi/data";
 import type { Metadata } from "next";
-import { AuditView } from "@/features/admin/audit/AuditView";
+import { AuditView } from "@/features/admin/audit/audit-view";
 import { Refused } from "@/features/admin/people/Refused";
 import { requirePersona } from "@/lib/session";
 import { one, pageOf, type Search, sinceDay, wordOf } from "@/server/admin/list";

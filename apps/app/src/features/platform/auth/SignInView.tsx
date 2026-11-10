@@ -7,7 +7,7 @@ import { LinkButton, TextLink } from "@injishi/ui";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { BrandPalm } from "@/components/brand";
-import { LanguageSelect } from "@/components/LanguageSelect";
+import { LanguageSelect } from "@/components/language-select";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { type SignInState, signInAs, signInAsDemoEmail, startSignIn } from "@/lib/auth-actions";
 import type { DemoRosterPerson } from "@/server/auth";

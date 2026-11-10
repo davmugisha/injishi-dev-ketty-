@@ -20,7 +20,7 @@ import type { Invitation, InvitationState, RoleScope } from "@injishi/data/fixtu
 import { Icon, KeyValueList, LinkButton, PageHeader, toneColor } from "@injishi/ui";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { LanguageSelect } from "@/components/LanguageSelect";
+import { LanguageSelect } from "@/components/language-select";
 import { CardHeading, IconNote, PublicBar } from "./ui";
 
 type Phase = "review" | "otp" | "joined" | "decline" | "declined";

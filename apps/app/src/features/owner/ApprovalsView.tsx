@@ -7,7 +7,7 @@ import { type Persona, screenHref } from "@injishi/data";
 import type { ApprovalArea, ApprovalHistoryEntry, ApprovalRequest } from "@injishi/data/fixtures/owner";
 import { Icon, LinkButton, PageContent, PageHeader, StatusDot, toneColor } from "@injishi/ui";
 import { useOptimistic, useState, useTransition } from "react";
-import { decideApproval } from "./ApprovalsActions";
+import { decideApproval } from "./approvals-actions";
 import { ApprovalDetail, type Decision } from "./ApprovalsDetail";
 
 const FILTERS: { id: "all" | ApprovalArea; label: string }[] = [

@@ -1,7 +1,7 @@
 import { screens } from "@injishi/data";
 import type { Metadata } from "next";
 import { Refused } from "@/features/admin/people/Refused";
-import { type SupportTab, SupportView } from "@/features/admin/support/SupportView";
+import { type SupportTab, SupportView } from "@/features/admin/support/support-view";
 import { requirePersona } from "@/lib/session";
 import { type Search, wordOf } from "@/server/admin/list";
 import { compliance, moderation } from "@/server/admin/support";

@@ -2,7 +2,7 @@ import { screens } from "@injishi/data";
 import type { MyHr } from "@injishi/data/fixtures/shared";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { MeView } from "@/features/me/MeView";
+import { MeView } from "@/features/me/me-view";
 import { ME_TABS, type MeTab } from "@/features/me/tabs";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";

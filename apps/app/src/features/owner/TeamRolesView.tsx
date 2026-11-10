@@ -13,7 +13,7 @@ import type {
 import { LinkButton, PageContent, SectionHeader, toneColor } from "@injishi/ui";
 import { type ReactNode, useMemo, useState } from "react";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
-import { TeamRolesAccessRequests } from "./TeamRolesAccessRequests";
+import { TeamRolesAccessRequests } from "./team-roles-access-requests";
 import {
   cancelTeamInvite,
   changeTeamMember,
