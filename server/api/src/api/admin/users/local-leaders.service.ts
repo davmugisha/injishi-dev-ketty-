@@ -30,7 +30,7 @@ import {
 } from '@injishi/contracts';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 
-import { oversightAssignments, users } from '../../../database/drizzle/schema';
+import { oversightAssignments, userProfiles, users } from '../../../database/drizzle/schema';
 import { GuestRoutingService } from '../../../modules/guests/application/guest-routing.service';
 import { appointmentMail } from '../../../modules/guests/domain/guest-mail';
 import { placeWords, toCsv } from '../../../modules/guests/domain/guest-words';
@@ -330,6 +330,12 @@ export class LocalLeadersService {
     area: { villageId: number | null; cellId: number | null; sectorId: number | null; districtId: number | null },
   ): Promise<void> {
     try {
+      const [profile] = await this.db
+        .select({ locale: userProfiles.locale })
+        .from(users)
+        .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
+        .where(sql`lower(${users.email}) = lower(${email})`)
+        .limit(1);
       await this.notifier.send(
         email,
         appointmentMail({
@@ -338,6 +344,7 @@ export class LocalLeadersService {
           area: appointment.area,
           // A PSF manager lands on the PSF console (2026-11-02), as the team's own appointments do.
           next: leader ? '/officer/guests' : appointment.role === 'psf_membership_officer' || appointment.role === 'psf_business_officer' ? '/psf' : '/officer',
+          locale: profile?.locale === 'fr' || profile?.locale === 'rw' ? profile.locale : 'en',
         }),
         'appointment',
       );

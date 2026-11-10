@@ -19,6 +19,8 @@ import { screenHref } from "@injishi/data";
 import type { Invitation, InvitationState, RoleScope } from "@injishi/data/fixtures/shared";
 import { Icon, KeyValueList, LinkButton, PageHeader, toneColor } from "@injishi/ui";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { LanguageSelect } from "@/components/LanguageSelect";
 import { CardHeading, IconNote, PublicBar } from "./ui";
 
 type Phase = "review" | "otp" | "joined" | "decline" | "declined";
@@ -33,6 +35,7 @@ export function InviteAcceptView({
   state: InvitationState;
   scope: RoleScope;
 }) {
+  const t = useTranslations("invite");
   const [phase, setPhase] = useState<Phase>("review");
   const [requested, setRequested] = useState(false);
   const [code, setCode] = useState("");
@@ -43,14 +46,15 @@ export function InviteAcceptView({
   return (
     <>
       <PublicBar>
+        <LanguageSelect className="mr-2" />
         <Navbar.Spacer />
         <LinkButton href={screenHref("PublicHelp")} variant="ghost" size="sm">
           <CircleQuestion className="size-4" />
-          Help
+          {t("help")}
         </LinkButton>
         <LinkButton href={screenHref("SignIn")} variant="ghost" size="sm">
           <ArrowRightToSquare className="size-4" />
-          Sign in
+          {t("signIn")}
         </LinkButton>
       </PublicBar>
 
@@ -59,11 +63,11 @@ export function InviteAcceptView({
           eyebrow={
             <>
               <EnvelopeOpen className="size-4" aria-hidden="true" />
-              Invitation to join a team
+              {t("title")}
             </>
           }
-          title={`Join ${inv.group} as ${inv.role}`}
-          description={`Hello ${inv.invitee}. Review what this role can and can’t do before you accept.`}
+          title={t("joinAs", { group: inv.group, role: inv.role })}
+          description={t("greeting", { name: inv.invitee })}
         />
 
         <div className="flex flex-wrap items-start gap-5">
@@ -78,7 +82,7 @@ export function InviteAcceptView({
               </Avatar>
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <h2 id="inv-h" className="text-[15px] leading-[22px] font-semibold">
-                  {inv.inviter} invited you
+                  {t("invitedYou", { name: inv.inviter })}
                 </h2>
                 <span className="text-[13px] text-muted">
                   {inv.inviterRole} · {inv.group} · {state.sentLine}
@@ -105,29 +109,29 @@ export function InviteAcceptView({
               className={`rounded-[16px] bg-surface-secondary px-4 py-3.5 ${valid ? "" : "opacity-70"}`}
               items={[
                 {
-                  label: "Role",
+                  label: t("role"),
                   value: (
                     <span className="flex flex-wrap items-center gap-2">
                       {inv.role}
                       {inv.roleProposed ? (
                         <Chip size="sm" variant="soft" color="warning">
-                          Proposed role
+                          {t("proposedRole")}
                         </Chip>
                       ) : null}
                     </span>
                   ),
                 },
                 {
-                  label: "Legal entity",
+                  label: t("legalEntity"),
                   value: (
                     <>
                       {inv.entity} · <span className="tabular">TIN {inv.tin}</span>
                     </>
                   ),
                 },
-                { label: "Property", value: `${inv.property} · ${inv.propertyArea}` },
-                { label: "Not included", value: <span className="font-normal">{inv.notIncluded}</span> },
-                { label: "Sent to", value: inv.email },
+                { label: t("property"), value: `${inv.property} · ${inv.propertyArea}` },
+                { label: t("notIncluded"), value: <span className="font-normal">{inv.notIncluded}</span> },
+                { label: t("sentTo"), value: inv.email },
                 { label: state.expiryLabel, value: state.expiry },
               ]}
             />
@@ -135,7 +139,7 @@ export function InviteAcceptView({
             {showMessage ? (
               <blockquote className="m-0 py-0.5 pl-3.5 text-[14px] leading-[21px] shadow-[inset_2px_0_0_var(--accent)]">
                 “{inv.message}”
-                <span className="mt-1 block text-[12px] text-muted">Message from {inv.inviterFirstName}</span>
+                <span className="mt-1 block text-[12px] text-muted">{t("messageFrom", { name: inv.inviterFirstName })}</span>
               </blockquote>
             ) : null}
 
@@ -144,7 +148,7 @@ export function InviteAcceptView({
                 <PersonsLock />
               </Alert.Indicator>
               <Alert.Content>
-                <Alert.Title>Your employee record doesn’t sign you in</Alert.Title>
+                <Alert.Title>{t("employeeTitle")}</Alert.Title>
                 <Alert.Description>
                   {inv.entity} keeps an HR record for you as an employee. That record gives no access to Injishi. Access
                   comes only from this invitation, starts when you accept and confirm your email, and ends the moment it
@@ -158,15 +162,14 @@ export function InviteAcceptView({
                 <div className="flex flex-wrap items-center gap-2">
                   <Button onPress={() => setPhase("otp")}>
                     <Check className="size-4" />
-                    Accept and confirm email
+                    {t("accept")}
                   </Button>
                   <Button variant="secondary" onPress={() => setPhase("decline")}>
-                    Decline
+                    {t("decline")}
                   </Button>
                 </div>
                 <p className="text-[12px] leading-4 text-muted">
-                  Accepting creates your Injishi sign-in for {inv.email} and adds the {inv.role} role at {inv.property}{" "}
-                  only.
+                  {t("acceptLead", { email: inv.email, role: inv.role, property: inv.property })}
                 </p>
               </div>
             ) : null}
@@ -174,7 +177,7 @@ export function InviteAcceptView({
             {valid && phase === "otp" ? (
               <div role="group" aria-labelledby="otp-l" className="flex flex-col gap-2.5">
                 <Label id="otp-l" className="mb-0.5">
-                  Enter the 6-digit code we sent to {inv.email}
+                  {t("enterCode", { email: inv.email })}
                 </Label>
                 <InputOTP maxLength={6} value={code} onChange={setCode} variant="secondary" aria-labelledby="otp-l">
                   <InputOTP.Group>
@@ -183,11 +186,11 @@ export function InviteAcceptView({
                     ))}
                   </InputOTP.Group>
                 </InputOTP>
-                <span className="text-[12px] text-muted">Code expires in 10 minutes · Resend available in 0:51</span>
+                <span className="text-[12px] text-muted">{t("otpExpiry")}</span>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button onPress={() => setPhase("joined")}>Confirm and join</Button>
+                  <Button onPress={() => setPhase("joined")}>{t("confirmJoin")}</Button>
                   <Button variant="ghost" onPress={() => setPhase("review")}>
-                    Cancel
+                    {t("cancel")}
                   </Button>
                 </div>
               </div>
@@ -200,10 +203,9 @@ export function InviteAcceptView({
                     <CircleCheck />
                   </Alert.Indicator>
                   <Alert.Content>
-                    <Alert.Title>You’ve joined as {inv.role}</Alert.Title>
+                    <Alert.Title>{t("joinedAs", { role: inv.role })}</Alert.Title>
                     <Alert.Description>
-                      Membership active for {inv.property} · email confirmed {inv.joinedAt} · recorded in Amahoro’s
-                      audit log.
+                      {t("membershipActive", { property: inv.property, date: inv.joinedAt })}
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>
@@ -212,9 +214,9 @@ export function InviteAcceptView({
                     <ShieldKeyhole />
                   </ItemCard.Icon>
                   <ItemCard.Content>
-                    <ItemCard.Title>Next: set up your authenticator app</ItemCard.Title>
+                    <ItemCard.Title>{t("nextAuth")}</ItemCard.Title>
                     <ItemCard.Description className="whitespace-normal">
-                      Finance actions such as refunds and fiscal settings ask for a code from it.
+                      {t("financeAuth")}
                     </ItemCard.Description>
                   </ItemCard.Content>
                 </ItemCard>
@@ -224,7 +226,7 @@ export function InviteAcceptView({
                     <ArrowRight className="size-4" />
                   </LinkButton>
                   <LinkButton href={screenHref("Account")} variant="secondary">
-                    Set up authenticator
+                  {t("authSetup")}
                   </LinkButton>
                 </div>
               </>
@@ -247,7 +249,7 @@ export function InviteAcceptView({
                 </TextField>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button variant="danger" onPress={() => setPhase("declined")}>
-                    Decline invitation
+                    {t("decline")}
                   </Button>
                   <Button variant="ghost" onPress={() => setPhase("review")}>
                     Go back
@@ -263,10 +265,9 @@ export function InviteAcceptView({
                     <CircleInfo />
                   </Alert.Indicator>
                   <Alert.Content>
-                    <Alert.Title>You declined this invitation</Alert.Title>
+                    <Alert.Title>{t("declined")}</Alert.Title>
                     <Alert.Description>
-                      {inv.inviter} has been told. No access was created. If you change your mind, ask him for a new
-                      invitation.
+                      {t("declinedLead", { name: inv.inviter })}
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>
@@ -280,24 +281,24 @@ export function InviteAcceptView({
               <>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button isDisabled aria-describedby="exp-why">
-                    Accept
+                    {t("accept")}
                   </Button>
                   {requested ? (
                     <Chip variant="soft" role="status">
                       <Check className="size-3" />
                       <Chip.Label>
-                        Request sent to {inv.inviter} · {inv.requestSentAt}
+                        {t("requestSent", { name: inv.inviter, date: inv.requestSentAt })}
                       </Chip.Label>
                     </Chip>
                   ) : (
                     <Button variant="secondary" onPress={() => setRequested(true)}>
                       <PaperPlane className="size-4" />
-                      Ask {inv.inviterFirstName} for a new invitation
+                      {t("requestInvite", { name: inv.inviterFirstName })}
                     </Button>
                   )}
                 </div>
                 <p id="exp-why" className="text-[12px] text-muted">
-                  Expired invitations can’t be accepted, so no access was created.
+                  {t("expired")}
                 </p>
               </>
             ) : null}
@@ -312,29 +313,28 @@ export function InviteAcceptView({
               <div className="flex flex-wrap items-center gap-2">
                 <LinkButton href={screenHref("SignIn")}>
                   <ArrowRightToSquare className="size-4" />
-                  Sign in
+                  {t("signIn")}
                 </LinkButton>
                 <LinkButton href={screenHref("PublicHelp")} variant="ghost">
-                  Trouble signing in?
+                  {t("troubleSignIn")}
                 </LinkButton>
               </div>
             ) : null}
           </Card>
 
-          <aside aria-label="What this role allows" className="flex min-w-0 flex-[1_1_360px] flex-col gap-4">
+          <aside aria-label={t("whatCan", { role: scope.role })} className="flex min-w-0 flex-[1_1_360px] flex-col gap-4">
             {status === "revoked" ? (
               <Card variant="secondary" className="gap-2 p-5">
-                <CardHeading>Nothing was shared</CardHeading>
+                <CardHeading>{t("nothingShared")}</CardHeading>
                 <p className="text-[13px] leading-[19px] text-muted">
-                  A withdrawn invitation never created an account or membership. No business data was visible from this
-                  link.
+                  {t("revokedBody")}
                 </p>
               </Card>
             ) : (
               <>
                 <Card render={(p) => <section {...p} />} aria-labelledby="can-h" className="gap-3 p-5">
                   <Card.Header>
-                    <CardHeading id="can-h">What {scope.role} Can Do</CardHeading>
+                    <CardHeading id="can-h">{t("whatCan", { role: scope.role })}</CardHeading>
                     <Card.Description>{scope.where}</Card.Description>
                   </Card.Header>
                   <ul className="flex flex-col gap-2.5">
@@ -353,7 +353,7 @@ export function InviteAcceptView({
                   className="gap-3 p-5"
                 >
                   <Card.Header>
-                    <CardHeading id="cant-h">What {scope.role} Can’t Do</CardHeading>
+                    <CardHeading id="cant-h">{t("whatCannot", { role: scope.role })}</CardHeading>
                   </Card.Header>
                   <ul className="flex flex-col gap-2.5">
                     {scope.cant.map((t) => (

@@ -3,6 +3,7 @@
 import { type DataColumn, DataTable, DateText, EmptyBlock, PageContent, StatusChip } from "@injishi/ui";
 
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
+import { useTranslations } from "next-intl";
 
 export interface OfficerDecisionRow {
   id: string;
@@ -18,24 +19,25 @@ export interface OfficerDecisionRow {
 
 /** The decisions this officer made or that were routed to them, newest first, in one table. */
 export function OfficerDecisionsView({ rows }: { rows: OfficerDecisionRow[] }) {
+  const t = useTranslations("officialDecisions");
   const columns: DataColumn<OfficerDecisionRow>[] = [
     {
       id: "when",
-      header: "Decided",
+      header: t("decided"),
       sortValue: (r) => r.decidedAt,
       cell: (r) => <DateText value={r.decidedAt.slice(0, 10)} />,
     },
-    { id: "business", header: "Business", isRowHeader: true, sortValue: (r) => r.business, cell: (r) => r.business },
-    { id: "gate", header: "Stage", sortValue: (r) => r.gate, cell: (r) => r.gate },
+    { id: "business", header: t("business"), isRowHeader: true, sortValue: (r) => r.business, cell: (r) => r.business },
+    { id: "gate", header: t("stage"), sortValue: (r) => r.gate, cell: (r) => r.gate },
     {
       id: "outcome",
-      header: "Outcome",
+      header: t("outcome"),
       sortValue: (r) => (r.passed ? 1 : 0),
-      cell: (r) => <StatusChip tone={r.passed ? "success" : "danger"}>{r.passed ? "Passed" : "Rejected"}</StatusChip>,
+      cell: (r) => <StatusChip tone={r.passed ? "success" : "danger"}>{r.passed ? t("passed") : t("rejected")}</StatusChip>,
     },
     {
       id: "note",
-      header: "Reason or note",
+      header: t("reasonOrNote"),
       hideBelow: "lg",
       cell: (r) => <span className="line-clamp-2 text-sm text-muted">{r.reason ?? r.notes ?? "-"}</span>,
     },
@@ -44,21 +46,21 @@ export function OfficerDecisionsView({ rows }: { rows: OfficerDecisionRow[] }) {
     <PageContent>
       <AreaHeader />
       <DataTable
-        label="Decisions"
-        noun={{ one: "decision", many: "decisions" }}
+        label={t("decisions")}
+        noun={{ one: t("decision"), many: t("decisionsLower") }}
         rows={rows}
         rowKey={(r) => r.id}
         columns={columns}
         defaultSort={{ column: "when", direction: "descending" }}
-        search={{ placeholder: "Business", text: (r) => r.business }}
+        search={{ placeholder: t("business"), text: (r) => r.business }}
         filters={[
           {
             id: "outcome",
-            name: "Outcome",
+            name: t("outcome"),
             options: [
-              { id: "all", label: "All" },
-              { id: "passed", label: "Passed" },
-              { id: "rejected", label: "Rejected" },
+              { id: "all", label: t("all") },
+              { id: "passed", label: t("passed") },
+              { id: "rejected", label: t("rejected") },
             ],
             match: (r, v) => (v === "passed") === r.passed,
           },
@@ -67,10 +69,10 @@ export function OfficerDecisionsView({ rows }: { rows: OfficerDecisionRow[] }) {
           title: (r) => r.business,
           description: (r) => `${r.gate} · ${r.decidedAt.slice(0, 10)}`,
           trailing: (r) => (
-            <StatusChip tone={r.passed ? "success" : "danger"}>{r.passed ? "Passed" : "Rejected"}</StatusChip>
+            <StatusChip tone={r.passed ? "success" : "danger"}>{r.passed ? t("passed") : t("rejected")}</StatusChip>
           ),
         }}
-        empty={<EmptyBlock icon="FileCheck" title="No decisions yet" />}
+        empty={<EmptyBlock icon="FileCheck" title={t("empty")} />}
       />
     </PageContent>
   );

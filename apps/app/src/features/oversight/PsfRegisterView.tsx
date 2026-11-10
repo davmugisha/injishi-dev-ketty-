@@ -16,6 +16,7 @@ import {
 } from "@injishi/ui";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { rwf } from "@/server/format";
 import { ExportMenu } from "@/components/ExportMenu";
@@ -113,6 +114,7 @@ export function PsfRegisterView({
   filters: RegisterFilters;
   tiers: { code: string; nameEn: string }[];
 }) {
+  const t = useTranslations("psfConsole.queue");
   const router = useRouter();
   const [search, setSearch] = useState(filters.q);
   const [problem, setProblem] = useState<string | null>(null);
@@ -232,12 +234,12 @@ export function PsfRegisterView({
     <PageContent>
       <PageHeader
         eyebrow={`${scope.title} · ${scope.label}`}
-        title="Businesses"
-        description={`Every business in ${summary.regionLabel} on PSF's register, and how it stands with PSF. Open one to see its documents, its approval and whether guests can book it.`}
+        title={t("business")}
+        description={t("waitingLead")}
       />
 
       <KpiStrip
-        label="On the register"
+        label={t("business")}
         items={[
           { id: "total", label: "Businesses", value: summary.total, format: "count", icon: "FolderHouse" },
           {
@@ -339,17 +341,17 @@ export function PsfRegisterView({
           }}
         >
           <Input
-            aria-label="Search businesses"
-            placeholder="Search by name or business code"
+            aria-label={t("searchApplications")}
+            placeholder={t("searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="min-w-[16rem] flex-1"
           />
           <Button type="submit" variant="secondary">
-            <Magnifier className="size-4" /> Search
+            <Magnifier className="size-4" /> {t("searchApplications")}
           </Button>
         </form>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Standing with PSF">
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("applicationStatus")}>
           {STANDINGS.map((st) => (
             <Button
               key={st.id || "all"}
@@ -399,7 +401,7 @@ export function PsfRegisterView({
           ) : null}
         </div>
         <DataTable
-          label="Businesses"
+          label={t("business")}
           rows={page.items}
           rowKey={(b) => b.orgId}
           onRowAction={(b) => open(b.orgId)}

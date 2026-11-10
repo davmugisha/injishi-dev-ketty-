@@ -4,6 +4,7 @@ import { PaperPlane } from "@gravity-ui/icons";
 import { Button, Checkbox, CheckboxGroup, Description, Input, Label, Modal, TextArea, TextField } from "@heroui/react";
 import type { CaseFile } from "@injishi/data/fixtures/oversight";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 /** Request more information from the business: what is needed, the message and the response date. */
 export function CaseInfoDialog({
@@ -17,6 +18,7 @@ export function CaseInfoDialog({
   onOpenChange: (open: boolean) => void;
   onSend: () => void;
 }) {
+  const t = useTranslations("officialInfoDialog");
   const [needs, setNeeds] = useState<string[]>(() => file.infoNeeds.filter((n) => n.suggested).map((n) => n.id));
   const [message, setMessage] = useState(file.infoMessage);
   const [due, setDue] = useState(file.infoDue);
@@ -26,18 +28,18 @@ export function CaseInfoDialog({
     <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
       <Modal.Container>
         <Modal.Dialog aria-labelledby="info-h" className="sm:max-w-[520px]">
-          <Modal.CloseTrigger aria-label="Close" />
+          <Modal.CloseTrigger aria-label={t("close")} />
           <Modal.Header className="flex flex-col items-start gap-1">
             <Modal.Heading id="info-h" className="text-lg leading-[26px] font-semibold">
-              Request More Information
+              {t("title")}
             </Modal.Heading>
             <p className="text-[13px] leading-[18px] text-muted">
-              The owner is notified in Injishi and by SMS. Your SLA clock pauses until they reply.
+              {t("intro")}
             </p>
           </Modal.Header>
           <Modal.Body className="flex flex-col gap-4">
             <CheckboxGroup value={needs} onChange={setNeeds} className="gap-2">
-              <Label>What is needed</Label>
+              <Label>{t("whatNeeded")}</Label>
               {file.infoNeeds.map((n) => (
                 <Checkbox key={n.id} value={n.id}>
                   <Checkbox.Content>
@@ -50,22 +52,22 @@ export function CaseInfoDialog({
               ))}
             </CheckboxGroup>
             <TextField fullWidth value={message} onChange={setMessage} className="gap-1">
-              <Label>Message to the business</Label>
+              <Label>{t("message")}</Label>
               <TextArea rows={4} />
             </TextField>
             <TextField fullWidth value={due} onChange={setDue} className="gap-1">
-              <Label>Response due</Label>
+              <Label>{t("responseDue")}</Label>
               <Input />
-              <Description>10 working days. Reminders go out 5 and 2 days before.</Description>
+              <Description>{t("dueHint")}</Description>
             </TextField>
           </Modal.Body>
           <Modal.Footer className="flex flex-wrap items-center justify-end gap-2">
             <Button variant="secondary" onPress={() => onOpenChange(false)}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button isDisabled={!canSend} onPress={onSend}>
               <PaperPlane className="size-4" />
-              Send request
+              {t("send")}
             </Button>
           </Modal.Footer>
         </Modal.Dialog>

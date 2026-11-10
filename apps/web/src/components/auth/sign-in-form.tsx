@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { DemoPersona } from "@injishi/contracts";
 import { Button, Input } from "@injishi/web-ui";
 
@@ -42,6 +43,7 @@ export default function SignInForm({
   /** Present only when `GET /api/v1/platform` said demo. */
   demo?: { personas: DemoPersona[]; seededAt: string | null };
 }) {
+  const t = useTranslations("signin");
   const [state, formAction, pending] = useActionState(action, {});
   const [email, setEmail] = useState(state.email ?? "");
   const field = useRef<HTMLInputElement>(null);
@@ -76,8 +78,8 @@ export default function SignInForm({
           type="email"
           name="email"
           autoComplete="email"
-          placeholder="Enter your email"
-          aria-label="Email address"
+          placeholder={t("formPlaceholder")}
+          aria-label={t("email")}
           aria-invalid={state.error ? true : undefined}
           aria-describedby={state.error ? "sign-in-error" : undefined}
           value={email}
@@ -97,12 +99,12 @@ export default function SignInForm({
         pending={pending}
         data-cy="continue-button"
       >
-        {pending ? "Sending your code…" : "Continue"}
+        {pending ? t("sending") : t("continue")}
       </Button>
 
       {slow ? (
         <InlineNote>
-          Still sending — this can take a few seconds the first time.
+          {t("stillSending")}
         </InlineNote>
       ) : null}
 

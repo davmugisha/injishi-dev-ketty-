@@ -1,6 +1,7 @@
 import { ACCOMMODATION_CLASS_LABEL } from "@injishi/contracts";
 import { ArrowRight, Award, MapPin, ShieldCheck, Star } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { Badge } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
@@ -41,6 +42,7 @@ export function ResultCard({
   highlighted?: boolean;
   onHover?: (slug: string | null) => void;
 }) {
+  const t = useTranslations("search");
   const rate = formatRateNumber(listing.nightlyRateRwf);
   const party = partyPrice(listing.nightlyRateRwf, listing.priceBasis, intent ?? EMPTY_INTENT);
   const topRated = (listing.rating?.score ?? 0) >= TOP_RATED_SCORE;
@@ -98,7 +100,7 @@ export function ResultCard({
               className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-foreground shadow-control"
             >
               <ShieldCheck className="size-3.5 shrink-0 text-accent-text" strokeWidth={2.5} aria-hidden />
-              Verified
+              {t("verified")}
             </Badge>
           </div>
         </div>
@@ -112,7 +114,7 @@ export function ResultCard({
             <div className="mb-2 flex flex-wrap items-center gap-1.5">
               <span className="flex items-center gap-1 rounded-full bg-accent/15 px-2 py-0.5 text-2xs font-bold uppercase tracking-widest text-accent-text">
                 <Award className="size-3" strokeWidth={2.6} aria-hidden />
-                Top rated
+                {t("topRated")}
               </span>
             </div>
           ) : null}
@@ -201,7 +203,7 @@ export function ResultCard({
             aria-hidden
             className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground transition-opacity group-hover:opacity-90 md:mt-auto"
           >
-            View stay
+            {t("viewStay")}
             <ArrowRight className="size-4 transition-transform duration-quick group-hover:translate-x-0.5" strokeWidth={2.4} />
           </span>
         </div>

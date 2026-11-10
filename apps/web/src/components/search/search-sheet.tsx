@@ -2,6 +2,7 @@
 
 import { Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Button,
   Dialog,
@@ -20,8 +21,6 @@ import { rankDestinations } from "@/lib/destination-search";
 import {
   dateSummary,
   EMPTY_SEARCH,
-  GUESTS_PLACEHOLDER,
-  searchGuestSummary,
   toDateRange,
   withDateRange,
   type StaySearch,
@@ -52,6 +51,7 @@ export function SearchSheet({
   onChange: (next: StaySearch) => void;
   onSubmit: (next: StaySearch) => void;
 }) {
+  const t = useTranslations("search");
   const [step, setStep] = useState<Step>("destination");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -65,6 +65,13 @@ export function SearchSheet({
   }, [open]);
 
   const dates = dateSummary(search.checkIn, search.checkOut, search.flexDays);
+  const guests = search.guests
+    ? t("partySummary", {
+        count: search.guests.adults + search.guests.children,
+        infantCount: search.guests.infants,
+        pets: search.guests.pets ? "true" : "false",
+      })
+    : null;
   const where = search.destination?.label ?? search.query.trim();
 
   const chooseDestination = (destination: Destination) => {
@@ -78,9 +85,9 @@ export function SearchSheet({
         showCloseButton={false}
         className="flex h-dvh w-screen max-w-none flex-col gap-0 rounded-none bg-canvas p-0"
       >
-        <DialogTitle className="sr-only">Search stays</DialogTitle>
+        <DialogTitle className="sr-only">{t("sheetTitle")}</DialogTitle>
         <DialogDescription className="sr-only">
-          Choose where you are going, when, and how many people are coming
+          {t("sheetDescription")}
         </DialogDescription>
 
         <header className="flex items-center justify-between px-5 pb-3 pt-5">
@@ -90,7 +97,7 @@ export function SearchSheet({
           <Button
             variant="inverse"
             size="icon"
-            aria-label="Close search"
+            aria-label={t("close")}
             onClick={() => onOpenChange(false)}
             className="border border-black/10 bg-transparent hover:bg-black/5"
           >
@@ -102,14 +109,14 @@ export function SearchSheet({
             onClick={() => onChange(EMPTY_SEARCH)}
             className="text-ink/60 underline hover:text-ink"
           >
-            Clear all
+            {t("clearAll")}
           </Button>
         </header>
 
         <ScrollShadow className="flex-1 space-y-3 scrollbar overflow-y-auto px-4 pb-4">
           <StepCard
-            title="Where to?"
-            summary={where || "Anywhere in Rwanda"}
+            title={t("destinationTitle")}
+            summary={where || t("anywhere")}
             expanded={step === "destination"}
             onExpand={() => setStep("destination")}
           >
@@ -122,7 +129,7 @@ export function SearchSheet({
                   }
                   onSelect={chooseDestination}
                   open={false}
-                  placeholder="District, park or stay"
+                  placeholder={t("destinationHint")}
                   inputRef={inputRef}
                 />
               </div>
@@ -137,14 +144,15 @@ export function SearchSheet({
           </StepCard>
 
           <StepCard
-            title="When?"
-            summary={dates ?? "Any week"}
+            title={t("dateTitle")}
+            summary={dates ?? t("anyWeek")}
             expanded={step === "dates"}
             onExpand={() => setStep("dates")}
           >
             <div className="-mx-2 origin-top scale-[0.92] sm:scale-100">
               <StayDatePicker
                 variant="hero"
+                doneLabel={t("done")}
                 range={toDateRange(search)}
                 onChange={(range) => onChange(withDateRange(search, range))}
                 flexDays={search.flexDays}
@@ -155,8 +163,8 @@ export function SearchSheet({
           </StepCard>
 
           <StepCard
-            title="Who's coming?"
-            summary={searchGuestSummary(search) ?? GUESTS_PLACEHOLDER}
+            title={t("guestsTitle")}
+            summary={guests ?? t("guestsPlaceholder")}
             expanded={step === "guests"}
             onExpand={() => setStep("guests")}
           >
@@ -177,7 +185,7 @@ export function SearchSheet({
             className="h-13 gap-2.5 text-base"
           >
             <Search width={18} height={18} strokeWidth={1.9} aria-hidden />
-            Search stays
+            {t("searchStays")}
           </Button>
         </div>
       </DialogContent>

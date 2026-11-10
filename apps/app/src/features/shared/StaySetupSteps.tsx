@@ -5,31 +5,21 @@ import { Button, Checkbox, Description, Input, Label, TextArea, TextField } from
 import {
   BED_TYPE_LABEL,
   type BedType,
-  bedsLine,
   bedsSleep,
-  CHILDREN_POLICY_LABEL,
-  type ChildrenPolicy,
-  CRIB_POLICY_LABEL,
-  type CribPolicy,
-  FRONT_DESK_LABEL,
-  type FrontDesk,
-  INTERNET_LABEL,
-  type InternetAccess,
-  PARKING_LABEL,
-  PARTIES_POLICY_LABEL,
-  type ParkingOption,
-  type PartiesPolicy,
-  PETS_POLICY_LABEL,
-  type PetsPolicy,
-  ROOM_CATEGORY_LABEL,
+  ChildrenPolicy,
+  CribPolicy,
+  FrontDesk,
+  InternetAccess,
+  ParkingOption,
+  PartiesPolicy,
+  PetsPolicy,
   type RoomBed,
-  type RoomCategory,
+  RoomCategory,
   type RoomTypeDetailEdit,
-  SMOKING_POLICY_LABEL,
-  type SmokingPolicy,
-  STAFF_LANGUAGE_LABEL,
-  type StaffLanguage,
+  SmokingPolicy,
+  StaffLanguage,
 } from "@injishi/contracts";
+import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { type ApiAmenity, type ApiProperty, hasPhoto, type SetupRead } from "@/server/mutations/setup";
 import {
@@ -40,7 +30,7 @@ import {
   updatePropertyAction,
   updateRoomTypeAction,
 } from "./setup-actions";
-import { hhmm, Outcome, rwf, SELECT, StepCard, useStep } from "./setup-ui";
+import { hhmm, labelsOf, Outcome, rwf, SELECT, StepCard, useSetupWords, useStep } from "./setup-ui";
 
 /**
  * A stay's own setup steps (0117), the ones a hotel, lodge, guest house or tented camp owes its guests and a
@@ -92,7 +82,7 @@ function ChoiceSelect<T extends string>({
   value,
   onChange,
   labels,
-  placeholder = "Choose…",
+  placeholder,
 }: {
   label: string;
   value: T | "";
@@ -100,11 +90,12 @@ function ChoiceSelect<T extends string>({
   labels: Readonly<Record<T, string>>;
   placeholder?: string;
 }) {
+  const t = useTranslations("setup");
   return (
     <label className="flex flex-col gap-1 text-sm font-medium">
       {label}
       <select className={SELECT} value={value} onChange={(e) => onChange(e.target.value as T | "")}>
-        <option value="">{placeholder}</option>
+        <option value="">{placeholder ?? t("choose")}</option>
         {(Object.keys(labels) as T[]).map((k) => (
           <option key={k} value={k}>
             {labels[k]}
@@ -121,6 +112,9 @@ const orNull = <T extends string>(v: T | "") => (v === "" ? null : v);
 // ── 2. Front desk and contact ─────────────────────────────────────────────────────────────────────
 
 export function DeskStep({ data, index }: { data: Open; index: number }) {
+  const t = useTranslations("setup");
+  const tDesk = useTranslations("setup.deskChoices");
+  const tLang = useTranslations("setup.languageChoices");
   const p = data.property;
   const step = useStep();
   const [phone, setPhone] = useState(p?.contactPhone ?? "");
@@ -154,49 +148,47 @@ export function DeskStep({ data, index }: { data: Open; index: number }) {
   const toggle = (code: StaffLanguage, on: boolean) =>
     setLanguages((now) => (on ? [...new Set([...now, code])] : now.filter((c) => c !== code)));
   return (
-    <StepCard
-      id="desk"
-      index={index}
-      title="Front desk and contact"
-      done={done}
-      icon={<Persons />}
-      lead="How guests and officers reach you, when the desk is open, and the languages your staff speak."
-    >
+    <StepCard id="desk" index={index} title={t("deskTitle")} done={done} icon={<Persons />} lead={t("deskLead")}>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <div className={GRID}>
           <TextField value={phone} onChange={setPhone} isRequired fullWidth>
-            <Label>Reservations phone</Label>
+            <Label>{t("reservationsPhone")}</Label>
             <Input type="tel" placeholder="078 123 4567" />
           </TextField>
           <TextField value={whatsapp} onChange={setWhatsapp} fullWidth>
-            <Label>WhatsApp</Label>
+            <Label>{t("whatsapp")}</Label>
             <Input type="tel" placeholder="078 123 4567" />
-            <Description>Optional. Many guests write here first.</Description>
+            <Description>{t("whatsappHint")}</Description>
           </TextField>
           <TextField value={email} onChange={setEmail} fullWidth>
-            <Label>Email</Label>
+            <Label>{t("email")}</Label>
             <Input type="email" placeholder="reservations@example.com" />
           </TextField>
         </div>
         <div className={GRID}>
-          <ChoiceSelect label="Front desk" value={desk} onChange={setDesk} labels={FRONT_DESK_LABEL} />
+          <ChoiceSelect
+            label={t("frontDesk")}
+            value={desk}
+            onChange={setDesk}
+            labels={labelsOf(FrontDesk.options, tDesk)}
+          />
           {desk === "limited" ? (
             <>
-              <TimeSelect label="Opens" value={opens} onChange={setOpens} />
-              <TimeSelect label="Closes" value={closes} onChange={setCloses} />
+              <TimeSelect label={t("opens")} value={opens} onChange={setOpens} />
+              <TimeSelect label={t("closes")} value={closes} onChange={setCloses} />
             </>
           ) : null}
         </div>
         <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-          <legend className="mb-1 text-sm font-medium">Languages your staff speak</legend>
+          <legend className="mb-1 text-sm font-medium">{t("staffLanguages")}</legend>
           <div className="flex flex-wrap gap-x-5 gap-y-2">
-            {(Object.keys(STAFF_LANGUAGE_LABEL) as StaffLanguage[]).map((code) => (
+            {StaffLanguage.options.map((code) => (
               <Checkbox key={code} isSelected={languages.includes(code)} onChange={(on) => toggle(code, on)}>
                 <Checkbox.Content className="flex items-center gap-2">
                   <Checkbox.Control>
                     <Checkbox.Indicator />
                   </Checkbox.Control>
-                  <span className="text-sm">{STAFF_LANGUAGE_LABEL[code]}</span>
+                  <span className="text-sm">{tLang(code)}</span>
                 </Checkbox.Content>
               </Checkbox>
             ))}
@@ -208,9 +200,9 @@ export function DeskStep({ data, index }: { data: Open; index: number }) {
           className="self-start"
           isDisabled={step.busy || !phone.trim() || !desk || languages.length === 0}
         >
-          {step.busy ? "Saving…" : "Save"}
+          {step.busy ? t("saving") : t("save")}
         </Button>
-        <Outcome result={step.result} okText="Saved." />
+        <Outcome result={step.result} okText={t("saved")} />
       </form>
     </StepCard>
   );
@@ -221,6 +213,14 @@ export function DeskStep({ data, index }: { data: Open; index: number }) {
 const AGES = [16, 18, 21, 25] as const;
 
 export function RulesStep({ data, index }: { data: Open; index: number }) {
+  const t = useTranslations("setup");
+  const tChildren = useTranslations("setup.childrenChoices");
+  const tPets = useTranslations("setup.petsChoices");
+  const tSmoking = useTranslations("setup.smokingChoices");
+  const tParties = useTranslations("setup.partiesChoices");
+  const tInternet = useTranslations("setup.internetChoices");
+  const tParking = useTranslations("setup.parkingChoices");
+  const tCribs = useTranslations("setup.cribChoices");
   const p = data.property;
   const step = useStep();
   const [checkIn, setCheckIn] = useState(hhmm(p?.checkInTime) || "14:00");
@@ -268,86 +268,105 @@ export function RulesStep({ data, index }: { data: Open; index: number }) {
     );
   };
   return (
-    <StepCard
-      id="rules"
-      index={index}
-      title="Check-in and house rules"
-      done={done}
-      icon={<Clock />}
-      lead="What guests agree to when they book. Each is a choice, so the guest page and the front desk read the same thing."
-    >
+    <StepCard id="rules" index={index} title={t("rulesTitle")} done={done} icon={<Clock />} lead={t("rulesLead")}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         <div className={GRID}>
-          <TimeSelect label="Check-in from" value={checkIn} onChange={setCheckIn} />
+          <TimeSelect label={t("checkInFrom")} value={checkIn} onChange={setCheckIn} />
           <TimeSelect
-            label="Check-in until"
+            label={t("checkInUntil")}
             value={checkInUntil}
             onChange={setCheckInUntil}
-            emptyLabel="Any time"
-            description="The latest a guest can arrive and still check in."
+            emptyLabel={t("anyTime")}
+            description={t("checkInUntilHint")}
           />
-          <TimeSelect label="Check-out by" value={checkOut} onChange={setCheckOut} />
+          <TimeSelect label={t("checkOutBy")} value={checkOut} onChange={setCheckOut} />
           <label className="flex flex-col gap-1 text-sm font-medium">
-            Minimum age to check in
+            {t("minAge")}
             <select className={SELECT} value={age} onChange={(e) => setAge(e.target.value)}>
               {AGES.map((a) => (
                 <option key={a} value={a}>
-                  {a} years
+                  {t("years", { count: a })}
                 </option>
               ))}
             </select>
           </label>
         </div>
         <div className={GRID}>
-          <ChoiceSelect label="Children" value={children} onChange={setChildren} labels={CHILDREN_POLICY_LABEL} />
-          <ChoiceSelect label="Pets" value={pets} onChange={setPets} labels={PETS_POLICY_LABEL} />
-          <ChoiceSelect label="Smoking" value={smoking} onChange={setSmoking} labels={SMOKING_POLICY_LABEL} />
           <ChoiceSelect
-            label="Parties and events"
+            label={t("children")}
+            value={children}
+            onChange={setChildren}
+            labels={labelsOf(ChildrenPolicy.options, tChildren)}
+          />
+          <ChoiceSelect
+            label={t("pets")}
+            value={pets}
+            onChange={setPets}
+            labels={labelsOf(PetsPolicy.options, tPets)}
+          />
+          <ChoiceSelect
+            label={t("smoking")}
+            value={smoking}
+            onChange={setSmoking}
+            labels={labelsOf(SmokingPolicy.options, tSmoking)}
+          />
+          <ChoiceSelect
+            label={t("parties")}
             value={parties}
             onChange={setParties}
-            labels={PARTIES_POLICY_LABEL}
+            labels={labelsOf(PartiesPolicy.options, tParties)}
           />
         </div>
         <div className={GRID}>
-          <TimeSelect label="Quiet hours from" value={quietFrom} onChange={setQuietFrom} emptyLabel="No quiet hours" />
+          <TimeSelect label={t("quietFrom")} value={quietFrom} onChange={setQuietFrom} emptyLabel={t("noQuietHours")} />
           <TimeSelect
-            label="Quiet hours until"
+            label={t("quietUntil")}
             value={quietUntil}
             onChange={setQuietUntil}
-            emptyLabel="No quiet hours"
+            emptyLabel={t("noQuietHours")}
           />
-          <ChoiceSelect label="Internet" value={internet} onChange={setInternet} labels={INTERNET_LABEL} />
-          <ChoiceSelect label="Parking" value={parking} onChange={setParking} labels={PARKING_LABEL} />
+          <ChoiceSelect
+            label={t("internet")}
+            value={internet}
+            onChange={setInternet}
+            labels={labelsOf(InternetAccess.options, tInternet)}
+          />
+          <ChoiceSelect
+            label={t("parking")}
+            value={parking}
+            onChange={setParking}
+            labels={labelsOf(ParkingOption.options, tParking)}
+          />
         </div>
         <div className={GRID}>
-          <ChoiceSelect label="Cribs for babies" value={cribs} onChange={setCribs} labels={CRIB_POLICY_LABEL} />
+          <ChoiceSelect
+            label={t("cribs")}
+            value={cribs}
+            onChange={setCribs}
+            labels={labelsOf(CribPolicy.options, tCribs)}
+          />
           {cribs === "charged" ? (
             <TextField value={cribPrice} onChange={setCribPrice} isRequired fullWidth>
-              <Label>Crib price a night (RWF)</Label>
+              <Label>{t("cribPrice")}</Label>
               <Input inputMode="numeric" placeholder="5000" className="tabular" />
             </TextField>
           ) : null}
         </div>
         <TextField value={other} onChange={setOther} fullWidth>
-          <Label>Anything else guests should know</Label>
-          <TextArea rows={2} placeholder="Visitors leave by 22:00. The gate closes at midnight." />
-          <Description>
-            Every guest shows an ID or passport at check-in; the law asks it, so it is said for you.
-          </Description>
+          <Label>{t("anythingElse")}</Label>
+          <TextArea rows={2} placeholder={t("anythingElsePlaceholder")} />
+          <Description>{t("idAtCheckIn")}</Description>
         </TextField>
-        {quietHalf ? (
-          <p className="m-0 text-[13px] text-danger">Give quiet hours both a start and an end, or neither.</p>
-        ) : null}
+        {quietHalf ? <p className="m-0 text-[13px] text-danger">{t("quietBoth")}</p> : null}
         <Button
           type="submit"
           variant={done ? "secondary" : "primary"}
           className="self-start"
           isDisabled={step.busy || quietHalf}
         >
-          {step.busy ? "Saving…" : "Save"}
+          {step.busy ? t("saving") : t("save")}
         </Button>
-        <Outcome result={step.result} okText="Saved." />
+        <Outcome result={step.result} okText={t("saved")} />
       </form>
     </StepCard>
   );
@@ -377,14 +396,16 @@ const STARTING_BEDS: Readonly<Record<RoomCategory, RoomBed[]>> = {
 };
 
 function BedsEditor({ beds, onChange }: { beds: RoomBed[]; onChange: (next: RoomBed[]) => void }) {
-  const unused = BED_TYPES.filter((t) => !beds.some((b) => b.type === t));
+  const t = useTranslations("setup");
+  const tBeds = useTranslations("setup.bedTypes");
+  const unused = BED_TYPES.filter((type) => !beds.some((b) => b.type === type));
   return (
     <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-      <legend className="mb-1 text-sm font-medium">Beds in each room</legend>
+      <legend className="mb-1 text-sm font-medium">{t("bedsTitle")}</legend>
       {beds.map((bed, i) => (
         <div key={bed.type} className="flex flex-wrap items-center gap-2">
           <input
-            aria-label={`How many ${BED_TYPE_LABEL[bed.type]}`}
+            aria-label={t("howManyBeds", { bed: tBeds(bed.type) })}
             className={`${SELECT} w-20 tabular`}
             inputMode="numeric"
             value={String(bed.count)}
@@ -394,19 +415,19 @@ function BedsEditor({ beds, onChange }: { beds: RoomBed[]; onChange: (next: Room
             }}
           />
           <select
-            aria-label="Bed type"
+            aria-label={t("bedType")}
             className={`${SELECT} w-auto flex-1`}
             value={bed.type}
             onChange={(e) => onChange(beds.map((b, j) => (j === i ? { ...b, type: e.target.value as BedType } : b)))}
           >
-            {[bed.type, ...unused].map((t) => (
-              <option key={t} value={t}>
-                {BED_TYPE_LABEL[t]}
+            {[bed.type, ...unused].map((type) => (
+              <option key={type} value={type}>
+                {tBeds(type)}
               </option>
             ))}
           </select>
           <Button variant="ghost" size="sm" onPress={() => onChange(beds.filter((_, j) => j !== i))}>
-            Remove
+            {t("remove")}
           </Button>
         </div>
       ))}
@@ -417,7 +438,7 @@ function BedsEditor({ beds, onChange }: { beds: RoomBed[]; onChange: (next: Room
           className="self-start"
           onPress={() => onChange([...beds, { type: unused[0] as BedType, count: 1 }])}
         >
-          Add a bed type
+          {t("addType", { unit: t("bed") })}
         </Button>
       ) : null}
     </fieldset>
@@ -435,8 +456,10 @@ function RoomForm({
   row?: RoomTypeRow;
   onSaved?: () => void;
 }) {
+  const t = useTranslations("setup");
+  const categories = labelsOf(RoomCategory.options, useTranslations("setup.categories"));
   const p = data.property;
-  const words = data.words;
+  const words = useSetupWords(data.words);
   const step = useStep();
   const [category, setCategory] = useState<RoomCategory | "">((row?.roomCategory as RoomCategory | null) ?? "");
   const [name, setName] = useState(row?.name ?? "");
@@ -458,19 +481,20 @@ function RoomForm({
   const kidsN = Number(kids) || 0;
   const problem =
     beds.filter((b) => b.count > 0).length === 0
-      ? "Add the beds in the room."
+      ? t("problemBeds")
       : adultsN < 1
-        ? "A room takes at least one adult."
+        ? t("problemAdult")
         : adultsN > sleeps
-          ? `Those beds sleep ${sleeps}, fewer than ${adultsN} adults.`
+          ? t("problemSleeps", { sleeps, adults: adultsN })
           : single && price && Number(single.replace(/\D/g, "")) >= Number(price.replace(/\D/g, ""))
-            ? "The price for one guest should be less than the room price."
+            ? t("problemSinglePrice")
             : null;
 
   const pick = (next: RoomCategory | "") => {
     setCategory(next);
     if (!next) return;
-    if (!name.trim() || Object.values(ROOM_CATEGORY_LABEL).includes(name)) setName(ROOM_CATEGORY_LABEL[next]);
+    // A name nobody typed is the kind's own name, so a room someone names is never overwritten.
+    if (!name.trim() || Object.values(categories).includes(name)) setName(categories[next]);
     if (beds.length === 0) setBeds(STARTING_BEDS[next]);
   };
 
@@ -519,14 +543,14 @@ function RoomForm({
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
       <div className={GRID}>
-        <ChoiceSelect label="Kind of room" value={category} onChange={pick} labels={ROOM_CATEGORY_LABEL} />
+        <ChoiceSelect label={t("kindOfRoom")} value={category} onChange={pick} labels={categories} />
         <TextField value={name} onChange={setName} isRequired fullWidth>
-          <Label>Name guests see</Label>
-          <Input placeholder="Deluxe double room with lake view" />
+          <Label>{t("nameGuestsSee")}</Label>
+          <Input placeholder={t("roomNamePlaceholder")} />
         </TextField>
         {row ? null : (
           <TextField value={count} onChange={setCount} isRequired fullWidth>
-            <Label>{`How many ${words.unitPlural} like this`}</Label>
+            <Label>{t("howManyUnits", { units: words.unitPlural })}</Label>
             <Input inputMode="numeric" className="tabular" />
           </TextField>
         )}
@@ -534,51 +558,49 @@ function RoomForm({
       <BedsEditor beds={beds} onChange={setBeds} />
       <div className={GRID}>
         <TextField value={adults} onChange={setAdults} isRequired fullWidth>
-          <Label>Adults, at most</Label>
+          <Label>{t("adultsMax")}</Label>
           <Input inputMode="numeric" className="tabular" />
         </TextField>
         <TextField value={kids} onChange={setKids} fullWidth>
-          <Label>Children, at most</Label>
+          <Label>{t("childrenMax")}</Label>
           <Input inputMode="numeric" className="tabular" />
-          <Description>Under 18, on top of the adults.</Description>
+          <Description>{t("under18")}</Description>
         </TextField>
         <TextField value={size} onChange={setSize} fullWidth>
-          <Label>Size (m²)</Label>
+          <Label>{t("sizeM2")}</Label>
           <Input inputMode="numeric" placeholder="20" className="tabular" />
         </TextField>
         <label className="flex flex-col gap-1 text-sm font-medium">
-          Bathroom
+          {t("bathroom")}
           <select
             className={SELECT}
             value={bathroom}
             onChange={(e) => setBathroom(e.target.value as "private" | "shared")}
           >
-            <option value="private">Private bathroom</option>
-            <option value="shared">Shared bathroom</option>
+            <option value="private">{t("privateBathroom")}</option>
+            <option value="shared">{t("sharedBathroom")}</option>
           </select>
         </label>
       </div>
       <div className={GRID}>
         <TextField value={price} onChange={setPrice} isRequired fullWidth>
-          <Label>{perRoom ? "Price per night (RWF)" : `Price ${words.pricePeriod} (RWF)`}</Label>
+          <Label>{perRoom ? t("priceNight") : t("priceForPeriod", { period: words.pricePeriod })}</Label>
           <Input inputMode="numeric" placeholder="60000" className="tabular" />
-          <Description>
-            {perRoom ? `For the whole ${words.unitSingular}, however many sleep in it.` : undefined}
-          </Description>
+          <Description>{perRoom ? t("wholeUnitHint") : undefined}</Description>
         </TextField>
         {perRoom ? (
           <TextField value={single} onChange={setSingle} fullWidth>
-            <Label>Price for one guest (RWF)</Label>
+            <Label>{t("priceOneGuest")}</Label>
             <Input inputMode="numeric" placeholder="45000" className="tabular" />
-            <Description>Optional. Left empty, one guest pays the room price.</Description>
+            <Description>{t("priceOneGuestHint")}</Description>
           </TextField>
         ) : null}
       </div>
       <div className={GRID}>
         <label className="flex flex-col gap-1 text-sm font-medium">
-          Extra beds it can take
+          {t("extraBeds")}
           <select className={SELECT} value={extraBeds} onChange={(e) => setExtraBeds(e.target.value)}>
-            <option value="0">None</option>
+            <option value="0">{t("none")}</option>
             {[1, 2, 3, 4].map((n) => (
               <option key={n} value={n}>
                 {n}
@@ -588,9 +610,9 @@ function RoomForm({
         </label>
         {Number(extraBeds) > 0 ? (
           <TextField value={extraBedPrice} onChange={setExtraBedPrice} fullWidth>
-            <Label>Extra bed a night (RWF)</Label>
+            <Label>{t("extraBedPrice")}</Label>
             <Input inputMode="numeric" placeholder="10000" className="tabular" />
-            <Description>Arranged with the desk and paid at the property. Empty is free.</Description>
+            <Description>{t("extraBedHint")}</Description>
           </TextField>
         ) : null}
       </div>
@@ -601,15 +623,16 @@ function RoomForm({
         className="self-start"
         isDisabled={step.busy || name.trim().length < 2 || !price.trim() || problem !== null}
       >
-        {step.busy ? "Saving…" : row ? "Save" : `Add ${words.unitSingular} type`}
+        {step.busy ? t("saving") : row ? t("save") : t("addType", { unit: words.unitSingular })}
       </Button>
-      <Outcome result={step.result} okText={row ? "Saved." : "Added."} />
+      <Outcome result={step.result} okText={row ? t("saved") : t("typeAdded", { type: words.unitSingular })} />
     </form>
   );
 }
 
 /** A room type's own photograph (0118): the first one filed under it, and a way to add one. */
 function RoomPhoto({ data, row }: { data: Open; row: RoomTypeRow }) {
+  const t = useTranslations("setup");
   const p = data.property;
   const step = useStep();
   const [key, setKey] = useState(0);
@@ -631,11 +654,11 @@ function RoomPhoto({ data, row }: { data: Open; row: RoomTypeRow }) {
         <img src={photo.url} alt={row.name} className="size-14 shrink-0 rounded-lg bg-default object-cover" />
       ) : (
         <span className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-default text-[11px] text-muted">
-          No photo
+          {t("needsPhoto")}
         </span>
       )}
       <label className="text-[13px] font-medium text-accent">
-        {step.busy ? "Uploading…" : photo ? "Add another photo" : "Add a photo of this room"}
+        {step.busy ? t("uploading") : photo ? t("addPhoto") : t("photoOfEveryRoom")}
         <input
           key={key}
           type="file"
@@ -651,16 +674,21 @@ function RoomPhoto({ data, row }: { data: Open; row: RoomTypeRow }) {
 }
 
 function RoomLine({ data, row }: { data: Open; row: RoomTypeRow }) {
+  const t = useTranslations("setup");
+  const tBeds = useTranslations("setup.bedTypes");
   const [open, setOpen] = useState(false);
-  const words = data.words;
+  const words = useSetupWords(data.words);
   const missing = !(row.beds?.length && row.maxAdults != null);
+  const beds = (row.beds ?? [])
+    .filter((b) => b.count > 0)
+    .map((b) => t("bedCount", { count: b.count, bed: tBeds(b.type), beds: tBeds(b.type) }));
   const facts = [
-    row.beds?.length ? bedsLine(row.beds) : null,
+    beds.length ? beds.join(", ") : null,
     row.maxAdults != null
-      ? `${row.maxAdults} ${row.maxAdults === 1 ? "adult" : "adults"}${row.maxChildren ? ` + ${row.maxChildren} ${row.maxChildren === 1 ? "child" : "children"}` : ""}`
+      ? `${t("adultCount", { count: row.maxAdults })}${row.maxChildren ? ` + ${t("childCount", { count: row.maxChildren })}` : ""}`
       : null,
     row.sizeM2 ? `${row.sizeM2} m²` : null,
-    `${row.sellableRoomCount} ${row.sellableRoomCount === 1 ? words.unitSingular : words.unitPlural}`,
+    t("unitCount", { count: row.sellableRoomCount, unit: words.unitSingular, units: words.unitPlural }),
   ].filter(Boolean);
   return (
     <li className="flex flex-col gap-2 border-t border-separator py-2.5 first:border-t-0">
@@ -668,20 +696,18 @@ function RoomLine({ data, row }: { data: Open; row: RoomTypeRow }) {
         <div className="flex min-w-0 flex-col">
           <span className="font-medium">{row.name}</span>
           <span className="text-[13px] text-muted">{facts.join(" · ")}</span>
-          {missing ? (
-            <span className="text-[13px] text-danger">Add its beds and the adults it takes before you publish.</span>
-          ) : null}
+          {missing ? <span className="text-[13px] text-danger">{t("addBedsAdults")}</span> : null}
           {!hasPhoto(data.property, row.id) ? (
-            <span className="text-[13px] text-danger">Add a photograph of this room before you publish.</span>
+            <span className="text-[13px] text-danger">{t("addRoomPhoto")}</span>
           ) : null}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-[13px] text-muted tabular">
-            {row.basePriceRwf === null ? "No price yet" : `${rwf(row.basePriceRwf)} ${words.pricePeriod}`}
-            {row.singleGuestPriceRwf != null ? ` · ${rwf(row.singleGuestPriceRwf)} for one` : ""}
+            {row.basePriceRwf === null ? t("noPrice") : `${rwf(row.basePriceRwf)} ${words.pricePeriod}`}
+            {row.singleGuestPriceRwf != null ? ` · ${t("forOne", { price: rwf(row.singleGuestPriceRwf) })}` : ""}
           </span>
           <Button variant={missing ? "primary" : "ghost"} size="sm" onPress={() => setOpen((o) => !o)}>
-            {open ? "Close" : "Edit"}
+            {open ? t("close") : t("edit")}
           </Button>
         </div>
       </div>
@@ -692,34 +718,35 @@ function RoomLine({ data, row }: { data: Open; row: RoomTypeRow }) {
 }
 
 export function StayRoomsStep({ data, index }: { data: Open; index: number }) {
+  const t = useTranslations("setup");
   const p = data.property;
-  const words = data.words;
-  const types = p?.roomTypes.filter((t) => t.status === "active") ?? [];
+  const words = useSetupWords(data.words);
+  const types = p?.roomTypes.filter((row) => row.status === "active") ?? [];
   const done = data.steps.find((s) => s.key === "room_type")?.done ?? false;
   const [adding, setAdding] = useState(types.length === 0);
   return (
     <StepCard
       id="room_type"
       index={index}
-      title={`${words.typePlural} and prices`}
+      title={t("typePluralAndPrices", { types: words.typePlural })}
       done={done}
       icon={<Key />}
-      lead={`Each kind of ${words.unitSingular} you sell: its beds, who may sleep in it, and its price ${words.pricePeriod}, in Rwandan francs.`}
+      lead={t("roomTypesLead", { unit: words.unitSingular, period: words.pricePeriod })}
     >
       {types.length ? (
         <ul className="m-0 flex list-none flex-col p-0">
-          {types.map((t) => (
-            <RoomLine key={t.id} data={data} row={t} />
+          {types.map((row) => (
+            <RoomLine key={row.id} data={data} row={row} />
           ))}
         </ul>
       ) : null}
       {!p ? (
-        <p className="text-[13px] text-muted">Add the property first.</p>
+        <p className="text-[13px] text-muted">{t("addPropertyFirst")}</p>
       ) : adding ? (
         <RoomForm data={data} onSaved={() => setAdding(types.length === 0)} />
       ) : (
         <Button variant="secondary" className="self-start" onPress={() => setAdding(true)}>
-          {`Add another ${words.unitSingular} type`}
+          {t("addAnotherType", { unit: words.unitSingular })}
         </Button>
       )}
     </StepCard>
@@ -730,6 +757,7 @@ export function StayRoomsStep({ data, index }: { data: Open; index: number }) {
 
 /** The shared catalogue, grouped as it is stored, each ticked or not; a tick is saved as it is pressed. */
 export function FacilitiesStep({ data, index }: { data: Open; index: number }) {
+  const t = useTranslations("setup");
   const p = data.property;
   const [offered, setOffered] = useState<Set<string>>(
     () => new Set(data.amenities.filter((a) => a.offered).map((a) => a.code)),
@@ -764,10 +792,10 @@ export function FacilitiesStep({ data, index }: { data: Open; index: number }) {
     <StepCard
       id="facilities"
       index={index}
-      title="Facilities"
+      title={t("facilitiesTitle")}
       done={offered.size > 0}
       icon={<ListCheck />}
-      lead="What a stay includes, from Wi-Fi to a pool. Guests filter by these, so tick only what is there every day."
+      lead={t("facilitiesLead")}
     >
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))]">
         {[...groups.entries()].map(([category, items]) => (
@@ -798,6 +826,7 @@ export function FacilitiesStep({ data, index }: { data: Open; index: number }) {
  * against the grading certificate; guests see stars only once it is confirmed.
  */
 export function StarGradeField({ data }: { data: Open }) {
+  const t = useTranslations("setup");
   const step = useStep();
   const [grade, setGrade] = useState(data.starGrade.grade ? String(data.starGrade.grade) : "");
   const said = data.starGrade.grade;
@@ -806,12 +835,12 @@ export function StarGradeField({ data }: { data: Open }) {
     <div className="flex flex-col gap-2 border-t border-separator pt-3">
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-sm font-medium">
-          Official star grade
+          {t("starGrade")}
           <select className={`${SELECT} w-56`} value={grade} onChange={(e) => setGrade(e.target.value)}>
-            <option value="">Not graded</option>
+            <option value="">{t("notGraded")}</option>
             {[1, 2, 3, 4, 5].map((n) => (
               <option key={n} value={n}>
-                {`${n} star${n === 1 ? "" : "s"}`}
+                {t("starCount", { count: n })}
               </option>
             ))}
           </select>
@@ -821,17 +850,17 @@ export function StarGradeField({ data }: { data: Open }) {
           isDisabled={step.busy || !changed}
           onPress={() => void step.run(() => setStarGradeAction(data.workspaceId, grade))}
         >
-          {step.busy ? "Saving…" : "Save grade"}
+          {step.busy ? t("saving") : t("saveGrade")}
         </Button>
       </div>
       <p className="m-0 text-[13px] text-muted">
         {said === null
-          ? "Graded by RDB? Say so here; an officer checks it against your grading certificate before guests see stars."
+          ? t("gradeUnsaved")
           : data.starGrade.verifiedAt
-            ? `${said} stars, confirmed by Injishi. Guests see it on your page.`
-            : `${said} stars, waiting for an officer to check it against your RDB grading certificate. Guests see no stars until then.`}
+            ? t("gradeConfirmed", { stars: t("starCount", { count: said }) })
+            : t("gradePending", { stars: t("starCount", { count: said }) })}
       </p>
-      <Outcome result={step.result} okText="Saved. An officer checks it before guests see it." />
+      <Outcome result={step.result} okText={t("gradeSaved")} />
     </div>
   );
 }

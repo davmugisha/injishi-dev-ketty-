@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 
@@ -35,11 +36,11 @@ interface Copy {
   variant: "primary" | "outline";
 }
 
-function copyFor(standing: HostStanding): Copy {
+function copyFor(standing: HostStanding, labels: Record<HostStanding["state"], string>): Copy {
   switch (standing.state) {
     case "hosting":
       return {
-        label: "Switch to hosting",
+        label: labels.hosting,
         href: appHome(),
         variant: "outline",
       };
@@ -47,14 +48,19 @@ function copyFor(standing: HostStanding): Copy {
       // NOT `/host`. That page sells the idea of listing to somebody still
       // deciding; this person decided, paid, and is waiting. The wizard reads
       // its own in-flight registration and opens on the resume phase.
-      return { label: "Resume registration", href: "/register", variant: "primary" };
+      return { label: labels.registering, href: "/register", variant: "primary" };
     case "prospect":
-      return { label: "List Accommodation", href: "/host", variant: "primary" };
+      return { label: labels.prospect, href: "/host", variant: "primary" };
   }
 }
 
 export function HostCta({ className }: { className?: string }) {
-  const { label, href, variant } = copyFor(useHostStanding());
+  const t = useTranslations("nav");
+  const { label, href, variant } = copyFor(useHostStanding(), {
+    hosting: t("hostSwitch"),
+    registering: t("hostResume"),
+    prospect: t("hostList"),
+  });
 
   return (
     <Button asChild size="lg" variant={variant} className={cn("shrink-0 px-6", className)}>
@@ -74,7 +80,12 @@ export function HostCta({ className }: { className?: string }) {
  * the hook answers from one memoised request.
  */
 export function HostCtaMobile({ onNavigate }: { onNavigate?: () => void }) {
-  const { label, href, variant } = copyFor(useHostStanding());
+  const t = useTranslations("nav");
+  const { label, href, variant } = copyFor(useHostStanding(), {
+    hosting: t("hostSwitch"),
+    registering: t("hostResume"),
+    prospect: t("hostList"),
+  });
 
   return (
     <Button asChild fullWidth variant={variant}>

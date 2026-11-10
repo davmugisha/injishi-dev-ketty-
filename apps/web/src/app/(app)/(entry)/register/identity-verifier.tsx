@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   countryName,
   type AccountDocumentType,
@@ -53,6 +54,7 @@ export function IdScanner({
   nationalIdMode: IdentityAdapterMode;
   onScanned: (result: IdentityScanResult) => void;
 }) {
+  const t = useTranslations("registerForms.verify");
   const [front, setFront] = useState<File | null>(null);
   const [selfie, setSelfie] = useState<File | null>(null);
   const [nationalId, setNationalId] = useState("");
@@ -102,7 +104,7 @@ export function IdScanner({
     for (const upload of uploads) {
       if (upload && upload.status !== "ok") {
         setBusy(false);
-        setProblem(`${apiResultMessage(upload)} The upload needs a connection.`);
+        setProblem(`${apiResultMessage(upload)} ${t("uploadNeedsConnection")}`);
         return;
       }
     }
@@ -136,24 +138,24 @@ export function IdScanner({
           reset();
         }}
       >
-        <TabsList aria-label="Type of ID" className="self-start">
-          <TabsTrigger value="national_id">Rwandan National ID</TabsTrigger>
-          <TabsTrigger value="passport">Passport</TabsTrigger>
+        <TabsList aria-label={t("tabsLabel")} className="self-start">
+          <TabsTrigger value="national_id">{t("nationalIdTab")}</TabsTrigger>
+          <TabsTrigger value="passport">{t("passportTab")}</TabsTrigger>
         </TabsList>
       </Tabs>
 
       {byNumber ? (
         <Field
-          label="Your National ID number"
+          label={t("idNumber")}
           required
-          hint="The 16 digits on the front of your card. We check them with NIDA."
-          error={numberProblem ?? (touched && nationalId.trim() === "" ? "Type your National ID number." : undefined)}
+          hint={t("idNumberHint")}
+          error={numberProblem ?? (touched && nationalId.trim() === "" ? t("idRequired") : undefined)}
         >
           <TextInput
             id="register-national-id"
             inputMode="numeric"
             autoComplete="off"
-            placeholder="1 1990 8 0012345 12 3"
+            placeholder={t("idPlaceholder")}
             maxLength={24}
             value={nationalId}
             onChange={(e) => setNationalId(e.target.value)}
@@ -163,16 +165,16 @@ export function IdScanner({
 
       {passport ? (
         <Field
-          label="Country that issued your passport"
+          label={t("passportCountry")}
           required
-          error={touched && country === "" ? "Pick the country on the cover of your passport." : undefined}
+          error={touched && country === "" ? t("passportCountryRequired") : undefined}
         >
           <SelectField
             id="register-passport-country"
             value={country}
             onChange={setCountry}
             options={COUNTRY_OPTIONS}
-            placeholder="Pick a country"
+            placeholder={t("pickCountry")}
           />
         </Field>
       ) : null}
@@ -183,8 +185,8 @@ export function IdScanner({
           <PhotoSlot
             id="register-id-front"
             step={1}
-            label={passport ? "Your passport's photo page" : "The front of your ID card"}
-            hint={passport ? "Flat, in good light, the whole page in view." : "Flat, in good light, the whole card in view."}
+            label={passport ? t("frontPassport") : t("frontId")}
+            hint={passport ? t("frontPassportHint") : t("frontIdHint")}
             icon={passport ? <Camera size={16} aria-hidden /> : <IdCard size={16} aria-hidden />}
             capture="environment"
             file={front}
@@ -193,8 +195,8 @@ export function IdScanner({
           <PhotoSlot
             id="register-id-selfie"
             step={2}
-            label="A selfie"
-            hint="Face the camera, nothing covering your face."
+            label={t("selfie")}
+            hint={t("selfieHint")}
             icon={<ScanFace size={16} aria-hidden />}
             capture="user"
             file={selfie}
@@ -205,19 +207,18 @@ export function IdScanner({
 
       {demo === "mock" ? (
         <p className="text-xs text-muted-foreground">
-          {byNumber
-            ? "Demo: NIDA is a stand-in here with made-up people. Type any well formed National ID, never a real one."
-            : "Demo: nothing is read from the photos. The demo makes up the details, so use any two different pictures, never a real ID."}
+          {byNumber ? t("demoMockNumber") : t("demoMockPhoto")}
         </p>
       ) : demo === "sandbox" ? (
         <p className="text-xs text-muted-foreground">
-          Test service: this check goes to Injishi Mock APIs, not to {byNumber ? "NIDA" : "Smile ID"}. Use{" "}
-          {byNumber ? "a National ID" : "a person and their demo photos"} from its console, never a real ID.
+          {t("demoSandbox", {
+            provider: byNumber ? "NIDA" : t("smileId"),
+            subject: byNumber ? t("aNationalId") : t("aPersonPhotos"),
+          })}
         </p>
       ) : demo === "off" ? (
         <p className="text-xs text-muted-foreground">
-          Your photos are kept for PSF. You type your details next, and PSF compares them with the photos before
-          approving.
+          {t("demoOff")}
         </p>
       ) : null}
 
@@ -228,7 +229,7 @@ export function IdScanner({
         controlClassName="mt-0.5"
       >
         <span className="text-sm font-medium">
-          {byNumber ? "I agree to Injishi checking my ID with NIDA." : "I agree to Injishi checking my ID."}
+          {byNumber ? t("consentNida") : t("consent")}
         </span>
       </Checkbox>
 
@@ -239,13 +240,13 @@ export function IdScanner({
           disabled={!ready}
           aria-describedby={online ? undefined : "register-scan-offline"}
         >
-          {busy ? "Checking…" : byNumber ? "Check my ID" : "Scan my ID"}
+          {busy ? t("checking") : byNumber ? t("checkId") : t("scanId")}
         </Button>
-        {online ? null : <Offline id="register-scan-offline">You're offline. Connect to check your ID.</Offline>}
+        {online ? null : <Offline id="register-scan-offline">{t("offline")}</Offline>}
       </div>
 
       {problem ? (
-        <Callout tone="danger" icon={<TriangleAlert size={16} aria-hidden />} title="That did not go through">
+        <Callout tone="danger" icon={<TriangleAlert size={16} aria-hidden />} title={t("failedTitle")}>
           {problem}
         </Callout>
       ) : null}
@@ -304,10 +305,11 @@ function PhotoSlot({
  * check your ID".
  */
 export function IdentityCard({ person }: { person: IdentityOnFile }) {
+  const t = useTranslations("registerForms.verify");
   const doc =
     person.documentType === "passport"
-      ? `Passport ${person.documentNumberMasked}, ${countryName(person.issuingCountry)}`
-      : `National ID ${person.documentNumberMasked}`;
+      ? t("docPassport", { number: person.documentNumberMasked, country: countryName(person.issuingCountry) })
+      : t("docNationalId", { number: person.documentNumberMasked });
   return (
     <div
       className={
@@ -322,30 +324,29 @@ export function IdentityCard({ person }: { person: IdentityOnFile }) {
         ) : (
           <Clock size={16} aria-hidden className="text-muted-foreground" />
         )}
-        {person.checked ? "Checked" : "PSF will check your ID"}
+        {person.checked ? t("statusChecked") : t("statusPsf")}
       </p>
       <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-        <Pair label="Name" value={person.fullName} />
-        <Pair label="Date of birth" value={person.dateOfBirth} />
-        <Pair label="ID" value={doc} />
+        <Pair label={t("name")} value={person.fullName} />
+        <Pair label={t("dateOfBirth")} value={person.dateOfBirth} />
+        <Pair label={t("id")} value={doc} />
       </dl>
-      <p className="mt-3 text-xs text-muted-foreground">{provenance(person)}</p>
+      <p className="mt-3 text-xs text-muted-foreground">{provenance(person, t)}</p>
     </div>
   );
 }
 
 /** Where the details came from, in one sentence. */
-function provenance(person: IdentityOnFile): string {
-  if (person.generated) {
-    return "Test details: a stand-in service made these up. No real register or document was read.";
-  }
+function provenance(
+  person: IdentityOnFile,
+  t: ReturnType<typeof useTranslations<"registerForms.verify">>,
+): string {
+  if (person.generated) return t("provenanceGenerated");
   if (person.source === "registry") {
-    return person.checked
-      ? "From NIDA's register. If one is wrong, contact support."
-      : "From NIDA's register. The document reviewer confirms your ID before approving.";
+    return person.checked ? t("provenanceRegistryChecked") : t("provenanceRegistryPending");
   }
-  if (person.checked) return "Read from your ID. If one is wrong, contact support.";
-  return "You typed these. PSF compares them with your photos before approving.";
+  if (person.checked) return t("provenanceRead");
+  return t("provenanceTyped");
 }
 
 function Pair({ label, value }: { label: string; value: string }) {

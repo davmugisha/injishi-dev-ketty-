@@ -51,6 +51,7 @@ import {
   MeCollectionsController,
   MeConsentsController,
   MeGuestContactController,
+  MeLanguagePreferenceController,
   MeSavedController,
   MeTripFactsController,
 } from './me/saved.controller';
@@ -451,6 +452,7 @@ import { EntitlementCheck } from '../../shared/entitlements/entitlement-check';
     MeCollectionsController,
     MeConsentsController,
     MeGuestContactController,
+    MeLanguagePreferenceController,
     MeTripFactsController,
     MeBusinessesController,
     MeWorkController,

@@ -15,6 +15,7 @@ import type {
 } from "@injishi/data/fixtures/admin";
 import { LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { type Key, useState } from "react";
+import { useTranslations } from "next-intl";
 import { EntitlementsPane, KybPane, LifecyclePane } from "./BusinessPanes";
 import { initials, lineTab, selectableRow, TabCount, ToneChip } from "./shared";
 import { type AccessMode, ViewAsDialog } from "./ViewAsDialog";
@@ -68,6 +69,7 @@ function exportCsv(rows: Business[]) {
 }
 
 export function AdminBusinessesView({ persona, data }: { persona: Persona; data: AdminBusinessesData }) {
+  const t = useTranslations("adminBusinesses");
   const [life, setLife] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [sel, setSel] = useState(data.businesses[0]?.id ?? "");
@@ -99,20 +101,20 @@ export function AdminBusinessesView({ persona, data }: { persona: Persona; data:
   return (
     <PageContent>
       <PageHeader
-        eyebrow="Tenants › Businesses · 211 registered"
-        title="Businesses"
+        eyebrow={t("eyebrow")}
+        title={t("title")}
         actions={
           <>
-            <SearchField aria-label="Search businesses" value={query} onChange={setQuery} className="w-[240px]">
+            <SearchField aria-label={t("search")} value={query} onChange={setQuery} className="w-[240px]">
               <SearchField.Group>
                 <SearchField.SearchIcon />
-                <SearchField.Input placeholder="Name, TIN or owner" />
+                <SearchField.Input placeholder={t("searchPlaceholder")} />
                 <SearchField.ClearButton />
               </SearchField.Group>
             </SearchField>
             <Button variant="secondary" onPress={() => exportCsv(shown)}>
               <ArrowDownToLine className="size-4" />
-              Export list
+              {t("export")}
             </Button>
           </>
         }
@@ -120,7 +122,7 @@ export function AdminBusinessesView({ persona, data }: { persona: Persona; data:
 
       <Tabs variant="secondary" selectedKey={life} onSelectionChange={(k) => setLife(String(k))}>
         <Tabs.ListContainer>
-          <Tabs.List aria-label="Lifecycle stage">
+          <Tabs.List aria-label={t("lifecycle")}>
             {data.counts.map((c) => (
               <Tabs.Tab key={c.id} id={c.id} className={lineTab}>
                 {c.label}
@@ -137,7 +139,7 @@ export function AdminBusinessesView({ persona, data }: { persona: Persona; data:
                 <Table>
                   <Table.ScrollContainer>
                     <Table.Content
-                      aria-label="Businesses"
+                      aria-label={t("title")}
                       selectionMode="single"
                       selectionBehavior="replace"
                       disallowEmptySelection
@@ -151,16 +153,16 @@ export function AdminBusinessesView({ persona, data }: { persona: Persona; data:
                       }}
                     >
                       <Table.Header>
-                        <Table.Column isRowHeader>Business</Table.Column>
-                        <Table.Column>Lifecycle</Table.Column>
-                        <Table.Column>KYB</Table.Column>
-                        <Table.Column>Plan</Table.Column>
-                        <Table.Column>In stage</Table.Column>
+                        <Table.Column isRowHeader>{t("business")}</Table.Column>
+                        <Table.Column>{t("lifecycle")}</Table.Column>
+                        <Table.Column>{t("kyb")}</Table.Column>
+                        <Table.Column>{t("plan")}</Table.Column>
+                        <Table.Column>{t("inStage")}</Table.Column>
                       </Table.Header>
                       <Table.Body
                         renderEmptyState={() => (
                           <p className="px-3 py-6 text-center text-[13px] text-muted">
-                            No business matches “{query.trim()}” in this stage.
+                            {t("noMatch", { query: query.trim() })}
                           </p>
                         )}
                       >
@@ -190,8 +192,7 @@ export function AdminBusinessesView({ persona, data }: { persona: Persona; data:
                   </Table.ScrollContainer>
                 </Table>
                 <p className="text-xs text-muted">
-                  Showing {shown.length} of {total(life)} · sorted by time in stage · tenant data stays inside each
-                  workspace
+                  {t("showing", { shown: shown.length, total: total(life) })}
                 </p>
               </section>
 
@@ -212,7 +213,7 @@ export function AdminBusinessesView({ persona, data }: { persona: Persona; data:
                       {b.entity} · TIN {b.tin}
                     </span>
                     <span className="text-xs leading-4 text-muted">
-                      Owner {b.owner} · {b.kind}
+                    {t("owner")} {b.owner} · {b.kind}
                     </span>
                   </div>
                   <ToneChip tone={stage.tone}>{stage.label}</ToneChip>
@@ -227,24 +228,24 @@ export function AdminBusinessesView({ persona, data }: { persona: Persona; data:
                     }}
                   >
                     <Eye className="size-4" />
-                    View as…
+                    {t("viewAs")}
                   </Button>
                   <LinkButton href={screenHref("AdminSupport")} size="sm" variant="ghost">
-                    Tickets
+                    {t("tickets")}
                   </LinkButton>
                   <LinkButton href={screenHref("AdminAudit")} size="sm" variant="ghost">
-                    Audit
+                    {t("audit")}
                   </LinkButton>
                 </div>
                 <Segment
-                  aria-label="Business detail"
+                  aria-label={t("detail")}
                   className="w-full"
                   selectedKey={pane}
                   onSelectionChange={(k) => setPane(k as Pane)}
                 >
                   {PANES.map((p) => (
                     <Segment.Item key={p.id} id={p.id} className="flex-1">
-                      {p.label}
+                      {p.id === "kyb" ? t("tabs.documents") : p.id === "ent" ? t("tabs.entitlements") : t("tabs.lifecycle")}
                     </Segment.Item>
                   ))}
                 </Segment>

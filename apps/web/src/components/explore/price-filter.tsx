@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Slider } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { FilterSection } from "@/components/explore/filter-primitives";
@@ -40,6 +41,7 @@ export function PriceFilter({
   /** Stays that pass every filter, this range included, for the live line. */
   matchCount?: number;
 }) {
+  const t = useTranslations("search");
   const chart = histogram;
   const ceiling = chart?.maxRwf ?? FALLBACK_CEILING_RWF;
 
@@ -54,7 +56,7 @@ export function PriceFilter({
   const fmt = (rwf: number) => formatRateNumber(rwf) ?? String(rwf);
   const rangeLine =
     min === null && max === null
-      ? "Any price"
+      ? t("anyPrice")
       : min === null
         ? `Up to ${fmt(max!)} RWF`
         : max === null
@@ -76,7 +78,7 @@ export function PriceFilter({
   return (
     <FilterSection
       id="price"
-      title="Price range"
+      title={t("priceRange")}
       selectedCount={min !== null || max !== null ? 1 : 0}
     >
       <p className="flex items-baseline justify-between gap-2 text-sm" aria-live="polite">
@@ -121,12 +123,12 @@ export function PriceFilter({
           value={live}
           onValueChange={(next) => setDraft(next as [number, number])}
           onValueCommit={commit}
-          aria-label="Price range"
+          aria-label={t("priceRange")}
         />
       </div>
 
       {presets.length ? (
-        <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Quick price ranges">
+        <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label={t("quickPriceRanges")}>
           {presets.map((preset) => {
             const on = preset.min === min && preset.max === max;
             return (
@@ -157,7 +159,7 @@ export function PriceFilter({
       <div className="mt-3 flex items-center gap-2 text-sm">
         <label className="flex-1">
           <span className="mb-1 block text-2xs font-medium text-muted-foreground">
-            Min <span className="sr-only">(RWF)</span>
+            {t("min")} <span className="sr-only">(RWF)</span>
           </span>
           <span className="relative block">
             <input
@@ -182,7 +184,7 @@ export function PriceFilter({
         <span className="mt-4 text-muted-foreground">–</span>
         <label className="flex-1">
           <span className="mb-1 block text-2xs font-medium text-muted-foreground">
-            Max <span className="sr-only">(RWF)</span>
+            {t("max")} <span className="sr-only">(RWF)</span>
           </span>
           {/*
             A `+` placeholder, and no `max` attribute. The chart's top is a

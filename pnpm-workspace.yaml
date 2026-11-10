@@ -38,6 +38,8 @@ virtualStoreDirMaxLength: 60
 # (bullmq) and sharp are the API's native builds.
 allowBuilds:
   '@heroui-pro/react': true
+  '@parcel/watcher': false
+  '@swc/core': false
   '@zowe/secrets-for-zowe-sdk': false
   esbuild: true
   heroui-native-pro: true

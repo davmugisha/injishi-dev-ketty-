@@ -25,6 +25,7 @@ import {
   SidePanel,
 } from "@injishi/ui";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { loadGuestPlaces } from "../../guests/places";
 import { useStepUp } from "../step-up/step-up-dialog";
@@ -71,19 +72,6 @@ export const ROLE_CHOICES: { id: OversightRole; label: string; description: stri
     description: "Reads one district's PSF console. Approvals come later",
   },
 ];
-
-export function roleLabel(role: OversightRole): string {
-  return ROLE_CHOICES.find((r) => r.id === role)?.label ?? OVERSIGHT_ROLE_LABEL[role];
-}
-
-const LEVEL_WORD: Record<OversightScopeLevel, string> = {
-  country: "The whole country",
-  province: "A province",
-  district: "A district",
-  sector: "A sector",
-  cell: "A cell",
-  village: "A village",
-};
 
 function defaultBody(role: OversightRole, bodies: readonly GovernmentBody[]): string {
   const wanted = isLeaderRole(role) ? LEADER_ROLE_BODY[role] : role === "psf_membership_officer" ? "PSF" : "MINALOC";
@@ -149,6 +137,28 @@ export function AppointPanel({
   prefill: AppointPrefill | null;
   onClose: () => void;
 }) {
+  const t = useTranslations("admin.appointment");
+  const tr = useTranslations("admin.roles");
+  const descriptionFor = (id: OversightRole): string => {
+    switch (id) {
+      case "village_leader": return tr("villageLeader");
+      case "cell_executive": return tr("cellExecutive");
+      case "dasso":
+      case "sector_executive": return tr("sectorScope");
+      case "district_officer": return tr("districtScope");
+      case "dgie_village": return tr("foreignVillage");
+      case "dgie_cell": return tr("foreignCell");
+      case "district_immigration": return tr("foreignDistrict");
+      case "dgie_province": return tr("foreignProvince");
+      case "dgie_national": return tr("foreignCountry");
+      case "business_field_verifier": return t("reviewerDescription");
+      case "business_approver": return t("approverDescription");
+      case "tax_compliance_officer": return tr("taxCompliance");
+      case "psf_membership_officer": return t("psfDescription");
+      case "psf_business_officer": return t("bdeDescription");
+      default: return id;
+    }
+  };
   const router = useRouter();
   // Nothing is chosen for the admin: a role comes from a coverage gap they pressed, or they pick it.
   const startRole = prefill?.role ?? null;
@@ -158,7 +168,7 @@ export function AppointPanel({
   const [level, setLevel] = useState<OversightScopeLevel>(startRole ? defaultLevel(startRole) : "country");
   const [chain, setChain] = useState<PlaceChain>(prefill?.chain ?? {});
   const [body, setBody] = useState(startRole ? defaultBody(startRole, bodies) : "");
-  const [title, setTitle] = useState(startRole ? roleLabel(startRole) : "");
+  const [title, setTitle] = useState(startRole ? tr(startRole) : "");
   const [titleTouched, setTitleTouched] = useState(false);
   const [reason, setReason] = useState("");
   const [idType, setIdType] = useState<"national_id" | "passport">("national_id");
@@ -175,14 +185,14 @@ export function AppointPanel({
   // No role picked yet (main): no levels. A PSF post keeps its own posting levels (this branch).
   const allowed = role ? levelsFor(role) : [];
   const depth: PlaceLevel | null = !role || level === "country" ? null : (level as PlaceLevel);
-  const area = depth ? areaWords(chain, level) : "the whole country";
+  const area = depth ? areaWords(chain, level) : t("country");
 
   const chooseRole = (next: OversightRole) => {
     setRole(next);
     const nextLevel = defaultLevel(next);
     setLevel(nextLevel);
     setBody(defaultBody(next, bodies));
-    if (!titleTouched) setTitle(roleLabel(next));
+    if (!titleTouched) setTitle(tr(next));
     setErrors({});
   };
 
@@ -208,9 +218,9 @@ export function AppointPanel({
         if (!next[field]) next[field] = issue.message;
       }
     }
-    if (!role) next.role = "Choose a role.";
+    if (!role) next.role = t("chooseError");
     if (depth && !isPlaceComplete(chain, depth)) {
-      next.area = `Choose every level, down to the ${depth}.`;
+      next.area = t("levelError", { level: t(depth) });
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -231,7 +241,7 @@ export function AppointPanel({
           setFormError(Object.keys(fields).length > 0 ? null : result.error);
           return;
         }
-        toast.success(`${result.value.name ?? result.value.email} is now ${result.value.roleLabel.toLowerCase()}`);
+        toast.success(t("appointmentSuccess", { person: result.value.name ?? result.value.email, role: tr(result.value.role) }));
         onClose();
         router.refresh();
       },
@@ -243,8 +253,8 @@ export function AppointPanel({
       <SidePanel
         isOpen
         onOpenChange={(open) => (open ? undefined : onClose())}
-        title="Appoint a leader or officer"
-        submitLabel="Appoint"
+        title={t("title")}
+        submitLabel={t("appoint")}
         submitIcon="PersonPlus"
         isPending={pending}
         validationErrors={errors}
@@ -256,7 +266,7 @@ export function AppointPanel({
         }}
       >
         <EmailInput
-          label="Email"
+          label={t("email")}
           name="email"
           value={email}
           onChange={(v) => {
@@ -277,16 +287,16 @@ export function AppointPanel({
           fullWidth
           className="gap-1"
         >
-          <Label>Full name (optional)</Label>
-          <Input placeholder="As on their ID" />
+          <Label>{t("name")}</Label>
+          <Input placeholder={t("nameHint")} />
           <FieldError>{errors.name}</FieldError>
         </TextField>
         <SelectField
-          label="Role"
+          label={t("role")}
           name="role"
           value={role}
-          placeholder="Choose a role"
-          options={ROLE_CHOICES}
+          placeholder={t("chooseRole")}
+          options={ROLE_CHOICES.map((choice) => ({ ...choice, label: tr(choice.id), description: descriptionFor(choice.id) }))}
           onChange={(v) => chooseRole(v as OversightRole)}
           errorMessage={errors.role}
         />
@@ -294,7 +304,7 @@ export function AppointPanel({
           <>
             {allowed.length > 1 ? (
               <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium">Covers</span>
+                <span className="text-sm font-medium">{t("covers")}</span>
                 <Segment
                   aria-label="Covers"
                   selectedKey={level}
@@ -306,7 +316,7 @@ export function AppointPanel({
                 >
                   {allowed.map((l) => (
                     <Segment.Item key={l} id={l}>
-                      {LEVEL_WORD[l]}
+                      {t(l)}
                     </Segment.Item>
                   ))}
                 </Segment>
@@ -314,7 +324,7 @@ export function AppointPanel({
             ) : null}
             {depth ? (
               <PlacePicker
-                label={`Area: ${LEVEL_WORD[level].toLowerCase()}`}
+                label={t("area", { level: t(level) })}
                 value={chain}
                 depth={depth}
                 onChange={(next) => {
@@ -326,10 +336,10 @@ export function AppointPanel({
                 errorMessage={errors.area || null}
               />
             ) : (
-              <p className="text-sm text-muted">This role covers the whole country.</p>
+              <p className="text-sm text-muted">{t("coversCountry")}</p>
             )}
             <SelectField
-              label="Government body"
+              label={t("governmentBody")}
               name="governmentBodyCode"
               value={body || null}
               options={bodies
@@ -353,20 +363,20 @@ export function AppointPanel({
               fullWidth
               className="gap-1"
             >
-              <Label>Title</Label>
+              <Label>{t("titleLabel")}</Label>
               <Input />
               <FieldError>{errors.governmentTitle}</FieldError>
             </TextField>
             {role === "psf_business_officer" ? (
               <>
                 <SelectField
-                  label="ID"
+                  label={t("idDocument")}
                   name="idDocumentType"
                   value={idType}
                   onChange={(v) => setIdType(v === "passport" ? "passport" : "national_id")}
                   options={[
-                    { id: "national_id", label: "Rwandan National ID" },
-                    { id: "passport", label: "Passport" },
+                    { id: "national_id", label: t("nationalId") },
+                    { id: "passport", label: t("passport") },
                   ]}
                 />
                 <TextField
@@ -380,8 +390,8 @@ export function AppointPanel({
                   fullWidth
                   className="gap-1"
                 >
-                  <Label>{idType === "passport" ? "Passport number" : "National ID number"}</Label>
-                  <Input placeholder={idType === "passport" ? "6 to 12 letters or digits" : "16 digits"} autoComplete="off" />
+                  <Label>{idType === "passport" ? t("passportNumber") : t("nationalIdNumber")}</Label>
+                  <Input placeholder={idType === "passport" ? t("passportHelp") : t("nationalIdHelp")} autoComplete="off" />
                   <FieldError>{errors.idDocument}</FieldError>
                 </TextField>
               </>
@@ -397,8 +407,8 @@ export function AppointPanel({
               fullWidth
               className="gap-1"
             >
-              <Label>Why</Label>
-              <TextArea rows={3} placeholder="Took office in October 2026" />
+              <Label>{t("why")}</Label>
+              <TextArea rows={3} placeholder={t("reasonPlaceholder")} />
               <FieldError>{errors.reason}</FieldError>
             </TextField>
           </>
@@ -407,16 +417,16 @@ export function AppointPanel({
       <ConfirmDialog
         isOpen={confirming}
         onOpenChange={setConfirming}
-        title={`Appoint ${name.trim() || email}?`}
-        confirmLabel="Appoint"
+        title={t("confirmTitle", { person: name.trim() || email })}
+        confirmLabel={t("appoint")}
         confirmIcon="PersonPlus"
         isPending={pending}
         onConfirm={appoint}
       >
-        {`${name.trim() || email} becomes ${role ? roleLabel(role).toLowerCase() : ""} for ${area || "the area chosen"}. `}
+        {t("confirmLead", { person: name.trim() || email, role: role ? tr(role).toLowerCase() : "", area: area || t("chosenArea") })}{" "}
         {role && isLeaderRole(role)
-          ? "They get an email to sign in, and the guests in that area reach them from now on, with any that were waiting."
-          : "They get an email to sign in, and the businesses in that area reach their queue."}
+          ? t("confirmBodyLeader")
+          : t("confirmBodyOfficer")}
       </ConfirmDialog>
       {stepUp.dialog}
     </>

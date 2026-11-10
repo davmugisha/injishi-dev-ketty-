@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 
@@ -33,11 +34,12 @@ export function Pagination({
   pageCount: number;
   onPageChange: (page: number) => void;
 }) {
+  const t = useTranslations("search");
   if (pageCount <= 1) return null;
 
   return (
     <nav
-      aria-label="Search result pages"
+      aria-label={t("searchResultPages")}
       data-pagination
       className="mb-20 mt-12 flex items-center justify-center gap-2"
     >
@@ -62,7 +64,7 @@ export function Pagination({
             variant={entry === page ? "primary" : "outline"}
             shape="rounded"
             aria-current={entry === page ? "page" : undefined}
-            aria-label={`Page ${entry}`}
+            aria-label={t("page", { page: entry })}
             onClick={() => onPageChange(entry)}
             className={cn(
               "h-10 min-w-10 px-3 text-sm tabular-nums",
@@ -92,6 +94,7 @@ function Arrow({
   disabled: boolean;
   onClick: () => void;
 }) {
+  const t = useTranslations("search");
   return (
     <Button
       variant="outline"
@@ -99,7 +102,7 @@ function Arrow({
       shape="rounded"
       disabled={disabled}
       onClick={onClick}
-      aria-label={`${direction === "previous" ? "Previous" : "Next"} page`}
+      aria-label={direction === "previous" ? t("previousPage") : t("nextPage")}
       className={cn(!disabled && "text-page-fg")}
     >
       {direction === "previous" ? (

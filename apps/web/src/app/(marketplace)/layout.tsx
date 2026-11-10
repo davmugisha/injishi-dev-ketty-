@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { getLocale, getMessages } from "next-intl/server";
+import { NextIntlClientProvider } from "next-intl";
 import { fixed } from "@injishi/design-tokens";
 import { pwaMetadata } from "@/lib/pwa-metadata";
 import { AssistantWidget } from "@/components/assistant/assistant-widget";
@@ -103,20 +105,24 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function PublicLayout({ children }: { children: React.ReactNode }) {
+export default async function PublicLayout({ children }: { children: React.ReactNode }) {
+  const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
+
   return (
     <html
-      lang="en"
+      lang={locale}
       className={outfit.variable}
       suppressHydrationWarning
     >
       <body className="antialiased">
         <ThemeProvider>
-          <HeroRouter>
-            {children}
-            {/* The support assistant (ADR-061). Draws nothing when the API has it off. */}
-            <AssistantWidget />
-          </HeroRouter>
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            <HeroRouter>
+              {children}
+              {/* The support assistant (ADR-061). Draws nothing when the API has it off. */}
+              <AssistantWidget />
+            </HeroRouter>
+          </NextIntlClientProvider>
         </ThemeProvider>
         <AnalyticsScript />
       </body>

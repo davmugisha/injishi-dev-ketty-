@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { ArtDirectedImage } from "@/components/shared/art-directed-image";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { formatPublishedAt, GUIDES } from "@/data/guides";
@@ -9,7 +10,8 @@ import { formatPublishedAt, GUIDES } from "@/data/guides";
  * Even, not the old 3fr/2fr/1fr row: three guides read as three peers, and
  * the "All guides" link in the heading does what the "More" tile did.
  */
-export function HomeGuides() {
+export async function HomeGuides() {
+  const t = await getTranslations("home");
   const guides = [...GUIDES]
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
     .slice(0, 3);
@@ -19,9 +21,9 @@ export function HomeGuides() {
   return (
     <section className="section-y container flex flex-col gap-8">
       <SectionHeading
-        lead="Guides "
-        emphasis="for the road"
-        action={{ label: "All guides", href: "/guides" }}
+        lead={t("guides.lead")}
+        emphasis={t("guides.emphasis")}
+        action={{ label: t("guides.all"), href: "/guides" }}
       />
 
       <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-5 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">

@@ -24,6 +24,7 @@ import {
 } from "@injishi/ui";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { type FormEvent, useState, useTransition } from "react";
 import { useStepUp } from "../step-up/step-up-dialog";
 import { createAccount } from "./actions";
@@ -39,24 +40,7 @@ export interface PeopleFilters {
 }
 
 const ANY = "all";
-const KIND_OPTIONS = [
-  { id: ANY, label: "Any kind" },
-  { id: "staff", label: "Injishi staff" },
-  { id: "official", label: "Leaders and officers" },
-  { id: "business", label: "Works in a business" },
-  { id: "guest", label: "Guests and others" },
-];
-const STATUS_OPTIONS = [
-  { id: ANY, label: "Any status" },
-  { id: "active", label: "Active" },
-  { id: "invited", label: "Invited, not signed in" },
-  { id: "suspended", label: "Suspended" },
-];
-export const STATUS_LABEL: Record<AdminAccountStatus, string> = {
-  active: "Active",
-  invited: "Invited",
-  suspended: "Suspended",
-};
+const STATUS_KEYS: Record<AdminAccountStatus, string> = { active: "active", invited: "invited", suspended: "suspended" };
 const STATUS_COLOR: Record<AdminAccountStatus, "success" | "default" | "danger"> = {
   active: "success",
   invited: "default",
@@ -81,6 +65,7 @@ export function PeopleView({
   customRoles: readonly AdminCustomRole[];
   canCreate: boolean;
 }) {
+  const t = useTranslations("adminPeople.people");
   const router = useRouter();
   const [search, setSearch] = useState(filters.q);
   const [creating, setCreating] = useState(false);
@@ -104,7 +89,7 @@ export function PeopleView({
   };
 
   const roleOptions = [
-    { id: ANY, label: "Any role" },
+    { id: ANY, label: t("anyRole") },
     ...StaffRole.options.map((r) => ({ id: r, label: STAFF_ROLE_LABEL[r] })),
     ...customRoles.filter((r) => !r.archivedAt).map((r) => ({ id: r.id, label: r.name })),
   ];
@@ -117,12 +102,12 @@ export function PeopleView({
   return (
     <PageContent>
       <PageHeader
-        title="People"
-        description="Every account on Injishi. Open a person to see what they can do, change their roles, or suspend them."
+        title={t("title")}
+        description={t("description")}
         actions={
           canCreate ? (
             <ActionButton icon="Plus" intent="primary" onPress={() => setCreating(true)}>
-              Add person
+              {t("addPerson")}
             </ActionButton>
           ) : null
         }
@@ -130,30 +115,30 @@ export function PeopleView({
       <div className="flex flex-wrap items-end gap-3">
         <form onSubmit={onSearch} className="flex min-w-[min(320px,100%)] flex-[2_1_320px] items-end gap-2">
           <TextField value={search} onChange={setSearch} className="flex flex-1 flex-col gap-1">
-            <Label>Search</Label>
-            <Input placeholder="Name or email" />
+            <Label>{t("search")}</Label>
+            <Input placeholder={t("nameOrEmail")} />
           </TextField>
           <ActionButton type="submit" icon="Magnifier">
-            Search
+            {t("search")}
           </ActionButton>
         </form>
         <SelectField
-          label="Role"
+          label={t("role")}
           options={roleOptions}
           value={filters.role || ANY}
           onChange={(v) => go({ role: v === ANY ? "" : v })}
           className="w-[200px]"
         />
         <SelectField
-          label="Status"
-          options={STATUS_OPTIONS}
+          label={t("status")}
+          options={[{ id: ANY, label: t("anyStatus") }, { id: "active", label: t("active") }, { id: "invited", label: t("invitedNotSignedIn") }, { id: "suspended", label: t("suspended") }]}
           value={filters.status || ANY}
           onChange={(v) => go({ status: v === ANY ? "" : v })}
           className="w-[200px]"
         />
         <SelectField
-          label="Kind"
-          options={KIND_OPTIONS}
+          label={t("kind")}
+          options={[{ id: ANY, label: t("anyKind") }, { id: "staff", label: t("injishiStaff") }, { id: "official", label: t("leadersOfficers") }, { id: "business", label: t("worksInBusiness") }, { id: "guest", label: t("guestsOthers") }]}
           value={filters.kind || ANY}
           onChange={(v) => go({ kind: v === ANY ? "" : v })}
           className="w-[200px]"
@@ -166,12 +151,12 @@ export function PeopleView({
               go({ q: "", kind: "", status: "", role: "" });
             }}
           >
-            Clear filters
+            {t("clearFilters")}
           </ActionButton>
         ) : null}
       </div>
       <ServerDataGrid<AdminUserRow>
-        label="People"
+        label={t("title")}
         rows={list.items}
         rowKey={(p) => p.id}
         isLoading={loading}
@@ -188,11 +173,11 @@ export function PeopleView({
           <EmptyBlock
             size="sm"
             icon="Persons"
-            title={filtered ? "Nobody matches" : "No accounts yet"}
+            title={filtered ? t("nobodyMatches") : t("noAccounts")}
             description={
               filtered
-                ? "Try part of a name or an email address, or clear the filters."
-                : "Accounts appear when people sign in or are added here."
+                ? t("noMatchesHint")
+                : t("noAccountsHint")
             }
           />
         }
@@ -204,7 +189,7 @@ export function PeopleView({
         columns={[
           {
             id: "person",
-            header: "Person",
+            header: t("person"),
             isRowHeader: true,
             sortable: true,
             minWidth: 220,
@@ -215,10 +200,10 @@ export function PeopleView({
               </NextLink>
             ),
           },
-          { id: "status", header: "Status", cell: (p) => <StatusChip status={p.status} /> },
+          { id: "status", header: t("status"), cell: (p) => <StatusChip status={p.status} /> },
           {
             id: "roles",
-            header: "Staff roles",
+            header: t("staffRoles"),
             cell: (p) =>
               p.staffRoles.length || p.customRoles.length ? (
                 <span className="flex flex-wrap gap-1">
@@ -239,7 +224,7 @@ export function PeopleView({
           },
           {
             id: "businesses",
-            header: "Businesses",
+            header: t("businesses"),
             cell: (p) =>
               p.memberships.length ? (
                 <span className="flex min-w-0 flex-col text-xs">
@@ -249,7 +234,7 @@ export function PeopleView({
                     </span>
                   ))}
                   {p.memberships.length > 2 ? (
-                    <span className="text-muted">+{p.memberships.length - 2} more</span>
+                    <span className="text-muted">{t("more", { count: p.memberships.length - 2 })}</span>
                   ) : null}
                 </span>
               ) : (
@@ -258,7 +243,7 @@ export function PeopleView({
           },
           {
             id: "post",
-            header: "Post",
+            header: t("post"),
             cell: (p) =>
               p.oversight ? (
                 <span className="text-xs">
@@ -270,12 +255,12 @@ export function PeopleView({
           },
           {
             id: "lastSignIn",
-            header: "Last sign in",
+            header: t("lastSignIn"),
             sortable: true,
             cell: (p) =>
               p.lastSignInAt ? <DateText value={p.lastSignInAt} /> : <span className="text-xs text-muted">—</span>,
           },
-          { id: "since", header: "Since", sortable: true, cell: (p) => <DateText value={p.createdAt} /> },
+          { id: "since", header: t("since"), sortable: true, cell: (p) => <DateText value={p.createdAt} /> },
         ]}
       />
       {creating ? <AddPersonPanel customRoles={customRoles} onClose={() => setCreating(false)} /> : null}
@@ -284,9 +269,10 @@ export function PeopleView({
 }
 
 export function StatusChip({ status }: { status: AdminAccountStatus }) {
+  const t = useTranslations("adminPeople.people");
   return (
     <Chip size="sm" variant="soft" color={STATUS_COLOR[status]}>
-      {STATUS_LABEL[status]}
+      {t(STATUS_KEYS[status])}
     </Chip>
   );
 }
@@ -295,6 +281,7 @@ const POST = "post";
 const NOTHING = "nothing";
 
 function AddPersonPanel({ customRoles, onClose }: { customRoles: readonly AdminCustomRole[]; onClose: () => void }) {
+  const t = useTranslations("adminPeople.people");
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -305,16 +292,16 @@ function AddPersonPanel({ customRoles, onClose }: { customRoles: readonly AdminC
   const { guard, dialog, pending } = useStepUp();
 
   const giveOptions = [
-    { id: NOTHING, label: "No role for now", description: "They can sign in; give a role later." },
+    { id: NOTHING, label: t("noRoleYet"), description: t("noRoleYetHint") },
     ...StaffRole.options.map((r) => ({
       id: `staff:${r}`,
       label: STAFF_ROLE_LABEL[r],
-      description: "Built-in staff role",
+      description: t("builtInRole"),
     })),
     ...customRoles
       .filter((r) => !r.archivedAt)
-      .map((r) => ({ id: `custom:${r.id}`, label: r.name, description: r.description || "Custom staff role" })),
-    { id: POST, label: "A government or PSF post", description: "Next, choose the post and the area." },
+      .map((r) => ({ id: `custom:${r.id}`, label: r.name, description: r.description || t("customRole") })),
+    { id: POST, label: t("governmentPost"), description: t("choosePostArea") },
   ];
 
   const grant = (() => {
@@ -360,9 +347,9 @@ function AddPersonPanel({ customRoles, onClose }: { customRoles: readonly AdminC
       <SidePanel
         isOpen
         onOpenChange={(open) => (open ? null : onClose())}
-        title="Add a person"
-        description="They sign in with a code we email them. There is no password."
-        submitLabel="Add person"
+        title={t("addPerson")}
+        description={t("signInCodeHint")}
+        submitLabel={t("addPerson")}
         onSubmit={(event) => {
           event.preventDefault();
           submit();
@@ -370,20 +357,20 @@ function AddPersonPanel({ customRoles, onClose }: { customRoles: readonly AdminC
         isPending={pending}
         formError={error ?? undefined}
       >
-        <EmailInput label="Email" value={email} onChange={setEmail} isRequired />
+        <EmailInput label={t("email")} value={email} onChange={setEmail} isRequired />
         <TextField value={name} onChange={setName} isRequired className="flex flex-col gap-1">
-          <Label>Full name</Label>
-          <Input placeholder="As on their ID" />
+          <Label>{t("fullName")}</Label>
+          <Input placeholder={t("asOnId")} />
         </TextField>
         <TextField value={phone} onChange={setPhone} className="flex flex-col gap-1">
-          <Label>Phone</Label>
+          <Label>{t("phone")}</Label>
           <Input placeholder="0788 123 456" inputMode="tel" />
-          <Description>Optional. Shown on their profile; it does not sign them in.</Description>
+          <Description>{t("phoneHint")}</Description>
         </TextField>
-        <SelectField label="What they get" options={giveOptions} value={gives} onChange={setGives} isRequired />
+        <SelectField label={t("whatTheyGet")} options={giveOptions} value={gives} onChange={setGives} isRequired />
         <TextField value={reason} onChange={setReason} isRequired className="flex flex-col gap-1">
-          <Label>Reason</Label>
-          <Input placeholder="Why, for the audit log" />
+          <Label>{t("reason")}</Label>
+          <Input placeholder={t("auditReason")} />
         </TextField>
       </SidePanel>
       {dialog}

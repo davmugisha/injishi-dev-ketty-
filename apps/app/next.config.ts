@@ -26,6 +26,7 @@ const config: NextConfig = {
     "@injishi/product-pms",
     "@injishi/data",
     "@injishi/db",
+    "@injishi/i18n",
   ],
   // Native embedded-database driver stays a Node.js dependency of the server bundle.
   serverExternalPackages: ["@libsql/client", "libsql"],

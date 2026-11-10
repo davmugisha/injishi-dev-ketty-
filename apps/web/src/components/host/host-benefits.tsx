@@ -1,5 +1,6 @@
 import { Banknote, FileCheck, Globe } from "lucide-react";
 import type { SVGProps } from "react";
+import { getTranslations } from "next-intl/server";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { HOST_BENEFITS, type HostBenefit } from "@/data/host";
 
@@ -32,10 +33,11 @@ import { HOST_BENEFITS, type HostBenefit } from "@/data/host";
  *      leaves roughly 25 characters a line, which is a stack of ragged
  *      fragments rather than a paragraph.
  */
-export function HostBenefits() {
+export async function HostBenefits() {
+  const t = await getTranslations("host.sections");
   return (
     <section className="section-y container">
-      <SectionHeading lead="Why list on " emphasis="Injishi" className="mb-8" />
+      <SectionHeading lead={t("whyLead")} emphasis={t("whyEmphasis")} className="mb-8" />
 
       {/* The rule is drawn with `divide-*` rather than per-item borders so it
           can only ever appear *between* entries. Grid items stretch, so the
@@ -53,7 +55,7 @@ export function HostBenefits() {
 
           return (
             <li
-              key={benefit.title}
+              key={benefit.icon}
               className="flex flex-col gap-2 py-7 first:pt-0 last:pb-0 lg:px-8 lg:py-0 lg:first:pl-0 lg:last:pr-0"
             >
               <span className="mb-3 flex size-11 items-center justify-center rounded-[0.75rem] bg-surface-secondary text-page-fg">
@@ -66,9 +68,9 @@ export function HostBenefits() {
                   does the separating instead: Spectral 500 here — h1–h6 are
                   routed to the display face at the base layer — over Figtree at
                   70% ink below. */}
-              <h3 className="text-lg font-medium text-page-fg">{benefit.title}</h3>
+              <h3 className="text-lg font-medium text-page-fg">{t(`benefit${benefit.icon === "reach" ? 1 : benefit.icon === "payout" ? 2 : 3}Title`)}</h3>
 
-              <p className="max-w-[46ch] text-base leading-relaxed text-page-fg-70">{benefit.body}</p>
+              <p className="max-w-[46ch] text-base leading-relaxed text-page-fg-70">{t(`benefit${benefit.icon === "reach" ? 1 : benefit.icon === "payout" ? 2 : 3}Body`)}</p>
             </li>
           );
         })}

@@ -48,6 +48,15 @@ export const STEP_TITLE: Readonly<Record<StepId, string>> = {
   pay: "Pay",
 };
 
+/** The catalog key of each step's title, under the `register.steps` namespace. */
+export const STEP_TITLE_KEY: Readonly<Record<StepId, string>> = {
+  business: "business",
+  you: "you",
+  documents: "documents",
+  review: "review",
+  pay: "pay",
+};
+
 /** The path a role and a capacity put a person on. A broker has no steps here. */
 export function pathFor(role: RegistrantRole | null, capacity: RegistrantCapacity): RegisterPath {
   if (role === "landlord") return "landlord";

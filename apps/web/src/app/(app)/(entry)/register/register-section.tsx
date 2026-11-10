@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { Check, CircleCheck, Lock } from "lucide-react";
 import { Badge, Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
@@ -20,7 +21,7 @@ export function RegisterSection({
   state,
   summary,
   checkedBy,
-  editText = "Edit",
+  editText,
   onEdit,
   children,
 }: {
@@ -37,6 +38,7 @@ export function RegisterSection({
   onEdit?: (() => void) | null;
   children?: ReactNode;
 }) {
+  const t = useTranslations("registerForms.section");
   const headingId = `register-section-${id}`;
   return (
     <section
@@ -59,9 +61,9 @@ export function RegisterSection({
           )}
         >
           {state === "done" ? (
-            <Check size={14} aria-label="Done" />
+            <Check size={14} aria-label={t("done")} />
           ) : state === "locked" ? (
-            <Lock size={13} aria-label="Locked" />
+            <Lock size={13} aria-label={t("locked")} />
           ) : (
             <span aria-hidden>{n}</span>
           )}
@@ -85,7 +87,7 @@ export function RegisterSection({
         ) : null}
         {state === "done" && onEdit ? (
           <Button variant="ghost" size="sm" onClick={onEdit}>
-            {editText}
+            {editText ?? t("edit")}
             <span className="sr-only"> {title.toLowerCase()}</span>
           </Button>
         ) : null}

@@ -3,6 +3,7 @@
 import { CalendarDays, ChevronDown, MapPin, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { forwardRef, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Popover, PopoverContent, PopoverTrigger } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { SearchIcon } from "@/components/icons";
@@ -49,6 +50,7 @@ export function ExploreSearchBar({
   /** Pinned with the bar, under it: Explore's filter row. */
   below?: React.ReactNode;
 }) {
+  const t = useTranslations("search");
   const [datesOpen, setDatesOpen] = useState(false);
   const [guestsOpen, setGuestsOpen] = useState(false);
   const [destOpen, setDestOpen] = useState(false);
@@ -72,7 +74,7 @@ export function ExploreSearchBar({
   }, []);
 
   const place = placeLabel(intent);
-  const dates = intentDateSummary(intent) ?? "Any week";
+  const dates = intentDateSummary(intent) ?? t("anyWeek");
   const guests = guestSummary(intent.guests);
 
   // What the header's summary says, and what a click on it does: back to the
@@ -113,7 +115,7 @@ export function ExploreSearchBar({
 
             <Popover open={datesOpen} onOpenChange={setDatesOpen}>
               <PopoverTrigger asChild>
-                <Trigger icon={CalendarDays} label="Dates" value={dates} />
+                <Trigger icon={CalendarDays} label={t("dates")} value={dates} />
               </PopoverTrigger>
               <PopoverContent
                 align="start"
@@ -138,7 +140,7 @@ export function ExploreSearchBar({
 
             <Popover open={guestsOpen} onOpenChange={setGuestsOpen}>
               <PopoverTrigger asChild>
-                <Trigger icon={Users} label="Travelers" value={guests} />
+                <Trigger icon={Users} label={t("travelers")} value={guests} />
               </PopoverTrigger>
               <PopoverContent align="end" collisionPadding={16} className="w-auto border-none p-0">
                 <GuestPanel
@@ -155,11 +157,11 @@ export function ExploreSearchBar({
           <button
             type="button"
             onClick={onSubmit}
-            aria-label="Search stays"
+            aria-label={t("searchStays")}
             className="mt-1.5 flex h-12 shrink-0 items-center justify-center gap-2 rounded-card bg-primary px-5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:mt-0 lg:size-11 lg:rounded-full lg:px-0"
           >
             <SearchIcon className="size-5" />
-            <span className="lg:sr-only">Search</span>
+            <span className="lg:sr-only">{t("search")}</span>
           </button>
         </div>
         {below ? <div className="mt-3">{below}</div> : null}
@@ -188,6 +190,7 @@ function DestinationSegment({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useTranslations("search");
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const boxRef = useRef<HTMLDivElement | null>(null);
@@ -249,13 +252,13 @@ function DestinationSegment({
       >
         <MapPin className="size-5 shrink-0 text-foreground lg:size-4" strokeWidth={1.8} aria-hidden />
         <label className="flex min-w-0 flex-1 flex-col leading-tight">
-          <span className="whitespace-nowrap text-xs text-muted-foreground">Where to?</span>
+          <span className="whitespace-nowrap text-xs text-muted-foreground">{t("destinationTitle")}</span>
           <DestinationField
             query={open ? query : current}
             onQueryChange={setQuery}
             onSelect={choose}
             open={open}
-            placeholder={hasPlace ? current : "Search a place or a stay"}
+            placeholder={hasPlace ? current : t("searchPlace")}
             inputRef={inputRef}
             onFocus={() => {
               setQuery("");
@@ -271,7 +274,7 @@ function DestinationSegment({
               event.stopPropagation();
               onIntentChange({ districts: [], query: "" });
             }}
-            aria-label="Clear the place"
+            aria-label={t("clearPlace")}
             className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X className="size-4" strokeWidth={2.4} aria-hidden />

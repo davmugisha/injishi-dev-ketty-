@@ -20,6 +20,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { useId, useState } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@injishi/utils";
 import type { FacetGroup, FacetOption } from "@/data/explore-facets";
 import { formatRateNumber } from "@/lib/price";
@@ -82,6 +83,13 @@ const OPEN_BY_DEFAULT = new Set([
   "guest-rating",
   "property-amenities",
 ]);
+
+const FACET_TITLE_KEYS = {
+  popular: "facetPopular", neighbourhood: "facetNeighbourhood", "property-class": "facetPropertyClass",
+  "guest-rating": "facetGuestRating", "property-type": "facetPropertyType", "property-amenities": "facetPropertyAmenities",
+  "room-amenities": "facetRoomAmenities", "traveller-experience": "facetExperience", views: "facetViews",
+  activities: "facetActivities", meals: "facetMeals", bedrooms: "facetBedrooms",
+} as const;
 
 export function FilterSection({
   id,
@@ -296,6 +304,7 @@ function SeeMore({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const t = useTranslations("search");
   return (
     <button
       type="button"
@@ -307,12 +316,12 @@ function SeeMore({
       {expanded ? (
         <>
           <Minus className="size-3.5" strokeWidth={2.5} aria-hidden />
-          See less
+          {t("showLess")}
         </>
       ) : (
         <>
           <ChevronDown className="size-3.5" strokeWidth={2.5} aria-hidden />
-          See more ({count})
+          {t("showMore", { count })}
         </>
       )}
     </button>
@@ -338,6 +347,8 @@ export function FacetBlock({
   selected: readonly string[];
   onToggle: (value: string) => void;
 }) {
+  const t = useTranslations("search");
+  const titleKey = FACET_TITLE_KEYS[group.id as keyof typeof FACET_TITLE_KEYS];
   const [expanded, setExpanded] = useState(false);
   const Row = group.shape === "radio" ? RadioRow : CheckboxRow;
   const hidden = Math.max(0, group.options.length - group.visible);
@@ -345,7 +356,7 @@ export function FacetBlock({
   return (
     <FilterSection
       id={group.id}
-      title={group.title}
+      title={titleKey ? t(titleKey) : group.title}
       selectedCount={group.options.filter((o) => selected.includes(o.value)).length}
     >
       <div role={group.shape === "radio" ? "radiogroup" : undefined}>

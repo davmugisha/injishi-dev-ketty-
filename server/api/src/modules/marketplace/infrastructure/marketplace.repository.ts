@@ -1,6 +1,7 @@
 import type {
   ConsentPurpose,
   GuestContactInput,
+  GuestLocale,
   GuestTripFacts,
   MarketPropertyKind,
   MyBusinessPlace,
@@ -434,6 +435,24 @@ export class MarketplaceRepository {
       sql`SELECT DISTINCT provider_id FROM accounts WHERE user_id = ${userId}::uuid ORDER BY provider_id`,
     );
     return { ...row, providers: providers.rows.map((p) => p.provider_id) };
+  }
+
+  async languagePreference(userId: string): Promise<string | null> {
+    const [row] = await this.db
+      .select({ locale: userProfiles.locale })
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, userId));
+    return row?.locale ?? null;
+  }
+
+  async updateLanguagePreference(userId: string, locale: GuestLocale): Promise<void> {
+    await this.db
+      .insert(userProfiles)
+      .values({ userId, locale })
+      .onConflictDoUpdate({
+        target: userProfiles.userId,
+        set: { locale, updatedAt: new Date() },
+      });
   }
 
   async verifiedName(userId: string): Promise<string | null> {

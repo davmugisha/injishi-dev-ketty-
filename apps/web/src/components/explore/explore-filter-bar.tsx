@@ -1,6 +1,7 @@
 "use client";
 
 import { GitCompare, SlidersHorizontal } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@injishi/utils";
 import { QuickFilters } from "@/components/explore/active-filters";
 import type { Listing } from "@/data/listings";
@@ -31,6 +32,7 @@ export function ExploreFilterBar({
   activeCount: number;
   onOpenFilters: () => void;
 }) {
+  const t = useTranslations("search");
   const chip =
     "flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
@@ -44,7 +46,7 @@ export function ExploreFilterBar({
           className={cn(chip, "bg-card text-foreground ring-border hover:bg-surface-secondary")}
         >
           <SlidersHorizontal className="size-4" strokeWidth={2} aria-hidden />
-          Filters
+          {t("filters")}
           {activeCount > 0 ? (
             <span className="flex size-5 items-center justify-center rounded-full bg-foreground text-2xs font-bold text-background">
               {activeCount}
@@ -78,7 +80,7 @@ export function ExploreFilterBar({
           )}
         >
           <GitCompare className="size-4" strokeWidth={2} aria-hidden />
-          Compare
+          {t("compare")}
           {refinement.picks.length > 0 ? (
             <span
               className={cn(

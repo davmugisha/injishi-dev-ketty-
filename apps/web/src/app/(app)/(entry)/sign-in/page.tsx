@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import ShowcasePanel from "@/components/auth/showcase-panel";
 import SignInForm from "@/components/auth/sign-in-form";
 import GoogleButton from "@/components/auth/google-button";
@@ -40,8 +41,6 @@ export const metadata: Metadata = {
  * reason for it, and the only people told why were the ones using a screen
  * reader. A disabled control owes everybody its reason.
  */
-const APPLE_UNAVAILABLE = "Sign in with Apple isn't available yet.";
-
 /**
  * Why this person is looking at a sign-in screen, when we know.
  *
@@ -53,7 +52,7 @@ const APPLE_UNAVAILABLE = "Sign in with Apple isn't available yet.";
  */
 const RETURN_BASE = "http://sign-in.invalid";
 
-function reasonFor(destination: string, unwrap = true): string | null {
+function reasonFor(destination: string, copy: Record<string, string>, unwrap = true): string | null {
   let url: URL;
   try {
     url = new URL(destination, RETURN_BASE);
@@ -63,45 +62,45 @@ function reasonFor(destination: string, unwrap = true): string | null {
 
   // Another Injishi app bounced them here; its own gate sent an absolute url.
   if (url.origin !== RETURN_BASE) {
-    return "Sign in to open your workspace. We'll take you straight back.";
+    return copy.workspace;
   }
 
   // `/start` is the resolver, which carries the real destination along with it.
   if (unwrap && url.pathname === "/start") {
     const inner = url.searchParams.get("redirect");
-    return inner ? reasonFor(inner, false) : null;
+    return inner ? reasonFor(inner, copy, false) : null;
   }
 
   const path = url.pathname;
   if (path === "/book" || path.startsWith("/book/")) {
-    return "Sign in to confirm your booking. We'll bring you straight back to your quote.";
+    return copy.booking;
   }
   if (path.startsWith("/receipt")) {
-    return "Sign in to open your receipt. We'll bring you straight back to it.";
+    return copy.receipt;
   }
   if (path.startsWith("/trips") || path.startsWith("/stay")) {
-    return "Sign in to see your trips. We'll take you straight there.";
+    return copy.trips;
   }
   if (path.startsWith("/inbox")) {
-    return "Sign in to read your messages. We'll take you straight there.";
+    return copy.messages;
   }
   // The register gate signs a visitor in where they stand (ADR-069 D-g) and
   // sends them here only when a code was accepted and no session was kept, so
   // this reason is for that fallback and for a link typed or kept.
   if (path.startsWith("/register")) {
-    return "Sign in to register your business. A business belongs to the person who registers it, so we need to know who that is. We'll bring you straight back.";
+    return copy.register;
   }
   if (path.startsWith("/claim-org")) {
-    return "Sign in to claim the business registered for you. We'll bring you straight back to the claim.";
+    return copy.claim;
   }
   if (path.startsWith("/saved")) {
-    return "Sign in to see the stays you've saved.";
+    return copy.saved;
   }
   if (path.startsWith("/lease")) {
-    return "Sign in to open your lease. We'll take you straight there.";
+    return copy.lease;
   }
   if (path.startsWith("/two-factor")) {
-    return "Sign in to carry on. There's one more check after this.";
+    return copy.twoFactor;
   }
   return null;
 }
@@ -111,13 +110,18 @@ export default async function Page({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const t = await getTranslations("signin");
   const params = await searchParams;
   const raw = typeof params.redirect === "string" ? params.redirect : null;
   const redirectTo = safeRedirect(raw);
   const bounced = params.error === "google";
   // Only when they were sent here from somewhere: with no `?redirect=`,
   // `safeRedirect` answers with the default home, which is not a reason.
-  const reason = raw ? reasonFor(redirectTo) : null;
+  const reason = raw ? reasonFor(redirectTo, {
+    workspace: t("workspace"), booking: t("booking"), receipt: t("receipt"), trips: t("trips"),
+    messages: t("messages"), register: t("register"), claim: t("claim"), saved: t("saved"),
+    lease: t("lease"), twoFactor: t("twoFactor"),
+  }) : null;
 
   const send = sendCodeAction.bind(null, redirectTo);
 
@@ -150,7 +154,7 @@ export default async function Page({
             <div className="flex w-full flex-col gap-6 text-foreground">
               <header className="flex flex-col gap-2 text-center">
                 <h1 className="font-display text-3xl leading-tight tracking-tight text-foreground">
-                  Welcome to Injishi
+                  {t("title")}
                 </h1>
                 {reason ? (
                   <p className="text-sm text-muted-foreground" data-cy="sign-in-reason">
@@ -160,7 +164,7 @@ export default async function Page({
               </header>
 
               <p className="-mb-4 text-center text-xs font-medium text-muted-foreground">
-                Continue with
+                {t("continueWith")}
               </p>
 
               <div className="flex flex-col gap-2">
@@ -180,19 +184,19 @@ export default async function Page({
                   data-cy="apple-button"
                 >
                   <AppleMark className="size-4 shrink-0" />
-                  Continue with Apple
+                  {t("apple")}
                 </Button>
                 <span
                   id="apple-unavailable"
                   className="text-center text-xs text-muted-foreground"
                 >
-                  {APPLE_UNAVAILABLE}
+                  {t("appleUnavailable")}
                 </span>
               </div>
 
               <div className="flex w-full items-center gap-2 text-xs font-medium text-muted-foreground">
                 <span className="h-px flex-1 bg-border" />
-                <span>Or continue with email</span>
+                <span>{t("orEmail")}</span>
                 <span className="h-px flex-1 bg-border" />
               </div>
 
@@ -204,17 +208,16 @@ export default async function Page({
                   sign up for: an email and a code makes the account. */}
               <div className="flex flex-col items-center gap-2 text-xs font-medium text-muted-foreground">
                 <p className="font-normal leading-normal">
-                  New here? Enter your email — we&rsquo;ll make your account when
-                  you confirm the code.
+                  {t("newHere")}
                 </p>
                 <p className="font-normal leading-normal">
-                  Registering a business?{" "}
+                  {t("business")} {" "}
                   <a
                     href="/register"
                     className="text-foreground hover:underline"
                     data-cy="sign-up-link"
                   >
-                    Start here
+                    {t("start")}
                   </a>
                 </p>
               </div>

@@ -1,7 +1,10 @@
 import type { OtpType, SendOtp } from '@injishi/auth';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { sql } from 'drizzle-orm';
 
+import { users, userProfiles } from '../../../database/drizzle/schema';
+import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { isProduction } from '../../../shared/config/security.config';
 import {
   MAILER_PORT,
@@ -37,6 +40,7 @@ export class OtpMailer {
   constructor(
     @Inject(MAILER_PORT) private readonly mailer: MailerPort,
     config: ConfigService,
+    @Inject(DRIZZLE) private readonly db?: Database,
   ) {
     this.debugLogOtp =
       !isProduction(config.get<string>('NODE_ENV')) &&
@@ -45,24 +49,26 @@ export class OtpMailer {
 
   /** Bound so it can be handed to `createAuth({ sendOtp })` as a value. */
   readonly send: SendOtp = async ({ email, otp, type }) => {
+    const locale = await this.localeFor(email);
+    const words = OTP_WORDS[locale];
     // A `forget-password` code sets a password: a first one from the account
     // screen, or a new one after "Forgot password?" (2026-10-22). Calling it a
     // sign-in code would tell the person the wrong thing to do with it.
     const password = type === 'forget-password';
     const subject =
       type === 'sign-in'
-        ? 'Your Injishi sign-in code'
+        ? words.signInSubject
         : password
-          ? 'Your Injishi password code'
-          : 'Your Injishi verification code';
+          ? words.passwordSubject
+          : words.verificationSubject;
 
     try {
       await this.withTimeout(
         this.mailer.send({
           to: email,
           subject,
-          text: `Your Injishi code is ${otp}. It expires in 10 minutes. If you didn't request this, you can ignore this email.`,
-          html: renderOtpEmail(otp, password),
+          text: `${words.codeIs} ${otp}. ${words.expires} ${words.unrequested}`,
+          html: renderOtpEmail(otp, password, locale),
         }),
       );
     } catch (cause) {
@@ -82,6 +88,21 @@ export class OtpMailer {
     }
     this.logger.log(`OTP email sent to ${email} (${type})`);
   };
+
+  private async localeFor(email: string): Promise<keyof typeof OTP_WORDS> {
+    if (!this.db) return 'en';
+    try {
+      const [row] = await this.db
+        .select({ locale: userProfiles.locale })
+        .from(users)
+        .leftJoin(userProfiles, sql`${userProfiles.userId} = ${users.id}`)
+        .where(sql`lower(${users.email}) = lower(${email})`)
+        .limit(1);
+      return row?.locale === 'fr' || row?.locale === 'rw' ? row.locale : 'en';
+    } catch {
+      return 'en';
+    }
+  }
 
   /**
    * Outbound mail gets a hard ceiling. Rejects rather than resolving, so the
@@ -128,11 +149,28 @@ export class OtpMailer {
 }
 
 /** Minimal on-brand OTP email (ink text, generous spacing). */
-function renderOtpEmail(otp: string, password = false): string {
-  const title = password ? 'Your password code' : 'Your sign-in code';
-  const lead = password
-    ? 'Enter this code to set your Injishi password. It expires in 10 minutes.'
-    : 'Enter this code to sign in to Injishi. It expires in 10 minutes.';
+const OTP_WORDS = {
+  en: {
+    signInSubject: 'Your Injishi sign-in code', passwordSubject: 'Your Injishi password code', verificationSubject: 'Your Injishi verification code',
+    codeIs: 'Your Injishi code is', expires: 'It expires in 10 minutes.', unrequested: "If you didn't request this, you can ignore this email.",
+    signInTitle: 'Your sign-in code', passwordTitle: 'Your password code', signInLead: 'Enter this code to sign in to Injishi. It expires in 10 minutes.', passwordLead: 'Enter this code to set your Injishi password. It expires in 10 minutes.', footer: "Didn't request this? You can safely ignore this email — no one can sign in without the code.",
+  },
+  fr: {
+    signInSubject: 'Votre code de connexion Injishi', passwordSubject: 'Votre code de mot de passe Injishi', verificationSubject: 'Votre code de vérification Injishi',
+    codeIs: 'Votre code Injishi est le', expires: 'Il expire dans 10 minutes.', unrequested: "Si vous n'avez pas demandé ce code, ignorez cet e-mail.",
+    signInTitle: 'Votre code de connexion', passwordTitle: 'Votre code de mot de passe', signInLead: 'Saisissez ce code pour vous connecter à Injishi. Il expire dans 10 minutes.', passwordLead: 'Saisissez ce code pour définir votre mot de passe Injishi. Il expire dans 10 minutes.', footer: "Vous n'avez pas demandé ce code ? Ignorez cet e-mail : personne ne peut se connecter sans le code.",
+  },
+  rw: {
+    signInSubject: 'Kode yo kwinjira muri Injishi', passwordSubject: 'Kode y’ijambo ry’ibanga rya Injishi', verificationSubject: 'Kode yo kwemeza kuri Injishi',
+    codeIs: 'Kode yawe ya Injishi ni', expires: 'Irangira nyuma y’iminota 10.', unrequested: 'Niba utasabye iyi kode, ushobora kwirengagiza iyi imeyili.',
+    signInTitle: 'Kode yo kwinjira', passwordTitle: 'Kode y’ijambo ry’ibanga', signInLead: 'Andika iyi kode winjire muri Injishi. Irangira nyuma y’iminota 10.', passwordLead: 'Andika iyi kode ushyireho ijambo ry’ibanga rya Injishi. Irangira nyuma y’iminota 10.', footer: 'Niba utasabye iyi kode, yirengagize. Nta muntu ushobora kwinjira atayifite.',
+  },
+} as const;
+
+function renderOtpEmail(otp: string, password: boolean, locale: keyof typeof OTP_WORDS): string {
+  const words = OTP_WORDS[locale];
+  const title = password ? words.passwordTitle : words.signInTitle;
+  const lead = password ? words.passwordLead : words.signInLead;
   return `<!doctype html>
 <html>
   <body style="margin:0;background:#f4f6f6;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#042330;">
@@ -141,7 +179,7 @@ function renderOtpEmail(otp: string, password = false): string {
         <h1 style="margin:0 0 8px;font-size:20px;color:#042330;">${title}</h1>
         <p style="margin:0 0 24px;font-size:14px;color:#4a5c62;">${lead}</p>
         <div style="font-size:32px;font-weight:700;letter-spacing:10px;color:#22AD01;text-align:center;padding:16px 0;background:#f4f6f6;border-radius:12px;">${otp}</div>
-        <p style="margin:24px 0 0;font-size:12px;color:#8a999e;">Didn't request this? You can safely ignore this email — no one can sign in without the code.</p>
+        <p style="margin:24px 0 0;font-size:12px;color:#8a999e;">${words.footer}</p>
       </td></tr>
     </table>
   </body>

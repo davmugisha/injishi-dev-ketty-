@@ -3,6 +3,7 @@
 import type { LeaderCoverage } from "@injishi/contracts";
 import { ActionLink, DataTable, EmptyBlock, formatDay, formatNumber, IconAction, PageContent } from "@injishi/ui";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
 
 type Gap = LeaderCoverage["uncovered"][number];
@@ -29,36 +30,38 @@ function appointHref(g: Pick<Gap, "role" | "provinceId" | "districtId" | "sector
  */
 export function CoverageView({ coverage, canAppoint }: { coverage: LeaderCoverage; canAppoint: boolean }) {
   const router = useRouter();
+  const t = useTranslations("adminLeaders.coverage");
+  const tr = useTranslations("admin.roles");
   const keyOf = (g: Pick<Gap, "role" | "districtId" | "sectorId" | "cellId" | "villageId">) =>
     `${g.role}-${g.districtId}-${g.sectorId}-${g.cellId}-${g.villageId}`;
   const since = new Map(coverage.waiting.map((w) => [keyOf(w), w.oldestArrival]));
-  const posts = [...new Map(coverage.uncovered.map((g) => [g.role, g.roleLabel])).entries()];
+  const posts = [...new Map(coverage.uncovered.map((g) => [g.role, tr(g.role)])).entries()];
   return (
     <PageContent>
       <AreaHeader />
       <DataTable<Gap>
-        label="Posts to fill"
-        noun={{ one: "post to fill", many: "posts to fill" }}
+        label={t("label")}
+        noun={{ one: t("nounOne"), many: t("nounMany") }}
         rows={coverage.uncovered}
         rowKey={keyOf}
         onRowAction={canAppoint ? (g) => router.push(appointHref(g)) : undefined}
-        search={{ placeholder: "Area", text: (g) => g.area }}
+        search={{ placeholder: t("search"), text: (g) => g.area }}
         filters={[
           {
             id: "post",
-            name: "Post",
-            options: [{ id: "all", label: "All" }, ...posts.map(([id, label]) => ({ id, label }))],
+            name: t("post"),
+            options: [{ id: "all", label: t("all") }, ...posts.map(([id, label]) => ({ id, label }))],
             match: (g, v) => g.role === v,
           },
           {
             id: "waiting",
-            name: "Guests",
+            name: t("guests"),
             icon: "PersonPlus",
             options: [
-              { id: "all", label: "All" },
+              { id: "all", label: t("all") },
               {
                 id: "waiting",
-                label: "Guests waiting",
+                label: t("guestsWaiting"),
                 count: coverage.uncovered.filter((g) => g.waitingReports > 0).length,
               },
             ],
@@ -67,29 +70,29 @@ export function CoverageView({ coverage, canAppoint }: { coverage: LeaderCoverag
         ]}
         toolbarEnd={
           <ActionLink href="/api/admin/leaders/coverage.csv" icon="ArrowDownToLine" size="sm" prefetch={false}>
-            Export CSV
+            {t("export")}
           </ActionLink>
         }
-        empty={<EmptyBlock icon="CircleCheck" title="Every area with homes has its leaders" />}
+        empty={<EmptyBlock icon="CircleCheck" title={t("empty")} />}
         columns={[
           {
             id: "area",
-            header: "Area",
+            header: t("area"),
             isRowHeader: true,
             sortValue: (g) => g.area,
             cell: (g) => <span className="whitespace-normal">{g.area}</span>,
           },
-          { id: "role", header: "Post", sortValue: (g) => g.roleLabel, cell: (g) => g.roleLabel },
+          { id: "role", header: t("post"), sortValue: (g) => tr(g.role), cell: (g) => tr(g.role) },
           {
             id: "homes",
-            header: "Homes",
+            header: t("homes"),
             align: "end",
             sortValue: (g) => g.homes,
             cell: (g) => <span className="tabular">{formatNumber(g.homes)}</span>,
           },
           {
             id: "waiting",
-            header: "Guests waiting",
+            header: t("guestsWaiting"),
             align: "end",
             sortValue: (g) => g.waitingReports,
             cell: (g) =>
@@ -101,7 +104,7 @@ export function CoverageView({ coverage, canAppoint }: { coverage: LeaderCoverag
           },
           {
             id: "since",
-            header: "Waiting since",
+            header: t("waitingSince"),
             hideBelow: "lg",
             sortValue: (g) => since.get(keyOf(g)) ?? "",
             cell: (g) => {
@@ -115,7 +118,7 @@ export function CoverageView({ coverage, canAppoint }: { coverage: LeaderCoverag
             ? (g) => (
                 <IconAction
                   icon="PersonPlus"
-                  label={`Appoint for ${g.area}`}
+                  label={t("appointFor", { area: g.area })}
                   onPress={() => router.push(appointHref(g))}
                 />
               )
@@ -123,8 +126,8 @@ export function CoverageView({ coverage, canAppoint }: { coverage: LeaderCoverag
         }
         mobile={{
           title: (g) => g.area,
-          description: (g) => `${g.roleLabel} · ${g.homes === 1 ? "1 home" : `${formatNumber(g.homes)} homes`}`,
-          trailing: (g) => <span className="text-sm tabular">{formatNumber(g.waitingReports)} waiting</span>,
+          description: (g) => `${tr(g.role)} · ${t("homesCount", { count: g.homes })}`,
+          trailing: (g) => <span className="text-sm tabular">{t("waitingCount", { count: g.waitingReports })}</span>,
         }}
       />
     </PageContent>

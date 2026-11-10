@@ -120,20 +120,45 @@ export function handOverMail(input: { appUrl: string; role: LeaderRole; area: st
 }
 
 /** A person was appointed: what the post is and how to sign in. */
-export function appointmentMail(input: { appUrl: string; roleLabel: string; area: string; next: string }): GuestMail {
+export function appointmentMail(input: { appUrl: string; roleLabel: string; area: string; next: string; locale?: 'en' | 'fr' | 'rw' }): GuestMail {
   const url = new URL('/sign-in', input.appUrl);
   url.searchParams.set('next', input.next);
   // "Village leader" reads as "village leader" mid-sentence; a title led by an
   // acronym ("PSF Regional Manager", "DGIE district officer") keeps its capitals.
   const role = /^[A-Z]{2,}\b/.test(input.roleLabel) ? input.roleLabel : input.roleLabel.toLowerCase();
+  const words = APPOINTMENT_WORDS[input.locale ?? 'en'];
   return mail(
-    `You are now the ${role} for ${input.area} on Injishi`,
-    'You have a new post on Injishi',
+    words.subject(role, input.area),
+    words.heading,
     [
-      `Injishi appointed you ${role} for ${input.area}.`,
-      'Sign in with this email address. We send you a code each time, so there is no password to remember.',
+      words.appointed(role, input.area),
+      words.lead,
     ],
-    { label: 'Sign in', url: url.toString() },
-    'If you did not expect this, reply to this email and we will look into it.',
+    { label: words.action, url: url.toString() },
+    words.footnote,
   );
 }
+
+const APPOINTMENT_WORDS = {
+  en: {
+    subject: (role: string, area: string) => `You are now the ${role} for ${area} on Injishi`,
+    heading: 'You have a new post on Injishi',
+    appointed: (role: string, area: string) => `Injishi appointed you ${role} for ${area}.`,
+    lead: 'Sign in with this email address. We send you a code each time, so there is no password to remember.',
+    action: 'Sign in', footnote: 'If you did not expect this, reply to this email and we will look into it.',
+  },
+  fr: {
+    subject: (role: string, area: string) => `Vous êtes nommé(e) ${role} pour ${area} sur Injishi`,
+    heading: 'Vous avez une nouvelle fonction sur Injishi',
+    appointed: (role: string, area: string) => `Injishi vous a nommé(e) ${role} pour ${area}.`,
+    lead: 'Connectez-vous avec cette adresse e-mail. Un code vous sera envoyé à chaque connexion ; aucun mot de passe n’est nécessaire.',
+    action: 'Se connecter', footnote: 'Si cette nomination vous surprend, répondez à cet e-mail afin que nous puissions vérifier.',
+  },
+  rw: {
+    subject: (role: string, area: string) => `Washyizweho nka ${role} ushinzwe ${area} kuri Injishi`,
+    heading: 'Wahawe inshingano nshya kuri Injishi',
+    appointed: (role: string, area: string) => `Injishi yagushyizeho nka ${role} ushinzwe ${area}.`,
+    lead: 'Injira ukoresheje iyi imeyili. Buri gihe uzajya woherezwa kode yo kwinjira; nta jambo ry’ibanga rikenewe.',
+    action: 'Injira', footnote: 'Niba utari witeze izi nshingano, subiza iyi imeyili tubikurikirane.',
+  },
+} as const;

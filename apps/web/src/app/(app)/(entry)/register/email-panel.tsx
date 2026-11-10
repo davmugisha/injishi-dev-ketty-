@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 
@@ -76,6 +77,8 @@ export function EmailPanel({
   const emailField = useRef<HTMLInputElement>(null);
   const slowSend = useSlow(sending);
   const slowCheck = useSlow(checking);
+  const tr = useTranslations("register");
+  const tc = useTranslations("common");
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -93,7 +96,7 @@ export function EmailPanel({
     setInfo(null);
     const address = email.trim();
     if (!isValidEmail(address)) {
-      refuse(address ? OTP_MESSAGES.emailInvalid : "Enter your email address, like you@yourhotel.rw.");
+      refuse(address ? tr("email.emailInvalid") : tr("email.enterEmail"));
       emailField.current?.focus();
       return;
     }
@@ -109,7 +112,7 @@ export function EmailPanel({
     // The demo publishes its code (ADR-043, AC-17), so it is filled in for a
     // live send to the demo API, exactly as the verify screen does.
     setCode(demo && result.mode === "live" ? DEMO_OTP_CODE : "");
-    if (resend) setInfo(`A new code is on its way to ${address}.`);
+    if (resend) setInfo(tr("email.newCodeOnWay", { email: address }));
     window.setTimeout(() => codeField.current?.focus(), 50);
   }
 
@@ -119,7 +122,7 @@ export function EmailPanel({
     setInfo(null);
     const otp = sanitizeOtp(code);
     if (otp.length !== OTP_LENGTH) {
-      refuse(`Enter the ${OTP_LENGTH} digits from the email.`);
+      refuse(tr("email.enterDigits", { length: OTP_LENGTH }));
       return;
     }
     setChecking(true);
@@ -158,7 +161,7 @@ export function EmailPanel({
         position ? (
           <span className="flex w-full flex-col gap-1.5 md:hidden">
             <span className="text-sm font-semibold">
-              Step {position.n} of {position.of} · {position.title}
+              {tc("stepOf", { n: position.n, of: position.of, title: position.title })}
             </span>
             <span aria-hidden className="grid gap-1" style={{ gridTemplateColumns: `repeat(${position.of}, minmax(0, 1fr))` }}>
               {Array.from({ length: position.of }, (_, i) => (
@@ -168,8 +171,8 @@ export function EmailPanel({
           </span>
         ) : undefined
       }
-      title={position ? "Your email" : "Start with your email"}
-      lead="We send a 6-digit code. There is no password, and your answers save as you go."
+      title={position ? tr("email.title") : tr("email.titleStandalone")}
+      lead={tr("email.lead")}
     >
       {sent === null ? (
         <>
@@ -181,7 +184,7 @@ export function EmailPanel({
               <GoogleButton redirectTo={googleReturn} />
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="h-px flex-1 bg-border" />
-                or
+                {tc("or")}
                 <span className="h-px flex-1 bg-border" />
               </div>
             </>
@@ -193,13 +196,13 @@ export function EmailPanel({
               void send();
             }}
           >
-            <Field label="Email" error={error ?? undefined}>
+            <Field label={tr("email.label")} error={error ?? undefined}>
               <TextInput
                 ref={emailField}
                 type="email"
                 name="email"
                 autoComplete="email"
-                placeholder="you@yourhotel.rw"
+                placeholder={tr("email.placeholder")}
                 className="w-full"
                 aria-invalid={error ? true : undefined}
                 value={email}
@@ -211,14 +214,14 @@ export function EmailPanel({
             </Field>
             <div>
               <Button type="submit" pending={sending}>
-                {sending ? "Sending your code…" : "Send code"}
+                {sending ? tr("email.sending") : tr("email.send")}
               </Button>
             </div>
-            {slowSend ? <Note>Still sending. The first code can take a few seconds.</Note> : null}
+            {slowSend ? <Note>{tr("email.stillSending")}</Note> : null}
           </form>
           {demo ? (
             <Note>
-              This is the Injishi demo, so every code is {DEMO_OTP_CODE}. A demo persona&apos;s email signs in as them.
+              {tr("email.demoNote", { code: DEMO_OTP_CODE })}
             </Note>
           ) : null}
         </>
@@ -231,17 +234,19 @@ export function EmailPanel({
           }}
         >
           <Field
-            label="6-digit code"
+            label={tr("email.codeLabel")}
             hint={
               <>
-                {sent === "offline" ? "Sign-in is offline, so no code was sent to " : "Sent to "}
-                <b className="text-foreground">{email.trim()}</b>.{" "}
+                {tr.rich(sent === "offline" ? "email.offlineSentTo" : "email.sentTo", {
+                  email: email.trim(),
+                  b: (chunks) => <b className="text-foreground">{chunks}</b>,
+                })}{" "}
                 <button
                   type="button"
                   onClick={differentEmail}
                   className="rounded font-semibold text-accent-text underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  Use a different email
+                  {tr("email.useDifferent")}
                 </button>
               </>
             }
@@ -264,13 +269,13 @@ export function EmailPanel({
           </Field>
           {demo && sent === "live" ? (
             <Note>
-              This is the Injishi demo, so every code is {DEMO_OTP_CODE}. It is filled in for you.
+              {tr("email.demoFilled", { code: DEMO_OTP_CODE })}
             </Note>
           ) : null}
           {sent === "offline" ? <Note>{OTP_MESSAGES.offlineNotice}</Note> : null}
           <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" pending={checking}>
-              {checking ? "Checking your code…" : "Verify and continue"}
+              {checking ? tr("email.verifying") : tr("email.verify")}
             </Button>
             <Button
               type="button"
@@ -280,18 +285,20 @@ export function EmailPanel({
               pending={sending}
               onClick={() => void send(true)}
             >
-              {cooldown > 0 ? `Send a new code in ${cooldown}s` : "Send a new code"}
+              {cooldown > 0 ? tr("email.resendIn", { seconds: cooldown }) : tr("email.resend")}
             </Button>
           </div>
-          {slowCheck ? <Note>Still checking. This can take a few seconds.</Note> : null}
+          {slowCheck ? <Note>{tr("email.stillChecking")}</Note> : null}
           {info ? <Note>{info}</Note> : null}
           {noSession ? (
             <Note tone="danger" key={attempt}>
-              Your code was accepted, but this browser did not keep you signed in here.{" "}
-              <a href={fallbackHref} className="font-semibold underline underline-offset-2">
-                Sign in on the sign-in page
-              </a>{" "}
-              and you come straight back to this registration.
+              {tr.rich("email.noSession", {
+                signin: (chunks) => (
+                  <a href={fallbackHref} className="font-semibold underline underline-offset-2">
+                    {chunks}
+                  </a>
+                ),
+              })}
             </Note>
           ) : null}
         </form>

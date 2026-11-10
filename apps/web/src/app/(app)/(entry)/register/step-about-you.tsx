@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { nationalIdError, nationalIdFacts } from "@/lib/rwanda-id";
 
 import { type AddressDraft } from "./address-picker";
@@ -112,18 +114,19 @@ export function IntendedOwnerFields({
   value,
   onChange,
   errors,
-  title = "Who are you registering for?",
+  title,
 }: {
   value: { name: string; nationalId: string; email: string };
   onChange: (next: { name: string; nationalId: string; email: string }) => void;
   errors: Record<string, string>;
   title?: string;
 }) {
+  const t = useTranslations("registerForms.person");
   return (
     <div className="space-y-4 rounded-card border border-border p-4">
-      <p className="text-sm font-semibold">{title}</p>
+      <p className="text-sm font-semibold">{title ?? t("intendedTitle")}</p>
       <Field
-        label="Their full name"
+        label={t("theirName")}
         required
         error={errors["intendedOwner.name"]}
       >
@@ -138,9 +141,9 @@ export function IntendedOwnerFields({
           without it nobody can ever claim the business, and a typo hands
           it to nobody. Checked as you type once something is typed. */}
       <Field
-        label="Their National ID"
+        label={t("theirId")}
         required
-        hint="It is how we match the owner when they claim. 16 digits."
+        hint={t("theirIdHint")}
         error={
           errors["intendedOwner.nationalId"] ??
           (value.nationalId.trim() !== ""
@@ -162,9 +165,9 @@ export function IntendedOwnerFields({
         />
       </Field>
       <Field
-        label="Their email"
+        label={t("theirEmail")}
         required
-        hint="We send their claim invitation here."
+        hint={t("theirEmailHint")}
         error={errors["intendedOwner.email"]}
       >
         <TextInput
@@ -197,6 +200,7 @@ export function TypedIdentityFields({
   onChange: (next: PersonalDraft) => void;
   errors: Record<string, string>;
 }) {
+  const t = useTranslations("registerForms.person");
   const isPassport = draft.documentType === "passport";
 
   /**
@@ -226,12 +230,12 @@ export function TypedIdentityFields({
           the composed name and reports against that one path, and hanging its
           message on the first name box alone would blame the wrong field. */}
       <Fieldset
-        legend="Your name"
-        hint="Exactly as printed on your ID, in the same order."
+        legend={t("name")}
+        hint={t("nameHint")}
         error={errors["fullName"]}
       >
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="First name" required error={errors["firstName"]}>
+          <Field label={t("firstName")} required error={errors["firstName"]}>
             <TextInput
               id="you-first-name"
               autoComplete="given-name"
@@ -239,7 +243,7 @@ export function TypedIdentityFields({
               onChange={(e) => onChange({ ...draft, firstName: e.target.value })}
             />
           </Field>
-          <Field label="Middle name" hint="Leave blank if you have none." error={errors["middleName"]}>
+          <Field label={t("middleName")} hint={t("middleHint")} error={errors["middleName"]}>
             <TextInput
               id="you-middle-name"
               autoComplete="additional-name"
@@ -247,7 +251,7 @@ export function TypedIdentityFields({
               onChange={(e) => onChange({ ...draft, middleName: e.target.value })}
             />
           </Field>
-          <Field label="Last name" required error={errors["lastName"]}>
+          <Field label={t("lastName")} required error={errors["lastName"]}>
             <TextInput
               id="you-last-name"
               autoComplete="family-name"
@@ -259,12 +263,12 @@ export function TypedIdentityFields({
       </Fieldset>
 
       <Field
-        label={isPassport ? "Passport number" : "National ID number"}
+        label={isPassport ? t("passportNumber") : t("nationalIdNumber")}
         required
         hint={
           isPassport
-            ? "6 to 12 letters or digits."
-            : "16 digits, as printed on the card. Spaces are ignored."
+            ? t("passportHint")
+            : t("nationalIdHint")
         }
         error={errors["document.documentNumber"] ?? liveIdError ?? undefined}
       >
@@ -281,11 +285,11 @@ export function TypedIdentityFields({
       </Field>
 
       {isPassport ? (
-        <Field label="Issuing country" required error={errors["document.issuingCountry"]}>
+        <Field label={t("issuingCountry")} required error={errors["document.issuingCountry"]}>
           <SelectField
             value={draft.issuingCountry}
             options={COUNTRY_OPTIONS}
-            placeholder="Choose a country"
+            placeholder={t("chooseCountry")}
             invalid={Boolean(errors["document.issuingCountry"])}
             onChange={(issuingCountry) => onChange({ ...draft, issuingCountry })}
           />
@@ -293,12 +297,12 @@ export function TypedIdentityFields({
       ) : null}
 
       <Field
-        label="Date of birth"
+        label={t("dateOfBirth")}
         required
         hint={
           birthYearClash
-            ? `Your National ID says you were born in ${idFacts?.birthYear}. Check the year.`
-            : "As printed on your ID. You must be 18 or over to register a business."
+            ? t("dateOfBirthClash", { year: idFacts?.birthYear ?? "" })
+            : t("dateOfBirthHint")
         }
         error={errors["dateOfBirth"]}
       >

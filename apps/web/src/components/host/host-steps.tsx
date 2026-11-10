@@ -1,4 +1,5 @@
 import { BadgeCheck, Camera, ClipboardCheck, SearchCheck, type LucideIcon } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { HOST_STEPS, type HostStep } from "@/data/host";
 
@@ -44,10 +45,11 @@ import { HOST_STEPS, type HostStep } from "@/data/host";
  * decision about where the page's one colour break belongs, not this
  * component's to take.
  */
-export function HostSteps() {
+export async function HostSteps() {
+  const t = await getTranslations("host.sections");
   return (
     <section className="section-y container">
-      <SectionHeading lead="How a listing " emphasis="goes live" className="mb-8" />
+      <SectionHeading lead={t("stepsLead")} emphasis={t("stepsEmphasis")} className="mb-8" />
 
       {/* Four hairline panels, numbered. The numeral carries the order, so no
           connector is drawn between them; the panels close square at every
@@ -71,9 +73,9 @@ export function HostSteps() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <p className="sr-only">Step {step.n}</p>
-              <h3 className="text-lg font-medium text-page-fg">{step.title}</h3>
-              <p className="text-justify text-sm leading-relaxed text-page-fg-70 hyphens-auto">{step.body}</p>
+              <p className="sr-only">{t("stepNumber", { n: step.n })}</p>
+              <h3 className="text-lg font-medium text-page-fg">{t(`step${step.n}Title`)}</h3>
+              <p className="text-justify text-sm leading-relaxed text-page-fg-70 hyphens-auto">{t(`step${step.n}Body`)}</p>
             </div>
           </li>
         ))}

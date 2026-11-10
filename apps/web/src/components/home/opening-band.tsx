@@ -1,5 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { ImigongoBackground } from "@/components/home/illustrations";
 import { supportHref } from "@/lib/support-intent";
 
@@ -15,22 +16,22 @@ import { supportHref } from "@/lib/support-intent";
  * pipeline's own (RRA TIN check, then an online document review, D20), and
  * nothing here promises a date.
  */
-export function OpeningBand() {
+export async function OpeningBand() {
+  const t = await getTranslations("home");
+
   return (
     <section className="section-y container">
       <div className="relative isolate flex flex-col gap-6 overflow-hidden rounded-card bg-card px-6 py-10 text-foreground ring-1 ring-border md:px-10 lg:flex-row lg:items-center lg:justify-between">
         <ImigongoBackground id="opening-imigongo" className="-z-10 text-accent opacity-[0.08]" />
         <div className="flex max-w-wide flex-col gap-2">
           <p className="text-2xs font-semibold uppercase tracking-[0.12em] text-accent-text">
-            Opening across Rwanda
+            {t("opening.eyebrow")}
           </p>
           <h2 className="text-2xl font-bold leading-tight lg:text-3xl">
-            The first stays are being verified now
+            {t("opening.title")}
           </h2>
           <p className="text-sm text-muted-foreground lg:text-base">
-            Injishi lists a place only after it has passed verification: an RRA TIN check, then an
-            officer's online review of its documents. The first hosts are going through it, Kigali first. Own a
-            guesthouse, lodge or apartment? You can be one of them.
+            {t("opening.body")}
           </p>
         </div>
         <div className="flex shrink-0 flex-col gap-3 sm:flex-row lg:flex-col">
@@ -38,14 +39,14 @@ export function OpeningBand() {
             href="/host"
             className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-accent-foreground transition-opacity duration-quick hover:opacity-90"
           >
-            List your place
+            {t("opening.listPlace")}
             <ArrowRight className="size-4" aria-hidden />
           </Link>
           <Link
             href={supportHref("opening")}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-surface-secondary px-6 py-3 text-sm font-semibold text-foreground ring-1 ring-border transition-colors duration-quick hover:bg-card"
           >
-            Tell me when my district opens
+            {t("opening.tellMe")}
           </Link>
         </div>
       </div>

@@ -1,11 +1,7 @@
 "use client";
 
 import {
-  PSF_COMPANY_TYPE_LABEL,
   PSF_CONSENT_TEXT,
-  PSF_FEE_NOTICE,
-  PSF_OWNERSHIP_LABEL,
-  PSF_TRADE_DIRECTION_LABEL,
   PsfCompanyType,
   PsfOwnership,
   PsfTradeDirection,
@@ -18,6 +14,7 @@ import {
 } from "@injishi/contracts";
 import { Badge, Button, Checkbox } from "@injishi/web-ui";
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { formatRwf } from "@/lib/money";
 
@@ -148,17 +145,24 @@ export function psfCandidate(d: PsfDraft, documentOnFile: boolean, askGender = f
   };
 }
 
-function tierLabel(t: PsfTier): string {
-  if (t.priceKind === "fixed" && t.annualFeeRwf !== null) return `${t.nameEn}, ${formatRwf(t.annualFeeRwf)} a year`;
-  if (t.priceKind === "range" && t.annualFeeMinRwf !== null && t.annualFeeMaxRwf !== null)
-    return `${t.nameEn}, ${formatRwf(t.annualFeeMinRwf)} to ${formatRwf(t.annualFeeMaxRwf)} a year`;
-  if (t.priceKind === "minimum" && t.annualFeeMinRwf !== null)
-    return `${t.nameEn}, from ${formatRwf(t.annualFeeMinRwf)} a year`;
-  return `${t.nameEn}, priced by PSF`;
-}
+/** The form's own messages, under `registerForms.psfForm`. */
+type PsfFormMessages = ReturnType<typeof useTranslations<"registerForms.psfForm">>;
 
-const opts = <T extends string>(values: readonly T[], labels: Readonly<Record<T, string>>) =>
-  values.map((v) => ({ value: v, label: labels[v] }));
+/** A tier's name beside what it costs a year, as the locale words it. */
+function tierLabel(tier: PsfTier, t: PsfFormMessages): string {
+  const name = tier.nameEn;
+  if (tier.priceKind === "fixed" && tier.annualFeeRwf !== null)
+    return t("tierFixed", { name, fee: formatRwf(tier.annualFeeRwf) });
+  if (tier.priceKind === "range" && tier.annualFeeMinRwf !== null && tier.annualFeeMaxRwf !== null)
+    return t("tierRange", {
+      name,
+      min: formatRwf(tier.annualFeeMinRwf),
+      max: formatRwf(tier.annualFeeMaxRwf),
+    });
+  if (tier.priceKind === "minimum" && tier.annualFeeMinRwf !== null)
+    return t("tierMinimum", { name, fee: formatRwf(tier.annualFeeMinRwf) });
+  return t("tierSetByPsf", { name });
+}
 
 export function PsfApplication({
   draft,
@@ -184,10 +188,14 @@ export function PsfApplication({
   documentLine?: string | null;
   errors: Record<string, string>;
 }) {
+  const t = useTranslations("registerForms.psfForm");
+  /** A choice list whose labels are the catalog's, one key per value. */
+  const opts = (values: readonly string[], group: "companyTypes" | "ownerships" | "trades") =>
+    values.map((value) => ({ value, label: t(`${group}.${value}`) }));
   const set = <K extends keyof PsfDraft>(key: K, value: PsfDraft[K]) => onChange({ ...draft, [key]: value });
   const e = (k: string) => errors[`psf.${k}`] ?? errors[`business.psfApplication.${k}`];
   const trading = draft.tradeDirection !== "none";
-  const tier = (tiers ?? []).find((t) => t.code === draft.requestedTierCode) ?? null;
+  const tier = (tiers ?? []).find((row) => row.code === draft.requestedTierCode) ?? null;
   const amount = amountOf(draft.declaredFee);
   const amountProblem = tier && tier.priceKind !== "set_by_psf" && draft.declaredFee.trim() ? psfFeeProblem(tier, amount) : null;
   const needsDeclared = tier !== null && tier.priceKind !== "set_by_psf";
@@ -201,7 +209,7 @@ export function PsfApplication({
   const typingAssociation = Boolean(draft.associationCode) && isOtherAssociation(draft.associationCode);
 
   const pickTier = (code: string) => {
-    const next = (tiers ?? []).find((t) => t.code === code) ?? null;
+    const next = (tiers ?? []).find((row) => row.code === code) ?? null;
     const start = next ? psfStartingFee(next) : null;
     onChange({
       ...draft,
@@ -213,33 +221,41 @@ export function PsfApplication({
   return (
     <div className="flex flex-col gap-5 rounded-card bg-secondary p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-base font-semibold">PSF membership application</h4>
+        <h4 className="text-base font-semibold">{t("title")}</h4>
         <Badge variant="subtle" size="sm">
-          Filed with this registration
+          {t("filedWith")}
         </Badge>
       </div>
 
       <div className="max-w-form flex flex-col gap-4">
-        <Field label="Membership tier" hint={PSF_FEE_NOTICE} error={e("requestedTierCode")}>
+        <Field label={t("tier")} hint={t("feeNotice")} error={e("requestedTierCode")}>
           <SelectField
             id="psf-tier"
             value={draft.requestedTierCode}
-            placeholder={tiersFailed ? "Could not load tiers" : tiers === null ? "Loading PSF's tiers…" : tiers.some((t) => t.active) ? "Pick a tier" : "No active tiers"}
-            disabled={tiersFailed || tiers === null || !tiers.some((t) => t.active)}
+            placeholder={
+              tiersFailed
+                ? t("tierFailedPlaceholder")
+                : tiers === null
+                  ? t("tierLoading")
+                  : tiers.some((x) => x.active)
+                    ? t("tierPick")
+                    : t("tierNone")
+            }
+            disabled={tiersFailed || tiers === null || !tiers.some((x) => x.active)}
             invalid={Boolean(e("requestedTierCode"))}
-            options={(tiers ?? []).filter((t) => t.active).map((t) => ({ value: t.code, label: tierLabel(t) }))}
+            options={(tiers ?? []).filter((x) => x.active).map((x) => ({ value: x.code, label: tierLabel(x, t) }))}
             onChange={pickTier}
           />
         </Field>
         {tier && needsDeclared ? (
           <Field
-            label="What you will pay a year (RWF)"
+            label={t("declaredFee")}
             hint={
               amountProblem ??
               e("declaredFeeRwf") ??
               (tier.priceKind === "minimum" && tier.annualFeeMinRwf !== null
-                ? `This band starts at ${formatRwf(tier.annualFeeMinRwf)}. Pick Indatwa or Indashyikirwa for a lower amount.`
-                : tierLabel(tier))
+                ? t("bandStarts", { amount: formatRwf(tier.annualFeeMinRwf) })
+                : tierLabel(tier, t))
             }
             error={amountProblem ?? e("declaredFeeRwf")}
           >
@@ -253,33 +269,35 @@ export function PsfApplication({
             />
           </Field>
         ) : null}
-        {tiersFailed || (tiers !== null && !tiers.some((t) => t.active)) ? (
+        {tiersFailed || (tiers !== null && !tiers.some((row) => row.active)) ? (
           <div className="flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
-            <span>{tiersFailed ? "We couldn't load PSF's membership tiers." : "PSF has no active membership tiers right now."}</span>
-            <Button variant="ghost" size="sm" onClick={onRetryTiers}>Try again</Button>
+            <span>{tiersFailed ? t("tiersFailed") : t("tiersNoneBody")}</span>
+            <Button variant="ghost" size="sm" onClick={onRetryTiers}>
+              {t("tryAgain")}
+            </Button>
           </div>
         ) : null}
       </div>
 
-      <p className="text-sm font-semibold">Sector and association</p>
+      <p className="text-sm font-semibold">{t("sectorTitle")}</p>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Sector" hint="PSF groups its members by sector." error={e("clusterCode")}>
+        <Field label={t("sector")} hint={t("sectorHint")} error={e("clusterCode")}>
           <SelectField
             id="psf-cluster"
             value={draft.clusterCode}
-            placeholder={catalogue === null ? "Loading PSF's sectors…" : "Choose the sector"}
+            placeholder={catalogue === null ? t("sectorLoading") : t("sectorChoose")}
             disabled={catalogue === null}
             options={(catalogue?.clusters ?? []).map((c) => ({ value: c.code, label: c.nameEn }))}
             onChange={(v) => onChange({ ...draft, clusterCode: v, subsectorId: "", subsectorOther: "", associationCode: "", associationOther: "" })}
           />
         </Field>
         {cluster ? (
-          <Field label="Kind of business" hint="Not on the list? Choose Other and type it." error={e("subsectorId")}>
+          <Field label={t("kind")} hint={t("kindHint")} error={e("subsectorId")}>
             <SelectField
               id="psf-subsector"
               value={draft.subsectorId}
-              placeholder="Choose the kind of business"
-              options={[...cluster.subsectors.map((x) => ({ value: x.id, label: x.nameEn })), { value: PSF_TYPE_IT, label: "Other" }]}
+              placeholder={t("kindChoose")}
+              options={[...cluster.subsectors.map((x) => ({ value: x.id, label: x.nameEn })), { value: PSF_TYPE_IT, label: t("other") }]}
               onChange={(v) => {
                 const nextSub = cluster.subsectors.find((x) => x.id === v) ?? null;
                 // A new kind narrows the associations: the old pick stays only while it is still among them.
@@ -290,19 +308,19 @@ export function PsfApplication({
           </Field>
         ) : null}
         {draft.subsectorId === PSF_TYPE_IT ? (
-          <Field label="What kind of business is it?" error={e("subsectorOther")}>
+          <Field label={t("kindOwn")} error={e("subsectorOther")}>
             <TextInput className="w-full" value={draft.subsectorOther} onChange={(ev) => set("subsectorOther", ev.target.value)} />
           </Field>
         ) : null}
         {cluster ? (
-          <Field label="Association" hint="Pick yours from PSF's list. Not there? Choose the last line and type it." error={e("associationCode")}>
+          <Field label={t("association")} hint={t("associationHint")} error={e("associationCode")}>
             <SelectField
               id="psf-association"
               value={typingAssociation ? PSF_TYPE_IT : draft.associationCode}
-              placeholder="Choose your association"
+              placeholder={t("associationChoose")}
               options={[
                 ...listed.map((a) => ({ value: a.code, label: a.acronym ? `${a.nameEn} (${a.acronym})` : a.nameEn })),
-                ...(otherCode ? [{ value: PSF_TYPE_IT, label: "Not on the list: I will type it" }] : []),
+                ...(otherCode ? [{ value: PSF_TYPE_IT, label: t("associationType") }] : []),
               ]}
               onChange={(v) =>
                 v === PSF_TYPE_IT
@@ -313,15 +331,15 @@ export function PsfApplication({
           </Field>
         ) : null}
         {typingAssociation ? (
-          <Field label="Name of your association" error={e("associationOther")}>
+          <Field label={t("associationName")} error={e("associationOther")}>
             <TextInput className="w-full" value={draft.associationOther} onChange={(ev) => set("associationOther", ev.target.value)} />
           </Field>
         ) : null}
       </div>
 
-      <p className="text-sm font-semibold">The business</p>
+      <p className="text-sm font-semibold">{t("businessTitle")}</p>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Website (optional)" error={e("website")}>
+        <Field label={t("website")} error={e("website")}>
           <TextInput
             className="w-full"
             type="url"
@@ -330,31 +348,29 @@ export function PsfApplication({
             onChange={(ev) => set("website", ev.target.value)}
           />
         </Field>
-        <Field label="Company type" error={e("companyType")}>
+        <Field label={t("companyType")} error={e("companyType")}>
           <SelectField
             value={draft.companyType}
-            options={opts(PsfCompanyType.options, PSF_COMPANY_TYPE_LABEL)}
+            options={opts(PsfCompanyType.options, "companyTypes")}
             onChange={(v) => set("companyType", v)}
           />
         </Field>
-        <Field label="Ownership" error={e("ownership")}>
+        <Field label={t("ownership")} error={e("ownership")}>
           <SelectField
             value={draft.ownership}
-            options={opts(PsfOwnership.options, PSF_OWNERSHIP_LABEL)}
+            options={opts(PsfOwnership.options, "ownerships")}
             onChange={(v) => onChange({ ...draft, ownership: v, ownershipOther: v === "other" ? draft.ownershipOther : "" })}
           />
         </Field>
         {draft.ownership === "other" ? (
-          <Field label="What the ownership is" error={e("ownershipOther")}>
+          <Field label={t("ownershipOther")} error={e("ownershipOther")}>
             <TextInput className="w-full" value={draft.ownershipOther} onChange={(ev) => set("ownershipOther", ev.target.value)} />
           </Field>
         ) : null}
-        <Field label="Export or import" error={e("tradeDirection")}>
+        <Field label={t("trade")} error={e("tradeDirection")}>
           <SelectField
             value={draft.tradeDirection}
-            options={opts(PsfTradeDirection.options, PSF_TRADE_DIRECTION_LABEL).map((o) =>
-              o.value === "none" ? { ...o, label: "Neither" } : o,
-            )}
+            options={opts(PsfTradeDirection.options, "trades")}
             onChange={(v) =>
               onChange({ ...draft, tradeDirection: v, ...(v === "none" ? { tradeGoods: "", tradeCountries: [] } : {}) })
             }
@@ -363,26 +379,26 @@ export function PsfApplication({
       </div>
       {trading ? (
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Which goods or services" error={e("tradeGoods")}>
+          <Field label={t("goods")} error={e("tradeGoods")}>
             <TextInput className="w-full" value={draft.tradeGoods} onChange={(ev) => set("tradeGoods", ev.target.value)} />
           </Field>
-          <Field label="To or from which countries" error={e("tradeCountries")}>
+          <Field label={t("countries")} error={e("tradeCountries")}>
             <SelectField
               value=""
-              placeholder="Add a country"
+              placeholder={t("addCountry")}
               options={COUNTRY_OPTIONS.filter((c) => !draft.tradeCountries.includes(c.value))}
               onChange={(code) => code && set("tradeCountries", [...draft.tradeCountries, code])}
             />
           </Field>
           {draft.tradeCountries.length ? (
-            <ul className="flex flex-wrap gap-2 sm:col-span-2" aria-label="Countries">
+            <ul className="flex flex-wrap gap-2 sm:col-span-2" aria-label={t("countriesLabel")}>
               {draft.tradeCountries.map((code) => (
                 <li key={code} className="flex items-center gap-1 rounded-full bg-card py-0.5 pl-3 pr-1 text-xs font-medium">
                   {countryName(code)}
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={`Remove ${countryName(code)}`}
+                    aria-label={t("removeCountry", { country: countryName(code) })}
                     onClick={() => set("tradeCountries", draft.tradeCountries.filter((c) => c !== code))}
                   >
                     <X size={14} aria-hidden />
@@ -393,10 +409,10 @@ export function PsfApplication({
           ) : null}
         </div>
       ) : null}
-      <Field label="What the business does" error={e("businessActivity")}>
+      <Field label={t("activity")} error={e("businessActivity")}>
         <TextInput
           className="w-full"
-          placeholder="Hotel rooms, a restaurant and conference rooms"
+          placeholder={t("activityPlaceholder")}
           value={draft.businessActivity}
           onChange={(ev) => set("businessActivity", ev.target.value)}
         />
@@ -405,15 +421,15 @@ export function PsfApplication({
       {/* The contact person is You's (2026-11-03): gender alone is asked, when You holds no male or female. */}
       {askGender ? (
       <Fieldset
-        legend="Gender, as PSF's form asks it"
-        hint="This goes to PSF only. Your Injishi profile keeps your own answer."
+        legend={t("genderLegend")}
+        hint={t("genderHint")}
         error={e("gender")}
       >
         <div className="grid gap-3 sm:grid-cols-2">
           {(
             [
-              ["male", "Male"],
-              ["female", "Female"],
+              ["male", t("male")],
+              ["female", t("female")],
             ] as const
           ).map(([value, label]) => (
             <ChoiceCard
@@ -443,9 +459,7 @@ export function PsfApplication({
           {e("consent")}
         </span>
       ) : null}
-      <p className="text-xs text-muted-foreground">
-        Injishi sends this to PSF only after your business is approved. If it never is, PSF never sees it.
-      </p>
+      <p className="text-xs text-muted-foreground">{t("sentToPsf")}</p>
     </div>
   );
 }

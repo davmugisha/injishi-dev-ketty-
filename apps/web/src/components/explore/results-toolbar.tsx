@@ -12,8 +12,8 @@ import {
   TabsTrigger,
 } from "@injishi/web-ui";
 import { ChevronDown, Info, List, Map as MapIcon } from "lucide-react";
-import { SORT_EXPLAINER, SORT_OPTIONS, STAY_TYPES, type ExploreSort, type StayType } from "@/lib/search-params";
-import { stayCount } from "@/lib/stay-count";
+import { useTranslations } from "next-intl";
+import { SORT_OPTIONS, STAY_TYPES, type ExploreSort, type StayType } from "@/lib/search-params";
 
 /**
  * The id `explore-shell.tsx` gives the result list, so each stay-type tab can
@@ -65,7 +65,9 @@ export function ResultsToolbar({
   /** Desktop only; a phone has the floating list/map switch instead. */
   onToggleMap: () => void;
 }) {
-  const sortLabel = SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "Sort";
+  const t = useTranslations("search");
+  const sortKey = ({ recommended: "recommended", price_asc: "priceLowHigh", price_desc: "priceHighLow", rating_desc: "ratingHighLow", bedrooms_asc: "bedroomsFewMany", bedrooms_desc: "bedroomsManyFew" } as const)[sort];
+  const sortLabel = t(sortKey);
 
   // Two deliberate rows: the count and the controls that act on the whole
   // list share the first, centred on one line; the stay-type tabs take the
@@ -82,7 +84,7 @@ export function ResultsToolbar({
         >
           {/* No "0 stays in Rwanda" (`lib/stay-count.ts`): the empty state
               under it says what is true, and `data-count` still carries 0. */}
-          {stayCount(count) ? `${stayCount(count)} in ${place}` : `Stays in ${place}`}
+          {count > 0 ? t("resultCount", { count, place }) : t("staysInPlace", { place })}
         </h2>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -94,7 +96,7 @@ export function ResultsToolbar({
                 data-sort-trigger
                 className="gap-2 whitespace-nowrap border-border bg-card px-4 py-2.5 text-page-fg hover:border-ink"
               >
-                <span className="hidden text-page-fg-70 sm:inline">Sort by</span>
+                <span className="hidden text-page-fg-70 sm:inline">{t("sortBy")}</span>
                 <span className="font-bold">{sortLabel}</span>
                 <ChevronDown className="size-4 text-muted-foreground" strokeWidth={2.2} aria-hidden />
               </Button>
@@ -106,7 +108,7 @@ export function ResultsToolbar({
               >
                 {SORT_OPTIONS.map((option) => (
                   <DropdownMenuRadioItem key={option.value} value={option.value}>
-                    {option.label}
+                    {t(({ recommended: "recommended", price_asc: "priceLowHigh", price_desc: "priceHighLow", rating_desc: "ratingHighLow", bedrooms_asc: "bedroomsFewMany", bedrooms_desc: "bedroomsManyFew" } as const)[option.value])}
                   </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>
@@ -116,11 +118,11 @@ export function ResultsToolbar({
           {/* How the default order is decided, kept one hover away. */}
           <span
             data-sort-explainer
-            title={SORT_EXPLAINER}
+            title={t("sortExplainer")}
             className="hidden size-9 items-center justify-center rounded-full text-muted-foreground sm:flex"
           >
             <Info className="size-4" strokeWidth={2} aria-hidden />
-            <span className="sr-only">How our sort order works: {SORT_EXPLAINER}</span>
+            <span className="sr-only">{t("sortExplainer")}</span>
           </span>
 
           <Button
@@ -134,12 +136,12 @@ export function ResultsToolbar({
             {mapOn ? (
               <>
                 <List className="size-4" strokeWidth={2} aria-hidden />
-                Hide map
+                {t("hideMap")}
               </>
             ) : (
               <>
                 <MapIcon className="size-4" strokeWidth={2} aria-hidden />
-                Show map
+                {t("showMap")}
               </>
             )}
           </Button>
@@ -148,7 +150,7 @@ export function ResultsToolbar({
 
       <div className="border-b border-separator">
         <Tabs value={stayType} onValueChange={(value) => onStayTypeChange(value as StayType)}>
-          <TabsList variant="underline" aria-label="Stay type" className="-mx-1 -mb-px scrollbar overflow-x-auto px-1">
+          <TabsList variant="underline" aria-label={t("stayType")} className="-mx-1 -mb-px scrollbar overflow-x-auto px-1">
             {STAY_TYPES.map((type) => (
               <TabsTrigger
                 key={type.value}
@@ -157,7 +159,7 @@ export function ResultsToolbar({
                 aria-controls={EXPLORE_RESULTS_ID}
                 data-stay-tab
               >
-                {type.label}
+                {t(({ all: "allStays", hotels: "hotels", homes: "homes" } as const)[type.value])}
               </TabsTrigger>
             ))}
           </TabsList>

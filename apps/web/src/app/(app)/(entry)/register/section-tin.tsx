@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   PSF_COMPANY_TYPE_LABEL,
   type RegistrantCapacity,
@@ -103,6 +104,7 @@ export function SectionTin({
   /** The device has a network. RRA cannot be asked without one, and the section says so (ADR-075 S9). */
   online?: boolean;
 }) {
+  const t = useTranslations("registerForms.tin");
   const digits = normalizeTin(tin);
   const verdict = view.kind === "result" ? view.verdict : null;
   const checking = view.kind === "checking";
@@ -116,7 +118,7 @@ export function SectionTin({
   const back = onBack ? (
     <Button variant="ghost" onClick={onBack}>
       <ArrowLeft size={16} aria-hidden />
-      Back
+      {t("back")}
     </Button>
   ) : null;
 
@@ -124,7 +126,7 @@ export function SectionTin({
     <>
       {showFields ? (
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Registered business name" hint="As you know it. RRA's spelling is the one we keep.">
+          <Field label={t("nameLabel")} hint={t("nameHint")}>
             <TextInput
               id="register-business-name"
               className="w-full"
@@ -134,8 +136,8 @@ export function SectionTin({
             />
           </Field>
           <Field
-            label="TIN"
-            hint="9 digits, from your RRA certificate"
+            label={t("tinLabel")}
+            hint={t("tinHint")}
             error={verdict?.result === "failed" ? verdict.message : error}
           >
             <TextInput
@@ -160,29 +162,29 @@ export function SectionTin({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           {back}
           <Button onClick={onValidate} disabled={!canValidate || !online} aria-describedby={online ? undefined : "register-tin-offline"}>
-            Validate with RRA
+            {t("validate")}
           </Button>
-          {online ? null : <Offline id="register-tin-offline">You're offline. Connect to check the TIN with RRA.</Offline>}
+          {online ? null : <Offline id="register-tin-offline">{t("offline")}</Offline>}
         </div>
       ) : null}
 
       {checking ? (
         <div role="status" className="flex items-center gap-3 rounded-card bg-secondary px-4 py-3 text-sm">
           <LoaderCircle size={16} aria-hidden className="animate-spin text-accent-text" />
-          <span>Asking RRA about TIN {formatTin(digits)}…</span>
+          <span>{t("checking", { tin: formatTin(digits) })}</span>
         </div>
       ) : null}
 
       {differs && found ? (
         <>
-          <Callout tone="warning" icon={<TriangleAlert size={16} aria-hidden />} title={`RRA has this TIN as ${found.legalName}`}>
-            You typed {typedName.trim()}. Use RRA&apos;s name? A registration can only carry the name RRA holds.
+          <Callout tone="warning" icon={<TriangleAlert size={16} aria-hidden />} title={t("differsTitle", { name: found.legalName })}>
+            {t("differsBody", { typed: typedName.trim() })}
           </Callout>
           <div className="flex flex-wrap gap-2">
             {back}
-            <Button onClick={onUseRraName}>Use RRA&apos;s name</Button>
+            <Button onClick={onUseRraName}>{t("useRra")}</Button>
             <Button variant="secondary" onClick={onCheckAnother}>
-              Check another TIN
+              {t("checkAnother")}
             </Button>
           </div>
         </>
@@ -190,13 +192,13 @@ export function SectionTin({
 
       {verdict?.result === "taken" ? (
         <>
-          <Callout tone="danger" icon={<CircleX size={16} aria-hidden />} title="This TIN is already registered on Injishi">
-            Only one business on Injishi can hold a TIN. If this one is yours, ask us and a person will look into it.
+          <Callout tone="danger" icon={<CircleX size={16} aria-hidden />} title={t("takenTitle")}>
+            {t("takenBody")}
           </Callout>
           <div>
             <Button variant="secondary" onClick={onAskInjishi}>
               <MessageCircle size={16} aria-hidden />
-              Ask Injishi
+              {t("askInjishi")}
             </Button>
           </div>
         </>
@@ -204,18 +206,17 @@ export function SectionTin({
 
       {verdict?.result === "pending" && !carryOnPending ? (
         <>
-          <Callout tone="warning" icon={<CloudOff size={16} aria-hidden />} title="We can't reach RRA right now" role="alert">
-            Nothing was checked. Try again in a few minutes, or carry on: RRA checks the TIN again once the fee is paid,
-            and an officer sees that it was not checked here.
+          <Callout tone="warning" icon={<CloudOff size={16} aria-hidden />} title={t("pendingTitle")} role="alert">
+            {t("pendingBody")}
           </Callout>
           <div className="flex flex-wrap gap-2">
             {back}
             <Button variant="secondary" onClick={onValidate} disabled={!online}>
               <RotateCw size={16} aria-hidden />
-              Try again
+              {t("retry")}
             </Button>
             <Button variant="ghost" onClick={onCarryOn}>
-              Carry on without the check
+              {t("carryOn")}
             </Button>
           </div>
         </>
@@ -224,42 +225,42 @@ export function SectionTin({
       {known || pendingAccepted ? (
         <>
           {known ? (
-            <Callout tone="success" icon={<CircleCheck size={16} aria-hidden />} title="RRA knows this TIN">
-              {found ? "The name is now locked to RRA's spelling." : "RRA holds no details for it, so the name you typed is the one we keep."}
+            <Callout tone="success" icon={<CircleCheck size={16} aria-hidden />} title={t("knownTitle")}>
+              {found ? t("nameLocked") : t("noDetails")}
             </Callout>
           ) : null}
           <dl className="grid grid-cols-1 gap-x-6 gap-y-1 rounded-card bg-secondary px-4 py-3 text-sm sm:grid-cols-3">
-            <dt className="text-muted-foreground">{found ? "Name RRA holds" : "Name"}</dt>
+            <dt className="text-muted-foreground">{found ? t("nameRra") : t("name")}</dt>
             <dd className="flex items-center gap-1.5 font-medium sm:col-span-2">
               {found ? <Lock size={13} aria-hidden /> : null}
-              {found ? found.legalName : typedName.trim() || "Not named yet"}
+              {found ? found.legalName : typedName.trim() || t("notNamed")}
             </dd>
             <dt className="text-muted-foreground">TIN</dt>
             <dd className="flex flex-wrap items-center gap-x-2 font-medium tabular-nums sm:col-span-2">
               {formatTin(digits)}
-              {pendingAccepted ? " · not checked yet" : ""}
+              {pendingAccepted ? t("notChecked") : ""}
               <Button variant="link" size="sm" onClick={onChangeTin} className="h-auto min-h-6 px-0">
-                Change TIN
+                {t("changeTin")}
               </Button>
             </dd>
             {found?.companyType ? (
               <>
-                <dt className="text-muted-foreground">Company type</dt>
+                <dt className="text-muted-foreground">{t("companyType")}</dt>
                 <dd className="font-medium sm:col-span-2">{PSF_COMPANY_TYPE_LABEL[found.companyType]}</dd>
               </>
             ) : null}
             {found && found.directors.length > 0 ? (
               <>
-                <dt className="text-muted-foreground">Directors on file</dt>
+                <dt className="text-muted-foreground">{t("directors")}</dt>
                 <dd className="font-medium sm:col-span-2">{found.directors.map((d) => d.name).join(", ")}</dd>
               </>
             ) : null}
           </dl>
           {found?.generated ? (
-            <p className="text-xs text-muted-foreground">Demo: no real register is connected, so this company was generated.</p>
+            <p className="text-xs text-muted-foreground">{t("demoGenerated")}</p>
           ) : null}
           {!found ? (
-            <Field label="Registered business name" hint="Exactly as it appears on your RRA certificate." error={error}>
+            <Field label={t("keptLabel")} hint={t("keptHint")} error={error}>
               <TextInput
                 id="register-business-name-kept"
                 className="w-full"
@@ -270,55 +271,54 @@ export function SectionTin({
           ) : null}
 
           <fieldset className="flex flex-col gap-2.5">
-            <legend className="mb-2.5 text-sm font-semibold">Who is registering it?</legend>
+            <legend className="mb-2.5 text-sm font-semibold">{t("who")}</legend>
             <div className="grid gap-3 sm:grid-cols-2">
               <ChoiceTile
                 name="registrant-capacity"
                 checked={capPick === "owner"}
                 icon={<User size={20} aria-hidden />}
-                title="I own or direct this business"
-                description="You add your own ID in the next step, and we check it against RRA's directors."
+                title={t("ownerTitle")}
+                description={t("ownerBody")}
                 onSelect={() => onCapPick("owner")}
               />
               <ChoiceTile
                 name="registrant-capacity"
                 checked={capPick === "on_behalf_of"}
                 icon={<Users size={20} aria-hidden />}
-                title="I'm registering it for the owner"
-                description="You prepare it and name the owner. They claim it once PSF approves it."
+                title={t("prepTitle")}
+                description={t("prepBody")}
                 onSelect={() => onCapPick("on_behalf_of")}
               />
             </div>
           </fieldset>
           {capPick === "owner" && isDirector === true ? (
-            <Callout tone="success" icon={<CircleCheck size={16} aria-hidden />} title="You're listed as a director" />
+            <Callout tone="success" icon={<CircleCheck size={16} aria-hidden />} title={t("listed")} />
           ) : null}
           {capPick === "owner" && isDirector === false ? (
             <>
               <Callout
                 tone="warning"
                 icon={<TriangleAlert size={16} aria-hidden />}
-                title="You're not listed as a director"
+                title={t("notListedTitle")}
                 role="alert"
               >
-                RRA does not list your ID among the directors for this TIN. Register it for the owner instead: you
-                name them, and they claim it with their own ID once Injishi approves it.
+                {t("notListedBody")}
               </Callout>
               <div className="flex flex-wrap items-center gap-2">
                 {back}
-                <Button onClick={onPrepareForOwner}>Register it for the owner instead</Button>
+                <Button onClick={onPrepareForOwner}>{t("forOwner")}</Button>
               </div>
             </>
           ) : (
             <>
               {capPick === "on_behalf_of" && isDirector === false ? (
                 <p className="text-sm text-muted-foreground">
-                  RRA does not list your ID among the directors for this TIN, so you register it for the owner.
+                  {t("notListedNote")}
                 </p>
               ) : null}
               <div className="flex flex-wrap items-center gap-2">
                 {back}
-                <Button onClick={onNext}>Next</Button>
+                <Button onClick={onNext}>{t("next")}</Button>
               </div>
             </>
           )}

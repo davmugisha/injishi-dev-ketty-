@@ -14,17 +14,19 @@ import { EmptyState, RadioButtonGroup } from "@heroui-pro/react";
 import type { CaseFile, FieldResult, Tone } from "@injishi/data/fixtures/oversight";
 import { GateChip } from "@injishi/ui";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { CardHeading, ToneChip } from "./shared";
 
-const RESULT: Record<FieldResult, { label: string; tone: Tone }> = {
-  match: { label: "Matches", tone: "success" },
-  check: { label: "Check", tone: "warning" },
-  unreadable: { label: "Not readable", tone: "danger" },
-  undeclared: { label: "Not declared", tone: "default" },
+const RESULT: Record<FieldResult, { tone: Tone }> = {
+  match: { tone: "success" },
+  check: { tone: "warning" },
+  unreadable: { tone: "danger" },
+  undeclared: { tone: "default" },
 };
 
 /** Submitted documents: pick a document, page through its watermarked preview and compare its fields. */
 export function CaseDocuments({ file }: { file: CaseFile }) {
+  const t = useTranslations("officialReview.documents");
   const [docId, setDocId] = useState(file.lastViewed.document);
   const [page, setPage] = useState(file.lastViewed.page);
   const [zoom, setZoom] = useState(false);
@@ -34,18 +36,17 @@ export function CaseDocuments({ file }: { file: CaseFile }) {
     return (
       <Card render={(p) => <section {...p} />} aria-labelledby="docs-h" className="gap-3.5 p-[18px]">
         <Card.Header>
-          <CardHeading id="docs-h">Submitted Documents</CardHeading>
-          <Card.Description>Nothing was uploaded with this registration</Card.Description>
+          <CardHeading id="docs-h">{t("title")}</CardHeading>
+          <Card.Description>{t("nothingUploaded")}</Card.Description>
         </Card.Header>
         <EmptyState size="sm">
           <EmptyState.Header>
             <EmptyState.Media variant="icon">
               <FileText />
             </EmptyState.Media>
-            <EmptyState.Title>No documents to read</EmptyState.Title>
+            <EmptyState.Title>{t("emptyTitle")}</EmptyState.Title>
             <EmptyState.Description>
-              The business attached no certificate. Ask the host to upload what you need, and reject with a reason if
-              a document the law requires is missing.
+              {t("emptyDescription")}
             </EmptyState.Description>
           </EmptyState.Header>
         </EmptyState>
@@ -61,19 +62,19 @@ export function CaseDocuments({ file }: { file: CaseFile }) {
     <Card render={(p) => <section {...p} />} aria-labelledby="docs-h" className="gap-3.5 p-[18px]">
       <Card.Header className="flex flex-row items-start gap-3">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <CardHeading id="docs-h">Submitted Documents</CardHeading>
+          <CardHeading id="docs-h">{t("title")}</CardHeading>
           <Card.Description>
             {live
-              ? "Open each file and read it · the link is signed for you and expires shortly"
-              : "View only · watermarked with your name · downloads off for this mandate"}
+              ? t("liveDescription")
+              : t("sampleDescription")}
           </Card.Description>
         </div>
-        <GateChip icon={<Eye className="size-3" />}>Each view is logged</GateChip>
+        <GateChip icon={<Eye className="size-3" />}>{t("eachViewLogged")}</GateChip>
       </Card.Header>
 
       <div className="flex flex-wrap items-start gap-3.5">
         <RadioButtonGroup
-          aria-label="Documents"
+          aria-label={t("title")}
           value={doc.id}
           onChange={(v) => {
             setDocId(v);
@@ -109,20 +110,20 @@ export function CaseDocuments({ file }: { file: CaseFile }) {
               variant="ghost"
               size="sm"
               isIconOnly
-              aria-label="Previous page"
+              aria-label={t("previous")}
               isDisabled={current <= 1}
               onPress={() => setPage(Math.max(1, current - 1))}
             >
               <ChevronLeft className="size-4" />
             </Button>
             <span className="text-[12px] whitespace-nowrap text-muted tabular" aria-live="polite">
-              Page {current} of {doc.pages}
+              {t("page", { current, total: doc.pages })}
             </span>
             <Button
               variant="ghost"
               size="sm"
               isIconOnly
-              aria-label="Next page"
+              aria-label={t("next")}
               isDisabled={current >= doc.pages}
               onPress={() => setPage(Math.min(doc.pages, current + 1))}
             >
@@ -132,7 +133,7 @@ export function CaseDocuments({ file }: { file: CaseFile }) {
               variant="ghost"
               size="sm"
               isIconOnly
-              aria-label="Zoom in"
+              aria-label={t("zoom")}
               isSelected={zoom}
               onChange={setZoom}
               isDisabled={unreadable}
@@ -151,8 +152,8 @@ export function CaseDocuments({ file }: { file: CaseFile }) {
                   className="flex flex-col items-center gap-2 pb-6 text-center font-medium text-accent no-underline hover:underline"
                 >
                   <ArrowUpRightFromSquare className="size-6" aria-hidden="true" />
-                  Open the {doc.name.toLowerCase()}
-                  <span className="text-[12px] font-normal text-muted">{doc.file} · opening it is logged</span>
+                  {t("openFile", { file: doc.name.toLowerCase() })}
+                  <span className="text-[12px] font-normal text-muted">{doc.file} · {t("openingLogged")}</span>
                 </a>
               ) : (
                 <EmptyState size="sm" className="pb-6">
@@ -160,9 +161,9 @@ export function CaseDocuments({ file }: { file: CaseFile }) {
                     <EmptyState.Media variant="icon">
                       <FileExclamation />
                     </EmptyState.Media>
-                    <EmptyState.Title>No file on record</EmptyState.Title>
+                    <EmptyState.Title>{t("noFile")}</EmptyState.Title>
                     <EmptyState.Description>
-                      The certificate is declared but its file is not stored. Ask the host to upload it.
+                      {t("declaredFileMissing")}
                     </EmptyState.Description>
                   </EmptyState.Header>
                 </EmptyState>
@@ -173,16 +174,16 @@ export function CaseDocuments({ file }: { file: CaseFile }) {
                   <EmptyState.Media variant="icon">
                     <FileExclamation />
                   </EmptyState.Media>
-                  <EmptyState.Title>Page {current} is not readable</EmptyState.Title>
+                  <EmptyState.Title>{t("unreadable", { page: current })}</EmptyState.Title>
                   <EmptyState.Description>
-                    The scan is blurred. Request a clear copy rather than guessing the licence conditions.
+                    {t("blurred")}
                   </EmptyState.Description>
                 </EmptyState.Header>
               </EmptyState>
             ) : (
               <div
                 role="img"
-                aria-label={`Preview of ${doc.name}, page ${current}`}
+                aria-label={`${doc.name}, ${t("page", { current, total: doc.pages })}`}
                 className={`flex h-[220px] w-[170px] flex-col gap-2 rounded-md bg-surface px-3.5 py-4 shadow-surface transition-transform ${zoom ? "scale-125" : ""}`}
               >
                 <span className="block h-2.5 w-[55%] rounded-[3px] bg-separator" />
@@ -201,22 +202,22 @@ export function CaseDocuments({ file }: { file: CaseFile }) {
               hidden={live}
             >
               <span className="truncate">
-                {doc.file} · uploaded {doc.uploaded}
+                {doc.file} · {t("uploaded", { date: doc.uploaded })}
               </span>
               <span className="shrink-0">
-                Viewed by {file.lastViewed.by} · {file.lastViewed.at}
+                {t("viewedBy", { name: file.lastViewed.by })} · {file.lastViewed.at}
               </span>
             </div>
           </div>
 
           <Table>
             <Table.ScrollContainer>
-              <Table.Content aria-label={`${doc.name} fields`}>
+              <Table.Content aria-label={t("fields", { document: doc.name })}>
                 <Table.Header>
-                  <Table.Column isRowHeader>Field</Table.Column>
-                  <Table.Column>On the document</Table.Column>
-                  <Table.Column>Declared</Table.Column>
-                  <Table.Column>Result</Table.Column>
+                  <Table.Column isRowHeader>{t("field")}</Table.Column>
+                  <Table.Column>{t("onDocument")}</Table.Column>
+                  <Table.Column>{t("declared")}</Table.Column>
+                  <Table.Column>{t("result")}</Table.Column>
                 </Table.Header>
                 <Table.Body>
                   {doc.fields.map((f) => (
@@ -225,7 +226,7 @@ export function CaseDocuments({ file }: { file: CaseFile }) {
                       <Table.Cell>{f.onDocument}</Table.Cell>
                       <Table.Cell>{f.declared}</Table.Cell>
                       <Table.Cell>
-                        <ToneChip tone={RESULT[f.result].tone}>{RESULT[f.result].label}</ToneChip>
+                        <ToneChip tone={RESULT[f.result].tone}>{f.result === "match" ? t("matches") : f.result === "check" ? t("check") : f.result === "unreadable" ? t("notReadable") : t("notDeclared")}</ToneChip>
                       </Table.Cell>
                     </Table.Row>
                   ))}

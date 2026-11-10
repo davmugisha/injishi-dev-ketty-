@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useTranslations } from "next-intl";
 import type { BusinessKind, OrgCertificateKind } from "@injishi/contracts";
 import { Badge, Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
@@ -86,6 +87,7 @@ export function StepDocuments({
   /** The device has a network. Nothing uploads without one, and the step says so (ADR-075 S9). */
   online?: boolean;
 }) {
+  const t = useTranslations("register.documents");
   const rows = documentRows(kind, { franchisee });
   const [transient, setTransient] = useState<Record<string, Transient>>({});
   const [unsorted, setUnsorted] = useState<Unsorted[]>([]);
@@ -203,26 +205,25 @@ export function StepDocuments({
         )}
       >
         <FileUp size={28} aria-hidden className="text-muted-foreground" />
-        <p className="text-sm font-semibold">Drop files here or browse</p>
+        <p className="text-sm font-semibold">{t("drop")}</p>
         <p className="text-xs text-muted-foreground">
-          PDF, JPEG or PNG, up to 10 MB each. A photo must be a JPEG or PNG with all four corners showing; an
-          iPhone&apos;s HEIC photo is not accepted.
+          {t("requirements")}
         </p>
         {zoneBusy ? (
           <span role="status" className="text-xs text-muted-foreground">
-            Uploading…
+            {t("uploading")}
           </span>
         ) : online ? (
-          <FilePick label="Browse files" multiple onFiles={(files) => void acceptZone(files)} />
+          <FilePick label={t("browse")} multiple onFiles={(files) => void acceptZone(files)} />
         ) : (
-          <Offline id="register-documents-offline">You're offline. Connect to upload.</Offline>
+          <Offline id="register-documents-offline">{t("offline")}</Offline>
         )}
       </div>
 
       {zoneProblems.length ? (
         <ul role="alert" className="flex flex-col gap-1 text-sm text-destructive">
           {zoneProblems.map((p) => (
-            <li key={p}>We did not upload {p}.</li>
+            <li key={p}>{t("notUploaded", { file: p })}</li>
           ))}
         </ul>
       ) : null}
@@ -239,13 +240,13 @@ export function StepDocuments({
             <li key={u.objectKey} className="flex flex-col gap-2 rounded-card border border-border p-3 sm:flex-row sm:items-end">
               <span className="min-w-0 flex-1 text-sm">
                 <span className="block truncate font-medium">{u.filename}</span>
-                <span className="text-xs text-muted-foreground">{formatBytes(u.sizeBytes)}, uploaded</span>
+                <span className="text-xs text-muted-foreground">{t("uploadedAt", { size: formatBytes(u.sizeBytes) })}</span>
               </span>
               <div className="w-full sm:w-64">
-                <Field label="Which document is this?">
+                <Field label={t("sortPrompt")}>
                   <SelectField
                     value=""
-                    placeholder="Choose one"
+                    placeholder={t("choose")}
                     options={freeRows.map((r) => ({ value: r.kind, label: r.label }))}
                     onChange={(kind) => kind && file(u, kind)}
                   />
@@ -270,40 +271,40 @@ export function StepDocuments({
       <ul className="flex flex-col divide-y divide-border rounded-card bg-secondary">
         {rows.map((row) => {
           const doc = docFor(row.kind);
-          const t = transient[row.kind];
+          const transientState = transient[row.kind];
           const refusal = doc ? refused[doc.objectKey] : undefined;
           const state = refusal
             ? "failed"
             : doc
               ? "done"
-              : t?.status === "uploading"
+              : transientState?.status === "uploading"
                 ? "uploading"
-                : t?.status === "failed"
+                : transientState?.status === "failed"
                   ? "failed"
                   : "none";
           const Icon = ICON[row.kind] ?? File;
           const chip =
             state === "done"
-              ? ({ label: "Uploaded", variant: "success" } as const)
+              ? ({ label: t("uploaded"), variant: "success" } as const)
               : state === "failed"
-                ? ({ label: "Failed", variant: "danger" } as const)
+                ? ({ label: t("failed"), variant: "danger" } as const)
                 : state === "uploading"
-                  ? ({ label: "Uploading", variant: "default" } as const)
+                  ? ({ label: t("uploading"), variant: "default" } as const)
                   : row.required
-                    ? ({ label: "Needed", variant: "warning" } as const)
-                    : ({ label: "Optional", variant: "default" } as const);
+                    ? ({ label: t("needed"), variant: "warning" } as const)
+                    : ({ label: t("optional"), variant: "default" } as const);
           const meta =
             refusal && doc
               ? `${doc.filename} · ${refusal}`
               : state === "done" && doc
               ? `${doc.filename} · ${formatBytes(doc.sizeBytes)}`
-              : state === "failed" && t
-                ? `${t.filename} · ${t.reason ?? "it did not upload"}`
-                : state === "uploading" && t
-                  ? `${t.filename} · uploading`
+              : state === "failed" && transientState
+                ? `${transientState.filename} · ${transientState.reason ?? t("didNotUpload")}`
+                : state === "uploading" && transientState
+                  ? `${transientState.filename} · ${t("uploading").toLowerCase()}`
                   : row.required
-                    ? "Needed to continue"
-                    : "Not added";
+                    ? t("neededContinue")
+                    : t("notAdded");
           return (
             <li key={row.kind} className="flex flex-col gap-3 px-4 py-3">
               <div className="flex flex-wrap items-center gap-3">
@@ -315,7 +316,7 @@ export function StepDocuments({
                     {row.label}
                     {row.required ? (
                       <Badge variant="accent" size="sm">
-                        Required
+                        {t("required")}
                       </Badge>
                     ) : null}
                   </span>
@@ -328,11 +329,11 @@ export function StepDocuments({
                 </Badge>
                 {state === "done" ? (
                   <Button variant="ghost" size="sm" onClick={() => remove(row.kind)}>
-                    Remove<span className="sr-only">: {row.label}</span>
+                    {t("remove")}<span className="sr-only">: {row.label}</span>
                   </Button>
                 ) : state === "uploading" || !online ? null : (
                   <FilePick
-                    label={state === "failed" ? "Try again" : "Upload"}
+                    label={state === "failed" ? t("retry") : t("upload")}
                     hiddenLabel={`: ${row.label}`}
                     onFiles={(files) => {
                       const chosen = files[0];

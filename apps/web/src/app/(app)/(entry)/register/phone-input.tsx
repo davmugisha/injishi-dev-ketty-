@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@injishi/web-ui";
 
 import { SelectField, TextInput } from "./wizard-ui";
@@ -86,6 +87,7 @@ export function PhoneInput({
    * which country it belongs to — holding a second answer beside it is how a
    * form comes to show `+254` above a value of `+250788123456`.
    */
+  const t = useTranslations("registerForms.phone");
   const [pickedCode, setPickedCode] = useState<string>(DEFAULT_COUNTRY.code);
   const [keepFullNumber, setKeepFullNumber] = useState(false);
 
@@ -95,15 +97,14 @@ export function PhoneInput({
     return (
       <div className="space-y-2">
         <p className="text-xs text-muted-foreground">
-          Enter the full number, including + and its country code. Countries
-          outside the short list can be entered here.
+          {t("fullHint")}
         </p>
         <TextInput
           id={id}
           type="tel"
           inputMode="tel"
           autoComplete="tel"
-          aria-label="Phone number with country code"
+          aria-label={t("fullLabel")}
           aria-invalid={invalid || undefined}
           value={value}
           onChange={(event) => {
@@ -115,7 +116,7 @@ export function PhoneInput({
           setKeepFullNumber(false);
           onChange("");
         }}>
-          Use the country picker instead
+          {t("usePicker")}
         </Button>
       </div>
     );
@@ -141,14 +142,14 @@ export function PhoneInput({
     <div className="flex flex-col gap-2 sm:flex-row">
       <div className="sm:w-60 sm:shrink-0">
         <SelectField
-          ariaLabel="Country calling code"
+          ariaLabel={t("callingCode")}
           value={country.code}
           options={[
             ...PHONE_COUNTRIES.map((c) => ({
               value: c.code,
               label: `${c.dial} · ${c.name}`,
             })),
-            { value: "other", label: "Another country — enter full number" },
+            { value: "other", label: t("other") },
           ]}
           invalid={invalid}
           onChange={(code) => {
@@ -173,7 +174,7 @@ export function PhoneInput({
           type="tel"
           inputMode="tel"
           autoComplete="tel-national"
-          aria-label={`Phone number in ${country.name}`}
+          aria-label={t("numberIn", { country: country.name })}
           aria-invalid={invalid || undefined}
           placeholder={country.example}
           maxLength={country.nationalDigits + 6}

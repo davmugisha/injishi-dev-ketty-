@@ -1,6 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@injishi/utils";
 
 /**
@@ -26,8 +27,9 @@ export interface RailStep {
 }
 
 export function RegisterRail({ steps, onGo }: { steps: RailStep[]; onGo: (id: string) => void }) {
+  const t = useTranslations("register.rail");
   return (
-    <nav aria-label="Registration steps">
+    <nav aria-label={t("aria")}>
       <ol className="grid gap-2" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
         {steps.map((step, i) => {
           const pressable = !step.locked && step.status !== "active";
@@ -64,9 +66,9 @@ export function RegisterRail({ steps, onGo }: { steps: RailStep[]; onGo: (id: st
                   {step.status === "complete" ? <Check size={14} aria-hidden className="shrink-0 text-accent-text" /> : null}
                   {step.title}
                   <span className="sr-only">
-                    {`, step ${i + 1} of ${steps.length}`}
-                    {step.status === "complete" ? ", done" : ""}
-                    {step.locked ? `, ${(step.why ?? "Not reached yet").toLowerCase()}` : ""}
+                    {t("stepOf", { n: i + 1, of: steps.length })}
+                    {step.status === "complete" ? t("done") : ""}
+                    {step.locked ? t("why", { why: (step.why ?? t("notReached")).toLowerCase() }) : ""}
                   </span>
                 </span>
               </button>

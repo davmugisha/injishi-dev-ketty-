@@ -27,6 +27,7 @@ import {
   SelectField,
 } from "@injishi/ui";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { type ReactNode, useState, useTransition } from "react";
 import { useStepUp } from "../step-up/step-up-dialog";
 import {
@@ -49,10 +50,11 @@ const ORG_ROLE_OPTIONS = OrgRole.options.map((r) => ({ id: r, label: ORG_ROLE_LA
 
 /** A one-line reason box, the audit log's "why", under every write on this page. */
 function Reason({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const t = useTranslations("adminPeople.people");
   return (
     <TextField value={value} onChange={onChange} className="flex min-w-[min(260px,100%)] flex-1 flex-col gap-1">
-      <Label>Reason</Label>
-      <Input placeholder="For the audit log, a few words" />
+      <Label>{t("reason")}</Label>
+      <Input placeholder={t("auditReason")} />
     </TextField>
   );
 }
@@ -86,12 +88,13 @@ export function PersonView({
   signIns: AdminSignInsResponse | null;
   activity: AdminActivityResponse | null;
 }) {
+  const t = useTranslations("adminPeople.people");
   const [asking, setAsking] = useState<"suspend" | "reactivate" | "resend" | null>(null);
   const suspended = person.status === "suspended";
   return (
     <PageContent>
       <PageHeader
-        eyebrow="People"
+        eyebrow={t("title")}
         title={person.name?.trim() || person.email}
         description={
           <span className="flex flex-wrap items-center gap-2">
@@ -102,11 +105,11 @@ export function PersonView({
               {person.kyc === "verified" ? "ID verified" : person.kyc === "pending" ? "ID pending" : "ID not verified"}
             </Chip>
             <span className="text-muted">
-              Since <DateText value={person.createdAt} />
+              {t("since")} <DateText value={person.createdAt} />
             </span>
             {person.lastSignInAt ? (
               <span className="text-muted">
-                · Last signed in <DateText value={person.lastSignInAt} />
+                · {t("lastSignIn")} <DateText value={person.lastSignInAt} />
               </span>
             ) : null}
           </span>
@@ -115,7 +118,7 @@ export function PersonView({
           <span className="flex flex-wrap gap-2">
             {can.grant && person.status === "invited" ? (
               <ActionButton icon="Envelope" onPress={() => setAsking("resend")}>
-                Resend invitation
+                {t("invited")}
               </ActionButton>
             ) : null}
             {can.suspend && !isSelf ? (
@@ -123,31 +126,31 @@ export function PersonView({
                 intent={suspended ? "secondary" : "danger"}
                 onPress={() => setAsking(suspended ? "reactivate" : "suspend")}
               >
-                {suspended ? "Reactivate" : "Suspend"}
+                {suspended ? t("active") : t("suspended")}
               </ActionButton>
             ) : null}
             <LinkButton href="/admin/people" variant="secondary">
-              All people
+              {t("title")}
             </LinkButton>
           </span>
         }
       />
       <Tabs variant="secondary" defaultSelectedKey="access">
         <Tabs.ListContainer>
-          <Tabs.List aria-label="About this person">
+          <Tabs.List aria-label={t("title")}>
             <Tabs.Tab id="access">
-              Roles and access
+              {t("staffRoles")}
               <Tabs.Indicator />
             </Tabs.Tab>
             {signIns ? (
               <Tabs.Tab id="signins">
-                Sign-ins and devices
+                {t("lastSignIn")}
                 <Tabs.Indicator />
               </Tabs.Tab>
             ) : null}
             {activity ? (
               <Tabs.Tab id="activity">
-                Activity
+              {t("post")}
                 <Tabs.Indicator />
               </Tabs.Tab>
             ) : null}

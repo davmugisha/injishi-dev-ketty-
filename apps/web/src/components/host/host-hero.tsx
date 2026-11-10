@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Receipt } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { HostChooser } from "@/components/host/host-chooser";
 import { ArtDirectedImage } from "@/components/shared/art-directed-image";
 
@@ -38,12 +39,13 @@ import { ArtDirectedImage } from "@/components/shared/art-directed-image";
  * absent. It is that hero's signature, it sits centred, and here it would run
  * straight under the chooser card and compete with it.
  */
-export function HostHero() {
+export async function HostHero() {
+  const t = await getTranslations("host");
   return (
     <section className="relative min-h-dvh w-full">
       <ArtDirectedImage
         stem="rwanda-apartment-interior"
-        alt="Living room of a serviced apartment in Rwanda, with a balcony over the hills"
+        alt={t("heroImageAlt")}
         sizes="100vw"
         width={1920}
         height={1280}
@@ -64,7 +66,7 @@ export function HostHero() {
       <div className="container relative z-[2] grid min-h-dvh grid-cols-1 content-center gap-10 pt-28 pb-16 lg:grid-cols-12 lg:items-center lg:gap-12 lg:pt-32 lg:pb-20">
         <div className="lg:col-span-6 lg:pr-6 xl:pr-10">
           <p className="text-xs font-semibold tracking-[0.12em] text-white/70 uppercase">
-            For hosts
+            {t("eyebrow")}
           </p>
 
           {/* The Display step: Spectral 500, 34px → 44px, line-height 1, once
@@ -72,15 +74,13 @@ export function HostHero() {
               colour, carries the emphasis — the Split-Weight Rule, landing on
               the noun that matters. */}
           <h1 className="mt-4 text-display-sm font-medium text-white lg:text-display-md">
-            List your<span className="font-bold"> accommodation</span>
+            {t("titleLead")}<span className="font-bold">{t("titleEmphasis")}</span>
           </h1>
 
           {/* The Body role, capped near a ~42-character measure so it stays a
               lede rather than a column. */}
           <p className="mt-6 max-w-[42ch] text-base leading-relaxed text-white/85 lg:text-lg">
-            Register your business and add your photos. We verify everything
-            online and put your listing live. You keep the full rate you set:
-            Injishi takes no commission on bookings.
+            {t("heroBody")}
           </p>
 
           {/* What it costs, before the choice is made: both charges and the
@@ -92,13 +92,12 @@ export function HostHero() {
           <p className="mt-8 flex max-w-[42ch] items-start gap-3 border-t border-white/15 pt-6 text-sm leading-relaxed text-white/80">
             <Receipt size={18} strokeWidth={1.5} aria-hidden className="mt-0.5 shrink-0 text-white" />
             <span>
-              A one-time registration fee, then a monthly plan once you&apos;re
-              live.{" "}
+              {t("feeLine")} {" "}
               <Link
                 href="#host-charges"
                 className="font-medium whitespace-nowrap text-white underline underline-offset-4 hover:text-white/80"
               >
-                See what it costs
+                {t("seeCosts")}
               </Link>
             </span>
           </p>

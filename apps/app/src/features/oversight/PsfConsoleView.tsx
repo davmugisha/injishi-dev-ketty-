@@ -41,6 +41,7 @@ import type {
   Tone,
 } from "@injishi/data/fixtures/oversight";
 import { KeyValueList, PageContent, PageHeader } from "@injishi/ui";
+import { useTranslations } from "next-intl";
 import { type Key, useState } from "react";
 import { CardHeading, firstKey, InlineTitle, LINE_LIST, LINE_TAB, TabCount, ToneChip } from "./shared";
 
@@ -147,6 +148,7 @@ export function PsfConsoleView({
   applications: MembershipApplication[];
   members: ChamberMember[];
 }) {
+  const t = useTranslations("psfConsole.queue");
   const [tab, setTab] = useState("open");
   const [sel, setSel] = useState(applications[0]?.id ?? "");
   const [choice, setChoice] = useState<Choice>("approve");
@@ -199,7 +201,7 @@ export function PsfConsoleView({
     <PageContent className="text-[14px] leading-5">
       <PageHeader
         eyebrow="Private Sector Federation · Chamber of Tourism"
-        title="Membership Applications"
+        title={t("title")}
         actions={
           <Button
             variant="secondary"
@@ -221,7 +223,7 @@ export function PsfConsoleView({
           <CircleInfo />
         </Alert.Indicator>
         <Alert.Content>
-          <Alert.Title>Injishi does not approve memberships</Alert.Title>
+          <Alert.Title>{t("noApproval")}</Alert.Title>
           <Alert.Description>
             Each decision here is the Chamber’s. The business sees “Decided by Chamber of Tourism” with the date, and
             can tell submitted, under review and decided apart.
@@ -231,24 +233,24 @@ export function PsfConsoleView({
 
       <Tabs variant="secondary" selectedKey={tab} onSelectionChange={(k) => selectTab(String(k))}>
         <Tabs.ListContainer>
-          <Tabs.List aria-label="Application status" className={LINE_LIST}>
-            {TABS.map((t) => (
-              <Tabs.Tab key={t.id} id={t.id} className={LINE_TAB}>
-                {t.label}
-                <TabCount>{applications.filter((a) => t.match(statusOf(a, over))).length}</TabCount>
+          <Tabs.List aria-label={t("applicationStatus")} className={LINE_LIST}>
+            {TABS.map((tabDef) => (
+              <Tabs.Tab key={tabDef.id} id={tabDef.id} className={LINE_TAB}>
+                {tabDef.label}
+                <TabCount>{applications.filter((a) => tabDef.match(statusOf(a, over))).length}</TabCount>
                 <Tabs.Indicator />
               </Tabs.Tab>
             ))}
           </Tabs.List>
         </Tabs.ListContainer>
-        {TABS.map((t) => (
-          <Tabs.Panel key={t.id} id={t.id} className="pt-4">
-            {t.id === tab && app ? (
+        {TABS.map((tabDef) => (
+          <Tabs.Panel key={tabDef.id} id={tabDef.id} className="pt-4">
+            {tabDef.id === tab && app ? (
               <div className="flex flex-wrap items-start gap-4">
                 <div className="flex min-w-0 flex-[1_1_340px] flex-col gap-4">
                   {rows.length ? (
                     <ListView
-                      aria-label="Applications"
+                      aria-label={t("applications")}
                       items={rows}
                       selectionMode="single"
                       selectionBehavior="replace"
@@ -295,7 +297,7 @@ export function PsfConsoleView({
                           <EmptyState.Media variant="icon">
                             <Tray />
                           </EmptyState.Media>
-                          <EmptyState.Title>Nothing in this status</EmptyState.Title>
+                          <EmptyState.Title>{t("empty")}</EmptyState.Title>
                           <EmptyState.Description>
                             Applications appear here as businesses submit them or as decisions are recorded.
                           </EmptyState.Description>
@@ -306,15 +308,15 @@ export function PsfConsoleView({
 
                   <Card render={(p) => <section {...p} />} aria-labelledby="lk-h" className="gap-3 p-[18px]">
                     <Card.Header>
-                      <CardHeading id="lk-h">Member Lookup</CardHeading>
+                      <CardHeading id="lk-h">{t("lookup")}</CardHeading>
                       <Card.Description>
                         Status from the Chamber’s own register as recorded in Injishi · last synced by upload 1 Oct
                       </Card.Description>
                     </Card.Header>
-                    <SearchField aria-label="Business name or TIN" value={query} onChange={setQuery} fullWidth>
+                    <SearchField aria-label={t("search")} value={query} onChange={setQuery} fullWidth>
                       <SearchField.Group>
                         <SearchField.SearchIcon />
-                        <SearchField.Input placeholder="Business name or TIN" />
+                        <SearchField.Input placeholder={t("search")} />
                         <SearchField.ClearButton />
                       </SearchField.Group>
                     </SearchField>
@@ -425,6 +427,7 @@ function ApplicationDetail({
   onStart: () => void;
   onRecord: (next: ApplicationStatus) => void;
 }) {
+  const t = useTranslations("psfConsole.queue");
   const chip = STATUS[status];
   const fee = FEE[app.fee];
   const docs = documentsOf(app);
@@ -528,7 +531,7 @@ function ApplicationDetail({
             ]}
           />
           <div className="flex flex-col gap-2">
-            <InlineTitle>Documents</InlineTitle>
+            <InlineTitle>{t("documents")}</InlineTitle>
             {docs.map((d) => (
               <ItemCard key={d.name} variant="secondary" className="min-w-0 items-center px-2.5 py-2">
                 <ItemCard.Icon>
@@ -551,7 +554,7 @@ function ApplicationDetail({
           </div>
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between gap-2">
-              <InlineTitle>Membership Fee</InlineTitle>
+              <InlineTitle>{t("membershipFee")}</InlineTitle>
               <ToneChip tone={fee.tone}>{fee.label}</ToneChip>
             </div>
             <p className="text-[13px] leading-[18px]">{app.feeLine}</p>
@@ -566,7 +569,7 @@ function ApplicationDetail({
         <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-[14px]">
           {status === "new" ? (
             <Card variant="secondary" className="gap-2.5 p-3.5">
-              <InlineTitle>Not Reviewed Yet</InlineTitle>
+              <InlineTitle>{t("notReviewed")}</InlineTitle>
               <p className="text-[13px] leading-[18px]">
                 Starting the review tells the business their application is now “Under review”. Nothing is decided yet.
               </p>
@@ -579,9 +582,9 @@ function ApplicationDetail({
 
           {status === "review" ? (
             <Card variant="secondary" className="gap-2.5 p-3.5">
-              <InlineTitle>Chamber Decision</InlineTitle>
+              <InlineTitle>{t("chamberDecision")}</InlineTitle>
               <RadioButtonGroup
-                aria-label="Decision"
+                aria-label={t("decisionAria")}
                 layout="grid"
                 value={choice}
                 onChange={(v) => onChoice(v === "info" || v === "reject" ? v : "approve")}
@@ -609,12 +612,12 @@ function ApplicationDetail({
                 <>
                   <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     <TextField fullWidth value={memberNo} onChange={onMemberNo} className="gap-1">
-                      <Label htmlFor="mno">Membership number</Label>
+                      <Label htmlFor="mno">{t("membership")}</Label>
                       <Input id="mno" />
-                      <Description>Issued by the Chamber</Description>
+                      <Description>{t("issuedByChamber")}</Description>
                     </TextField>
                     <TextField fullWidth value={validUntil} onChange={onValidUntil} className="gap-1">
-                      <Label htmlFor="mto">Valid until</Label>
+                      <Label htmlFor="mto">{t("validUntil")}</Label>
                       <Input id="mto" />
                     </TextField>
                   </div>
@@ -632,9 +635,9 @@ function ApplicationDetail({
 
               {choice === "info" ? (
                 <TextField fullWidth value={ask} onChange={onAsk} className="gap-1">
-                  <Label htmlFor="need">What the business must send</Label>
+                  <Label htmlFor="need">{t("whatSend")}</Label>
                   <TextArea id="need" rows={2} />
-                  <Description>Response due Saturday 24 Oct · the application pauses until then</Description>
+                  <Description>{t("responseDue")}</Description>
                 </TextField>
               ) : null}
 
@@ -699,7 +702,7 @@ function ApplicationDetail({
           ) : null}
 
           <div className="flex flex-col gap-2">
-            <InlineTitle>Events Sent to the Business</InlineTitle>
+            <InlineTitle>{t("eventsSent")}</InlineTitle>
             <Timeline size="sm" density="compact">
               {events.map((ev) => (
                 <Timeline.Item key={ev.id} status={ev.status}>

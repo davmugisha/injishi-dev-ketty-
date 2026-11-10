@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import type { ReactNode } from "react";
+import { cookies } from "next/headers";
+import { catalogs, DEFAULT_LOCALE, isLocale } from "@injishi/i18n";
+import { InlineScript } from "@/components/inline-script";
 import { THEME_MIGRATION } from "@/lib/theme";
+import { currentApi, currentSessionCookie } from "@/lib/session";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -21,18 +25,32 @@ export const viewport: Viewport = {
   themeColor: "#EDF1EE",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const chosen = (await cookies()).get("NEXT_LOCALE")?.value;
+  let locale = isLocale(chosen) ? chosen : DEFAULT_LOCALE;
+  if (await currentSessionCookie()) {
+    try {
+      const preference = await (await currentApi()).get<{ locale?: unknown }>("/api/v1/me/preferences/language");
+      if (isLocale(preference.locale)) locale = preference.locale;
+    } catch {
+      // A profile preference outage must not prevent the app from rendering; keep the browser choice or English.
+    }
+  }
   return (
     <html
-      lang="en"
+      lang={locale}
       data-theme="mouve-light"
       className={outfit.variable}
       suppressHydrationWarning
     >
+      <head>
+        {/* The saved theme is put on <html> while the browser parses this, before the first paint, so a dark
+            theme never flashes light (Next: "Preventing flash before hydration"). InlineScript keeps the
+            server copy executable and the client copy inert, so React does not warn about a script tag. */}
+        <InlineScript html={THEME_MIGRATION} />
+      </head>
       <body className="min-h-dvh bg-background font-sans text-foreground antialiased">
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static pre-paint script, no user input (Next "Preventing Flash" guide) */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_MIGRATION }} />
-        <Providers>{children}</Providers>
+        <Providers locale={locale} messages={catalogs[locale]}>{children}</Providers>
       </body>
     </html>
   );

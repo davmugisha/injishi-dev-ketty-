@@ -8,23 +8,17 @@ import {
 } from "@injishi/contracts";
 import { DataTable, PageContent, PageHeader, SectionCard, StatusChip } from "@injishi/ui";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { rwf } from "@/server/format";
 import type { PsfScope } from "@/server/sources/psf";
 import { setPsfFeeAction, setPsfServiceFeeAction } from "./psf-fees-actions";
 
-const SOURCE: Record<PsfOfficerFeeRow["source"], { label: string; tone: "success" | "info" | "default" }> = {
-  district: { label: "District price", tone: "success" },
-  national: { label: "National price", tone: "info" },
-  band: { label: "Band start", tone: "default" },
+const SOURCE: Record<PsfOfficerFeeRow["source"], { tone: "success" | "info" | "default" }> = {
+  district: { tone: "success" },
+  national: { tone: "info" },
+  band: { tone: "default" },
 };
-
-function bandText(r: PsfOfficerFeeRow): string {
-  if (r.priceKind === "range" && r.bandMinRwf !== null && r.bandMaxRwf !== null) return `${rwf(r.bandMinRwf)} to ${rwf(r.bandMaxRwf)}`;
-  if (r.priceKind === "minimum" && r.bandMinRwf !== null) return `From ${rwf(r.bandMinRwf)}`;
-  if (r.priceKind === "fixed" && r.bandFeeRwf !== null) return `Fixed at ${rwf(r.bandFeeRwf)}`;
-  return "PSF names the price";
-}
 
 /**
  * Fees (2026-11-02, rebuilt on the console's own parts): what each membership band costs a year on
@@ -32,6 +26,7 @@ function bandText(r: PsfOfficerFeeRow): string {
  * a district, and a national officer also sets the national prices every district falls back to.
  */
 export function PsfFeesView({ scope, initial }: { scope: PsfScope; initial: PsfOfficerFeesView }) {
+  const t = useTranslations("psfOperations.fees");
   const router = useRouter();
   const [view, setView] = useState(initial);
   const [editing, setEditing] = useState<string | null>(null);
@@ -60,32 +55,32 @@ export function PsfFeesView({ scope, initial }: { scope: PsfScope; initial: PsfO
     <PageContent>
       <PageHeader
         eyebrow={`${scope.title} · ${scope.label}`}
-        title="Fees"
-        description="What each membership band costs a year on the public PSF form. A new price applies to forms sent from now on; an application already sent keeps the amount it paid."
+        title={t("title")}
+        description={t("description")}
       />
 
       <Alert status="accent">
         <Alert.Content>
-          <Alert.Title>{district ? `Prices for ${view.districtName} district` : "PSF's national prices"}</Alert.Title>
+          <Alert.Title>{district ? t("districtTitle", { district: view.districtName ?? "" }) : t("nationalTitle")}</Alert.Title>
           <Alert.Description>
             {district
-              ? "A business registering here pays the amount under “On the form”. Set the district’s own price for a band, or leave it on the national price."
+              ? t("description")
               : view.canEditNational
-                ? "Every district uses these unless it sets its own. Pick a district to see or set its prices."
-                : "Set by PSF's national office. Pick a district to set its prices."}
+                ? t("description")
+                : t("description")}
           </Alert.Description>
         </Alert.Content>
       </Alert>
 
       {scope.level !== "district" && districts.length > 0 ? (
         <label className="flex max-w-sm flex-col gap-1.5 text-sm">
-          <span className="font-medium">Prices for</span>
+          <span className="font-medium">{t("pricesFor")}</span>
           <select
             className="h-10 rounded-xl border border-border bg-field px-3 text-sm"
             value={view.districtId ?? ""}
             onChange={(e) => router.push(e.target.value ? `/psf/fees?district=${e.target.value}` : "/psf/fees")}
           >
-            {scope.level === "country" ? <option value="">Rwanda (national prices)</option> : <option value="">Choose a district</option>}
+            {scope.level === "country" ? <option value="">{t("nationalPrices")}</option> : <option value="">{t("chooseDistrict")}</option>}
             {districts.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}
@@ -112,33 +107,41 @@ export function PsfFeesView({ scope, initial }: { scope: PsfScope; initial: PsfO
             columns={[
               {
                 id: "band",
-                header: "Band",
+                header: t("band"),
                 isRowHeader: true,
                 cell: (r) => (
                   <span className="flex flex-col gap-0.5">
                     <span className="font-medium text-foreground">{r.tierName}</span>
-                    <span className="text-xs text-muted">{bandText(r)}</span>
+                    <span className="text-xs text-muted">
+                      {r.priceKind === "range" && r.bandMinRwf !== null && r.bandMaxRwf !== null
+                        ? `${rwf(r.bandMinRwf)} – ${rwf(r.bandMaxRwf)}`
+                        : r.priceKind === "minimum" && r.bandMinRwf !== null
+                          ? t("from", { amount: rwf(r.bandMinRwf) })
+                          : r.priceKind === "fixed" && r.bandFeeRwf !== null
+                            ? t("fixed", { amount: rwf(r.bandFeeRwf) })
+                            : t("namesPrice")}
+                    </span>
                   </span>
                 ),
               },
               {
                 id: "national",
-                header: "National",
-                cell: (r) => (r.nationalRwf !== null ? <span className="tabular">{rwf(r.nationalRwf)}</span> : <span className="text-muted">Not set</span>),
+                header: t("national"),
+                cell: (r) => (r.nationalRwf !== null ? <span className="tabular">{rwf(r.nationalRwf)}</span> : <span className="text-muted">{t("notSet")}</span>),
               },
               ...(district
                 ? [
                     {
                       id: "district",
-                      header: view.districtName ?? "District",
+                      header: view.districtName ?? t("district"),
                       cell: (r: PsfOfficerFeeRow) =>
-                        r.districtRwf !== null ? <span className="tabular">{rwf(r.districtRwf)}</span> : <span className="text-muted">Not set</span>,
+                        r.districtRwf !== null ? <span className="tabular">{rwf(r.districtRwf)}</span> : <span className="text-muted">{t("notSet")}</span>,
                     },
                   ]
                 : []),
               {
                 id: "form",
-                header: "On the form",
+                header: t("onForm"),
                 cell: (r) =>
                   editing === r.tierCode ? (
                     <PriceEditor
@@ -153,9 +156,9 @@ export function PsfFeesView({ scope, initial }: { scope: PsfScope; initial: PsfO
                       {r.effectiveRwf !== null ? (
                         <span className="tabular font-semibold">{rwf(r.effectiveRwf)}</span>
                       ) : (
-                        <span className="text-muted">Not offered</span>
+                        <span className="text-muted">{t("notOffered")}</span>
                       )}
-                      <StatusChip tone={SOURCE[r.source].tone}>{SOURCE[r.source].label}</StatusChip>
+                      <StatusChip tone={SOURCE[r.source].tone}>{r.source === "district" ? t("district") : r.source === "national" ? t("national") : t("band")}</StatusChip>
                     </span>
                   ),
               },
@@ -166,14 +169,14 @@ export function PsfFeesView({ scope, initial }: { scope: PsfScope; initial: PsfO
                 cell: (r) =>
                   editable && editing !== r.tierCode ? (
                     <Button size="sm" variant="secondary" onPress={() => setEditing(r.tierCode)}>
-                      {(district ? r.districtRwf : r.nationalRwf) !== null ? "Change" : "Set price"}
+                      {(district ? r.districtRwf : r.nationalRwf) !== null ? t("change") : t("setPrice")}
                     </Button>
                   ) : null,
               },
             ]}
             mobile={{
               title: (r) => r.tierName,
-              description: (r) => (r.effectiveRwf !== null ? `${rwf(r.effectiveRwf)} · ${SOURCE[r.source].label}` : "Not offered"),
+              description: (r) => (r.effectiveRwf !== null ? `${rwf(r.effectiveRwf)} · ${r.source === "district" ? t("district") : r.source === "national" ? t("national") : t("band")}` : t("notOffered")),
               trailing: (r) =>
                 editable ? (
                   <Button size="sm" variant="secondary" onPress={() => setEditing(r.tierCode)}>
@@ -214,6 +217,7 @@ function PriceEditor({
   onSave: (row: PsfOfficerFeeRow, amountRwf: number | null) => Promise<string | null>;
   onCancel: () => void;
 }) {
+  const t = useTranslations("psfOperations.fees");
   const [text, setText] = useState(String(current ?? row.effectiveRwf ?? ""));
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -239,15 +243,15 @@ function PriceEditor({
           className="min-w-0 flex-1"
         />
         <Button size="sm" variant="primary" isPending={busy} isDisabled={busy || !(amount > 0)} onPress={() => void submit(amount)}>
-          Save
+          {t("save")}
         </Button>
         <Button size="sm" variant="ghost" isDisabled={busy} onPress={onCancel}>
-          Cancel
+          {t("cancel")}
         </Button>
       </span>
       {current !== null ? (
         <button type="button" disabled={busy} onClick={() => void submit(null)} className="self-start text-xs font-medium text-accent hover:underline">
-          {district ? "Use the national price instead" : "Clear, and use the band start"}
+          {district ? t("useNational") : t("useBand")}
         </button>
       ) : null}
       {problem ? <span className="text-xs text-danger">{problem}</span> : null}

@@ -30,7 +30,7 @@ async function load() {
   return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
 }
 
-const { setupLink, setupNote } = await load();
+const { setupLink } = await load();
 
 const WS = "7f3c2a10-1b2c-4d5e-8f90-a1b2c3d4e5f6";
 const LAPTOP = ["http://localhost:3000", "http://localhost:3002"];
@@ -41,8 +41,6 @@ describe("no link while the API would refuse the setup", () => {
     test(status, () => {
       assert.equal(setupLink({ status, workspaceId: WS }, ...LAPTOP), null);
       assert.equal(setupLink({ status, workspaceId: WS }, ...ZONE), null);
-      assert.doesNotMatch(setupNote(status), /prepare (it|your listing) now|add rooms, prices and photos now/i);
-      assert.match(setupNote(status), /opens/i);
     });
   }
 });
@@ -54,12 +52,10 @@ describe("a paid hospitality business may set up while it is reviewed", () => {
         setupLink({ status, workspaceId: WS, domain: "hospitality" }, ...LAPTOP),
         `http://localhost:3002/w/${WS}/setup`,
       );
-      assert.match(setupNote(status, "hospitality"), /publish once you are approved/i);
     });
   }
   test("a residence in review waits for approval", () => {
     assert.equal(setupLink({ status: "tin_verified", workspaceId: WS, domain: "residence" }, ...LAPTOP), null);
-    assert.match(setupNote("tin_verified", "residence"), /once your registration is approved/i);
   });
   test("an approved residence goes to the rentals setup", () => {
     assert.equal(
@@ -78,9 +74,6 @@ describe("an active business gets the setup page", () => {
   });
   test("unset build values fall back to the laptop defaults", () => {
     assert.equal(setupLink({ status: "active", workspaceId: WS }, undefined, undefined), `http://localhost:3002/w/${WS}/setup`);
-  });
-  test("the note invites the setup without promising anything early", () => {
-    assert.match(setupNote("active"), /publish/i);
   });
 });
 

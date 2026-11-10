@@ -266,7 +266,7 @@ export const userProfiles = pgTable(
       .primaryKey()
       .references(() => users.id, { onDelete: 'cascade' }),
     displayName: text('display_name'),
-    /** The language the person reads Injishi in (the guest account's choice). */
+    /** The language this person prefers Injishi and their account emails to use. */
     locale: text('locale').notNull().default('en'),
     avatarObjectKey: text('avatar_object_key'),
     phoneE164: text('phone_e164'),

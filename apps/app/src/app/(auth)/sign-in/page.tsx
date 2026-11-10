@@ -2,7 +2,6 @@ import { PERSONA_IDS, personas, screens } from "@injishi/data";
 import type { Metadata } from "next";
 import { SignInView } from "@/features/platform/auth/SignInView";
 import { returnTargetFrom } from "@/lib/return-to";
-import { requireScreen } from "@/lib/session";
 import { signInErrorMessage } from "@/lib/sign-in-messages";
 import { demoRoster, signInOptions } from "@/server/auth";
 
@@ -15,13 +14,15 @@ export const metadata: Metadata = { title: screens.SignIn.pageTitle };
  *
  * Two apps send people here: this app's gate with `?next=` (a screen here) and web with `?redirect=` (a page
  * on web, such as a checkout quote or an invitation link). Both become one return target (`return-to.ts`).
+ *
+ * It reads no persona: a public page must still draw while the API is down, because the sign-in
+ * action reports the outage itself. `signInOptions` and `demoRoster` already fall back to no demo.
  */
 export default async function SignInPage({
   searchParams,
 }: {
   searchParams: Promise<{ next?: string; redirect?: string; as?: string; error?: string }>;
 }) {
-  await requireScreen("SignIn");
   const { next, redirect, as, error } = await searchParams;
   const highlight = as && (PERSONA_IDS as string[]).includes(as) ? as : null;
   const options = await signInOptions();

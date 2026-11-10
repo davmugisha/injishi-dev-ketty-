@@ -1,7 +1,8 @@
 "use client";
 
 import { I18nProvider, RouterProvider } from "@heroui/react";
-import { LOCALE } from "@injishi/ui/format";
+import { NextIntlClientProvider } from "next-intl";
+import { formatLocale, type Locale, type Messages } from "@injishi/i18n";
 import { useRouter } from "next/navigation";
 import { ThemeProvider, useTheme } from "next-themes";
 import { type ReactNode, useEffect } from "react";
@@ -26,7 +27,7 @@ function DarkClass() {
 }
 
 /** App-wide client providers: theme (mouve light/dark), React Aria routing via Next, locale. */
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({ children, locale, messages }: { children: ReactNode; locale: Locale; messages: Messages }) {
   const router = useRouter();
   return (
     <ThemeProvider
@@ -38,7 +39,11 @@ export function Providers({ children }: { children: ReactNode }) {
     >
       <DarkClass />
       <RouterProvider navigate={(href, options) => router.push(href, options)}>
-        <I18nProvider locale={LOCALE}>{children}</I18nProvider>
+        <I18nProvider locale={formatLocale(locale)}>
+          <NextIntlClientProvider locale={locale} timeZone="Africa/Kigali" messages={messages}>
+            {children}
+          </NextIntlClientProvider>
+        </I18nProvider>
       </RouterProvider>
     </ThemeProvider>
   );

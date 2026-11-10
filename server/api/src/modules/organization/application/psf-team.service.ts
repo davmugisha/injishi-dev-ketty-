@@ -11,7 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
-import { districts, oversightAssignments, provinces, users } from '../../../database/drizzle/schema';
+import { districts, oversightAssignments, provinces, userProfiles, users } from '../../../database/drizzle/schema';
 import { resolveAppUrl } from '../../../shared/config/app-url';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { appointmentMail } from '../../guests/domain/guest-mail';
@@ -259,7 +259,19 @@ export class PsfTeamService {
   /** The appointment email. Best effort: the post stands whatever happens to the mail. */
   private async tell(email: string, roleLabel: string, area: string): Promise<void> {
     try {
-      const mail = appointmentMail({ appUrl: this.appUrl, roleLabel: `PSF ${roleLabel}`, area, next: '/psf' });
+      const [profile] = await this.db
+        .select({ locale: userProfiles.locale })
+        .from(users)
+        .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
+        .where(sql`lower(${users.email}) = lower(${email})`)
+        .limit(1);
+      const mail = appointmentMail({
+        appUrl: this.appUrl,
+        roleLabel: `PSF ${roleLabel}`,
+        area,
+        next: '/psf',
+        locale: profile?.locale === 'fr' || profile?.locale === 'rw' ? profile.locale : 'en',
+      });
       await this.mailer.send({ to: email, subject: mail.subject, text: mail.text, html: mail.html });
     } catch (cause) {
       this.log.error(`PSF team appointment mail to ${email} failed: ${cause instanceof Error ? cause.message : 'failed'}.`);
