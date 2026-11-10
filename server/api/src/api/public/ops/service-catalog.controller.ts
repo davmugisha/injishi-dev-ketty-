@@ -94,8 +94,9 @@ export class OpsServiceCatalogController {
     @Body(new ZodValidationPipe(UpsertServiceItemRequest))
     body: UpsertServiceItemRequest,
     @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
   ): Promise<OperatorServiceCatalog> {
-    return this.catalog.createItem(workspace, body);
+    return this.catalog.createItem(workspace, body, user.id);
   }
 
   /**
@@ -114,8 +115,9 @@ export class OpsServiceCatalogController {
     @Body(new ZodValidationPipe(UpdateServiceItemRequest))
     body: UpdateServiceItemRequest,
     @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
   ): Promise<OperatorServiceCatalog> {
-    return this.catalog.updateItem(workspace, id, body);
+    return this.catalog.updateItem(workspace, id, body, user.id);
   }
 }
 

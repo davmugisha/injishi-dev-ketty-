@@ -202,13 +202,6 @@ export declare const Payslip: z.ZodObject<{
     employeeId: string;
     displayName: string;
     employeeNumber: string;
-    contractId: string;
-    payableDays: number;
-    payeRwf: number;
-    employeeContributionsRwf: number;
-    employerContributionsRwf: number;
-    otherDeductionsRwf: number;
-    nonIncomeRwf: number;
     netRwf: number;
     lines: {
         code: string;
@@ -226,6 +219,13 @@ export declare const Payslip: z.ZodObject<{
         beforeTax?: boolean | undefined;
         taxBase?: number | undefined;
     }[];
+    contractId: string;
+    payableDays: number;
+    payeRwf: number;
+    employeeContributionsRwf: number;
+    employerContributionsRwf: number;
+    otherDeductionsRwf: number;
+    nonIncomeRwf: number;
     paidMethod: "cash" | "momo" | "bank" | null;
     paidReference: string | null;
     sentAt: string | null;
@@ -237,13 +237,6 @@ export declare const Payslip: z.ZodObject<{
     employeeId: string;
     displayName: string;
     employeeNumber: string;
-    contractId: string;
-    payableDays: number;
-    payeRwf: number;
-    employeeContributionsRwf: number;
-    employerContributionsRwf: number;
-    otherDeductionsRwf: number;
-    nonIncomeRwf: number;
     netRwf: number;
     lines: {
         code: string;
@@ -261,6 +254,13 @@ export declare const Payslip: z.ZodObject<{
         beforeTax?: boolean | undefined;
         taxBase?: number | undefined;
     }[];
+    contractId: string;
+    payableDays: number;
+    payeRwf: number;
+    employeeContributionsRwf: number;
+    employerContributionsRwf: number;
+    otherDeductionsRwf: number;
+    nonIncomeRwf: number;
     paidMethod: "cash" | "momo" | "bank" | null;
     paidReference: string | null;
     sentAt: string | null;
@@ -342,10 +342,10 @@ export declare const PayRun: z.ZodObject<{
     confirmedAt: string | null;
     periodStart: string;
     period: string;
+    netRwf: number;
     payeRwf: number;
     employeeContributionsRwf: number;
     employerContributionsRwf: number;
-    netRwf: number;
     computedAt: string;
     ruleVersions: {
         configType: string;
@@ -361,10 +361,10 @@ export declare const PayRun: z.ZodObject<{
     confirmedAt: string | null;
     periodStart: string;
     period: string;
+    netRwf: number;
     payeRwf: number;
     employeeContributionsRwf: number;
     employerContributionsRwf: number;
-    netRwf: number;
     computedAt: string;
     ruleVersions: {
         configType: string;
@@ -411,10 +411,10 @@ export declare const PayRunDetail: z.ZodObject<{
         confirmedAt: string | null;
         periodStart: string;
         period: string;
+        netRwf: number;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
-        netRwf: number;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -430,10 +430,10 @@ export declare const PayRunDetail: z.ZodObject<{
         confirmedAt: string | null;
         periodStart: string;
         period: string;
+        netRwf: number;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
-        netRwf: number;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -538,13 +538,6 @@ export declare const PayRunDetail: z.ZodObject<{
         employeeId: string;
         displayName: string;
         employeeNumber: string;
-        contractId: string;
-        payableDays: number;
-        payeRwf: number;
-        employeeContributionsRwf: number;
-        employerContributionsRwf: number;
-        otherDeductionsRwf: number;
-        nonIncomeRwf: number;
         netRwf: number;
         lines: {
             code: string;
@@ -562,6 +555,13 @@ export declare const PayRunDetail: z.ZodObject<{
             beforeTax?: boolean | undefined;
             taxBase?: number | undefined;
         }[];
+        contractId: string;
+        payableDays: number;
+        payeRwf: number;
+        employeeContributionsRwf: number;
+        employerContributionsRwf: number;
+        otherDeductionsRwf: number;
+        nonIncomeRwf: number;
         paidMethod: "cash" | "momo" | "bank" | null;
         paidReference: string | null;
         sentAt: string | null;
@@ -573,13 +573,6 @@ export declare const PayRunDetail: z.ZodObject<{
         employeeId: string;
         displayName: string;
         employeeNumber: string;
-        contractId: string;
-        payableDays: number;
-        payeRwf: number;
-        employeeContributionsRwf: number;
-        employerContributionsRwf: number;
-        otherDeductionsRwf: number;
-        nonIncomeRwf: number;
         netRwf: number;
         lines: {
             code: string;
@@ -597,6 +590,13 @@ export declare const PayRunDetail: z.ZodObject<{
             beforeTax?: boolean | undefined;
             taxBase?: number | undefined;
         }[];
+        contractId: string;
+        payableDays: number;
+        payeRwf: number;
+        employeeContributionsRwf: number;
+        employerContributionsRwf: number;
+        otherDeductionsRwf: number;
+        nonIncomeRwf: number;
         paidMethod: "cash" | "momo" | "bank" | null;
         paidReference: string | null;
         sentAt: string | null;
@@ -629,10 +629,10 @@ export declare const PayRunDetail: z.ZodObject<{
         confirmedAt: string | null;
         periodStart: string;
         period: string;
+        netRwf: number;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
-        netRwf: number;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -650,13 +650,6 @@ export declare const PayRunDetail: z.ZodObject<{
         employeeId: string;
         displayName: string;
         employeeNumber: string;
-        contractId: string;
-        payableDays: number;
-        payeRwf: number;
-        employeeContributionsRwf: number;
-        employerContributionsRwf: number;
-        otherDeductionsRwf: number;
-        nonIncomeRwf: number;
         netRwf: number;
         lines: {
             code: string;
@@ -674,6 +667,13 @@ export declare const PayRunDetail: z.ZodObject<{
             beforeTax?: boolean | undefined;
             taxBase?: number | undefined;
         }[];
+        contractId: string;
+        payableDays: number;
+        payeRwf: number;
+        employeeContributionsRwf: number;
+        employerContributionsRwf: number;
+        otherDeductionsRwf: number;
+        nonIncomeRwf: number;
         paidMethod: "cash" | "momo" | "bank" | null;
         paidReference: string | null;
         sentAt: string | null;
@@ -693,10 +693,10 @@ export declare const PayRunDetail: z.ZodObject<{
         confirmedAt: string | null;
         periodStart: string;
         period: string;
+        netRwf: number;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
-        netRwf: number;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -714,13 +714,6 @@ export declare const PayRunDetail: z.ZodObject<{
         employeeId: string;
         displayName: string;
         employeeNumber: string;
-        contractId: string;
-        payableDays: number;
-        payeRwf: number;
-        employeeContributionsRwf: number;
-        employerContributionsRwf: number;
-        otherDeductionsRwf: number;
-        nonIncomeRwf: number;
         netRwf: number;
         lines: {
             code: string;
@@ -738,6 +731,13 @@ export declare const PayRunDetail: z.ZodObject<{
             beforeTax?: boolean | undefined;
             taxBase?: number | undefined;
         }[];
+        contractId: string;
+        payableDays: number;
+        payeRwf: number;
+        employeeContributionsRwf: number;
+        employerContributionsRwf: number;
+        otherDeductionsRwf: number;
+        nonIncomeRwf: number;
         paidMethod: "cash" | "momo" | "bank" | null;
         paidReference: string | null;
         sentAt: string | null;

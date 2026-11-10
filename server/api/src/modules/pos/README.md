@@ -108,6 +108,31 @@ money areas: `pos.sell`, `pos.checkout`, `pos.discount`, `pos.override`, `pos.re
 `table.manage`, `kitchen.work`, `register.operate`, `shift.review`. Owners and managers hold them
 all; `finance` keeps exactly its ADR-069 seven, and a business can grant it more (ADR-055).
 
+## Customers (CRM, phase 1)
+
+Added after the M1 venue work, and the only POS feature since phase 1 that needs a MIGRATION: `0135_customers`
+(additive: one new table, one new NULLABLE `pos_orders.customer_id`; rollback in `drizzle/rollbacks/0135_customers.down.sql`).
+
+| Screen | API (`/api/v1/ops/pos`) | Needs |
+|---|---|---|
+| Customers (`/pos/customers`) | `GET customers?q=`, `GET customers/:id` | `customer.view` or `customer.manage` |
+| New / edit customer | `POST customers`, `PATCH customers/:id` | `customer.manage` |
+| Merge, download, erase | `POST customers/:id/merge`, `GET customers/:id/export`, `POST customers/:id/erase` | `customer.admin` (owner, manager) |
+| Customer on a bill (till) | `PUT orders/:orderId/customer` | `pos.sell` and `customer.view` |
+
+- **A customer belongs to the business**, not to an outlet. Every query filters by workspace; another business's customer is a 404.
+- **The phone is the key**, stored as E.164 and unique among a business's ACTIVE customers (a Rwandan number must be a real
+  72/73/78/79 mobile; another country's number must be E.164-shaped; both are database checks as well as API rules). A second
+  registration of a held number is a 409 (`CUSTOMER_PHONE_EXISTS`, with the holder's id).
+- **What a role sees.** Without `customer.manage` the phone and email are masked and the book can only be searched, never listed
+  (3 characters minimum); the look-up matches a name or a COMPLETE phone number only, so a masked field cannot be recovered by search.
+- **Visits and spend** are counted from the customer's completed orders at the outlets in the reader's branch scope. Nothing is stored.
+- **Nothing is deleted.** A duplicate is MERGED (its orders move), a person's details are ERASED in place (orders and money stay,
+  shown as "Erased customer"). Audit rows (`customer.*`) name the fields that changed and never hold a name, phone, email or note.
+- An order can only name a customer of its own business: `pos_orders (workspace_id, customer_id)` is a composite foreign key.
+- Tests: `packages/contracts/tests/customers.test.mjs`, `src/api/public/ops/pos-customers-permissions.spec.ts`, and the opt-in
+  `pos-customer.integration.spec.ts` (set `POS_IT_DATABASE_URL` to a throwaway copy named `injishi_crm*` or `*_it`).
+
 ## Replacing the simulator with a real provider
 
 `domain/payment-simulator.ts` defines `PosPaymentPort` (`start`, `resolve`). `pos.module.ts`
@@ -141,6 +166,58 @@ Added after phase 1, on the existing tables and with no migration:
 - **Cost of goods is an estimate** (`COST_OF_GOODS_RATIO`, 35% of selling price) because no cost price is stored
   per item, and "low stock" is a fixed `LOW_STOCK_AT` (10). Per-item cost and reorder level need a migration.
 
+## Setting up a venue and managing the menu (M1)
+
+Added on the existing tables with **no migration**. A business that registers as a Bar & Restaurant gets an owner,
+a head-office branch and the standard departments, but **no outlet**, and everything in the POS hangs off an outlet.
+
+| Step | Screen | API | Needs |
+|---|---|---|---|
+| First outlet | `/pos/setup` (shown instead of "No outlet") | `POST /ops/outlets` (existing), in the Food and Beverage department | `outlet.manage` |
+| Floor, stations, registers, routing | `/pos/setup` | `GET/POST/PATCH /ops/pos/outlets/:id/venue/...`, `PUT .../venue/routing` | `outlet.manage` (every route) |
+| Setup progress | checklist on `/pos/setup`, nudge on the dashboard | `GET /ops/pos/outlets/:id/setup` | `outlet.manage` |
+| Receipt text, tax mode, payment methods | `/pos/setup` | `PATCH /ops/pos/outlets/:id/settings` (existing) | `outlet.manage` |
+| Menu sections and products | `/pos/menu` (managers); read-only for everyone else | `/ops/service-catalog` (existing) | `menu.manage` |
+
+- The owner's home (`/owner`) sends a business whose kind is `bar_restaurant`, with no rooms, to the POS dashboard, or to
+  `/pos/setup` while it has no outlet. Every other kind of business is untouched.
+- **Nothing in use is removed.** Areas, tables, stations and registers are archived (`archived_at`), never deleted, and the
+  API refuses with the reason while they are in use: a table with guests or an unfinished order, an area with tables, a
+  station with routed items or open tickets, a register with an open shift. Names are unique per outlet.
+- **An item belongs to the outlet of its menu section** unless it names one of its own
+  (`coalesce(service_items.outlet_id, service_categories.outlet_id)`, `itemInOutlet` in `pos-support.ts`). The catalogue API
+  records only the section's outlet, so a product an owner adds reaches the till through this rule, as it does for guest
+  ordering. Every POS query that asks "is this item on this outlet's menu" uses it.
+- A product copies its tax and RRA codes from its section, and the till only sells a product that carries all of them, so a
+  new section is created with a preset (Drinks, Food, Service: `features/pos/menu-presets.ts`). The codes are the ones the
+  demo menu already uses; they are a starting point and nothing is sent to RRA.
+- Price changes never rewrite a bill: an order keeps the price it was placed at. Stock is counted on the Stock screen (every
+  change keeps a reason); the menu screen only sets an opening quantity on a new product.
+- Every change writes a `venue.*` audit row in the same transaction.
+
+### Tests
+
+| What | Where | Needs |
+|---|---|---|
+| Every venue route requires `outlet.manage`; the roles that may and may not | `api/public/ops/pos-venue-permissions.spec.ts` | nothing (runs in `vitest run`) |
+| Tenant and branch isolation, in-use protection, names, routing, audit, setup counts, the item-outlet rule | `modules/pos/application/pos-venue.integration.spec.ts` | `POS_IT_DATABASE_URL`, a throwaway copy of the demo database named `injishi_m1*` or `*_it` (the spec refuses any other name) |
+
+The spec skips itself when `POS_IT_DATABASE_URL` is not set, like the other integration specs.
+
+### Known gaps (not built, on purpose)
+
+- **Product photos.** `service_items.photo_object_keys` exists but nothing reads or writes it: the item contracts have no photo
+  field, there is no menu-photo file kind, and file kinds are a Postgres enum (`stored_object_kind`), so a new kind needs a
+  migration, plus an upload route, ownership and retention rules, the contract fields, the catalogue service and the screen.
+  The menu screens say photos are unavailable instead of offering a control that does nothing.
+- **Archiving a menu section.** `UpdateServiceCategoryRequest` has no status, so a section can be renamed and hidden from
+  guests but not removed. Needs a change to the catalogue API.
+- **Business details, logo, branches.** Their screens (`/settings/business`, `/outlets`) are still closed ("not connected to
+  records yet"); the setup screen says where they live rather than duplicating them. Creating the first outlet is the only
+  outlet action offered here.
+- **Recipes and ingredient costing, suppliers and purchasing, accounting journals, fiscal documents** are unchanged:
+  not started, and the 35% cost-of-goods estimate is still an estimate.
+
 ## Known limitations of phase 1
 
 - Stock has no cost, supplier, purchase-order or recipe model yet (valuation and profit use the estimate above).
@@ -152,5 +229,5 @@ Added after phase 1, on the existing tables and with no migration:
   reads every price as exclusive; enabling guest ordering on an inclusive outlet would price the
   same item two ways.
 - Floor and board screens refresh by polling (every 15 and 10 seconds), not by push.
-- Menu editing, table and station setup, settings screens and the audit log screen are later phases;
-  their API reads (`GET /ops/pos/audit`, `PATCH /ops/pos/outlets/:id/settings`) exist already.
+- The audit log screen is a later phase; its API read (`GET /ops/pos/audit`) exists already. Menu editing, table and
+  station setup and the settings screen are described above.

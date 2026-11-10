@@ -12,7 +12,7 @@ import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import type { PosStockItem, PosStockMovement, PosStockView, StockAdjustRequest } from '../domain/pos-ops';
 import { assumedUnitCost, COST_OF_GOODS_RATIO, LOW_STOCK_AT, stockLevel } from '../infrastructure/pos-stock';
-import { audit, outletInScope } from '../infrastructure/pos-support';
+import { audit, itemInOutlet, itemOutlet, outletInScope } from '../infrastructure/pos-support';
 
 /**
  * The stock of a bar or restaurant (POS spec section 8): what is on hand, what is low or out, what it is
@@ -39,7 +39,7 @@ export class PosStockService {
       })
       .from(serviceItems)
       .leftJoin(serviceCategories, eq(serviceCategories.id, serviceItems.serviceCategoryId))
-      .where(and(eq(serviceItems.outletId, outlet.id), eq(serviceItems.workspaceId, ws.workspaceId)))
+      .where(and(itemInOutlet(outlet.id), eq(serviceItems.workspaceId, ws.workspaceId)))
       .orderBy(asc(serviceCategories.sortOrder), asc(serviceCategories.name), asc(serviceItems.name));
 
     const items: PosStockItem[] = rows.map((r) => {
@@ -115,15 +115,16 @@ export class PosStockService {
         .select({
           id: serviceItems.id,
           name: serviceItems.name,
-          outletId: serviceItems.outletId,
+          outletId: itemOutlet,
           price: serviceItems.priceRwf,
           stockQty: serviceItems.stockQty,
           status: serviceItems.status,
         })
         .from(serviceItems)
+        .leftJoin(serviceCategories, eq(serviceCategories.id, serviceItems.serviceCategoryId))
         .where(and(eq(serviceItems.id, body.serviceItemId), eq(serviceItems.workspaceId, ws.workspaceId)))
         .limit(1)
-        .for('update');
+        .for('update', { of: serviceItems });
       if (!item || !item.outletId) throw new NotFoundException('That item is not on a menu you can reach.');
       const outlet = await outletInScope(tx, ws, item.outletId);
 

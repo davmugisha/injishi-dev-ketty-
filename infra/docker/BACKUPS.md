@@ -28,7 +28,7 @@ Never use the compose default password (`injishi`) for anything you care about, 
 
 ## Scheduled backups
 
-`infra/backup/backup.mjs` runs from a Windows scheduled task (`Injishi POS database backup`, **every 6 hours**,
+`infra/backup/backup.mjs` runs from a Windows scheduled task (`Injishi POS database backup`, **every 3 hours and at every sign-in**,
 install with `infra/backup/install-backup-task.ps1`). For each target in its config it:
 
 1. dumps (`pg_dump -Fc`) to a `.partial` file, then verifies it (`pg_restore --list`, size, tables with data),
@@ -66,7 +66,7 @@ psql -h 127.0.0.1 -p 5433 -U injishi -d injishi_restored -c "select count(*) fro
 ```
 
 If the Docker volume itself is lost, create the container again (above), create the database, and restore the newest
-backup the same way. The data is exactly as old as that backup, which is why the schedule runs every 6 hours.
+backup the same way. The data is exactly as old as that backup, which is why the schedule runs every 3 hours.
 
 ## Health checks
 
@@ -77,7 +77,12 @@ backup the same way. The data is exactly as old as that backup, which is why the
 
 ## Limits to know about
 
-- A backup is only as fresh as its last run; a 6-hourly schedule can lose up to 6 hours of data. Continuous archiving
+- **A laptop that is asleep cannot back up.** A run that lands on a sleep or a wake is lost, silently (the process is killed
+  with `0xC000013A`; this happened twice on the demo machine). The task therefore runs every 3 hours, at every sign-in, may wake
+  the machine and runs a missed slot when it returns. Do not rely on "the last run succeeded": ask how old the newest good
+  backup is: `node backup.mjs --config <file> --check-fresh 6` prints `STALE ...` and exits 1 when any target has none newer
+  than 6 hours. Check it before a demo, and copy the backup folder to another disk or cloud folder.
+- A backup is only as fresh as its last run; a 3-hourly schedule can lose up to 3 hours of data (more if the machine slept). Continuous archiving
   (WAL) is not set up.
 - Docker Desktop must start at login for the container's restart policy to bring the database back after a reboot.
 - The backups live on the same disk as the data. Copy `…/scheduled` to another disk or cloud folder regularly.

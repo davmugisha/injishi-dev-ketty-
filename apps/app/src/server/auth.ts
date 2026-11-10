@@ -473,14 +473,15 @@ const ROLE_PERSONA: Record<string, PersonaId> = {
 };
 
 /**
- * Where a floor role lands: the live floor, or for the kitchen its station board. The demo waiter keeps
- * the story written for her; a real cashier, waiter, bartender or cook lands on the screens that read
- * their outlet from the API.
+ * Where a floor role lands: the screen its work starts on. The demo waiter keeps the story written for her;
+ * a real cashier, waiter, bartender or cook lands on the screens that read their outlet from the API.
+ * The cashier lands on the cashier desk (their shift, the drawer and the bills waiting to be paid); the
+ * bartender on the station board, which opens on the bar display for them; the kitchen on the kitchen display.
  */
 const ROLE_HOME: Partial<Record<string, BoardId>> = {
-  cashier: "PosFloor",
+  cashier: "PosShift",
   waiter: "PosFloor",
-  bartender: "PosFloor",
+  bartender: "PosStations",
   kitchen: "PosStations",
   // The stock controller counts the stock and records damage and waste: its screen is the stock.
   stock_controller: "PosStock",
@@ -493,12 +494,11 @@ const ROLE_HOME: Partial<Record<string, BoardId>> = {
  */
 function withOversightBoards(shell: Persona, oversight: string[]): Persona {
   if (oversight.length === 0) return shell;
-  const extra =
-    oversight.includes("psf_membership_officer")
-      ? (personas.psf.access ?? [])
-      : oversight.includes("psf_business_officer")
-        ? (personas.psfdbo.access ?? [])
-        : (["OfficerHome", "OfficerCase", "DelegatedReports"] as const);
+  const extra = oversight.includes("psf_membership_officer")
+    ? (personas.psf.access ?? [])
+    : oversight.includes("psf_business_officer")
+      ? (personas.psfdbo.access ?? [])
+      : (["OfficerHome", "OfficerCase", "DelegatedReports"] as const);
   const access = [...new Set([...(shell.access ?? []), ...extra])];
   return access.length === (shell.access?.length ?? 0) ? shell : { ...shell, access: [...access] };
 }

@@ -16,7 +16,7 @@ export default async function PosTillPage({ searchParams }: { searchParams: Prom
   const { order: orderId } = await searchParams;
   if (!orderId || !UUID.test(orderId)) redirect("/pos/floor");
   const first = await loadPosPage("PosTill", undefined);
-  if (!first.ok) return <PosBlocked title={first.title} message={first.message} />;
+  if (!first.ok) return <PosBlocked title={first.title} message={first.message} firstOutlet={first.firstOutlet} />;
   let order: Awaited<ReturnType<typeof posOrder>>;
   try {
     order = await posOrder(first.ctx, orderId);
@@ -40,6 +40,14 @@ export default async function PosTillPage({ searchParams }: { searchParams: Prom
     has("register.operate") || has("pos.checkout") ? posMyShift(first.ctx, outlet.id) : Promise.resolve(null),
   ]);
   return (
-    <PosTillView outlet={outlet} order={order} menu={menu} tables={floor?.tables ?? []} shift={shift} can={first.can} />
+    <PosTillView
+      outlet={outlet}
+      outlets={first.outlets}
+      order={order}
+      menu={menu}
+      tables={floor?.tables ?? []}
+      shift={shift}
+      can={first.can}
+    />
   );
 }

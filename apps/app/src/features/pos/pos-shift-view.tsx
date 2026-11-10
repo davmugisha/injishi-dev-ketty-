@@ -1,10 +1,18 @@
 "use client";
 
-import { Button, Card, Input, Label, TextArea, TextField, Toast, ToggleButton } from "@heroui/react";
+import { Button, Card, Input, Label, TextArea, TextField, ToggleButton } from "@heroui/react";
 import { EmptyState } from "@heroui-pro/react";
+import { LinkButton } from "@injishi/ui";
 import { useState } from "react";
 import { RegionOverlays } from "@/features/outlets/shared";
-import { METHOD_LABEL, type PosOutlet, type PosRegister, type PosShift } from "@/server/pos";
+import {
+  METHOD_LABEL,
+  ORDER_STATUS_LABEL,
+  type PosOrderSummary,
+  type PosOutlet,
+  type PosRegister,
+  type PosShift,
+} from "@/server/pos";
 import {
   cashMovementAction,
   closeShiftAction,
@@ -12,8 +20,8 @@ import {
   openShiftAction,
   reviewShiftAction,
 } from "./actions";
-import { PosNav } from "./pos-nav";
-import { clock, money, PosDialog, PosHeader, parseRwf, SimulationNotice, StatusChip, usePosAction } from "./shared";
+import { PosShell } from "./pos-shell";
+import { clock, money, ORDER_COLOR, PosDialog, parseRwf, SimulationNotice, StatusChip, usePosAction } from "./shared";
 
 /**
  * The cashier's register and shift (POS spec §9). A cashier opens a shift with a float, records cash in and
@@ -22,16 +30,21 @@ import { clock, money, PosDialog, PosHeader, parseRwf, SimulationNotice, StatusC
  */
 export function PosShiftView({
   outlet,
+  outlets,
   registers,
   mine,
   shifts,
+  bills = [],
   can,
   userId,
 }: {
   outlet: PosOutlet;
+  outlets: PosOutlet[];
   registers: PosRegister[];
   mine: PosShift | null;
   shifts: PosShift[];
+  /** Open bills with money still owed, oldest first (only for someone who takes payment). */
+  bills?: PosOrderSummary[];
   can: string[];
   userId: string | null;
 }) {
@@ -45,14 +58,20 @@ export function PosShiftView({
   const counted = closing ? parseRwf(closing.counted) : null;
 
   return (
-    <div className="relative flex h-full flex-col bg-background">
-      <PosHeader title="Cashier shift" outlet={outlet}>
-        <PosNav current="PosShift" outletId={outlet.id} can={can} />
-      </PosHeader>
-      <div className="grid min-h-0 flex-1 grid-cols-[1fr_360px] gap-4 overflow-hidden p-4">
-        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+    <PosShell
+      board="PosShift"
+      title={operate ? "Cashier desk" : "Cashier shifts"}
+      subtitle={`${outlet.name}${outlet.branchName ? ` · ${outlet.branchName}` : ""}`}
+      outlet={outlet}
+      outlets={outlets}
+      outletId={outlet.id}
+      switchHref="/pos/shift"
+      can={can}
+    >
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-4 pb-4 md:px-6 lg:grid-cols-[1fr_360px] lg:overflow-hidden">
+        <div className="flex min-h-0 flex-col gap-4 lg:overflow-y-auto">
           {mine ? (
-            <Card className="gap-3 p-4">
+            <Card className="gap-4 rounded-[20px] p-5 shadow-none">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h2 className="text-[18px] font-semibold">Your shift on {mine.registerName}</h2>
@@ -88,7 +107,7 @@ export function PosShiftView({
               </div>
             </Card>
           ) : operate ? (
-            <Card className="gap-3 p-4">
+            <Card className="gap-3 rounded-[20px] p-5 shadow-none">
               <h2 className="text-[18px] font-semibold">Open a shift</h2>
               <p className="text-[13px] text-muted">
                 Cash can only be taken into an open shift. Choose a free register.
@@ -107,12 +126,13 @@ export function PosShiftView({
               You do not run a till. Shifts other cashiers closed are listed for review.
             </p>
           )}
+          {can.includes("pos.checkout") ? <BillsToSettle bills={bills} canTake={!!mine} outletId={outlet.id} /> : null}
           <SimulationNotice>
             Only cash is counted into the drawer. Every other method is simulated and listed for reconciliation only.
           </SimulationNotice>
         </div>
 
-        <aside className="flex min-h-0 flex-col gap-2 overflow-y-auto">
+        <aside className="flex min-h-0 flex-col gap-2 lg:overflow-y-auto">
           <h2 className="text-[14px] font-semibold">Recent shifts</h2>
           {shifts.length === 0 ? (
             <EmptyState size="sm">
@@ -122,7 +142,7 @@ export function PosShiftView({
             </EmptyState>
           ) : null}
           {shifts.map((s) => (
-            <Card key={s.id} variant="secondary" className="gap-1 p-3 text-[12px]">
+            <Card key={s.id} className="gap-1 rounded-2xl p-4 text-[12px] shadow-none">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[13px] font-semibold">
                   {s.registerName} · {s.cashierName}
@@ -323,9 +343,8 @@ export function PosShiftView({
             </TextField>
           </PosDialog>
         ) : null}
-        <Toast.Provider placement="bottom" />
       </RegionOverlays>
-    </div>
+    </PosShell>
   );
 }
 
@@ -391,5 +410,70 @@ function Movements({
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * The cashier's queue: every open bill at this outlet with money still owed, oldest first. Served bills (the guests
+ * have eaten) come with a "ready to pay" cue. Taking payment opens the bill on the till, where the API checks the
+ * shift and the permission again.
+ */
+function BillsToSettle({ bills, canTake, outletId }: { bills: PosOrderSummary[]; canTake: boolean; outletId: string }) {
+  const owed = bills.reduce((a, b) => a + b.settlement.outstandingRwf, 0);
+  return (
+    <Card className="gap-3 rounded-[20px] p-5 shadow-none" aria-label="Bills waiting for payment">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <h2 className="text-[16px] font-semibold">Bills waiting for payment</h2>
+          <p className="text-[12px] text-muted">
+            {bills.length === 0
+              ? "Nothing is owed right now."
+              : `${bills.length} open bill${bills.length === 1 ? "" : "s"} · ${money(owed)} still to collect`}
+          </p>
+        </div>
+        <LinkButton href={`/pos/floor?outlet=${outletId}`} variant="ghost" size="sm">
+          Open floor
+        </LinkButton>
+      </div>
+      {!canTake && bills.length > 0 ? (
+        <p className="rounded-xl bg-warning-soft px-3 py-2 text-[12px] text-warning-soft-foreground">
+          Open a shift before taking cash: payments are recorded against your drawer.
+        </p>
+      ) : null}
+      {bills.length > 0 ? (
+        <ul className="flex flex-col divide-y divide-separator">
+          {bills.map((b) => {
+            const served = b.status === "delivered" || b.status === "ready";
+            return (
+              <li key={b.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2" data-bill={b.orderNumber}>
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-[14px] font-semibold">
+                    {b.tableLabel ? `Table ${b.tableLabel}` : b.orderType === "delivery" ? "Delivery" : "Takeaway"}
+                    <span className="ml-2 text-[12px] font-normal text-muted tabular">{b.orderNumber}</span>
+                  </span>
+                  <span className="text-[12px] text-muted">
+                    {b.waiterName ? `${b.waiterName} · ` : ""}since {clock(b.createdAt)} · {b.lineCount} line
+                    {b.lineCount === 1 ? "" : "s"}
+                    {b.customer ? ` · ${b.customer.fullName}` : ""}
+                  </span>
+                </div>
+                <StatusChip color={served ? "success" : ORDER_COLOR[b.status]}>
+                  {served ? "Ready to pay" : ORDER_STATUS_LABEL[b.status]}
+                </StatusChip>
+                <span className="min-w-[110px] text-right text-[14px] font-semibold tabular">
+                  {money(b.settlement.outstandingRwf)}
+                  {b.settlement.collectedRwf > 0 ? (
+                    <span className="block text-[11px] font-normal text-muted">of {money(b.totalRwf)} · part paid</span>
+                  ) : null}
+                </span>
+                <LinkButton href={`/pos/till?order=${b.id}`} size="sm" variant={served ? "primary" : "secondary"}>
+                  Take payment
+                </LinkButton>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </Card>
   );
 }

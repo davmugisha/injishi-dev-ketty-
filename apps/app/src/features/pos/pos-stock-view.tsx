@@ -1,13 +1,20 @@
 "use client";
 
+import { Box, CircleExclamation, TriangleExclamation, Wallet } from "@gravity-ui/icons";
 import { Button, Chip, Input, Label, TextField, ToggleButton } from "@heroui/react";
 import { useMemo, useState } from "react";
-import { type PosOutlet, type PosStockItem, type PosStockView, STOCK_KIND_LABEL, type StockMovementKind } from "@/server/pos";
+import {
+  type PosOutlet,
+  type PosStockItem,
+  type PosStockView,
+  STOCK_KIND_LABEL,
+  type StockMovementKind,
+} from "@/server/pos";
 import { adjustStockAction } from "./actions";
-import { Kpi, OutletSwitch, Panel } from "./back-office";
+import { Kpi, Panel } from "./back-office";
 import { kigaliClock, kigaliToday, rwf, shortDay } from "./format";
-import { PosNav } from "./pos-nav";
-import { PosDialog, PosHeader, parseRwf, usePosAction } from "./shared";
+import { PosShell } from "./pos-shell";
+import { PosDialog, parseRwf, usePosAction } from "./shared";
 
 type Filter = "tracked" | "low" | "out" | "all";
 
@@ -30,6 +37,8 @@ const ACTION_LABEL: Record<string, string> = {
   "stock.staff_use": "Staff use",
   "stock.received": "Received",
   "stock.count": "Counted",
+  "stock.opening": "Opening stock",
+  "stock.catalogue_edit": "Edited on the menu",
 };
 
 /**
@@ -51,7 +60,12 @@ export function PosStockScreen({
 }) {
   const { run, pending } = usePosAction();
   const [filter, setFilter] = useState<Filter>("tracked");
-  const [editing, setEditing] = useState<{ item: PosStockItem; kind: StockMovementKind; quantity: string; reason: string } | null>(null);
+  const [editing, setEditing] = useState<{
+    item: PosStockItem;
+    kind: StockMovementKind;
+    quantity: string;
+    reason: string;
+  } | null>(null);
   const manage = can.includes("stock.manage");
 
   const shown = useMemo(() => {
@@ -65,24 +79,54 @@ export function PosStockScreen({
   const isCount = editing?.kind === "count";
 
   return (
-    <div className="relative flex h-full flex-col bg-background">
-      <PosHeader title="Stock" outlet={outlet}>
-        <OutletSwitch outlets={outlets} current={outlet.id} href="/pos/stock" />
-        <PosNav current="PosStock" outletId={outlet.id} can={can} />
-      </PosHeader>
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+    <PosShell
+      board="PosStock"
+      title="Stock"
+      subtitle="What is on hand, and what moved"
+      outlet={outlet}
+      outlets={outlets}
+      outletId={outlet.id}
+      switchHref="/pos/stock"
+      can={can}
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-6 md:px-6">
         <section aria-label="Stock summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Kpi label="Stock value" value={rwf(stock.summary.valuationRwf)} sub={`Estimated at ${Math.round(stock.costRatio * 100)}% of selling price`} />
-          <Kpi label="Items tracked" value={stock.summary.tracked} sub="Counted down as orders are sent" />
-          <Kpi label="Low stock" value={stock.summary.low} tone={stock.summary.low ? "warn" : "good"} sub={`${stock.lowAt} units or fewer`} />
-          <Kpi label="Out of stock" value={stock.summary.out} tone={stock.summary.out ? "bad" : "good"} sub="Cannot be sold until restocked" />
+          <Kpi
+            label="Stock value"
+            icon={Wallet}
+            value={rwf(stock.summary.valuationRwf)}
+            sub={`Estimated at ${Math.round(stock.costRatio * 100)}% of selling price`}
+          />
+          <Kpi
+            label="Items tracked"
+            icon={Box}
+            tint="default"
+            value={stock.summary.tracked}
+            sub="Counted down as orders are sent"
+          />
+          <Kpi
+            label="Low stock"
+            icon={CircleExclamation}
+            tint="warning"
+            value={stock.summary.low}
+            tone={stock.summary.low ? "warn" : "good"}
+            sub={`${stock.lowAt} units or fewer`}
+          />
+          <Kpi
+            label="Out of stock"
+            icon={TriangleExclamation}
+            tint="danger"
+            value={stock.summary.out}
+            tone={stock.summary.out ? "bad" : "good"}
+            sub="Cannot be sold until restocked"
+          />
         </section>
 
         <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
           <Panel
             title="Items"
             action={
-              <div className="flex flex-wrap gap-1" role="group" aria-label="Show">
+              <fieldset className="flex flex-wrap gap-1 m-0 min-w-0 border-0 p-0" aria-label="Show">
                 {(
                   [
                     ["tracked", "Tracked"],
@@ -95,7 +139,7 @@ export function PosStockScreen({
                     {label}
                   </ToggleButton>
                 ))}
-              </div>
+              </fieldset>
             }
           >
             {shown.length === 0 ? (
@@ -126,10 +170,16 @@ export function PosStockScreen({
                               <Chip.Label>{chip.label}</Chip.Label>
                             </Chip>
                           </td>
-                          <td className="py-2 pr-3 text-right tabular">{i.stockQty === null ? "-" : rwf(i.valueRwf)}</td>
+                          <td className="py-2 pr-3 text-right tabular">
+                            {i.stockQty === null ? "-" : rwf(i.valueRwf)}
+                          </td>
                           {manage ? (
                             <td className="py-2 text-right">
-                              <Button size="sm" variant="secondary" onPress={() => setEditing({ item: i, kind: "damaged", quantity: "", reason: "" })}>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onPress={() => setEditing({ item: i, kind: "damaged", quantity: "", reason: "" })}
+                              >
                                 Record
                               </Button>
                             </td>
@@ -159,7 +209,9 @@ export function PosStockScreen({
                       </div>
                       <div className="text-muted">
                         {kind}
-                        {m.stockBefore !== null && m.stockAfter !== null ? ` · ${m.stockBefore} to ${m.stockAfter}` : ""}
+                        {m.stockBefore !== null && m.stockAfter !== null
+                          ? ` · ${m.stockBefore} to ${m.stockAfter}`
+                          : ""}
                         {m.order ? ` · ${m.order}` : ""}
                       </div>
                       <div className="text-muted">
@@ -188,7 +240,9 @@ export function PosStockScreen({
                 Cancel
               </Button>
               <Button
-                isDisabled={pending || quantity === null || (!isCount && quantity < 1) || editing.reason.trim().length < 3}
+                isDisabled={
+                  pending || quantity === null || (!isCount && quantity < 1) || editing.reason.trim().length < 3
+                }
                 onPress={() =>
                   run(
                     () =>
@@ -208,23 +262,39 @@ export function PosStockScreen({
             </>
           }
         >
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="What happened">
+          <fieldset className="flex flex-wrap gap-1.5 m-0 min-w-0 border-0 p-0" aria-label="What happened">
             {KINDS.map((k) => (
-              <ToggleButton key={k} isSelected={editing.kind === k} onChange={() => setEditing({ ...editing, kind: k })}>
+              <ToggleButton
+                key={k}
+                isSelected={editing.kind === k}
+                onChange={() => setEditing({ ...editing, kind: k })}
+              >
                 {STOCK_KIND_LABEL[k]}
               </ToggleButton>
             ))}
-          </div>
-          <TextField value={editing.quantity} onChange={(v) => setEditing({ ...editing, quantity: v })} fullWidth isRequired>
-            <Label>{isCount ? "Counted quantity" : editing.kind === "received" ? "Quantity received" : "Quantity lost"}</Label>
+          </fieldset>
+          <TextField
+            value={editing.quantity}
+            onChange={(v) => setEditing({ ...editing, quantity: v })}
+            fullWidth
+            isRequired
+          >
+            <Label>
+              {isCount ? "Counted quantity" : editing.kind === "received" ? "Quantity received" : "Quantity lost"}
+            </Label>
             <Input inputMode="numeric" className="tabular" />
           </TextField>
-          <TextField value={editing.reason} onChange={(v) => setEditing({ ...editing, reason: v })} fullWidth isRequired>
+          <TextField
+            value={editing.reason}
+            onChange={(v) => setEditing({ ...editing, reason: v })}
+            fullWidth
+            isRequired
+          >
             <Label>Reason (required)</Label>
             <Input />
           </TextField>
         </PosDialog>
       ) : null}
-    </div>
+    </PosShell>
   );
 }

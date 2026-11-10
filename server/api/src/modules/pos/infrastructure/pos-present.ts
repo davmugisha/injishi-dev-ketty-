@@ -1,5 +1,6 @@
 import {
   TICKET_LATE_MINUTES,
+  maskCustomerPhone,
   settlementOf,
   type PosCashMovement,
   type PosOrder,
@@ -14,6 +15,7 @@ import { and, asc, desc, eq, inArray, ne } from 'drizzle-orm';
 import {
   cashMovements,
   cashierShifts,
+  customers,
   kitchenTicketItems,
   kitchenTickets,
   posOrderDiscounts,
@@ -75,7 +77,7 @@ function presentPayment(p: typeof posPayments.$inferSelect, names: Map<string, s
 
 /** One order with its lines, discounts and payments. */
 export async function presentOrder(db: Db, order: OrderRow): Promise<PosOrder> {
-  const [lines, discounts, payments, labels] = await Promise.all([
+  const [lines, discounts, payments, labels, customerRows] = await Promise.all([
     db
       .select()
       .from(posOrderLines)
@@ -88,7 +90,16 @@ export async function presentOrder(db: Db, order: OrderRow): Promise<PosOrder> {
       .orderBy(asc(posOrderDiscounts.createdAt)),
     db.select().from(posPayments).where(eq(posPayments.orderId, order.id)).orderBy(asc(posPayments.createdAt)),
     tableLabels(db, order.tableSessionId ? [order.tableSessionId] : []),
+    // The customer rides on the order (CRM, phase 1). Only the name and a masked number: the till greets, it never exports.
+    order.customerId
+      ? db
+          .select({ id: customers.id, fullName: customers.fullName, phone: customers.phoneE164, status: customers.status })
+          .from(customers)
+          .where(and(eq(customers.id, order.customerId), eq(customers.workspaceId, order.workspaceId)))
+          .limit(1)
+      : Promise.resolve([]),
   ]);
+  const customer = customerRows[0];
   const names = await namesOf(db, [
     order.waiterUserId,
     ...discounts.flatMap((d) => [d.requestedByUserId, d.decidedByUserId]),
@@ -123,6 +134,16 @@ export async function presentOrder(db: Db, order: OrderRow): Promise<PosOrder> {
     tableLabel: order.tableSessionId ? (labels.get(order.tableSessionId) ?? null) : null,
     waiterName: order.waiterUserId ? (names.get(order.waiterUserId) ?? null) : null,
     guestNote: order.guestNote,
+    // Present only when a customer is attached, so an order that never had one reads exactly as it always did.
+    ...(customer
+      ? {
+          customer: {
+            id: customer.id,
+            fullName: customer.fullName,
+            phoneMasked: customer.status === 'erased' ? '' : maskCustomerPhone(customer.phone),
+          },
+        }
+      : {}),
     taxMode: order.taxMode,
     grossRwf: order.grossRwf,
     discountRwf: order.discountRwf,
@@ -216,6 +237,7 @@ export async function presentTickets(
         orderType: posOrders.orderType,
         tableSessionId: posOrders.tableSessionId,
         waiterUserId: posOrders.waiterUserId,
+        guestNote: posOrders.guestNote,
       })
       .from(posOrders)
       .where(inArray(posOrders.id, orderIds)),
@@ -224,7 +246,19 @@ export async function presentTickets(
       .from(posPrintJobs)
       .where(and(eq(posPrintJobs.kind, 'kitchen_ticket'), inArray(posPrintJobs.sourceId, ids))),
   ]);
-  const labels = await tableLabels(db, orders.map((o) => o.tableSessionId).filter((v): v is string => !!v));
+  const sessionIds = orders.map((o) => o.tableSessionId).filter((v): v is string => !!v);
+  const labels = await tableLabels(db, sessionIds);
+  // The party size, so the pass can see how many plates a table is waiting for. Read one connection at a time.
+  const guests = new Map(
+    sessionIds.length === 0
+      ? []
+      : (
+          await db
+            .select({ id: tableSessions.id, guestCount: tableSessions.guestCount })
+            .from(tableSessions)
+            .where(inArray(tableSessions.id, sessionIds))
+        ).map((s) => [s.id, s.guestCount] as const),
+  );
   const names = await namesOf(db, orders.map((o) => o.waiterUserId));
   return tickets.map((t) => {
     const station = stations.find((s) => s.id === t.stationId);
@@ -244,6 +278,9 @@ export async function presentTickets(
       tableLabel: order?.tableSessionId ? (labels.get(order.tableSessionId) ?? null) : null,
       waiterName: order?.waiterUserId ? (names.get(order.waiterUserId) ?? null) : null,
       orderType: order?.orderType ?? 'dine_in',
+      // There is no customer-name field on an order: the guest note is the closest thing the waiter can write (a name, an allergy).
+      guestNote: order?.guestNote?.trim() ? order.guestNote.trim() : null,
+      guestCount: order?.tableSessionId ? (guests.get(order.tableSessionId) ?? null) : null,
       items: items
         .filter((i) => i.ticketId === t.id)
         .map((i) => ({

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { copyTarget, diffCounts, parseDumpName, planRetention, scrub, stamp } from './backup.mjs';
+import { copyTarget, diffCounts, parseDumpName, planRetention, scrub, stamp, staleTargets } from './backup.mjs';
 
 const POLICY = { keepAllDays: 3, keepDailyDays: 14, keepWeeklyWeeks: 8, minimumToKeep: 6 };
 const NOW = new Date(2026, 10, 20, 12, 0, 0); // 20 Nov 2026, noon, local time
@@ -82,5 +82,32 @@ describe('secrets never reach the log', () => {
   });
   test('an empty or tiny secret is ignored instead of mangling the text', () => {
     assert.equal(scrub('abc', ['', 'a']), 'abc');
+  });
+});
+
+describe('freshness', () => {
+  const now = new Date('2026-11-05T12:00:00Z');
+  const ok = (hoursAgo) => ({ ok: true, finishedAt: new Date(now.getTime() - hoursAgo * 3_600_000).toISOString() });
+  test('a recent good backup is fresh', () => {
+    assert.deepEqual(staleTargets({ a: ok(1), b: ok(5.9) }, ['a', 'b'], now, 6), []);
+  });
+  test('an old one, a missing one and a failed last run are all reported, by name', () => {
+    const problems = staleTargets({ a: ok(7.5), c: { ok: false, error: 'pg_dump failed', finishedAt: now.toISOString() } }, ['a', 'b', 'c'], now, 6);
+    assert.equal(problems.length, 3);
+    assert.match(problems[0], /^a: .* 7\.5 hours old/);
+    assert.match(problems[1], /^b: no good backup is recorded/);
+    assert.match(problems[2], /^c: last run failed \(pg_dump failed\)/);
+  });
+  test('a later failed run does not hide a recent good backup', () => {
+    const status = { a: { ok: false, error: 'pg_dump failed', finishedAt: now.toISOString(), lastGoodAt: new Date(now.getTime() - 3 * 3_600_000).toISOString() } };
+    assert.deepEqual(staleTargets(status, ['a'], now, 6), []);
+    const old = { a: { ok: false, error: 'pg_dump failed', finishedAt: now.toISOString(), lastGoodAt: new Date(now.getTime() - 9 * 3_600_000).toISOString() } };
+    const problems = staleTargets(old, ['a'], now, 6);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /9.0 hours old.*the last run failed: pg_dump failed/);
+  });
+  test('only the targets named are judged (a stale one that is not asked about is ignored)', () => {
+    assert.deepEqual(staleTargets({ a: ok(100), b: ok(1) }, ['b'], now, 6), []);
+    assert.equal(staleTargets({ a: ok(100), b: ok(1) }, ['a', 'b'], now, 6).length, 1);
   });
 });

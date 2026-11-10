@@ -99,6 +99,29 @@ export function diffCounts(expected, actual) {
   return problems;
 }
 
+/**
+ * Which targets have no GOOD backup newer than `maxHours`, from status.json. A laptop sleeps, and a run that lands on
+ * a sleep is lost without a sound, so "the last run succeeded" is not enough: what matters is how old the newest
+ * verified backup is. Returns one line per target that is too old, missing, or whose last run failed.
+ */
+export function staleTargets(status, targetNames, now, maxHours) {
+  const problems = [];
+  for (const name of targetNames) {
+    const s = status?.[name];
+    // The newest good backup, which a later FAILED run must not erase: `lastGoodAt` is carried across failures.
+    const good = s?.lastGoodAt ?? (s?.ok ? s.finishedAt : undefined);
+    if (!good) {
+      problems.push(`${name}: ${s?.error ? `last run failed (${s.error})` : 'no good backup is recorded'}`);
+      continue;
+    }
+    const hours = (now.getTime() - new Date(good).getTime()) / 3_600_000;
+    if (hours > maxHours) {
+      problems.push(`${name}: the newest good backup is ${hours.toFixed(1)} hours old (limit ${maxHours})${s.ok === false && s.error ? `; the last run failed: ${s.error}` : ''}`);
+    }
+  }
+  return problems;
+}
+
 // ── running things ────────────────────────────────────────────────────────────────────────────────
 
 function readCredential(cred) {
@@ -142,7 +165,7 @@ async function main() {
   const opt = (f) => args.includes(f);
   const val = (f) => (args.includes(f) ? args[args.indexOf(f) + 1] : undefined);
   const configPath = val('--config');
-  if (!configPath) throw new Error('usage: backup.mjs --config <file> [--target name] [--no-drill] [--retention-dry-run]');
+  if (!configPath) throw new Error('usage: backup.mjs --config <file> [--target name] [--no-drill] [--retention-dry-run] [--check-fresh <hours>]');
   const cfg = JSON.parse(readFileSync(configPath, 'utf8'));
   const root = path.resolve(cfg.backupRoot);
   mkdirSync(path.join(root, 'logs'), { recursive: true });
@@ -170,6 +193,17 @@ async function main() {
   const only = val('--target');
   const statusPath = path.join(root, 'status.json');
   const status = existsSync(statusPath) ? JSON.parse(readFileSync(statusPath, 'utf8')) : {};
+
+  // `--check-fresh <hours>`: change nothing, say whether every target has a good backup newer than that.
+  if (opt('--check-fresh')) {
+    const maxHours = Number(val('--check-fresh'));
+    if (!Number.isFinite(maxHours) || maxHours <= 0) throw new Error('--check-fresh needs a number of hours');
+    const stale = staleTargets(status, cfg.targets.filter((t) => !only || t.name === only).map((t) => t.name), new Date(), maxHours);
+    for (const line of stale) console.log(`STALE ${line}`);
+    if (stale.length === 0) console.log(`FRESH every target has a good backup newer than ${maxHours} hours`);
+    process.exitCode = stale.length ? 1 : 0;
+    return;
+  }
   let failed = false;
   let drillSkipped = false;
 
@@ -179,6 +213,7 @@ async function main() {
     mkdirSync(dir, { recursive: true });
     const startedAt = new Date();
     const result = { startedAt: startedAt.toISOString(), ok: false };
+    let partial = null;
     try {
       const c = credOf(target.credential);
       const env = { PGPASSWORD: c.password };
@@ -186,20 +221,22 @@ async function main() {
       const conn = ['-h', target.host, '-p', String(target.port), '-U', user];
       const finalName = `${target.name}_${stamp(startedAt)}.dump`;
       const finalPath = path.join(dir, finalName);
-      const partial = `${finalPath}.partial`;
+      partial = `${finalPath}.partial`;
 
-      // A run killed mid-dump (power cut, logoff) leaves its `.partial` behind. The task may not run longer than an
-      // hour and never overlaps itself, so anything older than that is certainly dead: sweep it, only our own names.
+      // A run killed mid-dump (power cut, logoff) leaves its `.partial` behind. The task may not run longer than two
+      // hours (install-backup-task.ps1) and never overlaps itself, so anything older than three is certainly dead: sweep it,
+      // only our own names.
       for (const f of readdirSync(dir)) {
         if (!f.endsWith('.dump.partial') || !f.startsWith(`${target.name}_`)) continue;
-        if (Date.now() - statSync(path.join(dir, f)).mtimeMs > 60 * 60 * 1000) {
+        if (Date.now() - statSync(path.join(dir, f)).mtimeMs > 3 * 60 * 60 * 1000) {
           unlinkSync(path.join(dir, f));
           log('WARN', `${target.name}: removed stale partial dump ${f} (an earlier run was interrupted)`);
         }
       }
 
       log('INFO', `${target.name}: dumping ${target.database} from ${target.host}:${target.port}`);
-      const dump = await run(bin('pg_dump'), [...conn, '-Fc', '-Z', '6', '-d', target.database, '--file', partial], { env });
+      // A dump of a big database can legitimately take a while: the ceiling is a safeguard against a hung connection, not a speed limit.
+      const dump = await run(bin('pg_dump'), [...conn, '-Fc', '-Z', '6', '-d', target.database, '--file', partial], { env, timeoutMs: cfg.dumpTimeoutMs ?? 30 * 60_000 });
       if (dump.code !== 0) throw new Error(`pg_dump failed (exit ${dump.code}): ${dump.stderr.trim().split('\n').pop()}`);
 
       const size = statSync(partial).size;
@@ -275,11 +312,17 @@ async function main() {
       }
       result.kept = plan.keep.length;
     } catch (error) {
+      // A failed run leaves nothing half-written behind.
+      if (partial && existsSync(partial)) {
+        try { unlinkSync(partial); } catch { /* the next run sweeps it */ }
+      }
       result.error = scrub(error instanceof Error ? error.message : error, secrets);
       failed = true;
       log('ERROR', `${target.name}: ${result.error}`);
     }
     result.finishedAt = new Date().toISOString();
+    const prev = status[target.name];
+    result.lastGoodAt = result.ok ? result.finishedAt : (prev?.lastGoodAt ?? (prev?.ok ? prev.finishedAt : undefined));
     status[target.name] = result;
   }
   writeFileSync(statusPath, JSON.stringify(status, null, 2));

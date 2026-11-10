@@ -152,20 +152,20 @@ export declare const ExpenseView: z.ZodObject<{
     unitLabel: string | null;
     propertyId: string | null;
     unitId: string | null;
+    voided: {
+        reason: string;
+        at: string;
+        byName: string | null;
+    } | null;
+    createdByName: string | null;
     hasReceipt: boolean;
     paidOn: string;
-    createdByName: string | null;
     payeeName: string | null;
     payeePhone: string | null;
     loanPurpose: "build" | "buy" | null;
     ticketTitle: string | null;
     receiptUrl: string | null;
     canVoid: boolean;
-    voided: {
-        reason: string;
-        at: string;
-        byName: string | null;
-    } | null;
 }, {
     id: string;
     amountRwf: number;
@@ -179,20 +179,20 @@ export declare const ExpenseView: z.ZodObject<{
     unitLabel: string | null;
     propertyId: string | null;
     unitId: string | null;
+    voided: {
+        reason: string;
+        at: string;
+        byName: string | null;
+    } | null;
+    createdByName: string | null;
     hasReceipt: boolean;
     paidOn: string;
-    createdByName: string | null;
     payeeName: string | null;
     payeePhone: string | null;
     loanPurpose: "build" | "buy" | null;
     ticketTitle: string | null;
     receiptUrl: string | null;
     canVoid: boolean;
-    voided: {
-        reason: string;
-        at: string;
-        byName: string | null;
-    } | null;
 }>;
 export type ExpenseView = z.infer<typeof ExpenseView>;
 export declare const ExpenseTotals: z.ZodObject<{
@@ -281,20 +281,20 @@ export declare const ExpenseList: z.ZodObject<{
         unitLabel: string | null;
         propertyId: string | null;
         unitId: string | null;
+        voided: {
+            reason: string;
+            at: string;
+            byName: string | null;
+        } | null;
+        createdByName: string | null;
         hasReceipt: boolean;
         paidOn: string;
-        createdByName: string | null;
         payeeName: string | null;
         payeePhone: string | null;
         loanPurpose: "build" | "buy" | null;
         ticketTitle: string | null;
         receiptUrl: string | null;
         canVoid: boolean;
-        voided: {
-            reason: string;
-            at: string;
-            byName: string | null;
-        } | null;
     }, {
         id: string;
         amountRwf: number;
@@ -308,20 +308,20 @@ export declare const ExpenseList: z.ZodObject<{
         unitLabel: string | null;
         propertyId: string | null;
         unitId: string | null;
+        voided: {
+            reason: string;
+            at: string;
+            byName: string | null;
+        } | null;
+        createdByName: string | null;
         hasReceipt: boolean;
         paidOn: string;
-        createdByName: string | null;
         payeeName: string | null;
         payeePhone: string | null;
         loanPurpose: "build" | "buy" | null;
         ticketTitle: string | null;
         receiptUrl: string | null;
         canVoid: boolean;
-        voided: {
-            reason: string;
-            at: string;
-            byName: string | null;
-        } | null;
     }>, "many">;
     totals: z.ZodObject<{
         /** Voided rows are listed, never counted. */
@@ -371,20 +371,20 @@ export declare const ExpenseList: z.ZodObject<{
         unitLabel: string | null;
         propertyId: string | null;
         unitId: string | null;
+        voided: {
+            reason: string;
+            at: string;
+            byName: string | null;
+        } | null;
+        createdByName: string | null;
         hasReceipt: boolean;
         paidOn: string;
-        createdByName: string | null;
         payeeName: string | null;
         payeePhone: string | null;
         loanPurpose: "build" | "buy" | null;
         ticketTitle: string | null;
         receiptUrl: string | null;
         canVoid: boolean;
-        voided: {
-            reason: string;
-            at: string;
-            byName: string | null;
-        } | null;
     }[];
     totals: {
         count: number;
@@ -410,20 +410,20 @@ export declare const ExpenseList: z.ZodObject<{
         unitLabel: string | null;
         propertyId: string | null;
         unitId: string | null;
+        voided: {
+            reason: string;
+            at: string;
+            byName: string | null;
+        } | null;
+        createdByName: string | null;
         hasReceipt: boolean;
         paidOn: string;
-        createdByName: string | null;
         payeeName: string | null;
         payeePhone: string | null;
         loanPurpose: "build" | "buy" | null;
         ticketTitle: string | null;
         receiptUrl: string | null;
         canVoid: boolean;
-        voided: {
-            reason: string;
-            at: string;
-            byName: string | null;
-        } | null;
     }[];
     totals: {
         count: number;

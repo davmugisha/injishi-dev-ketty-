@@ -36,9 +36,14 @@ export default async function PosReportsPage({
 }) {
   const { outlet: outletParam, period: periodParam } = await searchParams;
   const page = await loadPosPage("PosReports", outletParam || undefined);
-  if (!page.ok) return <PosBlocked title={page.title} message={page.message} />;
+  if (!page.ok) return <PosBlocked title={page.title} message={page.message} firstOutlet={page.firstOutlet} />;
   if (!page.can.some((p) => p === "shift.review" || p === "money.view")) {
-    return <PosBlocked title="Not open to you" message="The reports show the business's money, which your role does not read." />;
+    return (
+      <PosBlocked
+        title="Not open to you"
+        message="The reports show the business's money, which your role does not read."
+      />
+    );
   }
   const period = (PERIODS.some(([k]) => k === periodParam) ? periodParam : "today") as PeriodKey;
   const selected = outletParam ? (page.outlets.find((o) => o.id === outletParam) ?? null) : null;

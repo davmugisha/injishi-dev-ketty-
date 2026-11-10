@@ -1,0 +1,1417 @@
+/*
+ * The Injishi kitchen and bar display. A dedicated full-screen board that follows the look of the rest of the POS:
+ * light by default (soft surfaces, white cards, the Injishi green), with a dark variant one tap away for a dim kitchen.
+ * The choice is remembered on the device. Everything is scoped under `.kds`.
+ *
+ * One colour per state, so the board reads at a glance: new is blue, preparing violet, ready green. Amber and red are kept
+ * for time and danger only (a timer running late, an allergy), so a screen of old tickets is not one wall of red.
+ * Both stations use the brand green; the bar is a teal shade of it, so the two screens still differ at a glance.
+ */
+.kds {
+  /* surfaces, back to front */
+  --bg: #edf2ee;
+  --panel: #ffffff;
+  --card: #ffffff;
+  --card-2: #f2f6f3;
+  --line: #e0e7e2;
+  --line-2: #ccd7cf;
+  /* text */
+  --text: #13201a;
+  --text-2: #3b4d43;
+  --muted: #66786e;
+  /* states: new, preparing, ready; and time: nearly late, overdue */
+  --new: #2a62d6;
+  --new-soft: rgba(42, 98, 214, 0.1);
+  --prep: #6a4bd6;
+  --prep-soft: rgba(106, 75, 214, 0.1);
+  --ok: #16a05a;
+  --ok-soft: rgba(22, 160, 90, 0.12);
+  --ok-fill: #22c55e;
+  --ok-ink: #04210e;
+  --warn: #b87800;
+  --warn-soft: rgba(245, 170, 10, 0.16);
+  --late: #d1303a;
+  --late-soft: rgba(209, 48, 58, 0.09);
+  /* notes on a ticket */
+  --note-ink: #6e4a00;
+  --allergy-ink: #9d1f28;
+  /* small pieces */
+  --tag-bg: rgba(19, 32, 26, 0.04);
+  --hi: rgba(255, 255, 255, 0.6);
+  --shadow-card: 0 14px 28px -20px rgba(19, 32, 26, 0.45);
+  --shadow-pop: 0 30px 60px -24px rgba(19, 32, 26, 0.4);
+  --scrim: rgba(19, 32, 26, 0.3);
+  --radius: 18px;
+
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+  background: radial-gradient(1100px 420px at 50% -8%, var(--a-glow), transparent 62%), var(--bg);
+  font-family: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+}
+.kds[data-theme="dark"] {
+  --bg: #090b10;
+  --panel: #0f131a;
+  --card: #151a24;
+  --card-2: #1b2130;
+  --line: #232a38;
+  --line-2: #32394c;
+  --text: #eef1f7;
+  --text-2: #b7bfd0;
+  --muted: #838da3;
+  --new: #6ea8ff;
+  --new-soft: rgba(110, 168, 255, 0.13);
+  --prep: #a78bfa;
+  --prep-soft: rgba(167, 139, 250, 0.14);
+  --ok: #3ddc97;
+  --ok-soft: rgba(61, 220, 151, 0.12);
+  --ok-fill: #3ddc97;
+  --ok-ink: #04180f;
+  --warn: #ffc83d;
+  --warn-soft: rgba(255, 200, 61, 0.13);
+  --late: #ff5d62;
+  --late-soft: rgba(255, 93, 98, 0.14);
+  --note-ink: #ffe08a;
+  --allergy-ink: #ffd0d1;
+  --tag-bg: rgba(255, 255, 255, 0.03);
+  --hi: rgba(255, 255, 255, 0.03);
+  --shadow-card: 0 14px 30px -18px rgba(0, 0, 0, 0.9);
+  --shadow-pop: 0 30px 60px -20px rgba(0, 0, 0, 0.9);
+  --scrim: rgba(3, 5, 8, 0.5);
+  --a-fg: var(--a);
+  color-scheme: dark;
+}
+/* The brand green for the kitchen, a teal shade of it for the bar. --a-fg is the same hue made dark enough to read as text. */
+.kds[data-station="kitchen"] {
+  --a: #22c55e;
+  --a-ink: #04210e;
+}
+.kds[data-station="bar"] {
+  --a: #14b8a6;
+  --a-ink: #03211e;
+}
+.kds {
+  --a-fg: color-mix(in oklab, var(--a) 62%, black);
+  --a-soft: color-mix(in oklab, var(--a) 14%, transparent);
+  --a-line: color-mix(in oklab, var(--a) 42%, transparent);
+  --a-glow: color-mix(in oklab, var(--a) 10%, transparent);
+}
+.kds[data-theme="dark"] {
+  --a-fg: var(--a);
+}
+.kds *,
+.kds *::before,
+.kds *::after {
+  box-sizing: border-box;
+}
+:where(.kds) button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.kds button:focus-visible,
+.kds a:focus-visible,
+.kds input:focus-visible {
+  outline: 2px solid var(--a);
+  outline-offset: 2px;
+}
+.kds * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
+}
+.kds-recent {
+  scrollbar-width: none;
+}
+
+/* ── Top bar ───────────────────────────────────────────────────────────────────────────────────────────────────────── */
+.kds-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 20px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in oklab, var(--panel) 90%, transparent);
+  backdrop-filter: blur(10px);
+}
+.kds-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.kds-mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border-radius: 14px;
+  color: var(--a-ink);
+  background: var(--a);
+  box-shadow: 0 8px 22px -8px var(--a);
+}
+.kds-word {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.1;
+}
+.kds-word b {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+}
+.kds-word b span {
+  color: var(--a-fg);
+}
+.kds-word small {
+  margin-top: 4px;
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kds-seg {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+}
+.kds-seg button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-2);
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+.kds-seg button:hover {
+  background: var(--card);
+  color: var(--text);
+}
+.kds-seg button[aria-pressed="true"] {
+  background: var(--card-2);
+  border-color: var(--a-line);
+  color: var(--a-fg);
+}
+.kds-seg-n {
+  min-width: 26px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--line);
+  font-size: 13px;
+  text-align: center;
+  color: var(--text);
+}
+.kds-seg button[aria-pressed="true"] .kds-seg-n {
+  background: var(--a);
+  color: var(--a-ink);
+}
+.kds-meta {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px 14px;
+}
+.kds-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.kds-pill strong {
+  color: var(--text);
+  font-weight: 700;
+}
+.kds-dot {
+  --dot: var(--ok);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--dot);
+  animation: kds-live 2.4s ease-out infinite;
+}
+.kds-pill[data-state="reconnecting"] .kds-dot {
+  --dot: var(--warn);
+}
+.kds-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.05;
+}
+.kds-clock time {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.kds-clock small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.kds-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text-2);
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s,
+    transform 0.1s;
+}
+.kds-icon:hover {
+  background: var(--card-2);
+  border-color: var(--line-2);
+  color: var(--text);
+}
+.kds-icon:active {
+  transform: scale(0.96);
+}
+.kds-icon[aria-pressed="true"],
+.kds-icon[aria-expanded="true"] {
+  border-color: var(--a-line);
+  background: var(--a-soft);
+  color: var(--a-fg);
+}
+
+/* ── Status summary and filter ─────────────────────────────────────────────────────────────────────────────────────── */
+.kds-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 12px 16px;
+  padding: 16px 24px 4px;
+}
+.kds-stats {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  min-width: min(100%, 520px);
+}
+.kds-stat {
+  --c: var(--new);
+  --c-soft: var(--new-soft);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+}
+.kds-stat[data-k="preparing"] {
+  --c: var(--prep);
+  --c-soft: var(--prep-soft);
+}
+.kds-stat[data-k="ready"] {
+  --c: var(--ok);
+  --c-soft: var(--ok-soft);
+}
+.kds-stat[data-k="overdue"] {
+  --c: var(--late);
+  --c-soft: var(--late-soft);
+}
+.kds-stat[data-k="overdue"][data-hot="true"] {
+  border-color: color-mix(in oklab, var(--late) 45%, transparent);
+  animation: kds-glow 2.2s ease-in-out infinite;
+}
+.kds-stat .ic {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 12px;
+  background: var(--c-soft);
+  color: var(--c);
+}
+.kds-stat .num {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+}
+.kds-stat .lab {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+.kds-filter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+}
+.kds-filter button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-2);
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.kds-filter button:hover {
+  background: var(--card);
+  color: var(--text);
+}
+.kds-filter button[aria-pressed="true"] {
+  background: var(--card-2);
+  border-color: var(--line-2);
+  color: var(--text);
+}
+.kds-filter-n {
+  margin-left: 6px;
+  color: var(--muted);
+}
+
+/* ── The three areas ───────────────────────────────────────────────────────────────────────────────────────────────── */
+.kds-board {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  min-height: 0;
+  padding: 14px 24px 18px;
+}
+.kds-col {
+  --c: var(--new);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: color-mix(in oklab, var(--c) 5%, var(--panel));
+  overflow: hidden;
+}
+.kds-col[data-column="preparing"] {
+  --c: var(--prep);
+}
+.kds-col[data-column="ready"] {
+  --c: var(--ok);
+}
+.kds-col-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--line);
+  box-shadow: inset 0 -2px 0 color-mix(in oklab, var(--c) 70%, transparent);
+}
+.kds-col-head .ic {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--c) 16%, transparent);
+  color: var(--c);
+}
+.kds-col-head h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+.kds-col-n {
+  margin-left: auto;
+  min-width: 32px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--c) 18%, transparent);
+  color: var(--c);
+  font-size: 15px;
+  font-weight: 800;
+  text-align: center;
+}
+.kds-col-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 14px;
+  overflow-y: auto;
+}
+
+/* ── An order card ─────────────────────────────────────────────────────────────────────────────────────────────────── */
+.kds-card {
+  --u: var(--ok);
+  --u-soft: var(--ok-soft);
+  container: kds-card / inline-size;
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 var(--hi);
+  transition:
+    border-color 0.15s,
+    transform 0.15s,
+    box-shadow 0.15s;
+  animation: kds-in 0.32s ease both;
+}
+.kds-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: var(--u);
+}
+.kds-card[data-urgency="warning"] {
+  --u: var(--warn);
+  --u-soft: var(--warn-soft);
+}
+.kds-card[data-urgency="late"] {
+  --u: var(--late);
+  --u-soft: var(--late-soft);
+  border-color: color-mix(in oklab, var(--late) 22%, var(--line));
+}
+.kds-card:hover {
+  border-color: var(--line-2);
+  transform: translateY(-1px);
+}
+.kds-card[data-urgency="late"]:hover {
+  border-color: color-mix(in oklab, var(--late) 65%, transparent);
+}
+.kds-card[data-fresh="true"] {
+  outline: 2px solid var(--a);
+  outline-offset: -1px;
+  animation:
+    kds-in 0.32s ease both,
+    kds-fresh 3s ease-out 0.3s both;
+}
+.kds-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "status timer"
+    "order timer"
+    "where where";
+  align-items: start;
+  column-gap: 12px;
+  padding: 14px 16px 12px 22px;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--c) 11%, transparent), transparent);
+}
+.kds-status {
+  grid-area: status;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.kds-status i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--u);
+}
+.kds-order {
+  grid-area: order;
+  margin-top: 6px;
+  font-size: 46px;
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+}
+.kds-where {
+  grid-area: where;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.kds-table {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px 0 12px;
+  border-radius: 12px;
+  background: var(--a);
+  color: var(--a-ink);
+}
+.kds-table small {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  opacity: 0.8;
+}
+.kds-table b {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+}
+.kds-table[data-kind="out"] {
+  background: transparent;
+  border: 1.5px solid var(--a);
+  color: var(--a-fg);
+}
+.kds-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--tag-bg);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.kds-tag[data-tone="next"] {
+  border-color: var(--a-line);
+  background: var(--a-soft);
+  color: var(--a-fg);
+}
+.kds-tag[data-tone="warning"] {
+  border-color: color-mix(in oklab, var(--warn) 45%, transparent);
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.kds-tag[data-tone="late"] {
+  border-color: color-mix(in oklab, var(--late) 50%, transparent);
+  background: var(--late-soft);
+  color: var(--late);
+}
+.kds-timer {
+  grid-area: timer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.kds-timer b {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 10px;
+  border-radius: 14px;
+  background: var(--u-soft);
+  color: var(--u);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.kds-timer small {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.kds-card[data-urgency="late"] .kds-timer b {
+  animation: kds-pulse 2.2s ease-in-out infinite;
+}
+.kds-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  padding: 9px 16px 9px 22px;
+  border-block: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.kds-info .guest {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+.kds-info .party {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-2);
+  font-weight: 600;
+}
+.kds-items {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 14px 16px 6px 22px;
+  list-style: none;
+}
+.kds-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.kds-qty {
+  display: grid;
+  place-items: center;
+  flex: none;
+  min-width: 58px;
+  height: 50px;
+  padding: 0 8px;
+  border: 1px solid var(--a-line);
+  border-radius: 13px;
+  background: var(--a-soft);
+  color: var(--a-fg);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+}
+.kds-what {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.kds-name {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.kds-item[data-voided="true"] .kds-name {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.kds-mods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.kds-mod {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 9px;
+  background: var(--card-2);
+  font-size: 14px;
+  font-weight: 650;
+}
+.kds-mod small {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.kds-note {
+  display: flex;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in oklab, var(--warn) 45%, transparent);
+  border-left-width: 4px;
+  border-radius: 10px;
+  background: var(--warn-soft);
+  color: var(--note-ink);
+}
+.kds-note svg {
+  flex: none;
+  margin-top: 2px;
+}
+/* An allergy is never a mere preference: the same block in the overdue red, labelled ALLERGY. */
+.kds-note[data-allergy="true"] {
+  border-color: color-mix(in oklab, var(--late) 55%, transparent);
+  background: var(--late-soft);
+  color: var(--allergy-ink);
+}
+.kds-note-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--warn);
+}
+.kds-note[data-allergy="true"] .kds-note-label {
+  color: var(--late);
+}
+.kds-note-text {
+  display: block;
+  font-size: 16.5px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.kds-void {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--late);
+}
+.kds-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 16px 16px 22px;
+}
+.kds-actions .row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.kds-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 58px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 15px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  line-height: 1.15;
+  text-align: center;
+  background: var(--card-2);
+  border-color: var(--line-2);
+  color: var(--text);
+  transition:
+    filter 0.15s,
+    transform 0.1s,
+    background 0.15s;
+}
+.kds-btn:hover {
+  filter: brightness(1.06);
+}
+.kds-btn:not([data-v]):hover {
+  background: var(--line);
+  filter: none;
+}
+.kds-btn:active {
+  transform: scale(0.985);
+}
+.kds-btn[data-v="primary"] {
+  background: var(--a);
+  border-color: var(--a-fg);
+  color: var(--a-ink);
+  box-shadow: 0 10px 24px -12px var(--a);
+}
+.kds-btn[data-v="ok"] {
+  background: var(--ok-fill);
+  border-color: var(--ok-fill);
+  color: var(--ok-ink);
+  box-shadow: 0 10px 24px -12px var(--ok-fill);
+}
+.kds-btn:disabled {
+  opacity: 0.45;
+  cursor: progress;
+  filter: none;
+}
+.kds-link {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.kds-link:hover {
+  background: var(--card-2);
+  color: var(--text);
+}
+.kds-view-only {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ── Empty and loading ─────────────────────────────────────────────────────────────────────────────────────────────── */
+.kds-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 28px 16px;
+  text-align: center;
+}
+.kds-empty .ring {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 8px;
+  border: 1px dashed var(--line-2);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--c, var(--a));
+}
+.kds-empty-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+.kds-empty-hint {
+  max-width: 220px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.kds-skel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.kds-skel i {
+  display: block;
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--card-2) 25%, var(--line) 50%, var(--card-2) 75%);
+  background-size: 200% 100%;
+  animation: kds-shimmer 1.4s linear infinite;
+}
+
+/* ── Panels, toasts, footer ───────────────────────────────────────────────────────────────────────────────────────── */
+.kds-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: var(--scrim);
+}
+.kds-pop {
+  position: absolute;
+  top: 84px;
+  right: 24px;
+  z-index: 6;
+  width: min(380px, calc(100vw - 32px));
+  padding: 18px;
+  border: 1px solid var(--line-2);
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow: var(--shadow-pop);
+  animation: kds-in 0.2s ease both;
+}
+.kds-pop h3 {
+  margin: 0 0 14px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+.kds-pop .group + .group {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.kds-pop label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-2);
+}
+.kds-pop input {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 18px;
+  font-weight: 700;
+}
+.kds-pop .fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.kds-pop .hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.kds-pop .hint[role="alert"] {
+  color: var(--late);
+  font-weight: 700;
+}
+.kds-pop .btns {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.kds-pop .btns .kds-btn {
+  min-height: 46px;
+  font-size: 14px;
+}
+.kds-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--panel);
+  font-size: 15px;
+  font-weight: 700;
+}
+.kds-switch .track {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--line-2);
+  transition: background 0.15s;
+}
+.kds-switch .track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform 0.15s;
+}
+.kds-switch[aria-pressed="true"] .track {
+  background: var(--a);
+}
+.kds-switch[aria-pressed="true"] .track::after {
+  transform: translateX(18px);
+  background: var(--a-ink);
+}
+.kds-key {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.kds-key li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.kds-key i {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+.kds-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kds-menu a {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+}
+.kds-menu a:hover {
+  background: var(--card-2);
+}
+.kds-recent {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.kds-recent > * {
+  flex: none;
+}
+.kds-recent span.chip {
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text-2);
+}
+.kds-recent span.chip[data-off="true"] {
+  color: var(--late);
+  border-color: color-mix(in oklab, var(--late) 35%, transparent);
+}
+.kds-toasts {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.kds-toast {
+  padding: 12px 20px;
+  border: 1px solid var(--a-line);
+  border-radius: 14px;
+  background: var(--card-2);
+  box-shadow: var(--shadow-pop);
+  font-size: 15px;
+  font-weight: 700;
+  animation: kds-in 0.25s ease both;
+}
+.kds-toast[data-error="true"] {
+  border-color: color-mix(in oklab, var(--late) 55%, transparent);
+  color: var(--late);
+}
+.kds-hint {
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--a-soft);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--a-fg);
+}
+
+/* narrow screens: one area at a time */
+.kds-tabs {
+  display: none;
+  gap: 8px;
+  padding: 4px 16px 0;
+}
+.kds-tabs button {
+  flex: 1;
+  min-height: 46px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+}
+.kds-tabs button[aria-pressed="true"] {
+  border-color: var(--a-line);
+  background: var(--a-soft);
+  color: var(--a-fg);
+}
+
+/* ── Sizes ─────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .kds-top {
+    padding: 12px 16px;
+  }
+  .kds-sub {
+    padding: 12px 16px 2px;
+  }
+  .kds-board {
+    gap: 12px;
+    padding: 12px 16px 14px;
+  }
+  .kds-order {
+    font-size: 38px;
+  }
+  .kds-timer b {
+    font-size: 24px;
+  }
+  .kds-qty {
+    min-width: 50px;
+    height: 46px;
+    font-size: 26px;
+  }
+  .kds-name {
+    font-size: 19px;
+  }
+  .kds-btn {
+    font-size: 14px;
+    letter-spacing: 0.03em;
+  }
+  .kds-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .kds-col-body {
+    padding: 10px;
+  }
+  .kds-actions {
+    padding: 8px 12px 14px 18px;
+  }
+  .kds-actions .row {
+    gap: 8px;
+  }
+  .kds-btn {
+    padding: 8px 6px;
+    letter-spacing: 0.02em;
+    white-space: normal;
+  }
+  .kds-head {
+    padding-right: 12px;
+  }
+  .kds-items,
+  .kds-info {
+    padding-right: 12px;
+  }
+}
+@media (max-width: 767px) {
+  .kds-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .kds-tabs {
+    display: flex;
+  }
+  .kds-col[data-hidden="true"] {
+    display: none;
+  }
+  .kds-clock time {
+    font-size: 22px;
+  }
+  .kds-word b {
+    font-size: 18px;
+  }
+  .kds-mark {
+    width: 40px;
+    height: 40px;
+  }
+  .kds-order {
+    font-size: 36px;
+  }
+}
+
+@container kds-card (max-width: 340px) {
+  .kds-head {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "timer"
+      "order"
+      "where";
+    row-gap: 4px;
+    padding-right: 12px;
+  }
+  .kds-status {
+    display: none;
+  }
+  .kds-timer {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+  .kds-timer b {
+    padding: 4px 10px 4px 8px;
+    font-size: 22px;
+  }
+  .kds-order {
+    margin-top: 0;
+    font-size: 40px;
+  }
+}
+@media (max-width: 1100px) {
+  .kds-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .kds-stat {
+    gap: 10px;
+    padding: 8px 12px;
+  }
+  .kds-stat .ic {
+    display: none;
+  }
+  .kds-stat .num {
+    font-size: 26px;
+  }
+  .kds-stat .lab {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+}
+@media (max-width: 767px) {
+  .kds-top {
+    gap: 10px 12px;
+    padding: 10px 14px;
+  }
+  .kds-meta {
+    flex-basis: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .kds-pill {
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 12.5px;
+  }
+  .kds-clock {
+    margin-left: auto;
+  }
+  .kds-clock small {
+    display: none;
+  }
+  .kds-icon {
+    width: 40px;
+    height: 40px;
+  }
+  .kds-seg {
+    width: 100%;
+  }
+  .kds-seg button {
+    flex: 1;
+    justify-content: center;
+  }
+  .kds-sub {
+    padding: 10px 14px 0;
+  }
+  .kds-stat {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 8px 10px;
+  }
+  .kds-stat .num {
+    font-size: 24px;
+  }
+  .kds-stat .lab {
+    font-size: 9px;
+    letter-spacing: 0.05em;
+  }
+  .kds-filter {
+    width: 100%;
+  }
+  .kds-filter button {
+    flex: 1;
+    padding: 0 8px;
+  }
+  .kds-tabs {
+    padding: 8px 14px 0;
+  }
+  .kds-board {
+    padding: 10px 14px 12px;
+  }
+  .kds-hint {
+    padding: 6px 14px;
+  }
+}
+
+@keyframes kds-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes kds-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: 0 0 18px 1px color-mix(in oklab, var(--late) 28%, transparent);
+  }
+}
+@keyframes kds-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+@keyframes kds-fresh {
+  from {
+    outline-color: var(--a-fg);
+  }
+  to {
+    outline-color: transparent;
+  }
+}
+@keyframes kds-live {
+  0% {
+    box-shadow: 0 0 0 0 var(--dot);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 9px transparent;
+  }
+}
+@keyframes kds-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kds[data-station][data-fullscreen] *,
+  .kds[data-station][data-fullscreen] *::before,
+  .kds[data-station][data-fullscreen] *::after {
+    animation: none;
+    transition: none;
+  }
+}

@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: POS_BOARDS.PosStock.pageTitle };
 export default async function PosStockPage({ searchParams }: { searchParams: Promise<{ outlet?: string }> }) {
   const { outlet: outletParam } = await searchParams;
   const page = await loadPosPage("PosStock", outletParam || undefined);
-  if (!page.ok) return <PosBlocked title={page.title} message={page.message} />;
+  if (!page.ok) return <PosBlocked title={page.title} message={page.message} firstOutlet={page.firstOutlet} />;
   if (!page.can.some((p) => p === "stock.manage" || p === "shift.review")) {
     return <PosBlocked title="Not open to you" message="The stock is kept by the stock controller and the managers." />;
   }

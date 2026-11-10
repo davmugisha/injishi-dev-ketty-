@@ -36,6 +36,7 @@ import { sql } from 'drizzle-orm';
 import {
   boolean,
   check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -51,6 +52,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
+import { customers } from './customers';
 import { taxCodeEnum } from './enums';
 import { properties } from './inventory';
 import { outlets, serviceItems } from './operations';
@@ -323,6 +325,8 @@ export const posOrders = pgTable(
     orderType: posOrderTypeEnum('order_type').notNull(),
     status: posOrderStatusEnum('status').notNull().default('draft'),
     tableSessionId: uuid('table_session_id').references(() => tableSessions.id),
+    /** Who the bill is for (CRM, phase 1). Optional: most orders are anonymous. Same business only (composite FK below). */
+    customerId: uuid('customer_id'),
     waiterUserId: uuid('waiter_user_id').references(() => users.id),
     createdByUserId: uuid('created_by_user_id')
       .notNull()
@@ -353,6 +357,15 @@ export const posOrders = pgTable(
     index('pos_orders_outlet_completed_idx').on(t.outletId, t.completedAt),
     index('pos_orders_session_idx').on(t.tableSessionId),
     index('pos_orders_workspace_created_idx').on(t.workspaceId, t.createdAt),
+    index('pos_orders_customer_idx')
+      .on(t.customerId, t.createdAt)
+      .where(sql`${t.customerId} IS NOT NULL`),
+    /** An order may name a customer of its own business only. */
+    foreignKey({
+      name: 'pos_orders_customer_fk',
+      columns: [t.workspaceId, t.customerId],
+      foreignColumns: [customers.workspaceId, customers.id],
+    }),
     check(
       'pos_orders_table_shape',
       sql`(${t.orderType} = 'dine_in') = (${t.tableSessionId} IS NOT NULL)`,

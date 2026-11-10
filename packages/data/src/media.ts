@@ -142,7 +142,7 @@ export const stock = {
     credit: "Photo by Nico Smit on Unsplash",
     sourceUrl: "https://unsplash.com/photos/YzRfznfFaq0",
     license: "Unsplash License",
-    usedBy: ["MarketProperty", "Listing"],
+    usedBy: ["MarketProperty", "Listing", "SignInHero"],
   },
   gardenTerraceDusk: {
     src: "/stock/garden-terrace-dusk.jpg",
@@ -164,7 +164,7 @@ export const stock = {
     credit: "Photo by Franco Debartolo on Unsplash",
     sourceUrl: "https://unsplash.com/photos/x8uH8hjOWJs",
     license: "Unsplash License",
-    usedBy: ["MarketProperty", "GuestReview"],
+    usedBy: ["MarketProperty", "GuestReview", "SignInHero"],
   },
   kivuHallBanquet: {
     src: "/stock/kivu-hall-banquet.jpg",
@@ -483,7 +483,7 @@ export const stock = {
     credit: "Photo by Michael Lock on Unsplash",
     sourceUrl: "https://unsplash.com/photos/hVnClpnYUUk",
     license: "Unsplash License",
-    usedBy: ["QROrder"],
+    usedBy: ["QROrder", "SignInHero"],
   },
   staffPortrait: {
     src: "/stock/staff-portrait.jpg",

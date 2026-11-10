@@ -126,6 +126,8 @@ import {
   OpsPosPaymentsController,
   OpsPosShiftsController,
 } from './ops/pos.controller';
+import { OpsPosCustomersController } from './ops/pos-customers.controller';
+import { OpsPosVenueController } from './ops/pos-venue.controller';
 import { PosModule } from '../../modules/pos/pos.module';
 import {
   OpsRraController,
@@ -317,6 +319,9 @@ import { TrainingPublicModule } from './training/training.module';
     OpsPosKitchenController,
     OpsPosShiftsController,
     OpsPosBackOfficeController,
+    OpsPosVenueController,
+    // Customers of the bar and restaurant (CRM, phase 1).
+    OpsPosCustomersController,
     OpsTeamController,
     OpsRolesController,
     // The HR module (ADR-058, first thread). Every route behind WorkspaceGuard

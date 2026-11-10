@@ -2819,8 +2819,8 @@ export declare const LeaseDetail: z.ZodObject<{
     };
     endReason: string | null;
     cancelReason: string | null;
-    cancelledAt: string | null;
     tab: "active" | "cancelled" | "ending" | "ended" | "to_sign" | "waiting_for_tenant" | "ready_to_start";
+    cancelledAt: string | null;
     actions: ("start" | "landlord_sign" | "edit_terms" | "tenant_sign" | "cancel" | "acknowledge_notice" | "near_end" | "withdraw_notice" | "record_move_out")[];
     notice: {
         message: string | null;
@@ -2970,8 +2970,8 @@ export declare const LeaseDetail: z.ZodObject<{
     };
     endReason: string | null;
     cancelReason: string | null;
-    cancelledAt: string | null;
     tab: "active" | "cancelled" | "ending" | "ended" | "to_sign" | "waiting_for_tenant" | "ready_to_start";
+    cancelledAt: string | null;
     actions: ("start" | "landlord_sign" | "edit_terms" | "tenant_sign" | "cancel" | "acknowledge_notice" | "near_end" | "withdraw_notice" | "record_move_out")[];
     notice: {
         message: string | null;

@@ -37,6 +37,7 @@ import {
   posPrintJobs,
   preparationStations,
   restaurantTables,
+  serviceCategories,
   serviceItems,
   tableSessions,
 } from '../../../database/drizzle/schema';
@@ -49,6 +50,7 @@ import {
   audit,
   kigaliPeriod,
   nextNumber,
+  itemInOutlet,
   orderEvent,
   orderInScope,
   orderNumberOf,
@@ -100,10 +102,13 @@ export class PosOrderService {
   ): Promise<(typeof posOrderLines.$inferInsert)[]> {
     if (lines.length === 0) return [];
     const ids = [...new Set(lines.map((l) => l.serviceItemId))];
-    const items = await tx
-      .select()
-      .from(serviceItems)
-      .where(and(inArray(serviceItems.id, ids), eq(serviceItems.outletId, order.outletId), eq(serviceItems.workspaceId, order.workspaceId)));
+    const items = (
+      await tx
+        .select({ item: serviceItems })
+        .from(serviceItems)
+        .innerJoin(serviceCategories, eq(serviceCategories.id, serviceItems.serviceCategoryId))
+        .where(and(inArray(serviceItems.id, ids), itemInOutlet(order.outletId), eq(serviceItems.workspaceId, order.workspaceId)))
+    ).map((r) => r.item);
     const rates = await taxRatesBps(tx, new Date());
     return lines.map((requested) => {
       const item = items.find((i) => i.id === requested.serviceItemId);

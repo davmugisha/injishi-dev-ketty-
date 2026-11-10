@@ -250,6 +250,22 @@ export const Permission = z.enum([
      * valuation. Owner, manager and the stock controller (POS spec, section 8).
      */
     "stock.manage",
+    /**
+     * Find and read the business's customers (CRM, phase 1). Owner, manager, cashier, waiter and
+     * bartender. Without `customer.manage` the phone and email are masked and the book can only be
+     * searched, never listed.
+     */
+    "customer.view",
+    /**
+     * Register a customer, correct their details and note their preferences, and put one on a bill.
+     * Owner, manager and cashier by default; a business may grant it to the waiter (ADR-055).
+     */
+    "customer.manage",
+    /**
+     * Merge a duplicate customer into the right one, export everything held about a customer, and erase
+     * their personal details. Owner and manager: these are the data-protection acts.
+     */
+    "customer.admin",
 ]);
 export type Permission = z.infer<typeof Permission>;
 const ALL = Permission.options;
@@ -373,9 +389,11 @@ const ROLE_PERMISSIONS: Readonly<Record<OrgRole, ReadonlySet<Permission>>> = {
         "pos.discount",
         "table.manage",
         "register.operate",
+        "customer.view",
+        "customer.manage",
     ]),
-    waiter: new Set<Permission>(["pos.sell", "table.manage"]),
-    bartender: new Set<Permission>(["pos.sell", "table.manage", "kitchen.work"]),
+    waiter: new Set<Permission>(["pos.sell", "table.manage", "customer.view"]),
+    bartender: new Set<Permission>(["pos.sell", "table.manage", "kitchen.work", "customer.view"]),
     kitchen: new Set<Permission>(["kitchen.work"]),
     // The stock controller counts the stock and records damage and waste (`stock.manage`); it sells,
     // discounts and refunds nothing.
@@ -442,6 +460,9 @@ export const PERMISSION_LABEL: Readonly<Record<Permission, string>> = {
     "register.operate": "run a cashier shift",
     "shift.review": "review cashier shifts and paid outs",
     "stock.manage": "count stock and record damage and waste",
+    "customer.view": "find and read customers",
+    "customer.manage": "register and correct customers",
+    "customer.admin": "merge, export and erase customer records",
 };
 // ---------------------------------------------------------------------------
 // A business's own role customisation
@@ -650,6 +671,9 @@ export const PERMISSION_AREA_OF: Readonly<Record<Permission, PermissionArea>> = 
     "register.operate": "money",
     "shift.review": "money",
     "stock.manage": "services",
+    "customer.view": "services",
+    "customer.manage": "services",
+    "customer.admin": "services",
 };
 // ---------------------------------------------------------------------------
 // What each role may do, at THIS business

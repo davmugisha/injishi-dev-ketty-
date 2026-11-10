@@ -91,7 +91,8 @@ describe("the org roles", () => {
     // `guest.register`.
     // 50: the POS spec, phase 1, added the nine point of sale permissions.
     // 51: the POS inventory step added `stock.manage`.
-    assert.equal(permissionsForRole("owner").length, 51);
+    // 54: customer management (CRM, phase 1) added `customer.view`, `customer.manage` and `customer.admin`.
+    assert.equal(permissionsForRole("owner").length, 54);
   });
 
   test("manager holds everything except team.manage, the HR disclosures, signing leases and payouts", () => {
@@ -105,7 +106,7 @@ describe("the org roles", () => {
       permissionsForRole("manager"),
       Permission.options.filter((p) => !withheld.includes(p)),
     );
-    assert.equal(permissionsForRole("manager").length, 45);
+    assert.equal(permissionsForRole("manager").length, 48);
   });
 
   test("receptionist works the front desk and takes orders", () => {
@@ -240,15 +241,32 @@ describe("the org roles", () => {
       "pos.discount",
       "table.manage",
       "register.operate",
+      "customer.view",
+      "customer.manage",
     ]);
   });
 
-  test("waiter takes orders at the table and nothing else", () => {
-    assert.deepEqual(permissionsForRole("waiter"), ["pos.sell", "table.manage"]);
+  test("waiter takes orders at the table and looks customers up, but cannot register or erase one", () => {
+    assert.deepEqual(permissionsForRole("waiter"), ["pos.sell", "table.manage", "customer.view"]);
   });
 
-  test("bartender takes orders and works the bar's tickets", () => {
-    assert.deepEqual(permissionsForRole("bartender"), ["pos.sell", "table.manage", "kitchen.work"]);
+  test("bartender takes orders, works the bar's tickets and looks customers up", () => {
+    assert.deepEqual(permissionsForRole("bartender"), ["pos.sell", "table.manage", "kitchen.work", "customer.view"]);
+  });
+
+  test("only the owner and manager may merge, export or erase a customer", () => {
+    for (const role of ["cashier", "waiter", "bartender", "kitchen", "stock_controller", "receptionist", "finance", "hr"]) {
+      assert.equal(can(role, "customer.admin"), false, role);
+    }
+    assert.equal(can("owner", "customer.admin"), true);
+    assert.equal(can("manager", "customer.admin"), true);
+  });
+
+  test("the kitchen and the stock controller never see customers", () => {
+    for (const role of ["kitchen", "stock_controller"]) {
+      assert.equal(can(role, "customer.view"), false, role);
+      assert.equal(can(role, "customer.manage"), false, role);
+    }
   });
 
   test("kitchen works tickets only", () => {

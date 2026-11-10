@@ -306,13 +306,13 @@ export declare const GuestOffer: z.ZodObject<{
     departmentName: string | null;
     propertyId: string;
     endsOn: string | null;
+    discountRwf: number;
     eligible: boolean;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
     minNights: number | null;
     minSpendRwf: number | null;
     requiresCode: boolean;
-    discountRwf: number;
     redeemed: boolean;
 }, {
     name: string;
@@ -325,13 +325,13 @@ export declare const GuestOffer: z.ZodObject<{
     departmentName: string | null;
     propertyId: string;
     endsOn: string | null;
+    discountRwf: number;
     eligible: boolean;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
     minNights: number | null;
     minSpendRwf: number | null;
     requiresCode: boolean;
-    discountRwf: number;
     redeemed: boolean;
 }>;
 export type GuestOffer = z.infer<typeof GuestOffer>;
@@ -371,13 +371,13 @@ export declare const GuestOfferList: z.ZodObject<{
         departmentName: string | null;
         propertyId: string;
         endsOn: string | null;
+        discountRwf: number;
         eligible: boolean;
         discountKind: "percentage" | "fixed_amount";
         discountValue: number;
         minNights: number | null;
         minSpendRwf: number | null;
         requiresCode: boolean;
-        discountRwf: number;
         redeemed: boolean;
     }, {
         name: string;
@@ -390,13 +390,13 @@ export declare const GuestOfferList: z.ZodObject<{
         departmentName: string | null;
         propertyId: string;
         endsOn: string | null;
+        discountRwf: number;
         eligible: boolean;
         discountKind: "percentage" | "fixed_amount";
         discountValue: number;
         minNights: number | null;
         minSpendRwf: number | null;
         requiresCode: boolean;
-        discountRwf: number;
         redeemed: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -412,13 +412,13 @@ export declare const GuestOfferList: z.ZodObject<{
         departmentName: string | null;
         propertyId: string;
         endsOn: string | null;
+        discountRwf: number;
         eligible: boolean;
         discountKind: "percentage" | "fixed_amount";
         discountValue: number;
         minNights: number | null;
         minSpendRwf: number | null;
         requiresCode: boolean;
-        discountRwf: number;
         redeemed: boolean;
     }[];
 }, {
@@ -434,13 +434,13 @@ export declare const GuestOfferList: z.ZodObject<{
         departmentName: string | null;
         propertyId: string;
         endsOn: string | null;
+        discountRwf: number;
         eligible: boolean;
         discountKind: "percentage" | "fixed_amount";
         discountValue: number;
         minNights: number | null;
         minSpendRwf: number | null;
         requiresCode: boolean;
-        discountRwf: number;
         redeemed: boolean;
     }[];
 }>;

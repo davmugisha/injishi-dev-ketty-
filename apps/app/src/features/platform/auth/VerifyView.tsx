@@ -66,7 +66,7 @@ export function VerifyView({
             </h2>
             <p className="text-[17px] leading-7 text-white/85">
               Nothing to remember, nothing to reuse. Use the same email with Google later and it opens this same
-              account, for the stays you book, the place you rent, and anything you host.
+              account, wherever you work in Injishi.
             </p>
           </div>
           <p className="text-[13px] text-white/75">Each code works for 10 minutes, and only for you.</p>
@@ -74,13 +74,13 @@ export function VerifyView({
       </aside>
 
       <main className="flex min-w-0 flex-1 items-center justify-center px-5 py-12 sm:px-8">
-        <div className="flex w-full max-w-[400px] flex-col gap-5">
+        <div className="flex w-full max-w-[440px] flex-col gap-5 rounded-[28px] border border-separator bg-surface p-6 shadow-[0_24px_60px_-36px_rgba(0,0,0,0.35)] sm:p-8">
           <div className="flex items-center justify-between">
             <BrandPalm size={40} className="h-10 w-auto" />
             <ThemeToggle />
           </div>
           <div className="flex flex-col gap-2">
-            <h1 className="text-[30px] leading-9 font-semibold tracking-[-0.02em]">Check your email</h1>
+            <h1 className="text-[30px] leading-9 font-bold tracking-[-0.02em]">Check your email</h1>
             <p className="text-[15px] leading-[22px] text-muted">
               We sent a 6-digit code to <strong className="font-semibold text-foreground">{email}</strong>. It expires
               in{" "}
@@ -129,7 +129,13 @@ export function VerifyView({
                 {state.error}
               </p>
             ) : null}
-            <Button type="submit" fullWidth isPending={pending} isDisabled={code.length !== 6} className="rounded-full">
+            <Button
+              type="submit"
+              fullWidth
+              isPending={pending}
+              isDisabled={code.length !== 6}
+              className="h-12 rounded-xl text-[15px] font-semibold"
+            >
               Verify and continue
             </Button>
           </Form>

@@ -85,8 +85,8 @@ export declare const WorkOrderBlock: z.ZodObject<{
     releasedAt: string | null;
     startsAt: string;
     endsAt: string | null;
-    releasedByName: string | null;
     requestedByName: string | null;
+    releasedByName: string | null;
     requestedAt: string;
     affectedReservations: number;
 }, {
@@ -99,8 +99,8 @@ export declare const WorkOrderBlock: z.ZodObject<{
     releasedAt: string | null;
     startsAt: string;
     endsAt: string | null;
-    releasedByName: string | null;
     requestedByName: string | null;
+    releasedByName: string | null;
     requestedAt: string;
     affectedReservations: number;
 }>;
@@ -227,8 +227,8 @@ export declare const WorkOrder: z.ZodObject<{
         releasedAt: string | null;
         startsAt: string;
         endsAt: string | null;
-        releasedByName: string | null;
         requestedByName: string | null;
+        releasedByName: string | null;
         requestedAt: string;
         affectedReservations: number;
     }, {
@@ -241,8 +241,8 @@ export declare const WorkOrder: z.ZodObject<{
         releasedAt: string | null;
         startsAt: string;
         endsAt: string | null;
-        releasedByName: string | null;
         requestedByName: string | null;
+        releasedByName: string | null;
         requestedAt: string;
         affectedReservations: number;
     }>>;
@@ -288,8 +288,8 @@ export declare const WorkOrder: z.ZodObject<{
         releasedAt: string | null;
         startsAt: string;
         endsAt: string | null;
-        releasedByName: string | null;
         requestedByName: string | null;
+        releasedByName: string | null;
         requestedAt: string;
         affectedReservations: number;
     } | null;
@@ -350,8 +350,8 @@ export declare const WorkOrder: z.ZodObject<{
         releasedAt: string | null;
         startsAt: string;
         endsAt: string | null;
-        releasedByName: string | null;
         requestedByName: string | null;
+        releasedByName: string | null;
         requestedAt: string;
         affectedReservations: number;
     } | null;
@@ -497,8 +497,8 @@ export declare const WorkOrderList: z.ZodObject<{
             releasedAt: string | null;
             startsAt: string;
             endsAt: string | null;
-            releasedByName: string | null;
             requestedByName: string | null;
+            releasedByName: string | null;
             requestedAt: string;
             affectedReservations: number;
         }, {
@@ -511,8 +511,8 @@ export declare const WorkOrderList: z.ZodObject<{
             releasedAt: string | null;
             startsAt: string;
             endsAt: string | null;
-            releasedByName: string | null;
             requestedByName: string | null;
+            releasedByName: string | null;
             requestedAt: string;
             affectedReservations: number;
         }>>;
@@ -558,8 +558,8 @@ export declare const WorkOrderList: z.ZodObject<{
             releasedAt: string | null;
             startsAt: string;
             endsAt: string | null;
-            releasedByName: string | null;
             requestedByName: string | null;
+            releasedByName: string | null;
             requestedAt: string;
             affectedReservations: number;
         } | null;
@@ -620,8 +620,8 @@ export declare const WorkOrderList: z.ZodObject<{
             releasedAt: string | null;
             startsAt: string;
             endsAt: string | null;
-            releasedByName: string | null;
             requestedByName: string | null;
+            releasedByName: string | null;
             requestedAt: string;
             affectedReservations: number;
         } | null;
@@ -708,8 +708,8 @@ export declare const WorkOrderList: z.ZodObject<{
             releasedAt: string | null;
             startsAt: string;
             endsAt: string | null;
-            releasedByName: string | null;
             requestedByName: string | null;
+            releasedByName: string | null;
             requestedAt: string;
             affectedReservations: number;
         } | null;
@@ -781,8 +781,8 @@ export declare const WorkOrderList: z.ZodObject<{
             releasedAt: string | null;
             startsAt: string;
             endsAt: string | null;
-            releasedByName: string | null;
             requestedByName: string | null;
+            releasedByName: string | null;
             requestedAt: string;
             affectedReservations: number;
         } | null;
@@ -990,6 +990,8 @@ export declare const ConditionSignal: z.ZodObject<{
         priority: "low" | "normal" | "high" | "urgent";
         location: string;
     } | null;
+    reviewedByName: string | null;
+    reviewNote: string | null;
     workOrderId: string | null;
     workOrderReference: string | null;
     raisedAt: string;
@@ -1002,9 +1004,7 @@ export declare const ConditionSignal: z.ZodObject<{
     confidence: "low" | "high" | "medium";
     dataQuality: string;
     recommendation: string;
-    reviewedByName: string | null;
     reviewedAt: string | null;
-    reviewNote: string | null;
 }, {
     status: "open" | "actioned" | "dismissed";
     id: string;
@@ -1014,6 +1014,8 @@ export declare const ConditionSignal: z.ZodObject<{
         priority: "low" | "normal" | "high" | "urgent";
         location: string;
     } | null;
+    reviewedByName: string | null;
+    reviewNote: string | null;
     workOrderId: string | null;
     workOrderReference: string | null;
     raisedAt: string;
@@ -1026,9 +1028,7 @@ export declare const ConditionSignal: z.ZodObject<{
     confidence: "low" | "high" | "medium";
     dataQuality: string;
     recommendation: string;
-    reviewedByName: string | null;
     reviewedAt: string | null;
-    reviewNote: string | null;
 }>;
 export type ConditionSignal = z.infer<typeof ConditionSignal>;
 export declare const ConditionSignalList: z.ZodObject<{
@@ -1075,6 +1075,8 @@ export declare const ConditionSignalList: z.ZodObject<{
             priority: "low" | "normal" | "high" | "urgent";
             location: string;
         } | null;
+        reviewedByName: string | null;
+        reviewNote: string | null;
         workOrderId: string | null;
         workOrderReference: string | null;
         raisedAt: string;
@@ -1087,9 +1089,7 @@ export declare const ConditionSignalList: z.ZodObject<{
         confidence: "low" | "high" | "medium";
         dataQuality: string;
         recommendation: string;
-        reviewedByName: string | null;
         reviewedAt: string | null;
-        reviewNote: string | null;
     }, {
         status: "open" | "actioned" | "dismissed";
         id: string;
@@ -1099,6 +1099,8 @@ export declare const ConditionSignalList: z.ZodObject<{
             priority: "low" | "normal" | "high" | "urgent";
             location: string;
         } | null;
+        reviewedByName: string | null;
+        reviewNote: string | null;
         workOrderId: string | null;
         workOrderReference: string | null;
         raisedAt: string;
@@ -1111,9 +1113,7 @@ export declare const ConditionSignalList: z.ZodObject<{
         confidence: "low" | "high" | "medium";
         dataQuality: string;
         recommendation: string;
-        reviewedByName: string | null;
         reviewedAt: string | null;
-        reviewNote: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     signals: {
@@ -1125,6 +1125,8 @@ export declare const ConditionSignalList: z.ZodObject<{
             priority: "low" | "normal" | "high" | "urgent";
             location: string;
         } | null;
+        reviewedByName: string | null;
+        reviewNote: string | null;
         workOrderId: string | null;
         workOrderReference: string | null;
         raisedAt: string;
@@ -1137,9 +1139,7 @@ export declare const ConditionSignalList: z.ZodObject<{
         confidence: "low" | "high" | "medium";
         dataQuality: string;
         recommendation: string;
-        reviewedByName: string | null;
         reviewedAt: string | null;
-        reviewNote: string | null;
     }[];
 }, {
     signals: {
@@ -1151,6 +1151,8 @@ export declare const ConditionSignalList: z.ZodObject<{
             priority: "low" | "normal" | "high" | "urgent";
             location: string;
         } | null;
+        reviewedByName: string | null;
+        reviewNote: string | null;
         workOrderId: string | null;
         workOrderReference: string | null;
         raisedAt: string;
@@ -1163,9 +1165,7 @@ export declare const ConditionSignalList: z.ZodObject<{
         confidence: "low" | "high" | "medium";
         dataQuality: string;
         recommendation: string;
-        reviewedByName: string | null;
         reviewedAt: string | null;
-        reviewNote: string | null;
     }[];
 }>;
 export type ConditionSignalList = z.infer<typeof ConditionSignalList>;

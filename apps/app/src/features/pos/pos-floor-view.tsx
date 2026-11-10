@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRightArrowLeft, Bucket, Plus, Receipt, ShoppingBag } from "@gravity-ui/icons";
-import { Button, Card, Label, Tabs, Toast } from "@heroui/react";
+import { Button, Card, Label, Tabs } from "@heroui/react";
 import { EmptyState } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
 import { useRouter } from "next/navigation";
@@ -25,18 +25,8 @@ import {
   seatAction,
   tableStatusAction,
 } from "./actions";
-import { PosNav } from "./pos-nav";
-import {
-  clock,
-  money,
-  ORDER_COLOR,
-  PosDialog,
-  PosHeader,
-  StatusChip,
-  TABLE_COLOR,
-  usePosAction,
-  usePressKey,
-} from "./shared";
+import { PosShell } from "./pos-shell";
+import { clock, money, ORDER_COLOR, PosDialog, StatusChip, TABLE_COLOR, usePosAction, usePressKey } from "./shared";
 
 /**
  * The floor (POS spec §5, tables and service): every table of the outlet by dining area, with who sits
@@ -91,49 +81,79 @@ export function PosFloorView({
     );
   }
 
+  const tally = (s: TableStatus) => floor.tables.filter((t) => t.status === s).length;
+  const total = floor.tables.length;
+  const stats: { key: string; label: string; value: number; tone: string }[] = [
+    { key: "total", label: "Total tables", value: total, tone: "bg-foreground/70" },
+    { key: "available", label: "Available", value: tally("available"), tone: "bg-success" },
+    { key: "occupied", label: "Occupied", value: tally("occupied"), tone: "bg-warning" },
+    { key: "bill_requested", label: "Bill requested", value: tally("bill_requested"), tone: "bg-danger" },
+    {
+      key: "other",
+      label: "Reserved, cleaning",
+      value: tally("reserved") + tally("cleaning"),
+      tone: "bg-foreground/40",
+    },
+  ];
+
   return (
-    <div className="relative flex h-full flex-col bg-background">
-      <PosHeader title="Floor" outlet={outlet}>
-        {outlets.length > 1 ? (
-          <Tabs
-            variant="secondary"
-            selectedKey={outlet.id}
-            onSelectionChange={(k) => router.push(`/pos/floor?outlet=${String(k)}`)}
-          >
-            <Tabs.ListContainer>
-              <Tabs.List aria-label="Outlet">
-                {outlets.map((o) => (
-                  <Tabs.Tab key={o.id} id={o.id}>
-                    {o.branchName ?? o.name}
-                    <Tabs.Indicator />
-                  </Tabs.Tab>
-                ))}
-              </Tabs.List>
-            </Tabs.ListContainer>
-          </Tabs>
-        ) : null}
-        {sell ? (
+    <PosShell
+      board="PosFloor"
+      title="Floor and tables"
+      subtitle={`${outlet.name}${outlet.branchName ? ` · ${outlet.branchName}` : ""} · live, refreshed every 15 seconds`}
+      outlet={outlet}
+      outlets={outlets}
+      outletId={outlet.id}
+      switchHref="/pos/floor"
+      can={can}
+      actions={
+        sell ? (
           <Button isDisabled={pending} onPress={() => openOrder(undefined)}>
             <ShoppingBag className="size-4" />
             New takeaway
           </Button>
-        ) : null}
-        <PosNav current="PosFloor" outletId={outlet.id} can={can} />
-      </PosHeader>
+        ) : null
+      }
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4 md:flex-row md:overflow-hidden md:px-6">
+        <div className="flex min-w-0 flex-col gap-4 md:flex-1 md:overflow-y-auto md:pb-2">
+          <section
+            data-ui="floor-stats"
+            aria-label="Tables now"
+            className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 xl:grid-cols-5"
+          >
+            {stats.map((s) => (
+              <Card
+                key={s.key}
+                data-stat={s.key}
+                className="min-w-[132px] shrink-0 gap-2 rounded-[20px] p-4 shadow-none sm:min-w-0"
+              >
+                <span className="text-[12px] font-medium text-muted">{s.label}</span>
+                <span className="text-[24px] leading-7 font-bold tabular">{String(s.value).padStart(2, "0")}</span>
+                <span className="h-1.5 overflow-hidden rounded-full bg-default" aria-hidden="true">
+                  <span
+                    className={`block h-full rounded-full ${s.tone}`}
+                    style={{ width: `${total ? Math.max(4, (s.value / total) * 100) : 0}%` }}
+                  />
+                </span>
+              </Card>
+            ))}
+          </section>
 
-      <div className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-5">
           <Tabs variant="secondary" selectedKey={area} onSelectionChange={(k) => setArea(String(k))}>
-            <Tabs.ListContainer>
-              <Tabs.List aria-label="Dining area">
+            <Tabs.ListContainer className="overflow-x-auto pb-1">
+              <Tabs.List aria-label="Dining area" className="gap-2 border-0 shadow-none">
                 {floor.areas.map((a) => (
-                  <Tabs.Tab key={a.id} id={a.id}>
+                  <Tabs.Tab
+                    key={a.id}
+                    id={a.id}
+                    className="h-10 w-auto shrink-0 rounded-full border border-separator bg-surface px-4 text-[13px] font-medium whitespace-nowrap text-foreground/80 transition-colors hover:border-accent/60 data-[selected=true]:border-accent data-[selected=true]:bg-accent data-[selected=true]:font-semibold data-[selected=true]:text-accent-foreground"
+                  >
                     {a.name}
-                    <span className="ml-1 text-muted tabular">
+                    <span className="ml-1.5 rounded-full bg-foreground/8 px-1.5 text-[11px] font-semibold tabular">
                       {floor.tables.filter((t) => t.areaId === a.id && t.status === "available").length}/
-                      {floor.tables.filter((t) => t.areaId === a.id).length}
+                      {floor.tables.filter((t) => t.areaId === a.id).length} free
                     </span>
-                    <Tabs.Indicator />
                   </Tabs.Tab>
                 ))}
               </Tabs.List>
@@ -150,37 +170,48 @@ export function PosFloorView({
               </EmptyState.Header>
             </EmptyState>
           ) : (
-            <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
+            <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))] sm:[grid-template-columns:repeat(auto-fill,minmax(190px,1fr))]">
               {floor.tables
                 .filter((t) => t.areaId === area)
                 .map((t) => (
                   <button
                     key={t.id}
                     type="button"
+                    data-ui="table-card"
+                    data-table={t.label}
+                    data-status={t.status}
+                    data-area={t.areaId}
                     onClick={() => setSelected(t)}
                     aria-pressed={live?.id === t.id}
-                    className={`flex min-h-[112px] flex-col gap-1 rounded-2xl border p-3 text-left transition focus-visible:outline-2 focus-visible:outline-accent ${
+                    className={`flex min-h-[176px] flex-col gap-3 rounded-[20px] border bg-surface p-4 text-left transition focus-visible:outline-2 focus-visible:outline-accent ${
                       live?.id === t.id
-                        ? "border-accent bg-accent/5"
-                        : "border-separator bg-surface hover:border-accent/50"
+                        ? "border-accent shadow-[0_0_0_3px_color-mix(in_oklab,var(--accent)_25%,transparent)]"
+                        : "border-separator hover:border-accent/50"
                     }`}
                   >
                     <span className="flex items-center justify-between gap-2">
-                      <span className="text-[20px] font-semibold">{t.label}</span>
+                      <span className="text-[17px] font-bold">{t.label}</span>
                       <StatusChip color={TABLE_COLOR[t.status]}>{TABLE_STATUS_LABEL[t.status]}</StatusChip>
                     </span>
-                    <span className="text-[12px] text-muted">
-                      {t.sessionId ? `${t.guestCount} of ${t.seats} seats` : `${t.seats} seats`}
+                    <TableGlyph seats={t.seats} guests={t.guestCount ?? 0} status={t.status} />
+                    <span className="grid grid-cols-2 gap-x-2 text-[12px]">
+                      <span className="text-muted">Seats</span>
+                      <span className="text-right text-muted">{t.sessionId ? "To pay" : "Status"}</span>
+                      <span className="font-semibold tabular">
+                        {t.sessionId ? `${t.guestCount} of ${t.seats}` : t.seats}
+                      </span>
+                      <span className="text-right font-semibold tabular">
+                        {t.sessionId
+                          ? t.outstandingRwf > 0
+                            ? money(t.outstandingRwf)
+                            : "Nothing owed"
+                          : TABLE_STATUS_LABEL[t.status]}
+                      </span>
                     </span>
                     {t.sessionId ? (
-                      <>
-                        <span className="text-[12px] text-muted">
-                          {t.waiterName ?? "No waiter"} · since {t.openedAt ? clock(t.openedAt) : ""}
-                        </span>
-                        <span className="text-[13px] font-medium tabular">
-                          {t.outstandingRwf > 0 ? `Owes ${money(t.outstandingRwf)}` : "Nothing owed"}
-                        </span>
-                      </>
+                      <span className="truncate text-[11px] text-muted">
+                        {t.waiterName ?? "No waiter"} · since {t.openedAt ? clock(t.openedAt) : ""}
+                      </span>
                     ) : null}
                   </button>
                 ))}
@@ -201,17 +232,29 @@ export function PosFloorView({
           ) : null}
         </div>
 
-        <aside className="flex w-[340px] shrink-0 flex-col gap-3 overflow-y-auto border-l border-separator bg-surface p-4">
+        {/* On a phone the panel sits under the tables (above them once a table is chosen) and says nothing until then. */}
+        <aside
+          aria-label="Selected table"
+          className={`flex w-full shrink-0 flex-col gap-3 self-start rounded-[20px] border border-separator bg-surface p-5 md:max-h-full md:w-[340px] md:overflow-y-auto ${live ? "max-md:order-first" : "max-xl:hidden"}`}
+        >
           {!live ? (
-            <p className="text-[13px] text-muted">
-              Choose a table to seat a party, open its bill or change its status.
-            </p>
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              <TableGlyph seats={4} guests={0} status="available" />
+              <p className="text-[14px] font-semibold">No table selected</p>
+              <p className="text-[13px] text-muted">
+                Choose a table to seat a party, open its bill or change its status.
+              </p>
+            </div>
           ) : (
             <>
               <div className="flex items-center justify-between">
-                <h2 className="text-[18px] font-semibold">Table {live.label}</h2>
+                <div>
+                  <p className="text-[12px] text-muted">Table</p>
+                  <h2 className="text-[22px] leading-7 font-bold">{live.label}</h2>
+                </div>
                 <StatusChip color={TABLE_COLOR[live.status]}>{TABLE_STATUS_LABEL[live.status]}</StatusChip>
               </div>
+              <TableGlyph seats={live.seats} guests={live.guestCount ?? 0} status={live.status} large />
               {!live.sessionId ? (
                 manageTables && (live.status === "available" || live.status === "reserved") ? (
                   <Button
@@ -389,9 +432,51 @@ export function PosFloorView({
             </div>
           </PosDialog>
         ) : null}
-        <Toast.Provider placement="bottom" />
       </RegionOverlays>
-    </div>
+    </PosShell>
+  );
+}
+
+const GLYPH_TONE: Record<TableStatus, { table: string; seat: string; taken: string }> = {
+  available: { table: "bg-success-soft border-success/40", seat: "bg-success/25", taken: "bg-success" },
+  occupied: { table: "bg-warning-soft border-warning/50", seat: "bg-warning/25", taken: "bg-warning" },
+  reserved: {
+    table: "bg-default border-dashed border-foreground/40",
+    seat: "bg-foreground/15",
+    taken: "bg-foreground/50",
+  },
+  bill_requested: { table: "bg-danger-soft border-danger/40", seat: "bg-danger/25", taken: "bg-danger" },
+  cleaning: { table: "bg-default border-separator", seat: "bg-foreground/15", taken: "bg-foreground/50" },
+};
+
+/** A table seen from above: the top, and its chairs on two sides, the taken ones filled. Decoration only. */
+function TableGlyph({
+  seats,
+  guests,
+  status,
+  large,
+}: {
+  seats: number;
+  guests: number;
+  status: TableStatus;
+  large?: boolean;
+}) {
+  const shown = Math.min(Math.max(seats, 1), 12);
+  const top = Math.ceil(shown / 2);
+  const bottom = shown - top;
+  const tone = GLYPH_TONE[status];
+  const chair = (i: number) => (
+    <span key={i} className={`h-2 w-5 rounded-full ${i < guests ? tone.taken : tone.seat}`} />
+  );
+  return (
+    <span aria-hidden="true" className={`flex flex-col items-center gap-1.5 ${large ? "py-2" : ""}`}>
+      <span className="flex gap-1.5">{Array.from({ length: top }, (_, i) => chair(i))}</span>
+      <span
+        className={`rounded-xl border ${tone.table} ${large ? "h-14" : "h-10"}`}
+        style={{ width: `${Math.max(64, top * 26 + 12)}px` }}
+      />
+      <span className="flex gap-1.5">{Array.from({ length: bottom }, (_, i) => chair(top + i))}</span>
+    </span>
   );
 }
 

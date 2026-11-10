@@ -564,6 +564,17 @@ export const PosSettlement = z.object({
     state: PosPaymentState,
     settled: z.boolean(),
 });
+/**
+ * The customer on an order (CRM, phase 1), small enough to ride on every order read. The phone is masked
+ * here whatever the reader's role: the order screen needs a name to greet, never a number to copy.
+ * Defined here, not in `customers.ts`, because that file imports this one.
+ */
+export const PosOrderCustomer = z.object({
+    id: Uuid,
+    fullName: z.string(),
+    phoneMasked: z.string(),
+});
+export type PosOrderCustomer = z.infer<typeof PosOrderCustomer>;
 export const PosOrder = z.object({
     id: Uuid,
     orderNumber: z.string(),
@@ -574,6 +585,8 @@ export const PosOrder = z.object({
     tableLabel: z.string().nullable(),
     waiterName: z.string().nullable(),
     guestNote: z.string().nullable(),
+    /** Who the bill is for, when the staff attached a customer. Absent on orders read before CRM existed. */
+    customer: PosOrderCustomer.nullable().optional(),
     taxMode: PosTaxMode,
     grossRwf: z.number().int(),
     discountRwf: z.number().int(),
@@ -613,6 +626,10 @@ export const PosTicket = z.object({
     tableLabel: z.string().nullable(),
     waiterName: z.string().nullable(),
     orderType: PosOrderType,
+    /** The order's guest note (a name, an allergy), or null. An order has no customer-name field of its own. */
+    guestNote: z.string().nullable(),
+    /** The table's party size, or null for an order without a table. */
+    guestCount: z.number().int().nullable(),
     items: z.array(PosTicketItem),
     createdAt: z.string(),
     startedAt: z.string().nullable(),
@@ -814,3 +831,137 @@ export const PosListQuery = z.object({
     limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 export type PosListQuery = z.infer<typeof PosListQuery>;
+
+// ---------------------------------------------------------------------------
+// Venue setup: the dining areas, tables, stations, registers and item routing
+// an owner configures. Nothing here is money. Names are unique per outlet, and
+// a table, station or register that is in use is never deleted: it is archived
+// once nothing depends on it (the API refuses, with the reason, until then).
+// ---------------------------------------------------------------------------
+const venueName = z.string().trim().min(1, "Give it a name.").max(60, "Keep the name to 60 characters.");
+const venueSort = z.number().int().min(0).max(9999);
+export const PosVenueArea = z.object({
+    id: Uuid,
+    name: z.string(),
+    sortOrder: z.number().int(),
+    /** Tables in this area that are not archived. */
+    tableCount: z.number().int(),
+});
+export type PosVenueArea = z.infer<typeof PosVenueArea>;
+export const PosVenueTable = z.object({
+    id: Uuid,
+    areaId: Uuid,
+    label: z.string(),
+    seats: z.number().int(),
+    status: TableStatus,
+    sortOrder: z.number().int(),
+    /** A party is seated here now, so the table cannot be archived. */
+    hasOpenSession: z.boolean(),
+});
+export type PosVenueTable = z.infer<typeof PosVenueTable>;
+export const PosVenueStation = z.object({
+    id: Uuid,
+    name: z.string(),
+    kind: PrepStationKind,
+    printerName: z.string().nullable(),
+    sortOrder: z.number().int(),
+    /** Menu items whose tickets go to this station. */
+    routedItems: z.number().int(),
+    /** Tickets still queued, being prepared or ready. */
+    openTickets: z.number().int(),
+});
+export type PosVenueStation = z.infer<typeof PosVenueStation>;
+export const PosVenueRegister = z.object({
+    id: Uuid,
+    name: z.string(),
+    deviceLabel: z.string().nullable(),
+    /** A cashier has a shift open on it now, so it cannot be archived. */
+    hasOpenShift: z.boolean(),
+});
+export type PosVenueRegister = z.infer<typeof PosVenueRegister>;
+export const PosVenueRoute = z.object({
+    serviceItemId: Uuid,
+    name: z.string(),
+    categoryName: z.string().nullable(),
+    /** The station that prepares it, or null when it sends no ticket (a bottle handed over the counter). */
+    stationId: Uuid.nullable(),
+});
+export type PosVenueRoute = z.infer<typeof PosVenueRoute>;
+export const PosVenue = z.object({
+    outletId: Uuid,
+    areas: z.array(PosVenueArea),
+    tables: z.array(PosVenueTable),
+    stations: z.array(PosVenueStation),
+    registers: z.array(PosVenueRegister),
+    routing: z.array(PosVenueRoute),
+});
+export type PosVenue = z.infer<typeof PosVenue>;
+export const CreateAreaRequest = z.object({ name: venueName, sortOrder: venueSort.optional() });
+export type CreateAreaRequest = z.infer<typeof CreateAreaRequest>;
+export const UpdateAreaRequest = CreateAreaRequest.partial().refine((v) => Object.keys(v).length > 0, { message: "Say what to change." });
+export type UpdateAreaRequest = z.infer<typeof UpdateAreaRequest>;
+export const CreateTableRequest = z.object({
+    areaId: Uuid,
+    label: z.string().trim().min(1, "Give the table a label.").max(30, "Keep the label to 30 characters."),
+    seats: z.number().int().min(1, "A table seats at least 1.").max(100, "A table seats at most 100."),
+    sortOrder: venueSort.optional(),
+});
+export type CreateTableRequest = z.infer<typeof CreateTableRequest>;
+export const UpdateTableRequest = CreateTableRequest.partial().refine((v) => Object.keys(v).length > 0, { message: "Say what to change." });
+export type UpdateTableRequest = z.infer<typeof UpdateTableRequest>;
+export const CreateStationRequest = z.object({
+    name: venueName,
+    kind: PrepStationKind,
+    /** The name a SIMULATED print job is addressed to. No device is contacted. */
+    printerName: z.string().trim().max(60).nullable().optional(),
+    sortOrder: venueSort.optional(),
+});
+export type CreateStationRequest = z.infer<typeof CreateStationRequest>;
+export const UpdateStationRequest = CreateStationRequest.partial().refine((v) => Object.keys(v).length > 0, { message: "Say what to change." });
+export type UpdateStationRequest = z.infer<typeof UpdateStationRequest>;
+export const CreateRegisterRequest = z.object({
+    name: venueName,
+    deviceLabel: z.string().trim().max(60).nullable().optional(),
+});
+export type CreateRegisterRequest = z.infer<typeof CreateRegisterRequest>;
+export const UpdateRegisterRequest = CreateRegisterRequest.partial().refine((v) => Object.keys(v).length > 0, { message: "Say what to change." });
+export type UpdateRegisterRequest = z.infer<typeof UpdateRegisterRequest>;
+export const SetItemRouteRequest = z.object({
+    serviceItemId: Uuid,
+    /** null clears the route: the item then sends no ticket. */
+    stationId: Uuid.nullable(),
+});
+export type SetItemRouteRequest = z.infer<typeof SetItemRouteRequest>;
+
+// ---------------------------------------------------------------------------
+// Setup progress: what an owner has configured so far, computed from the
+// records themselves. Never stored, so it cannot drift from the truth, and
+// never a gate: every screen stays open whatever is left.
+// ---------------------------------------------------------------------------
+export const POS_SETUP_STEPS = [
+    "areas",
+    "tables",
+    "stations",
+    "registers",
+    "categories",
+    "products",
+    "routing",
+    "receipts",
+    "team",
+] as const;
+export const PosSetupStepKey = z.enum(POS_SETUP_STEPS);
+export type PosSetupStepKey = z.infer<typeof PosSetupStepKey>;
+export const PosSetupStep = z.object({
+    key: PosSetupStepKey,
+    done: z.boolean(),
+    /** How many of the thing exist (areas, tables, products...). */
+    count: z.number().int(),
+});
+export type PosSetupStep = z.infer<typeof PosSetupStep>;
+export const PosSetup = z.object({
+    outletId: Uuid,
+    steps: z.array(PosSetupStep),
+    doneCount: z.number().int(),
+    total: z.number().int(),
+});
+export type PosSetup = z.infer<typeof PosSetup>;

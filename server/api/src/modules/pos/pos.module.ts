@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { PosCustomerService } from './application/pos-customer.service';
 import { PosExpenseService } from './application/pos-expense.service';
 import { PosFloorService } from './application/pos-floor.service';
 import { PosKitchenService } from './application/pos-kitchen.service';
@@ -9,6 +10,7 @@ import { PosReadService } from './application/pos-read.service';
 import { PosReportService } from './application/pos-report.service';
 import { PosShiftService } from './application/pos-shift.service';
 import { PosStockService } from './application/pos-stock.service';
+import { PosVenueService } from './application/pos-venue.service';
 import { DemoPaymentSimulator, POS_PAYMENT_PORT } from './domain/payment-simulator';
 
 /**
@@ -30,6 +32,8 @@ import { DemoPaymentSimulator, POS_PAYMENT_PORT } from './domain/payment-simulat
     PosStockService,
     PosReportService,
     PosExpenseService,
+    PosVenueService,
+    PosCustomerService,
     { provide: POS_PAYMENT_PORT, useClass: DemoPaymentSimulator },
   ],
   exports: [
@@ -42,6 +46,8 @@ import { DemoPaymentSimulator, POS_PAYMENT_PORT } from './domain/payment-simulat
     PosStockService,
     PosReportService,
     PosExpenseService,
+    PosVenueService,
+    PosCustomerService,
   ],
 })
 export class PosModule {}

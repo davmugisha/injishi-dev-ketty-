@@ -12,7 +12,7 @@ import type {
   PosSalesLine,
 } from '../domain/pos-ops';
 import { COST_OF_GOODS_RATIO, LOW_STOCK_AT } from '../infrastructure/pos-stock';
-import { outletInScope, outletsInScope, type Db } from '../infrastructure/pos-support';
+import { outletInScope, outletsInScope, type Db, type OutletRow } from '../infrastructure/pos-support';
 
 /** Kigali calendar day as `YYYY-MM-DD`. */
 function kigaliDay(at: Date): string {
@@ -53,7 +53,10 @@ const DRINK = /beer|wine|spirit|cocktail|soft|juice|water|coffee|tea|drink|whisk
 export class PosReportService {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
-  private async scope(ws: ScopedWorkspace, outletId?: string) {
+  private async scope(
+    ws: ScopedWorkspace,
+    outletId?: string,
+  ): Promise<{ outlets: OutletRow[]; name: string; id: string | null }> {
     if (outletId) {
       const o = await outletInScope(this.db, ws, outletId);
       return { outlets: [o], name: o.name, id: o.id as string | null };
@@ -89,7 +92,7 @@ export class PosReportService {
     return ids.length ? sql.join(ids.map((i) => sql`${i}`), sql`, `) : sql`NULL`;
   }
 
-  private async live(db: Db, ids: string[]) {
+  private async live(db: Db, ids: string[]): Promise<PosDashboard['live']> {
     if (ids.length === 0) {
       return { activeOrders: [], activeOrderCount: 0, tables: [], openShifts: 0, alerts: { low: 0, out: 0 } };
     }
@@ -102,9 +105,10 @@ export class PosReportService {
         where outlet_id in (${list}) group by 1 order by 1`),
       db.execute(sql`select count(*)::int as n from cashier_shifts where outlet_id in (${list}) and status = 'open'`),
       db.execute(sql`select
-          count(*) filter (where stock_qty is not null and stock_qty > 0 and stock_qty <= ${LOW_STOCK_AT} and status <> 'out_of_stock')::int as low,
-          count(*) filter (where (stock_qty is not null and stock_qty <= 0) or status = 'out_of_stock')::int as out
-        from service_items where outlet_id in (${list})`),
+          count(*) filter (where si.stock_qty is not null and si.stock_qty > 0 and si.stock_qty <= ${LOW_STOCK_AT} and si.status <> 'out_of_stock')::int as low,
+          count(*) filter (where (si.stock_qty is not null and si.stock_qty <= 0) or si.status = 'out_of_stock')::int as out
+        from service_items si left join service_categories sc on sc.id = si.service_category_id
+        where coalesce(si.outlet_id, sc.outlet_id) in (${list})`),
     ]);
     const activeRows = rowsOf<{ status: string; n: number; total: string }>(active);
     return {
@@ -182,11 +186,12 @@ export class PosReportService {
         select count(*)::int as n, coalesce(sum(variance_rwf),0) as variance from cashier_shifts
          where outlet_id in (${list}) and opened_at >= ${start}::timestamptz and opened_at < ${end}::timestamptz`),
       run<{ tracked: number; low: number; out: number; value: string }>(sql`
-        select count(*) filter (where stock_qty is not null)::int as tracked,
-               count(*) filter (where stock_qty > 0 and stock_qty <= ${LOW_STOCK_AT} and status <> 'out_of_stock')::int as low,
-               count(*) filter (where (stock_qty is not null and stock_qty <= 0) or status = 'out_of_stock')::int as out,
-               coalesce(sum(round(price_rwf * ${COST_OF_GOODS_RATIO}::numeric) * greatest(stock_qty,0)) filter (where stock_qty is not null), 0) as value
-          from service_items where outlet_id in (${list})`),
+        select count(*) filter (where si.stock_qty is not null)::int as tracked,
+               count(*) filter (where si.stock_qty > 0 and si.stock_qty <= ${LOW_STOCK_AT} and si.status <> 'out_of_stock')::int as low,
+               count(*) filter (where (si.stock_qty is not null and si.stock_qty <= 0) or si.status = 'out_of_stock')::int as out,
+               coalesce(sum(round(si.price_rwf * ${COST_OF_GOODS_RATIO}::numeric) * greatest(si.stock_qty,0)) filter (where si.stock_qty is not null), 0) as value
+          from service_items si left join service_categories sc on sc.id = si.service_category_id
+         where coalesce(si.outlet_id, sc.outlet_id) in (${list})`),
       db.execute(sql`
         select category::text as category, coalesce(sum(amount_rwf),0) as total from expenses
          where workspace_id = ${ws.workspaceId} and voided_at is null

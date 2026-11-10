@@ -3085,10 +3085,10 @@ export declare const PayRunPage: z.ZodObject<{
         confirmedAt: string | null;
         periodStart: string;
         period: string;
+        netRwf: number;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
-        netRwf: number;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -3104,10 +3104,10 @@ export declare const PayRunPage: z.ZodObject<{
         confirmedAt: string | null;
         periodStart: string;
         period: string;
+        netRwf: number;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
-        netRwf: number;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -3161,10 +3161,10 @@ export declare const PayRunPage: z.ZodObject<{
         confirmedAt: string | null;
         periodStart: string;
         period: string;
+        netRwf: number;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
-        netRwf: number;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -3198,10 +3198,10 @@ export declare const PayRunPage: z.ZodObject<{
         confirmedAt: string | null;
         periodStart: string;
         period: string;
+        netRwf: number;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
-        netRwf: number;
         computedAt: string;
         ruleVersions: {
             configType: string;

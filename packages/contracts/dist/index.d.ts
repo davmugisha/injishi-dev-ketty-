@@ -74,6 +74,7 @@ export * from "./stays-overview";
 export * from "./rates-calendar";
 export * from "./guests";
 export * from "./pos";
+export * from "./customers";
 export * from "./tourism-tax";
 export * from "./offline";
 //# sourceMappingURL=index.d.ts.map

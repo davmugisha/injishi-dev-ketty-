@@ -93,6 +93,9 @@ export * from './guests';
 // Brokers (P5, 2026-10-25): plans and their payments, the registration fee, ratings. A leaf over
 // residence, geography and auth.
 export * from './brokers';
+// Customers of the bar and restaurant (CRM, phase 1): phone-keyed profiles. A leaf over auth and org;
+// `pos.ts` imports it because an order may name a customer.
+export * from './customers';
 // The bar and restaurant point of sale (POS spec, phase 1): tables, orders, kitchen tickets,
 // simulated payments, registers and cashier shifts. A leaf: nothing imports it back.
 export * from './pos';

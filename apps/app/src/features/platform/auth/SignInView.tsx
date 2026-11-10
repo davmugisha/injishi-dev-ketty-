@@ -164,90 +164,102 @@ export function SignInView({
 
       <main className="relative flex min-w-0 flex-1 flex-col items-center px-5 pt-14 pb-12 sm:px-8">
         <ThemeToggle className="absolute top-5 right-5" />
-        <div className="flex w-full max-w-[400px] flex-col items-center gap-5">
-          <BrandPalm size={44} className="h-11 w-auto" />
-          <h1 className="text-center text-[32px] leading-10 font-medium tracking-[-0.02em]">Welcome to Injishi</h1>
+        <div className="flex w-full max-w-[440px] flex-col items-center gap-5">
+          <div className="flex w-full flex-col items-center gap-5 rounded-[28px] border border-separator bg-surface p-6 shadow-[0_24px_60px_-36px_rgba(0,0,0,0.35)] sm:p-8">
+            <BrandPalm size={44} className="h-11 w-auto" />
+            <div className="flex flex-col items-center gap-1.5">
+              <h1 className="text-center text-[30px] leading-9 font-bold tracking-[-0.02em]">Welcome to Injishi</h1>
+              <p className="text-center text-[14px] text-muted">Sign in to run your floor, kitchen, bar and tills.</p>
+            </div>
 
-          {notice ? (
-            <p role="alert" className="w-full text-center text-sm text-danger">
-              {notice}
-            </p>
-          ) : null}
+            {notice ? (
+              <p role="alert" className="w-full text-center text-sm text-danger">
+                {notice}
+              </p>
+            ) : null}
 
-          <div className="flex w-full flex-col items-center gap-2">
-            <span className="text-[13px] text-muted">Continue with</span>
-            {google ? (
-              <GoogleButton next={next} />
+            <div className="flex w-full flex-col items-center gap-2">
+              <span className="text-[13px] text-muted">Continue with</span>
+              {google ? (
+                <GoogleButton next={next} />
+              ) : (
+                <>
+                  <Button variant="secondary" fullWidth isDisabled className="rounded-full">
+                    <span aria-hidden="true" className="font-bold">
+                      G
+                    </span>
+                    Continue with Google
+                  </Button>
+                  <span className="text-xs text-muted">
+                    Sign in with Google is coming soon. Use your email for now.
+                  </span>
+                </>
+              )}
+            </div>
+
+            <div className="flex w-full items-center gap-3">
+              <Separator className="flex-1" />
+              <span className="text-xs text-muted">Or continue with email</span>
+              <Separator className="flex-1" />
+            </div>
+
+            {mode === "password" ? (
+              <PasswordSignInForm
+                next={next}
+                email={email}
+                onEmailChange={setEmail}
+                notice={saved}
+                onForgot={() => {
+                  setSaved(null);
+                  setMode("forgot");
+                }}
+                onUseCode={() => {
+                  setSaved(null);
+                  setMode("code");
+                }}
+              />
+            ) : mode === "forgot" ? (
+              <ForgotPasswordForm
+                email={email}
+                onBack={() => setMode("password")}
+                onDone={(address) => {
+                  setEmail(address);
+                  setSaved("Password saved. Sign in with it.");
+                  setMode("password");
+                }}
+              />
             ) : (
               <>
-                <Button variant="secondary" fullWidth isDisabled className="rounded-full">
-                  <span aria-hidden="true" className="font-bold">
-                    G
-                  </span>
-                  Continue with Google
+                <Form action={formAction} className="flex w-full flex-col gap-3" validationBehavior="aria">
+                  <input type="hidden" name="next" value={next} />
+                  <TextField
+                    name="email"
+                    type="email"
+                    value={email}
+                    onChange={setEmail}
+                    isInvalid={!!state.error}
+                    fullWidth
+                    autoComplete="email"
+                  >
+                    <Label className="mb-1 text-[13px] font-medium">Email</Label>
+                    <Input ref={inputRef} placeholder="Enter your email" className="h-12 rounded-xl" />
+                    {state.error ? <FieldError>{state.error}</FieldError> : null}
+                  </TextField>
+                  <Button
+                    type="submit"
+                    fullWidth
+                    isPending={pending}
+                    className="h-12 rounded-xl text-[15px] font-semibold"
+                  >
+                    Continue
+                  </Button>
+                </Form>
+                <Button variant="ghost" size="sm" className="text-sm text-muted" onPress={() => setMode("password")}>
+                  Sign in with your password
                 </Button>
-                <span className="text-xs text-muted">Sign in with Google is coming soon. Use your email for now.</span>
               </>
             )}
           </div>
-
-          <div className="flex w-full items-center gap-3">
-            <Separator className="flex-1" />
-            <span className="text-xs text-muted">Or continue with email</span>
-            <Separator className="flex-1" />
-          </div>
-
-          {mode === "password" ? (
-            <PasswordSignInForm
-              next={next}
-              email={email}
-              onEmailChange={setEmail}
-              notice={saved}
-              onForgot={() => {
-                setSaved(null);
-                setMode("forgot");
-              }}
-              onUseCode={() => {
-                setSaved(null);
-                setMode("code");
-              }}
-            />
-          ) : mode === "forgot" ? (
-            <ForgotPasswordForm
-              email={email}
-              onBack={() => setMode("password")}
-              onDone={(address) => {
-                setEmail(address);
-                setSaved("Password saved. Sign in with it.");
-                setMode("password");
-              }}
-            />
-          ) : (
-            <>
-              <Form action={formAction} className="flex w-full flex-col gap-3" validationBehavior="aria">
-                <input type="hidden" name="next" value={next} />
-                <TextField
-                  name="email"
-                  type="email"
-                  value={email}
-                  onChange={setEmail}
-                  isInvalid={!!state.error}
-                  fullWidth
-                  autoComplete="email"
-                >
-                  <Label className="sr-only">Email</Label>
-                  <Input ref={inputRef} placeholder="Enter your email" className="rounded-xl" />
-                  {state.error ? <FieldError>{state.error}</FieldError> : null}
-                </TextField>
-                <Button type="submit" variant="secondary" fullWidth isPending={pending} className="rounded-full">
-                  Continue
-                </Button>
-              </Form>
-              <Button variant="ghost" size="sm" className="text-sm text-muted" onPress={() => setMode("password")}>
-                Sign in with your password
-              </Button>
-            </>
-          )}
 
           {/* Only with someone to list: a demo database without its seeds has nobody to offer. */}
           {demo && (personas.length > 0 || roster.length > 0) ? (
@@ -306,7 +318,8 @@ export function SignInView({
                 <section className="flex flex-col gap-2.5 pt-1" aria-label="More demo people">
                   <h3 className="pt-1 text-xs font-semibold tracking-wider text-muted uppercase">More demo people</h3>
                   <p className="text-[13px] leading-[18px] text-muted">
-                    The people the API&rsquo;s demo seeds create, the PSF District, Provincial and National Managers among them.
+                    The people the API&rsquo;s demo seeds create, the PSF District, Provincial and National Managers
+                    among them.
                   </p>
                   {roster.map((r) => (
                     <Card key={r.email} variant="transparent" className="gap-1.5 p-3.5 ring-1 ring-border">

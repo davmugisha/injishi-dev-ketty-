@@ -89,12 +89,12 @@ export declare const DepositRefund: z.ZodDiscriminatedUnion<"method", [z.ZodObje
     payerPhone: z.ZodPipeline<z.ZodEffects<z.ZodString, string | null, string>, z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     method: "gateway";
-    tenantPhone: string;
     payerPhone: string;
+    tenantPhone: string;
 }, {
     method: "gateway";
-    tenantPhone: string;
     payerPhone: string;
+    tenantPhone: string;
 }>, z.ZodObject<{
     method: z.ZodLiteral<"recorded">;
     paidOn: z.ZodEffects<z.ZodString, string, string>;
@@ -138,12 +138,12 @@ export declare const SettleDepositRequest: z.ZodObject<{
         payerPhone: z.ZodPipeline<z.ZodEffects<z.ZodString, string | null, string>, z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         method: "gateway";
-        tenantPhone: string;
         payerPhone: string;
+        tenantPhone: string;
     }, {
         method: "gateway";
-        tenantPhone: string;
         payerPhone: string;
+        tenantPhone: string;
     }>, z.ZodObject<{
         method: z.ZodLiteral<"recorded">;
         paidOn: z.ZodEffects<z.ZodString, string, string>;
@@ -167,8 +167,8 @@ export declare const SettleDepositRequest: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     refund: {
         method: "gateway";
-        tenantPhone: string;
         payerPhone: string;
+        tenantPhone: string;
     } | {
         method: "recorded";
         paidOn: string;
@@ -185,8 +185,8 @@ export declare const SettleDepositRequest: z.ZodObject<{
 }, {
     refund: {
         method: "gateway";
-        tenantPhone: string;
         payerPhone: string;
+        tenantPhone: string;
     } | {
         method: "recorded";
         paidOn: string;

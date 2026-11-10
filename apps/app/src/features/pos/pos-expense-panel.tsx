@@ -48,14 +48,24 @@ export function PosExpensePanel({
       note="Recorded costs of running the business. Voided ones are removed from the totals and kept in the audit trail."
       action={
         canManage ? (
-          <Button size="sm" onPress={() => setForm({ category: "utilities", method: "cash", amount: "", payee: "", note: "" })}>
+          <Button
+            size="sm"
+            onPress={() => setForm({ category: "utilities", method: "cash", amount: "", payee: "", note: "" })}
+          >
             Record expense
           </Button>
         ) : null
       }
     >
       <DataTable
-        columns={[{ label: "Date" }, { label: "Category" }, { label: "Paid to" }, { label: "Method" }, { label: "Amount", align: "right" }, { label: "" }]}
+        columns={[
+          { label: "Date" },
+          { label: "Category" },
+          { label: "Paid to" },
+          { label: "Method" },
+          { label: "Amount", align: "right" },
+          { label: "" },
+        ]}
         empty="No expenses recorded in this period."
         rows={rows.map((r) => [
           shortDay(r.paidOn),
@@ -109,24 +119,28 @@ export function PosExpensePanel({
             </>
           }
         >
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Category">
+          <fieldset className="flex flex-wrap gap-1.5 m-0 min-w-0 border-0 p-0" aria-label="Category">
             {CATEGORIES.map((c) => (
               <ToggleButton key={c} isSelected={form.category === c} onChange={() => setForm({ ...form, category: c })}>
                 {EXPENSE_CATEGORY_NAME[c]}
               </ToggleButton>
             ))}
-          </div>
+          </fieldset>
           <TextField value={form.amount} onChange={(v) => setForm({ ...form, amount: v })} fullWidth isRequired>
             <Label>Amount (RWF)</Label>
             <Input inputMode="numeric" className="tabular" />
           </TextField>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="How it was paid">
+          <fieldset className="flex flex-wrap gap-1.5 m-0 min-w-0 border-0 p-0" aria-label="How it was paid">
             {METHODS.map(([value, label]) => (
-              <ToggleButton key={value} isSelected={form.method === value} onChange={() => setForm({ ...form, method: value })}>
+              <ToggleButton
+                key={value}
+                isSelected={form.method === value}
+                onChange={() => setForm({ ...form, method: value })}
+              >
                 {label}
               </ToggleButton>
             ))}
-          </div>
+          </fieldset>
           <TextField value={form.payee} onChange={(v) => setForm({ ...form, payee: v })} fullWidth>
             <Label>Paid to (optional)</Label>
             <Input />
@@ -153,7 +167,11 @@ export function PosExpensePanel({
                 variant="danger"
                 isDisabled={pending || voiding.reason.trim().length < 3}
                 onPress={() =>
-                  run(() => voidExpenseAction(voiding.row.id, voiding.reason.trim()), "Expense voided", () => setVoiding(null))
+                  run(
+                    () => voidExpenseAction(voiding.row.id, voiding.reason.trim()),
+                    "Expense voided",
+                    () => setVoiding(null),
+                  )
                 }
               >
                 Void expense
@@ -161,7 +179,12 @@ export function PosExpensePanel({
             </>
           }
         >
-          <TextField value={voiding.reason} onChange={(v) => setVoiding({ ...voiding, reason: v })} fullWidth isRequired>
+          <TextField
+            value={voiding.reason}
+            onChange={(v) => setVoiding({ ...voiding, reason: v })}
+            fullWidth
+            isRequired
+          >
             <Label>Why is it being voided? (required)</Label>
             <Input />
           </TextField>

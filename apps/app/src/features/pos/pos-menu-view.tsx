@@ -4,10 +4,8 @@ import { Magnifier } from "@gravity-ui/icons";
 import { Card, Chip, SearchField, ToggleButton } from "@heroui/react";
 import { useMemo, useState } from "react";
 import type { PosMenu, PosOutlet, PosStationRow } from "@/server/pos";
-import { OutletSwitch } from "./back-office";
 import { rwf } from "./format";
-import { PosNav } from "./pos-nav";
-import { PosHeader } from "./shared";
+import { PosShell } from "./pos-shell";
 
 /** The groups the menu is shown in, in the order a guest reads it (POS spec section 7). */
 const GROUPS = ["Beer", "Wine", "Spirits", "Soft drinks", "Water", "Food", "Cocktails", "Other services"] as const;
@@ -66,14 +64,19 @@ export function PosMenuView({
   const unavailable = menu.items.filter((i) => !i.available).length;
 
   return (
-    <div className="relative flex h-full flex-col bg-background">
-      <PosHeader title="Menu and products" outlet={outlet}>
-        <OutletSwitch outlets={outlets} current={outlet.id} href="/pos/menu" />
-        <PosNav current="PosMenu" outletId={outlet.id} can={can} />
-      </PosHeader>
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
+    <PosShell
+      board="PosMenu"
+      title="Menu and products"
+      subtitle="What this outlet sells, and what is on sale now"
+      outlet={outlet}
+      outlets={outlets}
+      outletId={outlet.id}
+      switchHref="/pos/menu"
+      can={can}
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 md:px-6">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap gap-1" role="group" aria-label="Menu group">
+          <fieldset className="flex flex-wrap gap-1 m-0 min-w-0 border-0 p-0" aria-label="Menu group">
             <ToggleButton size="sm" isSelected={group === "All"} onChange={() => setGroup("All")}>
               All ({menu.items.length})
             </ToggleButton>
@@ -82,7 +85,7 @@ export function PosMenuView({
                 {g} ({counts.get(g)})
               </ToggleButton>
             ))}
-          </div>
+          </fieldset>
           <span className="flex-1" />
           <SearchField value={query} onChange={setQuery} aria-label="Search the menu" className="w-[220px]">
             <SearchField.Group>
@@ -96,7 +99,9 @@ export function PosMenuView({
         </div>
         <p className="text-[12px] text-muted">
           {outlet.settings.taxMode === "inclusive" ? "Prices include tax." : "Tax is added to these prices."}{" "}
-          {unavailable > 0 ? `${unavailable} item${unavailable === 1 ? " is" : "s are"} not on sale right now.` : "Everything is on sale."}
+          {unavailable > 0
+            ? `${unavailable} item${unavailable === 1 ? " is" : "s are"} not on sale right now.`
+            : "Everything is on sale."}
         </p>
 
         {shown.length === 0 ? (
@@ -126,7 +131,9 @@ export function PosMenuView({
                       </Chip>
                       {i.options.length > 0 ? (
                         <Chip size="sm" variant="soft">
-                          <Chip.Label>{i.options.length} choice{i.options.length === 1 ? "" : "s"}</Chip.Label>
+                          <Chip.Label>
+                            {i.options.length} choice{i.options.length === 1 ? "" : "s"}
+                          </Chip.Label>
                         </Chip>
                       ) : null}
                     </div>
@@ -137,6 +144,6 @@ export function PosMenuView({
           </ul>
         )}
       </div>
-    </div>
+    </PosShell>
   );
 }

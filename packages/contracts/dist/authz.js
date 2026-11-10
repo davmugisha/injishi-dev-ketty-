@@ -271,6 +271,22 @@ exports.Permission = zod_1.z.enum([
      * valuation. Owner, manager and the stock controller (POS spec, section 8).
      */
     "stock.manage",
+    /**
+     * Find and read the business's customers (CRM, phase 1). Owner, manager, cashier, waiter and
+     * bartender. Without `customer.manage` the phone and email are masked and the book can only be
+     * searched, never listed.
+     */
+    "customer.view",
+    /**
+     * Register a customer, correct their details and note their preferences, and put one on a bill.
+     * Owner, manager and cashier by default; a business may grant it to the waiter (ADR-055).
+     */
+    "customer.manage",
+    /**
+     * Merge a duplicate customer into the right one, export everything held about a customer, and erase
+     * their personal details. Owner and manager: these are the data-protection acts.
+     */
+    "customer.admin",
 ]);
 const ALL = exports.Permission.options;
 /**
@@ -391,9 +407,11 @@ const ROLE_PERMISSIONS = {
         "pos.discount",
         "table.manage",
         "register.operate",
+        "customer.view",
+        "customer.manage",
     ]),
-    waiter: new Set(["pos.sell", "table.manage"]),
-    bartender: new Set(["pos.sell", "table.manage", "kitchen.work"]),
+    waiter: new Set(["pos.sell", "table.manage", "customer.view"]),
+    bartender: new Set(["pos.sell", "table.manage", "kitchen.work", "customer.view"]),
     kitchen: new Set(["kitchen.work"]),
     // The stock controller counts the stock and records damage and waste (`stock.manage`); it sells,
     // discounts and refunds nothing.
@@ -460,6 +478,9 @@ exports.PERMISSION_LABEL = {
     "register.operate": "run a cashier shift",
     "shift.review": "review cashier shifts and paid outs",
     "stock.manage": "count stock and record damage and waste",
+    "customer.view": "find and read customers",
+    "customer.manage": "register and correct customers",
+    "customer.admin": "merge, export and erase customer records",
 };
 // ---------------------------------------------------------------------------
 // A business's own role customisation
@@ -661,6 +682,9 @@ exports.PERMISSION_AREA_OF = {
     "register.operate": "money",
     "shift.review": "money",
     "stock.manage": "services",
+    "customer.view": "services",
+    "customer.manage": "services",
+    "customer.admin": "services",
 };
 // ---------------------------------------------------------------------------
 // What each role may do, at THIS business

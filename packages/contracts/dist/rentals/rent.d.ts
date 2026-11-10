@@ -1041,8 +1041,8 @@ export declare const RentRollRow: z.ZodObject<{
         propertyName: string;
         blockCode: string | null;
     };
-    expectedRwf: number;
     outstandingRwf: number;
+    expectedRwf: number;
     daysOverdue: number;
     charge: {
         status: "open" | "paid" | "waived";
@@ -1094,8 +1094,8 @@ export declare const RentRollRow: z.ZodObject<{
         propertyName: string;
         blockCode: string | null;
     };
-    expectedRwf: number;
     outstandingRwf: number;
+    expectedRwf: number;
     daysOverdue: number;
     charge: {
         status: "open" | "paid" | "waived";
@@ -1293,8 +1293,8 @@ export declare const RentRoll: z.ZodObject<{
             propertyName: string;
             blockCode: string | null;
         };
-        expectedRwf: number;
         outstandingRwf: number;
+        expectedRwf: number;
         daysOverdue: number;
         charge: {
             status: "open" | "paid" | "waived";
@@ -1346,8 +1346,8 @@ export declare const RentRoll: z.ZodObject<{
             propertyName: string;
             blockCode: string | null;
         };
-        expectedRwf: number;
         outstandingRwf: number;
+        expectedRwf: number;
         daysOverdue: number;
         charge: {
             status: "open" | "paid" | "waived";
@@ -1389,16 +1389,16 @@ export declare const RentRoll: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         leases: number;
         collectedRwf: number;
+        outstandingRwf: number;
         overdueRwf: number;
         expectedRwf: number;
-        outstandingRwf: number;
         overdueLeases: number;
     }, {
         leases: number;
         collectedRwf: number;
+        outstandingRwf: number;
         overdueRwf: number;
         expectedRwf: number;
-        outstandingRwf: number;
         overdueLeases: number;
     }>;
 }, "strip", z.ZodTypeAny, {
@@ -1423,8 +1423,8 @@ export declare const RentRoll: z.ZodObject<{
             propertyName: string;
             blockCode: string | null;
         };
-        expectedRwf: number;
         outstandingRwf: number;
+        expectedRwf: number;
         daysOverdue: number;
         charge: {
             status: "open" | "paid" | "waived";
@@ -1459,9 +1459,9 @@ export declare const RentRoll: z.ZodObject<{
     totals: {
         leases: number;
         collectedRwf: number;
+        outstandingRwf: number;
         overdueRwf: number;
         expectedRwf: number;
-        outstandingRwf: number;
         overdueLeases: number;
     };
     month: string;
@@ -1488,8 +1488,8 @@ export declare const RentRoll: z.ZodObject<{
             propertyName: string;
             blockCode: string | null;
         };
-        expectedRwf: number;
         outstandingRwf: number;
+        expectedRwf: number;
         daysOverdue: number;
         charge: {
             status: "open" | "paid" | "waived";
@@ -1524,9 +1524,9 @@ export declare const RentRoll: z.ZodObject<{
     totals: {
         leases: number;
         collectedRwf: number;
+        outstandingRwf: number;
         overdueRwf: number;
         expectedRwf: number;
-        outstandingRwf: number;
         overdueLeases: number;
     };
     month: string;
@@ -1560,12 +1560,12 @@ export declare const RentSummary: z.ZodObject<{
     month: string;
     collectedRwf: number;
     today: string;
+    paidOutRwf: number;
+    outstandingRwf: number;
     overdueRwf: number;
     overdueCharges: number;
     expectedRwf: number;
-    outstandingRwf: number;
     depositsCollectedRwf: number;
-    paidOutRwf: number;
     heldRwf: number;
     creditHeldRwf: number;
 }, {
@@ -1573,12 +1573,12 @@ export declare const RentSummary: z.ZodObject<{
     month: string;
     collectedRwf: number;
     today: string;
+    paidOutRwf: number;
+    outstandingRwf: number;
     overdueRwf: number;
     overdueCharges: number;
     expectedRwf: number;
-    outstandingRwf: number;
     depositsCollectedRwf: number;
-    paidOutRwf: number;
     heldRwf: number;
     creditHeldRwf: number;
 }>;
@@ -2054,8 +2054,8 @@ export declare const TenantChargeList: z.ZodObject<{
         daysOverdue: number;
         waivedReason: string | null;
     }[];
-    overdueRwf: number;
     outstandingRwf: number;
+    overdueRwf: number;
     creditRwf: number;
     pendingPaymentId: string | null;
     maxPaymentRwf: number;
@@ -2078,8 +2078,8 @@ export declare const TenantChargeList: z.ZodObject<{
         daysOverdue: number;
         waivedReason: string | null;
     }[];
-    overdueRwf: number;
     outstandingRwf: number;
+    overdueRwf: number;
     creditRwf: number;
     pendingPaymentId: string | null;
     maxPaymentRwf: number;

@@ -38,6 +38,7 @@ import { isSellable, readOptions } from '../../outlets/domain/sellable-item';
 import { presentOrder, presentOrderSummaries, presentShift, presentTickets } from '../infrastructure/pos-present';
 import {
   audit,
+  itemInOutlet,
   namesOf,
   orderInScope,
   outletInScope,
@@ -134,8 +135,9 @@ export class PosReadService {
       this.db
         .select({ item: serviceItems, stationId: posItemRoutes.stationId })
         .from(serviceItems)
+        .innerJoin(serviceCategories, eq(serviceCategories.id, serviceItems.serviceCategoryId))
         .leftJoin(posItemRoutes, eq(posItemRoutes.serviceItemId, serviceItems.id))
-        .where(and(eq(serviceItems.outletId, outlet.id), ne(serviceItems.status, 'archived')))
+        .where(and(itemInOutlet(outlet.id), ne(serviceItems.status, 'archived')))
         .orderBy(asc(serviceItems.name)),
       taxRatesBps(this.db, new Date()),
     ]);
@@ -323,7 +325,11 @@ export class PosReadService {
       .where(and(...conditions))
       .orderBy(desc(cashierShifts.openedAt))
       .limit(query.limit);
-    return Promise.all(rows.map((s) => presentShift(this.db, s)));
+    // One at a time: each shift already runs several queries in parallel, and presenting twenty shifts at once asked the
+    // pool for sixty connections, so a long shift history (or a busy moment) answered 500 "timeout exceeded when trying to connect".
+    const shifts: PosShift[] = [];
+    for (const row of rows) shifts.push(await presentShift(this.db, row));
+    return shifts;
   }
 
   /** The caller's own open shift at this outlet, or null. */

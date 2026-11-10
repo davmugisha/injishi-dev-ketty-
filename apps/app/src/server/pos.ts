@@ -163,6 +163,8 @@ export interface PosOrder {
   tableLabel: string | null;
   waiterName: string | null;
   guestNote: string | null;
+  /** Who the bill is for, when a customer was attached (CRM). Only the name and a masked number. */
+  customer?: { id: string; fullName: string; phoneMasked: string } | null;
   taxMode: TaxMode;
   grossRwf: number;
   discountRwf: number;
@@ -191,6 +193,8 @@ export interface PosTicket {
   tableLabel: string | null;
   waiterName: string | null;
   orderType: OrderType;
+  guestNote: string | null;
+  guestCount: number | null;
   items: {
     id: string;
     orderItemId: string;
@@ -448,6 +452,15 @@ export function posPermissions(ctx: SourceContext): Set<string> {
   }
 }
 
+/** The person's role in this business (`bartender`, `cashier`…), for choosing a starting view only. */
+export function roleOf(ctx: SourceContext): string | null {
+  try {
+    return ctx.ops().workspace.orgRole ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Back office: dashboard, reports, stock, expenses (POS spec sections 4, 8, 13 and 15) ────────────────
 
 export type StockLevel = "untracked" | "ok" | "low" | "out";
@@ -555,6 +568,24 @@ export interface PosDashboard {
 
 export const posDashboard = (ctx: SourceContext, outletId?: string) =>
   ctx.ops().get<PosDashboard>(`${P}/dashboard`, { query: { outletId } });
+
+/** One recorded POS action: who did it, when, at which outlet, what changed and the reason they gave. */
+export interface PosAuditEvent {
+  id: string;
+  occurredAt: string;
+  actorName: string | null;
+  outletId: string | null;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  reason: string | null;
+}
+
+/** The POS audit trail (money.view, shift.review or pos.override), newest first. */
+export const posAudit = (ctx: SourceContext, query: { outletId?: string; from?: string; limit?: number }) =>
+  ctx.ops().get<PosAuditEvent[]>(`${P}/audit`, { query });
 export const posReport = (ctx: SourceContext, query: { outletId?: string; from?: string; to?: string }) =>
   ctx.ops().get<PosReport>(`${P}/reports`, { query });
 export const posStock = (ctx: SourceContext, outletId: string) =>
@@ -599,4 +630,327 @@ export const posBackOffice = {
   ) => ctx.ops().post<PosExpenseRow>(`${P}/expenses`, body),
   voidExpense: (ctx: SourceContext, expenseId: string, reason: string) =>
     ctx.ops().post<PosExpenseRow>(`${P}/expenses/${expenseId}/void`, { reason }),
+};
+
+// ── Venue setup and menu management (the owner configures the floor and the menu) ──────────────────────
+// Venue shapes mirror PosVenue / PosSetup in contracts (`/ops/pos/outlets/:id/venue`, `outlet.manage`). The menu
+// is the existing catalogue (`/ops/service-catalog`, `menu.manage`): nothing about it is new on the API side.
+
+export interface PosVenueArea {
+  id: string;
+  name: string;
+  sortOrder: number;
+  tableCount: number;
+}
+export interface PosVenueTable {
+  id: string;
+  areaId: string;
+  label: string;
+  seats: number;
+  status: TableStatus;
+  sortOrder: number;
+  hasOpenSession: boolean;
+}
+export interface PosVenueStation {
+  id: string;
+  name: string;
+  kind: StationKind;
+  printerName: string | null;
+  sortOrder: number;
+  routedItems: number;
+  openTickets: number;
+}
+export interface PosVenueRegister {
+  id: string;
+  name: string;
+  deviceLabel: string | null;
+  hasOpenShift: boolean;
+}
+export interface PosVenueRoute {
+  serviceItemId: string;
+  name: string;
+  categoryName: string | null;
+  stationId: string | null;
+}
+export interface PosVenue {
+  outletId: string;
+  areas: PosVenueArea[];
+  tables: PosVenueTable[];
+  stations: PosVenueStation[];
+  registers: PosVenueRegister[];
+  routing: PosVenueRoute[];
+}
+
+export type SetupStepKey =
+  | "areas"
+  | "tables"
+  | "stations"
+  | "registers"
+  | "categories"
+  | "products"
+  | "routing"
+  | "receipts"
+  | "team";
+export interface PosSetup {
+  outletId: string;
+  steps: { key: SetupStepKey; done: boolean; count: number }[];
+  doneCount: number;
+  total: number;
+}
+
+export type CatalogStatus = "active" | "out_of_stock" | "archived";
+export interface CatalogItem {
+  id: string;
+  serviceCategoryId: string;
+  departmentId: string;
+  name: string;
+  description: string | null;
+  priceRwf: number;
+  taxCode: string;
+  fulfillmentType: string;
+  prepTimeMinutes: number | null;
+  guestOrderable: boolean;
+  stockQty: number | null;
+  status: CatalogStatus;
+  rraItemClsCd: string | null;
+  rraItemClsName: string | null;
+  rraItemTyCd: string | null;
+  rraItemCd: string | null;
+  rraPkgUnitCd: string | null;
+  rraQtyUnitCd: string | null;
+  /** What still stops this item selling (the RRA codes a receipt needs). */
+  missingRra: string[];
+}
+export interface CatalogCategory {
+  id: string;
+  departmentId: string;
+  departmentName: string | null;
+  outletId: string | null;
+  name: string;
+  sortOrder: number;
+  guestVisible: boolean;
+  status: string;
+  defaultRraItemClsCd: string | null;
+  defaultRraItemTyCd: string | null;
+  defaultRraPkgUnitCd: string | null;
+  defaultRraQtyUnitCd: string | null;
+  defaultTaxCode: string | null;
+  items: CatalogItem[];
+}
+export interface PosCatalog {
+  categories: CatalogCategory[];
+}
+/** The slice of an operator outlet a menu needs to create a category under it. */
+export interface PosOutletRef {
+  id: string;
+  name: string;
+  departmentId: string;
+  propertyId: string | null;
+}
+
+export const posVenue = (ctx: SourceContext, outletId: string) =>
+  ctx.ops().get<PosVenue>(`${P}/outlets/${outletId}/venue`);
+export const posSetup = (ctx: SourceContext, outletId: string) =>
+  ctx.ops().get<PosSetup>(`${P}/outlets/${outletId}/setup`);
+export const posCatalog = (ctx: SourceContext) => ctx.ops().get<PosCatalog>("/api/v1/ops/service-catalog");
+export async function posOutletRefs(ctx: SourceContext): Promise<PosOutletRef[]> {
+  const res = await ctx.ops().get<{ outlets: PosOutletRef[] }>("/api/v1/ops/outlets");
+  return res.outlets.map((o) => ({ id: o.id, name: o.name, departmentId: o.departmentId, propertyId: o.propertyId }));
+}
+
+const V = (outletId: string) => `${P}/outlets/${outletId}/venue`;
+export interface SettingsInput {
+  taxMode?: TaxMode;
+  discountLimitBps?: number;
+  enabledMethods?: PaymentMethod[];
+  receiptHeader?: string;
+  receiptFooter?: string;
+}
+/**
+ * Where a business's FIRST outlet goes. Registration gives every business a head-office branch and the standard
+ * department chart, which includes "Food and Beverage"; an outlet belongs to a department and a branch, so the
+ * Food and Beverage department (which carries its branch) is exactly what creating the first outlet needs.
+ */
+export async function posFirstOutletTarget(
+  ctx: SourceContext,
+): Promise<{ departmentId: string; propertyId: string } | null> {
+  const res = await ctx
+    .ops()
+    .get<{ departments: { id: string; propertyId: string | null; departmentCategory: string }[] }>(
+      "/api/v1/ops/departments",
+    );
+  const dept = res.departments.find((d) => d.departmentCategory === "fnb" && d.propertyId);
+  return dept?.propertyId ? { departmentId: dept.id, propertyId: dept.propertyId } : null;
+}
+export const outletWrite = {
+  create: (
+    ctx: SourceContext,
+    body: { name: string; outletKind: "restaurant" | "bar"; departmentId: string; propertyId: string },
+  ) => ctx.ops().post<{ id: string; name: string }>("/api/v1/ops/outlets", body),
+};
+
+export const venueWrite = {
+  updateSettings: (ctx: SourceContext, outletId: string, body: SettingsInput) =>
+    ctx.ops().patch<PosOutlet>(`${P}/outlets/${outletId}/settings`, body),
+  createArea: (ctx: SourceContext, outletId: string, body: { name: string }) =>
+    ctx.ops().post<PosVenue>(`${V(outletId)}/areas`, body),
+  updateArea: (ctx: SourceContext, outletId: string, id: string, body: { name?: string }) =>
+    ctx.ops().patch<PosVenue>(`${V(outletId)}/areas/${id}`, body),
+  archiveArea: (ctx: SourceContext, outletId: string, id: string) =>
+    ctx.ops().post<PosVenue>(`${V(outletId)}/areas/${id}/archive`, {}),
+  createTable: (ctx: SourceContext, outletId: string, body: { areaId: string; label: string; seats: number }) =>
+    ctx.ops().post<PosVenue>(`${V(outletId)}/tables`, body),
+  updateTable: (
+    ctx: SourceContext,
+    outletId: string,
+    id: string,
+    body: { areaId?: string; label?: string; seats?: number },
+  ) => ctx.ops().patch<PosVenue>(`${V(outletId)}/tables/${id}`, body),
+  archiveTable: (ctx: SourceContext, outletId: string, id: string) =>
+    ctx.ops().post<PosVenue>(`${V(outletId)}/tables/${id}/archive`, {}),
+  createStation: (
+    ctx: SourceContext,
+    outletId: string,
+    body: { name: string; kind: StationKind; printerName?: string | null },
+  ) => ctx.ops().post<PosVenue>(`${V(outletId)}/stations`, body),
+  updateStation: (
+    ctx: SourceContext,
+    outletId: string,
+    id: string,
+    body: { name?: string; kind?: StationKind; printerName?: string | null },
+  ) => ctx.ops().patch<PosVenue>(`${V(outletId)}/stations/${id}`, body),
+  archiveStation: (ctx: SourceContext, outletId: string, id: string) =>
+    ctx.ops().post<PosVenue>(`${V(outletId)}/stations/${id}/archive`, {}),
+  createRegister: (ctx: SourceContext, outletId: string, body: { name: string; deviceLabel?: string | null }) =>
+    ctx.ops().post<PosVenue>(`${V(outletId)}/registers`, body),
+  updateRegister: (
+    ctx: SourceContext,
+    outletId: string,
+    id: string,
+    body: { name?: string; deviceLabel?: string | null },
+  ) => ctx.ops().patch<PosVenue>(`${V(outletId)}/registers/${id}`, body),
+  archiveRegister: (ctx: SourceContext, outletId: string, id: string) =>
+    ctx.ops().post<PosVenue>(`${V(outletId)}/registers/${id}/archive`, {}),
+  setRoute: (ctx: SourceContext, outletId: string, serviceItemId: string, stationId: string | null) =>
+    ctx.ops().put<PosVenue>(`${V(outletId)}/routing`, { serviceItemId, stationId }),
+};
+
+const CAT = "/api/v1/ops/service-catalog";
+export interface ItemInput {
+  serviceCategoryId?: string;
+  name?: string;
+  description?: string;
+  priceRwf?: number;
+  taxCode?: string;
+  prepTimeMinutes?: number;
+  guestOrderable?: boolean;
+  stockQty?: number | null;
+  status?: CatalogStatus;
+}
+export interface CategoryInput {
+  name?: string;
+  guestVisible?: boolean;
+  sortOrder?: number;
+  defaultRraItemClsCd?: string;
+  defaultRraItemTyCd?: string;
+  defaultRraPkgUnitCd?: string;
+  defaultRraQtyUnitCd?: string;
+  defaultTaxCode?: string;
+}
+export const catalogWrite = {
+  createCategory: (
+    ctx: SourceContext,
+    body: CategoryInput & { name: string; propertyId: string; departmentId: string; outletId: string },
+  ) => ctx.ops().post<PosCatalog>(`${CAT}/categories`, body),
+  updateCategory: (ctx: SourceContext, id: string, body: CategoryInput) =>
+    ctx.ops().patch<PosCatalog>(`${CAT}/categories/${id}`, body),
+  createItem: (ctx: SourceContext, body: ItemInput & { serviceCategoryId: string; name: string; priceRwf: number }) =>
+    ctx.ops().post<PosCatalog>(`${CAT}/items`, { fulfillmentType: "onsite", ...body }),
+  updateItem: (ctx: SourceContext, id: string, body: ItemInput) =>
+    ctx.ops().patch<PosCatalog>(`${CAT}/items/${id}`, body),
+};
+
+// ── Customers (CRM, phase 1) ──────────────────────────────────────────────────────────────────────────
+// Shapes mirror CustomerList / CustomerProfile in contracts (`/ops/pos/customers`). The phone comes back masked
+// unless the person holds `customer.manage` (`contactHidden` says which), and a role that may only look customers
+// up gets an empty list until it has typed enough to search (`searchRequired`).
+
+export interface PosCustomerSummary {
+  id: string;
+  fullName: string;
+  phone: string;
+  email: string | null;
+  contactHidden: boolean;
+  marketingConsent: boolean;
+  source: "pos" | "qr" | "reservation" | "import";
+  visitCount: number;
+  lifetimeSpendRwf: number;
+  lastVisitAt: string | null;
+  createdAt: string;
+}
+
+export interface PosCustomerList {
+  customers: PosCustomerSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+  searchRequired: boolean;
+  contactHidden: boolean;
+}
+
+export interface PosCustomerOrderRow {
+  orderId: string;
+  orderNumber: string;
+  outletName: string;
+  orderType: OrderType;
+  tableLabel: string | null;
+  status: OrderStatus;
+  totalRwf: number;
+  createdAt: string;
+}
+
+export interface PosCustomerProfile extends PosCustomerSummary {
+  notes: string | null;
+  consentAt: string | null;
+  consentSource: string | null;
+  phoneVerifiedAt: string | null;
+  status: "active";
+  orders: PosCustomerOrderRow[];
+}
+
+export interface PosCustomerExport {
+  exportedAt: string;
+  customer: PosCustomerProfile;
+  audit: { action: string; at: string; reason: string | null }[];
+}
+
+/** The shortest look-up a role that may not browse customers is allowed (CUSTOMER_SEARCH_MIN in contracts). */
+export const CUSTOMER_SEARCH_MIN = 3;
+
+export interface CustomerInput {
+  fullName: string;
+  phone: string;
+  email?: string | null;
+  marketingConsent?: boolean;
+  notes?: string | null;
+}
+
+export const posCustomers = (ctx: SourceContext, query: { q?: string; limit?: number; offset?: number } = {}) =>
+  ctx.ops().get<PosCustomerList>(`${P}/customers`, { query });
+export const posCustomer = (ctx: SourceContext, customerId: string) =>
+  ctx.ops().get<PosCustomerProfile>(`${P}/customers/${customerId}`);
+
+export const customerWrite = {
+  create: (ctx: SourceContext, body: CustomerInput) => ctx.ops().post<PosCustomerProfile>(`${P}/customers`, body),
+  update: (ctx: SourceContext, customerId: string, body: Partial<CustomerInput>) =>
+    ctx.ops().patch<PosCustomerProfile>(`${P}/customers/${customerId}`, body),
+  merge: (ctx: SourceContext, customerId: string, body: { intoCustomerId: string; reason: string }) =>
+    ctx.ops().post<PosCustomerProfile>(`${P}/customers/${customerId}/merge`, body),
+  erase: (ctx: SourceContext, customerId: string, reason: string) =>
+    ctx.ops().post<{ erased: true }>(`${P}/customers/${customerId}/erase`, { reason }),
+  export: (ctx: SourceContext, customerId: string) =>
+    ctx.ops().get<PosCustomerExport>(`${P}/customers/${customerId}/export`),
+  /** Put a customer on a bill, or (null) take them off it. */
+  attach: (ctx: SourceContext, orderId: string, customerId: string | null) =>
+    ctx.ops().put<PosOrder>(`${P}/orders/${orderId}/customer`, { customerId }),
 };

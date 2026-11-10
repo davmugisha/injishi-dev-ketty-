@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PosLineRequest = exports.MergeSessionsRequest = exports.MoveSessionRequest = exports.SetTableStatusRequest = exports.OpenTableSessionRequest = exports.PosAuditEvent = exports.PosShift = exports.PosCashMovement = exports.PosRegister = exports.PosTicket = exports.PosTicketItem = exports.PosOrderSummary = exports.PosOrder = exports.PosSettlement = exports.PosPayment = exports.PosDiscount = exports.PosOrderLine = exports.PosFloor = exports.PosTable = exports.PosMenu = exports.PosMenuItem = exports.PosStation = exports.PosOutlet = exports.UpdatePosOutletSettingsRequest = exports.PosOutletSettings = exports.PosPaymentState = exports.POS_PAYMENT_SIMULATION_NOTICE = exports.ApprovalStatus = exports.CashMovementKind = exports.ShiftStatus = exports.SimulatedOutcome = exports.PAYMENT_TRANSITIONS = exports.PosPaymentStatus = exports.ASYNC_PAYMENT_METHODS = exports.POS_PAYMENT_METHOD_LABEL = exports.PosPaymentMethod = exports.POS_ORDER_STATUS_LABEL = exports.PosOrderStatus = exports.PosLineStatus = exports.TICKET_LATE_MINUTES = exports.TICKET_TRANSITIONS = exports.TICKET_STATUS_LABEL = exports.TicketStatus = exports.PrepStationKind = exports.TABLE_STATUS_MOVES = exports.TABLE_STATUS_LABEL = exports.TableStatus = exports.PosTaxMode = exports.POS_ORDER_TYPE_LABEL = exports.PosOrderType = void 0;
-exports.PosListQuery = exports.ReviewShiftRequest = exports.DecideCashMovementRequest = exports.CashMovementRequest = exports.CloseShiftRequest = exports.OpenShiftRequest = exports.AdvancePosTicketRequest = exports.RefundPosPaymentRequest = exports.ResolvePosPaymentRequest = exports.TakePosPaymentRequest = exports.SplitPosOrderRequest = exports.TransferPosOrderRequest = exports.DecidePosDiscountRequest = exports.ApplyPosDiscountRequest = exports.CancelPosOrderRequest = exports.VoidPosLineRequest = exports.UpdatePosLineRequest = exports.AddPosLinesRequest = exports.CreatePosOrderRequest = void 0;
+exports.MergeSessionsRequest = exports.MoveSessionRequest = exports.SetTableStatusRequest = exports.OpenTableSessionRequest = exports.PosAuditEvent = exports.PosShift = exports.PosCashMovement = exports.PosRegister = exports.PosTicket = exports.PosTicketItem = exports.PosOrderSummary = exports.PosOrder = exports.PosOrderCustomer = exports.PosSettlement = exports.PosPayment = exports.PosDiscount = exports.PosOrderLine = exports.PosFloor = exports.PosTable = exports.PosMenu = exports.PosMenuItem = exports.PosStation = exports.PosOutlet = exports.UpdatePosOutletSettingsRequest = exports.PosOutletSettings = exports.PosPaymentState = exports.POS_PAYMENT_SIMULATION_NOTICE = exports.ApprovalStatus = exports.CashMovementKind = exports.ShiftStatus = exports.SimulatedOutcome = exports.PAYMENT_TRANSITIONS = exports.PosPaymentStatus = exports.ASYNC_PAYMENT_METHODS = exports.POS_PAYMENT_METHOD_LABEL = exports.PosPaymentMethod = exports.POS_ORDER_STATUS_LABEL = exports.PosOrderStatus = exports.PosLineStatus = exports.TICKET_LATE_MINUTES = exports.TICKET_TRANSITIONS = exports.TICKET_STATUS_LABEL = exports.TicketStatus = exports.PrepStationKind = exports.TABLE_STATUS_MOVES = exports.TABLE_STATUS_LABEL = exports.TableStatus = exports.PosTaxMode = exports.POS_ORDER_TYPE_LABEL = exports.PosOrderType = void 0;
+exports.PosSetup = exports.PosSetupStep = exports.PosSetupStepKey = exports.POS_SETUP_STEPS = exports.SetItemRouteRequest = exports.UpdateRegisterRequest = exports.CreateRegisterRequest = exports.UpdateStationRequest = exports.CreateStationRequest = exports.UpdateTableRequest = exports.CreateTableRequest = exports.UpdateAreaRequest = exports.CreateAreaRequest = exports.PosVenue = exports.PosVenueRoute = exports.PosVenueRegister = exports.PosVenueStation = exports.PosVenueTable = exports.PosVenueArea = exports.PosListQuery = exports.ReviewShiftRequest = exports.DecideCashMovementRequest = exports.CashMovementRequest = exports.CloseShiftRequest = exports.OpenShiftRequest = exports.AdvancePosTicketRequest = exports.RefundPosPaymentRequest = exports.ResolvePosPaymentRequest = exports.TakePosPaymentRequest = exports.SplitPosOrderRequest = exports.TransferPosOrderRequest = exports.DecidePosDiscountRequest = exports.ApplyPosDiscountRequest = exports.CancelPosOrderRequest = exports.VoidPosLineRequest = exports.UpdatePosLineRequest = exports.AddPosLinesRequest = exports.CreatePosOrderRequest = exports.PosLineRequest = void 0;
 exports.canMoveTicket = canMoveTicket;
 exports.canMovePayment = canMovePayment;
 exports.divRoundHalfUp = divRoundHalfUp;
@@ -502,6 +502,16 @@ exports.PosSettlement = zod_1.z.object({
     state: exports.PosPaymentState,
     settled: zod_1.z.boolean(),
 });
+/**
+ * The customer on an order (CRM, phase 1), small enough to ride on every order read. The phone is masked
+ * here whatever the reader's role: the order screen needs a name to greet, never a number to copy.
+ * Defined here, not in `customers.ts`, because that file imports this one.
+ */
+exports.PosOrderCustomer = zod_1.z.object({
+    id: primitives_1.Uuid,
+    fullName: zod_1.z.string(),
+    phoneMasked: zod_1.z.string(),
+});
 exports.PosOrder = zod_1.z.object({
     id: primitives_1.Uuid,
     orderNumber: zod_1.z.string(),
@@ -512,6 +522,8 @@ exports.PosOrder = zod_1.z.object({
     tableLabel: zod_1.z.string().nullable(),
     waiterName: zod_1.z.string().nullable(),
     guestNote: zod_1.z.string().nullable(),
+    /** Who the bill is for, when the staff attached a customer. Absent on orders read before CRM existed. */
+    customer: exports.PosOrderCustomer.nullable().optional(),
     taxMode: exports.PosTaxMode,
     grossRwf: zod_1.z.number().int(),
     discountRwf: zod_1.z.number().int(),
@@ -549,6 +561,10 @@ exports.PosTicket = zod_1.z.object({
     tableLabel: zod_1.z.string().nullable(),
     waiterName: zod_1.z.string().nullable(),
     orderType: exports.PosOrderType,
+    /** The order's guest note (a name, an allergy), or null. An order has no customer-name field of its own. */
+    guestNote: zod_1.z.string().nullable(),
+    /** The table's party size, or null for an order without a table. */
+    guestCount: zod_1.z.number().int().nullable(),
     items: zod_1.z.array(exports.PosTicketItem),
     createdAt: zod_1.z.string(),
     startedAt: zod_1.z.string().nullable(),
@@ -720,5 +736,119 @@ exports.PosListQuery = zod_1.z.object({
     from: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     to: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     limit: zod_1.z.coerce.number().int().min(1).max(200).default(50),
+});
+// ---------------------------------------------------------------------------
+// Venue setup: the dining areas, tables, stations, registers and item routing
+// an owner configures. Nothing here is money. Names are unique per outlet, and
+// a table, station or register that is in use is never deleted: it is archived
+// once nothing depends on it (the API refuses, with the reason, until then).
+// ---------------------------------------------------------------------------
+const venueName = zod_1.z.string().trim().min(1, "Give it a name.").max(60, "Keep the name to 60 characters.");
+const venueSort = zod_1.z.number().int().min(0).max(9999);
+exports.PosVenueArea = zod_1.z.object({
+    id: primitives_1.Uuid,
+    name: zod_1.z.string(),
+    sortOrder: zod_1.z.number().int(),
+    /** Tables in this area that are not archived. */
+    tableCount: zod_1.z.number().int(),
+});
+exports.PosVenueTable = zod_1.z.object({
+    id: primitives_1.Uuid,
+    areaId: primitives_1.Uuid,
+    label: zod_1.z.string(),
+    seats: zod_1.z.number().int(),
+    status: exports.TableStatus,
+    sortOrder: zod_1.z.number().int(),
+    /** A party is seated here now, so the table cannot be archived. */
+    hasOpenSession: zod_1.z.boolean(),
+});
+exports.PosVenueStation = zod_1.z.object({
+    id: primitives_1.Uuid,
+    name: zod_1.z.string(),
+    kind: exports.PrepStationKind,
+    printerName: zod_1.z.string().nullable(),
+    sortOrder: zod_1.z.number().int(),
+    /** Menu items whose tickets go to this station. */
+    routedItems: zod_1.z.number().int(),
+    /** Tickets still queued, being prepared or ready. */
+    openTickets: zod_1.z.number().int(),
+});
+exports.PosVenueRegister = zod_1.z.object({
+    id: primitives_1.Uuid,
+    name: zod_1.z.string(),
+    deviceLabel: zod_1.z.string().nullable(),
+    /** A cashier has a shift open on it now, so it cannot be archived. */
+    hasOpenShift: zod_1.z.boolean(),
+});
+exports.PosVenueRoute = zod_1.z.object({
+    serviceItemId: primitives_1.Uuid,
+    name: zod_1.z.string(),
+    categoryName: zod_1.z.string().nullable(),
+    /** The station that prepares it, or null when it sends no ticket (a bottle handed over the counter). */
+    stationId: primitives_1.Uuid.nullable(),
+});
+exports.PosVenue = zod_1.z.object({
+    outletId: primitives_1.Uuid,
+    areas: zod_1.z.array(exports.PosVenueArea),
+    tables: zod_1.z.array(exports.PosVenueTable),
+    stations: zod_1.z.array(exports.PosVenueStation),
+    registers: zod_1.z.array(exports.PosVenueRegister),
+    routing: zod_1.z.array(exports.PosVenueRoute),
+});
+exports.CreateAreaRequest = zod_1.z.object({ name: venueName, sortOrder: venueSort.optional() });
+exports.UpdateAreaRequest = exports.CreateAreaRequest.partial().refine((v) => Object.keys(v).length > 0, { message: "Say what to change." });
+exports.CreateTableRequest = zod_1.z.object({
+    areaId: primitives_1.Uuid,
+    label: zod_1.z.string().trim().min(1, "Give the table a label.").max(30, "Keep the label to 30 characters."),
+    seats: zod_1.z.number().int().min(1, "A table seats at least 1.").max(100, "A table seats at most 100."),
+    sortOrder: venueSort.optional(),
+});
+exports.UpdateTableRequest = exports.CreateTableRequest.partial().refine((v) => Object.keys(v).length > 0, { message: "Say what to change." });
+exports.CreateStationRequest = zod_1.z.object({
+    name: venueName,
+    kind: exports.PrepStationKind,
+    /** The name a SIMULATED print job is addressed to. No device is contacted. */
+    printerName: zod_1.z.string().trim().max(60).nullable().optional(),
+    sortOrder: venueSort.optional(),
+});
+exports.UpdateStationRequest = exports.CreateStationRequest.partial().refine((v) => Object.keys(v).length > 0, { message: "Say what to change." });
+exports.CreateRegisterRequest = zod_1.z.object({
+    name: venueName,
+    deviceLabel: zod_1.z.string().trim().max(60).nullable().optional(),
+});
+exports.UpdateRegisterRequest = exports.CreateRegisterRequest.partial().refine((v) => Object.keys(v).length > 0, { message: "Say what to change." });
+exports.SetItemRouteRequest = zod_1.z.object({
+    serviceItemId: primitives_1.Uuid,
+    /** null clears the route: the item then sends no ticket. */
+    stationId: primitives_1.Uuid.nullable(),
+});
+// ---------------------------------------------------------------------------
+// Setup progress: what an owner has configured so far, computed from the
+// records themselves. Never stored, so it cannot drift from the truth, and
+// never a gate: every screen stays open whatever is left.
+// ---------------------------------------------------------------------------
+exports.POS_SETUP_STEPS = [
+    "areas",
+    "tables",
+    "stations",
+    "registers",
+    "categories",
+    "products",
+    "routing",
+    "receipts",
+    "team",
+];
+exports.PosSetupStepKey = zod_1.z.enum(exports.POS_SETUP_STEPS);
+exports.PosSetupStep = zod_1.z.object({
+    key: exports.PosSetupStepKey,
+    done: zod_1.z.boolean(),
+    /** How many of the thing exist (areas, tables, products...). */
+    count: zod_1.z.number().int(),
+});
+exports.PosSetup = zod_1.z.object({
+    outletId: primitives_1.Uuid,
+    steps: zod_1.z.array(exports.PosSetupStep),
+    doneCount: zod_1.z.number().int(),
+    total: zod_1.z.number().int(),
 });
 //# sourceMappingURL=pos.js.map

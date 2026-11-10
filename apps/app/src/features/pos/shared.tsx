@@ -4,7 +4,7 @@ import { CircleInfo, Xmark } from "@gravity-ui/icons";
 import { Alert, Button, Chip, Modal, toast } from "@heroui/react";
 import { formatRwf } from "@injishi/ui";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useState, useTransition } from "react";
+import { type ReactNode, useRef, useState, useTransition } from "react";
 import type { OrderStatus, TableStatus, TicketStatus } from "@/server/pos";
 import type { ActionResult } from "./actions";
 
@@ -19,10 +19,14 @@ export const clock = (iso: string) =>
 
 type ChipColor = "default" | "accent" | "success" | "warning" | "danger";
 
+/**
+ * One colour per table state, distinct at a glance: free is green, taken is amber, waiting to pay is red, and the
+ * states no guest is in are grey. (The brand accent is green too, so it never stands for "occupied".)
+ */
 export const TABLE_COLOR: Record<TableStatus, ChipColor> = {
   available: "success",
-  occupied: "accent",
-  reserved: "warning",
+  occupied: "warning",
+  reserved: "default",
   bill_requested: "danger",
   cleaning: "default",
 };
@@ -97,6 +101,31 @@ export function usePosAction() {
   return { run, pending };
 }
 
+/**
+ * A dialog's title that survives its own exit animation. The screen sets its dialog state to null the moment the
+ * dialog closes, so a title computed from that state is empty while the dialog is still fading out, and an
+ * unlabelled dialog is an accessibility fault (and a console warning). Remembering the last real title fixes both.
+ */
+export function useStickyTitle(title: string): string {
+  const last = useRef(title);
+  if (title) last.current = title;
+  return title || last.current;
+}
+
+/**
+ * A key that changes every time a dialog is opened afresh. A closed dialog stays in the page for a moment while it
+ * fades, and a dialog opened in that moment lands on the old, emptied shell (right title, no fields). Giving the
+ * dialog this key remounts it on each fresh open, while closing still animates. Pass an identity for what is open
+ * (null when nothing is).
+ */
+export function useDialogKey(identity: string | null): number {
+  const seq = useRef(0);
+  const last = useRef<string | null>(null);
+  if (identity !== null && identity !== last.current) seq.current += 1;
+  last.current = identity;
+  return seq.current;
+}
+
 /** One press, one key: a retried press of the same dialog reuses it, so the API answers with the first result. */
 export function usePressKey(): [string, () => void] {
   const [key, setKey] = useState(() => crypto.randomUUID());
@@ -112,6 +141,7 @@ export function PosDialog({
   children,
   footer,
   wide,
+  onEnter,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -120,6 +150,8 @@ export function PosDialog({
   children: ReactNode;
   footer: ReactNode;
   wide?: boolean;
+  /** Pressing Enter in a field submits the dialog (not offered for a destructive confirmation). */
+  onEnter?: () => void;
 }) {
   return (
     <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange} className="h-full">
@@ -130,47 +162,39 @@ export function PosDialog({
         >
           <Modal.Header className="flex-row items-start gap-3">
             <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-              <Modal.Heading className="text-[20px] leading-[26px] font-semibold">{title}</Modal.Heading>
+              <Modal.Heading slot="title" className="text-[20px] leading-[26px] font-semibold">
+                {title}
+              </Modal.Heading>
               {subtitle ? <span className="text-[13px] text-muted tabular">{subtitle}</span> : null}
             </div>
             <Button variant="ghost" isIconOnly aria-label="Close" onPress={() => onOpenChange(false)}>
               <Xmark className="size-4" />
             </Button>
           </Modal.Header>
-          <Modal.Body className="m-0 flex flex-col gap-[14px] p-0 text-[14px] text-foreground">{children}</Modal.Body>
+          <Modal.Body
+            className="m-0 flex flex-col gap-[14px] p-0 text-[14px] text-foreground"
+            onKeyDown={(e) => {
+              if (
+                onEnter &&
+                e.key === "Enter" &&
+                !e.shiftKey &&
+                e.target instanceof HTMLInputElement &&
+                e.target.type !== "radio" &&
+                e.target.type !== "checkbox"
+              ) {
+                e.preventDefault();
+                onEnter();
+              }
+            }}
+          >
+            {children}
+          </Modal.Body>
           <Modal.Footer className="mt-0 flex-wrap justify-end gap-[8px] border-t border-separator pt-[12px]">
             {footer}
           </Modal.Footer>
         </Modal.Dialog>
       </Modal.Container>
     </Modal.Backdrop>
-  );
-}
-
-/** The bar across the top of every live POS screen: where you are and how to move between the POS screens. */
-export function PosHeader({
-  title,
-  outlet,
-  children,
-}: {
-  title: string;
-  outlet: { name: string; branchName: string | null } | null;
-  children?: ReactNode;
-}) {
-  return (
-    <header className="flex flex-wrap items-center gap-3 border-b border-separator bg-surface px-5 py-3">
-      <div className="flex min-w-0 flex-col">
-        <h1 className="text-[18px] leading-6 font-semibold">{title}</h1>
-        {outlet ? (
-          <span className="text-[12px] text-muted">
-            {outlet.name}
-            {outlet.branchName ? ` · ${outlet.branchName}` : ""}
-          </span>
-        ) : null}
-      </div>
-      <span className="flex-1" />
-      {children}
-    </header>
   );
 }
 

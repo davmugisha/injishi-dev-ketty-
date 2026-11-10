@@ -195,6 +195,7 @@ export class ServiceCatalogService {
   async createItem(
     ws: ScopedWorkspace,
     body: UpsertServiceItemRequest,
+    actorUserId?: string,
   ): Promise<OperatorServiceCatalog> {
     const category = assertOwned(
       await this.catalog.findCategory(body.serviceCategoryId),
@@ -240,7 +241,9 @@ export class ServiceCatalogService {
       status: body.status ?? 'active',
       options: body.options ?? [],
       ...codes,
-    });
+    }, actorUserId
+      ? { workspaceId: ws.workspaceId, outletId: category.outletId, actorUserId, itemName: body.name, kind: 'opening' }
+      : undefined);
     if (!id) throw this.vanished();
     await this.catalog.mintItemCode(id);
     return this.menu(ws);
@@ -256,6 +259,7 @@ export class ServiceCatalogService {
     ws: ScopedWorkspace,
     id: string,
     patch: UpdateServiceItemRequest,
+    actorUserId?: string,
   ): Promise<OperatorServiceCatalog> {
     const item = assertOwned(await this.catalog.findItem(id), ws);
     assertInBranchScope(ws, item.propertyId);
@@ -276,7 +280,15 @@ export class ServiceCatalogService {
       throw this.notSellable(patch.name ?? item.name, next);
     }
 
-    await this.catalog.updateItem(item.id, patch);
+    // Stock moved here is recorded with who moved it, like every change made on the Stock screen. Whether it really
+    // moved is decided inside the write, under a lock, against the quantity as it is at that moment.
+    await this.catalog.updateItem(
+      item.id,
+      patch,
+      actorUserId !== undefined && patch.stockQty !== undefined
+        ? { workspaceId: ws.workspaceId, outletId: item.outletId, actorUserId, itemName: item.name, kind: 'catalogue_edit' }
+        : undefined,
+    );
     await this.catalog.mintItemCode(item.id);
     return this.menu(ws);
   }

@@ -271,8 +271,8 @@ export declare const PosOutlet: z.ZodObject<{
     name: string;
     id: string;
     propertyId: string | null;
-    branchName: string | null;
     outletKind: string;
+    branchName: string | null;
     settings: {
         outletId: string;
         taxMode: "inclusive" | "exclusive";
@@ -285,8 +285,8 @@ export declare const PosOutlet: z.ZodObject<{
     name: string;
     id: string;
     propertyId: string | null;
-    branchName: string | null;
     outletKind: string;
+    branchName: string | null;
     settings: {
         outletId: string;
         taxMode: "inclusive" | "exclusive";
@@ -584,29 +584,29 @@ export declare const PosTable: z.ZodObject<{
     /** What the open session's orders still owe, collected payments taken off. */
     outstandingRwf: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    status: "available" | "cleaning" | "occupied" | "reserved" | "bill_requested";
+    status: "available" | "occupied" | "reserved" | "bill_requested" | "cleaning";
     id: string;
     label: string;
     sessionId: string | null;
     guestCount: number | null;
     openedAt: string | null;
-    seats: number;
-    outstandingRwf: number;
     areaId: string;
+    seats: number;
     waiterName: string | null;
     openOrders: number;
+    outstandingRwf: number;
 }, {
-    status: "available" | "cleaning" | "occupied" | "reserved" | "bill_requested";
+    status: "available" | "occupied" | "reserved" | "bill_requested" | "cleaning";
     id: string;
     label: string;
     sessionId: string | null;
     guestCount: number | null;
     openedAt: string | null;
-    seats: number;
-    outstandingRwf: number;
     areaId: string;
+    seats: number;
     waiterName: string | null;
     openOrders: number;
+    outstandingRwf: number;
 }>;
 export type PosTable = z.infer<typeof PosTable>;
 export declare const PosFloor: z.ZodObject<{
@@ -638,29 +638,29 @@ export declare const PosFloor: z.ZodObject<{
         /** What the open session's orders still owe, collected payments taken off. */
         outstandingRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        status: "available" | "cleaning" | "occupied" | "reserved" | "bill_requested";
+        status: "available" | "occupied" | "reserved" | "bill_requested" | "cleaning";
         id: string;
         label: string;
         sessionId: string | null;
         guestCount: number | null;
         openedAt: string | null;
-        seats: number;
-        outstandingRwf: number;
         areaId: string;
+        seats: number;
         waiterName: string | null;
         openOrders: number;
+        outstandingRwf: number;
     }, {
-        status: "available" | "cleaning" | "occupied" | "reserved" | "bill_requested";
+        status: "available" | "occupied" | "reserved" | "bill_requested" | "cleaning";
         id: string;
         label: string;
         sessionId: string | null;
         guestCount: number | null;
         openedAt: string | null;
-        seats: number;
-        outstandingRwf: number;
         areaId: string;
+        seats: number;
         waiterName: string | null;
         openOrders: number;
+        outstandingRwf: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     outletId: string;
@@ -670,17 +670,17 @@ export declare const PosFloor: z.ZodObject<{
         sortOrder: number;
     }[];
     tables: {
-        status: "available" | "cleaning" | "occupied" | "reserved" | "bill_requested";
+        status: "available" | "occupied" | "reserved" | "bill_requested" | "cleaning";
         id: string;
         label: string;
         sessionId: string | null;
         guestCount: number | null;
         openedAt: string | null;
-        seats: number;
-        outstandingRwf: number;
         areaId: string;
+        seats: number;
         waiterName: string | null;
         openOrders: number;
+        outstandingRwf: number;
     }[];
 }, {
     outletId: string;
@@ -690,17 +690,17 @@ export declare const PosFloor: z.ZodObject<{
         sortOrder: number;
     }[];
     tables: {
-        status: "available" | "cleaning" | "occupied" | "reserved" | "bill_requested";
+        status: "available" | "occupied" | "reserved" | "bill_requested" | "cleaning";
         id: string;
         label: string;
         sessionId: string | null;
         guestCount: number | null;
         openedAt: string | null;
-        seats: number;
-        outstandingRwf: number;
         areaId: string;
+        seats: number;
         waiterName: string | null;
         openOrders: number;
+        outstandingRwf: number;
     }[];
 }>;
 export type PosFloor = z.infer<typeof PosFloor>;
@@ -812,8 +812,8 @@ export declare const PosDiscount: z.ZodObject<{
     reason: string;
     decidedByName: string | null;
     createdAt: string;
-    requestedByName: string | null;
     orderItemId: string | null;
+    requestedByName: string | null;
 }, {
     status: "approved" | "rejected" | "pending_approval";
     id: string;
@@ -821,8 +821,8 @@ export declare const PosDiscount: z.ZodObject<{
     reason: string;
     decidedByName: string | null;
     createdAt: string;
-    requestedByName: string | null;
     orderItemId: string | null;
+    requestedByName: string | null;
 }>;
 export type PosDiscount = z.infer<typeof PosDiscount>;
 export declare const PosPayment: z.ZodObject<{
@@ -851,7 +851,6 @@ export declare const PosPayment: z.ZodObject<{
     settledAt: string | null;
     method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
     refundedRwf: number;
-    createdByName: string | null;
     changeRwf: number;
     orderId: string;
     tenderedRwf: number | null;
@@ -859,6 +858,7 @@ export declare const PosPayment: z.ZodObject<{
     demoReference: string;
     simulated: boolean;
     shiftId: string | null;
+    createdByName: string | null;
 }, {
     status: "pending" | "cancelled" | "expired" | "failed" | "initiated" | "refunded" | "successful";
     id: string;
@@ -868,7 +868,6 @@ export declare const PosPayment: z.ZodObject<{
     settledAt: string | null;
     method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
     refundedRwf: number;
-    createdByName: string | null;
     changeRwf: number;
     orderId: string;
     tenderedRwf: number | null;
@@ -876,6 +875,7 @@ export declare const PosPayment: z.ZodObject<{
     demoReference: string;
     simulated: boolean;
     shiftId: string | null;
+    createdByName: string | null;
 }>;
 export type PosPayment = z.infer<typeof PosPayment>;
 export declare const PosSettlement: z.ZodObject<{
@@ -906,6 +906,25 @@ export declare const PosSettlement: z.ZodObject<{
     outstandingRwf: number;
     payableRwf: number;
 }>;
+/**
+ * The customer on an order (CRM, phase 1), small enough to ride on every order read. The phone is masked
+ * here whatever the reader's role: the order screen needs a name to greet, never a number to copy.
+ * Defined here, not in `customers.ts`, because that file imports this one.
+ */
+export declare const PosOrderCustomer: z.ZodObject<{
+    id: z.ZodString;
+    fullName: z.ZodString;
+    phoneMasked: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    id: string;
+    fullName: string;
+    phoneMasked: string;
+}, {
+    id: string;
+    fullName: string;
+    phoneMasked: string;
+}>;
+export type PosOrderCustomer = z.infer<typeof PosOrderCustomer>;
 export declare const PosOrder: z.ZodObject<{
     id: z.ZodString;
     orderNumber: z.ZodString;
@@ -916,6 +935,20 @@ export declare const PosOrder: z.ZodObject<{
     tableLabel: z.ZodNullable<z.ZodString>;
     waiterName: z.ZodNullable<z.ZodString>;
     guestNote: z.ZodNullable<z.ZodString>;
+    /** Who the bill is for, when the staff attached a customer. Absent on orders read before CRM existed. */
+    customer: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        id: z.ZodString;
+        fullName: z.ZodString;
+        phoneMasked: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        fullName: string;
+        phoneMasked: string;
+    }, {
+        id: string;
+        fullName: string;
+        phoneMasked: string;
+    }>>>;
     taxMode: z.ZodEnum<["exclusive", "inclusive"]>;
     grossRwf: z.ZodNumber;
     discountRwf: z.ZodNumber;
@@ -1056,8 +1089,8 @@ export declare const PosOrder: z.ZodObject<{
         reason: string;
         decidedByName: string | null;
         createdAt: string;
-        requestedByName: string | null;
         orderItemId: string | null;
+        requestedByName: string | null;
     }, {
         status: "approved" | "rejected" | "pending_approval";
         id: string;
@@ -1065,8 +1098,8 @@ export declare const PosOrder: z.ZodObject<{
         reason: string;
         decidedByName: string | null;
         createdAt: string;
-        requestedByName: string | null;
         orderItemId: string | null;
+        requestedByName: string | null;
     }>, "many">;
     payments: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -1094,7 +1127,6 @@ export declare const PosOrder: z.ZodObject<{
         settledAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
         refundedRwf: number;
-        createdByName: string | null;
         changeRwf: number;
         orderId: string;
         tenderedRwf: number | null;
@@ -1102,6 +1134,7 @@ export declare const PosOrder: z.ZodObject<{
         demoReference: string;
         simulated: boolean;
         shiftId: string | null;
+        createdByName: string | null;
     }, {
         status: "pending" | "cancelled" | "expired" | "failed" | "initiated" | "refunded" | "successful";
         id: string;
@@ -1111,7 +1144,6 @@ export declare const PosOrder: z.ZodObject<{
         settledAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
         refundedRwf: number;
-        createdByName: string | null;
         changeRwf: number;
         orderId: string;
         tenderedRwf: number | null;
@@ -1119,6 +1151,7 @@ export declare const PosOrder: z.ZodObject<{
         demoReference: string;
         simulated: boolean;
         shiftId: string | null;
+        createdByName: string | null;
     }>, "many">;
     cancelReason: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
@@ -1138,7 +1171,6 @@ export declare const PosOrder: z.ZodObject<{
         settledAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
         refundedRwf: number;
-        createdByName: string | null;
         changeRwf: number;
         orderId: string;
         tenderedRwf: number | null;
@@ -1146,6 +1178,7 @@ export declare const PosOrder: z.ZodObject<{
         demoReference: string;
         simulated: boolean;
         shiftId: string | null;
+        createdByName: string | null;
     }[];
     totalRwf: number;
     settlement: {
@@ -1163,6 +1196,12 @@ export declare const PosOrder: z.ZodObject<{
     taxRwf: number;
     guestNote: string | null;
     cancelReason: string | null;
+    discountRwf: number;
+    taxMode: "inclusive" | "exclusive";
+    waiterName: string | null;
+    orderType: "dine_in" | "takeaway" | "delivery" | "room_service" | "event";
+    tableSessionId: string | null;
+    tableLabel: string | null;
     lines: {
         status: "sent" | "draft" | "voided";
         name: string;
@@ -1188,12 +1227,6 @@ export declare const PosOrder: z.ZodObject<{
         stationId: string | null;
         voidReason: string | null;
     }[];
-    discountRwf: number;
-    taxMode: "inclusive" | "exclusive";
-    waiterName: string | null;
-    orderType: "room_service" | "delivery" | "dine_in" | "takeaway" | "event";
-    tableSessionId: string | null;
-    tableLabel: string | null;
     discounts: {
         status: "approved" | "rejected" | "pending_approval";
         id: string;
@@ -1201,9 +1234,14 @@ export declare const PosOrder: z.ZodObject<{
         reason: string;
         decidedByName: string | null;
         createdAt: string;
-        requestedByName: string | null;
         orderItemId: string | null;
+        requestedByName: string | null;
     }[];
+    customer?: {
+        id: string;
+        fullName: string;
+        phoneMasked: string;
+    } | null | undefined;
 }, {
     status: "submitted" | "cancelled" | "draft" | "in_progress" | "ready" | "delivered" | "completed";
     id: string;
@@ -1219,7 +1257,6 @@ export declare const PosOrder: z.ZodObject<{
         settledAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
         refundedRwf: number;
-        createdByName: string | null;
         changeRwf: number;
         orderId: string;
         tenderedRwf: number | null;
@@ -1227,6 +1264,7 @@ export declare const PosOrder: z.ZodObject<{
         demoReference: string;
         simulated: boolean;
         shiftId: string | null;
+        createdByName: string | null;
     }[];
     totalRwf: number;
     settlement: {
@@ -1244,6 +1282,12 @@ export declare const PosOrder: z.ZodObject<{
     taxRwf: number;
     guestNote: string | null;
     cancelReason: string | null;
+    discountRwf: number;
+    taxMode: "inclusive" | "exclusive";
+    waiterName: string | null;
+    orderType: "dine_in" | "takeaway" | "delivery" | "room_service" | "event";
+    tableSessionId: string | null;
+    tableLabel: string | null;
     lines: {
         status: "sent" | "draft" | "voided";
         name: string;
@@ -1269,12 +1313,6 @@ export declare const PosOrder: z.ZodObject<{
         stationId: string | null;
         voidReason: string | null;
     }[];
-    discountRwf: number;
-    taxMode: "inclusive" | "exclusive";
-    waiterName: string | null;
-    orderType: "room_service" | "delivery" | "dine_in" | "takeaway" | "event";
-    tableSessionId: string | null;
-    tableLabel: string | null;
     discounts: {
         status: "approved" | "rejected" | "pending_approval";
         id: string;
@@ -1282,9 +1320,14 @@ export declare const PosOrder: z.ZodObject<{
         reason: string;
         decidedByName: string | null;
         createdAt: string;
-        requestedByName: string | null;
         orderItemId: string | null;
+        requestedByName: string | null;
     }[];
+    customer?: {
+        id: string;
+        fullName: string;
+        phoneMasked: string;
+    } | null | undefined;
 }>;
 export type PosOrder = z.infer<typeof PosOrder>;
 export declare const PosOrderSummary: z.ZodObject<Omit<{
@@ -1297,6 +1340,20 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
     tableLabel: z.ZodNullable<z.ZodString>;
     waiterName: z.ZodNullable<z.ZodString>;
     guestNote: z.ZodNullable<z.ZodString>;
+    /** Who the bill is for, when the staff attached a customer. Absent on orders read before CRM existed. */
+    customer: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        id: z.ZodString;
+        fullName: z.ZodString;
+        phoneMasked: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        fullName: string;
+        phoneMasked: string;
+    }, {
+        id: string;
+        fullName: string;
+        phoneMasked: string;
+    }>>>;
     taxMode: z.ZodEnum<["exclusive", "inclusive"]>;
     grossRwf: z.ZodNumber;
     discountRwf: z.ZodNumber;
@@ -1437,8 +1494,8 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         reason: string;
         decidedByName: string | null;
         createdAt: string;
-        requestedByName: string | null;
         orderItemId: string | null;
+        requestedByName: string | null;
     }, {
         status: "approved" | "rejected" | "pending_approval";
         id: string;
@@ -1446,8 +1503,8 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         reason: string;
         decidedByName: string | null;
         createdAt: string;
-        requestedByName: string | null;
         orderItemId: string | null;
+        requestedByName: string | null;
     }>, "many">;
     payments: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -1475,7 +1532,6 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         settledAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
         refundedRwf: number;
-        createdByName: string | null;
         changeRwf: number;
         orderId: string;
         tenderedRwf: number | null;
@@ -1483,6 +1539,7 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         demoReference: string;
         simulated: boolean;
         shiftId: string | null;
+        createdByName: string | null;
     }, {
         status: "pending" | "cancelled" | "expired" | "failed" | "initiated" | "refunded" | "successful";
         id: string;
@@ -1492,7 +1549,6 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         settledAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
         refundedRwf: number;
-        createdByName: string | null;
         changeRwf: number;
         orderId: string;
         tenderedRwf: number | null;
@@ -1500,6 +1556,7 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         demoReference: string;
         simulated: boolean;
         shiftId: string | null;
+        createdByName: string | null;
     }>, "many">;
     cancelReason: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
@@ -1531,10 +1588,15 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
     discountRwf: number;
     taxMode: "inclusive" | "exclusive";
     waiterName: string | null;
-    orderType: "room_service" | "delivery" | "dine_in" | "takeaway" | "event";
+    orderType: "dine_in" | "takeaway" | "delivery" | "room_service" | "event";
     tableSessionId: string | null;
     tableLabel: string | null;
     lineCount: number;
+    customer?: {
+        id: string;
+        fullName: string;
+        phoneMasked: string;
+    } | null | undefined;
 }, {
     status: "submitted" | "cancelled" | "draft" | "in_progress" | "ready" | "delivered" | "completed";
     id: string;
@@ -1560,10 +1622,15 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
     discountRwf: number;
     taxMode: "inclusive" | "exclusive";
     waiterName: string | null;
-    orderType: "room_service" | "delivery" | "dine_in" | "takeaway" | "event";
+    orderType: "dine_in" | "takeaway" | "delivery" | "room_service" | "event";
     tableSessionId: string | null;
     tableLabel: string | null;
     lineCount: number;
+    customer?: {
+        id: string;
+        fullName: string;
+        phoneMasked: string;
+    } | null | undefined;
 }>;
 export type PosOrderSummary = z.infer<typeof PosOrderSummary>;
 export declare const PosTicketItem: z.ZodObject<{
@@ -1603,6 +1670,10 @@ export declare const PosTicket: z.ZodObject<{
     tableLabel: z.ZodNullable<z.ZodString>;
     waiterName: z.ZodNullable<z.ZodString>;
     orderType: z.ZodEnum<["dine_in", "takeaway", "delivery", "room_service", "event"]>;
+    /** The order's guest note (a name, an allergy), or null. An order has no customer-name field of its own. */
+    guestNote: z.ZodNullable<z.ZodString>;
+    /** The table's party size, or null for an order without a table. */
+    guestCount: z.ZodNullable<z.ZodNumber>;
     items: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         orderItemId: z.ZodString;
@@ -1649,13 +1720,14 @@ export declare const PosTicket: z.ZodObject<{
         orderItemId: string;
     }[];
     createdAt: string;
+    guestCount: number | null;
     startedAt: string | null;
     orderNumber: string;
-    late: boolean;
+    guestNote: string | null;
     stationId: string;
     waiterName: string | null;
     orderId: string;
-    orderType: "room_service" | "delivery" | "dine_in" | "takeaway" | "event";
+    orderType: "dine_in" | "takeaway" | "delivery" | "room_service" | "event";
     tableLabel: string | null;
     ticketNumber: string;
     stationName: string;
@@ -1663,6 +1735,7 @@ export declare const PosTicket: z.ZodObject<{
     readyAt: string | null;
     servedAt: string | null;
     elapsedMinutes: number;
+    late: boolean;
     printCount: number;
 }, {
     status: "cancelled" | "queued" | "ready" | "preparing" | "served";
@@ -1677,13 +1750,14 @@ export declare const PosTicket: z.ZodObject<{
         orderItemId: string;
     }[];
     createdAt: string;
+    guestCount: number | null;
     startedAt: string | null;
     orderNumber: string;
-    late: boolean;
+    guestNote: string | null;
     stationId: string;
     waiterName: string | null;
     orderId: string;
-    orderType: "room_service" | "delivery" | "dine_in" | "takeaway" | "event";
+    orderType: "dine_in" | "takeaway" | "delivery" | "room_service" | "event";
     tableLabel: string | null;
     ticketNumber: string;
     stationName: string;
@@ -1691,6 +1765,7 @@ export declare const PosTicket: z.ZodObject<{
     readyAt: string | null;
     servedAt: string | null;
     elapsedMinutes: number;
+    late: boolean;
     printCount: number;
 }>;
 export type PosTicket = z.infer<typeof PosTicket>;
@@ -1816,13 +1891,11 @@ export declare const PosShift: z.ZodObject<{
     openedAt: string;
     closedAt: string | null;
     closeNote: string | null;
-    reviewedByName: string | null;
-    reviewNote: string | null;
-    paidOutRwf: number;
     openingFloatRwf: number;
     cashSalesRwf: number;
     cashRefundsRwf: number;
     paidInRwf: number;
+    paidOutRwf: number;
     registerId: string;
     registerName: string;
     cashierUserId: string;
@@ -1837,6 +1910,8 @@ export declare const PosShift: z.ZodObject<{
     }[];
     tipsRwf: number;
     handoverNote: string | null;
+    reviewedByName: string | null;
+    reviewNote: string | null;
     movements: {
         status: "approved" | "rejected" | "pending_approval";
         id: string;
@@ -1853,13 +1928,11 @@ export declare const PosShift: z.ZodObject<{
     openedAt: string;
     closedAt: string | null;
     closeNote: string | null;
-    reviewedByName: string | null;
-    reviewNote: string | null;
-    paidOutRwf: number;
     openingFloatRwf: number;
     cashSalesRwf: number;
     cashRefundsRwf: number;
     paidInRwf: number;
+    paidOutRwf: number;
     registerId: string;
     registerName: string;
     cashierUserId: string;
@@ -1874,6 +1947,8 @@ export declare const PosShift: z.ZodObject<{
     }[];
     tipsRwf: number;
     handoverNote: string | null;
+    reviewedByName: string | null;
+    reviewNote: string | null;
     movements: {
         status: "approved" | "rejected" | "pending_approval";
         id: string;
@@ -1936,9 +2011,9 @@ export type OpenTableSessionRequest = z.infer<typeof OpenTableSessionRequest>;
 export declare const SetTableStatusRequest: z.ZodObject<{
     status: z.ZodEnum<["available", "occupied", "reserved", "bill_requested", "cleaning"]>;
 }, "strip", z.ZodTypeAny, {
-    status: "available" | "cleaning" | "occupied" | "reserved" | "bill_requested";
+    status: "available" | "occupied" | "reserved" | "bill_requested" | "cleaning";
 }, {
-    status: "available" | "cleaning" | "occupied" | "reserved" | "bill_requested";
+    status: "available" | "occupied" | "reserved" | "bill_requested" | "cleaning";
 }>;
 export type SetTableStatusRequest = z.infer<typeof SetTableStatusRequest>;
 export declare const MoveSessionRequest: z.ZodObject<{
@@ -2027,6 +2102,7 @@ export declare const CreatePosOrderRequest: z.ZodEffects<z.ZodObject<{
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     outletId: string;
+    orderType: "dine_in" | "takeaway" | "delivery" | "room_service" | "event";
     lines: {
         quantity: number;
         serviceItemId: string;
@@ -2036,13 +2112,13 @@ export declare const CreatePosOrderRequest: z.ZodEffects<z.ZodObject<{
             choices: string[];
         }[] | undefined;
     }[];
-    orderType: "room_service" | "delivery" | "dine_in" | "takeaway" | "event";
     guestNote?: string | undefined;
     tableSessionId?: string | undefined;
 }, {
     outletId: string;
-    orderType: "room_service" | "delivery" | "dine_in" | "takeaway" | "event";
+    orderType: "dine_in" | "takeaway" | "delivery" | "room_service" | "event";
     guestNote?: string | undefined;
+    tableSessionId?: string | undefined;
     lines?: {
         quantity: number;
         serviceItemId: string;
@@ -2052,9 +2128,9 @@ export declare const CreatePosOrderRequest: z.ZodEffects<z.ZodObject<{
             choices: string[];
         }[] | undefined;
     }[] | undefined;
-    tableSessionId?: string | undefined;
 }>, {
     outletId: string;
+    orderType: "dine_in" | "takeaway" | "delivery" | "room_service" | "event";
     lines: {
         quantity: number;
         serviceItemId: string;
@@ -2064,13 +2140,13 @@ export declare const CreatePosOrderRequest: z.ZodEffects<z.ZodObject<{
             choices: string[];
         }[] | undefined;
     }[];
-    orderType: "room_service" | "delivery" | "dine_in" | "takeaway" | "event";
     guestNote?: string | undefined;
     tableSessionId?: string | undefined;
 }, {
     outletId: string;
-    orderType: "room_service" | "delivery" | "dine_in" | "takeaway" | "event";
+    orderType: "dine_in" | "takeaway" | "delivery" | "room_service" | "event";
     guestNote?: string | undefined;
+    tableSessionId?: string | undefined;
     lines?: {
         quantity: number;
         serviceItemId: string;
@@ -2080,7 +2156,6 @@ export declare const CreatePosOrderRequest: z.ZodEffects<z.ZodObject<{
             choices: string[];
         }[] | undefined;
     }[] | undefined;
-    tableSessionId?: string | undefined;
 }>;
 export type CreatePosOrderRequest = z.infer<typeof CreatePosOrderRequest>;
 export declare const AddPosLinesRequest: z.ZodObject<{
@@ -2241,20 +2316,20 @@ export declare const TakePosPaymentRequest: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     amountRwf: number;
     method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
-    idempotencyKey: string;
     tipRwf: number;
     simulate: "pending" | "success" | "failure" | "timeout";
-    payerPhone?: string | undefined;
+    idempotencyKey: string;
     tenderedRwf?: number | undefined;
+    payerPhone?: string | undefined;
     voucherCode?: string | undefined;
 }, {
     amountRwf: number;
     method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
     idempotencyKey: string;
-    payerPhone?: string | undefined;
     tenderedRwf?: number | undefined;
     tipRwf?: number | undefined;
     simulate?: "pending" | "success" | "failure" | "timeout" | undefined;
+    payerPhone?: string | undefined;
     voucherCode?: string | undefined;
 }>;
 export type TakePosPaymentRequest = z.infer<typeof TakePosPaymentRequest>;
@@ -2364,4 +2439,510 @@ export declare const PosListQuery: z.ZodObject<{
     limit?: number | undefined;
 }>;
 export type PosListQuery = z.infer<typeof PosListQuery>;
+export declare const PosVenueArea: z.ZodObject<{
+    id: z.ZodString;
+    name: z.ZodString;
+    sortOrder: z.ZodNumber;
+    /** Tables in this area that are not archived. */
+    tableCount: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    id: string;
+    sortOrder: number;
+    tableCount: number;
+}, {
+    name: string;
+    id: string;
+    sortOrder: number;
+    tableCount: number;
+}>;
+export type PosVenueArea = z.infer<typeof PosVenueArea>;
+export declare const PosVenueTable: z.ZodObject<{
+    id: z.ZodString;
+    areaId: z.ZodString;
+    label: z.ZodString;
+    seats: z.ZodNumber;
+    status: z.ZodEnum<["available", "occupied", "reserved", "bill_requested", "cleaning"]>;
+    sortOrder: z.ZodNumber;
+    /** A party is seated here now, so the table cannot be archived. */
+    hasOpenSession: z.ZodBoolean;
+}, "strip", z.ZodTypeAny, {
+    status: "available" | "occupied" | "reserved" | "bill_requested" | "cleaning";
+    id: string;
+    sortOrder: number;
+    label: string;
+    areaId: string;
+    seats: number;
+    hasOpenSession: boolean;
+}, {
+    status: "available" | "occupied" | "reserved" | "bill_requested" | "cleaning";
+    id: string;
+    sortOrder: number;
+    label: string;
+    areaId: string;
+    seats: number;
+    hasOpenSession: boolean;
+}>;
+export type PosVenueTable = z.infer<typeof PosVenueTable>;
+export declare const PosVenueStation: z.ZodObject<{
+    id: z.ZodString;
+    name: z.ZodString;
+    kind: z.ZodEnum<["kitchen", "bar"]>;
+    printerName: z.ZodNullable<z.ZodString>;
+    sortOrder: z.ZodNumber;
+    /** Menu items whose tickets go to this station. */
+    routedItems: z.ZodNumber;
+    /** Tickets still queued, being prepared or ready. */
+    openTickets: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    id: string;
+    kind: "kitchen" | "bar";
+    sortOrder: number;
+    printerName: string | null;
+    routedItems: number;
+    openTickets: number;
+}, {
+    name: string;
+    id: string;
+    kind: "kitchen" | "bar";
+    sortOrder: number;
+    printerName: string | null;
+    routedItems: number;
+    openTickets: number;
+}>;
+export type PosVenueStation = z.infer<typeof PosVenueStation>;
+export declare const PosVenueRegister: z.ZodObject<{
+    id: z.ZodString;
+    name: z.ZodString;
+    deviceLabel: z.ZodNullable<z.ZodString>;
+    /** A cashier has a shift open on it now, so it cannot be archived. */
+    hasOpenShift: z.ZodBoolean;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    id: string;
+    deviceLabel: string | null;
+    hasOpenShift: boolean;
+}, {
+    name: string;
+    id: string;
+    deviceLabel: string | null;
+    hasOpenShift: boolean;
+}>;
+export type PosVenueRegister = z.infer<typeof PosVenueRegister>;
+export declare const PosVenueRoute: z.ZodObject<{
+    serviceItemId: z.ZodString;
+    name: z.ZodString;
+    categoryName: z.ZodNullable<z.ZodString>;
+    /** The station that prepares it, or null when it sends no ticket (a bottle handed over the counter). */
+    stationId: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    serviceItemId: string;
+    stationId: string | null;
+    categoryName: string | null;
+}, {
+    name: string;
+    serviceItemId: string;
+    stationId: string | null;
+    categoryName: string | null;
+}>;
+export type PosVenueRoute = z.infer<typeof PosVenueRoute>;
+export declare const PosVenue: z.ZodObject<{
+    outletId: z.ZodString;
+    areas: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        name: z.ZodString;
+        sortOrder: z.ZodNumber;
+        /** Tables in this area that are not archived. */
+        tableCount: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        id: string;
+        sortOrder: number;
+        tableCount: number;
+    }, {
+        name: string;
+        id: string;
+        sortOrder: number;
+        tableCount: number;
+    }>, "many">;
+    tables: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        areaId: z.ZodString;
+        label: z.ZodString;
+        seats: z.ZodNumber;
+        status: z.ZodEnum<["available", "occupied", "reserved", "bill_requested", "cleaning"]>;
+        sortOrder: z.ZodNumber;
+        /** A party is seated here now, so the table cannot be archived. */
+        hasOpenSession: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        status: "available" | "occupied" | "reserved" | "bill_requested" | "cleaning";
+        id: string;
+        sortOrder: number;
+        label: string;
+        areaId: string;
+        seats: number;
+        hasOpenSession: boolean;
+    }, {
+        status: "available" | "occupied" | "reserved" | "bill_requested" | "cleaning";
+        id: string;
+        sortOrder: number;
+        label: string;
+        areaId: string;
+        seats: number;
+        hasOpenSession: boolean;
+    }>, "many">;
+    stations: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        name: z.ZodString;
+        kind: z.ZodEnum<["kitchen", "bar"]>;
+        printerName: z.ZodNullable<z.ZodString>;
+        sortOrder: z.ZodNumber;
+        /** Menu items whose tickets go to this station. */
+        routedItems: z.ZodNumber;
+        /** Tickets still queued, being prepared or ready. */
+        openTickets: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        id: string;
+        kind: "kitchen" | "bar";
+        sortOrder: number;
+        printerName: string | null;
+        routedItems: number;
+        openTickets: number;
+    }, {
+        name: string;
+        id: string;
+        kind: "kitchen" | "bar";
+        sortOrder: number;
+        printerName: string | null;
+        routedItems: number;
+        openTickets: number;
+    }>, "many">;
+    registers: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        name: z.ZodString;
+        deviceLabel: z.ZodNullable<z.ZodString>;
+        /** A cashier has a shift open on it now, so it cannot be archived. */
+        hasOpenShift: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        id: string;
+        deviceLabel: string | null;
+        hasOpenShift: boolean;
+    }, {
+        name: string;
+        id: string;
+        deviceLabel: string | null;
+        hasOpenShift: boolean;
+    }>, "many">;
+    routing: z.ZodArray<z.ZodObject<{
+        serviceItemId: z.ZodString;
+        name: z.ZodString;
+        categoryName: z.ZodNullable<z.ZodString>;
+        /** The station that prepares it, or null when it sends no ticket (a bottle handed over the counter). */
+        stationId: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        serviceItemId: string;
+        stationId: string | null;
+        categoryName: string | null;
+    }, {
+        name: string;
+        serviceItemId: string;
+        stationId: string | null;
+        categoryName: string | null;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    outletId: string;
+    areas: {
+        name: string;
+        id: string;
+        sortOrder: number;
+        tableCount: number;
+    }[];
+    tables: {
+        status: "available" | "occupied" | "reserved" | "bill_requested" | "cleaning";
+        id: string;
+        sortOrder: number;
+        label: string;
+        areaId: string;
+        seats: number;
+        hasOpenSession: boolean;
+    }[];
+    stations: {
+        name: string;
+        id: string;
+        kind: "kitchen" | "bar";
+        sortOrder: number;
+        printerName: string | null;
+        routedItems: number;
+        openTickets: number;
+    }[];
+    registers: {
+        name: string;
+        id: string;
+        deviceLabel: string | null;
+        hasOpenShift: boolean;
+    }[];
+    routing: {
+        name: string;
+        serviceItemId: string;
+        stationId: string | null;
+        categoryName: string | null;
+    }[];
+}, {
+    outletId: string;
+    areas: {
+        name: string;
+        id: string;
+        sortOrder: number;
+        tableCount: number;
+    }[];
+    tables: {
+        status: "available" | "occupied" | "reserved" | "bill_requested" | "cleaning";
+        id: string;
+        sortOrder: number;
+        label: string;
+        areaId: string;
+        seats: number;
+        hasOpenSession: boolean;
+    }[];
+    stations: {
+        name: string;
+        id: string;
+        kind: "kitchen" | "bar";
+        sortOrder: number;
+        printerName: string | null;
+        routedItems: number;
+        openTickets: number;
+    }[];
+    registers: {
+        name: string;
+        id: string;
+        deviceLabel: string | null;
+        hasOpenShift: boolean;
+    }[];
+    routing: {
+        name: string;
+        serviceItemId: string;
+        stationId: string | null;
+        categoryName: string | null;
+    }[];
+}>;
+export type PosVenue = z.infer<typeof PosVenue>;
+export declare const CreateAreaRequest: z.ZodObject<{
+    name: z.ZodString;
+    sortOrder: z.ZodOptional<z.ZodNumber>;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    sortOrder?: number | undefined;
+}, {
+    name: string;
+    sortOrder?: number | undefined;
+}>;
+export type CreateAreaRequest = z.infer<typeof CreateAreaRequest>;
+export declare const UpdateAreaRequest: z.ZodEffects<z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    sortOrder: z.ZodOptional<z.ZodOptional<z.ZodNumber>>;
+}, "strip", z.ZodTypeAny, {
+    name?: string | undefined;
+    sortOrder?: number | undefined;
+}, {
+    name?: string | undefined;
+    sortOrder?: number | undefined;
+}>, {
+    name?: string | undefined;
+    sortOrder?: number | undefined;
+}, {
+    name?: string | undefined;
+    sortOrder?: number | undefined;
+}>;
+export type UpdateAreaRequest = z.infer<typeof UpdateAreaRequest>;
+export declare const CreateTableRequest: z.ZodObject<{
+    areaId: z.ZodString;
+    label: z.ZodString;
+    seats: z.ZodNumber;
+    sortOrder: z.ZodOptional<z.ZodNumber>;
+}, "strip", z.ZodTypeAny, {
+    label: string;
+    areaId: string;
+    seats: number;
+    sortOrder?: number | undefined;
+}, {
+    label: string;
+    areaId: string;
+    seats: number;
+    sortOrder?: number | undefined;
+}>;
+export type CreateTableRequest = z.infer<typeof CreateTableRequest>;
+export declare const UpdateTableRequest: z.ZodEffects<z.ZodObject<{
+    areaId: z.ZodOptional<z.ZodString>;
+    label: z.ZodOptional<z.ZodString>;
+    seats: z.ZodOptional<z.ZodNumber>;
+    sortOrder: z.ZodOptional<z.ZodOptional<z.ZodNumber>>;
+}, "strip", z.ZodTypeAny, {
+    sortOrder?: number | undefined;
+    label?: string | undefined;
+    areaId?: string | undefined;
+    seats?: number | undefined;
+}, {
+    sortOrder?: number | undefined;
+    label?: string | undefined;
+    areaId?: string | undefined;
+    seats?: number | undefined;
+}>, {
+    sortOrder?: number | undefined;
+    label?: string | undefined;
+    areaId?: string | undefined;
+    seats?: number | undefined;
+}, {
+    sortOrder?: number | undefined;
+    label?: string | undefined;
+    areaId?: string | undefined;
+    seats?: number | undefined;
+}>;
+export type UpdateTableRequest = z.infer<typeof UpdateTableRequest>;
+export declare const CreateStationRequest: z.ZodObject<{
+    name: z.ZodString;
+    kind: z.ZodEnum<["kitchen", "bar"]>;
+    /** The name a SIMULATED print job is addressed to. No device is contacted. */
+    printerName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    sortOrder: z.ZodOptional<z.ZodNumber>;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    kind: "kitchen" | "bar";
+    sortOrder?: number | undefined;
+    printerName?: string | null | undefined;
+}, {
+    name: string;
+    kind: "kitchen" | "bar";
+    sortOrder?: number | undefined;
+    printerName?: string | null | undefined;
+}>;
+export type CreateStationRequest = z.infer<typeof CreateStationRequest>;
+export declare const UpdateStationRequest: z.ZodEffects<z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    kind: z.ZodOptional<z.ZodEnum<["kitchen", "bar"]>>;
+    printerName: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    sortOrder: z.ZodOptional<z.ZodOptional<z.ZodNumber>>;
+}, "strip", z.ZodTypeAny, {
+    name?: string | undefined;
+    kind?: "kitchen" | "bar" | undefined;
+    sortOrder?: number | undefined;
+    printerName?: string | null | undefined;
+}, {
+    name?: string | undefined;
+    kind?: "kitchen" | "bar" | undefined;
+    sortOrder?: number | undefined;
+    printerName?: string | null | undefined;
+}>, {
+    name?: string | undefined;
+    kind?: "kitchen" | "bar" | undefined;
+    sortOrder?: number | undefined;
+    printerName?: string | null | undefined;
+}, {
+    name?: string | undefined;
+    kind?: "kitchen" | "bar" | undefined;
+    sortOrder?: number | undefined;
+    printerName?: string | null | undefined;
+}>;
+export type UpdateStationRequest = z.infer<typeof UpdateStationRequest>;
+export declare const CreateRegisterRequest: z.ZodObject<{
+    name: z.ZodString;
+    deviceLabel: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    deviceLabel?: string | null | undefined;
+}, {
+    name: string;
+    deviceLabel?: string | null | undefined;
+}>;
+export type CreateRegisterRequest = z.infer<typeof CreateRegisterRequest>;
+export declare const UpdateRegisterRequest: z.ZodEffects<z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    deviceLabel: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+}, "strip", z.ZodTypeAny, {
+    name?: string | undefined;
+    deviceLabel?: string | null | undefined;
+}, {
+    name?: string | undefined;
+    deviceLabel?: string | null | undefined;
+}>, {
+    name?: string | undefined;
+    deviceLabel?: string | null | undefined;
+}, {
+    name?: string | undefined;
+    deviceLabel?: string | null | undefined;
+}>;
+export type UpdateRegisterRequest = z.infer<typeof UpdateRegisterRequest>;
+export declare const SetItemRouteRequest: z.ZodObject<{
+    serviceItemId: z.ZodString;
+    /** null clears the route: the item then sends no ticket. */
+    stationId: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    serviceItemId: string;
+    stationId: string | null;
+}, {
+    serviceItemId: string;
+    stationId: string | null;
+}>;
+export type SetItemRouteRequest = z.infer<typeof SetItemRouteRequest>;
+export declare const POS_SETUP_STEPS: readonly ["areas", "tables", "stations", "registers", "categories", "products", "routing", "receipts", "team"];
+export declare const PosSetupStepKey: z.ZodEnum<["areas", "tables", "stations", "registers", "categories", "products", "routing", "receipts", "team"]>;
+export type PosSetupStepKey = z.infer<typeof PosSetupStepKey>;
+export declare const PosSetupStep: z.ZodObject<{
+    key: z.ZodEnum<["areas", "tables", "stations", "registers", "categories", "products", "routing", "receipts", "team"]>;
+    done: z.ZodBoolean;
+    /** How many of the thing exist (areas, tables, products...). */
+    count: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    count: number;
+    key: "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "products" | "receipts" | "team";
+    done: boolean;
+}, {
+    count: number;
+    key: "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "products" | "receipts" | "team";
+    done: boolean;
+}>;
+export type PosSetupStep = z.infer<typeof PosSetupStep>;
+export declare const PosSetup: z.ZodObject<{
+    outletId: z.ZodString;
+    steps: z.ZodArray<z.ZodObject<{
+        key: z.ZodEnum<["areas", "tables", "stations", "registers", "categories", "products", "routing", "receipts", "team"]>;
+        done: z.ZodBoolean;
+        /** How many of the thing exist (areas, tables, products...). */
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        count: number;
+        key: "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "products" | "receipts" | "team";
+        done: boolean;
+    }, {
+        count: number;
+        key: "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "products" | "receipts" | "team";
+        done: boolean;
+    }>, "many">;
+    doneCount: z.ZodNumber;
+    total: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    total: number;
+    outletId: string;
+    doneCount: number;
+    steps: {
+        count: number;
+        key: "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "products" | "receipts" | "team";
+        done: boolean;
+    }[];
+}, {
+    total: number;
+    outletId: string;
+    doneCount: number;
+    steps: {
+        count: number;
+        key: "categories" | "areas" | "tables" | "stations" | "registers" | "routing" | "products" | "receipts" | "team";
+        done: boolean;
+    }[];
+}>;
+export type PosSetup = z.infer<typeof PosSetup>;
 //# sourceMappingURL=pos.d.ts.map

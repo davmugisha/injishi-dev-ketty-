@@ -32,6 +32,7 @@ import {
   folios,
   guestStays,
   outlets,
+  posAuditEvents,
   properties,
   rooms,
   rraItemClassifications,
@@ -199,6 +200,34 @@ function randomOrderNumber(): string {
     out += BASE32[Math.floor(Math.random() * BASE32.length)];
   }
   return out;
+}
+
+/**
+ * Who changed an item's stock through the catalogue, so the change is recorded with it. The catalogue is not the
+ * Stock screen (which asks for a reason and a kind), but stock moved here must not be silent: it lands in the same
+ * `stock.*` history, in the same transaction as the change itself.
+ */
+export interface StockEditAudit {
+  workspaceId: string;
+  outletId: string | null;
+  actorUserId: string;
+  itemName: string;
+  /** `opening` for a new item's first quantity, `catalogue_edit` for a later change. */
+  kind: 'opening' | 'catalogue_edit';
+}
+
+function stockAuditRow(a: StockEditAudit, itemId: string, before: number | null, after: number | null): typeof posAuditEvents.$inferInsert {
+  return {
+    workspaceId: a.workspaceId,
+    outletId: a.outletId,
+    actorUserId: a.actorUserId,
+    action: `stock.${a.kind}`,
+    entityType: 'service_item',
+    entityId: itemId,
+    before: { stockQty: before },
+    after: { stockQty: after, delta: after === null ? null : after - (before ?? 0), item: a.itemName, kind: a.kind },
+    reason: a.kind === 'opening' ? 'Opening quantity set when the item was added' : 'Changed on the menu, not counted on the Stock screen',
+  };
 }
 
 /**
@@ -375,12 +404,19 @@ export class ServiceCatalogRepository {
     rraItemTyCd: RraItemTypeCode | null;
     rraPkgUnitCd: string | null;
     rraQtyUnitCd: string | null;
-  }): Promise<string | null> {
-    const [row] = await this.db
-      .insert(serviceItems)
-      .values(input)
-      .returning({ id: serviceItems.id });
-    return row?.id ?? null;
+  }, audit?: StockEditAudit): Promise<string | null> {
+    if (!audit || input.stockQty === null) {
+      const [row] = await this.db
+        .insert(serviceItems)
+        .values(input)
+        .returning({ id: serviceItems.id });
+      return row?.id ?? null;
+    }
+    return this.db.transaction(async (tx) => {
+      const [row] = await tx.insert(serviceItems).values(input).returning({ id: serviceItems.id });
+      if (row) await tx.insert(posAuditEvents).values(stockAuditRow(audit, row.id, null, input.stockQty));
+      return row?.id ?? null;
+    });
   }
 
   async updateItem(
@@ -401,12 +437,26 @@ export class ServiceCatalogRepository {
       rraPkgUnitCd: string;
       rraQtyUnitCd: string;
     }>,
+    audit?: StockEditAudit,
   ): Promise<void> {
     const set: Record<string, unknown> = { updatedAt: new Date() };
     for (const [key, value] of Object.entries(patch)) {
       if (value !== undefined) set[key] = value;
     }
-    await this.db.update(serviceItems).set(set).where(eq(serviceItems.id, id));
+    if (!audit || patch.stockQty === undefined) {
+      await this.db.update(serviceItems).set(set).where(eq(serviceItems.id, id));
+      return;
+    }
+    await this.db.transaction(async (tx) => {
+      // The quantity is read HERE, under a row lock, not taken from the caller's earlier read: a sale between that read and
+      // this write would otherwise leave a history row whose "before" was never true. A change to the same number leaves no row.
+      const [current] = await tx.select({ stockQty: serviceItems.stockQty }).from(serviceItems).where(eq(serviceItems.id, id)).for('update');
+      await tx.update(serviceItems).set(set).where(eq(serviceItems.id, id));
+      const next = patch.stockQty ?? null;
+      if (current && current.stockQty !== next) {
+        await tx.insert(posAuditEvents).values(stockAuditRow(audit, id, current.stockQty, next));
+      }
+    });
   }
 
   /**

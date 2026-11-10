@@ -15,6 +15,8 @@ export const POS_BOARDS = {
   PosMenu: { href: "/pos/menu", pageTitle: "POS · Menu" },
   PosStock: { href: "/pos/stock", pageTitle: "POS · Stock" },
   PosReports: { href: "/pos/reports", pageTitle: "POS · Reports" },
+  PosSetup: { href: "/pos/setup", pageTitle: "POS · Setup" },
+  PosCustomers: { href: "/pos/customers", pageTitle: "POS · Customers" },
 } as const;
 
 export type PosBoard = keyof typeof POS_BOARDS;

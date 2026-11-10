@@ -7,6 +7,8 @@
 import type { StaysSummary } from "@injishi/contracts";
 import { stayUnitWords } from "@injishi/contracts";
 import type { NavGroup, NavItem, NavTab } from "@injishi/data";
+import { requestContext } from "../data";
+import { posOutlets } from "../pos";
 import { can, type StaysScope, staysScope, staysSummary } from "./client";
 
 const chip = (n: number | undefined) => (n && n > 0 ? { chip: String(n) } : {});
@@ -83,9 +85,44 @@ export function staysNavGroups(
   return [{ label: null, items }];
 }
 
-/** The sidebar of a stay business's owner or manager; null when the workspace lets no rooms. */
+/**
+ * The sidebar of a stay business's owner or manager; null when the workspace lets no rooms. A business with no rooms
+ * that sells from a bar or restaurant outlet is run from the point of sale (as its home page already decides), so it
+ * gets the business sidebar, not a front desk, rooms and a hotel's menu.
+ */
 export async function staysNav(home: "OwnerHome" | "ManagerToday" = "OwnerHome"): Promise<NavGroup[] | null> {
   const [scope, summary] = await Promise.all([staysScope(), staysSummary()]);
   if (!scope || !summary) return null;
+  if (summary.business.rooms === 0 && (await sellsFromPos())) return barRestaurantNavGroups(scope);
   return staysNavGroups(scope, summary, home);
+}
+
+/**
+ * The owner's or manager's sidebar on the workspace pages (team, business settings, audit) of a bar and restaurant:
+ * the way back to the point of sale and the business's own pages, never a front desk or rooms it does not have.
+ */
+export function barRestaurantNavGroups(scope: Pick<StaysScope, "permissions">): NavGroup[] {
+  const items: NavItem[] = [];
+  if (can(scope, "shift.review", "money.view"))
+    items.push({ id: "pos-dashboard", label: "Dashboard", icon: "House", board: "PosDashboard" });
+  items.push({ id: "pos-floor", label: "Floor", icon: "LayoutCells", board: "PosFloor" });
+  if (can(scope, "customer.view", "customer.manage"))
+    items.push({ id: "pos-customers", label: "Customers", icon: "Persons", board: "PosCustomers" });
+  const business: NavItem[] = [];
+  if (can(scope, "team.manage")) business.push({ id: "team", label: "Team", icon: "PersonsLock", board: "TeamRoles" });
+  return business.length > 0
+    ? [
+        { label: null, items },
+        { label: "Business", items: business },
+      ]
+    : [{ label: null, items }];
+}
+
+/** Whether the workspace has a bar or restaurant outlet to sell from. A failed read counts as no (the hotel menu stays). */
+async function sellsFromPos(): Promise<boolean> {
+  try {
+    return (await posOutlets(await requestContext())).length > 0;
+  } catch {
+    return false;
+  }
 }

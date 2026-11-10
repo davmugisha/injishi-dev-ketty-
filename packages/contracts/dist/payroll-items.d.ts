@@ -1242,17 +1242,17 @@ export declare const PayFile: z.ZodObject<{
     kind: "momo" | "bank" | "paye" | "rssb";
     createdAt: string;
     totalRwf: number | null;
+    createdByName: string | null;
     rowCount: number | null;
     formatVersion: string | null;
-    createdByName: string | null;
 }, {
     id: string;
     kind: "momo" | "bank" | "paye" | "rssb";
     createdAt: string;
     totalRwf: number | null;
+    createdByName: string | null;
     rowCount: number | null;
     formatVersion: string | null;
-    createdByName: string | null;
 }>;
 export type PayFile = z.infer<typeof PayFile>;
 export declare const PayFileList: z.ZodObject<{
@@ -1270,17 +1270,17 @@ export declare const PayFileList: z.ZodObject<{
         kind: "momo" | "bank" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
+        createdByName: string | null;
         rowCount: number | null;
         formatVersion: string | null;
-        createdByName: string | null;
     }, {
         id: string;
         kind: "momo" | "bank" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
+        createdByName: string | null;
         rowCount: number | null;
         formatVersion: string | null;
-        createdByName: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     files: {
@@ -1288,9 +1288,9 @@ export declare const PayFileList: z.ZodObject<{
         kind: "momo" | "bank" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
+        createdByName: string | null;
         rowCount: number | null;
         formatVersion: string | null;
-        createdByName: string | null;
     }[];
 }, {
     files: {
@@ -1298,9 +1298,9 @@ export declare const PayFileList: z.ZodObject<{
         kind: "momo" | "bank" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
+        createdByName: string | null;
         rowCount: number | null;
         formatVersion: string | null;
-        createdByName: string | null;
     }[];
 }>;
 export type PayFileList = z.infer<typeof PayFileList>;
@@ -1336,17 +1336,17 @@ export declare const PayFileResult: z.ZodObject<{
         kind: "momo" | "bank" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
+        createdByName: string | null;
         rowCount: number | null;
         formatVersion: string | null;
-        createdByName: string | null;
     }, {
         id: string;
         kind: "momo" | "bank" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
+        createdByName: string | null;
         rowCount: number | null;
         formatVersion: string | null;
-        createdByName: string | null;
     }>;
     url: z.ZodString;
     expiresInSeconds: z.ZodNumber;
@@ -1370,9 +1370,9 @@ export declare const PayFileResult: z.ZodObject<{
         kind: "momo" | "bank" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
+        createdByName: string | null;
         rowCount: number | null;
         formatVersion: string | null;
-        createdByName: string | null;
     };
     expiresInSeconds: number;
     leftOut: {
@@ -1387,9 +1387,9 @@ export declare const PayFileResult: z.ZodObject<{
         kind: "momo" | "bank" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
+        createdByName: string | null;
         rowCount: number | null;
         formatVersion: string | null;
-        createdByName: string | null;
     };
     expiresInSeconds: number;
     leftOut: {
@@ -1583,19 +1583,19 @@ export declare const PayrollDashboard: z.ZodObject<{
         status: "confirmed" | "draft";
         grossRwf: number;
         period: string;
+        netRwf: number;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
-        netRwf: number;
         headcount: number;
     }, {
         status: "confirmed" | "draft";
         grossRwf: number;
         period: string;
+        netRwf: number;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
-        netRwf: number;
         headcount: number;
     }>, "many">;
     openLoansRwf: z.ZodNumber;
@@ -1607,10 +1607,10 @@ export declare const PayrollDashboard: z.ZodObject<{
         status: "confirmed" | "draft";
         grossRwf: number;
         period: string;
+        netRwf: number;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
-        netRwf: number;
         headcount: number;
     }[];
     openLoansRwf: number;
@@ -1622,10 +1622,10 @@ export declare const PayrollDashboard: z.ZodObject<{
         status: "confirmed" | "draft";
         grossRwf: number;
         period: string;
+        netRwf: number;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
-        netRwf: number;
         headcount: number;
     }[];
     openLoansRwf: number;

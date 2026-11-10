@@ -26,14 +26,17 @@ test("the demo's own guest keeps her story, and business people keep their works
 });
 
 test("a floor role borrowing the waiter's shell lands on its own live screen", () => {
-  // A real cashier lands on the live floor, a cook on the station board; the demo waiter keeps her home.
-  assert.equal(homeAfterSignIn("waiter", "cashier1@pos.demo.injishi.com", "PosFloor"), "/pos/floor");
+  // A real cashier lands on the cashier desk, a waiter on the live floor, a cook or bartender on the station
+  // board; the demo waiter keeps her home.
+  assert.equal(homeAfterSignIn("waiter", "cashier1@pos.demo.injishi.com", "PosShift"), "/pos/shift");
+  assert.equal(homeAfterSignIn("waiter", "waiter1@pos.demo.injishi.com", "PosFloor"), "/pos/floor");
   assert.equal(destinationAfterSignIn("waiter", "", "kitchen1@pos.demo.injishi.com", "PosStations"), "/pos/stations");
+  assert.equal(destinationAfterSignIn("waiter", "", "bartender@pos.demo.injishi.com", "PosStations"), "/pos/stations");
   assert.equal(homeAfterSignIn("waiter", personas.waiter.email), homeHref("waiter"));
   // A return target the shell may open still wins over the role's landing.
   assert.equal(
-    destinationAfterSignIn("waiter", "/pos/shift", "cashier1@pos.demo.injishi.com", "PosFloor"),
-    "/pos/shift",
+    destinationAfterSignIn("waiter", "/pos/floor", "cashier1@pos.demo.injishi.com", "PosShift"),
+    "/pos/floor",
   );
 });
 

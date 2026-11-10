@@ -8,7 +8,7 @@ import {
   type Settlement,
 } from '@injishi/contracts';
 import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
-import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 
 import {
   configEntries,
@@ -23,6 +23,8 @@ import {
   posOutletSettings,
   posPayments,
   properties,
+  serviceCategories,
+  serviceItems,
   users,
 } from '../../../database/drizzle/schema';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -39,6 +41,17 @@ import type { Database } from '../../../shared/database/database.module';
  */
 export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 export type Db = Database | Tx;
+
+/**
+ * The outlet a menu item sells from: its own, or, with none of its own, the outlet of its menu section.
+ *
+ * This is the platform's rule (guest ordering and the catalogue read an item's outlet the same way), and it is why
+ * a product an owner adds through the catalogue, which records only its section, reaches the till. Every query
+ * that asks "is this item on this outlet's menu" joins `service_categories` and uses this, never the item's own
+ * `outlet_id` alone.
+ */
+export const itemOutlet = sql<string | null>`coalesce(${serviceItems.outletId}, ${serviceCategories.outletId})`;
+export const itemInOutlet = (outletId: string): SQL => sql`${itemOutlet} = ${outletId}`;
 
 export interface OutletRow {
   id: string;

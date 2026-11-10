@@ -7,6 +7,27 @@ import { useEffect, useState } from "react";
 
 const SLIDES = [
   {
+    id: "floor",
+    tab: "Floor",
+    image: stock.isanganoTerrace,
+    title: "Run a fast floor",
+    body: "Seat guests, take orders and send them to the kitchen and bar from one screen, table by table.",
+  },
+  {
+    id: "stations",
+    tab: "Kitchen and bar",
+    image: stock.lakeBar,
+    title: "Kitchen and bar, in step",
+    body: "Every ticket reaches the right station, with allergies flagged, timers running and nothing served twice.",
+  },
+  {
+    id: "payments",
+    tab: "Payments",
+    image: stock.grilledTilapia,
+    title: "Get paid, know your numbers",
+    body: "Cash, MTN MoMo, Airtel Money and card, with sales, stock and staff on one dashboard.",
+  },
+  {
     id: "personal",
     tab: "Personal",
     image: stock.signInHeroTraveller,
@@ -48,7 +69,7 @@ const TICK_MS = 100;
 
 /** Left-hand hero of the sign-in page (cloned from the legacy demo): auto-advancing photo slides with tab progress. */
 export function HeroCarousel() {
-  const [index, setIndex] = useState(1);
+  const [index, setIndex] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [paused, setPaused] = useState(false);
 
@@ -81,7 +102,7 @@ export function HeroCarousel() {
           aria-hidden={i !== index}
           className={`absolute inset-0 transition-opacity duration-700 ${i === index ? "opacity-100" : "opacity-0"}`}
         >
-          <Photo image={s.image} fill sizes="50vw" priority={i === 1} />
+          <Photo image={s.image} fill sizes="50vw" priority={i === 0} />
         </div>
       ))}
       <div

@@ -954,16 +954,6 @@ export declare const ExplorePage: z.ZodObject<{
         width: number | null;
         height: number | null;
     }[];
-    houseRules: string | null;
-    timezone: string;
-    facts: {
-        code: string;
-        label: string;
-    }[];
-    facilities: {
-        code: string;
-        label: string;
-    }[];
     units: {
         id: string;
         label: string;
@@ -981,6 +971,16 @@ export declare const ExplorePage: z.ZodObject<{
         }[];
         availableFrom: string | null;
     }[] | null;
+    houseRules: string | null;
+    timezone: string;
+    facts: {
+        code: string;
+        label: string;
+    }[];
+    facilities: {
+        code: string;
+        label: string;
+    }[];
     shareUrl: string;
 }, {
     business: {
@@ -1043,16 +1043,6 @@ export declare const ExplorePage: z.ZodObject<{
         width: number | null;
         height: number | null;
     }[];
-    houseRules: string | null;
-    timezone: string;
-    facts: {
-        code: string;
-        label: string;
-    }[];
-    facilities: {
-        code: string;
-        label: string;
-    }[];
     units: {
         id: string;
         label: string;
@@ -1070,6 +1060,16 @@ export declare const ExplorePage: z.ZodObject<{
         }[];
         availableFrom: string | null;
     }[] | null;
+    houseRules: string | null;
+    timezone: string;
+    facts: {
+        code: string;
+        label: string;
+    }[];
+    facilities: {
+        code: string;
+        label: string;
+    }[];
     shareUrl: string;
 }>;
 export type ExplorePage = z.infer<typeof ExplorePage>;

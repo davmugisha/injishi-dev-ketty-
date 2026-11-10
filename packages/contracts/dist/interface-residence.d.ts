@@ -590,7 +590,7 @@ export declare const ResidenceAccessRequestRow: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "approved" | "declined" | "open";
     id: string;
-    kind: "overnight" | "delivery" | "gate_entry";
+    kind: "delivery" | "overnight" | "gate_entry";
     reason: string | null;
     leaseId: string;
     toDate: string | null;
@@ -600,7 +600,7 @@ export declare const ResidenceAccessRequestRow: z.ZodObject<{
 }, {
     status: "approved" | "declined" | "open";
     id: string;
-    kind: "overnight" | "delivery" | "gate_entry";
+    kind: "delivery" | "overnight" | "gate_entry";
     reason: string | null;
     leaseId: string;
     toDate: string | null;
@@ -1356,7 +1356,7 @@ export declare const ResidenceView: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "declined" | "open";
         id: string;
-        kind: "overnight" | "delivery" | "gate_entry";
+        kind: "delivery" | "overnight" | "gate_entry";
         reason: string | null;
         leaseId: string;
         toDate: string | null;
@@ -1366,7 +1366,7 @@ export declare const ResidenceView: z.ZodObject<{
     }, {
         status: "approved" | "declined" | "open";
         id: string;
-        kind: "overnight" | "delivery" | "gate_entry";
+        kind: "delivery" | "overnight" | "gate_entry";
         reason: string | null;
         leaseId: string;
         toDate: string | null;
@@ -1804,7 +1804,7 @@ export declare const ResidenceView: z.ZodObject<{
     accessRequests: {
         status: "approved" | "declined" | "open";
         id: string;
-        kind: "overnight" | "delivery" | "gate_entry";
+        kind: "delivery" | "overnight" | "gate_entry";
         reason: string | null;
         leaseId: string;
         toDate: string | null;
@@ -2060,7 +2060,7 @@ export declare const ResidenceView: z.ZodObject<{
     accessRequests: {
         status: "approved" | "declined" | "open";
         id: string;
-        kind: "overnight" | "delivery" | "gate_entry";
+        kind: "delivery" | "overnight" | "gate_entry";
         reason: string | null;
         leaseId: string;
         toDate: string | null;

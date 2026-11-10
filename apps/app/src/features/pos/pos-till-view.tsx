@@ -23,7 +23,6 @@ import {
   Tabs,
   TextArea,
   TextField,
-  Toast,
   ToggleButton,
 } from "@heroui/react";
 import { EmptyState, Segment } from "@heroui-pro/react";
@@ -60,12 +59,14 @@ import {
   updateLineAction,
   voidLineAction,
 } from "./actions";
-import { PosNav } from "./pos-nav";
+import { DishArt } from "./dish-art";
+import { mentionsAllergy } from "./kds";
+import { OrderCustomer } from "./pos-customer-picker";
+import { PosShell } from "./pos-shell";
 import {
   money,
   ORDER_COLOR,
   PosDialog,
-  PosHeader,
   parseRwf,
   SimulationNotice,
   StatusChip,
@@ -98,6 +99,7 @@ function optionsLine(l: PosOrderLine): string {
  */
 export function PosTillView({
   outlet,
+  outlets,
   order,
   menu,
   tables,
@@ -105,6 +107,7 @@ export function PosTillView({
   can,
 }: {
   outlet: PosOutlet;
+  outlets: PosOutlet[];
   order: PosOrder;
   menu: PosMenu;
   tables: PosTable[];
@@ -113,8 +116,15 @@ export function PosTillView({
 }) {
   const router = useRouter();
   const { run, pending } = usePosAction();
-  const [category, setCategory] = useState(menu.categories[0]?.id ?? "");
+  // Only the sections with something to sell: a section whose items were all archived is no use on the till.
+  const categories = useMemo(
+    () => menu.categories.filter((c) => menu.items.some((i) => i.categoryId === c.id)),
+    [menu.categories, menu.items],
+  );
+  const [category, setCategory] = useState(categories[0]?.id ?? "");
   const [query, setQuery] = useState("");
+  // On a phone the menu and the order each get the whole width, one at a time; from a tablet up they sit side by side.
+  const [pane, setPane] = useState<"menu" | "order">("menu");
   const [dialog, setDialog] = useState<Dialog>(null);
   const has = (p: string) => can.includes(p);
   const editable = order.status !== "completed" && order.status !== "cancelled";
@@ -133,25 +143,60 @@ export function PosTillView({
     run(() => addLinesAction(order.id, [{ serviceItemId: item.id, quantity: 1 }]), `${item.name} added`);
   }
 
-  return (
-    <div className="relative flex h-full flex-col bg-background">
-      <PosHeader
-        title={`${order.orderNumber}${order.tableLabel ? ` · Table ${order.tableLabel}` : ""}`}
-        outlet={outlet}
-      >
-        <StatusChip color={ORDER_COLOR[order.status]}>{ORDER_STATUS_LABEL[order.status]}</StatusChip>
-        <LinkButton href={`/pos/floor?outlet=${outlet.id}`} variant="secondary" size="sm">
-          <ArrowLeft className="size-4" />
-          Floor
-        </LinkButton>
-        <PosNav current="PosTill" outletId={outlet.id} can={can} />
-      </PosHeader>
+  const categoryName = new Map(menu.categories.map((c) => [c.id, c.name]));
 
-      <div className="flex min-h-0 flex-1">
+  return (
+    <PosShell
+      board="PosFloor"
+      title={`${order.orderNumber}${order.tableLabel ? ` · Table ${order.tableLabel}` : order.orderType === "takeaway" ? " · Takeaway" : ""}`}
+      subtitle={`${outlet.name}${outlet.branchName ? ` · ${outlet.branchName}` : ""}${order.waiterName ? ` · ${order.waiterName}` : ""}`}
+      outlet={outlet}
+      outlets={outlets}
+      outletId={outlet.id}
+      switchHref="/pos/floor"
+      can={can}
+      actions={
+        <>
+          <StatusChip color={ORDER_COLOR[order.status]}>{ORDER_STATUS_LABEL[order.status]}</StatusChip>
+          <LinkButton href={`/pos/floor?outlet=${outlet.id}`} variant="secondary" size="sm">
+            <ArrowLeft className="size-4" />
+            Floor
+          </LinkButton>
+        </>
+      }
+    >
+      <fieldset
+        className="m-0 mx-4 mb-3 flex min-w-0 gap-2 rounded-2xl border-0 bg-surface p-1.5 md:hidden"
+        aria-label="Show"
+      >
+        <Button
+          size="sm"
+          fullWidth
+          variant={pane === "menu" ? "primary" : "secondary"}
+          aria-pressed={pane === "menu"}
+          onPress={() => setPane("menu")}
+        >
+          Menu
+        </Button>
+        <Button
+          size="sm"
+          fullWidth
+          variant={pane === "order" ? "primary" : "secondary"}
+          aria-pressed={pane === "order"}
+          onPress={() => setPane("order")}
+        >
+          Order · {live.length} · {money(order.totalRwf)}
+        </Button>
+      </fieldset>
+
+      <div className="flex min-h-0 flex-1 gap-4 px-4 pb-4 md:px-6">
         {/* The menu */}
-        <section aria-label="Menu" className="flex min-w-0 flex-1 flex-col gap-3 overflow-hidden p-4">
+        <section
+          aria-label="Menu"
+          className={`flex min-w-0 flex-1 flex-col gap-3 overflow-hidden ${pane === "menu" ? "" : "max-md:hidden"}`}
+        >
           <SearchField aria-label="Search the menu" value={query} onChange={setQuery} fullWidth>
-            <SearchField.Group>
+            <SearchField.Group className="rounded-2xl bg-surface">
               <SearchField.SearchIcon />
               <SearchField.Input placeholder="Search dishes and drinks" />
               <SearchField.ClearButton />
@@ -159,48 +204,92 @@ export function PosTillView({
           </SearchField>
           {!query ? (
             <Tabs variant="secondary" selectedKey={category} onSelectionChange={(k) => setCategory(String(k))}>
-              <Tabs.ListContainer className="overflow-x-auto">
-                <Tabs.List aria-label="Menu category">
-                  {menu.categories.map((c) => (
-                    <Tabs.Tab key={c.id} id={c.id}>
-                      {c.name}
-                      <Tabs.Indicator />
-                    </Tabs.Tab>
-                  ))}
+              <Tabs.ListContainer className="overflow-x-auto pb-1">
+                <Tabs.List aria-label="Menu category" className="gap-2 border-0 shadow-none">
+                  {categories.map((c) => {
+                    const n = menu.items.filter((i) => i.categoryId === c.id).length;
+                    return (
+                      <Tabs.Tab
+                        key={c.id}
+                        id={c.id}
+                        data-ui="category-pill"
+                        data-category={c.id}
+                        data-count={n}
+                        className="h-10 w-auto shrink-0 rounded-full border border-separator bg-surface px-4 text-[13px] font-medium text-foreground/80 transition-colors hover:border-accent/60 data-[selected=true]:border-accent data-[selected=true]:bg-accent data-[selected=true]:font-semibold data-[selected=true]:text-accent-foreground"
+                      >
+                        <span className="whitespace-nowrap">{c.name}</span>
+                        <span className="ml-1.5 rounded-full bg-foreground/8 px-1.5 text-[11px] font-semibold tabular">
+                          {n}
+                        </span>
+                      </Tabs.Tab>
+                    );
+                  })}
                 </Tabs.List>
               </Tabs.ListContainer>
             </Tabs>
           ) : null}
-          <div className="grid min-h-0 flex-1 auto-rows-min gap-2 overflow-y-auto [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
-            {items.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                disabled={!item.available || !editable || !has("pos.sell") || pending}
-                onClick={() => addPlain(item)}
-                className="flex min-h-[92px] flex-col justify-between gap-1 rounded-2xl border border-separator bg-surface p-3 text-left transition enabled:hover:border-accent disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent"
-              >
-                <span className="text-[14px] leading-5 font-medium">{item.name}</span>
-                <span className="flex items-end justify-between gap-1">
-                  <span className="text-[13px] tabular">{money(item.priceRwf)}</span>
-                  <span className="text-[11px] text-muted">
-                    {item.available
-                      ? item.options.length
-                        ? "Options"
-                        : item.stationId
-                          ? ""
-                          : "No ticket"
-                      : item.unavailableReason}
+          <div className="grid min-h-0 flex-1 auto-rows-min gap-3 overflow-y-auto pb-1 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
+            {items.map((item) => {
+              const off = !item.available || !editable || !has("pos.sell") || pending;
+              const section = categoryName.get(item.categoryId) ?? "";
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  data-ui="product-card"
+                  data-item={item.name}
+                  disabled={off}
+                  onClick={() => addPlain(item)}
+                  className="group flex flex-col gap-2.5 rounded-[20px] border border-separator bg-surface p-2.5 text-left transition enabled:hover:border-accent enabled:hover:shadow-[0_8px_24px_-12px_color-mix(in_oklab,var(--accent)_60%,transparent)] disabled:opacity-55 focus-visible:outline-2 focus-visible:outline-accent"
+                >
+                  <DishArt name={item.name} section={section} />
+                  <span className="flex min-w-0 flex-col gap-0.5 px-1">
+                    <span className="truncate text-[11px] font-medium text-muted">{section}</span>
+                    <span className="line-clamp-2 min-h-10 text-[14px] leading-5 font-semibold">{item.name}</span>
                   </span>
-                </span>
-              </button>
-            ))}
+                  <span className="flex flex-col gap-1 px-1 pb-0.5">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 truncate text-[15px] font-bold text-accent tabular">
+                        {money(item.priceRwf)}
+                      </span>
+                      <span
+                        data-ui="add"
+                        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[0_6px_14px_-6px_var(--accent)] transition group-enabled:group-hover:scale-105 group-disabled:bg-default group-disabled:text-muted group-disabled:shadow-none"
+                      >
+                        <Plus className="size-4" />
+                        <span className="sr-only">Add</span>
+                      </span>
+                    </span>
+                    <span className="truncate text-[11px] text-muted">
+                      {item.available
+                        ? item.options.length
+                          ? "Sizes and options"
+                          : item.stationId
+                            ? "Goes to a station"
+                            : "No ticket"
+                        : item.unavailableReason}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
             {items.length === 0 ? <p className="text-[13px] text-muted">Nothing matches.</p> : null}
           </div>
         </section>
 
         {/* The order */}
-        <section aria-label="Order" className="flex w-[400px] shrink-0 flex-col border-l border-separator bg-surface">
+        <section
+          aria-label="Order"
+          data-ui="order-panel"
+          className={`flex w-full shrink-0 flex-col overflow-hidden rounded-[20px] border border-separator bg-surface md:w-[330px] lg:w-[360px] xl:w-[400px] ${pane === "order" ? "" : "max-md:hidden"}`}
+        >
+          <div className="flex items-center justify-between gap-2 px-4 pt-4">
+            <h2 className="text-[16px] font-semibold">Order summary</h2>
+            <span className="text-[12px] text-muted tabular">
+              {live.length} line{live.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <OrderCustomer order={order} can={can} editable={editable} />
           <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-4">
             {order.lines.length === 0 ? (
               <EmptyState size="sm">
@@ -213,16 +302,30 @@ export function PosTillView({
             {order.lines.map((l) => (
               <div
                 key={l.id}
-                className={`flex flex-col gap-1 rounded-xl border border-separator p-2.5 ${l.status === "voided" ? "opacity-60" : ""}`}
+                className={`flex flex-col gap-1 rounded-2xl bg-background/70 p-3 ${l.status === "voided" ? "opacity-60" : ""}`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <span className={`text-[14px] font-medium ${l.status === "voided" ? "line-through" : ""}`}>
-                    {l.quantity} × {l.name}
+                <div className="flex items-start justify-between gap-2.5">
+                  <DishArt name={l.name} size="thumb" />
+                  <span
+                    className={`min-w-0 flex-1 pt-0.5 text-[14px] font-semibold ${l.status === "voided" ? "line-through" : ""}`}
+                  >
+                    <span className="mr-1.5 inline-flex min-w-6 justify-center rounded-md bg-surface px-1 text-[12px] text-accent tabular">
+                      {l.quantity}×
+                    </span>
+                    {l.name}
                   </span>
-                  <span className="text-[14px] tabular">{money(l.status === "voided" ? 0 : l.totalRwf)}</span>
+                  <span className="text-[14px] font-semibold tabular">
+                    {money(l.status === "voided" ? 0 : l.totalRwf)}
+                  </span>
                 </div>
                 {l.selectedOptions.length ? <span className="text-[12px] text-muted">{optionsLine(l)}</span> : null}
-                {l.note ? <span className="text-[12px] text-warning">Note: {l.note}</span> : null}
+                {l.note ? (
+                  mentionsAllergy(l.note) ? (
+                    <span className="text-[12px] font-semibold text-danger">Allergy: {l.note}</span>
+                  ) : (
+                    <span className="text-[12px] text-warning">Note: {l.note}</span>
+                  )
+                ) : null}
                 {l.discountRwf > 0 && l.status !== "voided" ? (
                   <span className="text-[12px] text-success tabular">Discount −{money(l.discountRwf)}</span>
                 ) : null}
@@ -396,7 +499,7 @@ export function PosTillView({
           </div>
 
           {/* Totals and commands */}
-          <div className="flex flex-col gap-2 border-t border-separator p-4">
+          <div className="flex flex-col gap-3 border-t border-separator bg-background/40 p-4">
             <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[13px] tabular">
               <dt className="text-muted">Subtotal</dt>
               <dd className="text-right">{money(order.grossRwf)}</dd>
@@ -410,8 +513,13 @@ export function PosTillView({
                 VAT {order.taxMode === "inclusive" ? "(included, illustrative)" : "(added, illustrative)"}
               </dt>
               <dd className="text-right">{money(order.taxRwf)}</dd>
-              <dt className="text-[15px] font-semibold">Total</dt>
-              <dd className="text-right text-[15px] font-semibold">{money(order.totalRwf)}</dd>
+              <dt className="mt-1 border-t border-dashed border-separator pt-2 text-[16px] font-bold">Total</dt>
+              <dd
+                data-ui="grand-total"
+                className="mt-1 border-t border-dashed border-separator pt-2 text-right text-[16px] font-bold"
+              >
+                {money(order.totalRwf)}
+              </dd>
               {order.settlement.collectedRwf ? (
                 <>
                   <dt className="text-muted">Paid</dt>
@@ -428,11 +536,13 @@ export function PosTillView({
               <dd className="text-right font-medium">{money(order.settlement.outstandingRwf)}</dd>
             </dl>
             {editable ? (
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-3 gap-2">
                 {has("pos.sell") ? (
                   <Button
-                    className="col-span-3"
+                    className="col-span-3 h-12 rounded-2xl text-[15px] font-semibold"
                     size="lg"
+                    fullWidth
+                    variant={drafts.length ? "primary" : "secondary"}
                     isDisabled={pending || drafts.length === 0}
                     onPress={() => run(() => sendAction(order.id), "Sent to the kitchen and bar")}
                   >
@@ -442,9 +552,10 @@ export function PosTillView({
                 ) : null}
                 {has("pos.checkout") ? (
                   <Button
-                    className="col-span-3"
+                    className="col-span-3 h-12 rounded-2xl text-[15px] font-semibold"
                     size="lg"
-                    variant="secondary"
+                    fullWidth
+                    variant={drafts.length ? "secondary" : "primary"}
                     isDisabled={pending || order.settlement.payableRwf === 0}
                     onPress={() => setDialog({ kind: "pay" })}
                   >
@@ -454,6 +565,7 @@ export function PosTillView({
                 ) : null}
                 {has("pos.discount") || has("pos.override") ? (
                   <Button
+                    fullWidth
                     size="sm"
                     variant="secondary"
                     isDisabled={live.length === 0}
@@ -464,6 +576,7 @@ export function PosTillView({
                   </Button>
                 ) : null}
                 <Button
+                  fullWidth
                   size="sm"
                   variant="secondary"
                   isDisabled={
@@ -478,12 +591,13 @@ export function PosTillView({
                   Split
                 </Button>
                 {order.orderType === "dine_in" && has("table.manage") ? (
-                  <Button size="sm" variant="secondary" onPress={() => setDialog({ kind: "transfer" })}>
+                  <Button fullWidth size="sm" variant="secondary" onPress={() => setDialog({ kind: "transfer" })}>
                     <ArrowRightArrowLeft className="size-4" />
                     Move
                   </Button>
                 ) : null}
                 <Button
+                  fullWidth
                   size="sm"
                   variant="secondary"
                   isDisabled={pending}
@@ -498,7 +612,7 @@ export function PosTillView({
                   <Printer className="size-4" />
                   Bill
                 </Button>
-                <Button size="sm" variant="danger-soft" onPress={() => setDialog({ kind: "cancel" })}>
+                <Button fullWidth size="sm" variant="danger-soft" onPress={() => setDialog({ kind: "cancel" })}>
                   Cancel
                 </Button>
               </div>
@@ -647,9 +761,8 @@ export function PosTillView({
           />
         ) : null}
         {dialog?.kind === "bill" ? <BillDialog print={dialog.print} onClose={() => setDialog(null)} /> : null}
-        <Toast.Provider placement="bottom" />
       </RegionOverlays>
-    </div>
+    </PosShell>
   );
 }
 
@@ -740,29 +853,44 @@ function OptionsDialog({
         </>
       }
     >
-      {item.options.map((o) => (
-        <div key={o.name} className="flex flex-col gap-1.5">
-          <Label>
-            {o.name}
-            {o.required ? " · choose one (required)" : o.maxChoices > 1 ? ` · up to ${o.maxChoices}` : " · optional"}
-          </Label>
-          <div className="flex flex-wrap gap-1.5">
-            {o.choices.map((c) => (
-              <ToggleButton
-                key={c.label}
-                isSelected={(picked[o.name] ?? []).includes(c.label)}
-                onChange={() => toggle(o.name, c.label, o.maxChoices)}
-              >
-                {c.label}
-                {c.priceDeltaRwf ? ` +${money(c.priceDeltaRwf)}` : ""}
-              </ToggleButton>
-            ))}
+      {item.options.map((o) =>
+        // A required option with a single choice is not a question: it is applied (it was picked above) and shown.
+        o.required && o.choices.length === 1 ? (
+          <p key={o.name} className="text-[13px]">
+            <span className="text-muted">{o.name}:</span> {o.choices[0]?.label}
+          </p>
+        ) : (
+          <div key={o.name} className="flex flex-col gap-1.5">
+            <Label>
+              {o.name}
+              {o.required
+                ? ` · pick one (${(picked[o.name] ?? [])[0] ?? "none"} selected)`
+                : o.maxChoices > 1
+                  ? ` · optional, up to ${o.maxChoices}`
+                  : " · optional"}
+            </Label>
+            <div className="flex flex-wrap gap-1.5">
+              {o.choices.map((c) => (
+                <ToggleButton
+                  key={c.label}
+                  isSelected={(picked[o.name] ?? []).includes(c.label)}
+                  onChange={() => toggle(o.name, c.label, o.maxChoices)}
+                >
+                  {c.label}
+                  {o.required && o.maxChoices === 1
+                    ? ` · ${money(item.priceRwf + c.priceDeltaRwf)}`
+                    : c.priceDeltaRwf
+                      ? ` +${money(c.priceDeltaRwf)}`
+                      : ""}
+                </ToggleButton>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ),
+      )}
       <TextField value={note} onChange={setNote} fullWidth>
-        <Label>Kitchen note or allergy</Label>
-        <TextArea rows={2} />
+        <Label>Kitchen note or allergy (optional)</Label>
+        <TextArea rows={2} placeholder="e.g. no ice · nut allergy · well done" />
       </TextField>
     </PosDialog>
   );

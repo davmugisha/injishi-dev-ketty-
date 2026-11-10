@@ -4054,7 +4054,7 @@ export declare const PsfQueueAreaQuery: z.ZodObject<{
     /** `newest` first by default: what just arrived is what an officer looks for. */
     sort: z.ZodDefault<z.ZodEnum<["newest", "oldest", "amount"]>>;
 }, "strip", z.ZodTypeAny, {
-    sort: "newest" | "oldest" | "amount";
+    sort: "newest" | "amount" | "oldest";
     province?: number | undefined;
     district?: number | undefined;
     cursor?: string | undefined;
@@ -4063,7 +4063,7 @@ export declare const PsfQueueAreaQuery: z.ZodObject<{
     cluster?: string | undefined;
     group?: "women" | "youth" | "pwd" | undefined;
 }, {
-    sort?: "newest" | "oldest" | "amount" | undefined;
+    sort?: "newest" | "amount" | "oldest" | undefined;
     province?: number | undefined;
     district?: number | undefined;
     cursor?: string | undefined;
