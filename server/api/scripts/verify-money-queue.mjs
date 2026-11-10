@@ -73,7 +73,7 @@ async function sessionFor(email) {
     body: JSON.stringify({ email, otp: OTP }),
   });
   if (!res.ok) {
-    console.error(`${email}: sign-in answered ${res.status} (the OTP cap is 5 codes an hour per identity).`);
+    console.error(`${email}: sign-in answered ${res.status} (the OTP cap is 10 codes an hour per identity).`);
     process.exit(2);
   }
   const cookie = jar(res);

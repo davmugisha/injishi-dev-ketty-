@@ -57,12 +57,12 @@ async function sessionFor(email) {
     body: JSON.stringify({ email, otp: OTP }),
   });
   if (!res.ok) {
-    // A 400 here is usually the OTP send cap: 5 codes an hour per identifier
+    // A 400 here is usually the OTP send cap: 10 codes an hour per identifier
     // (ADR-039), and each run of this script spends one per identity. That is
     // the cap working; say so rather than reading as a broken endpoint.
     const hint =
       res.status === 400
-        ? ' — likely the OTP send cap (5 per identifier per hour, ADR-039).' +
+        ? ' — likely the OTP send cap (10 per identifier per hour, ADR-039).' +
           ' Wait for the window, or point the script at another seeded identity.'
         : '';
     throw new Error(`${email}: sign-in ${res.status}${hint}`);

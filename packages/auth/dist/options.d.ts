@@ -28,8 +28,11 @@ export declare const OTP_MAX_ATTEMPTS = 5;
  * Two fixed windows that reset independently, not a sliding log: cheaper, easier
  * to reason about, and the small burst allowed at a window boundary is bounded
  * by the daily figure anyway.
+ *
+ * Ten since 2026-11-10; it was five. The daily figure did not move with it, so
+ * ten codes in one hour leave five for the rest of that day.
  */
-export declare const OTP_MAX_PER_HOUR = 5;
+export declare const OTP_MAX_PER_HOUR = 10;
 /** The daily half of the same cap. See `OTP_MAX_PER_HOUR`. */
 export declare const OTP_MAX_PER_DAY = 15;
 /**

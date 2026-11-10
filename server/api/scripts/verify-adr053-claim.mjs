@@ -110,7 +110,7 @@ async function markVerified(email, fullName, dateOfBirth) {
 }
 
 // Sessions cached in the OS temp directory, never beside the script: they are
-// live cookies, and the OTP cap is five codes per address per hour.
+// live cookies, and the OTP cap is ten codes per address per hour.
 const JAR_FILE = join(tmpdir(), "injishi-verify-adr053-sessions.json");
 const JARS = (() => {
   try {

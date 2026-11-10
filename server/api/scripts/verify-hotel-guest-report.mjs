@@ -94,7 +94,7 @@ async function sessionFor(email) {
     body: JSON.stringify({ email, otp: OTP }),
   });
   if (!res.ok) {
-    console.error(`${email}: sign-in answered ${res.status} (a 400 is usually the OTP cap of 5 an hour).`);
+    console.error(`${email}: sign-in answered ${res.status} (a 400 is usually the OTP cap of 10 an hour).`);
     process.exit(2);
   }
   const cookie = jar(res);

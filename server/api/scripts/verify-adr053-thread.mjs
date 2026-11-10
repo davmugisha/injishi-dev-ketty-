@@ -31,7 +31,7 @@
 // re-running it simply adds another colliding property, which is itself part of
 // what it proves.
 //
-// THE OTP CAP WILL BITE YOU: five codes per address per hour. Sessions are
+// THE OTP CAP WILL BITE YOU: ten codes per address per hour. Sessions are
 // therefore cached between runs, in the OS temp directory rather than beside
 // this file, because the cache holds live session cookies and a credential does
 // not belong in a repository.
@@ -67,7 +67,7 @@ import { join } from "node:path";
 /**
  * Sessions are CACHED to disk between runs.
  *
- * Not a convenience: the OTP cap is five codes per address per hour, and reaching
+ * Not a convenience: the OTP cap is ten codes per address per hour, and reaching
  * it locks that address for a full hour — so a handful of reruns while fixing the
  * harness would lock the accounts the harness needs.
  */

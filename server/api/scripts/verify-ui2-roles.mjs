@@ -37,7 +37,7 @@
 //    policy as it found it.
 //
 // SIX SIGN-INS PER RUN (the owner, the two verification members, the manager,
-// the desk and the housekeeper). The OTP send cap is five per address and
+// the desk and the housekeeper). The OTP send cap is ten per address and
 // thirty per IP per hour; `verify-authz-http.mjs` explains the ledger and how to
 // clear it on a sample database.
 import pg from 'pg';

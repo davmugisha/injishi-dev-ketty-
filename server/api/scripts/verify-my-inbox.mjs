@@ -53,15 +53,15 @@ async function sessionFor(email) {
     body: JSON.stringify({ email, otp: OTP }),
   });
   if (!res.ok) {
-    // The send cap is 5 codes an hour per identifier (ADR-039), and every run of
-    // this script spends one for each identity it uses. Running it four or five
+    // The send cap is 10 codes an hour per identifier (ADR-039), and every run of
+    // this script spends one for each identity it uses. Running it nine or ten
     // times in an hour therefore stops it — which is the cap working, not a
     // break. Say so, rather than exiting on an unhandled stack trace that reads
     // like the endpoint is broken.
     const hint =
       res.status === 400
         ? ' — if you have run this a few times in the last hour, that is the OTP' +
-          ' send cap (5 per identifier per hour, ADR-039). Wait for the window or' +
+          ' send cap (10 per identifier per hour, ADR-039). Wait for the window or' +
           ' use another seeded identity.'
         : '';
     throw new Error(`${email}: sign-in ${res.status}${hint}`);
@@ -106,7 +106,7 @@ console.log(`Verifying the guest inbox against ${API}\n`);
 /*
  * The GUEST signs in first, and the operator only when there is a reason to.
  *
- * Every sign-in spends one of that identity's five codes an hour (ADR-039), so
+ * Every sign-in spends one of that identity's ten codes an hour (ADR-039), so
  * an order that signs in three identities to check one endpoint runs out three
  * times faster. The operator is needed for two things only — finding a room to
  * book when the guest has no conversation yet, and replying from the desk — so
