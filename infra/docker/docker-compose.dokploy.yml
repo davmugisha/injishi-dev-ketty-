@@ -292,7 +292,10 @@ services:
     # node server/api/scripts/migrate.mjs
     # Then the platform reference data (geography, RDB classes, amenities, government bodies, the VAT row):
     # idempotent, never a user or a sample row, so it is safe on every start (seed-reference.mjs).
-    command: ["sh", "-c", "node scripts/migrate.mjs && node scripts/seed-reference.mjs && node dist/main.js"]
+    # Then the platform admins named in seed-production-admins.mjs: granted once, after which the
+    # admin console owns the grant. It is the one step allowed to fail: the API still starts and
+    # the line on stderr says why, because a missing admin must not take the site down with it.
+    command: ["sh", "-c", "node scripts/migrate.mjs && node scripts/seed-reference.mjs && { node scripts/seed-production-admins.mjs || echo 'seed-production-admins failed; the API starts without it' >&2; } && node dist/main.js"]
     environment:
       <<: *api-env
       INJISHI_PROCESS: http

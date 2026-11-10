@@ -19,6 +19,10 @@
  *  - It writes an `audit_events` row naming itself, so the first grant is on the trail like every
  *    other one.
  *
+ * Production no longer needs it by default: `seed-production-admins.mjs` grants the admins named in
+ * the repository on every API start, so this refuses there once that has run. It stays for a
+ * database whose list is empty, or one that never ran the seed.
+ *
  * Safe on a real or a sample database. It writes one person's grant and nothing else.
  */
 import pg from 'pg';

@@ -326,14 +326,29 @@ steps above. Running the mark twice is harmless; it exits 0 the second time.
 
 ## Opening registration on a real database
 
-Production is migrated and given reference data (`seed-reference.mjs`) and
-nothing else. Until the steps below are done, `GET /api/v1/registrations/fee`
-answers 404 "Registration for this business type is not open yet", and a
-business that did register could never be approved, because nobody holds an
-officer seat. Do them once, in this order, after the first deploy.
+Production is migrated and given reference data (`seed-reference.mjs`) and its
+named admins (`seed-production-admins.mjs`), and nothing else. Until the steps
+below are done, `GET /api/v1/registrations/fee` answers 404 "Registration for
+this business type is not open yet", and a business that did register could
+never be approved, because nobody holds an officer seat. Do them once, in this
+order, after the first deploy.
 
-1. **The first platform admin.** The person signs in once on
-   `www.injishi.com` with the emailed code, which makes their account. Then:
+1. **The first platform admin.** Already done by the deploy:
+   `mutuyimana002@gmail.com` is the production super admin, named in
+   `server/api/scripts/seed-production-admins.mjs`, which the API runs on every
+   start. The first run makes the account if the address has none (it reads
+   "invited" in the console until then) and grants `super_admin`, then leaves
+   the grant alone: a role change or a revocation made in the admin console is
+   never undone by a restart. The person signs in on `www.injishi.com` with the
+   emailed code and opens the admin console. A failed run does not stop the API;
+   look for `seed-production-admins` in `docker compose -p injishi logs api`.
+
+   To change who it is, edit that list and deploy; to take someone out, revoke
+   them in the console as well. `node scripts/verify-production-admins.mjs`
+   proves the seed against a throwaway database.
+
+   With the list emptied, the manual door still works: the person signs in once
+   (which makes their account), then
 
    ```sh
    docker compose -p injishi -f infra/docker/docker-compose.dokploy.yml --env-file /opt/injishi/.env \
