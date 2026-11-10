@@ -6,7 +6,13 @@
  * `admin.user.role.grant` behind the staff step-up and writes the audit row; this checks the form with
  * the same contracts schema first, and answers in words for a toast or under a field.
  */
-import { AppointOfficerRequest, EndAppointmentQuery, type OversightAppointment } from "@injishi/contracts";
+import {
+  type AdminUserListResponse,
+  AppointOfficerRequest,
+  EndAppointmentQuery,
+  OVERSIGHT_ROLE_LABEL,
+  type OversightAppointment,
+} from "@injishi/contracts";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { currentApi } from "@/lib/session";
@@ -78,4 +84,33 @@ export async function endAppointment(id: string, reason: string): Promise<AdminA
     await api.delete<null>(`/api/v1/admin/local-leaders/${id}`, { query: { reason: parsed.data.reason } });
     return null;
   });
+}
+
+/** Who already signs in with this email, for the Appoint form to greet them by name; null when no one does. */
+export interface KnownPerson {
+  id: string;
+  name: string | null;
+  status: string;
+  post: string | null;
+}
+
+export async function findPersonByEmail(email: string): Promise<KnownPerson | null> {
+  const wanted = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(wanted)) return null;
+  try {
+    const api = await currentApi();
+    const list = await api.get<AdminUserListResponse>("/api/v1/admin/users", {
+      query: { q: wanted, page: "1", pageSize: "5", reason: "Admin console: Appoint, who is this email" },
+    });
+    const hit = list.items.find((u) => u.email.toLowerCase() === wanted);
+    if (!hit) return null;
+    return {
+      id: hit.id,
+      name: hit.name?.trim() || null,
+      status: hit.status,
+      post: hit.oversight ? (hit.oversight.governmentTitle ?? OVERSIGHT_ROLE_LABEL[hit.oversight.oversightRole]) : null,
+    };
+  } catch {
+    return null;
+  }
 }

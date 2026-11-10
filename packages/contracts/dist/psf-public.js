@@ -393,13 +393,18 @@ exports.PsfPaymentLine = zod_1.z.object({
 // The PSF team (2026-11-02): a Regional Manager appoints its District Managers,
 // and a District Manager its district's BDEs
 // ---------------------------------------------------------------------------
-/** The two district posts: a Regional Manager fills the first, a District Manager the second. */
-exports.PsfTeamRole = zod_1.z.enum(["district_manager", "business_officer"]);
+/**
+ * The PSF posts appointed from the Team page. A National Manager fills all three (2026-11-09); a Regional
+ * Manager fills District Managers in its province.
+ */
+exports.PsfTeamRole = zod_1.z.enum(["regional_manager", "district_manager", "business_officer"]);
 exports.PSF_TEAM_ROLE_LABEL = {
+    regional_manager: "Regional Manager",
     district_manager: "District Manager",
     business_officer: "Business Development & Empowerment (BDE)",
 };
 exports.PSF_TEAM_ROLE_DESCRIPTION = {
+    regional_manager: "Oversees a province: appoints its District Managers and reads its reports.",
     district_manager: "Decides membership applications and claims, and sets the district's fees and subtypes.",
     business_officer: "Reads the district's applications, businesses, decisions and reports. Approvals come later.",
 };
@@ -409,31 +414,49 @@ exports.PsfTeamMember = zod_1.z.object({
     email: zod_1.z.string(),
     role: exports.PsfTeamRole,
     title: zod_1.z.string().nullable(),
-    districtId: zod_1.z.number().int(),
+    /** The district a District Manager or BDE serves; null for a Regional Manager. */
+    districtId: zod_1.z.number().int().nullable(),
     districtName: zod_1.z.string().nullable(),
+    /** The province a Regional Manager oversees (2026-11-09); null for a district post. */
+    provinceId: zod_1.z.number().int().nullable().default(null),
+    provinceName: zod_1.z.string().nullable().default(null),
     appointedAt: zod_1.z.string(),
     appointedByName: zod_1.z.string().nullable(),
     /** Their ID as typed at the appointment, masked ("National ID ending 5187"); null for an older one. */
     idDocumentLine: zod_1.z.string().nullable().default(null),
 });
-/** `GET /oversight/psf/team`: the people in the caller's districts, and where the caller may appoint. */
+/** `GET /oversight/psf/team`: the people in the caller's area, and where the caller may appoint. */
 exports.PsfTeamView = zod_1.z.object({
-    /** May appoint and end: a Regional or National Manager (District Managers), a District Manager (BDEs). */
+    /** May appoint and end: a National Manager (every post), a Regional Manager (District Managers). */
     canAppoint: zod_1.z.boolean(),
-    /** The posts the caller fills (2026-11-02). */
+    /** The posts the caller fills. */
     appointRoles: zod_1.z.array(exports.PsfTeamRole).default([]),
     /** The districts the caller may appoint in, by province. */
     districts: zod_1.z.array(zod_1.z.object({ id: zod_1.z.number().int(), name: zod_1.z.string(), provinceName: zod_1.z.string().nullable() })),
+    /** The provinces the caller may appoint a Regional Manager in (a National Manager's; 2026-11-09). */
+    provinces: zod_1.z.array(zod_1.z.object({ id: zod_1.z.number().int(), name: zod_1.z.string() })).default([]),
     members: zod_1.z.array(exports.PsfTeamMember),
 });
-exports.AppointPsfTeamRequest = zod_1.z.object({
+exports.AppointPsfTeamRequest = zod_1.z
+    .object({
     email: zod_1.z.string().trim().toLowerCase().email("Enter their email address."),
     name: zod_1.z.string().trim().min(2, "Enter their full name.").max(120, "That name is too long."),
     role: exports.PsfTeamRole,
     /** The person's ID (2026-11-02): a National ID or a passport. */
     idDocument: registration_1.PsfIdDocument,
-    districtId: zod_1.z.number().int().positive({ message: "Pick a district." }),
+    /** A District Manager's or a BDE's district. */
+    districtId: zod_1.z.number().int().positive({ message: "Pick a district." }).optional(),
+    /** A Regional Manager's province. */
+    provinceId: zod_1.z.number().int().positive({ message: "Pick a province." }).optional(),
     reason: zod_1.z.string().trim().min(3, "Say why, in a few words.").max(500, "That reason is too long."),
+})
+    .superRefine((v, ctx) => {
+    if (v.role === "regional_manager" && !v.provinceId) {
+        ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, path: ["provinceId"], message: "Pick a province." });
+    }
+    if (v.role !== "regional_manager" && !v.districtId) {
+        ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, path: ["districtId"], message: "Pick a district." });
+    }
 });
 exports.EndPsfTeamQuery = zod_1.z.object({
     reason: zod_1.z.string().trim().min(3, "Say why, in a few words.").max(500, "That reason is too long."),

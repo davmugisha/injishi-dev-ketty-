@@ -7,9 +7,10 @@ import {
   type BrokerPlan,
   type BrokerPlanCode,
   type BrokerPlanStatus,
+  type AdminBrokerSubscriptionQuery,
 } from '@injishi/contracts';
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { eq, sql } from 'drizzle-orm';
+import { eq, type SQL, sql } from 'drizzle-orm';
 
 import { brokerPlans } from '../../../database/drizzle/brokers';
 import { AuditWriter } from '../../../shared/audit/audit-writer';
@@ -71,11 +72,28 @@ export class AdminBrokerPlansService {
     });
   }
 
-  async subscriptions(page: number, pageSize: number): Promise<AdminBrokerSubscriptionList> {
+  async subscriptions(query: AdminBrokerSubscriptionQuery): Promise<AdminBrokerSubscriptionList> {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 25;
     // An upgrade that was never paid is noise here; one still waiting today is not.
-    const shown = sql`(bs.status <> 'pending_payment' or bs.created_at > now() - interval '1 day')`;
-    const [count, rows] = await Promise.all([
-      this.db.execute<{ n: number }>(sql`select count(*)::int as n from broker_subscriptions bs where ${shown}`),
+    const base: SQL[] = [sql`(bs.status <> 'pending_payment' or bs.created_at > now() - interval '1 day')`];
+    if (query.q) base.push(sql`(coalesce(b.name, u.name) ilike ${`%${query.q}%`} or u.email ilike ${`%${query.q}%`})`);
+    if (query.plan) base.push(sql`bp.code::text = ${query.plan}`);
+    if (query.provinceId) base.push(sql`bs.scope_province_id = ${query.provinceId}`);
+    if (query.createdFrom) {
+      base.push(sql`bs.created_at >= (${query.createdFrom}::date::timestamp at time zone 'Africa/Kigali')`);
+    }
+    const all = [...base, ...(query.status ? [sql`bs.status::text = ${query.status}`] : [])];
+    const from = sql`from broker_subscriptions bs
+          join broker_plans bp on bp.id = bs.plan_id
+          join brokers b on b.id = bs.broker_id
+          join users u on u.id = b.user_id
+          left join provinces pr on pr.id = bs.scope_province_id`;
+    const [count, byStatus, rows] = await Promise.all([
+      this.db.execute<{ n: number }>(sql`select count(*)::int as n ${from} where ${sql.join(all, sql` and `)}`),
+      this.db.execute<{ status: BrokerPlanStatus; n: number }>(
+        sql`select bs.status::text as status, count(*)::int as n ${from} where ${sql.join(base, sql` and `)} group by 1`,
+      ),
       this.db.execute<{
         id: string;
         brokerId: string;
@@ -97,16 +115,13 @@ export class AdminBrokerPlansService {
                coalesce((select sum(p.amount_rwf) from broker_subscription_payments p
                           where p.subscription_id = bs.id and p.status = 'paid'), 0)::int as "paidRwf",
                bs.created_at::text as "createdAt"
-          from broker_subscriptions bs
-          join broker_plans bp on bp.id = bs.plan_id
-          join brokers b on b.id = bs.broker_id
-          join users u on u.id = b.user_id
-          left join provinces pr on pr.id = bs.scope_province_id
-         where ${shown}
+          ${from}
+         where ${sql.join(all, sql` and `)}
          order by bs.created_at desc
          limit ${pageSize} offset ${(page - 1) * pageSize}
       `),
     ]);
+    const statusCounts = Object.fromEntries(byStatus.rows.map((r) => [r.status, r.n]));
     return {
       items: rows.rows.map(({ provinceName, createdAt, ...r }) => ({
         ...r,
@@ -114,6 +129,7 @@ export class AdminBrokerPlansService {
         createdAt: new Date(createdAt).toISOString(),
       })),
       meta: { total: count.rows[0]?.n ?? 0, page, pageSize },
+      statusCounts,
     };
   }
 }

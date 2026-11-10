@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdminOrgSubscription = exports.AdminInvoice = exports.AdminOrgPropertiesResponse = exports.AdminOrgProperty = exports.AdminOrgPeopleResponse = exports.AdminOrgMember = exports.AdminOrgDetail = exports.AdminOboListResponse = exports.AdminOboRow = exports.AdminOrgReviewQueueResponse = exports.AdminOrgReviewItem = exports.ReviewCoverage = exports.AdminOrgListResponse = exports.AdminOrgListQuery = exports.AdminOrgRow = exports.AdminOverview = exports.AdminQueueHealth = exports.AdminAdapterHealth = exports.AdminWorkQueueItem = exports.AdminDistrictDensity = exports.AdminRevenueLine = exports.AdminKpi = exports.AdminListMeta = exports.AdminKycState = exports.AdminTranslationStatus = exports.AdminAnnouncementState = exports.AdminEscalationState = exports.AdminEscalationType = exports.AdminEscalationSubjectType = exports.AdminSupportTicketState = exports.AdminDsrState = exports.AdminDsrRequestType = exports.AdminComplianceArtifactType = exports.AdminFlagScope = exports.AdminLedgerTxnKind = exports.AdminPlanBillingPeriod = exports.AdminPayoutStatus = exports.AdminInvoiceKind = exports.AdminInvoiceStatus = exports.AdminSubscriptionStatus = exports.AdminRegistrationBusinessType = exports.AdminRegistrationRejectionReason = exports.AdminRegistrationReviewDecision = exports.AdminOboClaimStatus = exports.AdminPlacementStatus = exports.AdminBrokerStatus = exports.AdminRecordDataClass = exports.AdminAuditSubjectType = exports.AdminAdapterStatus = exports.AdminAdapterName = void 0;
-exports.AdminSavedScope = exports.AdminAnalyticsSeries = exports.AdminAnnouncementResponse = exports.AdminAnnouncement = exports.AdminModeration = exports.AdminEscalation = exports.AdminSupportTicketDetail = exports.AdminSupportTicket = exports.AdminModeratedReview = exports.AdminEnvironments = exports.AdminSystemHealth = exports.AdminCompliance = exports.AdminDsrRow = exports.AdminComplianceArtifact = exports.AdminFeeSchedule = exports.AdminSubscriptionPlan = exports.AdminRegistrationFee = exports.AdminConfiguration = exports.AdminFeatureFlag = exports.AdminConfigEntry = exports.AdminReconRunResponse = exports.AdminReconRun = exports.AdminFailedChargeResponse = exports.AdminFailedCharge = exports.AdminPayoutResponse = exports.AdminPayoutQuery = exports.AdminLedgerResponse = exports.AdminRevealListResponse = exports.AdminRevealEvent = exports.AdminBrokerListResponse = exports.AdminBrokerRow = exports.AdminUnclaimedStaysResponse = exports.AdminUnclaimedStay = exports.AdminUserListResponse = exports.AdminUserListQuery = exports.AdminUserRow = exports.CreateOversightGrantRequest = exports.AdminOversightGrant = exports.AdminUserMembership = exports.AdminOboAuditResponse = exports.AdminAccessLogResponse = exports.AdminAccessLogRow = exports.AdminAuditResponse = exports.AdminAuditQuery = exports.AdminAuditRow = exports.AdminOrgTimelineResponse = exports.AdminTimelineEvent = exports.AdminOrgMoney = exports.AdminLedgerRow = exports.AdminPayout = void 0;
-exports.AdminActivityResponse = exports.AdminActivityItem = exports.AdminSessionEnded = exports.AdminSignInsResponse = exports.AdminDevice = exports.AdminSignIn = exports.AdminInvitationResent = exports.AdminSuspensionChange = exports.AdminCustomRoleAssignment = exports.AdminAssignCustomRoleRequest = exports.AdminRoleHolders = exports.AdminRoleHolder = exports.AdminCustomRoleChange = exports.AdminUpdateCustomRoleRequest = exports.AdminCreateCustomRoleRequest = exports.AdminStaffRoleCatalog = exports.AdminBuiltInRole = exports.AdminCustomRole = exports.AdminInitialGrant = exports.AdminDisplayPhone = exports.AdminAccountKind = exports.AdminAccountStatus = exports.AdminClaimCodeReissued = exports.AdminSessionsRevoked = exports.AdminBrokerStatusChange = exports.AdminTinRecheckResult = exports.AdminOrgStatusChange = exports.AdminClaimCode = exports.AdminTinCheckResult = exports.UpdateGovernmentBodyRequest = exports.CreateGovernmentBodyRequest = exports.GovernmentBody = exports.AppendRegistrationFeeRequest = exports.AdminMemberChange = exports.AdminChangeMemberRoleRequest = exports.AdminAddMemberRequest = exports.AdminStaffRolesResponse = exports.AdminSetStaffRolesRequest = exports.AdminCreateUserResponse = exports.AdminCreateUserRequest = exports.AdminPersonDetail = exports.AdminActionRequest = exports.AdminPagedReasonQuery = exports.AdminReasonQuery = exports.AdminLocalization = exports.AdminEmailTemplate = exports.AdminTranslationEntry = exports.AdminAnalytics = void 0;
+exports.AdminOrgPropertiesResponse = exports.AdminOrgProperty = exports.AdminOrgPeopleResponse = exports.AdminOrgMember = exports.AdminOrgDetail = exports.AdminOboListResponse = exports.AdminOboRow = exports.AdminOrgReviewQueueResponse = exports.AdminOrgReviewItem = exports.ReviewCoverage = exports.AdminOrgListResponse = exports.AdminOrgListQuery = exports.ADMIN_ORG_STAGE_STATUSES = exports.AdminOrgStage = exports.AdminOrgRow = exports.AdminOverview = exports.AdminQueueHealth = exports.AdminAdapterHealth = exports.AdminWorkQueueItem = exports.AdminDistrictDensity = exports.AdminRevenueLine = exports.AdminKpi = exports.AdminListMeta = exports.AdminKycState = exports.AdminTranslationStatus = exports.AdminAnnouncementState = exports.AdminEscalationState = exports.AdminEscalationType = exports.AdminEscalationSubjectType = exports.AdminSupportTicketState = exports.AdminDsrState = exports.AdminDsrRequestType = exports.AdminComplianceArtifactType = exports.AdminFlagScope = exports.AdminLedgerTxnKind = exports.AdminPlanBillingPeriod = exports.AdminPayoutStatus = exports.AdminInvoiceKind = exports.AdminInvoiceStatus = exports.AdminSubscriptionStatus = exports.AdminRegistrationBusinessType = exports.AdminRegistrationRejectionReason = exports.AdminRegistrationReviewDecision = exports.AdminOboClaimStatus = exports.AdminPlacementStatus = exports.AdminBrokerStatus = exports.AdminRecordDataClass = exports.AdminAuditSubjectType = exports.AdminAdapterStatus = exports.AdminAdapterName = void 0;
+exports.AdminAnnouncementResponse = exports.AdminAnnouncement = exports.AdminModeration = exports.AdminEscalation = exports.AdminSupportTicketDetail = exports.AdminSupportTicket = exports.AdminModeratedReview = exports.AdminEnvironments = exports.AdminSystemHealth = exports.AdminCompliance = exports.AdminDsrRow = exports.AdminComplianceArtifact = exports.AdminFeeSchedule = exports.AdminSubscriptionPlan = exports.AdminRegistrationFee = exports.AdminConfiguration = exports.AdminFeatureFlag = exports.AdminConfigEntry = exports.AdminReconRunResponse = exports.AdminReconRun = exports.AdminFailedChargeResponse = exports.AdminFailedCharge = exports.AdminPayoutResponse = exports.AdminPayoutQuery = exports.AdminLedgerResponse = exports.AdminRevealListResponse = exports.AdminRevealEvent = exports.AdminBrokerListResponse = exports.AdminBrokerRow = exports.AdminUnclaimedStaysResponse = exports.AdminUnclaimedStay = exports.AdminUserListResponse = exports.AdminUserListQuery = exports.AdminUserRow = exports.CreateOversightGrantRequest = exports.AdminOversightGrant = exports.AdminUserMembership = exports.AdminOboAuditResponse = exports.AdminAccessLogResponse = exports.AdminAccessLogRow = exports.AdminAuditResponse = exports.AdminAuditQuery = exports.AdminAuditRow = exports.AdminOrgTimelineResponse = exports.AdminTimelineEvent = exports.AdminOrgMoney = exports.AdminLedgerRow = exports.AdminPayout = exports.AdminOrgSubscription = exports.AdminInvoice = void 0;
+exports.AdminInvitationResent = exports.AdminSuspensionChange = exports.AdminCustomRoleAssignment = exports.AdminAssignCustomRoleRequest = exports.AdminRoleHolders = exports.AdminRoleHolder = exports.AdminCustomRoleChange = exports.AdminUpdateCustomRoleRequest = exports.AdminCreateCustomRoleRequest = exports.AdminStaffRoleCatalog = exports.AdminBuiltInRole = exports.AdminCustomRole = exports.AdminInitialGrant = exports.AdminDisplayPhone = exports.AdminAccountKind = exports.AdminAccountStatus = exports.AdminClaimCodeReissued = exports.AdminSessionsRevoked = exports.AdminBrokerStatusChange = exports.AdminTinRecheckResult = exports.AdminOrgStatusChange = exports.AdminClaimCode = exports.AdminTinCheckResult = exports.UpdateGovernmentBodyRequest = exports.CreateGovernmentBodyRequest = exports.GovernmentBody = exports.AppendRegistrationFeeRequest = exports.AdminMemberChange = exports.AdminChangeMemberRoleRequest = exports.AdminAddMemberRequest = exports.AdminStaffRolesResponse = exports.AdminSetStaffRolesRequest = exports.AdminCreateUserResponse = exports.AdminCreateUserRequest = exports.AdminUpdateUserRequest = exports.AdminPersonDetails = exports.ADMIN_GENDER_LABEL = exports.ADMIN_GENDERS = exports.ADMIN_LOCALE_LABEL = exports.ADMIN_LOCALES = exports.AdminPersonDetail = exports.AdminActionRequest = exports.AdminPagedReasonQuery = exports.AdminReasonQuery = exports.AdminLocalization = exports.AdminEmailTemplate = exports.AdminTranslationEntry = exports.AdminAnalytics = exports.AdminSavedScope = exports.AdminAnalyticsSeries = void 0;
+exports.AdminActivityResponse = exports.AdminActivityItem = exports.AdminSessionEnded = exports.AdminSignInsResponse = exports.AdminDevice = exports.AdminSignIn = void 0;
 const zod_1 = require("zod");
 const psf_1 = require("./psf");
 const phone_1 = require("./phone");
@@ -432,15 +433,37 @@ exports.AdminOrgRow = zod_1.z.object({
     createdAt: zod_1.z.string(),
 });
 /** Query params for `GET /api/v1/admin/orgs`. */
+/**
+ * Where a registration stands, as the Businesses list groups it (2026-11-09): the statuses an admin reads as
+ * one step. `review` is waiting on a document review or field visit, `approval` on the second officer.
+ */
+exports.AdminOrgStage = zod_1.z.enum(["unpaid", "review", "approval", "active", "closed"]);
+exports.ADMIN_ORG_STAGE_STATUSES = {
+    unpaid: ["pending_payment"],
+    review: ["submitted", "tin_verified"],
+    approval: ["field_verified"],
+    active: ["approved", "active"],
+    closed: ["rejected", "suspended"],
+};
+/** A calendar day, YYYY-MM-DD, for "registered from" style filters. */
+const DayQuery = zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 2026-11-09.");
 exports.AdminOrgListQuery = zod_1.z.object({
     /** Free text over legal name, TIN and UPI. */
     q: zod_1.z.string().optional(),
+    /** The business's district's province (2026-11-09). */
+    provinceId: zod_1.z.coerce.number().int().positive().optional(),
     districtId: zod_1.z.coerce.number().int().positive().optional(),
     domain: primitives_1.Domain.optional(),
     registrationStatus: primitives_1.OrgRegistrationStatus.optional(),
+    stage: exports.AdminOrgStage.optional(),
+    /** Registered on or after this day (Kigali time). */
+    createdFrom: DayQuery.optional(),
     ...pageQuery,
 });
-exports.AdminOrgListResponse = listOf(exports.AdminOrgRow);
+exports.AdminOrgListResponse = listOf(exports.AdminOrgRow).extend({
+    /** How many match every filter but the stage, per stage, for the counts above the list. */
+    stageCounts: zod_1.z.record(exports.AdminOrgStage, zod_1.z.number().int().nonnegative()).optional(),
+});
 /**
  * Is anyone appointed to take this business's current stage? (ADR-053, AC-G9)
  *
@@ -734,6 +757,8 @@ exports.AdminAuditQuery = zod_1.z.object({
     q: zod_1.z.string().optional(),
     subjectType: exports.AdminAuditSubjectType.optional(),
     actorUserId: primitives_1.Uuid.optional(),
+    /** On or after this Kigali day (2026-11-09). */
+    createdFrom: DayQuery.optional(),
     ...pageQuery,
 });
 exports.AdminAuditResponse = listOf(exports.AdminAuditRow);
@@ -934,11 +959,18 @@ exports.AdminUserListQuery = zod_1.z.object({
     status: zod_1.z.lazy(() => exports.AdminAccountStatus).optional(),
     /** A built-in staff role (`ops`) or a custom role's id. */
     role: zod_1.z.string().trim().max(64).optional(),
+    /** Joined on or after this Kigali day (2026-11-09). */
+    createdFrom: DayQuery.optional(),
+    /** Signed in: never, within the last 30 days, or not for 90 days or more (never included). */
+    signedIn: zod_1.z.enum(["never", "last30", "over90"]).optional(),
     sort: zod_1.z.enum(["name", "email", "createdAt", "lastSignInAt"]).optional(),
     dir: zod_1.z.enum(["asc", "desc"]).optional(),
     ...pageQuery,
 });
-exports.AdminUserListResponse = listOf(exports.AdminUserRow);
+exports.AdminUserListResponse = listOf(exports.AdminUserRow).extend({
+    /** How many match every filter but the status, per status, for the counts above the list (2026-11-09). */
+    statusCounts: zod_1.z.record(zod_1.z.lazy(() => exports.AdminAccountStatus), zod_1.z.number().int().nonnegative()).optional(),
+});
 /**
  * A stay that ended without anyone claiming it.
  *
@@ -1495,6 +1527,51 @@ exports.AdminActionRequest = zod_1.z.object({
  */
 exports.AdminPersonDetail = exports.AdminUserRow.extend({
     oversightGrants: zod_1.z.array(exports.AdminOversightGrant),
+    /** Their details in full (2026-11-09), for the Details card and its edit form. The read is already logged. */
+    details: zod_1.z.lazy(() => exports.AdminPersonDetails),
+});
+exports.ADMIN_LOCALES = ["en", "rw", "fr"];
+exports.ADMIN_LOCALE_LABEL = {
+    en: "English",
+    rw: "Kinyarwanda",
+    fr: "French",
+};
+exports.ADMIN_GENDERS = ["female", "male", "other"];
+exports.ADMIN_GENDER_LABEL = {
+    female: "Female",
+    male: "Male",
+    other: "Other",
+};
+/** A person's own details, as staff see and edit them. */
+exports.AdminPersonDetails = zod_1.z.object({
+    /** The phone shown on their profile. Display only: it never signs them in. */
+    phone: zod_1.z.string().nullable(),
+    /** The phone they proved with a code, which can sign them in. Not editable here. */
+    provedPhone: zod_1.z.string().nullable(),
+    locale: zod_1.z.enum(exports.ADMIN_LOCALES),
+    dateOfBirth: zod_1.z.string().nullable(),
+    gender: zod_1.z.enum(exports.ADMIN_GENDERS).nullable(),
+    /** Where they live, in words ("Kacyiru sector, Gasabo"), or null. Set by them, not here. */
+    address: zod_1.z.string().nullable(),
+});
+/**
+ * Change a person's details (`PATCH /api/v1/admin/users/:userId`, 2026-11-09). Only the fields sent change.
+ * A new email is how they sign in from then on, so the old address is told.
+ */
+exports.AdminUpdateUserRequest = zod_1.z.object({
+    name: zod_1.z.string().trim().min(2, "Give the person's full name.").max(200).optional(),
+    email: zod_1.z.string().trim().toLowerCase().email("Use an email address like name@example.com.").optional(),
+    /** Empty clears it. */
+    phone: zod_1.z.lazy(() => exports.AdminDisplayPhone).optional(),
+    locale: zod_1.z.enum(exports.ADMIN_LOCALES).optional(),
+    dateOfBirth: zod_1.z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 1990-05-21.")
+        .refine((d) => d < new Date().toISOString().slice(0, 10), "A date of birth is in the past.")
+        .nullable()
+        .optional(),
+    gender: zod_1.z.enum(exports.ADMIN_GENDERS).nullable().optional(),
+    reason: exports.AdminReasonQuery.shape.reason,
 });
 /**
  * Create an account by email (`POST /api/v1/admin/users`). The person signs in
@@ -1509,7 +1586,7 @@ exports.AdminCreateUserRequest = zod_1.z.object({
      * not a proved number, so it never signs anyone in. Empty means none.
      */
     phone: zod_1.z.lazy(() => exports.AdminDisplayPhone).optional(),
-    /** A staff role to give them in the same step. A government or PSF post is appointed from Leaders. */
+    /** A staff role to give them in the same step. A post goes as an appointment instead (it makes the account). */
     grant: zod_1.z.lazy(() => exports.AdminInitialGrant).optional(),
     reason: exports.AdminReasonQuery.shape.reason,
 });

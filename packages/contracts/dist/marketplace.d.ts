@@ -1430,8 +1430,8 @@ export declare const GuestContact: z.ZodObject<{
     email: string;
     phone: string | null;
     joinedAt: string;
-    countryName: string;
     locale: "en" | "rw" | "fr";
+    countryName: string;
     signInMethods: string[];
 }, {
     country: string;
@@ -1440,8 +1440,8 @@ export declare const GuestContact: z.ZodObject<{
     email: string;
     phone: string | null;
     joinedAt: string;
-    countryName: string;
     locale: "en" | "rw" | "fr";
+    countryName: string;
     signInMethods: string[];
 }>;
 export type GuestContact = z.infer<typeof GuestContact>;

@@ -1,28 +1,28 @@
 import { screens } from "@injishi/data";
-import type {
-  FindingOption,
-  FlaggedAnswer,
-  RetentionSetting,
-  TenantLimitOption,
-  UsageAlert,
-  UsageMonth,
-} from "@injishi/data/fixtures/platformops";
 import type { Metadata } from "next";
-import { AssistantUsageView } from "@/features/platformops/AssistantUsageView";
+import { AssistantUsageReportView } from "@/features/admin/health/HealthViews";
+import { Refused } from "@/features/admin/people/Refused";
 import { requirePersona } from "@/lib/session";
-import { getCollection } from "@/server/data";
+import { assistantUsage } from "@/server/admin/health";
+import { one, type Search } from "@/server/admin/list";
+import { ApiError } from "@/server/api";
 
 export const metadata: Metadata = { title: screens.AssistantUsage.pageTitle };
 
-export default async function AssistantUsagePage() {
+/** The assistant's usage for one month (`?month=YYYY-MM`, this month by default), from the admin API. */
+export default async function AssistantUsagePage({ searchParams }: { searchParams: Promise<Search> }) {
   await requirePersona("AssistantUsage");
-  const [months, flags, findings, alerts, retention, limits] = await Promise.all([
-    getCollection<UsageMonth>("platformops.usageMonths"),
-    getCollection<FlaggedAnswer>("platformops.flaggedAnswers"),
-    getCollection<FindingOption>("platformops.findings"),
-    getCollection<UsageAlert>("platformops.usageAlerts"),
-    getCollection<RetentionSetting>("platformops.retention"),
-    getCollection<TenantLimitOption>("platformops.tenantLimits"),
-  ]);
-  return <AssistantUsageView data={{ months, flags, findings, alerts, retention, limits }} />;
+  const month = one((await searchParams).month);
+  try {
+    return (
+      <AssistantUsageReportView
+        report={await assistantUsage(month && /^\d{4}-\d{2}$/.test(month) ? month : undefined)}
+      />
+    );
+  } catch (error) {
+    if (error instanceof ApiError && error.forbidden) return <Refused code={error.code} />;
+    throw error;
+  }
 }
+
+export const dynamic = "force-dynamic";

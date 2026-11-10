@@ -1,11 +1,13 @@
 "use client";
 
-import { Chip, Description, Input, Label, TextField, toast } from "@heroui/react";
+import { Chip, Description, FieldError, Input, Label, TextField, toast } from "@heroui/react";
 import {
   type AdminAccountStatus,
   type AdminCustomRole,
+  AdminReasonQuery,
   type AdminUserListResponse,
   type AdminUserRow,
+  type GovernmentBody,
   ORG_ROLE_LABEL,
   STAFF_ROLE_LABEL,
   StaffRole,
@@ -25,7 +27,19 @@ import {
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type FormEvent, useState, useTransition } from "react";
+import { useState } from "react";
+import { appointOfficer } from "../leaders/actions";
+import { knownWords, useKnownPerson, usePostFields } from "../leaders/post-fields";
+import {
+  CountStrip,
+  ListBar,
+  ListFilter,
+  ListSearch,
+  ListUrlProvider,
+  SinceFilter,
+  useListUrl,
+} from "../list/list-kit";
+import { EntityMark } from "../list/stat-cards";
 import { useStepUp } from "../step-up/step-up-dialog";
 import { createAccount } from "./actions";
 
@@ -40,7 +54,11 @@ export interface PeopleFilters {
 }
 
 const ANY = "all";
-const STATUS_KEYS: Record<AdminAccountStatus, string> = { active: "active", invited: "invited", suspended: "suspended" };
+const STATUS_KEYS: Record<AdminAccountStatus, string> = {
+  active: "active",
+  invited: "invited",
+  suspended: "suspended",
+};
 const STATUS_COLOR: Record<AdminAccountStatus, "success" | "default" | "danger"> = {
   active: "success",
   invited: "default",
@@ -52,58 +70,92 @@ const SORTABLE: Record<string, string> = { person: "name", lastSignIn: "lastSign
 /**
  * People (2026-10-29, grid and filters 2026-11-02): every account on Injishi, searchable by name or email and
  * filtered by role, status and kind, one page at a time from the server. A row opens the person. "Add person"
- * makes an account by email, optionally with a staff role, and mails them how to sign in.
+ * makes an account by email with, in the same form, a staff role or a government or PSF post.
  */
-export function PeopleView({
+export function PeopleView(props: {
+  list: AdminUserListResponse;
+  filters: PeopleFilters;
+  customRoles: readonly AdminCustomRole[];
+  /** The government bodies a post can be held under, for a person added with a post. */
+  bodies: readonly GovernmentBody[];
+  canCreate: boolean;
+}) {
+  return (
+    <ListUrlProvider>
+      <People {...props} />
+    </ListUrlProvider>
+  );
+}
+
+const KYC_OPTIONS = [
+  { id: ANY, label: "All" },
+  { id: "verified", label: "Verified" },
+  { id: "pending", label: "Waiting for a check" },
+  { id: "none", label: "Not verified" },
+];
+const SIGNED_IN_OPTIONS = [
+  { id: ANY, label: "Any time" },
+  { id: "last30", label: "In the last 30 days" },
+  { id: "over90", label: "Not for 90 days" },
+  { id: "never", label: "Never" },
+];
+
+function People({
   list,
   filters,
   customRoles,
+  bodies,
   canCreate,
 }: {
   list: AdminUserListResponse;
   filters: PeopleFilters;
   customRoles: readonly AdminCustomRole[];
+  bodies: readonly GovernmentBody[];
   canCreate: boolean;
 }) {
   const t = useTranslations("adminPeople.people");
   const router = useRouter();
-  const [search, setSearch] = useState(filters.q);
+  const url = useListUrl();
   const [creating, setCreating] = useState(false);
-  const [loading, startLoading] = useTransition();
-
-  const go = (next: Partial<PeopleFilters>) => {
-    const merged = { ...filters, page: 1, ...next };
-    const params = new URLSearchParams();
-    if (merged.q.trim()) params.set("q", merged.q.trim());
-    for (const key of ["kind", "status", "role", "sort", "dir"] as const) {
-      if (merged[key] && merged[key] !== ANY) params.set(key, merged[key]);
-    }
-    if (merged.page > 1) params.set("page", String(merged.page));
-    const qs = params.toString();
-    startLoading(() => router.push(qs ? `/admin/people?${qs}` : "/admin/people"));
-  };
-
-  const onSearch = (e: FormEvent) => {
-    e.preventDefault();
-    go({ q: search });
-  };
 
   const roleOptions = [
-    { id: ANY, label: t("anyRole") },
+    { id: ANY, label: "All" },
     ...StaffRole.options.map((r) => ({ id: r, label: STAFF_ROLE_LABEL[r] })),
     ...customRoles.filter((r) => !r.archivedAt).map((r) => ({ id: r.id, label: r.name })),
+  ];
+  const kindOptions = [
+    { id: ANY, label: "All" },
+    { id: "staff", label: t("injishiStaff") },
+    { id: "official", label: t("leadersOfficers") },
+    { id: "business", label: t("worksInBusiness") },
+    { id: "guest", label: t("guestsOthers") },
+  ];
+  const statusOptions = [
+    { id: ANY, label: "All" },
+    { id: "active", label: t("active") },
+    { id: "invited", label: t("invitedNotSignedIn") },
+    { id: "suspended", label: t("suspended") },
   ];
   const sortColumn = Object.entries(SORTABLE).find(([, api]) => api === filters.sort)?.[0];
   const sort: GridSort | null = sortColumn
     ? { column: sortColumn, direction: filters.dir === "asc" ? "ascending" : "descending" }
     : null;
-  const filtered = Boolean(filters.q || filters.kind || filters.status || filters.role);
+  const filtered = Boolean(
+    filters.q ||
+      filters.kind ||
+      filters.status ||
+      filters.role ||
+      url.get("kyc") ||
+      url.get("since") ||
+      url.get("signedIn"),
+  );
+  const counts = list.statusCounts ?? {};
 
   return (
     <PageContent>
       <PageHeader
         title={t("title")}
-        description={t("description")}
+        description="Every account on Injishi. Open a person to see and change what they can do."
         actions={
           canCreate ? (
             <ActionButton icon="Plus" intent="primary" onPress={() => setCreating(true)}>
@@ -112,73 +164,56 @@ export function PeopleView({
           ) : null
         }
       />
-      <div className="flex flex-wrap items-end gap-3">
-        <form onSubmit={onSearch} className="flex min-w-[min(320px,100%)] flex-[2_1_320px] items-end gap-2">
-          <TextField value={search} onChange={setSearch} className="flex flex-1 flex-col gap-1">
-            <Label>{t("search")}</Label>
-            <Input placeholder={t("nameOrEmail")} />
-          </TextField>
-          <ActionButton type="submit" icon="Magnifier">
-            {t("search")}
-          </ActionButton>
-        </form>
-        <SelectField
-          label={t("role")}
-          options={roleOptions}
-          value={filters.role || ANY}
-          onChange={(v) => go({ role: v === ANY ? "" : v })}
-          className="w-[200px]"
-        />
-        <SelectField
-          label={t("status")}
-          options={[{ id: ANY, label: t("anyStatus") }, { id: "active", label: t("active") }, { id: "invited", label: t("invitedNotSignedIn") }, { id: "suspended", label: t("suspended") }]}
-          value={filters.status || ANY}
-          onChange={(v) => go({ status: v === ANY ? "" : v })}
-          className="w-[200px]"
-        />
-        <SelectField
-          label={t("kind")}
-          options={[{ id: ANY, label: t("anyKind") }, { id: "staff", label: t("injishiStaff") }, { id: "official", label: t("leadersOfficers") }, { id: "business", label: t("worksInBusiness") }, { id: "guest", label: t("guestsOthers") }]}
-          value={filters.kind || ANY}
-          onChange={(v) => go({ kind: v === ANY ? "" : v })}
-          className="w-[200px]"
-        />
-        {filtered ? (
-          <ActionButton
-            intent="ghost"
-            onPress={() => {
-              setSearch("");
-              go({ q: "", kind: "", status: "", role: "" });
-            }}
-          >
-            {t("clearFilters")}
-          </ActionButton>
-        ) : null}
-      </div>
+      <CountStrip
+        label="People by status"
+        param="status"
+        items={[
+          { id: "active", label: t("active"), icon: "CircleCheck", value: counts.active ?? 0 },
+          { id: "invited", label: "Invited, not signed in yet", icon: "Envelope", value: counts.invited ?? 0 },
+          {
+            id: "suspended",
+            label: t("suspended"),
+            icon: "CircleXmark",
+            value: counts.suspended ?? 0,
+            status: (counts.suspended ?? 0) > 0 ? "danger" : undefined,
+          },
+        ]}
+      />
+      <ListBar
+        keys={["q", "kind", "status", "role", "kyc", "since", "signedIn"]}
+        found={list.meta.total}
+        noun={{ one: "person", many: "people" }}
+        search={<ListSearch placeholder={t("nameOrEmail")} />}
+      >
+        <ListFilter param="kind" name={t("kind")} icon="Persons" options={kindOptions} />
+        <ListFilter param="status" name={t("status")} options={statusOptions} />
+        <ListFilter param="role" name="Staff role" icon="ShieldCheck" options={roleOptions} />
+        <ListFilter param="kyc" name="ID" icon="Persons" options={KYC_OPTIONS} />
+        <ListFilter param="signedIn" name="Signed in" icon="ArrowRightToSquare" options={SIGNED_IN_OPTIONS} />
+        <SinceFilter name="Joined" />
+      </ListBar>
       <ServerDataGrid<AdminUserRow>
         label={t("title")}
         rows={list.items}
         rowKey={(p) => p.id}
-        isLoading={loading}
+        isLoading={url.pending}
         onRowAction={(p) => router.push(`/admin/people/${p.id}`)}
         sort={sort}
-        onSortChange={(s) => go({ sort: SORTABLE[s.column] ?? "", dir: s.direction === "ascending" ? "asc" : "desc" })}
+        onSortChange={(s) =>
+          url.set({ sort: SORTABLE[s.column] ?? null, dir: s.direction === "ascending" ? "asc" : "desc" })
+        }
         paging={{
           page: list.meta.page,
           pageSize: list.meta.pageSize,
           total: list.meta.total,
-          onPageChange: (page) => go({ page }),
+          onPageChange: (page) => url.set({ page: String(page) }),
         }}
         empty={
           <EmptyBlock
             size="sm"
             icon="Persons"
             title={filtered ? t("nobodyMatches") : t("noAccounts")}
-            description={
-              filtered
-                ? t("noMatchesHint")
-                : t("noAccountsHint")
-            }
+            description={filtered ? t("noMatchesHint") : t("noAccountsHint")}
           />
         }
         mobile={{
@@ -194,9 +229,12 @@ export function PeopleView({
             sortable: true,
             minWidth: 220,
             cell: (p) => (
-              <NextLink href={`/admin/people/${p.id}`} className="flex min-w-0 flex-col text-sm hover:underline">
-                <span className="truncate font-medium">{p.name?.trim() || p.email}</span>
-                <span className="truncate text-xs text-muted">{p.email}</span>
+              <NextLink href={`/admin/people/${p.id}`} className="flex min-w-0 items-center gap-3 text-sm">
+                <EntityMark name={p.name?.trim() || p.email} />
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate font-medium hover:underline">{p.name?.trim() || p.email}</span>
+                  <span className="truncate text-xs text-muted">{p.email}</span>
+                </span>
               </NextLink>
             ),
           },
@@ -263,7 +301,9 @@ export function PeopleView({
           { id: "since", header: t("since"), sortable: true, cell: (p) => <DateText value={p.createdAt} /> },
         ]}
       />
-      {creating ? <AddPersonPanel customRoles={customRoles} onClose={() => setCreating(false)} /> : null}
+      {creating ? (
+        <AddPersonPanel customRoles={customRoles} bodies={bodies} onClose={() => setCreating(false)} />
+      ) : null}
     </PageContent>
   );
 }
@@ -277,22 +317,48 @@ export function StatusChip({ status }: { status: AdminAccountStatus }) {
   );
 }
 
+const ACCOUNT = "account";
+const STAFF = "staff";
 const POST = "post";
-const NOTHING = "nothing";
 
-function AddPersonPanel({ customRoles, onClose }: { customRoles: readonly AdminCustomRole[]; onClose: () => void }) {
+/**
+ * Add a person, and what they get, in one form (2026-11-09): an account alone, a staff role, or a
+ * government or PSF post with its area. A post goes as one appointment, which makes the account and sends
+ * the one email; nothing is asked twice and nothing is written until the form is sent.
+ */
+function AddPersonPanel({
+  customRoles,
+  bodies,
+  onClose,
+}: {
+  customRoles: readonly AdminCustomRole[];
+  bodies: readonly GovernmentBody[];
+  onClose: () => void;
+}) {
   const t = useTranslations("adminPeople.people");
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [gives, setGives] = useState<string | null>(null);
+  const [staffRole, setStaffRole] = useState<string | null>(null);
   const [reason, setReason] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const post = usePostFields(bodies, null);
   const { guard, dialog, pending } = useStepUp();
+  // An email that already has an account: say whose, skip their name and phone, and send a staff role or
+  // an account-only add to their page, where those are changed (2026-11-09).
+  const known = useKnownPerson(email);
 
-  const giveOptions = [
-    { id: NOTHING, label: t("noRoleYet"), description: t("noRoleYetHint") },
+  const clear = (field: string): void => setErrors((e) => (e[field] ? { ...e, [field]: "" } : e));
+
+  const givesOptions = [
+    { id: POST, label: t("governmentPost"), description: "PSF managers and BDEs, leaders, reviewers" },
+    { id: STAFF, label: "An Injishi staff role", description: "Built-in or custom" },
+    { id: ACCOUNT, label: "Just an account", description: "They can sign in; give a role later" },
+  ];
+  const staffOptions = [
     ...StaffRole.options.map((r) => ({
       id: `staff:${r}`,
       label: STAFF_ROLE_LABEL[r],
@@ -301,23 +367,30 @@ function AddPersonPanel({ customRoles, onClose }: { customRoles: readonly AdminC
     ...customRoles
       .filter((r) => !r.archivedAt)
       .map((r) => ({ id: `custom:${r.id}`, label: r.name, description: r.description || t("customRole") })),
-    { id: POST, label: t("governmentPost"), description: t("choosePostArea") },
   ];
 
   const grant = (() => {
-    if (!gives || gives === NOTHING || gives === POST) return undefined;
-    const [kind, value] = gives.split(":");
+    if (gives !== STAFF || !staffRole) return undefined;
+    const [kind, value] = staffRole.split(":");
     return kind === "staff"
       ? { kind: "staff_role" as const, role: value }
       : { kind: "custom_role" as const, roleId: value };
   })();
 
-  const submit = () => {
-    setError(null);
-    if (!gives) {
-      setError("Choose what they get, or No role for now.");
-      return;
+  const problems = (): Record<string, string> => {
+    const next: Record<string, string> = {};
+    if (!known && name.trim().length < 2) next.name = "Enter their full name.";
+    if (!gives) next.gives = "Choose what they get.";
+    if (gives === STAFF && !staffRole) next.staffRole = "Choose a staff role.";
+    const why = AdminReasonQuery.shape.reason.safeParse(reason);
+    if (!why.success) next.reason = "Say why in a few words, for the audit log.";
+    if (gives === POST) {
+      for (const [k, v] of Object.entries(post.check({ email, name, reason }))) if (v && !next[k]) next[k] = v;
     }
+    return next;
+  };
+
+  const addAccount = () =>
     guard(
       () => createAccount({ email, name, phone: phone.trim() || undefined, grant, reason }),
       (result) => {
@@ -325,21 +398,45 @@ function AddPersonPanel({ customRoles, onClose }: { customRoles: readonly AdminC
           setError(result.error);
           return;
         }
+        onClose();
         if (!result.value.created) {
           toast.warning("That email already has an account. Opening it: change their roles there.");
-          onClose();
-          router.push(`/admin/people/${result.value.userId}`);
-          return;
+        } else {
+          toast.success("Added. They were emailed how to sign in.");
         }
-        toast.success("Added. They were emailed how to sign in.");
-        onClose();
-        router.push(
-          gives === POST
-            ? `/admin/leaders?appoint=business_field_verifier&aEmail=${encodeURIComponent(email.trim().toLowerCase())}`
-            : `/admin/people/${result.value.userId}`,
-        );
+        router.push(`/admin/people/${result.value.userId}`);
       },
     );
+
+  const appoint = () =>
+    guard(
+      () =>
+        appointOfficer({
+          ...post.request({ email, name: known ? "" : name, reason }),
+          phone: known ? undefined : phone.trim() || undefined,
+        }),
+      (result) => {
+        if (!result.ok) {
+          const fields = post.showServerErrors(result.fieldErrors ?? {});
+          setErrors(fields);
+          setError(Object.keys(fields).length > 0 ? null : result.error);
+          return;
+        }
+        onClose();
+        toast.success(
+          `${result.value.name ?? result.value.email} is now ${result.value.roleLabel.toLowerCase()}. They were emailed how to sign in.`,
+        );
+        router.push(`/admin/people/${result.value.userId}`);
+      },
+    );
+
+  const submit = () => {
+    setError(null);
+    const found = problems();
+    setErrors(found);
+    if (Object.values(found).some(Boolean)) return;
+    if (gives === POST) appoint();
+    else addAccount();
   };
 
   return (
@@ -349,29 +446,111 @@ function AddPersonPanel({ customRoles, onClose }: { customRoles: readonly AdminC
         onOpenChange={(open) => (open ? null : onClose())}
         title={t("addPerson")}
         description={t("signInCodeHint")}
-        submitLabel={t("addPerson")}
+        submitLabel={
+          gives === POST ? (known ? "Appoint" : "Add and appoint") : known ? "Open their page" : t("addPerson")
+        }
+        submitIcon="PersonPlus"
         onSubmit={(event) => {
           event.preventDefault();
           submit();
         }}
         isPending={pending}
+        validationErrors={{ ...errors, ...post.errors }}
         formError={error ?? undefined}
       >
-        <EmailInput label={t("email")} value={email} onChange={setEmail} isRequired />
-        <TextField value={name} onChange={setName} isRequired className="flex flex-col gap-1">
-          <Label>{t("fullName")}</Label>
-          <Input placeholder={t("asOnId")} />
-        </TextField>
-        <TextField value={phone} onChange={setPhone} className="flex flex-col gap-1">
-          <Label>{t("phone")}</Label>
-          <Input placeholder="0788 123 456" inputMode="tel" />
-          <Description>{t("phoneHint")}</Description>
-        </TextField>
-        <SelectField label={t("whatTheyGet")} options={giveOptions} value={gives} onChange={setGives} isRequired />
-        <TextField value={reason} onChange={setReason} isRequired className="flex flex-col gap-1">
-          <Label>{t("reason")}</Label>
-          <Input placeholder={t("auditReason")} />
-        </TextField>
+        <EmailInput
+          label={t("email")}
+          name="email"
+          value={email}
+          onChange={(v) => {
+            setEmail(v);
+            clear("email");
+          }}
+          isRequired
+          errorMessage={errors.email || null}
+          description={known ? knownWords(known) : undefined}
+        />
+        {known ? (
+          <NextLink
+            href={`/admin/people/${known.id}`}
+            className="-mt-2 text-sm font-medium text-accent hover:underline"
+          >
+            Open {known.name ?? "their"} page instead
+          </NextLink>
+        ) : null}
+        {known ? null : (
+          <>
+            <TextField
+              name="name"
+              value={name}
+              onChange={(v) => {
+                setName(v);
+                clear("name");
+              }}
+              isRequired
+              isInvalid={errors.name ? true : undefined}
+              className="flex flex-col gap-1"
+            >
+              <Label>{t("fullName")}</Label>
+              <Input placeholder={t("asOnId")} />
+              <FieldError>{errors.name}</FieldError>
+            </TextField>
+            <TextField value={phone} onChange={setPhone} className="flex flex-col gap-1">
+              <Label>{t("phone")}</Label>
+              <Input placeholder="0788 123 456" inputMode="tel" />
+              <Description>{t("phoneHint")}</Description>
+            </TextField>
+          </>
+        )}
+        <SelectField
+          label={t("whatTheyGet")}
+          name="gives"
+          options={givesOptions}
+          value={gives}
+          onChange={(v) => {
+            setGives(v);
+            clear("gives");
+          }}
+          isRequired
+          errorMessage={errors.gives}
+        />
+        {gives === STAFF ? (
+          <SelectField
+            label="Staff role"
+            name="staffRole"
+            options={staffOptions}
+            value={staffRole}
+            onChange={(v) => {
+              setStaffRole(v);
+              clear("staffRole");
+            }}
+            isRequired
+            errorMessage={errors.staffRole}
+          />
+        ) : null}
+        {gives === POST ? post.fields : null}
+        {gives ? (
+          <TextField
+            name="reason"
+            value={reason}
+            onChange={(v) => {
+              setReason(v);
+              clear("reason");
+            }}
+            isRequired
+            isInvalid={errors.reason ? true : undefined}
+            className="flex flex-col gap-1"
+          >
+            <Label>Why</Label>
+            <Input placeholder={gives === POST ? "Took office in November 2026" : t("auditReason")} />
+            <FieldError>{errors.reason}</FieldError>
+          </TextField>
+        ) : null}
+        {gives === POST && post.role ? (
+          <p className="m-0 rounded-xl bg-default/60 px-3 py-2.5 text-sm text-muted">
+            {post.sentence(known?.name ?? (name.trim() || email || "They"))}
+          </p>
+        ) : null}
       </SidePanel>
       {dialog}
     </>

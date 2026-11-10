@@ -1,19 +1,22 @@
 import { screens } from "@injishi/data";
-import type { CaptureEvent, FunnelStep, InsightArea, NorthStarStep } from "@injishi/data/fixtures/platformops";
 import type { Metadata } from "next";
-import { AdminInsightsView } from "@/features/platformops/AdminInsightsView";
+import { InsightsView } from "@/features/admin/health/HealthViews";
+import { Refused } from "@/features/admin/people/Refused";
 import { requirePersona } from "@/lib/session";
-import { getCollection } from "@/server/data";
+import { analytics } from "@/server/admin/health";
+import { ApiError } from "@/server/api";
 
 export const metadata: Metadata = { title: screens.AdminInsights.pageTitle };
 
+/** Insights (2026-11-09, real records): the platform's headline figures from the admin API. */
 export default async function AdminInsightsPage() {
   await requirePersona("AdminInsights");
-  const [areas, steps, funnel, events] = await Promise.all([
-    getCollection<InsightArea>("platformops.insightAreas"),
-    getCollection<NorthStarStep>("platformops.northStarSteps"),
-    getCollection<FunnelStep>("platformops.funnel"),
-    getCollection<CaptureEvent>("platformops.captureEvents"),
-  ]);
-  return <AdminInsightsView data={{ areas, steps, funnel, events }} />;
+  try {
+    return <InsightsView data={await analytics()} />;
+  } catch (error) {
+    if (error instanceof ApiError && error.forbidden) return <Refused code={error.code} />;
+    throw error;
+  }
 }
+
+export const dynamic = "force-dynamic";

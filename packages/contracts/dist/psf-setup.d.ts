@@ -1234,8 +1234,8 @@ export declare const PsfFormFieldSetting: z.ZodObject<{
     label: string;
     key: string;
     required: boolean;
-    locked: boolean;
     step: "business" | "membership" | "place" | "you";
+    locked: boolean;
     help: string | null;
     visible: boolean;
 }, {
@@ -1243,8 +1243,8 @@ export declare const PsfFormFieldSetting: z.ZodObject<{
     label: string;
     key: string;
     required: boolean;
-    locked: boolean;
     step: "business" | "membership" | "place" | "you";
+    locked: boolean;
     help: string | null;
     visible: boolean;
 }>;
@@ -1321,8 +1321,8 @@ export declare const PsfFormConfig: z.ZodObject<{
         label: string;
         key: string;
         required: boolean;
-        locked: boolean;
         step: "business" | "membership" | "place" | "you";
+        locked: boolean;
         help: string | null;
         visible: boolean;
     }, {
@@ -1330,8 +1330,8 @@ export declare const PsfFormConfig: z.ZodObject<{
         label: string;
         key: string;
         required: boolean;
-        locked: boolean;
         step: "business" | "membership" | "place" | "you";
+        locked: boolean;
         help: string | null;
         visible: boolean;
     }>, "many">;
@@ -1375,8 +1375,8 @@ export declare const PsfFormConfig: z.ZodObject<{
         label: string;
         key: string;
         required: boolean;
-        locked: boolean;
         step: "business" | "membership" | "place" | "you";
+        locked: boolean;
         help: string | null;
         visible: boolean;
     }[];
@@ -1398,8 +1398,8 @@ export declare const PsfFormConfig: z.ZodObject<{
         label: string;
         key: string;
         required: boolean;
-        locked: boolean;
         step: "business" | "membership" | "place" | "you";
+        locked: boolean;
         help: string | null;
         visible: boolean;
     }[];
@@ -1432,8 +1432,8 @@ export declare const PsfFormSetupView: z.ZodObject<{
         label: string;
         key: string;
         required: boolean;
-        locked: boolean;
         step: "business" | "membership" | "place" | "you";
+        locked: boolean;
         help: string | null;
         visible: boolean;
     }, {
@@ -1441,8 +1441,8 @@ export declare const PsfFormSetupView: z.ZodObject<{
         label: string;
         key: string;
         required: boolean;
-        locked: boolean;
         step: "business" | "membership" | "place" | "you";
+        locked: boolean;
         help: string | null;
         visible: boolean;
     }>, "many">;
@@ -1489,8 +1489,8 @@ export declare const PsfFormSetupView: z.ZodObject<{
         label: string;
         key: string;
         required: boolean;
-        locked: boolean;
         step: "business" | "membership" | "place" | "you";
+        locked: boolean;
         help: string | null;
         visible: boolean;
     }[];
@@ -1513,8 +1513,8 @@ export declare const PsfFormSetupView: z.ZodObject<{
         label: string;
         key: string;
         required: boolean;
-        locked: boolean;
         step: "business" | "membership" | "place" | "you";
+        locked: boolean;
         help: string | null;
         visible: boolean;
     }[];

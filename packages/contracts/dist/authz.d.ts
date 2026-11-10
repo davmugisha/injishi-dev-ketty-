@@ -1337,7 +1337,7 @@ export declare const OversightConsoleGrant: z.ZodObject<{
     scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
     scopeLabel: string;
     assignmentId: string;
-    console: "guests" | "membership" | "tax" | "verification" | "approval";
+    console: "guests" | "membership" | "approval" | "tax" | "verification";
     bodyCode: string;
     bodyName: string | null;
 }, {
@@ -1351,7 +1351,7 @@ export declare const OversightConsoleGrant: z.ZodObject<{
     scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
     scopeLabel: string;
     assignmentId: string;
-    console: "guests" | "membership" | "tax" | "verification" | "approval";
+    console: "guests" | "membership" | "approval" | "tax" | "verification";
     bodyCode: string;
     bodyName: string | null;
 }>;

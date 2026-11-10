@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import { PeopleView } from "@/features/admin/people/PeopleView";
 import { Refused } from "@/features/admin/people/Refused";
 import { requirePersona } from "@/lib/session";
-import { staffAccess } from "@/server/admin/leaders";
+import { governmentBodies, staffAccess } from "@/server/admin/leaders";
+import { sinceDay, wordOf } from "@/server/admin/list";
 import { people, roleCatalog } from "@/server/admin/people";
 import { ApiError } from "@/server/api";
 
@@ -35,27 +36,25 @@ export default async function AdminPeoplePage({ searchParams }: { searchParams: 
   };
   try {
     const access = await staffAccess();
-    const [list, catalog] = await Promise.all([
+    const canCreate = access.permissions.includes("admin.user.role.grant");
+    const [list, catalog, bodies] = await Promise.all([
       people({
         q: filters.q,
         kind: kind.success ? kind.data : undefined,
         status: status.success ? status.data : undefined,
         role: filters.role || undefined,
+        kyc: wordOf(sp.kyc, ["verified", "pending", "none"] as const),
+        createdFrom: sinceDay(sp.since),
+        signedIn: wordOf(sp.signedIn, ["never", "last30", "over90"] as const),
         sort: (filters.sort || undefined) as "name" | undefined,
         dir: (filters.dir || undefined) as "asc" | undefined,
         page: filters.page,
       }),
       access.permissions.includes("admin.role.view") ? roleCatalog() : Promise.resolve(null),
+      canCreate ? governmentBodies().catch(() => []) : Promise.resolve([]),
     ]);
     const customRoles: AdminCustomRole[] = catalog?.custom ?? [];
-    return (
-      <PeopleView
-        list={list}
-        filters={filters}
-        customRoles={customRoles}
-        canCreate={access.permissions.includes("admin.user.role.grant")}
-      />
-    );
+    return <PeopleView list={list} filters={filters} customRoles={customRoles} bodies={bodies} canCreate={canCreate} />;
   } catch (error) {
     if (error instanceof ApiError && error.forbidden) return <Refused code={error.code} />;
     throw error;

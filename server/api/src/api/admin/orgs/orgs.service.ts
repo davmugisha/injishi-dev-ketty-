@@ -12,6 +12,8 @@ import {
   AdminOrgSubscription,
   AdminOrgTimelineResponse,
   type ReviewCoverage,
+  ADMIN_ORG_STAGE_STATUSES,
+  AdminOrgStage,
 } from '@injishi/contracts';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, desc, eq, ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
@@ -119,9 +121,30 @@ export class AdminOrgsService {
     if (query.districtId !== undefined) {
       filters.push(eq(orgs.districtId, query.districtId));
     }
+    if (query.provinceId !== undefined) {
+      filters.push(
+        sql`${orgs.districtId} in (select d.id from districts d where d.province_id = ${query.provinceId})`,
+      );
+    }
     if (query.domain !== undefined) filters.push(eq(orgs.domain, query.domain));
     if (query.registrationStatus !== undefined) {
       filters.push(eq(orgs.registrationStatus, query.registrationStatus));
+    }
+    if (query.createdFrom !== undefined) {
+      // A Kigali calendar day, so "registered from 1 Nov" starts at local midnight.
+      filters.push(
+        sql`${orgs.createdAt} >= (${query.createdFrom}::date::timestamp at time zone 'Africa/Kigali')`,
+      );
+    }
+    // The stage counts read every filter but the stage, so the strip above the list says where the
+    // businesses that match stand, whichever stage is chosen.
+    const beforeStage = filters.length > 0 ? and(...filters) : undefined;
+    if (query.stage !== undefined) {
+      filters.push(
+        inArray(orgs.registrationStatus, [
+          ...ADMIN_ORG_STAGE_STATUSES[query.stage],
+        ]),
+      );
     }
     const where = filters.length > 0 ? and(...filters) : undefined;
 
@@ -149,9 +172,29 @@ export class AdminOrgsService {
       .from(orgs)
       .where(where);
 
+    const byStatus = await this.db
+      .select({
+        status: orgs.registrationStatus,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(orgs)
+      .where(beforeStage)
+      .groupBy(orgs.registrationStatus);
+    const stageCounts = Object.fromEntries(
+      AdminOrgStage.options.map((stage) => [
+        stage,
+        byStatus
+          .filter((r) =>
+            ADMIN_ORG_STAGE_STATUSES[stage].includes(r.status),
+          )
+          .reduce((sum, r) => sum + r.n, 0),
+      ]),
+    );
+
     return AdminOrgListResponse.parse({
       items: rows.map(toOrgRow),
       meta: { total: counted?.n ?? 0, page, pageSize },
+      stageCounts,
     });
   }
 

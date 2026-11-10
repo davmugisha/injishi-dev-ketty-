@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { AdminDisplayPhone } from "./admin";
 import { isKnownCountry } from "./countries";
 import { normalizeRwPhone } from "./phone";
 import { OversightRole, OversightScopeLevel, Uuid } from "./primitives";
@@ -1035,6 +1036,8 @@ export const OversightAppointmentQuery = z.object({
   cellId: AreaId.optional(),
   villageId: AreaId.optional(),
   q: z.string().trim().max(120).optional(),
+  /** A government body's code (2026-11-09): the posts held under it. */
+  body: z.string().trim().max(32).optional(),
 });
 export type OversightAppointmentQuery = z.infer<typeof OversightAppointmentQuery>;
 
@@ -1095,6 +1098,8 @@ export const AppointOfficerRequest = z
   .object({
     email: z.string({ required_error: "Enter their email address." }).trim().toLowerCase().email("Enter their email address."),
     name: z.string().trim().min(2, "Enter their full name.").max(120, "That name is too long.").nullable().optional(),
+    /** A phone for their profile (2026-11-09), from Add person; display only, kept when they already have one. */
+    phone: z.lazy(() => AdminDisplayPhone).optional(),
     role: OversightRole,
     governmentBodyCode: z.string({ required_error: "Pick the government body." }).trim().min(1, "Pick the government body."),
     governmentTitle: z

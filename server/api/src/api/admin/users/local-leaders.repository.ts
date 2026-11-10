@@ -158,6 +158,7 @@ export class LocalLeadersRepository {
     else if (q.provinceId) {
       where.push(sql`(a.province_id = ${q.provinceId} or a.district_id in (select id from districts where province_id = ${q.provinceId}))`);
     }
+    if (q.body) where.push(sql`a.government_body_code = ${q.body}`);
     if (q.q) where.push(sql`(u.email ilike ${`%${q.q}%`} or u.name ilike ${`%${q.q}%`} or a.government_title ilike ${`%${q.q}%`})`);
     const result = await this.db.execute(sql`
       ${APPOINTMENT_SELECT}

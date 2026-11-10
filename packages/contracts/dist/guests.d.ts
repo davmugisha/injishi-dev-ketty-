@@ -3418,8 +3418,8 @@ export declare const GuestReport: z.ZodObject<{
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
         label: string;
         waiting: number;
-        delivered: number;
         step: number;
+        delivered: number;
         flagged: number;
         opened: number;
     }, {
@@ -3427,8 +3427,8 @@ export declare const GuestReport: z.ZodObject<{
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
         label: string;
         waiting: number;
-        delivered: number;
         step: number;
+        delivered: number;
         flagged: number;
         opened: number;
     }>, "many">>;
@@ -3511,8 +3511,8 @@ export declare const GuestReport: z.ZodObject<{
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
         label: string;
         waiting: number;
-        delivered: number;
         step: number;
+        delivered: number;
         flagged: number;
         opened: number;
     }[];
@@ -3674,8 +3674,8 @@ export declare const GuestReport: z.ZodObject<{
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
         label: string;
         waiting: number;
-        delivered: number;
         step: number;
+        delivered: number;
         flagged: number;
         opened: number;
     }[] | undefined;
@@ -3788,6 +3788,8 @@ export declare const OversightAppointmentQuery: z.ZodObject<{
     cellId: z.ZodOptional<z.ZodNumber>;
     villageId: z.ZodOptional<z.ZodNumber>;
     q: z.ZodOptional<z.ZodString>;
+    /** A government body's code (2026-11-09): the posts held under it. */
+    body: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     kind?: "officer" | "leader" | "reviewer" | undefined;
     provinceId?: number | undefined;
@@ -3797,6 +3799,7 @@ export declare const OversightAppointmentQuery: z.ZodObject<{
     villageId?: number | undefined;
     role?: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer" | undefined;
     q?: string | undefined;
+    body?: string | undefined;
 }, {
     kind?: "officer" | "leader" | "reviewer" | undefined;
     provinceId?: number | undefined;
@@ -3806,6 +3809,7 @@ export declare const OversightAppointmentQuery: z.ZodObject<{
     villageId?: number | undefined;
     role?: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer" | undefined;
     q?: string | undefined;
+    body?: string | undefined;
 }>;
 export type OversightAppointmentQuery = z.infer<typeof OversightAppointmentQuery>;
 /** A place's names from the province down, as far as it is known: a form prefills the place picker with it. */
@@ -4178,6 +4182,8 @@ export type OversightAppointmentList = z.infer<typeof OversightAppointmentList>;
 export declare const AppointOfficerRequest: z.ZodEffects<z.ZodObject<{
     email: z.ZodString;
     name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    /** A phone for their profile (2026-11-09), from Add person; display only, kept when they already have one. */
+    phone: z.ZodOptional<z.ZodLazy<z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>>>;
     role: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell", "psf_business_officer"]>;
     governmentBodyCode: z.ZodString;
     governmentTitle: z.ZodString;
@@ -4216,6 +4222,7 @@ export declare const AppointOfficerRequest: z.ZodEffects<z.ZodObject<{
         documentType: "national_id" | "passport";
         documentNumber: string;
     } | undefined;
+    phone?: string | undefined;
 }, {
     email: string;
     role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
@@ -4233,6 +4240,7 @@ export declare const AppointOfficerRequest: z.ZodEffects<z.ZodObject<{
         documentType: "national_id" | "passport";
         documentNumber: string;
     } | undefined;
+    phone?: string | undefined;
 }>, {
     email: string;
     role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
@@ -4250,6 +4258,7 @@ export declare const AppointOfficerRequest: z.ZodEffects<z.ZodObject<{
         documentType: "national_id" | "passport";
         documentNumber: string;
     } | undefined;
+    phone?: string | undefined;
 }, {
     email: string;
     role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell" | "psf_business_officer";
@@ -4267,6 +4276,7 @@ export declare const AppointOfficerRequest: z.ZodEffects<z.ZodObject<{
         documentType: "national_id" | "passport";
         documentNumber: string;
     } | undefined;
+    phone?: string | undefined;
 }>;
 export type AppointOfficerRequest = z.infer<typeof AppointOfficerRequest>;
 /** Ending an appointment says why (`DELETE /admin/local-leaders/:id?reason=`). */

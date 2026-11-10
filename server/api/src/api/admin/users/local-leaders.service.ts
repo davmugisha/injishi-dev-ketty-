@@ -228,6 +228,13 @@ export class LocalLeadersService {
       } else if (!found?.name?.trim() && body.name) {
         await tx.update(users).set({ name: body.name, updatedAt: now }).where(eq(users.id, userId));
       }
+      // A phone from Add person (2026-11-09): display only, and never over one they already have.
+      if (body.phone) {
+        await tx
+          .insert(userProfiles)
+          .values({ userId, phoneE164: body.phone })
+          .onConflictDoUpdate({ target: userProfiles.userId, set: { phoneE164: body.phone, updatedAt: now }, setWhere: isNull(userProfiles.phoneE164) });
+      }
 
       const [dupe] = await tx
         .select({ id: oversightAssignments.id })

@@ -247,12 +247,12 @@ export declare const RentalsSetupView: z.ZodObject<{
         detail: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         detail: string;
-        done: boolean;
         step: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults";
+        done: boolean;
     }, {
         detail: string;
-        done: boolean;
         step: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults";
+        done: boolean;
     }>, "many">;
     /** The first step not done, or null when all are. */
     next: z.ZodNullable<z.ZodEnum<["location", "units", "getting_paid", "lease_defaults", "signatory"]>>;
@@ -262,8 +262,8 @@ export declare const RentalsSetupView: z.ZodObject<{
     complete: boolean;
     steps: {
         detail: string;
-        done: boolean;
         step: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults";
+        done: boolean;
     }[];
     setupCompletedAt: string | null;
     next: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults" | null;
@@ -271,8 +271,8 @@ export declare const RentalsSetupView: z.ZodObject<{
     complete: boolean;
     steps: {
         detail: string;
-        done: boolean;
         step: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults";
+        done: boolean;
     }[];
     setupCompletedAt: string | null;
     next: "location" | "units" | "signatory" | "getting_paid" | "lease_defaults" | null;

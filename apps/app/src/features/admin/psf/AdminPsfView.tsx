@@ -1,28 +1,45 @@
 "use client";
 
-import { Magnifier } from "@gravity-ui/icons";
-import { Button, Input } from "@heroui/react";
 import {
   PSF_STANDING_LABEL,
   type PsfBusinessesPage,
   type PsfRegisterSummary,
   type PsfStanding,
 } from "@injishi/contracts";
-import { DataTable, EmptyBlock, formatDay, formatNumber, KpiStrip, PageContent, PageHeader, SectionCard, StatusChip } from "@injishi/ui";
+import {
+  ActionButton,
+  DataTable,
+  EmptyBlock,
+  formatDay,
+  PageContent,
+  PageHeader,
+  type PlaceChain,
+  StatusChip,
+} from "@injishi/ui";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { rwf } from "@/server/format";
+import {
+  ALL,
+  AreaFilter,
+  CountStrip,
+  ListBar,
+  ListFilter,
+  ListSearch,
+  ListUrlProvider,
+  useListUrl,
+} from "../list/list-kit";
+import { EntityMark } from "../list/stat-cards";
 
-/** A standing, or "renewal due": members inside their 60-day renewal window. */
-export type AdminPsfFilter = "" | PsfStanding | "renewal_due";
+/** A standing, "renewal due" (inside the 60-day window) or "payment due" (sent, not paid). */
+export type AdminPsfFilter = "" | PsfStanding | "renewal_due" | "payment_due";
 
-const FILTERS: { id: AdminPsfFilter; label: string }[] = [
-  { id: "", label: "All" },
+const STATUS_ORDER: { id: Exclude<AdminPsfFilter, "">; label: string }[] = [
   { id: "member", label: "Members" },
   { id: "renewal_due", label: "Renewal due" },
   { id: "lapsed", label: "Lapsed" },
   { id: "applied", label: "Waiting for approval" },
+  { id: "payment_due", label: "Sent, not paid" },
   { id: "sent_back", label: "Sent back" },
   { id: "claimed", label: "Card holders" },
   { id: "declined", label: "Declined" },
@@ -39,198 +56,227 @@ const TONE: Record<PsfStanding, "success" | "warning" | "danger" | "default"> = 
   not_applied: "default",
 };
 
+const WITH_WITHOUT = (what: string) => [
+  { id: ALL, label: "All" },
+  { id: "with", label: `With ${what}` },
+  { id: "without", label: `Without ${what}` },
+];
+
 /**
- * PSF memberships across Rwanda (2026-11-02), for Injishi staff: every business on PSF's register,
- * its membership's end date, what is due for renewal and what lapsed. Read only: PSF's District
- * Managers decide applications; a renewal is paid by the business and needs no decision.
+ * PSF memberships across Rwanda (2026-11-02, one toolbar 2026-11-09), for Injishi staff: every business on
+ * PSF's register, its membership's end date, what is due for renewal and what lapsed, filtered by status,
+ * area, cluster, kind, TIN and RDB certificate in the URL. Read only: PSF's District Managers decide
+ * applications; a renewal is paid by the business and needs no decision.
  */
-export function AdminPsfView({
+export function AdminPsfView(props: { summary: PsfRegisterSummary; page: PsfBusinessesPage; areaChain: PlaceChain }) {
+  return (
+    <ListUrlProvider>
+      <PsfRegister {...props} />
+    </ListUrlProvider>
+  );
+}
+
+function PsfRegister({
   summary,
   page,
-  q,
-  filter,
+  areaChain,
 }: {
   summary: PsfRegisterSummary;
   page: PsfBusinessesPage;
-  q: string;
-  filter: AdminPsfFilter;
+  areaChain: PlaceChain;
 }) {
   const router = useRouter();
-  const [search, setSearch] = useState(q);
+  const url = useListUrl();
   const lapsed = summary.byStanding.find((s) => s.key === "lapsed")?.count ?? 0;
-
-  const go = (nextQ: string, next: AdminPsfFilter) => {
-    const params = new URLSearchParams();
-    if (nextQ.trim()) params.set("q", nextQ.trim());
-    if (next === "renewal_due") params.set("renewal", "due");
-    else if (next) params.set("standing", next);
-    const qs = params.toString();
-    router.push(qs ? `/admin/psf?${qs}` : "/admin/psf");
-  };
+  const countOf = (id: string): number | undefined =>
+    id === "renewal_due"
+      ? summary.renewalDue
+      : id === "payment_due"
+        ? summary.awaitingPayment
+        : summary.byStanding.find((s) => s.key === id)?.count;
+  // The register pages by cursor: the cursors behind this page ride in `back`, so Previous can return.
+  const back = url.get("back") ? url.get("back").split(",") : [];
+  const cursor = url.get("cursor");
 
   return (
     <PageContent>
       <PageHeader
         eyebrow="Government · PSF"
         title="PSF memberships"
-        description="Every business on PSF's register across Rwanda: who is a member, until when, what is due for renewal and what lapsed. Renewals are paid by the business on its tracking page and need no decision."
+        description="Every business on PSF's register across Rwanda."
       />
 
-      <KpiStrip
+      <CountStrip
         label="Across Rwanda"
+        param="status"
         items={[
+          { id: "member", label: "Members", value: summary.members, icon: "Persons" },
           {
-            id: "members",
-            label: "Members",
-            value: summary.members,
-            format: "count",
-            icon: "Persons",
-            href: "/admin/psf?standing=member",
-            isCurrent: filter === "member",
-          },
-          {
-            id: "due",
+            id: "renewal_due",
             label: "Renewal due",
             value: summary.renewalDue,
-            format: "count",
             icon: "ArrowsRotateRight",
             status: summary.renewalDue > 0 ? "warning" : undefined,
             footnote: "Within 60 days of their end date",
-            href: "/admin/psf?renewal=due",
-            isCurrent: filter === "renewal_due",
           },
           {
             id: "lapsed",
             label: "Lapsed",
             value: lapsed,
-            format: "count",
             icon: "CircleXmark",
             status: lapsed > 0 ? "danger" : undefined,
             footnote: "Ended, not renewed",
-            href: "/admin/psf?standing=lapsed",
-            isCurrent: filter === "lapsed",
           },
           {
-            id: "renewed",
-            label: "Renewed this year",
-            value: summary.renewedThisYear,
-            format: "count",
-            icon: "CircleCheck",
+            id: "applied",
+            label: "Waiting for approval",
+            value: summary.waiting,
+            icon: "Clock",
+            status: summary.waiting > 0 ? "warning" : undefined,
           },
           {
-            id: "paid",
-            label: "Paid to PSF this year",
-            value: summary.paidThisYearRwf,
-            format: "money",
+            id: "payment_due",
+            label: "Sent, not paid",
+            value: summary.awaitingPayment,
             icon: "Wallet",
+            footnote: `${rwf(summary.paidThisYearRwf)} paid this year`,
           },
         ]}
       />
 
-      <SectionCard
-        title={filter === "renewal_due" ? "Renewal due" : filter ? PSF_STANDING_LABEL[filter] : "Every business"}
-        description={`${formatNumber(page.total)} ${page.total === 1 ? "business" : "businesses"}`}
-        contentClassName="gap-3"
+      <ListBar
+        keys={["q", "status", "cluster", "kind", "tin", "rdb", "cursor", "back"]}
+        found={page.total}
+        noun={{ one: "business", many: "businesses" }}
+        search={<ListSearch placeholder="Name, business code or TIN" />}
       >
-        <form
-          className="flex max-w-xl flex-wrap items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            go(search, filter);
-          }}
-        >
-          <Input
-            aria-label="Search businesses"
-            placeholder="Search by name, business code or TIN"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="min-w-[16rem] flex-1"
-          />
-          <Button type="submit" variant="secondary">
-            <Magnifier className="size-4" /> Search
-          </Button>
-        </form>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Membership status">
-          {FILTERS.map((f) => (
-            <Button
-              key={f.id || "all"}
-              size="sm"
-              variant={filter === f.id ? "primary" : "ghost"}
-              aria-pressed={filter === f.id}
-              onPress={() => go(search, f.id)}
-            >
-              {f.label}
-            </Button>
-          ))}
-        </div>
-        <DataTable
-          label="PSF memberships"
-          rows={page.items}
-          rowKey={(b) => b.orgId}
-          onRowAction={(b) => router.push(`/admin/psf/${b.orgId}`)}
-          empty={<EmptyBlock size="sm" icon="Persons" title="No business matches" description="Clear the search or pick All." />}
-          columns={[
-            {
-              id: "name",
-              header: "Business",
-              isRowHeader: true,
-              sortValue: (b) => b.legalName,
-              cell: (b) => (
-                <span className="flex flex-col gap-0.5">
-                  <NextLink href={`/admin/psf/${b.orgId}`} className="font-medium text-foreground hover:underline">
+        <ListFilter
+          param="status"
+          name="Status"
+          options={[{ id: ALL, label: "All" }, ...STATUS_ORDER.map((s) => ({ ...s, count: countOf(s.id) }))]}
+        />
+        <AreaFilter chain={areaChain} depth="district" />
+        <ListFilter
+          param="cluster"
+          name="Cluster"
+          icon="Briefcase"
+          options={[
+            { id: ALL, label: "All" },
+            ...summary.byCluster.filter((c) => c.key).map((c) => ({ id: c.key, label: c.label, count: c.count })),
+          ]}
+        />
+        <ListFilter
+          param="kind"
+          name="Kind"
+          icon="Persons"
+          options={[
+            { id: ALL, label: "All" },
+            { id: "enterprise", label: "Enterprise" },
+            { id: "hospitality", label: "Hospitality" },
+          ]}
+        />
+        <ListFilter param="tin" name="TIN" icon="Persons" options={WITH_WITHOUT("a TIN")} />
+        <ListFilter param="rdb" name="RDB" icon="Persons" options={WITH_WITHOUT("an RDB certificate")} />
+      </ListBar>
+
+      <DataTable
+        label="PSF memberships"
+        rows={page.items}
+        rowKey={(b) => b.orgId}
+        pageSize={100}
+        onRowAction={(b) => router.push(`/admin/psf/${b.orgId}`)}
+        empty={<EmptyBlock size="sm" icon="Persons" title="No business matches" description="Try clearing a filter." />}
+        columns={[
+          {
+            id: "name",
+            header: "Business",
+            isRowHeader: true,
+            sortValue: (b) => b.legalName,
+            cell: (b) => (
+              <span className="flex min-w-0 items-center gap-3">
+                <EntityMark name={b.legalName} kind={b.domain} />
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <NextLink
+                    href={`/admin/psf/${b.orgId}`}
+                    className="truncate font-medium text-foreground hover:underline"
+                  >
                     {b.legalName}
                   </NextLink>
-                  <span className="text-xs text-muted">{[b.businessCode ?? "No code yet", b.membershipNumber].filter(Boolean).join(" · ")}</span>
+                  <span className="truncate text-xs text-muted">
+                    {[b.businessCode ?? "No code yet", b.membershipNumber].filter(Boolean).join(" · ")}
+                  </span>
                 </span>
-              ),
-            },
-            { id: "district", header: "District", sortValue: (b) => b.districtName ?? "", cell: (b) => b.districtName ?? "—" },
-            {
-              id: "standing",
-              header: "Status",
-              sortValue: (b) => b.standing,
-              cell: (b) => <StatusChip tone={TONE[b.standing] ?? "default"}>{PSF_STANDING_LABEL[b.standing] ?? b.standing}</StatusChip>,
-            },
-            { id: "tier", header: "Tier", sortValue: (b) => b.tierName ?? "", cell: (b) => b.tierName ?? "—" },
-            {
-              id: "ends",
-              header: "Ends",
-              sortValue: (b) => b.expiresOn ?? "",
-              cell: (b) => <MembershipEnd expiresOn={b.standing === "member" ? b.expiresOn : null} />,
-            },
-            {
-              id: "paid",
-              header: "Paid",
-              align: "end",
-              sortValue: (b) => b.paidRwf,
-              cell: (b) => (
-                <span className="flex flex-col items-end gap-0.5">
-                  <span className="tabular">{rwf(b.paidRwf)}</span>
-                  {b.lastPaidAt ? <span className="text-xs text-muted">last {formatDay(b.lastPaidAt)}</span> : null}
-                </span>
-              ),
-            },
-          ]}
-          mobile={{
-            title: (b) => b.legalName,
-            description: (b) => (b.expiresOn && b.standing === "member" ? `Ends ${formatDay(b.expiresOn)}` : (b.districtName ?? "")),
-            trailing: (b) => <StatusChip tone={TONE[b.standing] ?? "default"}>{PSF_STANDING_LABEL[b.standing] ?? b.standing}</StatusChip>,
-          }}
-        />
-        {page.nextCursor ? (
-          <Button
-            variant="secondary"
-            className="self-start"
+              </span>
+            ),
+          },
+          {
+            id: "district",
+            header: "District",
+            sortValue: (b) => b.districtName ?? "",
+            cell: (b) => b.districtName ?? "—",
+          },
+          {
+            id: "standing",
+            header: "Status",
+            sortValue: (b) => b.standing,
+            cell: (b) => (
+              <StatusChip tone={TONE[b.standing] ?? "default"}>
+                {PSF_STANDING_LABEL[b.standing] ?? b.standing}
+              </StatusChip>
+            ),
+          },
+          { id: "tier", header: "Tier", sortValue: (b) => b.tierName ?? "", cell: (b) => b.tierName ?? "—" },
+          {
+            id: "ends",
+            header: "Ends",
+            sortValue: (b) => b.expiresOn ?? "",
+            cell: (b) => <MembershipEnd expiresOn={b.standing === "member" ? b.expiresOn : null} />,
+          },
+          {
+            id: "paid",
+            header: "Paid",
+            align: "end",
+            sortValue: (b) => b.paidRwf,
+            cell: (b) => (
+              <span className="flex flex-col items-end gap-0.5">
+                <span className="whitespace-nowrap tabular">{rwf(b.paidRwf)}</span>
+                {b.lastPaidAt ? <span className="text-xs whitespace-nowrap text-muted">last {formatDay(b.lastPaidAt)}</span> : null}
+              </span>
+            ),
+          },
+        ]}
+        mobile={{
+          title: (b) => b.legalName,
+          description: (b) =>
+            b.expiresOn && b.standing === "member" ? `Ends ${formatDay(b.expiresOn)}` : (b.districtName ?? ""),
+          trailing: (b) => (
+            <StatusChip tone={TONE[b.standing] ?? "default"}>{PSF_STANDING_LABEL[b.standing] ?? b.standing}</StatusChip>
+          ),
+        }}
+      />
+      {cursor || page.nextCursor ? (
+        <div className="flex items-center justify-end gap-2">
+          <ActionButton
+            intent="secondary"
+            icon="ArrowLeft"
+            isDisabled={!cursor}
             onPress={() => {
-              const params = new URLSearchParams(window.location.search);
-              params.set("cursor", page.nextCursor!);
-              router.push(`/admin/psf?${params.toString()}`);
+              const prev = back.slice(0, -1);
+              url.set({ cursor: back.at(-1) || null, back: prev.join(",") || null, page: null });
             }}
           >
-            Next page
-          </Button>
-        ) : null}
-      </SectionCard>
+            Previous
+          </ActionButton>
+          <ActionButton
+            intent="secondary"
+            icon="ArrowRight"
+            isDisabled={!page.nextCursor}
+            onPress={() => url.set({ cursor: page.nextCursor, back: [...back, cursor || ""].join(","), page: null })}
+          >
+            Next
+          </ActionButton>
+        </div>
+      ) : null}
     </PageContent>
   );
 }
@@ -249,7 +295,9 @@ function MembershipEnd({ expiresOn }: { expiresOn: string | null }) {
   return (
     <span className="flex flex-col gap-0.5">
       <span className="tabular">{formatDay(expiresOn)}</span>
-      <StatusChip tone={left < 0 ? "danger" : "warning"}>{left < 0 ? "Past its end" : left === 0 ? "Ends today" : `Renew in ${left} days`}</StatusChip>
+      <StatusChip tone={left < 0 ? "danger" : "warning"}>
+        {left < 0 ? "Past its end" : left === 0 ? "Ends today" : `Renew in ${left} days`}
+      </StatusChip>
     </span>
   );
 }

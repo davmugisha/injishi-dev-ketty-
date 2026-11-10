@@ -6,6 +6,8 @@
  */
 import type {
   AdminActivityResponse,
+  AdminAuditQuery,
+  AdminAuditResponse,
   AdminOrgListResponse,
   AdminPersonDetail,
   AdminRoleHolders,
@@ -22,7 +24,10 @@ const READ_REASON = "Admin console: People";
 export const PEOPLE_PAGE_SIZE = 25;
 
 /** The directory filters as the URL carries them. */
-export type PeopleQuery = Pick<AdminUserListQuery, "q" | "kind" | "status" | "role" | "sort" | "dir"> & {
+export type PeopleQuery = Pick<
+  AdminUserListQuery,
+  "q" | "kind" | "status" | "role" | "kyc" | "createdFrom" | "signedIn" | "sort" | "dir"
+> & {
   page: number;
 };
 
@@ -34,6 +39,9 @@ export async function people(query: PeopleQuery): Promise<AdminUserListResponse>
       kind: query.kind,
       status: query.status,
       role: query.role,
+      kyc: query.kyc,
+      createdFrom: query.createdFrom,
+      signedIn: query.signedIn,
       sort: query.sort,
       dir: query.dir,
       page: String(query.page),
@@ -74,4 +82,15 @@ export async function roleCatalog(): Promise<AdminStaffRoleCatalog> {
 export async function roleHolders(role: string): Promise<AdminRoleHolders> {
   const api = await currentApi();
   return api.get<AdminRoleHolders>(`/api/v1/admin/staff-roles/${encodeURIComponent(role)}/holders`);
+}
+
+export const AUDIT_PAGE_SIZE = 50;
+
+/** One page of the platform's audit log, newest first and filtered (`GET /admin/audit`). */
+export async function auditLog(query: AdminAuditQuery): Promise<AdminAuditResponse> {
+  const api = await currentApi();
+  const clean = Object.fromEntries(
+    Object.entries({ pageSize: AUDIT_PAGE_SIZE, ...query }).filter(([, v]) => v !== undefined && v !== ""),
+  ) as Record<string, string | number>;
+  return api.get<AdminAuditResponse>("/api/v1/admin/audit", { query: clean });
 }

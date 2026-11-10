@@ -1,7 +1,6 @@
 "use server";
 
 import { requirePersona } from "@/lib/session";
-import { ApiError } from "@/server/api";
 import {
   decideStarGrade,
   type RegistrationEvent,
@@ -9,6 +8,7 @@ import {
   type StarGradeState,
   starGradeOf,
 } from "@/server/admin/registrations";
+import { ApiError } from "@/server/api";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -50,7 +50,8 @@ export async function decideStarGradeAction(
   try {
     return { ok: true, value: await decideStarGrade(orgId, confirm, reason.trim()) };
   } catch (error) {
-    if (error instanceof ApiError) return { ok: false, error: error.forbidden ? "Your staff role cannot do this." : error.message };
+    if (error instanceof ApiError)
+      return { ok: false, error: error.forbidden ? "Your staff role cannot do this." : error.message };
     return { ok: false, error: "That did not go through. Try again." };
   }
 }

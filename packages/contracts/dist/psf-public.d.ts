@@ -1219,8 +1219,11 @@ export declare const PsfPaymentLine: z.ZodObject<{
     at: string | null;
 }>;
 export type PsfPaymentLine = z.infer<typeof PsfPaymentLine>;
-/** The two district posts: a Regional Manager fills the first, a District Manager the second. */
-export declare const PsfTeamRole: z.ZodEnum<["district_manager", "business_officer"]>;
+/**
+ * The PSF posts appointed from the Team page. A National Manager fills all three (2026-11-09); a Regional
+ * Manager fills District Managers in its province.
+ */
+export declare const PsfTeamRole: z.ZodEnum<["regional_manager", "district_manager", "business_officer"]>;
 export type PsfTeamRole = z.infer<typeof PsfTeamRole>;
 export declare const PSF_TEAM_ROLE_LABEL: Readonly<Record<PsfTeamRole, string>>;
 export declare const PSF_TEAM_ROLE_DESCRIPTION: Readonly<Record<PsfTeamRole, string>>;
@@ -1228,10 +1231,14 @@ export declare const PsfTeamMember: z.ZodObject<{
     assignmentId: z.ZodString;
     name: z.ZodNullable<z.ZodString>;
     email: z.ZodString;
-    role: z.ZodEnum<["district_manager", "business_officer"]>;
+    role: z.ZodEnum<["regional_manager", "district_manager", "business_officer"]>;
     title: z.ZodNullable<z.ZodString>;
-    districtId: z.ZodNumber;
+    /** The district a District Manager or BDE serves; null for a Regional Manager. */
+    districtId: z.ZodNullable<z.ZodNumber>;
     districtName: z.ZodNullable<z.ZodString>;
+    /** The province a Regional Manager oversees (2026-11-09); null for a district post. */
+    provinceId: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
+    provinceName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     appointedAt: z.ZodString;
     appointedByName: z.ZodNullable<z.ZodString>;
     /** Their ID as typed at the appointment, masked ("National ID ending 5187"); null for an older one. */
@@ -1239,9 +1246,11 @@ export declare const PsfTeamMember: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string | null;
     districtName: string | null;
-    districtId: number;
+    provinceId: number | null;
+    districtId: number | null;
     email: string;
-    role: "district_manager" | "business_officer";
+    role: "regional_manager" | "district_manager" | "business_officer";
+    provinceName: string | null;
     title: string | null;
     assignmentId: string;
     appointedAt: string;
@@ -1250,22 +1259,24 @@ export declare const PsfTeamMember: z.ZodObject<{
 }, {
     name: string | null;
     districtName: string | null;
-    districtId: number;
+    districtId: number | null;
     email: string;
-    role: "district_manager" | "business_officer";
+    role: "regional_manager" | "district_manager" | "business_officer";
     title: string | null;
     assignmentId: string;
     appointedAt: string;
     appointedByName: string | null;
+    provinceId?: number | null | undefined;
+    provinceName?: string | null | undefined;
     idDocumentLine?: string | null | undefined;
 }>;
 export type PsfTeamMember = z.infer<typeof PsfTeamMember>;
-/** `GET /oversight/psf/team`: the people in the caller's districts, and where the caller may appoint. */
+/** `GET /oversight/psf/team`: the people in the caller's area, and where the caller may appoint. */
 export declare const PsfTeamView: z.ZodObject<{
-    /** May appoint and end: a Regional or National Manager (District Managers), a District Manager (BDEs). */
+    /** May appoint and end: a National Manager (every post), a Regional Manager (District Managers). */
     canAppoint: z.ZodBoolean;
-    /** The posts the caller fills (2026-11-02). */
-    appointRoles: z.ZodDefault<z.ZodArray<z.ZodEnum<["district_manager", "business_officer"]>, "many">>;
+    /** The posts the caller fills. */
+    appointRoles: z.ZodDefault<z.ZodArray<z.ZodEnum<["regional_manager", "district_manager", "business_officer"]>, "many">>;
     /** The districts the caller may appoint in, by province. */
     districts: z.ZodArray<z.ZodObject<{
         id: z.ZodNumber;
@@ -1280,14 +1291,29 @@ export declare const PsfTeamView: z.ZodObject<{
         id: number;
         provinceName: string | null;
     }>, "many">;
+    /** The provinces the caller may appoint a Regional Manager in (a National Manager's; 2026-11-09). */
+    provinces: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        id: z.ZodNumber;
+        name: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        id: number;
+    }, {
+        name: string;
+        id: number;
+    }>, "many">>;
     members: z.ZodArray<z.ZodObject<{
         assignmentId: z.ZodString;
         name: z.ZodNullable<z.ZodString>;
         email: z.ZodString;
-        role: z.ZodEnum<["district_manager", "business_officer"]>;
+        role: z.ZodEnum<["regional_manager", "district_manager", "business_officer"]>;
         title: z.ZodNullable<z.ZodString>;
-        districtId: z.ZodNumber;
+        /** The district a District Manager or BDE serves; null for a Regional Manager. */
+        districtId: z.ZodNullable<z.ZodNumber>;
         districtName: z.ZodNullable<z.ZodString>;
+        /** The province a Regional Manager oversees (2026-11-09); null for a district post. */
+        provinceId: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
+        provinceName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         appointedAt: z.ZodString;
         appointedByName: z.ZodNullable<z.ZodString>;
         /** Their ID as typed at the appointment, masked ("National ID ending 5187"); null for an older one. */
@@ -1295,9 +1321,11 @@ export declare const PsfTeamView: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string | null;
         districtName: string | null;
-        districtId: number;
+        provinceId: number | null;
+        districtId: number | null;
         email: string;
-        role: "district_manager" | "business_officer";
+        role: "regional_manager" | "district_manager" | "business_officer";
+        provinceName: string | null;
         title: string | null;
         assignmentId: string;
         appointedAt: string;
@@ -1306,27 +1334,35 @@ export declare const PsfTeamView: z.ZodObject<{
     }, {
         name: string | null;
         districtName: string | null;
-        districtId: number;
+        districtId: number | null;
         email: string;
-        role: "district_manager" | "business_officer";
+        role: "regional_manager" | "district_manager" | "business_officer";
         title: string | null;
         assignmentId: string;
         appointedAt: string;
         appointedByName: string | null;
+        provinceId?: number | null | undefined;
+        provinceName?: string | null | undefined;
         idDocumentLine?: string | null | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     members: {
         name: string | null;
         districtName: string | null;
-        districtId: number;
+        provinceId: number | null;
+        districtId: number | null;
         email: string;
-        role: "district_manager" | "business_officer";
+        role: "regional_manager" | "district_manager" | "business_officer";
+        provinceName: string | null;
         title: string | null;
         assignmentId: string;
         appointedAt: string;
         appointedByName: string | null;
         idDocumentLine: string | null;
+    }[];
+    provinces: {
+        name: string;
+        id: number;
     }[];
     districts: {
         name: string;
@@ -1334,18 +1370,20 @@ export declare const PsfTeamView: z.ZodObject<{
         provinceName: string | null;
     }[];
     canAppoint: boolean;
-    appointRoles: ("district_manager" | "business_officer")[];
+    appointRoles: ("regional_manager" | "district_manager" | "business_officer")[];
 }, {
     members: {
         name: string | null;
         districtName: string | null;
-        districtId: number;
+        districtId: number | null;
         email: string;
-        role: "district_manager" | "business_officer";
+        role: "regional_manager" | "district_manager" | "business_officer";
         title: string | null;
         assignmentId: string;
         appointedAt: string;
         appointedByName: string | null;
+        provinceId?: number | null | undefined;
+        provinceName?: string | null | undefined;
         idDocumentLine?: string | null | undefined;
     }[];
     districts: {
@@ -1354,13 +1392,17 @@ export declare const PsfTeamView: z.ZodObject<{
         provinceName: string | null;
     }[];
     canAppoint: boolean;
-    appointRoles?: ("district_manager" | "business_officer")[] | undefined;
+    provinces?: {
+        name: string;
+        id: number;
+    }[] | undefined;
+    appointRoles?: ("regional_manager" | "district_manager" | "business_officer")[] | undefined;
 }>;
 export type PsfTeamView = z.infer<typeof PsfTeamView>;
-export declare const AppointPsfTeamRequest: z.ZodObject<{
+export declare const AppointPsfTeamRequest: z.ZodEffects<z.ZodObject<{
     email: z.ZodString;
     name: z.ZodString;
-    role: z.ZodEnum<["district_manager", "business_officer"]>;
+    role: z.ZodEnum<["regional_manager", "district_manager", "business_officer"]>;
     /** The person's ID (2026-11-02): a National ID or a passport. */
     idDocument: z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
         documentType: z.ZodLiteral<"national_id">;
@@ -1381,11 +1423,13 @@ export declare const AppointPsfTeamRequest: z.ZodObject<{
         documentType: "passport";
         documentNumber: string;
     }>]>;
-    districtId: z.ZodNumber;
+    /** A District Manager's or a BDE's district. */
+    districtId: z.ZodOptional<z.ZodNumber>;
+    /** A Regional Manager's province. */
+    provinceId: z.ZodOptional<z.ZodNumber>;
     reason: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    districtId: number;
     email: string;
     idDocument: {
         documentType: "national_id";
@@ -1394,11 +1438,12 @@ export declare const AppointPsfTeamRequest: z.ZodObject<{
         documentType: "passport";
         documentNumber: string;
     };
-    role: "district_manager" | "business_officer";
+    role: "regional_manager" | "district_manager" | "business_officer";
     reason: string;
+    provinceId?: number | undefined;
+    districtId?: number | undefined;
 }, {
     name: string;
-    districtId: number;
     email: string;
     idDocument: {
         documentType: "national_id";
@@ -1407,8 +1452,38 @@ export declare const AppointPsfTeamRequest: z.ZodObject<{
         documentType: "passport";
         documentNumber: string;
     };
-    role: "district_manager" | "business_officer";
+    role: "regional_manager" | "district_manager" | "business_officer";
     reason: string;
+    provinceId?: number | undefined;
+    districtId?: number | undefined;
+}>, {
+    name: string;
+    email: string;
+    idDocument: {
+        documentType: "national_id";
+        documentNumber: string;
+    } | {
+        documentType: "passport";
+        documentNumber: string;
+    };
+    role: "regional_manager" | "district_manager" | "business_officer";
+    reason: string;
+    provinceId?: number | undefined;
+    districtId?: number | undefined;
+}, {
+    name: string;
+    email: string;
+    idDocument: {
+        documentType: "national_id";
+        documentNumber: string;
+    } | {
+        documentType: "passport";
+        documentNumber: string;
+    };
+    role: "regional_manager" | "district_manager" | "business_officer";
+    reason: string;
+    provinceId?: number | undefined;
+    districtId?: number | undefined;
 }>;
 export type AppointPsfTeamRequest = z.infer<typeof AppointPsfTeamRequest>;
 export declare const EndPsfTeamQuery: z.ZodObject<{
@@ -1927,6 +2002,11 @@ export declare const PsfTrackView: z.ZodObject<{
         phoneMasked: string;
         emailMasked: string | null;
     };
+    approval: {
+        membershipNumber: string;
+        feeRwf: number;
+        approvedAt: string;
+    } | null;
     events: {
         kind: "submitted" | "approved" | "declined" | "expired" | "withdrawn" | "paid" | "renewed" | "fee_paid" | "code_issued" | "in_review";
         title: string;
@@ -1940,11 +2020,6 @@ export declare const PsfTrackView: z.ZodObject<{
         amountRwf: number;
         at: string | null;
     }[];
-    approval: {
-        membershipNumber: string;
-        feeRwf: number;
-        approvedAt: string;
-    } | null;
     sentBack: {
         streetAddress: string;
         website: string | null;
@@ -2023,6 +2098,11 @@ export declare const PsfTrackView: z.ZodObject<{
         phoneMasked: string;
         emailMasked: string | null;
     };
+    approval: {
+        membershipNumber: string;
+        feeRwf: number;
+        approvedAt: string;
+    } | null;
     events: {
         kind: "submitted" | "approved" | "declined" | "expired" | "withdrawn" | "paid" | "renewed" | "fee_paid" | "code_issued" | "in_review";
         title: string;
@@ -2036,11 +2116,6 @@ export declare const PsfTrackView: z.ZodObject<{
         amountRwf: number;
         at: string | null;
     }[];
-    approval: {
-        membershipNumber: string;
-        feeRwf: number;
-        approvedAt: string;
-    } | null;
     request: {
         declaredFeeRwf: number | null;
         family: string;
@@ -2532,6 +2607,11 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             phoneMasked: string;
             emailMasked: string | null;
         };
+        approval: {
+            membershipNumber: string;
+            feeRwf: number;
+            approvedAt: string;
+        } | null;
         events: {
             kind: "submitted" | "approved" | "declined" | "expired" | "withdrawn" | "paid" | "renewed" | "fee_paid" | "code_issued" | "in_review";
             title: string;
@@ -2545,11 +2625,6 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             amountRwf: number;
             at: string | null;
         }[];
-        approval: {
-            membershipNumber: string;
-            feeRwf: number;
-            approvedAt: string;
-        } | null;
         sentBack: {
             streetAddress: string;
             website: string | null;
@@ -2628,6 +2703,11 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             phoneMasked: string;
             emailMasked: string | null;
         };
+        approval: {
+            membershipNumber: string;
+            feeRwf: number;
+            approvedAt: string;
+        } | null;
         events: {
             kind: "submitted" | "approved" | "declined" | "expired" | "withdrawn" | "paid" | "renewed" | "fee_paid" | "code_issued" | "in_review";
             title: string;
@@ -2641,11 +2721,6 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             amountRwf: number;
             at: string | null;
         }[];
-        approval: {
-            membershipNumber: string;
-            feeRwf: number;
-            approvedAt: string;
-        } | null;
         request: {
             declaredFeeRwf: number | null;
             family: string;
@@ -2762,6 +2837,11 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             phoneMasked: string;
             emailMasked: string | null;
         };
+        approval: {
+            membershipNumber: string;
+            feeRwf: number;
+            approvedAt: string;
+        } | null;
         events: {
             kind: "submitted" | "approved" | "declined" | "expired" | "withdrawn" | "paid" | "renewed" | "fee_paid" | "code_issued" | "in_review";
             title: string;
@@ -2775,11 +2855,6 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             amountRwf: number;
             at: string | null;
         }[];
-        approval: {
-            membershipNumber: string;
-            feeRwf: number;
-            approvedAt: string;
-        } | null;
         sentBack: {
             streetAddress: string;
             website: string | null;
@@ -2862,6 +2937,11 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             phoneMasked: string;
             emailMasked: string | null;
         };
+        approval: {
+            membershipNumber: string;
+            feeRwf: number;
+            approvedAt: string;
+        } | null;
         events: {
             kind: "submitted" | "approved" | "declined" | "expired" | "withdrawn" | "paid" | "renewed" | "fee_paid" | "code_issued" | "in_review";
             title: string;
@@ -2875,11 +2955,6 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             amountRwf: number;
             at: string | null;
         }[];
-        approval: {
-            membershipNumber: string;
-            feeRwf: number;
-            approvedAt: string;
-        } | null;
         request: {
             declaredFeeRwf: number | null;
             family: string;

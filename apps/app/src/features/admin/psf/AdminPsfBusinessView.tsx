@@ -1,5 +1,5 @@
 import { PSF_STANDING_LABEL, type PsfBusinessDetail } from "@injishi/contracts";
-import { ActionLink, EmptyBlock, formatDay, formatMoney, PageContent, PageHeader, SectionCard, StatusChip } from "@injishi/ui";
+import { ActionLink, EmptyBlock, LinkButton, formatDay, formatMoney, PageContent, PageHeader, SectionCard, StatusChip } from "@injishi/ui";
 import { FactGrid } from "@/features/oversight/shared";
 import { WEB_URL } from "@/lib/return-to";
 
@@ -26,6 +26,11 @@ export function AdminPsfBusinessView({ detail }: { detail: PsfBusinessDetail }) 
         eyebrow={[b.businessCode, b.districtName].filter(Boolean).join(" · ") || "PSF"}
         title={b.legalName}
         description={[b.clusterName, b.subsectorName, b.associationName].filter(Boolean).join(" · ") || undefined}
+        actions={
+          <LinkButton href={`/admin/businesses/${b.orgId}`} variant="secondary">
+            Business page
+          </LinkButton>
+        }
       />
 
       <SectionCard title="Membership" description="Where it stands with the Private Sector Federation">

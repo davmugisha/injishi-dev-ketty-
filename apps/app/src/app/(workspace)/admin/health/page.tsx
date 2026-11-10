@@ -1,38 +1,22 @@
 import { screens } from "@injishi/data";
-import type {
-  Adapter,
-  DeadLetter,
-  ErrorGroup,
-  HealthPanel,
-  Incident,
-  Pipeline,
-  QueueStat,
-  SchedulerRun,
-  Sweep,
-} from "@injishi/data/fixtures/admin";
 import type { Metadata } from "next";
-import { AdminHealthView } from "@/features/admin/AdminHealthView";
+import { SystemHealthView } from "@/features/admin/health/HealthViews";
+import { Refused } from "@/features/admin/people/Refused";
 import { requirePersona } from "@/lib/session";
-import { getCollection } from "@/server/data";
+import { systemHealth } from "@/server/admin/health";
+import { ApiError } from "@/server/api";
 
 export const metadata: Metadata = { title: screens.AdminHealth.pageTitle };
 
+/** System health (2026-11-09, real records), read from the admin API when the page opens. */
 export default async function AdminHealthPage() {
   await requirePersona("AdminHealth");
-  const [incidents, adapters, deadLetters, queues, schedulers, sweeps, panels, errors, pipelines] = await Promise.all([
-    getCollection<Incident>("admin.incidents"),
-    getCollection<Adapter>("admin.adapters"),
-    getCollection<DeadLetter>("admin.deadLetters"),
-    getCollection<QueueStat>("admin.queues"),
-    getCollection<SchedulerRun>("admin.schedulers"),
-    getCollection<Sweep>("admin.sweeps"),
-    getCollection<HealthPanel>("admin.healthPanels"),
-    getCollection<ErrorGroup>("admin.errorGroups"),
-    getCollection<Pipeline>("admin.pipelines"),
-  ]);
-  return (
-    <AdminHealthView
-      data={{ incidents, adapters, deadLetters, queues, schedulers, sweeps, panels, errors, pipelines }}
-    />
-  );
+  try {
+    return <SystemHealthView health={await systemHealth()} />;
+  } catch (error) {
+    if (error instanceof ApiError && error.forbidden) return <Refused code={error.code} />;
+    throw error;
+  }
 }
+
+export const dynamic = "force-dynamic";

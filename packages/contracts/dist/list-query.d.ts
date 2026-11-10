@@ -272,14 +272,14 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
     total: number;
     page: number;
     pageSize: 10 | 100 | 50 | 25;
+    statusCounts?: {
+        value: string;
+        count: number;
+    }[] | undefined;
     groups?: {
         count: number;
         label: string;
         key: string | null;
-    }[] | undefined;
-    statusCounts?: {
-        value: string;
-        count: number;
     }[] | undefined;
     stages?: {
         label: string;
@@ -290,14 +290,14 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
     total: number;
     page: number;
     pageSize: 10 | 100 | 50 | 25;
+    statusCounts?: {
+        value: string;
+        count: number;
+    }[] | undefined;
     groups?: {
         count: number;
         label: string;
         key: string | null;
-    }[] | undefined;
-    statusCounts?: {
-        value: string;
-        count: number;
     }[] | undefined;
     stages?: {
         label: string;

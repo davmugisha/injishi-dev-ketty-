@@ -1,12 +1,17 @@
 "use client";
 
-import { Checkbox, Chip, Input, Label, Tabs, TextField, toast } from "@heroui/react";
+import { Checkbox, Chip, Description, Input, Label, Tabs, TextField, toast } from "@heroui/react";
 import {
+  ADMIN_GENDER_LABEL,
+  ADMIN_GENDERS,
+  ADMIN_LOCALE_LABEL,
+  ADMIN_LOCALES,
   type AdminActivityResponse,
   type AdminCustomRole,
   type AdminOrgRow,
   type AdminPersonDetail,
   type AdminSignInsResponse,
+  type GovernmentBody,
   ORG_ROLE_LABEL,
   OrgRole,
   OVERSIGHT_ROLE_LABEL,
@@ -18,6 +23,7 @@ import {
   ConfirmDialog,
   DataTable,
   DateText,
+  EmailInput,
   EmptyBlock,
   FormDialog,
   LinkButton,
@@ -25,10 +31,14 @@ import {
   PageHeader,
   SectionCard,
   SelectField,
+  SidePanel,
 } from "@injishi/ui";
+import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState, useTransition } from "react";
+import { AppointPanel } from "../leaders/AppointPanel";
+import { FactRow as Fact } from "../shared";
 import { useStepUp } from "../step-up/step-up-dialog";
 import {
   addToBusiness,
@@ -43,6 +53,7 @@ import {
   revokeCustomRole,
   setStaffRoles,
   setSuspended,
+  updateDetails,
 } from "./actions";
 import { StatusChip } from "./PeopleView";
 
@@ -80,6 +91,7 @@ export function PersonView({
   customRoles,
   signIns,
   activity,
+  bodies,
 }: {
   person: AdminPersonDetail;
   can: PersonCan;
@@ -87,6 +99,8 @@ export function PersonView({
   customRoles: readonly AdminCustomRole[];
   signIns: AdminSignInsResponse | null;
   activity: AdminActivityResponse | null;
+  /** The government bodies a post can be held under, for Appoint. */
+  bodies: readonly GovernmentBody[];
 }) {
   const t = useTranslations("adminPeople.people");
   const [asking, setAsking] = useState<"suspend" | "reactivate" | "resend" | null>(null);
@@ -99,19 +113,10 @@ export function PersonView({
         description={
           <span className="flex flex-wrap items-center gap-2">
             <span>{person.email}</span>
-            {person.phoneMasked ? <span className="text-muted">{person.phoneMasked}</span> : null}
             <StatusChip status={person.status} />
             <Chip size="sm" variant="soft" color={person.kyc === "verified" ? "success" : "default"}>
               {person.kyc === "verified" ? "ID verified" : person.kyc === "pending" ? "ID pending" : "ID not verified"}
             </Chip>
-            <span className="text-muted">
-              {t("since")} <DateText value={person.createdAt} />
-            </span>
-            {person.lastSignInAt ? (
-              <span className="text-muted">
-                · {t("lastSignIn")} <DateText value={person.lastSignInAt} />
-              </span>
-            ) : null}
           </span>
         }
         actions={
@@ -135,9 +140,13 @@ export function PersonView({
           </span>
         }
       />
-      <Tabs variant="secondary" defaultSelectedKey="access">
+      <Tabs variant="secondary" defaultSelectedKey="details">
         <Tabs.ListContainer>
           <Tabs.List aria-label={t("title")}>
+            <Tabs.Tab id="details">
+              Details
+              <Tabs.Indicator />
+            </Tabs.Tab>
             <Tabs.Tab id="access">
               {t("staffRoles")}
               <Tabs.Indicator />
@@ -150,17 +159,20 @@ export function PersonView({
             ) : null}
             {activity ? (
               <Tabs.Tab id="activity">
-              {t("post")}
+                {t("post")}
                 <Tabs.Indicator />
               </Tabs.Tab>
             ) : null}
           </Tabs.List>
         </Tabs.ListContainer>
+        <Tabs.Panel id="details" className="pt-5">
+          <Details person={person} canEdit={can.grant} />
+        </Tabs.Panel>
         <Tabs.Panel id="access" className="pt-5">
-          <div className="flex max-w-[960px] flex-col gap-5">
+          <div className="flex flex-col gap-5">
             <StaffRoles person={person} canEdit={can.grant && !isSelf} isSelf={isSelf} customRoles={customRoles} />
             <Businesses person={person} canEdit={can.members} />
-            <Seats person={person} canEdit={can.grant} />
+            <Seats person={person} canEdit={can.grant} bodies={bodies} />
           </div>
         </Tabs.Panel>
         {signIns ? (
@@ -176,6 +188,181 @@ export function PersonView({
       </Tabs>
       <AccountDialog person={person} asking={asking} onClose={() => setAsking(null)} />
     </PageContent>
+  );
+}
+
+const dash = (v: string | null | undefined): ReactNode => (v?.trim() ? v : null);
+
+/**
+ * Details (2026-11-09, regrouped the same day): two cards side by side, as tall as each other. Personal details
+ * is exactly what the one Edit panel changes; Identity and sign-in comes from the person's own checks and
+ * sign-ins, so it is only shown.
+ */
+function Details({ person, canEdit }: { person: AdminPersonDetail; canEdit: boolean }) {
+  const [editing, setEditing] = useState(false);
+  const d = person.details;
+  const edit = canEdit ? (
+    <ActionButton icon="Pencil" intent="secondary" onPress={() => setEditing(true)}>
+      Edit
+    </ActionButton>
+  ) : undefined;
+  const kycWord = person.kyc === "verified" ? "Verified" : person.kyc === "pending" ? "Pending" : "Not verified";
+  return (
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <SectionCard title="Personal details" description="Who they are and how to reach them." actions={edit}>
+        <dl className="flex flex-col">
+          <Fact label="Full name">{dash(person.name)}</Fact>
+          <Fact
+            label="Email"
+            chip={
+              <Chip size="sm" variant="soft" color={person.emailVerified ? "success" : "default"}>
+                {person.emailVerified ? "Signed in with it" : "Not used yet"}
+              </Chip>
+            }
+          >
+            <span className="break-all">{person.email}</span>
+          </Fact>
+          <Fact label="Phone">{dash(d.phone)}</Fact>
+          <Fact label="Date of birth">{d.dateOfBirth ? <DateText value={d.dateOfBirth} /> : null}</Fact>
+          <Fact label="Gender">{d.gender ? ADMIN_GENDER_LABEL[d.gender] : null}</Fact>
+          <Fact label="Language">{ADMIN_LOCALE_LABEL[d.locale]}</Fact>
+          <Fact label="Address">{dash(d.address)}</Fact>
+        </dl>
+      </SectionCard>
+      <SectionCard title="Identity and sign-in" description="From their own checks and sign-ins, so not edited here.">
+        <dl className="flex flex-col">
+          <Fact
+            label="National ID"
+            chip={
+              <Chip size="sm" variant="soft" color={person.kyc === "verified" ? "success" : "default"}>
+                {kycWord}
+              </Chip>
+            }
+          >
+            {person.nationalIdMasked ?? null}
+          </Fact>
+          <Fact label="Verified phone">{dash(d.provedPhone)}</Fact>
+          <Fact label="Two-step sign-in">{person.twoFactorEnrolled ? "On" : "Off"}</Fact>
+          <Fact label="Account since">
+            <DateText value={person.createdAt} />
+          </Fact>
+          <Fact label="Last signed in">{person.lastSignInAt ? <DateText value={person.lastSignInAt} /> : "Never"}</Fact>
+        </dl>
+      </SectionCard>
+      {editing ? <EditDetails person={person} onClose={() => setEditing(false)} /> : null}
+    </div>
+  );
+}
+
+function EditDetails({ person, onClose }: { person: AdminPersonDetail; onClose: () => void }) {
+  const d = person.details;
+  const [name, setName] = useState(person.name ?? "");
+  const [email, setEmail] = useState(person.email);
+  const [phone, setPhone] = useState(d.phone ?? "");
+  const [locale, setLocale] = useState<string>(d.locale);
+  const [dob, setDob] = useState(d.dateOfBirth ?? "");
+  const [gender, setGender] = useState<string | null>(d.gender);
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const { guard, dialog, pending } = useStepUp();
+  const router = useRouter();
+
+  // Only what changed is sent, so a save never rewrites a field nobody touched.
+  const changes = (() => {
+    const out: Record<string, unknown> = {};
+    if (name.trim() !== (person.name ?? "").trim()) out.name = name.trim();
+    if (email.trim().toLowerCase() !== person.email.toLowerCase()) out.email = email.trim().toLowerCase();
+    if (phone.trim() !== (d.phone ?? "")) out.phone = phone.trim();
+    if (locale !== d.locale) out.locale = locale;
+    if (dob !== (d.dateOfBirth ?? "")) out.dateOfBirth = dob || null;
+    if (gender !== d.gender) out.gender = gender;
+    return out;
+  })();
+  const emailChanging = "email" in changes;
+
+  const save = () => {
+    setError(null);
+    if (Object.keys(changes).length === 0) {
+      onClose();
+      return;
+    }
+    guard(
+      () => updateDetails(person.id, { ...changes, reason }),
+      (result) => {
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        toast.success(
+          result.value.changed.includes("email")
+            ? "Saved. They sign in with the new email now; the old one was told."
+            : "Details saved.",
+        );
+        onClose();
+        router.refresh();
+      },
+    );
+  };
+
+  return (
+    <>
+      <SidePanel
+        isOpen
+        onOpenChange={(open) => (open ? null : onClose())}
+        title="Edit details"
+        description={person.name?.trim() || person.email}
+        submitLabel="Save details"
+        isPending={pending}
+        formError={error ?? undefined}
+        onSubmit={(event) => {
+          event.preventDefault();
+          save();
+        }}
+      >
+        <TextField value={name} onChange={setName} isRequired className="flex flex-col gap-1">
+          <Label>Full name</Label>
+          <Input placeholder="As on their ID" />
+        </TextField>
+        <EmailInput
+          label="Email"
+          value={email}
+          onChange={setEmail}
+          isRequired
+          description={
+            emailChanging
+              ? "They will sign in with this address from now on. We tell the old one."
+              : "The address they sign in with."
+          }
+        />
+        <TextField value={phone} onChange={setPhone} className="flex flex-col gap-1">
+          <Label>Phone</Label>
+          <Input placeholder="0788 123 456" inputMode="tel" />
+          <Description>Shown on their profile; it does not sign them in. Empty removes it.</Description>
+        </TextField>
+        <TextField value={dob} onChange={setDob} className="flex flex-col gap-1">
+          <Label>Date of birth</Label>
+          <Input type="date" />
+        </TextField>
+        <SelectField
+          label="Gender"
+          value={gender}
+          placeholder="Not given"
+          onChange={setGender}
+          options={ADMIN_GENDERS.map((g) => ({ id: g, label: ADMIN_GENDER_LABEL[g] }))}
+        />
+        <SelectField
+          label="Language"
+          value={locale}
+          onChange={setLocale}
+          options={ADMIN_LOCALES.map((l) => ({ id: l, label: ADMIN_LOCALE_LABEL[l] }))}
+        />
+        <TextField value={reason} onChange={setReason} isRequired className="flex flex-col gap-1">
+          <Label>Reason</Label>
+          <Input placeholder="For the audit log, a few words" />
+        </TextField>
+      </SidePanel>
+      {dialog}
+    </>
   );
 }
 
@@ -647,7 +834,9 @@ function MembershipRow({
   return (
     <li className="flex flex-col gap-2 border-t border-separator py-3 first:border-t-0">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-medium">{m.orgName}</span>
+        <NextLink href={`/admin/businesses/${m.orgId}`} className="font-medium hover:underline">
+          {m.orgName}
+        </NextLink>
         <Chip size="sm" variant="soft">
           {ORG_ROLE_LABEL[m.orgRole]}
         </Chip>
@@ -783,25 +972,36 @@ function AddToBusiness({ person, onDone }: { person: AdminPersonDetail; onDone: 
   );
 }
 
-function Seats({ person, canEdit }: { person: AdminPersonDetail; canEdit: boolean }) {
-  const appointHref = (role: string) => `/admin/leaders?appoint=${role}&aEmail=${encodeURIComponent(person.email)}`;
+function Seats({
+  person,
+  canEdit,
+  bodies,
+}: {
+  person: AdminPersonDetail;
+  canEdit: boolean;
+  bodies: readonly GovernmentBody[];
+}) {
+  // The one Appoint panel, opened here with this person's email (2026-11-09): no trip to Government.
+  const [appointing, setAppointing] = useState(false);
   return (
     <SectionCard
       title="Government and PSF posts"
       description="Local leaders, DASSO, DGIE officers, document reviewers and approvers, and PSF managers: what this person sees in the officer console."
       actions={
         canEdit ? (
-          <span className="flex flex-wrap gap-2">
-            <LinkButton href={appointHref("psf_membership_officer")} variant="secondary">
-              Appoint to PSF
-            </LinkButton>
-            <LinkButton href={appointHref("business_field_verifier")} variant="secondary">
-              Appoint to government
-            </LinkButton>
-          </span>
+          <ActionButton icon="PersonPlus" intent="secondary" onPress={() => setAppointing(true)}>
+            Appoint to a post
+          </ActionButton>
         ) : null
       }
     >
+      {appointing ? (
+        <AppointPanel
+          bodies={bodies}
+          prefill={{ chain: {}, email: person.email }}
+          onClose={() => setAppointing(false)}
+        />
+      ) : null}
       {person.oversightGrants.length === 0 ? (
         <p className="m-0 text-sm text-muted">No government or PSF post.</p>
       ) : (

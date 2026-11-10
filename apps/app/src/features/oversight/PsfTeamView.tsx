@@ -1,19 +1,33 @@
 "use client";
 
 import { Alert, Button, Input } from "@heroui/react";
-import { type PsfTeamRole, type PsfTeamView as Team } from "@injishi/contracts";
+import {
+  PSF_TEAM_ROLE_DESCRIPTION,
+  PSF_TEAM_ROLE_LABEL,
+  type PsfTeamRole,
+  type PsfTeamView as Team,
+} from "@injishi/contracts";
 import { DataTable, EmptyBlock, formatDay, PageContent, PageHeader, SectionCard, StatusChip } from "@injishi/ui";
-import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import type { PsfScope } from "@/server/sources/psf";
 import { appointPsfTeamAction, endPsfTeamAction } from "./psf-team-actions";
 
 type Member = Team["members"][number];
 
+/** A post's name: the catalog's for the two district posts; the Regional Manager (2026-11-09) is not in it yet. */
+function postName(t: (key: "dm" | "bde") => string, role: PsfTeamRole): string {
+  return role === "regional_manager"
+    ? PSF_TEAM_ROLE_LABEL.regional_manager
+    : role === "district_manager"
+      ? t("dm")
+      : t("bde");
+}
+
 /**
- * The PSF team: a Regional Manager (or the National Manager) appoints its districts' District Managers
- * and ends appointments, with a reason. Injishi's admin creates BDEs (2026-11-05), and a District Manager
- * reads who is who. Every appointment takes the person's ID.
+ * The PSF team: the National Manager appoints Regional Managers, District Managers and BDEs anywhere
+ * (2026-11-09); a Regional Manager appoints its districts' District Managers; each ends what it may appoint,
+ * with a reason. A District Manager reads who is who. Every appointment takes the person's ID.
  */
 export function PsfTeamView({ scope, initial }: { scope: PsfScope; initial: Team }) {
   const t = useTranslations("psfTeam");
@@ -21,10 +35,14 @@ export function PsfTeamView({ scope, initial }: { scope: PsfScope; initial: Team
   const [adding, setAdding] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const managers = team.members.filter((m) => m.role === "district_manager").length;
+  const regionals = team.members.filter((m) => m.role === "regional_manager").length;
   const appointsManagers = team.appointRoles.includes("district_manager");
+  const national = team.appointRoles.includes("regional_manager");
+  const areaOf = (m: Member): string =>
+    m.role === "regional_manager" ? (m.provinceName ?? "the province") : (m.districtName ?? "the district");
   // A Regional Manager ends anyone in its districts; a District Manager reads.
   const mayEnd = (_m: Member): boolean => appointsManagers;
-  const roleName = (role: PsfTeamRole) => role === "district_manager" ? t("dm") : t("bde");
+  const roleName = (role: PsfTeamRole) => postName(t, role);
 
   return (
     <PageContent>
@@ -32,18 +50,31 @@ export function PsfTeamView({ scope, initial }: { scope: PsfScope; initial: Team
         eyebrow={`${scope.title} · ${scope.label}`}
         title={t("title")}
         description={
-          appointsManagers
-            ? t("provinceLead")
-            : t("districtLead")
+          national
+            ? "PSF's Regional Managers, District Managers and BDEs across Rwanda. You appoint all three."
+            : appointsManagers
+              ? t("provinceLead")
+              : t("districtLead")
         }
       />
 
       <Alert status="accent">
         <Alert.Content>
-          <Alert.Title>{t("twoPosts")}</Alert.Title>
+          <Alert.Title>
+            {national
+              ? "Who appoints whom: you appoint Regional Managers, District Managers and BDEs; a Regional Manager appoints its own District Managers"
+              : "Two posts in each district: the Regional Manager appoints the first, PSF's National Manager or Injishi's admin the second"}
+          </Alert.Title>
           <Alert.Description>
-            <strong>{t("dm")}:</strong> {t("districtManagerDescription")}{" "}
-            <strong>{t("bde")}:</strong> {t("bdeDescription")}
+            {national ? (
+              <>
+                <strong>{PSF_TEAM_ROLE_LABEL.regional_manager}:</strong> {
+                  PSF_TEAM_ROLE_DESCRIPTION.regional_manager
+                }{" "}
+              </>
+            ) : null}
+            <strong>{t("dm")}:</strong> {t("districtManagerDescription")} <strong>{t("bde")}:</strong>{" "}
+            {t("bdeDescription")}
           </Alert.Description>
         </Alert.Content>
       </Alert>
@@ -58,7 +89,9 @@ export function PsfTeamView({ scope, initial }: { scope: PsfScope; initial: Team
 
       <SectionCard
         title={t("people")}
-        description={`${t("personCount", { count: team.members.length })} · ${t("managerCount", { count: managers })}`}
+        description={`${t("personCount", { count: team.members.length })}${
+          national ? ` · ${regionals} Regional ${regionals === 1 ? "Manager" : "Managers"}` : ""
+        } · ${t("managerCount", { count: managers })}`}
         actions={
           team.appointRoles.length > 0 && !adding ? (
             <Button size="sm" variant="primary" onPress={() => setAdding(true)}>
@@ -72,6 +105,7 @@ export function PsfTeamView({ scope, initial }: { scope: PsfScope; initial: Team
           <AppointForm
             roles={team.appointRoles}
             districts={team.districts}
+            provinces={team.provinces}
             onCancel={() => setAdding(false)}
             onDone={(next, text) => {
               setTeam(next);
@@ -110,9 +144,20 @@ export function PsfTeamView({ scope, initial }: { scope: PsfScope; initial: Team
               id: "role",
               header: t("post"),
               sortValue: (m) => m.role,
-              cell: (m) => <StatusChip tone={m.role === "district_manager" ? "success" : "info"}>{roleName(m.role)}</StatusChip>,
+              cell: (m) => (
+                <StatusChip
+                  tone={m.role === "regional_manager" ? "warning" : m.role === "district_manager" ? "success" : "info"}
+                >
+                  {roleName(m.role)}
+                </StatusChip>
+              ),
             },
-            { id: "district", header: t("district"), sortValue: (m) => m.districtName ?? "", cell: (m) => m.districtName ?? "—" },
+            {
+              id: "area",
+              header: "Area",
+              sortValue: (m) => `${m.provinceName ?? ""} ${m.districtName ?? ""}`,
+              cell: (m) => (m.role === "regional_manager" ? (m.provinceName ?? "—") : (m.districtName ?? "—")),
+            },
             {
               id: "since",
               header: t("since"),
@@ -120,7 +165,9 @@ export function PsfTeamView({ scope, initial }: { scope: PsfScope; initial: Team
               cell: (m) => (
                 <span className="flex flex-col gap-0.5">
                   <span className="tabular">{formatDay(m.appointedAt)}</span>
-                  {m.appointedByName ? <span className="text-xs text-muted">{t("appointedBy", { name: m.appointedByName })}</span> : null}
+                  {m.appointedByName ? (
+                    <span className="text-xs text-muted">{t("appointedBy", { name: m.appointedByName })}</span>
+                  ) : null}
                 </span>
               ),
             },
@@ -132,13 +179,15 @@ export function PsfTeamView({ scope, initial }: { scope: PsfScope; initial: Team
                     align: "end" as const,
                     cell: (m: Member) =>
                       mayEnd(m) ? (
-                      <EndAppointment
-                        member={m}
-                        onDone={(next) => {
-                          setTeam(next);
-                          setNote(t("noLonger", { name: m.name ?? m.email, role: roleName(m.role), district: m.districtName ?? t("district") }));
-                        }}
-                      />
+                        <EndAppointment
+                          member={m}
+                          onDone={(next) => {
+                            setTeam(next);
+                            setNote(
+                              t("noLonger", { name: m.name ?? m.email, role: roleName(m.role), district: areaOf(m) }),
+                            );
+                          }}
+                        />
                       ) : null,
                   },
                 ]
@@ -146,7 +195,7 @@ export function PsfTeamView({ scope, initial }: { scope: PsfScope; initial: Team
           ]}
           mobile={{
             title: (m) => m.name ?? m.email,
-            description: (m) => [roleName(m.role), m.districtName].filter(Boolean).join(" · "),
+            description: (m) => [roleName(m.role), areaOf(m)].filter(Boolean).join(" · "),
           }}
         />
       </SectionCard>
@@ -157,17 +206,22 @@ export function PsfTeamView({ scope, initial }: { scope: PsfScope; initial: Team
 function AppointForm({
   roles,
   districts,
+  provinces,
   onCancel,
   onDone,
 }: {
   roles: PsfTeamRole[];
   districts: Team["districts"];
+  provinces: Team["provinces"];
   onCancel: () => void;
   onDone: (next: Team, note: string) => void;
 }) {
   const t = useTranslations("psfTeam");
+  const roleName = (r: PsfTeamRole) => postName(t, r);
   const [role, setRole] = useState<PsfTeamRole>(roles[0] ?? "business_officer");
   const [districtId, setDistrict] = useState(String(districts[0]?.id ?? ""));
+  const [provinceId, setProvince] = useState(String(provinces[0]?.id ?? ""));
+  const regional = role === "regional_manager";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [idType, setIdType] = useState<"national_id" | "passport">("national_id");
@@ -189,47 +243,88 @@ function AppointForm({
           name,
           role,
           idDocument: { documentType: idType, documentNumber: idNumber },
-          districtId: Number(districtId),
+          ...(regional ? { provinceId: Number(provinceId) } : { districtId: Number(districtId) }),
           reason,
         });
         setBusy(false);
         if (!res.ok) return setProblem(res.error);
-        const place = districts.find((d) => String(d.id) === districtId)?.name ?? "the district";
-        onDone(res.value, t("noteInvite", { name, role: role === "district_manager" ? t("dm") : t("bde"), place }));
+        const place = regional
+          ? (provinces.find((p) => String(p.id) === provinceId)?.name ?? "the province")
+          : (districts.find((d) => String(d.id) === districtId)?.name ?? "the district");
+        onDone(res.value, t("noteInvite", { name, role: roleName(role), place }));
       }}
     >
       <fieldset className="flex flex-col gap-2">
         <legend className="text-sm font-medium">{t("postRole")}</legend>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("postRole")}>
           {roles.map((r) => (
-            <Button key={r} size="sm" variant={role === r ? "primary" : "ghost"} aria-pressed={role === r} onPress={() => setRole(r)}>
-              {r === "district_manager" ? t("dm") : t("bde")}
+            <Button
+              key={r}
+              size="sm"
+              variant={role === r ? "primary" : "ghost"}
+              aria-pressed={role === r}
+              onPress={() => setRole(r)}
+            >
+              {roleName(r)}
             </Button>
           ))}
         </div>
-        <p className="text-xs text-muted">{role === "district_manager" ? t("appointDistricts") : t("appointBdes")}</p>
+        <p className="text-xs text-muted">
+          {regional
+            ? PSF_TEAM_ROLE_DESCRIPTION.regional_manager
+            : role === "district_manager"
+              ? t("appointDistricts")
+              : t("appointBdes")}
+        </p>
       </fieldset>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
-          {t("district")}
-          <select value={districtId} onChange={(e) => setDistrict(e.target.value)} className="h-10 rounded-xl border border-border bg-field px-3 text-sm font-normal">
-            {districts.map((d) => (
-              <option key={d.id} value={d.id}>
-                {multipleProvinces && d.provinceName ? `${d.name}, ${d.provinceName}` : d.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {regional ? (
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            Province
+            <select
+              value={provinceId}
+              onChange={(e) => setProvince(e.target.value)}
+              className="h-10 rounded-xl border border-border bg-field px-3 text-sm font-normal"
+            >
+              {provinces.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            {t("district")}
+            <select
+              value={districtId}
+              onChange={(e) => setDistrict(e.target.value)}
+              className="h-10 rounded-xl border border-border bg-field px-3 text-sm font-normal"
+            >
+              {districts.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {multipleProvinces && d.provinceName ? `${d.name}, ${d.provinceName}` : d.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="flex flex-col gap-1.5 text-sm font-medium">
           {t("fullName")}
           <Input value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" />
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-medium">
           {t("email")}
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" placeholder={t("signInEmail")} />
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="off"
+            placeholder={t("signInEmail")}
+          />
         </label>
       </div>
-      {/* Their ID (2026-11-02): every PSF District Manager and BDE is appointed with one. */}
+      {/* Their ID (2026-11-02): every PSF manager and BDE is appointed with one. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <label className="flex flex-col gap-1.5 text-sm font-medium">
           {t("id")}
@@ -288,7 +383,14 @@ function EndAppointment({ member, onDone }: { member: Member; onDone: (next: Tea
   return (
     <span className="flex min-w-[18rem] flex-col items-end gap-1.5">
       <span className="flex w-full items-center gap-2">
-        <Input aria-label={t("whyEnd", { name: member.name ?? member.email })} placeholder={t("why")} value={reason} onChange={(e) => setReason(e.target.value)} className="min-w-0 flex-1" autoFocus />
+        <Input
+          aria-label={t("whyEnd", { name: member.name ?? member.email })}
+          placeholder={t("why")}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          className="min-w-0 flex-1"
+          autoFocus
+        />
         <Button
           size="sm"
           variant="danger"

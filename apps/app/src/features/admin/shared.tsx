@@ -195,3 +195,19 @@ export function EventTimeline({
     </Timeline>
   );
 }
+
+/**
+ * One row of a details card (2026-11-09): the label in a fixed column on the left, the value beside it, and an
+ * optional chip pinned to the right edge, so labels, values and chips line up down the card. Wrap rows in a `dl`.
+ */
+export function FactRow({ label, chip, children }: { label: string; chip?: ReactNode; children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-1 gap-1 border-b border-separator py-3 last:border-b-0 sm:grid-cols-[160px_minmax(0,1fr)] sm:items-center sm:gap-4">
+      <dt className="text-sm text-muted">{label}</dt>
+      <dd className="flex min-h-6 items-center justify-between gap-3 text-sm">
+        <span className="min-w-0 break-words">{children ?? <span className="text-muted">Not given</span>}</span>
+        {chip ?? null}
+      </dd>
+    </div>
+  );
+}

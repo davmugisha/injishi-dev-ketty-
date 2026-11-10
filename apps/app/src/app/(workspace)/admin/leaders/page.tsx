@@ -27,6 +27,7 @@ export default async function AdminLeadersPage({ searchParams }: { searchParams:
     cellId: one(sp.cellId),
     villageId: one(sp.villageId),
     q: one(sp.q),
+    body: one(sp.body),
   });
   const query = parsed.success ? parsed.data : {};
   try {

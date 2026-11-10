@@ -7,6 +7,7 @@ import {
   type BrokerPlan,
   type AdminBrokerListResponse,
   type AdminBrokerStatusChange,
+  AdminBrokerSubscriptionQuery,
   AdminOrgListQuery,
   type AdminRevealListResponse,
 } from '@injishi/contracts';
@@ -95,10 +96,10 @@ export class AdminBrokersController {
   @Get('subscriptions')
   @RequireStaffPermission('admin.broker.view')
   subscriptions(
-    @Query(new ZodValidationPipe(PageOnlyQuery))
-    query: { page?: number; pageSize?: number },
+    @Query(new ZodValidationPipe(AdminBrokerSubscriptionQuery))
+    query: AdminBrokerSubscriptionQuery,
   ): Promise<AdminBrokerSubscriptionList> {
-    return this.plans.subscriptions(query.page ?? 1, query.pageSize ?? 25);
+    return this.plans.subscriptions(query);
   }
 
   /** The broker directory, with credits, reveals and placements counted. */

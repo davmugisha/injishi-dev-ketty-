@@ -1,37 +1,67 @@
 "use client";
 
-import type { LeaderCoverage } from "@injishi/contracts";
-import { ActionLink, DataTable, EmptyBlock, formatDay, formatNumber, IconAction, PageContent } from "@injishi/ui";
-import { useRouter } from "next/navigation";
+import type { GovernmentBody, LeaderCoverage } from "@injishi/contracts";
+import {
+  ActionLink,
+  DataTable,
+  EmptyBlock,
+  formatDay,
+  formatNumber,
+  IconAction,
+  PageContent,
+  type PlaceChain,
+} from "@injishi/ui";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
+import { AreaFilter, ListUrlProvider, useListUrl } from "../list/list-kit";
+import { KpiCards } from "../list/stat-cards";
+import { AppointPanel, type AppointPrefill } from "./AppointPanel";
+import { chainOf } from "./LeadersView";
 
 type Gap = LeaderCoverage["uncovered"][number];
-
-/** The appointment form, opened on the leaders page with this role and place. */
-function appointHref(g: Pick<Gap, "role" | "provinceId" | "districtId" | "sectorId" | "cellId" | "villageId">): string {
-  const q = new URLSearchParams({ appoint: g.role });
-  for (const [k, v] of Object.entries({
-    aProvinceId: g.provinceId,
-    aDistrictId: g.districtId,
-    aSectorId: g.sectorId,
-    aCellId: g.cellId,
-    aVillageId: g.villageId,
-  })) {
-    if (v) q.set(k, String(v));
-  }
-  return `/admin/leaders?${q}`;
-}
 
 /**
  * Coverage (P5, 2026-10-30): the posts to fill, as one table: each area with rented homes and nobody in
  * a local leader post, with its homes and the guests waiting there, filtered by post and by whether
  * guests wait; each row opens the appointment form for that post and place. Downloads as CSV.
  */
-export function CoverageView({ coverage, canAppoint }: { coverage: LeaderCoverage; canAppoint: boolean }) {
-  const router = useRouter();
+export function CoverageView(props: {
+  coverage: LeaderCoverage;
+  canAppoint: boolean;
+  areaChain: PlaceChain;
+  bodies: readonly GovernmentBody[];
+}) {
+  return (
+    <ListUrlProvider>
+      <Coverage {...props} />
+    </ListUrlProvider>
+  );
+}
+
+function Coverage({
+  coverage,
+  canAppoint,
+  areaChain,
+  bodies,
+}: {
+  coverage: LeaderCoverage;
+  canAppoint: boolean;
+  areaChain: PlaceChain;
+  bodies: readonly GovernmentBody[];
+}) {
+  const url = useListUrl();
   const t = useTranslations("adminLeaders.coverage");
   const tr = useTranslations("admin.roles");
+  // A gap opens the one Appoint panel here, with its post and place filled in (2026-11-09).
+  const [appointing, setAppointing] = useState<AppointPrefill | null>(null);
+  const appoint = (g: Gap) => setAppointing({ role: g.role, chain: chainOf(g) });
+  const provinceId = Number(url.get("provinceId")) || null;
+  const districtId = Number(url.get("districtId")) || null;
+  // The area is read from the rows this page already has: coverage is answered whole.
+  const gaps = coverage.uncovered.filter(
+    (g) => (!provinceId || g.provinceId === provinceId) && (!districtId || g.districtId === districtId),
+  );
   const keyOf = (g: Pick<Gap, "role" | "districtId" | "sectorId" | "cellId" | "villageId">) =>
     `${g.role}-${g.districtId}-${g.sectorId}-${g.cellId}-${g.villageId}`;
   const since = new Map(coverage.waiting.map((w) => [keyOf(w), w.oldestArrival]));
@@ -39,12 +69,24 @@ export function CoverageView({ coverage, canAppoint }: { coverage: LeaderCoverag
   return (
     <PageContent>
       <AreaHeader />
+      <KpiCards
+        label="How many areas with homes have their leader"
+        items={coverage.roles.map((r) => ({
+          id: r.role,
+          label: r.roleLabel,
+          format: "percent" as const,
+          value: r.withHomes.areas ? (r.withHomes.covered / r.withHomes.areas) * 100 : 100,
+          progress: r.withHomes.areas ? (r.withHomes.covered / r.withHomes.areas) * 100 : 100,
+          status: r.withHomes.covered < r.withHomes.areas ? ("warning" as const) : undefined,
+          footnote: `${formatNumber(r.withHomes.covered)} of ${formatNumber(r.withHomes.areas)} areas with homes`,
+        }))}
+      />
       <DataTable<Gap>
         label={t("label")}
         noun={{ one: t("nounOne"), many: t("nounMany") }}
-        rows={coverage.uncovered}
+        rows={gaps}
         rowKey={keyOf}
-        onRowAction={canAppoint ? (g) => router.push(appointHref(g)) : undefined}
+        onRowAction={canAppoint ? appoint : undefined}
         search={{ placeholder: t("search"), text: (g) => g.area }}
         filters={[
           {
@@ -62,16 +104,19 @@ export function CoverageView({ coverage, canAppoint }: { coverage: LeaderCoverag
               {
                 id: "waiting",
                 label: t("guestsWaiting"),
-                count: coverage.uncovered.filter((g) => g.waitingReports > 0).length,
+                count: gaps.filter((g) => g.waitingReports > 0).length,
               },
             ],
             match: (g) => g.waitingReports > 0,
           },
         ]}
         toolbarEnd={
-          <ActionLink href="/api/admin/leaders/coverage.csv" icon="ArrowDownToLine" size="sm" prefetch={false}>
-            {t("export")}
-          </ActionLink>
+          <>
+            <AreaFilter chain={areaChain} depth="district" />
+            <ActionLink href="/api/admin/leaders/coverage.csv" icon="ArrowDownToLine" size="sm" prefetch={false}>
+              {t("export")}
+            </ActionLink>
+          </>
         }
         empty={<EmptyBlock icon="CircleCheck" title={t("empty")} />}
         columns={[
@@ -116,11 +161,7 @@ export function CoverageView({ coverage, canAppoint }: { coverage: LeaderCoverag
         rowActions={
           canAppoint
             ? (g) => (
-                <IconAction
-                  icon="PersonPlus"
-                  label={t("appointFor", { area: g.area })}
-                  onPress={() => router.push(appointHref(g))}
-                />
+                <IconAction icon="PersonPlus" label={t("appointFor", { area: g.area })} onPress={() => appoint(g)} />
               )
             : undefined
         }
@@ -130,6 +171,7 @@ export function CoverageView({ coverage, canAppoint }: { coverage: LeaderCoverag
           trailing: (g) => <span className="text-sm tabular">{t("waitingCount", { count: g.waitingReports })}</span>,
         }}
       />
+      {appointing ? <AppointPanel bodies={bodies} prefill={appointing} onClose={() => setAppointing(null)} /> : null}
     </PageContent>
   );
 }

@@ -219,7 +219,26 @@ export const AdminBrokerSubscription = z.object({
 });
 export type AdminBrokerSubscription = z.infer<typeof AdminBrokerSubscription>;
 
-export const AdminBrokerSubscriptionList = z.object({ items: z.array(AdminBrokerSubscription), meta: AdminListMeta });
+export const AdminBrokerSubscriptionList = z.object({
+  items: z.array(AdminBrokerSubscription),
+  meta: AdminListMeta,
+  /** How many match every filter but the status, per status (2026-11-09). */
+  statusCounts: z.record(BrokerPlanStatus, z.number().int().nonnegative()).optional(),
+});
+
+/** Query params for `GET /admin/brokers/subscriptions` (2026-11-09). */
+export const AdminBrokerSubscriptionQuery = z.object({
+  /** The broker's name or email. */
+  q: z.string().trim().max(120).optional(),
+  status: BrokerPlanStatus.optional(),
+  plan: BrokerPlanCode.optional(),
+  provinceId: z.coerce.number().int().positive().optional(),
+  /** Started on or after this Kigali day. */
+  createdFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  page: z.coerce.number().int().positive().optional(),
+  pageSize: z.coerce.number().int().positive().max(100).optional(),
+});
+export type AdminBrokerSubscriptionQuery = z.infer<typeof AdminBrokerSubscriptionQuery>;
 export type AdminBrokerSubscriptionList = z.infer<typeof AdminBrokerSubscriptionList>;
 
 // --- Registration fee -------------------------------------------------------

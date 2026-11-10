@@ -56,9 +56,13 @@ export class AdminUsersService {
     const pageSize = Math.min(query.pageSize ?? DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
     const offset = (page - 1) * pageSize;
 
-    const [total, base] = await Promise.all([
+    const [total, base, active, invited, suspended] = await Promise.all([
       this.repo.countUsers(query),
       this.repo.listUsers(query, pageSize, offset),
+      // Every filter but the status, per status: the counts above the list.
+      this.repo.countUsers({ ...query, status: 'active' }),
+      this.repo.countUsers({ ...query, status: 'invited' }),
+      this.repo.countUsers({ ...query, status: 'suspended' }),
     ]);
 
     const ids = base.map((row) => row.id);
@@ -142,6 +146,7 @@ export class AdminUsersService {
     return AdminUserListResponse.parse({
       items,
       meta: { total, page, pageSize },
+      statusCounts: { active, invited, suspended },
     });
   }
 
@@ -157,12 +162,13 @@ export class AdminUsersService {
     if (!row) throw new NotFoundException('No user has that id.');
     await this.access.recordRead({ actorUserId, subjectUserIds: [userId], dataClass: 'national_id', reason });
     const ids = [userId];
-    const [roles, memberships, staff, oversight, custom] = await Promise.all([
+    const [roles, memberships, staff, oversight, custom, details] = await Promise.all([
       this.repo.globalRolesFor(ids),
       this.repo.membershipsFor(ids),
       this.repo.staffRolesFor(ids),
       this.repo.oversightFor(ids),
       this.repo.customRolesFor(ids),
+      this.repo.detailsOf(userId),
     ]);
     const grants = oversight.map(toOversightGrant);
     return AdminPersonDetail.parse({
@@ -179,6 +185,7 @@ export class AdminUsersService {
       customRoles: custom.map((c) => ({ id: c.id, name: c.name })),
       oversight: grants[0] ?? null,
       oversightGrants: grants,
+      details: { ...details, locale: details.locale ?? 'en' },
       twoFactorEnrolled: isTwoFactorEnrolled(row),
       status: toStatus(row),
       lastSignInAt: toIso(row.lastSignInAt),

@@ -210,6 +210,17 @@ export class AdminUsersRepository {
     if (query.status === 'invited') clauses.push(sql`not ${isSuspended} and ${users.emailVerified} = false`);
     if (query.status === 'active') clauses.push(sql`not ${isSuspended} and ${users.emailVerified} = true`);
 
+    if (query.createdFrom) {
+      clauses.push(
+        sql`${users.createdAt} >= (${query.createdFrom}::date::timestamp at time zone 'Africa/Kigali')`,
+      );
+    }
+    if (query.signedIn === 'never') clauses.push(sql`${lastSignIn} is null`);
+    if (query.signedIn === 'last30') clauses.push(sql`${lastSignIn} >= now() - interval '30 days'`);
+    if (query.signedIn === 'over90') {
+      clauses.push(sql`(${lastSignIn} is null or ${lastSignIn} < now() - interval '90 days')`);
+    }
+
     if (query.role) {
       if (StaffRoleEnum.safeParse(query.role).success) {
         clauses.push(
@@ -267,6 +278,40 @@ export class AdminUsersRepository {
   }
 
   /** One account's directory row, or none: the person page (`GET /admin/users/:userId`). */
+  /** A person's own details in full (2026-11-09): profile phone, proved phone, language, birth date, gender, address. */
+  async detailsOf(userId: string): Promise<{
+    phone: string | null;
+    provedPhone: string | null;
+    locale: string | null;
+    dateOfBirth: string | null;
+    gender: string | null;
+    address: string | null;
+  }> {
+    const rows = await this.db.execute(sql`
+      select p.phone_e164 as phone, u.phone_number as "provedPhone", p.locale, p.dob::text as "dateOfBirth",
+             p.gender::text as gender,
+             nullif(concat_ws(', ', p.address_text,
+               case when v.name is not null then v.name || ' village' end,
+               case when s.name is not null then s.name || ' sector' end,
+               d.name), '') as address
+        from users u
+        left join user_profiles p on p.user_id = u.id
+        left join villages v on v.id = p.village_id
+        left join sectors s on s.id = p.sector_id
+        left join districts d on d.id = p.district_id
+       where u.id = ${userId}`);
+    const row = (rows as unknown as { rows?: unknown[] }).rows?.[0] ?? (rows as unknown as unknown[])[0];
+    const r = (row ?? {}) as Record<string, string | null>;
+    return {
+      phone: r.phone ?? null,
+      provedPhone: r.provedPhone ?? null,
+      locale: r.locale ?? null,
+      dateOfBirth: r.dateOfBirth ?? null,
+      gender: r.gender ?? null,
+      address: r.address ?? null,
+    };
+  }
+
   async userById(userId: string): Promise<AdminUserBaseRow | null> {
     const [row] = await this.baseRows(eq(users.id, userId), 1);
     return row ?? null;

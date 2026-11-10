@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { OrgRegistrationStatus } from "./primitives";
 /**
  * The Injishi admin console wire contracts — all 14 sections of
  * `GET /api/v1/admin/**`.
@@ -609,28 +610,46 @@ export declare const AdminOrgRow: z.ZodObject<{
 }>;
 export type AdminOrgRow = z.infer<typeof AdminOrgRow>;
 /** Query params for `GET /api/v1/admin/orgs`. */
+/**
+ * Where a registration stands, as the Businesses list groups it (2026-11-09): the statuses an admin reads as
+ * one step. `review` is waiting on a document review or field visit, `approval` on the second officer.
+ */
+export declare const AdminOrgStage: z.ZodEnum<["unpaid", "review", "approval", "active", "closed"]>;
+export type AdminOrgStage = z.infer<typeof AdminOrgStage>;
+export declare const ADMIN_ORG_STAGE_STATUSES: Readonly<Record<AdminOrgStage, readonly OrgRegistrationStatus[]>>;
 export declare const AdminOrgListQuery: z.ZodObject<{
     page: z.ZodOptional<z.ZodNumber>;
     pageSize: z.ZodOptional<z.ZodNumber>;
     /** Free text over legal name, TIN and UPI. */
     q: z.ZodOptional<z.ZodString>;
+    /** The business's district's province (2026-11-09). */
+    provinceId: z.ZodOptional<z.ZodNumber>;
     districtId: z.ZodOptional<z.ZodNumber>;
     domain: z.ZodOptional<z.ZodEnum<["hospitality", "residence", "enterprise"]>>;
     registrationStatus: z.ZodOptional<z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>>;
+    stage: z.ZodOptional<z.ZodEnum<["unpaid", "review", "approval", "active", "closed"]>>;
+    /** Registered on or after this day (Kigali time). */
+    createdFrom: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     domain?: "hospitality" | "residence" | "enterprise" | undefined;
+    provinceId?: number | undefined;
     districtId?: number | undefined;
+    stage?: "active" | "closed" | "review" | "unpaid" | "approval" | undefined;
     registrationStatus?: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | undefined;
     q?: string | undefined;
     page?: number | undefined;
     pageSize?: number | undefined;
+    createdFrom?: string | undefined;
 }, {
     domain?: "hospitality" | "residence" | "enterprise" | undefined;
+    provinceId?: number | undefined;
     districtId?: number | undefined;
+    stage?: "active" | "closed" | "review" | "unpaid" | "approval" | undefined;
     registrationStatus?: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | undefined;
     q?: string | undefined;
     page?: number | undefined;
     pageSize?: number | undefined;
+    createdFrom?: string | undefined;
 }>;
 export type AdminOrgListQuery = z.infer<typeof AdminOrgListQuery>;
 export declare const AdminOrgListResponse: z.ZodObject<{
@@ -708,6 +727,9 @@ export declare const AdminOrgListResponse: z.ZodObject<{
         page: number;
         pageSize: number;
     }>;
+} & {
+    /** How many match every filter but the stage, per stage, for the counts above the list. */
+    stageCounts: z.ZodOptional<z.ZodRecord<z.ZodEnum<["unpaid", "review", "approval", "active", "closed"]>, z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     items: {
         id: string;
@@ -735,6 +757,7 @@ export declare const AdminOrgListResponse: z.ZodObject<{
         page: number;
         pageSize: number;
     };
+    stageCounts?: Partial<Record<"active" | "closed" | "review" | "unpaid" | "approval", number>> | undefined;
 }, {
     items: {
         id: string;
@@ -762,6 +785,7 @@ export declare const AdminOrgListResponse: z.ZodObject<{
         page: number;
         pageSize: number;
     };
+    stageCounts?: Partial<Record<"active" | "closed" | "review" | "unpaid" | "approval", number>> | undefined;
 }>;
 export type AdminOrgListResponse = z.infer<typeof AdminOrgListResponse>;
 /**
@@ -2433,16 +2457,20 @@ export declare const AdminAuditQuery: z.ZodObject<{
     q: z.ZodOptional<z.ZodString>;
     subjectType: z.ZodOptional<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration", "maintenance_ticket", "expense", "tax_declaration", "staff_role", "entitlement", "role", "membership", "ownership_transfer", "device"]>>;
     actorUserId: z.ZodOptional<z.ZodString>;
+    /** On or after this Kigali day (2026-11-09). */
+    createdFrom: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     q?: string | undefined;
     page?: number | undefined;
     pageSize?: number | undefined;
+    createdFrom?: string | undefined;
     subjectType?: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | undefined;
     actorUserId?: string | undefined;
 }, {
     q?: string | undefined;
     page?: number | undefined;
     pageSize?: number | undefined;
+    createdFrom?: string | undefined;
     subjectType?: "broker" | "property" | "booking" | "role" | "payment" | "membership" | "user" | "org" | "lease" | "config" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | "maintenance_ticket" | "expense" | "tax_declaration" | "staff_role" | "entitlement" | "ownership_transfer" | "device" | undefined;
     actorUserId?: string | undefined;
 }>;
@@ -3057,6 +3085,10 @@ export declare const AdminUserListQuery: z.ZodObject<{
     status: z.ZodOptional<z.ZodLazy<z.ZodEnum<["active", "invited", "suspended"]>>>;
     /** A built-in staff role (`ops`) or a custom role's id. */
     role: z.ZodOptional<z.ZodString>;
+    /** Joined on or after this Kigali day (2026-11-09). */
+    createdFrom: z.ZodOptional<z.ZodString>;
+    /** Signed in: never, within the last 30 days, or not for 90 days or more (never included). */
+    signedIn: z.ZodOptional<z.ZodEnum<["never", "last30", "over90"]>>;
     sort: z.ZodOptional<z.ZodEnum<["name", "email", "createdAt", "lastSignInAt"]>>;
     dir: z.ZodOptional<z.ZodEnum<["asc", "desc"]>>;
 }, "strip", z.ZodTypeAny, {
@@ -3067,8 +3099,10 @@ export declare const AdminUserListQuery: z.ZodObject<{
     q?: string | undefined;
     page?: number | undefined;
     pageSize?: number | undefined;
+    createdFrom?: string | undefined;
     kyc?: "pending" | "verified" | "none" | undefined;
     globalRole?: "broker" | "admin" | "guest" | "gov_oversight" | undefined;
+    signedIn?: "never" | "last30" | "over90" | undefined;
     dir?: "asc" | "desc" | undefined;
 }, {
     sort?: "name" | "email" | "createdAt" | "lastSignInAt" | undefined;
@@ -3078,8 +3112,10 @@ export declare const AdminUserListQuery: z.ZodObject<{
     q?: string | undefined;
     page?: number | undefined;
     pageSize?: number | undefined;
+    createdFrom?: string | undefined;
     kyc?: "pending" | "verified" | "none" | undefined;
     globalRole?: "broker" | "admin" | "guest" | "gov_oversight" | undefined;
+    signedIn?: "never" | "last30" | "over90" | undefined;
     dir?: "asc" | "desc" | undefined;
 }>;
 export type AdminUserListQuery = z.infer<typeof AdminUserListQuery>;
@@ -3249,6 +3285,9 @@ export declare const AdminUserListResponse: z.ZodObject<{
         page: number;
         pageSize: number;
     }>;
+} & {
+    /** How many match every filter but the status, per status, for the counts above the list (2026-11-09). */
+    statusCounts: z.ZodOptional<z.ZodRecord<z.ZodLazy<z.ZodEnum<["active", "invited", "suspended"]>>, z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     items: {
         status: "active" | "suspended" | "invited";
@@ -3290,6 +3329,7 @@ export declare const AdminUserListResponse: z.ZodObject<{
         page: number;
         pageSize: number;
     };
+    statusCounts?: Partial<Record<"active" | "suspended" | "invited", number>> | undefined;
 }, {
     items: {
         status: "active" | "suspended" | "invited";
@@ -3331,6 +3371,7 @@ export declare const AdminUserListResponse: z.ZodObject<{
         page: number;
         pageSize: number;
     };
+    statusCounts?: Partial<Record<"active" | "suspended" | "invited", number>> | undefined;
 }>;
 export type AdminUserListResponse = z.infer<typeof AdminUserListResponse>;
 /**
@@ -5899,6 +5940,32 @@ export declare const AdminPersonDetail: z.ZodObject<{
         scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
         scopeLabel: string | null;
     }>, "many">;
+    /** Their details in full (2026-11-09), for the Details card and its edit form. The read is already logged. */
+    details: z.ZodLazy<z.ZodObject<{
+        /** The phone shown on their profile. Display only: it never signs them in. */
+        phone: z.ZodNullable<z.ZodString>;
+        /** The phone they proved with a code, which can sign them in. Not editable here. */
+        provedPhone: z.ZodNullable<z.ZodString>;
+        locale: z.ZodEnum<["en", "rw", "fr"]>;
+        dateOfBirth: z.ZodNullable<z.ZodString>;
+        gender: z.ZodNullable<z.ZodEnum<["female", "male", "other"]>>;
+        /** Where they live, in words ("Kacyiru sector, Gasabo"), or null. Set by them, not here. */
+        address: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        gender: "other" | "female" | "male" | null;
+        dateOfBirth: string | null;
+        address: string | null;
+        phone: string | null;
+        provedPhone: string | null;
+        locale: "en" | "rw" | "fr";
+    }, {
+        gender: "other" | "female" | "male" | null;
+        dateOfBirth: string | null;
+        address: string | null;
+        phone: string | null;
+        provedPhone: string | null;
+        locale: "en" | "rw" | "fr";
+    }>>;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "suspended" | "invited";
     name: string | null;
@@ -5942,6 +6009,14 @@ export declare const AdminPersonDetail: z.ZodObject<{
         scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
         scopeLabel: string | null;
     }[];
+    details: {
+        gender: "other" | "female" | "male" | null;
+        dateOfBirth: string | null;
+        address: string | null;
+        phone: string | null;
+        provedPhone: string | null;
+        locale: "en" | "rw" | "fr";
+    };
 }, {
     status: "active" | "suspended" | "invited";
     name: string | null;
@@ -5985,8 +6060,78 @@ export declare const AdminPersonDetail: z.ZodObject<{
         scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
         scopeLabel: string | null;
     }[];
+    details: {
+        gender: "other" | "female" | "male" | null;
+        dateOfBirth: string | null;
+        address: string | null;
+        phone: string | null;
+        provedPhone: string | null;
+        locale: "en" | "rw" | "fr";
+    };
 }>;
 export type AdminPersonDetail = z.infer<typeof AdminPersonDetail>;
+export declare const ADMIN_LOCALES: readonly ["en", "rw", "fr"];
+export declare const ADMIN_LOCALE_LABEL: Record<(typeof ADMIN_LOCALES)[number], string>;
+export declare const ADMIN_GENDERS: readonly ["female", "male", "other"];
+export declare const ADMIN_GENDER_LABEL: Record<(typeof ADMIN_GENDERS)[number], string>;
+/** A person's own details, as staff see and edit them. */
+export declare const AdminPersonDetails: z.ZodObject<{
+    /** The phone shown on their profile. Display only: it never signs them in. */
+    phone: z.ZodNullable<z.ZodString>;
+    /** The phone they proved with a code, which can sign them in. Not editable here. */
+    provedPhone: z.ZodNullable<z.ZodString>;
+    locale: z.ZodEnum<["en", "rw", "fr"]>;
+    dateOfBirth: z.ZodNullable<z.ZodString>;
+    gender: z.ZodNullable<z.ZodEnum<["female", "male", "other"]>>;
+    /** Where they live, in words ("Kacyiru sector, Gasabo"), or null. Set by them, not here. */
+    address: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    gender: "other" | "female" | "male" | null;
+    dateOfBirth: string | null;
+    address: string | null;
+    phone: string | null;
+    provedPhone: string | null;
+    locale: "en" | "rw" | "fr";
+}, {
+    gender: "other" | "female" | "male" | null;
+    dateOfBirth: string | null;
+    address: string | null;
+    phone: string | null;
+    provedPhone: string | null;
+    locale: "en" | "rw" | "fr";
+}>;
+export type AdminPersonDetails = z.infer<typeof AdminPersonDetails>;
+/**
+ * Change a person's details (`PATCH /api/v1/admin/users/:userId`, 2026-11-09). Only the fields sent change.
+ * A new email is how they sign in from then on, so the old address is told.
+ */
+export declare const AdminUpdateUserRequest: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    email: z.ZodOptional<z.ZodString>;
+    /** Empty clears it. */
+    phone: z.ZodOptional<z.ZodLazy<z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>>>;
+    locale: z.ZodOptional<z.ZodEnum<["en", "rw", "fr"]>>;
+    dateOfBirth: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string, string>>>;
+    gender: z.ZodOptional<z.ZodNullable<z.ZodEnum<["female", "male", "other"]>>>;
+    reason: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    reason: string;
+    name?: string | undefined;
+    gender?: "other" | "female" | "male" | null | undefined;
+    dateOfBirth?: string | null | undefined;
+    email?: string | undefined;
+    phone?: string | undefined;
+    locale?: "en" | "rw" | "fr" | undefined;
+}, {
+    reason: string;
+    name?: string | undefined;
+    gender?: "other" | "female" | "male" | null | undefined;
+    dateOfBirth?: string | null | undefined;
+    email?: string | undefined;
+    phone?: string | undefined;
+    locale?: "en" | "rw" | "fr" | undefined;
+}>;
+export type AdminUpdateUserRequest = z.infer<typeof AdminUpdateUserRequest>;
 /**
  * Create an account by email (`POST /api/v1/admin/users`). The person signs in
  * with the code emailed to that address; nothing else is set for them. An
@@ -6000,7 +6145,7 @@ export declare const AdminCreateUserRequest: z.ZodObject<{
      * not a proved number, so it never signs anyone in. Empty means none.
      */
     phone: z.ZodOptional<z.ZodLazy<z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>>>;
-    /** A staff role to give them in the same step. A government or PSF post is appointed from Leaders. */
+    /** A staff role to give them in the same step. A post goes as an appointment instead (it makes the account). */
     grant: z.ZodOptional<z.ZodLazy<z.ZodDiscriminatedUnion<"kind", [z.ZodObject<{
         kind: z.ZodLiteral<"staff_role">;
         role: z.ZodEnum<["super_admin", "ops", "compliance", "finance", "trainer"]>;

@@ -173,6 +173,12 @@ export class AdminGovernanceRepository {
       clauses.push(eq(auditEvents.actorUserId, query.actorUserId));
     }
 
+    if (query.createdFrom) {
+      clauses.push(
+        sql`${auditEvents.occurredAt} >= (${query.createdFrom}::date::timestamp at time zone 'Africa/Kigali')`,
+      );
+    }
+
     return clauses.length ? and(...clauses) : undefined;
   }
 
