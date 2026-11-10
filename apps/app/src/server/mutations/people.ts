@@ -8,13 +8,14 @@
  */
 import type { DeskEntry, RosterWeekId, ShiftLetter } from "@injishi/product-hr";
 import { ApiError } from "../api";
+import { chosenRosterBranch } from "../roster-branch";
 import { addDays } from "../sources/people";
 import { NoWorkspaceError, type ScopedApi, type SourceContext } from "../sources/types";
 
 /** The shapes these writes take are the HR product's, the same ones its views send (ADR-074 stage 3). */
 export type { DeskEntry, RosterWeekId, ShiftLetter };
 
-function businesses(ctx: SourceContext): ScopedApi[] {
+export function businesses(ctx: SourceContext): ScopedApi[] {
   const out: ScopedApi[] = [];
   for (const domain of ["hospitality", "residence"] as const) {
     try {
@@ -29,7 +30,7 @@ function businesses(ctx: SourceContext): ScopedApi[] {
 }
 
 /** Run a write in the business that owns the record: a 404 in one business moves on to the next. */
-async function inOwningBusiness<T>(ctx: SourceContext, run: (api: ScopedApi) => Promise<T>): Promise<T> {
+export async function inOwningBusiness<T>(ctx: SourceContext, run: (api: ScopedApi) => Promise<T>): Promise<T> {
   let last: unknown = null;
   for (const api of businesses(ctx)) {
     try {
@@ -64,6 +65,39 @@ export async function decideLeave(
     api.post(`/api/v1/ops/leave/requests/${encodeURIComponent(id)}/${decision === "approved" ? "approve" : "reject"}`, {
       note: note || null,
     }),
+  );
+}
+
+/**
+ * HR cancels leave (`POST /ops/leave/requests/:id/cancel`). Approved leave writes a reversal for every
+ * day it took, so the days go back on the balance; the person reads the reason on Me.
+ */
+export async function cancelLeave(ctx: SourceContext, id: string, reason: string): Promise<void> {
+  const note = reason.trim();
+  if (note.length < 3) throw new ApiError(422, "reason_required", "Say why this leave is cancelled.", null);
+  await inOwningBusiness(ctx, (api) =>
+    api.post(`/api/v1/ops/leave/requests/${encodeURIComponent(id)}/cancel`, { note: note.slice(0, 300) }),
+  );
+}
+
+/**
+ * HR decides days asked for on top of an entitlement (`POST /ops/leave/allocation-requests/:id/approve|reject`).
+ * Approving adds them to the balance; a decline carries its reason, which the person reads on Me.
+ */
+export async function decideExtraDays(
+  ctx: SourceContext,
+  id: string,
+  decision: "approved" | "declined",
+  reason?: string,
+): Promise<void> {
+  const note = (reason ?? "").trim();
+  if (decision === "declined" && !note)
+    throw new ApiError(422, "reason_required", "Add a reason before declining.", null);
+  await inOwningBusiness(ctx, (api) =>
+    api.post(
+      `/api/v1/ops/leave/allocation-requests/${encodeURIComponent(id)}/${decision === "approved" ? "approve" : "reject"}`,
+      { note: note.slice(0, 300) || null },
+    ),
   );
 }
 
@@ -174,21 +208,71 @@ export async function saveDeskEntry(ctx: SourceContext, input: DeskEntry): Promi
       });
       return { recordId: corrected.id };
     }
-    const record = await api.post<{ id: string }>("/api/v1/ops/attendance/clock-in", {
-      employeeId: input.employee,
-      at: clockInAt,
-      note,
-    });
+    const record = await api
+      .post<{ id: string }>("/api/v1/ops/attendance/clock-in", {
+        employeeId: input.employee,
+        at: clockInAt,
+        note,
+      })
+      .catch((error: unknown) => {
+        // A clock-in left open on an earlier day: say which day, in words, not as a timestamp.
+        if (error instanceof ApiError && error.code === "already_open") {
+          const open = (error.body as { record?: { clockInAt?: string } } | null)?.record?.clockInAt;
+          const since = open
+            ? new Intl.DateTimeFormat("en-GB", {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+                timeZone: "Africa/Kigali",
+              }).format(new Date(open))
+            : "an earlier day";
+          throw new ApiError(
+            409,
+            "already_open",
+            `Still clocked in since ${since}. Close that shift first.`,
+            error.body,
+          );
+        }
+        throw error;
+      });
     if (outAt) await api.post(`/api/v1/ops/attendance/${record.id}/clock-out`, { at: outAt });
     return { recordId: record.id };
   });
 }
 
+/**
+ * Clock out someone still on shift, from the Attendance row (`POST /ops/attendance/:id/clock-out`),
+ * for staff who do not clock at the kiosk or in the app. The time is Kigali wall-clock on `date`.
+ */
+export async function clockOutAtDesk(
+  ctx: SourceContext,
+  input: { recordId: string; date: string; time: string; clockedInAt?: string },
+): Promise<void> {
+  const date = parseDay(input.date);
+  if (!date) throw new ApiError(422, "bad_date", "Type the date as 15 Oct 2026.", null);
+  let at = kigaliInstant(date, input.time);
+  if (!at) throw new ApiError(422, "bad_time", "Type the time as 15:00.", null);
+  // An end before the start is the next morning: a night shift.
+  const from = input.clockedInAt ? kigaliInstant(date, input.clockedInAt) : null;
+  if (from && at <= from) at = new Date(Date.parse(at) + 86_400_000).toISOString();
+  await inOwningBusiness(ctx, (api) =>
+    api.post(`/api/v1/ops/attendance/${encodeURIComponent(input.recordId)}/clock-out`, { at }),
+  );
+}
+
 // ── Offboarding ─────────────────────────────────────────────────────────────────────────────────
 
-/** Tick an offboarding step, or take the tick back. An owner-only step is refused unless the caller manages the team. */
+/**
+ * Tick an offboarding step, or take the tick back (`POST /ops/hr/checklist-tasks/:id/done|undo`).
+ * An owner-only step is refused unless the caller manages the team. Ticking what is ticked
+ * changes nothing and is not an error: a second press of the same box is the same answer.
+ */
 export async function setChecklistStep(ctx: SourceContext, id: string, done: boolean): Promise<void> {
-  await inOwningBusiness(ctx, (api) => api.post(`/api/v1/ops/hr/checklist-items/${encodeURIComponent(id)}`, { done }));
+  await inOwningBusiness(ctx, (api) =>
+    api.post(`/api/v1/ops/hr/checklist-tasks/${encodeURIComponent(id)}/${done ? "done" : "undo"}`),
+  );
 }
 
 // ── Roster ──────────────────────────────────────────────────────────────────────────────────────
@@ -220,17 +304,18 @@ const letterOf = (startsAt: string): ShiftLetter => {
 };
 const STANDARD: Record<Exclude<ShiftLetter, "O">, string> = { M: "morning", E: "evening", N: "night" };
 
-/** The branch the roster screen works on (the head office) and the day a grid cell stands for. */
-function rosterDay(
+/** The branch the roster screen works on (the one chosen, else the head office) and the day a grid cell stands for. */
+async function rosterDay(
   ctx: SourceContext,
   week: RosterWeekId,
   dayIndex: number,
-): { api: ScopedApi; branch: Branch; date: string } {
+): Promise<{ api: ScopedApi; branch: Branch; date: string }> {
   if (!Number.isInteger(dayIndex) || dayIndex < 0 || dayIndex > 6)
     throw new ApiError(422, "bad_day", "That is not a day of the week shown.", null);
   const api = ctx.ops("hospitality");
   const branches = (api.workspace.branches ?? []) as Branch[];
-  const branch = branches.find((b) => b.isHeadOffice) ?? branches[0];
+  const chosen = await chosenRosterBranch();
+  const branch = branches.find((b) => b.id === chosen) ?? branches.find((b) => b.isHeadOffice) ?? branches[0];
   if (!branch) throw new ApiError(404, "no_branch", "This business has no branch to roster.", null);
   return { api, branch, date: addDays(ctx.today.iso, (week === "next" ? 7 : 0) + dayIndex) };
 }
@@ -269,7 +354,7 @@ export async function setShift(
   ctx: SourceContext,
   input: { week: RosterWeekId; employeeId: string; dayIndex: number; shift: ShiftLetter; lent?: boolean },
 ): Promise<void> {
-  const { api, branch, date } = rosterDay(ctx, input.week, input.dayIndex);
+  const { api, branch, date } = await rosterDay(ctx, input.week, input.dayIndex);
   const current = await shiftsOn(api, input.employeeId, date);
   // Lent shifts work at another branch of the business, the home branch keeps the person's file.
   const others = ((api.workspace.branches ?? []) as Branch[]).filter((b) => b.id !== branch.id);
@@ -294,7 +379,7 @@ export async function setLent(
   ctx: SourceContext,
   input: { week: RosterWeekId; employeeId: string; dayIndex: number; lent: boolean },
 ): Promise<void> {
-  const { api, date } = rosterDay(ctx, input.week, input.dayIndex);
+  const { api, date } = await rosterDay(ctx, input.week, input.dayIndex);
   const current = await shiftsOn(api, input.employeeId, date);
   if (current.length === 0) throw new ApiError(409, "day_off", "There is no shift that day to lend.", null);
   const { templates } = await api.get<{ templates: Template[] }>("/api/v1/ops/shift-templates");
@@ -302,10 +387,75 @@ export async function setLent(
   await setShift(ctx, { ...input, shift: was ? letterOf(was.startsAt) : "M", lent: input.lent });
 }
 
+/**
+ * Set a team's minimum cover (`PUT /ops/roster/cover`). The screen speaks in shift letters; every
+ * active shift of the branch with those letters counts.
+ */
+export async function saveCover(
+  ctx: SourceContext,
+  input: { teamId: string; shifts: ShiftLetter[]; minByWeekday: number[] },
+): Promise<void> {
+  const { api, branch } = await rosterDay(ctx, "this", 0);
+  const { templates } = await api.get<{ templates: Template[] }>("/api/v1/ops/shift-templates", {
+    query: { propertyId: branch.id },
+  });
+  const ids = templates
+    .filter((t) => t.status === "active" && t.propertyId === branch.id && input.shifts.includes(letterOf(t.startsAt)))
+    .map((t) => t.id);
+  if (ids.length === 0) throw new ApiError(422, "no_template", "This branch has none of those shifts.", null);
+  await api.put("/api/v1/ops/roster/cover", {
+    teamId: input.teamId,
+    shiftTemplateIds: ids,
+    minByWeekday: input.minByWeekday,
+  });
+}
+
+/**
+ * Make a rotation at the roster's branch (`POST /ops/rotation-patterns`). The screen speaks in shift
+ * letters; the API takes the branch's shifts. The name is "Rotation <code> · <name>" as the roster reads
+ * it, with a letter no other rotation of the branch has used, so it never joins another's family.
+ */
+export async function createRotation(
+  ctx: SourceContext,
+  input: { name: string; steps: ShiftLetter[]; rule: "every_n_days" | "weekly" | "monthly"; ruleValue: number },
+): Promise<void> {
+  const { api, branch } = await rosterDay(ctx, "this", 0);
+  const { patterns } = await api.get<{ patterns: { name: string }[] }>("/api/v1/ops/rotation-patterns", {
+    query: { propertyId: branch.id },
+  });
+  const used = new Set(patterns.map((p) => p.name.match(/^Rotation ([A-Za-z]+)/)?.[1]?.toUpperCase()));
+  const code = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").find((c) => !used.has(c));
+  if (!code) throw new ApiError(422, "too_many", "This branch already has 26 rotations.", null);
+  const idOf = new Map<ShiftLetter, string>();
+  const steps: string[] = [];
+  for (const letter of input.steps) {
+    if (letter === "O") {
+      steps.push("off");
+      continue;
+    }
+    if (!idOf.has(letter)) idOf.set(letter, (await templateFor(api, branch.id, letter)).id);
+    steps.push(idOf.get(letter) as string);
+  }
+  await api.post("/api/v1/ops/rotation-patterns", {
+    propertyId: branch.id,
+    name: `Rotation ${code} · ${input.name}`,
+    steps,
+    rule: input.rule,
+    ruleValue: input.ruleValue,
+  });
+}
+
 /** Publish the roster branch's week (`POST /ops/roster/publish`): its drafts reach the staff app, each person told once. */
 export async function publishWeek(ctx: SourceContext, week: RosterWeekId): Promise<void> {
-  const { api, branch, date } = rosterDay(ctx, week, 0);
+  const { api, branch, date } = await rosterDay(ctx, week, 0);
   await api.post("/api/v1/ops/roster/publish", { propertyId: branch.id, from: date, to: addDays(date, 6) });
+}
+
+/** Say yes for a colleague who has no login, so the swap can be decided (`POST /ops/shift-requests/:id/accept-for-colleague`). */
+export async function acceptSwapFor(ctx: SourceContext, id: string): Promise<void> {
+  await inOwningBusiness(ctx, (api) =>
+    api.post(`/api/v1/ops/shift-requests/${encodeURIComponent(id)}/accept-for-colleague`, {}),
+  );
 }
 
 /** Approve or refuse a swap both colleagues agreed to (`POST /ops/shift-requests/:id/approve|reject`). */
@@ -314,5 +464,27 @@ export async function decideSwap(ctx: SourceContext, id: string, decision: "appr
     api.post(`/api/v1/ops/shift-requests/${encodeURIComponent(id)}/${decision === "approved" ? "approve" : "reject"}`, {
       note: null,
     }),
+  );
+}
+
+/** Put a person on a rotation from a day at a step (`POST /ops/rotation-assignments`); their drafts are written at once. */
+export async function assignRotation(
+  ctx: SourceContext,
+  body: { employeeId: string; patternId: string; startsOn: string; startStep: number },
+): Promise<void> {
+  await inOwningBusiness(ctx, (api) => api.post("/api/v1/ops/rotation-assignments", body));
+}
+
+/** Take a person off a rotation after a day (`POST /ops/rotation-assignments/:id/end`); later drafts are cancelled. */
+export async function endRotation(ctx: SourceContext, assignmentId: string, endsOn: string): Promise<void> {
+  await inOwningBusiness(ctx, (api) =>
+    api.post(`/api/v1/ops/rotation-assignments/${encodeURIComponent(assignmentId)}/end`, { endsOn }),
+  );
+}
+
+/** Stop a rotation nobody is on any more (`PATCH /ops/rotation-patterns/:id`, archived). */
+export async function archiveRotation(ctx: SourceContext, patternId: string): Promise<void> {
+  await inOwningBusiness(ctx, (api) =>
+    api.patch(`/api/v1/ops/rotation-patterns/${encodeURIComponent(patternId)}`, { status: "archived" }),
   );
 }

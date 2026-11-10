@@ -10,12 +10,31 @@ import {
   ShieldKeyhole,
   TriangleExclamationFill,
 } from "@gravity-ui/icons";
-import { Alert, Avatar, Button, Card, Chip, Separator } from "@heroui/react";
+import {
+  Alert,
+  Avatar,
+  Button,
+  Card,
+  Checkbox,
+  Chip,
+  Description,
+  Input,
+  Label,
+  Modal,
+  Separator,
+  TextArea,
+  TextField,
+} from "@heroui/react";
 import { Timeline } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type { ApprovalCheck, ApprovalRequest } from "@injishi/data/fixtures/owner";
 import { GateChip, Icon, KeyValueList, LinkButton, TextLink, toneColor } from "@injishi/ui";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
+
+export interface Decision {
+  decision: "approved" | "declined";
+  reason: string;
+}
 
 const CHECK_ICON = {
   ok: { Icon: CircleCheckFill, className: "text-success", sr: "Passed" },
@@ -27,23 +46,40 @@ function SubTitle({ children }: { children: ReactNode }) {
   return <h3 className="text-[15px] leading-[22px] font-semibold">{children}</h3>;
 }
 
-/**
- * The selected request: who asked and why, key figures, evidence, checks, rules, next steps and the decision.
- *
- * Deciding is not available yet. These requests are sample data (`owner.approvalRequests` waits on an
- * /architect decision about an approvals record that runs each subject's own command), so Approve and
- * Decline say so and change nothing: no decision is stored, nobody is told and no step-up code is asked for.
- */
+/** The selected request: who asked and why, key figures, evidence, checks, rules, next steps and the decision. */
 export function ApprovalDetail({
   request: cur,
-  onUnavailable,
+  onDecide,
   auditHref,
 }: {
   request: ApprovalRequest;
-  /** Tell the person that deciding this request is not available yet. */
-  onUnavailable: (action: string) => void;
+  onDecide: (d: Decision) => void;
   auditHref: string;
 }) {
+  const [dlg, setDlg] = useState<"" | "approve" | "decline">("");
+  const [reason, setReason] = useState("");
+  const [code, setCode] = useState("");
+  const [ack, setAck] = useState(false);
+
+  const isApprove = dlg === "approve";
+  const needStep = isApprove && cur.stepUp;
+  const needAck = isApprove && cur.needAck;
+  const ready = isApprove
+    ? (!needStep || code.replace(/\D/g, "").length === 6) && (!needAck || ack)
+    : reason.trim().length >= 5;
+
+  const open = (which: "approve" | "decline") => {
+    setReason("");
+    setCode("");
+    setAck(false);
+    setDlg(which);
+  };
+  const close = () => setDlg("");
+  const confirm = () => {
+    onDecide({ decision: isApprove ? "approved" : "declined", reason: reason.trim() });
+    close();
+  };
+
   const status = cur.decision
     ? cur.decision === "approved"
       ? { label: "Approved by you", color: "success" as const }
@@ -104,8 +140,10 @@ export function ApprovalDetail({
             <CircleXmark />
           </Alert.Indicator>
           <Alert.Content>
-            <Alert.Title>Declined</Alert.Title>
-            <Alert.Description>Reason given: “{cur.decisionReason}”. Nothing else changed.</Alert.Description>
+            <Alert.Title>Declined at 10:42</Alert.Title>
+            <Alert.Description>
+              {cur.who} has been told, with your reason: “{cur.decisionReason}”. Nothing else changed.
+            </Alert.Description>
           </Alert.Content>
         </Alert>
       ) : null}
@@ -214,16 +252,87 @@ export function ApprovalDetail({
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <span className="max-w-[420px] text-xs leading-4 text-muted">{cur.footNote}</span>
           <div className="flex items-center gap-2">
-            <Button variant="danger-soft" onPress={() => onUnavailable("Declining a request")}>
+            <Button variant="danger-soft" onPress={() => open("decline")}>
               Decline
             </Button>
-            <Button onPress={() => onUnavailable(`“${cur.approveLabel}”`)}>
+            <Button onPress={() => open("approve")}>
               {cur.stepUp ? <ShieldKeyhole className="size-4" aria-hidden="true" /> : null}
               {cur.approveLabel}
             </Button>
           </div>
         </div>
       )}
+
+      <Modal.Backdrop isOpen={dlg !== ""} onOpenChange={(o) => (o ? null : close())}>
+        <Modal.Container>
+          <Modal.Dialog aria-labelledby="dlg-h" className="sm:max-w-[480px]">
+            <Modal.Header className="flex-col items-start gap-1">
+              <Modal.Heading id="dlg-h" className="text-lg leading-[26px] font-semibold">
+                {isApprove ? cur.approveLabel : "Decline this request"}
+              </Modal.Heading>
+              <p className="text-sm leading-5 text-muted">
+                {isApprove
+                  ? `${cur.title}. ${cur.footNote}`
+                  : `${cur.who} will see your reason. The request closes and nothing else changes.`}
+              </p>
+            </Modal.Header>
+            <Modal.Body className="flex flex-col gap-4">
+              <TextField value={reason} onChange={setReason} className="flex flex-col gap-1">
+                <Label>{isApprove ? "Note for the record (optional)" : "Reason for declining (required)"}</Label>
+                <TextArea
+                  rows={3}
+                  fullWidth
+                  placeholder={
+                    isApprove
+                      ? "Anything the team should know"
+                      : "For example: keep the current rate until the block is signed"
+                  }
+                />
+                <Description>Saved to the audit log with your name, the time and this device.</Description>
+              </TextField>
+              {needAck ? (
+                <Checkbox isSelected={ack} onChange={setAck}>
+                  <Checkbox.Content className="items-start gap-2.5">
+                    <Checkbox.Control>
+                      <Checkbox.Indicator />
+                    </Checkbox.Control>
+                    <span className="text-[13px] leading-[19px]">
+                      PAYE and RSSB rules for this run are configured but awaiting sign-off. I am confirming anyway;
+                      record this as a documented exception.
+                    </span>
+                  </Checkbox.Content>
+                </Checkbox>
+              ) : null}
+              {needStep ? (
+                <Card variant="secondary" className="gap-2 p-3.5">
+                  <div className="flex items-center gap-2">
+                    <ShieldKeyhole className="size-4" aria-hidden="true" />
+                    <span className="text-sm font-semibold">Verify it’s you</span>
+                  </div>
+                  <TextField value={code} onChange={setCode} className="flex flex-col gap-1">
+                    <Label>Code sent by SMS to +250 78• ••• 214</Label>
+                    <Input
+                      placeholder="6-digit code"
+                      autoComplete="one-time-code"
+                      inputMode="numeric"
+                      className="max-w-[200px] tracking-[0.2em]"
+                    />
+                    <Description>Enter any 6 digits here. Codes expire after 5 minutes.</Description>
+                  </TextField>
+                </Card>
+              ) : null}
+            </Modal.Body>
+            <Modal.Footer className="justify-end gap-2">
+              <Button variant="secondary" onPress={close}>
+                Cancel
+              </Button>
+              <Button variant={isApprove ? "primary" : "danger"} isDisabled={!ready} onPress={confirm}>
+                {isApprove ? cur.approveLabel : "Decline request"}
+              </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
     </Card>
   );
 }

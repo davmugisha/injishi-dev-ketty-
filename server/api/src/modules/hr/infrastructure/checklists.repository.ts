@@ -27,8 +27,11 @@ export interface TemplateItemRow {
   id: string;
   templateId: string;
   label: string;
+  code: string | null;
+  detail: string | null;
   sortOrder: number;
   byEmployee: boolean;
+  ownerOnly: boolean;
   dueAfterDays: number;
   jobPositionId: string | null;
   jobPositionTitle: string | null;
@@ -36,8 +39,11 @@ export interface TemplateItemRow {
 
 export interface TemplateItemValues {
   label: string;
+  code: string | null;
+  detail: string | null;
   sortOrder: number;
   byEmployee: boolean;
+  ownerOnly: boolean;
   dueAfterDays: number;
   jobPositionId: string | null;
 }
@@ -61,8 +67,11 @@ export interface TaskRow {
   id: string;
   checklistId: string;
   label: string;
+  code: string | null;
+  detail: string | null;
   sortOrder: number;
   byEmployee: boolean;
+  ownerOnly: boolean;
   dueOn: string;
   doneAt: Date | null;
   doneByName: string | null;
@@ -156,8 +165,11 @@ export class ChecklistsRepository {
         id: checklistTemplateItems.id,
         templateId: checklistTemplateItems.templateId,
         label: checklistTemplateItems.label,
+        code: checklistTemplateItems.code,
+        detail: checklistTemplateItems.detail,
         sortOrder: checklistTemplateItems.sortOrder,
         byEmployee: checklistTemplateItems.byEmployee,
+        ownerOnly: checklistTemplateItems.ownerOnly,
         dueAfterDays: checklistTemplateItems.dueAfterDays,
         jobPositionId: checklistTemplateItems.jobPositionId,
         jobPositionTitle: jobPositions.title,
@@ -269,8 +281,11 @@ export class ChecklistsRepository {
         id: employeeChecklistTasks.id,
         checklistId: employeeChecklistTasks.checklistId,
         label: employeeChecklistTasks.label,
+        code: employeeChecklistTasks.code,
+        detail: employeeChecklistTasks.detail,
         sortOrder: employeeChecklistTasks.sortOrder,
         byEmployee: employeeChecklistTasks.byEmployee,
+        ownerOnly: employeeChecklistTasks.ownerOnly,
         dueOn: employeeChecklistTasks.dueOn,
         doneAt: employeeChecklistTasks.doneAt,
         doneByName: users.name,
@@ -281,13 +296,17 @@ export class ChecklistsRepository {
       .orderBy(asc(employeeChecklistTasks.checklistId), asc(employeeChecklistTasks.sortOrder));
   }
 
-  async findTask(id: string, tx?: Tx): Promise<{ id: string; orgId: string; checklistId: string; byEmployee: boolean; doneAt: Date | null } | null> {
+  async findTask(
+    id: string,
+    tx?: Tx,
+  ): Promise<{ id: string; orgId: string; checklistId: string; byEmployee: boolean; ownerOnly: boolean; doneAt: Date | null } | null> {
     const [row] = await (tx ?? this.db)
       .select({
         id: employeeChecklistTasks.id,
         orgId: employeeChecklistTasks.orgId,
         checklistId: employeeChecklistTasks.checklistId,
         byEmployee: employeeChecklistTasks.byEmployee,
+        ownerOnly: employeeChecklistTasks.ownerOnly,
         doneAt: employeeChecklistTasks.doneAt,
       })
       .from(employeeChecklistTasks)

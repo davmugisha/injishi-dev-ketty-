@@ -2,7 +2,7 @@
 
 import { type ComponentType, createContext, type ReactNode, useContext } from "react";
 import type { HrActions } from "../model/commands.ts";
-import type { BoardId, Tone } from "../model/shared.ts";
+import type { BoardId, HrFeatureId, Tone } from "../model/shared.ts";
 
 /**
  * What an app hands HR's views before they render (ADR-074 stage 3): where each screen they link to lives,
@@ -30,13 +30,15 @@ interface Mount {
   links: HrLinks;
   actions: HrActions;
   shell: HrShell;
+  /** The optional features switched off for the business; absent means all on. */
+  off?: readonly HrFeatureId[];
 }
 
 const HrMount = createContext<Mount | null>(null);
 
 /** Mounted by the app around an HR view, with everything the view may not import. */
-export function HrProvider({ links, actions, shell, children }: Mount & { children: ReactNode }) {
-  return <HrMount value={{ links, actions, shell }}>{children}</HrMount>;
+export function HrProvider({ links, actions, shell, off, children }: Mount & { children: ReactNode }) {
+  return <HrMount value={{ links, actions, shell, off }}>{children}</HrMount>;
 }
 
 function useMount(): Mount {
@@ -58,6 +60,11 @@ export function useBoardHref(): (board: BoardId) => string {
 /** The commands this view may send. */
 export function useHrActions(): HrActions {
   return useMount().actions;
+}
+
+/** Whether an optional feature is on for the business (Injishi staff switch them). */
+export function useHrFeature(feature: HrFeatureId): boolean {
+  return !(useMount().off ?? []).includes(feature);
 }
 
 /** The pieces of the app's shell this view draws into. */

@@ -89,6 +89,9 @@ export class SmtpMailerAdapter implements MailerPort, OnModuleDestroy {
     if (!BARE_ADDRESS.test(message.to) || CONTROL_CHARACTER.test(message.to)) {
       throw new Error('mail recipient must be one bare email address');
     }
+    if (message.replyTo !== undefined && (!BARE_ADDRESS.test(message.replyTo) || CONTROL_CHARACTER.test(message.replyTo))) {
+      throw new Error('mail reply-to must be one bare email address');
+    }
     if (CONTROL_CHARACTER.test(message.subject)) {
       throw new Error('mail subject must be a single line');
     }
@@ -113,6 +116,7 @@ export class SmtpMailerAdapter implements MailerPort, OnModuleDestroy {
         subject: message.subject,
         text: message.text,
         ...(message.html === undefined ? {} : { html: message.html }),
+        ...(message.replyTo === undefined ? {} : { replyTo: message.replyTo }),
         // Nodemailer's own attachment shape, built here and nowhere else: the
         // seam hands over bytes and a name, and this is the one file allowed
         // to know what the transport calls them (library-docs: nodemailer is

@@ -8,6 +8,7 @@ import type {
   TeamRolesScope,
   Tone,
 } from "@injishi/data/fixtures/owner";
+import type { AccessRequestView } from "@injishi/data/fixtures/people";
 
 /** Everything Team and roles reads, all of it from the API. */
 export interface TeamRolesData {
@@ -17,6 +18,8 @@ export interface TeamRolesData {
   /** The live businesses and branches a grant can name (sources/owner.ts `teamScopes`). */
   scopes: TeamRolesScope[];
   invite: TeamRolesInviteDraft;
+  /** Logins HR asked for while putting people on file, which the owner decides (HR onboarding). */
+  accessRequests?: AccessRequestView[];
   /** The business or businesses this team belongs to, as the API names them. */
   businessName: string;
   /** Emails on active employee files in People, or null when People was not read (no `people.view`). */
@@ -81,19 +84,6 @@ export function applyEdits(presets: TeamRolesPresets, edits: TeamRolesEdits, all
       return [id, [...known, ...other]];
     }),
   ) as TeamRolesPresets;
-}
-
-/** "Clarisse Umutoni" → "CU". */
-export function initialsOf(name: string): string {
-  return (
-    name
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((w) => w[0]?.toUpperCase() ?? "")
-      .join("") || "?"
-  );
 }
 
 /** A six-digit step-up code (spaces allowed). */

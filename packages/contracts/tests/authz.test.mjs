@@ -43,6 +43,9 @@ const {
   scopeCoversDistrict,
   violatesSeparationOfDuties,
   mayElevate,
+  accessNeedsOwner,
+  effectivePermissionsForRole,
+  isLockedPermission,
 } = authz;
 
 /** Every registration status that is not `active`. The gate's whole domain. */
@@ -90,7 +93,8 @@ describe("the org roles", () => {
     // added `lease.sign`, `payout.manage`, `expense.manage`, `tax.manage` and
     // `guest.register`.
     // 50: the POS spec, phase 1, added the nine point of sale permissions.
-    assert.equal(permissionsForRole("owner").length, 50);
+    // 51: HR onboarding added `team.invite`.
+    assert.equal(permissionsForRole("owner").length, 51);
   });
 
   test("manager holds everything except team.manage, the HR disclosures, signing leases and payouts", () => {
@@ -99,7 +103,8 @@ describe("the org roles", () => {
     // `payroll.draft`, because a manager is ALL minus what is withheld.
     // Rentals blueprint 2.1: `lease.sign` binds the business and
     // `payout.manage` decides where the rent goes, so both start with the owner.
-    const withheld = ["team.manage", "people.manage", "payroll.draft", "payroll.run", "lease.sign", "payout.manage"];
+    // HR onboarding: `team.invite` starts with the owner and HR, like the disclosures.
+    const withheld = ["team.manage", "people.manage", "payroll.draft", "payroll.run", "lease.sign", "payout.manage", "team.invite"];
     assert.deepEqual(
       permissionsForRole("manager"),
       Permission.options.filter((p) => !withheld.includes(p)),
@@ -194,7 +199,7 @@ describe("the org roles", () => {
     }
   });
 
-  test("hr is the HR officer: exactly the seven the owner named (ADR-069 D-b)", () => {
+  test("hr is the HR officer: the seven the owner named (ADR-069 D-b), and giving logins", () => {
     assert.deepEqual(permissionsForRole("hr"), [
       "people.view",
       "people.manage",
@@ -203,6 +208,8 @@ describe("the org roles", () => {
       "attendance.approve",
       "leave.approve",
       "payroll.draft",
+      // HR onboarding: a new employee's login, given while putting them on file.
+      "team.invite",
     ]);
   });
 
@@ -332,6 +339,36 @@ describe("owner and manager are different roles", () => {
       assert.equal(can("receptionist", p), false, `receptionist must not hold ${p}`);
       assert.equal(can("housekeeper", p), false, `housekeeper must not hold ${p}`);
     }
+  });
+});
+
+describe("HR gives logins, and the owner approves the ones that reach money or people", () => {
+  test("team.invite is the owner's and hr's, and nobody else's by default", () => {
+    assert.deepEqual(
+      ROLES.filter((r) => can(r, "team.invite")),
+      ["owner", "hr"],
+    );
+  });
+
+  test("team.invite never brings team.manage with it", () => {
+    assert.equal(can("hr", "team.manage"), false);
+    assert.equal(isLockedPermission("team.invite"), false);
+    assert.equal(isLockedPermission("team.manage"), true);
+  });
+
+  test("front-line logins go out at once; manager, finance and HR logins need the owner", () => {
+    assert.equal(accessNeedsOwner(permissionsForRole("receptionist")), false);
+    assert.equal(accessNeedsOwner(permissionsForRole("housekeeper")), false);
+    assert.equal(accessNeedsOwner(permissionsForRole("manager")), true);
+    assert.equal(accessNeedsOwner(permissionsForRole("finance")), true);
+    assert.equal(accessNeedsOwner(permissionsForRole("hr")), true);
+  });
+
+  test("a front desk the owner let read the takings needs the owner too", () => {
+    const desk = effectivePermissionsForRole("receptionist", [
+      { orgRole: "receptionist", permission: "money.view", granted: true },
+    ]);
+    assert.equal(accessNeedsOwner(desk), true);
   });
 });
 

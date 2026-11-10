@@ -14,12 +14,14 @@ import {
   saveRolePresets,
   sendStepUpCode,
 } from "@/server/mutations/owner";
+import { decideAccessRequest, StaffInputError } from "@/server/mutations/staff-access";
 
 /** What a Team and Roles action answers: done, or the refusal in words the person can act on. */
 type TeamActionResult = { ok: true } | { ok: false; message: string };
 
 function refusal(error: unknown): { ok: false; message: string } {
-  if (error instanceof OwnerRefusal || error instanceof ApiError) return { ok: false, message: error.message };
+  if (error instanceof OwnerRefusal || error instanceof ApiError || error instanceof StaffInputError)
+    return { ok: false, message: error.message };
   if (error instanceof ApiUnreachableError)
     return { ok: false, message: "The Injishi service did not answer. Try again." };
   throw error;
@@ -33,6 +35,7 @@ async function run(work: () => Promise<unknown>): Promise<TeamActionResult> {
     return refusal(error);
   }
   revalidatePath(screenHref("TeamRoles"));
+  revalidatePath(screenHref("Employees"));
   return { ok: true };
 }
 
@@ -95,4 +98,12 @@ export async function saveTeamRolePresets(
   presets: Partial<Record<TeamRolesRoleId, string[]>>,
 ): Promise<TeamActionResult> {
   return run(async () => saveRolePresets(await requestContext(), presets));
+}
+
+/**
+ * Approve a login HR asked for while putting someone on file (its invitation is sent now), or
+ * decline it with a reason HR reads on the file (`POST /ops/team/access-requests/:id/…`).
+ */
+export async function decideAccess(id: string, decision: "approve" | "decline", note = ""): Promise<TeamActionResult> {
+  return run(async () => decideAccessRequest(await requestContext(), id, decision, note));
 }

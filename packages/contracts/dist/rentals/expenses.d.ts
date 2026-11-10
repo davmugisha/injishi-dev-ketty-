@@ -36,7 +36,7 @@ export declare const RecordExpenseRequest: z.ZodEffects<z.ZodObject<{
     loanPurpose: z.ZodOptional<z.ZodEnum<["build", "buy"]>>;
 }, "strip", z.ZodTypeAny, {
     amountRwf: number;
-    category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+    category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
     method: "other" | "cash" | "momo" | "bank";
     paidOn: string;
     note?: string | undefined;
@@ -47,7 +47,7 @@ export declare const RecordExpenseRequest: z.ZodEffects<z.ZodObject<{
     loanPurpose?: "build" | "buy" | undefined;
 }, {
     amountRwf: number;
-    category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+    category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
     method: "other" | "cash" | "momo" | "bank";
     paidOn: string;
     note?: string | undefined;
@@ -58,7 +58,7 @@ export declare const RecordExpenseRequest: z.ZodEffects<z.ZodObject<{
     loanPurpose?: "build" | "buy" | undefined;
 }>, {
     amountRwf: number;
-    category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+    category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
     method: "other" | "cash" | "momo" | "bank";
     paidOn: string;
     note?: string | undefined;
@@ -69,7 +69,7 @@ export declare const RecordExpenseRequest: z.ZodEffects<z.ZodObject<{
     loanPurpose?: "build" | "buy" | undefined;
 }, {
     amountRwf: number;
-    category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+    category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
     method: "other" | "cash" | "momo" | "bank";
     paidOn: string;
     note?: string | undefined;
@@ -94,11 +94,11 @@ export declare const ExpenseListQuery: z.ZodObject<{
     propertyId: z.ZodOptional<z.ZodString>;
     category: z.ZodOptional<z.ZodEnum<["repairs", "utilities", "security", "cleaning", "insurance", "loan_interest", "other"]>>;
 }, "strip", z.ZodTypeAny, {
-    category?: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest" | undefined;
+    category?: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest" | undefined;
     propertyId?: string | undefined;
     year?: number | undefined;
 }, {
-    category?: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest" | undefined;
+    category?: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest" | undefined;
     propertyId?: string | undefined;
     year?: number | undefined;
 }>;
@@ -146,7 +146,7 @@ export declare const ExpenseView: z.ZodObject<{
     note: string | null;
     createdAt: string;
     propertyName: string | null;
-    category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+    category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
     method: "other" | "cash" | "momo" | "bank";
     ticketId: string | null;
     unitLabel: string | null;
@@ -173,7 +173,7 @@ export declare const ExpenseView: z.ZodObject<{
     note: string | null;
     createdAt: string;
     propertyName: string | null;
-    category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+    category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
     method: "other" | "cash" | "momo" | "bank";
     ticketId: string | null;
     unitLabel: string | null;
@@ -206,11 +206,11 @@ export declare const ExpenseTotals: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         count: number;
         amountRwf: number;
-        category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+        category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
     }, {
         count: number;
         amountRwf: number;
-        category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+        category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     count: number;
@@ -218,7 +218,7 @@ export declare const ExpenseTotals: z.ZodObject<{
     byCategory: {
         count: number;
         amountRwf: number;
-        category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+        category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
     }[];
 }, {
     count: number;
@@ -226,7 +226,7 @@ export declare const ExpenseTotals: z.ZodObject<{
     byCategory: {
         count: number;
         amountRwf: number;
-        category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+        category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
     }[];
 }>;
 export type ExpenseTotals = z.infer<typeof ExpenseTotals>;
@@ -275,7 +275,7 @@ export declare const ExpenseList: z.ZodObject<{
         note: string | null;
         createdAt: string;
         propertyName: string | null;
-        category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+        category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
         method: "other" | "cash" | "momo" | "bank";
         ticketId: string | null;
         unitLabel: string | null;
@@ -302,7 +302,7 @@ export declare const ExpenseList: z.ZodObject<{
         note: string | null;
         createdAt: string;
         propertyName: string | null;
-        category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+        category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
         method: "other" | "cash" | "momo" | "bank";
         ticketId: string | null;
         unitLabel: string | null;
@@ -334,11 +334,11 @@ export declare const ExpenseList: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             count: number;
             amountRwf: number;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
         }, {
             count: number;
             amountRwf: number;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         count: number;
@@ -346,7 +346,7 @@ export declare const ExpenseList: z.ZodObject<{
         byCategory: {
             count: number;
             amountRwf: number;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
         }[];
     }, {
         count: number;
@@ -354,7 +354,7 @@ export declare const ExpenseList: z.ZodObject<{
         byCategory: {
             count: number;
             amountRwf: number;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
         }[];
     }>;
 }, "strip", z.ZodTypeAny, {
@@ -365,7 +365,7 @@ export declare const ExpenseList: z.ZodObject<{
         note: string | null;
         createdAt: string;
         propertyName: string | null;
-        category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+        category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
         method: "other" | "cash" | "momo" | "bank";
         ticketId: string | null;
         unitLabel: string | null;
@@ -392,7 +392,7 @@ export declare const ExpenseList: z.ZodObject<{
         byCategory: {
             count: number;
             amountRwf: number;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
         }[];
     };
     year: number;
@@ -404,7 +404,7 @@ export declare const ExpenseList: z.ZodObject<{
         note: string | null;
         createdAt: string;
         propertyName: string | null;
-        category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+        category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
         method: "other" | "cash" | "momo" | "bank";
         ticketId: string | null;
         unitLabel: string | null;
@@ -431,7 +431,7 @@ export declare const ExpenseList: z.ZodObject<{
         byCategory: {
             count: number;
             amountRwf: number;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
         }[];
     };
     year: number;

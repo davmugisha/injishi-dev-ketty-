@@ -52,6 +52,11 @@ export interface MailMessage {
   /** Optional HTML alternative to `text`. */
   html?: string;
   /**
+   * Where an answer goes, when not to the sender: ONE bare address, refused otherwise for the reason
+   * `to` is. An applicant's mail replies to the person at the business who moved them on.
+   */
+  replyTo?: string;
+  /**
    * Files to attach. Absent on almost every message this platform sends.
    *
    * The one sender today is the training certificate mail (ADR-049 AC-20),

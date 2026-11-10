@@ -46,7 +46,8 @@ export type RosterStatus = z.infer<typeof RosterStatus>;
 export const AttendanceSource = z.enum(["supervisor", "self", "phone", "kiosk"]);
 export type AttendanceSource = z.infer<typeof AttendanceSource>;
 /** `closed` becomes `superseded` only when a correction replaces it. */
-export const AttendanceStatus = z.enum(["open", "closed", "superseded"]);
+/** `rejected`: HR found the person was not at work, so the record counts for nothing (058-time, clock-in rules). */
+export const AttendanceStatus = z.enum(["open", "closed", "superseded", "rejected"]);
 export type AttendanceStatus = z.infer<typeof AttendanceStatus>;
 /**
  * Why a phone punch waits for a person to validate it (mobile spec 0003, D-ao),
@@ -476,6 +477,8 @@ export const AttendanceRecord = z.object({
     figures: AttendanceFigures.nullable(),
     /** How far from the branch a phone punch was, for whoever validates it (AC-TM9); never the coordinates. */
     location: AttendanceLocation.nullable(),
+    /** The tablet a punch came from: its PIN pad, or the code on its screen a phone scanned. */
+    kioskId: Uuid.nullable(),
 });
 export type AttendanceRecord = z.infer<typeof AttendanceRecord>;
 const Instant = z.string().datetime({ offset: true, message: "A time is an ISO instant." });
@@ -496,6 +499,11 @@ export const CorrectAttendanceRequest = z.object({
     note: z.string().trim().min(3, "Say what was wrong.").max(300),
 });
 export type CorrectAttendanceRequest = z.infer<typeof CorrectAttendanceRequest>;
+/** `POST /ops/attendance/:id/reject`: the person was not at work, so the clock-in counts for nothing. */
+export const RejectAttendanceRequest = z.object({
+    note: z.string().trim().min(3, "Say why it does not count.").max(300),
+});
+export type RejectAttendanceRequest = z.infer<typeof RejectAttendanceRequest>;
 // ---------------------------------------------------------------------------
 // Leave
 // ---------------------------------------------------------------------------

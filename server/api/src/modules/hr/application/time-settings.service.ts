@@ -86,6 +86,8 @@ export class TimeSettingsService {
             return {
               propertyId: b.id,
               branchName: b.name,
+              clockMode: setting?.clockMode ?? 'anywhere',
+              opensMinutesBefore: setting?.opensMinutesBefore ?? null,
               geofenceRadiusM: setting?.geofenceRadiusM ?? DEFAULT_RADIUS_M,
               centre,
               propertyHasCoordinates: b.hasCoordinates,
@@ -139,14 +141,27 @@ export class TimeSettingsService {
     const orgId = orgOf(ws);
     await this.assertBranchSetting(ws, orgId, propertyId);
     await this.db.transaction(async (tx) => {
-      await this.settings.putClockSettings(tx, { propertyId, orgId, geofenceRadiusM: body.geofenceRadiusM, centre: body.centre });
+      await this.settings.putClockSettings(tx, {
+        propertyId,
+        orgId,
+        geofenceRadiusM: body.geofenceRadiusM,
+        centre: body.centre,
+        clockMode: body.clockMode,
+        opensMinutesBefore: body.opensMinutesBefore,
+      });
       await writeHrAudit(tx, {
         actorUserId: userId,
         subjectType: 'org',
         subjectId: orgId,
         eventType: 'hr.geofence_set',
         orgId,
-        diff: { propertyId, geofenceRadiusM: body.geofenceRadiusM, ...(body.centre !== undefined ? { centre: body.centre } : {}) },
+        diff: {
+          propertyId,
+          geofenceRadiusM: body.geofenceRadiusM,
+          ...(body.centre !== undefined ? { centre: body.centre } : {}),
+          ...(body.clockMode !== undefined ? { clockMode: body.clockMode } : {}),
+          ...(body.opensMinutesBefore !== undefined ? { opensMinutesBefore: body.opensMinutesBefore } : {}),
+        },
       });
     });
     return this.attendanceSettings(ws);

@@ -9,6 +9,7 @@ import type {
   PayRunOutput,
   PayRunRule,
   PayRunStage,
+  PayRunState,
   PayRunStep,
   PayRunTotal,
 } from "@injishi/data/fixtures/payroll";
@@ -18,6 +19,7 @@ import { notFound } from "next/navigation";
 import { HrMount } from "@/features/hr/hr-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
+import { hrFeaturesOff } from "@/server/hr-features";
 
 export const metadata: Metadata = { title: screens.PayRun.pageTitle };
 
@@ -25,35 +27,40 @@ const STAGES: PayRunStage[] = ["review", "submitted", "confirmed"];
 
 export default async function PayRunPage({ searchParams }: { searchParams: Promise<{ stage?: string }> }) {
   await requirePersona("PayRun");
-  const [rates, lines, steps, exceptions, rules, totals, settlements, files, outputs, history] = await Promise.all([
-    getCollection<PayRates>("payroll.payRates"),
-    getCollection<PayLine>("payroll.payLines"),
-    getCollection<PayRunStep>("payroll.payRunSteps"),
-    getCollection<PayRunException>("payroll.payRunExceptions"),
-    getCollection<PayRunRule>("payroll.payRunRules"),
-    getCollection<PayRunTotal>("payroll.payRunTotals"),
-    getCollection<FinalSettlement>("payroll.finalSettlements"),
-    getCollection<PaymentFile>("payroll.paymentFiles"),
-    getCollection<PayRunOutput>("payroll.payRunOutputs"),
-    getCollection<PayRunHistory>("payroll.payRunHistory"),
-  ]);
+  const [state, rates, lines, steps, exceptions, rules, totals, settlements, files, outputs, history] =
+    await Promise.all([
+      getCollection<PayRunState>("payroll.payRunState"),
+      getCollection<PayRates>("payroll.payRates"),
+      getCollection<PayLine>("payroll.payLines"),
+      getCollection<PayRunStep>("payroll.payRunSteps"),
+      getCollection<PayRunException>("payroll.payRunExceptions"),
+      getCollection<PayRunRule>("payroll.payRunRules"),
+      getCollection<PayRunTotal>("payroll.payRunTotals"),
+      getCollection<FinalSettlement>("payroll.finalSettlements"),
+      getCollection<PaymentFile>("payroll.paymentFiles"),
+      getCollection<PayRunOutput>("payroll.payRunOutputs"),
+      getCollection<PayRunHistory>("payroll.payRunHistory"),
+    ]);
   const snapshot = rates[0];
-  if (!snapshot) notFound();
+  const board = state[0];
+  if (!snapshot || !board) notFound();
   const { stage } = await searchParams;
-  const initialStage = STAGES.find((s) => s === stage) ?? "submitted";
+  // A live run says where it stands; the sample board's stage is picked by the address.
+  const initialStage = board.live ? board.stage : (STAGES.find((s) => s === stage) ?? "submitted");
   return (
-    <HrMount>
+    <HrMount off={await hrFeaturesOff()}>
       <PayRunView
-        key={initialStage}
         initialStage={initialStage}
+        key={`${board.runId ?? "none"}:${initialStage}`}
         data={{
+          state: board,
           rates: snapshot,
           lines,
           steps,
           exceptions,
           rules,
           totals,
-          settlement: settlements[0] ?? null,
+          settlements,
           files,
           outputs,
           history,

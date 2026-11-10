@@ -8,3 +8,10 @@ export function reported(result: { ok: true } | { ok: false; error: string }): b
   if (!result.ok) toast.danger(result.error);
   return result.ok;
 }
+
+/** One key per press, for a command the API lets a replay land once (`Idempotency-Key`). */
+export function pressKey(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}

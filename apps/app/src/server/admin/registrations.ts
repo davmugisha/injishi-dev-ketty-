@@ -5,6 +5,8 @@ import type {
   AdminOrgPeopleResponse,
   AdminOrgPropertiesResponse,
   AdminOrgSubscription,
+  HrFeature,
+  HrFeatureList,
 } from "@injishi/contracts";
 import { currentApi } from "@/lib/session";
 
@@ -45,6 +47,26 @@ export interface StarGradeState {
 export async function starGradeOf(orgId: string): Promise<StarGradeState> {
   const api = await currentApi();
   return api.get<StarGradeState>(`/api/v1/admin/orgs/${orgId}/star-grade`);
+}
+
+/** A business's optional HR features, on or off (`GET /admin/orgs/:id/hr-features`). */
+export async function hrFeaturesOf(orgId: string): Promise<HrFeatureList> {
+  const api = await currentApi();
+  return api.get<HrFeatureList>(`/api/v1/admin/orgs/${orgId}/hr-features`);
+}
+
+/** Switch one on or off (`PUT /admin/orgs/:id/hr-features/:feature`); switching off is refused while it carries work. */
+export async function setHrFeature(
+  orgId: string,
+  feature: HrFeature,
+  on: boolean,
+  reason: string,
+): Promise<HrFeatureList> {
+  const api = await currentApi();
+  return api.put<HrFeatureList>(`/api/v1/admin/orgs/${orgId}/hr-features/${feature}`, {
+    on,
+    reason: reason || undefined,
+  });
 }
 
 /** Confirm the grade against RDB's grading certificate, or withdraw a confirmation; both need a reason. */

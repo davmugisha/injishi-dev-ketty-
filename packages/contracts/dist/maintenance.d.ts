@@ -86,8 +86,8 @@ export declare const WorkOrderBlock: z.ZodObject<{
     startsAt: string;
     endsAt: string | null;
     releasedByName: string | null;
-    requestedByName: string | null;
     requestedAt: string;
+    requestedByName: string | null;
     affectedReservations: number;
 }, {
     status: "active" | "declined" | "released" | "requested";
@@ -100,8 +100,8 @@ export declare const WorkOrderBlock: z.ZodObject<{
     startsAt: string;
     endsAt: string | null;
     releasedByName: string | null;
-    requestedByName: string | null;
     requestedAt: string;
+    requestedByName: string | null;
     affectedReservations: number;
 }>;
 export type WorkOrderBlock = z.infer<typeof WorkOrderBlock>;
@@ -228,8 +228,8 @@ export declare const WorkOrder: z.ZodObject<{
         startsAt: string;
         endsAt: string | null;
         releasedByName: string | null;
-        requestedByName: string | null;
         requestedAt: string;
+        requestedByName: string | null;
         affectedReservations: number;
     }, {
         status: "active" | "declined" | "released" | "requested";
@@ -242,8 +242,8 @@ export declare const WorkOrder: z.ZodObject<{
         startsAt: string;
         endsAt: string | null;
         releasedByName: string | null;
-        requestedByName: string | null;
         requestedAt: string;
+        requestedByName: string | null;
         affectedReservations: number;
     }>>;
     resolvedAt: z.ZodNullable<z.ZodString>;
@@ -289,8 +289,8 @@ export declare const WorkOrder: z.ZodObject<{
         startsAt: string;
         endsAt: string | null;
         releasedByName: string | null;
-        requestedByName: string | null;
         requestedAt: string;
+        requestedByName: string | null;
         affectedReservations: number;
     } | null;
     raisedAt: string;
@@ -351,8 +351,8 @@ export declare const WorkOrder: z.ZodObject<{
         startsAt: string;
         endsAt: string | null;
         releasedByName: string | null;
-        requestedByName: string | null;
         requestedAt: string;
+        requestedByName: string | null;
         affectedReservations: number;
     } | null;
     raisedAt: string;
@@ -498,8 +498,8 @@ export declare const WorkOrderList: z.ZodObject<{
             startsAt: string;
             endsAt: string | null;
             releasedByName: string | null;
-            requestedByName: string | null;
             requestedAt: string;
+            requestedByName: string | null;
             affectedReservations: number;
         }, {
             status: "active" | "declined" | "released" | "requested";
@@ -512,8 +512,8 @@ export declare const WorkOrderList: z.ZodObject<{
             startsAt: string;
             endsAt: string | null;
             releasedByName: string | null;
-            requestedByName: string | null;
             requestedAt: string;
+            requestedByName: string | null;
             affectedReservations: number;
         }>>;
         resolvedAt: z.ZodNullable<z.ZodString>;
@@ -559,8 +559,8 @@ export declare const WorkOrderList: z.ZodObject<{
             startsAt: string;
             endsAt: string | null;
             releasedByName: string | null;
-            requestedByName: string | null;
             requestedAt: string;
+            requestedByName: string | null;
             affectedReservations: number;
         } | null;
         raisedAt: string;
@@ -621,8 +621,8 @@ export declare const WorkOrderList: z.ZodObject<{
             startsAt: string;
             endsAt: string | null;
             releasedByName: string | null;
-            requestedByName: string | null;
             requestedAt: string;
+            requestedByName: string | null;
             affectedReservations: number;
         } | null;
         raisedAt: string;
@@ -709,8 +709,8 @@ export declare const WorkOrderList: z.ZodObject<{
             startsAt: string;
             endsAt: string | null;
             releasedByName: string | null;
-            requestedByName: string | null;
             requestedAt: string;
+            requestedByName: string | null;
             affectedReservations: number;
         } | null;
         raisedAt: string;
@@ -782,8 +782,8 @@ export declare const WorkOrderList: z.ZodObject<{
             startsAt: string;
             endsAt: string | null;
             releasedByName: string | null;
-            requestedByName: string | null;
             requestedAt: string;
+            requestedByName: string | null;
             affectedReservations: number;
         } | null;
         raisedAt: string;

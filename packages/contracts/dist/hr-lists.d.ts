@@ -1177,7 +1177,7 @@ export declare const AttendancePage: z.ZodObject<{
         clockOutAt: z.ZodNullable<z.ZodString>;
         source: z.ZodEnum<["supervisor", "self", "phone", "kiosk"]>;
         validated: z.ZodBoolean;
-        status: z.ZodEnum<["open", "closed", "superseded"]>;
+        status: z.ZodEnum<["open", "closed", "superseded", "rejected"]>;
         supersedesId: z.ZodNullable<z.ZodString>;
         note: z.ZodNullable<z.ZodString>;
         autoClosed: z.ZodBoolean;
@@ -1221,8 +1221,9 @@ export declare const AttendancePage: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         }>>;
+        kioskId: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "superseded" | "open" | "closed";
+        status: "rejected" | "superseded" | "open" | "closed";
         id: string;
         source: "phone" | "supervisor" | "self" | "kiosk";
         note: string | null;
@@ -1255,8 +1256,9 @@ export declare const AttendancePage: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         } | null;
+        kioskId: string | null;
     }, {
-        status: "superseded" | "open" | "closed";
+        status: "rejected" | "superseded" | "open" | "closed";
         id: string;
         source: "phone" | "supervisor" | "self" | "kiosk";
         note: string | null;
@@ -1289,6 +1291,7 @@ export declare const AttendancePage: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         } | null;
+        kioskId: string | null;
     }>, "many">;
     total: z.ZodNumber;
     page: z.ZodNumber;
@@ -1328,7 +1331,7 @@ export declare const AttendancePage: z.ZodObject<{
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        status: "superseded" | "open" | "closed";
+        status: "rejected" | "superseded" | "open" | "closed";
         id: string;
         source: "phone" | "supervisor" | "self" | "kiosk";
         note: string | null;
@@ -1361,6 +1364,7 @@ export declare const AttendancePage: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         } | null;
+        kioskId: string | null;
     }[];
     total: number;
     page: number;
@@ -1380,7 +1384,7 @@ export declare const AttendancePage: z.ZodObject<{
     }[] | undefined;
 }, {
     items: {
-        status: "superseded" | "open" | "closed";
+        status: "rejected" | "superseded" | "open" | "closed";
         id: string;
         source: "phone" | "supervisor" | "self" | "kiosk";
         note: string | null;
@@ -1413,6 +1417,7 @@ export declare const AttendancePage: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         } | null;
+        kioskId: string | null;
     }[];
     total: number;
     page: number;
@@ -1464,7 +1469,7 @@ export declare const SHIFT_REQUEST_LIST: {
         readonly key: "kind";
         readonly label: "Kind";
         readonly type: "enum";
-        readonly enumValues: readonly ["change", "swap"];
+        readonly enumValues: readonly ["change", "swap", "rotation"];
         readonly enumLabels: {
             readonly change: "Different shift";
             readonly swap: "Swap";
@@ -1521,7 +1526,7 @@ export declare const ShiftRequestPage: z.ZodObject<{
             jobPositionTitle: string | null;
         }>;
         branchId: z.ZodNullable<z.ZodString>;
-        kind: z.ZodEnum<["change", "swap"]>;
+        kind: z.ZodEnum<["change", "swap", "rotation"]>;
         shiftTemplate: z.ZodNullable<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
@@ -1544,6 +1549,16 @@ export declare const ShiftRequestPage: z.ZodObject<{
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
+        }>>;
+        rotation: z.ZodNullable<z.ZodObject<{
+            id: z.ZodString;
+            name: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            id: string;
+        }, {
+            name: string;
+            id: string;
         }>>;
         fromDate: z.ZodString;
         toDate: z.ZodString;
@@ -1571,7 +1586,7 @@ export declare const ShiftRequestPage: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         id: string;
-        kind: "change" | "swap";
+        kind: "change" | "swap" | "rotation";
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
@@ -1591,6 +1606,10 @@ export declare const ShiftRequestPage: z.ZodObject<{
         } | null;
         fromDate: string;
         toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
         shiftTemplate: {
             name: string;
             id: string;
@@ -1604,7 +1623,7 @@ export declare const ShiftRequestPage: z.ZodObject<{
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         id: string;
-        kind: "change" | "swap";
+        kind: "change" | "swap" | "rotation";
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
@@ -1624,6 +1643,10 @@ export declare const ShiftRequestPage: z.ZodObject<{
         } | null;
         fromDate: string;
         toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
         shiftTemplate: {
             name: string;
             id: string;
@@ -1675,7 +1698,7 @@ export declare const ShiftRequestPage: z.ZodObject<{
     items: {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         id: string;
-        kind: "change" | "swap";
+        kind: "change" | "swap" | "rotation";
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
@@ -1695,6 +1718,10 @@ export declare const ShiftRequestPage: z.ZodObject<{
         } | null;
         fromDate: string;
         toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
         shiftTemplate: {
             name: string;
             id: string;
@@ -1726,7 +1753,7 @@ export declare const ShiftRequestPage: z.ZodObject<{
     items: {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         id: string;
-        kind: "change" | "swap";
+        kind: "change" | "swap" | "rotation";
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
@@ -1746,6 +1773,10 @@ export declare const ShiftRequestPage: z.ZodObject<{
         } | null;
         fromDate: string;
         toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
         shiftTemplate: {
             name: string;
             id: string;
@@ -3072,6 +3103,10 @@ export declare const PayRunPage: z.ZodObject<{
         }>, "many">;
         confirmedAt: z.ZodNullable<z.ZodString>;
         confirmedByUserId: z.ZodNullable<z.ZodString>;
+        confirmedByName: z.ZodNullable<z.ZodString>;
+        submittedAt: z.ZodNullable<z.ZodString>;
+        submittedByName: z.ZodNullable<z.ZodString>;
+        submitNote: z.ZodNullable<z.ZodString>;
         headcount: z.ZodNumber;
         grossRwf: z.ZodNumber;
         netRwf: z.ZodNumber;
@@ -3083,6 +3118,8 @@ export declare const PayRunPage: z.ZodObject<{
         id: string;
         grossRwf: number;
         confirmedAt: string | null;
+        submittedAt: string | null;
+        submittedByName: string | null;
         periodStart: string;
         period: string;
         payeRwf: number;
@@ -3096,12 +3133,16 @@ export declare const PayRunPage: z.ZodObject<{
             configEntryId: string;
         }[];
         confirmedByUserId: string | null;
+        confirmedByName: string | null;
+        submitNote: string | null;
         headcount: number;
     }, {
         status: "confirmed" | "draft";
         id: string;
         grossRwf: number;
         confirmedAt: string | null;
+        submittedAt: string | null;
+        submittedByName: string | null;
         periodStart: string;
         period: string;
         payeRwf: number;
@@ -3115,6 +3156,8 @@ export declare const PayRunPage: z.ZodObject<{
             configEntryId: string;
         }[];
         confirmedByUserId: string | null;
+        confirmedByName: string | null;
+        submitNote: string | null;
         headcount: number;
     }>, "many">;
     total: z.ZodNumber;
@@ -3159,6 +3202,8 @@ export declare const PayRunPage: z.ZodObject<{
         id: string;
         grossRwf: number;
         confirmedAt: string | null;
+        submittedAt: string | null;
+        submittedByName: string | null;
         periodStart: string;
         period: string;
         payeRwf: number;
@@ -3172,6 +3217,8 @@ export declare const PayRunPage: z.ZodObject<{
             configEntryId: string;
         }[];
         confirmedByUserId: string | null;
+        confirmedByName: string | null;
+        submitNote: string | null;
         headcount: number;
     }[];
     total: number;
@@ -3196,6 +3243,8 @@ export declare const PayRunPage: z.ZodObject<{
         id: string;
         grossRwf: number;
         confirmedAt: string | null;
+        submittedAt: string | null;
+        submittedByName: string | null;
         periodStart: string;
         period: string;
         payeRwf: number;
@@ -3209,6 +3258,8 @@ export declare const PayRunPage: z.ZodObject<{
             configEntryId: string;
         }[];
         confirmedByUserId: string | null;
+        confirmedByName: string | null;
+        submitNote: string | null;
         headcount: number;
     }[];
     total: number;

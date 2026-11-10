@@ -13,6 +13,7 @@ import {
   attendanceRecords,
   employees,
   employmentContracts,
+  orgMemberships,
   payRuns,
   payslips,
 } from '../../../database/drizzle/schema';
@@ -36,6 +37,10 @@ export interface PayRunRow {
   ruleVersions: PayRunRuleVersion[];
   confirmedAt: Date | null;
   confirmedByUserId: string | null;
+  confirmedByName: string | null;
+  submittedAt: Date | null;
+  submittedByName: string | null;
+  submitNote: string | null;
   headcount: number;
   grossRwf: number;
   netRwf: number;
@@ -91,6 +96,15 @@ function overSlips(expr: string): SQL<number> {
 }
 
 /**
+ * Who one of the run's own user columns names, as a screen shows a person: the
+ * name, else the email (`accountLabel`). Qualified for the reason `overSlips`
+ * is; `column` is only ever one of the two literals, never input.
+ */
+function accountLabelOf(column: 'confirmed_by_user_id' | 'submitted_by_user_id'): SQL<string | null> {
+  return sql<string | null>`(select coalesce(nullif(btrim(u.name), ''), u.email) from "users" u where u.id = "pay_runs".${sql.raw(`"${column}"`)})`;
+}
+
+/**
  * Pay runs and payslips (ADR-058). The only place that touches Drizzle for
  * them. A confirmed row is never written again: every write below is guarded on
  * the run still being a draft, by the service under the run's row lock.
@@ -108,6 +122,10 @@ export class PayrollRepository {
     ruleVersions: sql<PayRunRuleVersion[]>`${payRuns.ruleVersions}`,
     confirmedAt: payRuns.confirmedAt,
     confirmedByUserId: payRuns.confirmedByUserId,
+    confirmedByName: accountLabelOf('confirmed_by_user_id'),
+    submittedAt: payRuns.submittedAt,
+    submittedByName: accountLabelOf('submitted_by_user_id'),
+    submitNote: payRuns.submitNote,
     headcount: overSlips('count(*)::int'),
     grossRwf: overSlips('coalesce(sum(p.gross_rwf), 0)::bigint'),
     netRwf: overSlips('coalesce(sum(p.net_rwf), 0)::bigint'),
@@ -182,9 +200,18 @@ export class PayrollRepository {
   }
 
   /** Lock the run row for a recompute or a confirm; null when there is none. */
-  async lockRun(tx: Tx, id: string): Promise<{ id: string; orgId: string; status: PayRunStatus; periodStart: string } | null> {
+  async lockRun(
+    tx: Tx,
+    id: string,
+  ): Promise<{ id: string; orgId: string; status: PayRunStatus; periodStart: string; submittedAt: Date | null } | null> {
     const [row] = await tx
-      .select({ id: payRuns.id, orgId: payRuns.orgId, status: payRuns.status, periodStart: payRuns.periodStart })
+      .select({
+        id: payRuns.id,
+        orgId: payRuns.orgId,
+        status: payRuns.status,
+        periodStart: payRuns.periodStart,
+        submittedAt: payRuns.submittedAt,
+      })
       .from(payRuns)
       .where(eq(payRuns.id, id))
       .for('update')
@@ -209,6 +236,18 @@ export class PayrollRepository {
     await tx
       .update(payRuns)
       .set({ ruleVersions, computedAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(payRuns.id, id), eq(payRuns.status, 'draft')));
+  }
+
+  /** Hand a draft to whoever confirms it; `null` takes it back (withdraw). */
+  async markSubmitted(tx: Tx, id: string, by: { userId: string; note: string | null } | null): Promise<void> {
+    await tx
+      .update(payRuns)
+      .set(
+        by
+          ? { submittedAt: new Date(), submittedByUserId: by.userId, submitNote: by.note, updatedAt: new Date() }
+          : { submittedAt: null, submittedByUserId: null, submitNote: null, updatedAt: new Date() },
+      )
       .where(and(eq(payRuns.id, id), eq(payRuns.status, 'draft')));
   }
 
@@ -273,10 +312,15 @@ export class PayrollRepository {
     first: string,
     last: string,
     tx?: Tx,
-  ): Promise<{ employeeId: string; open: boolean; source: AttendanceSource; autoClosed: boolean }[]> {
+  ): Promise<
+    { id: string; employeeId: string; workDate: string; clockInAt: Date; open: boolean; source: AttendanceSource; autoClosed: boolean }[]
+  > {
     if (employeeIds.length === 0) return [];
     const rows = await (tx ?? this.db)
       .select({
+        id: attendanceRecords.id,
+        workDate: attendanceRecords.workDate,
+        clockInAt: attendanceRecords.clockInAt,
         employeeId: attendanceRecords.employeeId,
         status: attendanceRecords.status,
         source: attendanceRecords.source,
@@ -295,7 +339,10 @@ export class PayrollRepository {
         ),
       );
     return rows.map((r) => ({
+      id: r.id,
       employeeId: r.employeeId,
+      workDate: r.workDate,
+      clockInAt: r.clockInAt,
       open: r.status === 'open',
       source: r.source,
       autoClosed: r.autoClosed,
@@ -385,5 +432,15 @@ export class PayrollRepository {
       .where(eq(payslips.payRunId, payRunId))
       .orderBy(asc(employees.employeeNumber));
     return rows;
+  }
+
+  /** The staff files of a business's owners: whose pay only an owner reads. */
+  async ownerEmployeeIds(orgId: string): Promise<Set<string>> {
+    const rows = await this.db
+      .select({ id: employees.id })
+      .from(employees)
+      .innerJoin(orgMemberships, eq(orgMemberships.id, employees.orgMembershipId))
+      .where(and(eq(employees.orgId, orgId), eq(orgMemberships.orgRole, 'owner')));
+    return new Set(rows.map((r) => r.id));
   }
 }

@@ -2,28 +2,18 @@ import {
   CoverQuery,
   ExpiringDocumentQuery,
   HR_PERMISSIONS,
-  HrChecklistQuery,
-  MarkChecklistItemRequest,
+  HrReportQuery,
+  SaveCoverRequest,
+  type HrReport,
   type CoverRequirementList,
   type EmployeeDependantList,
   type ExpiringDocumentList,
-  type HrChecklistItem,
-  type HrChecklistItemList,
   type HrCompensation,
   type HrTeamList,
 } from '@injishi/contracts';
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, ParseUUIDPipe, Put, Query, UseGuards } from '@nestjs/common';
 
+import { HrReportService } from '../../../modules/hr/application/hr-report.service';
 import { HrWorkforceService } from '../../../modules/hr/application/hr-workforce.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
@@ -58,7 +48,20 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 @UseGuards(SessionGuard, WorkspaceGuard)
 @RequireProduct('hr')
 export class OpsHrWorkforceController {
-  constructor(private readonly workforce: HrWorkforceService) {}
+  constructor(
+    private readonly workforce: HrWorkforceService,
+    private readonly reports: HrReportService,
+  ) {}
+
+  /** Everything that took place over a period: staff, attendance, leave, pay and requests. */
+  @Get('report')
+  @RequirePermission('people.manage')
+  report(
+    @Query(new ZodValidationPipe(HrReportQuery)) query: HrReportQuery,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<HrReport> {
+    return this.reports.report(workspace, query);
+  }
 
   @Get('teams')
   @RequireAnyPermission(...HR_PERMISSIONS)
@@ -79,27 +82,6 @@ export class OpsHrWorkforceController {
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<ExpiringDocumentList> {
     return this.workforce.expiringDocuments(workspace, query.withinDays);
-  }
-
-  @Get('checklists')
-  @RequirePermission('people.manage')
-  checklists(
-    @Query(new ZodValidationPipe(HrChecklistQuery)) query: HrChecklistQuery,
-    @CurrentWorkspace() workspace: ScopedWorkspace,
-  ): Promise<HrChecklistItemList> {
-    return this.workforce.checklists(workspace, query.checklist, query.employeeId);
-  }
-
-  @Post('checklist-items/:id')
-  @HttpCode(200)
-  @RequirePermission('people.manage')
-  markChecklistItem(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body(new ZodValidationPipe(MarkChecklistItemRequest)) body: MarkChecklistItemRequest,
-    @CurrentWorkspace() workspace: ScopedWorkspace,
-    @CurrentUser() user: SessionUser,
-  ): Promise<HrChecklistItem> {
-    return this.workforce.markChecklistItem(workspace, user.id, id, body.done);
   }
 
   @Get('dependants')
@@ -130,5 +112,15 @@ export class OpsRosterCoverController {
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<CoverRequirementList> {
     return this.workforce.cover(workspace, query.propertyId);
+  }
+
+  @Put()
+  @RequirePermission('roster.manage')
+  save(
+    @Body(new ZodValidationPipe(SaveCoverRequest)) body: SaveCoverRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<CoverRequirementList> {
+    return this.workforce.saveCover(workspace, user.id, body);
   }
 }

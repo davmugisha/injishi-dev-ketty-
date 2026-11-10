@@ -40,6 +40,8 @@ export interface Shift {
   area: string | null;
   isToday: boolean;
   isOff: boolean;
+  /** A different shift was asked for that day, and is waiting. */
+  changePending?: boolean;
   /** First name of the colleague a swap is pending with. */
   swapPendingWith: string | null;
 }
@@ -51,6 +53,49 @@ export interface SwapColleague {
   first: string;
   note: string;
   busy: boolean;
+}
+
+/** What a person may ask for on their schedule, and what came of swaps they answered. */
+export interface ShiftChoices {
+  shifts: { id: string; name: string; hours: string }[];
+  rotations: { id: string; name: string; steps: string[] }[];
+  current: { name: string; since: string } | null;
+  answered: { id: string; from: string; when: string; status: "waiting" | "approved" | "declined"; note: string }[];
+}
+
+/** A swap a colleague asked of this person, waiting for their yes or no (058-time AC-TM5). */
+export interface SwapAsk {
+  id: string;
+  /** Who asks, their first name and initials. */
+  from: string;
+  first: string;
+  initials: string;
+  /** "Sat 17 Oct", or "Sat 17 Oct – Sun 18 Oct". */
+  when: string;
+  /** What they said. */
+  note: string;
+}
+
+/** A loan or salary advance of the person's, as their phone lists it: read only, HR records them. */
+export interface StaffLoan {
+  id: string;
+  /** "RWF 100,000 · Salary advance". */
+  title: string;
+  meta: string;
+  chip: string;
+  tone: StaffTone;
+}
+
+/** Money a person asked back for, as their phone lists it. */
+export interface StaffClaim {
+  id: string;
+  /** "RWF 12,000 · Taxi to the supplier". */
+  title: string;
+  meta: string;
+  chip: string;
+  tone: StaffTone;
+  /** Still waiting: the person may take it back. */
+  canCancel: boolean;
 }
 
 export type RequestStatus = "colleague" | "manager" | "approved" | "declined" | "cancelled";
@@ -121,6 +166,8 @@ export interface Payslip {
   rules: string;
   payTo: string;
   lines: PayslipLine[];
+  /** The payslip as a PDF the person downloads, when it comes from their own file. */
+  pdfHref?: string;
 }
 
 export interface StaffDocument {
@@ -130,6 +177,8 @@ export interface StaffDocument {
   meta: string;
   chip: string;
   tone: StaffTone;
+  /** HR asked for it, or sent it back: the person sends a photo of it from the phone. */
+  canSend?: boolean;
 }
 
 export interface LoanedAsset {
@@ -147,6 +196,30 @@ export interface HelpTicket {
   meta: string;
   chip: string;
   tone: StaffTone;
+  /** HR's last answer, when there is one. */
+  answer?: string | null;
+}
+
+/** Something HR posted that is for this person. */
+export interface StaffAnnouncement {
+  id: string;
+  title: string;
+  body: string;
+  /** "6 Nov · until 20 Nov". */
+  meta: string;
+}
+
+/** The person's own review: where it stands, and whether their part can still be written. */
+export interface StaffOwnReview {
+  id: string;
+  title: string;
+  /** "1 Nov – 30 Nov". */
+  meta: string;
+  chip: string;
+  tone: StaffTone;
+  /** What they wrote. */
+  note: string | null;
+  canWrite: boolean;
 }
 
 export interface HelpTopic {

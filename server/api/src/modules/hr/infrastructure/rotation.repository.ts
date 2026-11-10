@@ -141,6 +141,14 @@ export class RotationRepository {
   }
 
   /** A business's assignments in the caller's branches: open ones, or every one. */
+  /** The rotation a person is on now, if any. */
+  async runningFor(employeeId: string): Promise<AssignmentRow | null> {
+    const [row] = await this.assignmentQuery()
+      .where(and(eq(rotationAssignments.employeeId, employeeId), isNull(rotationAssignments.endsOn)))
+      .limit(1);
+    return (row as AssignmentRow | undefined) ?? null;
+  }
+
   async assignments(input: { orgId: string; scope: BranchScope; patternId?: string; includeEnded: boolean }): Promise<AssignmentRow[]> {
     const where = [eq(rotationAssignments.orgId, input.orgId), inBranchScope(rotationPatterns.propertyId, input.scope)];
     if (input.patternId) where.push(eq(rotationAssignments.patternId, input.patternId));

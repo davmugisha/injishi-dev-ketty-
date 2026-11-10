@@ -40,6 +40,7 @@ exports.LEGACY_PERMISSION_KEY = {
     "guest.register": "property.guest.register",
     // Still the lock only an owner holds, under its new name.
     "team.manage": "account.team.manage",
+    "team.invite": "account.team.invite",
     "department.manage": "account.department.manage",
     "money.view": "finance.money.view",
     "ebm.manage": "fiscal.ebm.manage",

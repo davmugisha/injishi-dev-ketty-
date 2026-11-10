@@ -29,7 +29,16 @@ import { useRouter } from "next/navigation";
 import type { RegistrationEvent } from "@/server/admin/registrations";
 import { EntityMark } from "../list/stat-cards";
 import { FactRow } from "../shared";
-import { eventWords, kindWords, STAGE, STAGE_WORDS, STEP_INDEX, STEPS, StarGradeSection } from "./RegistrationsView";
+import {
+  eventWords,
+  HrFeaturesSection,
+  kindWords,
+  STAGE,
+  STAGE_WORDS,
+  STEP_INDEX,
+  STEPS,
+  StarGradeSection,
+} from "./RegistrationsView";
 
 const INVOICE_KIND = { registration_fee: "Registration fee", subscription: "Subscription" } as const;
 const INVOICE_TONE = { pending: "warning", paid: "success", failed: "danger" } as const;
@@ -179,6 +188,7 @@ export function BusinessView({
                 <EventTimeline label={`History of ${org.legalName}`} events={history} />
               </div>
             </SectionCard>
+            <HrFeaturesSection orgId={org.id} />
           </div>
         </Tabs.Panel>
 

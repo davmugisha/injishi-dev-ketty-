@@ -5,7 +5,9 @@ import { resolvePinPepper } from '../../shared/config/security.config';
 import { PLATFORM, type Platform } from '../../shared/config/platform';
 import { isWorkerProcess } from '../../shared/process/process-role';
 import { ListsModule } from '../lists/lists.module';
+import { MailerModule } from '../mailer/mailer.module';
 import { StorageModule } from '../storage/storage.module';
+import { HrFeaturesModule } from './hr-features.module';
 import { AttendanceCloser } from './application/attendance-closer';
 import { AttendanceInsightsService } from './application/attendance-insights.service';
 import { AttendanceSweepService } from './application/attendance-sweep.service';
@@ -14,6 +16,7 @@ import { EmployeesService } from './application/employees.service';
 import { HrContentService } from './application/hr-content.service';
 import { HrDailyService } from './application/hr-daily.service';
 import { HrFilesService } from './application/hr-files.service';
+import { HrReportService } from './application/hr-report.service';
 import { HrWorkforceService } from './application/hr-workforce.service';
 import { KioskService } from './application/kiosk.service';
 import { LeaveAllocationsService } from './application/leave-allocations.service';
@@ -21,6 +24,7 @@ import { LeaveTypesService } from './application/leave-types.service';
 import { LeaveService } from './application/leave.service';
 import { LoansService } from './application/loans.service';
 import { MyLeaveService } from './application/my-leave.service';
+import { MyContentService } from './application/my-content.service';
 import { MyDocumentsService } from './application/my-documents.service';
 import { MyPayService } from './application/my-pay.service';
 import { MyStaffService } from './application/my-staff.service';
@@ -29,6 +33,11 @@ import { MyWorkService } from './application/my-work.service';
 import { PayAdjustmentsService } from './application/pay-adjustments.service';
 import { PayClaimsService } from './application/pay-claims.service';
 import { PayComponentsService } from './application/pay-components.service';
+import { HrDeskService } from './application/hr-desk.service';
+import { ApplicationsService } from './application/applications.service';
+import { TalentService } from './application/talent.service';
+import { TalentMailer } from './infrastructure/talent.mailer';
+import { PayrollContributionsService } from './application/payroll-contributions.service';
 import { PayFilesService } from './application/pay-files.service';
 import { PayRunsService } from './application/pay-runs.service';
 import { PayrollViewsService } from './application/payroll-views.service';
@@ -43,6 +52,7 @@ import { EmployeesRepository } from './infrastructure/employees.repository';
 import { HrContentRepository } from './infrastructure/hr-content.repository';
 import { HrDailyProcessor } from './infrastructure/hr-daily.processor';
 import { HrRulesRepository } from './infrastructure/hr-rules.repository';
+import { HrReportRepository } from './infrastructure/hr-report.repository';
 import { HrWorkforceRepository } from './infrastructure/hr-workforce.repository';
 import { KioskRepository } from './infrastructure/kiosk.repository';
 import { LeaveExtraRepository } from './infrastructure/leave-extra.repository';
@@ -85,7 +95,7 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
 @Module({
   // The list framework: export rules and the export log (058-list-framework).
   // Storage: photos, documents and attachments, private, behind short links.
-  imports: [ListsModule, StorageModule],
+  imports: [ListsModule, StorageModule, MailerModule, HrFeaturesModule],
   providers: [
     EmployeesRepository,
     TimeRepository,
@@ -107,6 +117,8 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     ChecklistsRepository,
     MyStaffRepository,
     HrWorkforceRepository,
+    HrReportRepository,
+    ChecklistsRepository,
     {
       provide: HR_PIN_PEPPER,
       inject: [ConfigService, PLATFORM],
@@ -124,6 +136,8 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     HrContentService,
     ChecklistsService,
     HrWorkforceService,
+    HrReportService,
+    ChecklistsService,
     TimeService,
     RotationService,
     TimeRequestsService,
@@ -144,10 +158,17 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     LoansService,
     PayClaimsService,
     PayComponentsService,
+    PayrollContributionsService,
+    HrDeskService,
+    TalentService,
+    TalentMailer,
+    ApplicationsService,
     PayrollViewsService,
     MyPayService,
     MyDocumentsService,
+    MyContentService,
     MyStaffService,
+    MyDocumentsService,
     HrDailyService,
     ...(isWorkerProcess() ? [HrDailyProcessor] : []),
   ],
@@ -173,15 +194,22 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     PayClaimsService,
     PayAdjustmentsService,
     PayComponentsService,
+    PayrollContributionsService,
+    HrDeskService,
+    TalentService,
+    ApplicationsService,
     PayrollViewsService,
     MyPayService,
     MyDocumentsService,
+    MyContentService,
     HrDailyService,
     HrFilesService,
     PeopleFileService,
     HrContentService,
     ChecklistsService,
     HrWorkforceService,
+    HrReportService,
+    ChecklistsService,
   ],
 })
 export class PeopleModule {}

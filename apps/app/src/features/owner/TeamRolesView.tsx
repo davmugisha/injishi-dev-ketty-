@@ -13,6 +13,7 @@ import type {
 import { LinkButton, PageContent, SectionHeader, toneColor } from "@injishi/ui";
 import { type ReactNode, useMemo, useState } from "react";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
+import { TeamRolesAccessRequests } from "./TeamRolesAccessRequests";
 import {
   cancelTeamInvite,
   changeTeamMember,
@@ -452,6 +453,7 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
         </Tabs.ListContainer>
 
         <Tabs.Panel id="members" className="flex flex-col gap-5 p-0">
+          <TeamRolesAccessRequests requests={data.accessRequests ?? []} />
           <section className="flex flex-col gap-2.5" aria-labelledby="mem-h">
             <SectionHeader
               id="mem-h"

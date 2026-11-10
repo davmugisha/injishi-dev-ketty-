@@ -45,6 +45,29 @@ export interface PayLine {
   isException: boolean;
   /** How the line was calculated (shown in the Pay Line card). */
   note: string | null;
+  /** A live line: whose payslip it is. */
+  employeeId?: string;
+  /**
+   * A live line: the figures the API computed, which the board shows instead of
+   * working them out from `PayRates` (the sample board has none and does).
+   */
+  /** The owner's own pay, read by someone who is not the owner: counted in the totals, figures hidden. */
+  confidential?: boolean;
+  figures?: {
+    gross: number;
+    paye: number;
+    /** Employee RSSB contributions. */
+    rssb: number;
+    /** Everything else withheld: loans, advances, deductions. */
+    otherDeductions: number;
+    /** Paid with the net and not income: a claim paid back, a loan paid out. */
+    nonIncome: number;
+    /** What that money is, in words. */
+    nonIncomeLabel: string | null;
+    net: number;
+    /** Employer contributions. */
+    employer: number;
+  };
 }
 
 export interface PayRunStep {
@@ -63,6 +86,20 @@ export interface PayRunException {
   reviewed: boolean;
   /** Pay line the exception explains (selected when it is reviewed). */
   lineId: string | null;
+  /**
+   * A live exception: something that stops the month (a blocker), as opposed to
+   * a line worth a look. A blocker is fixed on the person's file, or the person
+   * is paid next month (`canHold`).
+   */
+  blocker?: boolean;
+  employeeId?: string | null;
+  canHold?: boolean;
+  /** The API's blocker code (`missing_rssb_number`, `missing_id`, `open_attendance`...): what fixes it. */
+  code?: string;
+  /** The person's name, for a blocker about one person. */
+  who?: string;
+  /** A clock record that stops the month: its id, day and clock-in time (ISO). */
+  record?: { id: string; workDate: string; clockInAt: string };
 }
 
 export interface PayRunRule {
@@ -90,6 +127,8 @@ export interface FinalSettlement {
   payLabel: string;
   leaveLabel: string;
   advanceLabel: string;
+  /** What the person is paid beyond the wage and allowances, line by line: unused leave, overtime, a correction. */
+  parts: { label: string; amount: number; kind: "leave" | "other" }[];
   board: BoardId;
 }
 
@@ -102,6 +141,8 @@ export interface PaymentFile {
   /** Gate once the owner confirmed the run (before that: "After confirmation"). */
   confirmedGate: string;
   confirmedIcon: IconName;
+  /** A live file: the export it builds (`POST /ops/pay-runs/:id/exports`). */
+  kind?: "bank" | "momo" | null;
 }
 
 export interface PayRunOutput {
@@ -111,6 +152,42 @@ export interface PayRunOutput {
   meta: string;
   /** "release": waits for payment file release; "confirmation": ready once the run is confirmed. */
   readyAfter: "release" | "confirmation";
+  /** A live output: the declaration it builds (`POST /ops/pay-runs/:id/declarations`). */
+  kind?: "paye" | "rssb" | null;
+}
+
+/**
+ * Where the run on the board stands, and what the person looking may do. One
+ * document. On the sample board the stage comes from the address (?stage=);
+ * a live board reads it from the run.
+ */
+export interface PayRunState {
+  id: string;
+  live: boolean;
+  /** The run on the board, or null when the business has none yet. */
+  runId: string | null;
+  /** "2026-10". */
+  period: string;
+  stage: PayRunStage;
+  eyebrow: string;
+  title: string;
+  description: string;
+  /** Who prepared it, and who confirms it (the owner, `payroll.run`). */
+  preparerName: string;
+  confirmerName: string;
+  /** "Thu 8 Oct 09:40", when it was submitted. */
+  submittedLabel: string | null;
+  submitNote: string | null;
+  /** "Didier Mugenzi · Mon 12 Oct 11:20". */
+  confirmedLabel: string | null;
+  /** The person may draft (`payroll.draft`) and may confirm (`payroll.run`). */
+  canPrepare: boolean;
+  canConfirm: boolean;
+  /** A month with no run yet that may be prepared next ("2026-11"), and its name. */
+  nextPeriod: string | null;
+  nextPeriodLabel: string | null;
+  /** Things that stop the month: fixed on a file, or paid next month. */
+  blockerCount: number;
 }
 
 export interface PayRunHistory {
@@ -118,6 +195,11 @@ export interface PayRunHistory {
   period: string;
   staff: number;
   net: number;
+  /** A live month's other totals, for the change on this month's figures. */
+  gross?: number;
+  paye?: number;
+  /** The employee RSSB share. */
+  rssb?: number;
   preparedBy: string;
   preparedAt: string;
   confirmedBy: string;
@@ -291,6 +373,29 @@ const payLines: PayLine[] = [
   },
 ];
 
+const payRunState: PayRunState[] = [
+  {
+    id: "october-2026",
+    live: false,
+    runId: null,
+    period: "2026-10",
+    stage: "submitted",
+    eyebrow: "People › Pay run · period 1–31 October 2026 · pay date Friday 23 October",
+    title: "October 2026 pay run",
+    description:
+      "Amahoro Hospitality Ltd (44 staff) and Amahoro Residences Ltd (4 staff). Each employer files its own declarations.",
+    preparerName: "Diane Ingabire",
+    confirmerName: "Didier Mugenzi",
+    submittedLabel: "Fri 9 Oct",
+    submitNote: null,
+    confirmedLabel: "Didier Mugenzi · today 11:20",
+    canPrepare: true,
+    canConfirm: false,
+    nextPeriod: null,
+    nextPeriodLabel: null,
+    blockerCount: 0,
+  },
+];
 const payRunSteps: PayRunStep[] = [
   { id: "draft", title: "Draft", desc: "Diane Ingabire · Thu 8 Oct", confirmedDesc: null },
   { id: "review", title: "Review", desc: "Checks passed · Fri 9 Oct", confirmedDesc: null },
@@ -379,6 +484,7 @@ const finalSettlements: FinalSettlement[] = [
     payLabel: "Pay 1–20 Oct (20 of 31 days)",
     leaveLabel: "Untaken leave, 6 days",
     advanceLabel: "Advance recovered",
+    parts: [{ label: "Unused leave", amount: (170000 / 26) * 6, kind: "leave" }],
     board: "Employees",
   },
 ];
@@ -450,6 +556,9 @@ const payRunHistory: PayRunHistory[] = [
     period: "September 2026",
     staff: 47,
     net: 19412300,
+    gross: 25814229,
+    paye: 4956332,
+    rssb: 1703739,
     preparedBy: "Diane Ingabire",
     preparedAt: "23 Sep 15:02",
     confirmedBy: "Didier Mugenzi",
@@ -464,6 +573,9 @@ const payRunHistory: PayRunHistory[] = [
     period: "August 2026",
     staff: 46,
     net: 19020750,
+    gross: 25293551,
+    paye: 4856362,
+    rssb: 1669374,
     preparedBy: "Diane Ingabire",
     preparedAt: "24 Aug 11:20",
     confirmedBy: "Didier Mugenzi",
@@ -478,6 +590,9 @@ const payRunHistory: PayRunHistory[] = [
     period: "July 2026",
     staff: 46,
     net: 18996400,
+    gross: 25261170,
+    paye: 4850145,
+    rssb: 1667237,
     preparedBy: "Didier Mugenzi",
     preparedAt: "24 Jul 16:45",
     confirmedBy: "Didier Mugenzi",
@@ -527,7 +642,7 @@ export interface RuleGovernanceStep {
   detail: string;
 }
 
-const AWAITING = "Awaiting payroll expert sign-off";
+const AWAITING = "Awaiting sign-off";
 const RSSB_ROWS = [
   ["Pension", "6% of gross", "6% of gross"],
   ["Maternity leave", "0.3% of gross", "0.3% of gross"],
@@ -689,7 +804,7 @@ const ruleSets: RuleSet[] = [
     eff: "1 Nov 2026",
     effRange: "Proposed from 1 November 2026",
     status: "draft",
-    statusLabel: "Draft · awaiting sign-off and owner approval",
+    statusLabel: "Draft · awaiting approvals",
     kind: "Proposed change",
     source: "RSSB notice on community-based health insurance deductions, PDF uploaded 9 Oct 2026",
     by: "Proposed by Diane Ingabire · 9 Oct 2026",
@@ -708,7 +823,7 @@ const ruleSets: RuleSet[] = [
         change: "added",
       },
     ],
-    note: "Adds a line that the current version does not apply. Not used by any run until signed off, approved and effective.",
+    note: "Adds community-based health insurance.",
     history: [
       { title: "v2026-11 · draft", detail: "Proposed 9 Oct 2026 by Diane Ingabire", status: "current" },
       { title: "v2026-01 · current", detail: "From 1 Jan 2026 · awaiting sign-off", status: "default" },
@@ -722,25 +837,25 @@ const ruleGovernance: RuleGovernanceStep[] = [
     id: "source",
     icon: "Paperclip",
     title: "Propose with a source",
-    detail: "A version without an attached publication or opinion cannot be submitted.",
+    detail: "Attach the publication.",
   },
   {
     id: "expert",
     icon: "SealCheck",
     title: "Payroll expert signs off",
-    detail: "Statutory sets only. Until then they show as configured, not verified.",
+    detail: "Statutory sets only.",
   },
   {
     id: "owner",
     icon: "Person",
     title: "Owner approves",
-    detail: "Didier Mugenzi. The proposer cannot approve their own version.",
+    detail: "Not the proposer.",
   },
   {
     id: "effective",
     icon: "Calendar",
     title: "Applies from its effective date",
-    detail: "Each pay run keeps the versions it used, so history stays explainable.",
+    detail: "Past runs keep their versions.",
   },
 ];
 
@@ -1439,7 +1554,7 @@ const hrReports: HrReport[] = [
     id: "abs",
     icon: "Clock",
     title: "Absence and lateness",
-    detail: "Names shown only to HR and each line manager for their own team",
+    detail: "Names: HR and own line manager only",
     ownerOnly: false,
   },
   {
@@ -1469,31 +1584,31 @@ const hrAutomations: HrAutomation[] = [
   {
     id: "exp",
     title: "Contract-expiry reminders",
-    detail: "30 days before a fixed-term contract ends · to HR and the line manager",
+    detail: "30 days before a contract ends",
     privacy: "Shares name, role and end date. Never salary.",
-    lastRun: "Last ran today 06:00 · 2 reminders (Claudine Mukamana, Celestin Ndagijimana)",
+    lastRun: "Today 06:00 · 2 reminders",
     enabled: true,
   },
   {
     id: "prob",
     title: "Probation ending",
-    detail: "14 days before · the line manager gets the review form",
+    detail: "14 days before probation ends",
     privacy: "Shares name and probation end date only.",
-    lastRun: "Last ran today 06:00 · 1 reminder (Yvonne Uwase)",
+    lastRun: "Today 06:00 · 1 reminder",
     enabled: true,
   },
   {
     id: "doc",
     title: "Document expiry",
-    detail: "Medical certificates and IDs, 21 days before · to the employee and HR",
+    detail: "21 days before a document expires",
     privacy: "Says which document, never its contents.",
-    lastRun: "Last ran today 06:00 · 1 reminder (Rose Mukandayisenga)",
+    lastRun: "Today 06:00 · 1 reminder",
     enabled: true,
   },
   {
     id: "leaver",
     title: "Leaver access reminder",
-    detail: "On the last day at 09:00 · asks the owner to revoke the Injishi login and kiosk PIN",
+    detail: "Last day · owner revokes access",
     privacy: "Goes to the owner only.",
     lastRun: "Next: Pacifique Mugabo, 20 Oct 09:00",
     enabled: true,
@@ -1501,7 +1616,7 @@ const hrAutomations: HrAutomation[] = [
   {
     id: "bday",
     title: "Birthday greetings in the staff app",
-    detail: "Posted to the team channel on the day",
+    detail: "Team channel, on the day",
     privacy: "Only for staff who opted in · 12 of 48 have.",
     lastRun: null,
     enabled: false,
@@ -1517,6 +1632,7 @@ const hrAutomations: HrAutomation[] = [
 ];
 
 export const fixtures = {
+  "payroll.payRunState": payRunState,
   "payroll.payRates": payRates,
   "payroll.payLines": payLines,
   "payroll.payRunSteps": payRunSteps,

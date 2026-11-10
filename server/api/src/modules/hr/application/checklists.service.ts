@@ -212,7 +212,11 @@ export class ChecklistsService {
     }
   }
 
-  /** `people.manage` ticks or unticks any task of a file in its branches. */
+  /**
+   * `people.manage` ticks or unticks any task of a file in its branches. A task
+   * marked owner only (taking an account away, which is staffing the business)
+   * also needs `team.manage`, the owner's alone (AC-O2).
+   */
   async setDone(ws: ScopedWorkspace, userId: string, taskId: string, done: boolean): Promise<EmployeeChecklist> {
     const orgId = orgOf(ws);
     const task = await this.checklists.findTask(taskId);
@@ -220,6 +224,9 @@ export class ChecklistsService {
     const checklist = await this.checklists.findChecklist(task.checklistId);
     if (!checklist) throw new NotFoundException();
     assertInBranchScope(ws, checklist.workPropertyId);
+    if (task.ownerOnly && !ws.permissions.includes('team.manage')) {
+      throw new ForbiddenException('Only someone who manages the team can tick this step.');
+    }
     await this.mark(task, checklist, userId, done);
     return this.checklist(checklist.id);
   }
@@ -323,8 +330,11 @@ export class ChecklistsService {
     }
     return items.map((item, index) => ({
       label: item.label.trim(),
+      code: item.code ?? null,
+      detail: item.detail?.trim() || null,
       sortOrder: index,
       byEmployee: item.byEmployee ?? false,
+      ownerOnly: item.ownerOnly ?? false,
       dueAfterDays: item.dueAfterDays ?? 0,
       jobPositionId: item.jobPositionId ?? null,
     }));
@@ -353,7 +363,10 @@ function presentTemplate(row: TemplateRow, items: readonly TemplateItemRow[]): C
       .map((item) => ({
         id: item.id,
         label: item.label,
+        code: item.code,
+        detail: item.detail,
         byEmployee: item.byEmployee,
+        ownerOnly: item.ownerOnly,
         dueAfterDays: item.dueAfterDays,
         jobPosition: item.jobPositionId && item.jobPositionTitle ? { id: item.jobPositionId, title: item.jobPositionTitle } : null,
       })),
@@ -373,7 +386,10 @@ function presentChecklist(row: ChecklistRow, tasks: readonly TaskRow[], today: s
     tasks: own.map((task) => ({
       id: task.id,
       label: task.label,
+      code: task.code,
+      detail: task.detail,
       byEmployee: task.byEmployee,
+      ownerOnly: task.ownerOnly,
       dueOn: task.dueOn,
       doneAt: task.doneAt ? task.doneAt.toISOString() : null,
       doneByName: task.doneByName,

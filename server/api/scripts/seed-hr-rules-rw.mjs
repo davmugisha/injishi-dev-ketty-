@@ -9,7 +9,8 @@
  * rules, beside the placeholders, never over them:
  *
  *   hr.rw.paye              the four monthly bands
- *   hr.rw.rssb              pension, maternity leave, occupational hazards
+ *   hr.rw.rssb              pension, maternity leave, occupational hazards, and two a
+ *                           business chooses: CBHI and RSSB's medical scheme
  *   hr.rw.public_holidays   the 2026 calendar
  *
  * THIS IS NOT THE ACCOUNTANT'S SHEET, and it does not replace it. The figures
@@ -33,9 +34,6 @@
  *   - The default leave types: they only shape a business created later.
  *   - A leaver's settlement and the declaration formats: nothing published to
  *     copy.
- *   - CBHI (0.5% of NET pay): no contribution base here is net pay.
- *   - RSSB's medical scheme (7.5% and 7.5% of basic): a private employer joins
- *     it by choice.
  *   - 2027's holidays: the Eid dates are not announced.
  * Those rules keep their placeholder rows and their DEMO SAMPLE DATA note.
  *
@@ -74,11 +72,13 @@ const RULES = [
     // Presidential Order 086/01, gazetted 13 December 2024: the pension rate from January 2025.
     effectiveFrom: '2025-01-01T00:00:00+02:00',
     value: {
-      note: `${UNCONFIRMED} Pension is 6% each since January 2025 (Presidential Order 086/01, as reported by EY and by RSSB), on pay including the transport allowance, and is due to rise each year from January 2027. Maternity leave is 0.3% each. Occupational hazards is 2%, paid by the business alone; one source says 1%. ${LOOKED_UP}`,
+      note: `${UNCONFIRMED} Pension is 6% each since January 2025 (Presidential Order 086/01, as reported by EY and by RSSB), on pay including the transport allowance, and is due to rise by 2 points a year from January 2027 to 20% in 2030. Maternity leave is 0.3% each (RRA). Occupational hazards is 2%, paid by the business alone (RSSB); one source says 1%. CBHI is 0.5% of net salary, paid by the employee and withheld by the business (Prime Minister's Order 034/01 of 2020, RRA): optional here, on unless the business switches it off. RSSB's medical scheme is 7.5% each of basic salary (RRA): a private employer joins it by choice, so it is off unless switched on. Looked up on 22 October 2026.`,
       contributions: [
         { code: 'pension', label: 'Pension', base: 'gross', employeeRate: 0.06, employerRate: 0.06 },
         { code: 'maternity', label: 'Maternity leave', base: 'contributable', employeeRate: 0.003, employerRate: 0.003 },
         { code: 'occupational_hazards', label: 'Occupational hazards', base: 'gross', employeeRate: 0, employerRate: 0.02 },
+        { code: 'cbhi', label: 'Community-based health insurance (CBHI)', base: 'net', employeeRate: 0.005, employerRate: 0, optional: true, defaultOn: true },
+        { code: 'medical_scheme', label: 'RSSB medical scheme', base: 'basic', employeeRate: 0.075, employerRate: 0.075, optional: true, defaultOn: false },
       ],
     },
   },

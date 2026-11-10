@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateOrgHolidayRequest = exports.OrgHolidayList = exports.OrgHoliday = exports.KioskPunchResult = exports.KioskPunchRequest = exports.KioskSession = exports.KioskPairRequest = exports.KioskPinState = exports.ChangeMyKioskPinRequest = exports.SetKioskPinRequest = exports.UnlockKioskPinRequest = exports.KioskPairingCode = exports.CreateKioskRequest = exports.KioskList = exports.Kiosk = exports.KioskStatus = exports.PutBranchClockSettingsRequest = exports.PutAttendancePolicyRequest = exports.AttendanceSettings = exports.BranchClockSettings = exports.AttendancePolicy = exports.DecideOvertimeRequest = exports.CreateMyAttendanceRequestRequest = exports.CreateAttendanceRequestRequest = exports.AttendanceRequest = exports.AttendanceRequestStatus = exports.DecideRequestBody = exports.CreateMyShiftRequestRequest = exports.CreateShiftRequestRequest = exports.ShiftRequest = exports.ShiftRequestStatus = exports.ShiftRequestKind = exports.EndRotationAssignmentRequest = exports.CreateRotationAssignmentRequest = exports.RotationAssignmentQuery = exports.RotationAssignmentList = exports.RotationAssignment = exports.UpdateRotationPatternRequest = exports.CreateRotationPatternRequest = exports.RotationPatternQuery = exports.RotationPatternList = exports.RotationPattern = exports.RotationPatternStatus = exports.RotationStep = exports.RotationRule = exports.RosterWeekQuery = exports.RosterWeek = exports.RosterPublicationList = exports.RosterPublication = exports.PublishRosterRequest = void 0;
-exports.MyTeamRequests = exports.TeamRequestsQuery = exports.TeamRequestKind = exports.MyTeamAttendance = exports.MyTeamRoster = exports.MyTeam = exports.MyMonthlySummary = exports.MonthQuery = exports.MyAttendanceRequestList = exports.MyAttendance = exports.MyShiftOptions = exports.MyShiftRequestList = exports.MyRoster = exports.RangeQuery = exports.MyWorkToday = exports.MyWorkTodayShift = exports.PhoneClockResult = exports.PhoneClockRequest = exports.MyWorkFileList = exports.MyWorkFile = exports.MonthlyQuery = exports.InsightsQuery = exports.MonthlySummary = exports.MonthlySummaryRow = exports.LateEarlyReport = exports.LateEarlyRow = exports.UpdateWeeklyOffRequest = exports.CreateWeeklyOffRequest = exports.WeeklyOffList = exports.WeeklyOff = exports.UpdateOrgHolidayRequest = void 0;
+exports.KioskQr = exports.KioskPunchResult = exports.KioskPunchRequest = exports.KioskSession = exports.KioskPairRequest = exports.KioskPinState = exports.CheckMyKioskPinRequest = exports.ChangeMyKioskPinRequest = exports.SetKioskPinRequest = exports.UnlockKioskPinRequest = exports.KioskPairingCode = exports.CreateKioskRequest = exports.KioskList = exports.Kiosk = exports.KioskStatus = exports.PutBranchClockSettingsRequest = exports.PutAttendancePolicyRequest = exports.AttendanceSettings = exports.BranchClockSettings = exports.ClockMode = exports.AttendancePolicy = exports.DecideOvertimeRequest = exports.CreateMyAttendanceRequestRequest = exports.CreateAttendanceRequestRequest = exports.AttendanceRequest = exports.AttendanceRequestStatus = exports.DecideRequestBody = exports.CreateMyShiftRequestRequest = exports.CreateShiftRequestRequest = exports.ShiftRequest = exports.ShiftRequestStatus = exports.ShiftRequestKind = exports.EndRotationAssignmentRequest = exports.CreateRotationAssignmentRequest = exports.RotationAssignmentQuery = exports.RotationAssignmentList = exports.RotationAssignment = exports.UpdateRotationPatternRequest = exports.CreateRotationPatternRequest = exports.RotationPatternQuery = exports.RotationPatternList = exports.RotationPattern = exports.RotationPatternStatus = exports.RotationStep = exports.RotationRule = exports.RosterWeekQuery = exports.RosterWeek = exports.RosterPublicationList = exports.RosterPublication = exports.PublishRosterRequest = void 0;
+exports.MyTeamRequests = exports.TeamRequestsQuery = exports.TeamRequestKind = exports.MyTeamAttendance = exports.MyTeamRoster = exports.MyTeam = exports.MyMonthlySummary = exports.MonthQuery = exports.MyAttendanceRequestList = exports.MyAttendance = exports.MyShiftOptions = exports.MyShiftRequestList = exports.MyRoster = exports.RangeQuery = exports.MyWorkToday = exports.MyWorkTodayShift = exports.FarClockIns = exports.MyClock = exports.PhoneClockResult = exports.PhoneClockRequest = exports.MyWorkFileList = exports.MyWorkFile = exports.MonthlyQuery = exports.InsightsQuery = exports.MonthlySummary = exports.MonthlySummaryRow = exports.LateEarlyReport = exports.LateEarlyRow = exports.UpdateWeeklyOffRequest = exports.CreateWeeklyOffRequest = exports.WeeklyOffList = exports.WeeklyOff = exports.UpdateOrgHolidayRequest = exports.CreateOrgHolidayRequest = exports.OrgHolidayList = exports.OrgHoliday = void 0;
 const zod_1 = require("zod");
 const leave_1 = require("./leave");
 const offline_1 = require("./offline");
@@ -150,7 +150,7 @@ exports.EndRotationAssignmentRequest = zod_1.z.object({ endsOn: IsoDate });
 // ---------------------------------------------------------------------------
 // Shift and swap requests (AC-TM5)
 // ---------------------------------------------------------------------------
-exports.ShiftRequestKind = zod_1.z.enum(["change", "swap"]);
+exports.ShiftRequestKind = zod_1.z.enum(["change", "swap", "rotation"]);
 exports.ShiftRequestStatus = zod_1.z.enum(["requested", "awaiting_colleague", "approved", "rejected", "cancelled"]);
 exports.ShiftRequest = zod_1.z.object({
     id: Uuid,
@@ -159,6 +159,8 @@ exports.ShiftRequest = zod_1.z.object({
     kind: exports.ShiftRequestKind,
     shiftTemplate: zod_1.z.object({ id: Uuid, name: zod_1.z.string() }).nullable(),
     swapWith: people_1.RosterCard.nullable(),
+    /** The rotation asked to join (`rotation`). */
+    rotation: zod_1.z.object({ id: Uuid, name: zod_1.z.string() }).nullable(),
     fromDate: IsoDate,
     toDate: IsoDate,
     reason: zod_1.z.string(),
@@ -177,11 +179,13 @@ const ShiftRange = zod_1.z.object({ from: IsoDate, to: IsoDate, reason: Reason }
 exports.CreateShiftRequestRequest = zod_1.z.discriminatedUnion("kind", [
     ShiftRange.extend({ kind: zod_1.z.literal("change"), employeeId: Uuid, shiftTemplateId: Uuid }),
     ShiftRange.extend({ kind: zod_1.z.literal("swap"), employeeId: Uuid, swapEmployeeId: Uuid }),
+    ShiftRange.extend({ kind: zod_1.z.literal("rotation"), employeeId: Uuid, rotationPatternId: Uuid }),
 ]).superRefine(rangeRefine);
 /** The same, raised by the person through self service: their own file is the path. */
 exports.CreateMyShiftRequestRequest = zod_1.z.discriminatedUnion("kind", [
     ShiftRange.extend({ kind: zod_1.z.literal("change"), shiftTemplateId: Uuid }),
     ShiftRange.extend({ kind: zod_1.z.literal("swap"), swapEmployeeId: Uuid }),
+    ShiftRange.extend({ kind: zod_1.z.literal("rotation"), rotationPatternId: Uuid }),
 ]).superRefine(rangeRefine);
 exports.DecideRequestBody = zod_1.z.object({ note: Note.nullable().optional() });
 // ---------------------------------------------------------------------------
@@ -258,9 +262,20 @@ exports.AttendancePolicy = PolicyFields.extend({
     saved: zod_1.z.boolean(),
 });
 const Centre = zod_1.z.object({ lat: zod_1.z.number().min(-90).max(90), lng: zod_1.z.number().min(-180).max(180) });
+/**
+ * How staff of a branch clock themselves in (058-time, clock-in rules):
+ * `anywhere` from their phone, the far ones waiting for HR; `at_work` from
+ * their phone, refused away from work; `entrance` only by the tablet at the
+ * entrance, its PIN pad or the code on its screen. A scanned code counts in
+ * every mode.
+ */
+exports.ClockMode = zod_1.z.enum(["anywhere", "at_work", "entrance"]);
 exports.BranchClockSettings = zod_1.z.object({
     propertyId: Uuid,
     branchName: zod_1.z.string(),
+    clockMode: exports.ClockMode,
+    /** A self clock-in opens this many minutes before the shift; null: any time. */
+    opensMinutesBefore: zod_1.z.number().int().nullable(),
     geofenceRadiusM: zod_1.z.number().int(),
     /** The geofence's own centre, set here: where staff clock in, when that is not the map pin. */
     centre: Centre.nullable(),
@@ -283,6 +298,10 @@ exports.PutAttendancePolicyRequest = PolicyFields.extend({
 exports.PutBranchClockSettingsRequest = zod_1.z.object({
     geofenceRadiusM: zod_1.z.number().int().min(25).max(2000),
     centre: Centre.nullable().optional(),
+    /** Left out, the branch keeps what it had. */
+    clockMode: exports.ClockMode.optional(),
+    /** Left out, kept; null, a self clock-in opens any time. */
+    opensMinutesBefore: zod_1.z.number().int().min(5).max(240).nullable().optional(),
 });
 // ---------------------------------------------------------------------------
 // Kiosks and PINs (AC-TM10, AC-TM11)
@@ -318,6 +337,8 @@ const Pin = zod_1.z.string().regex(/^\d{4,6}$/, "A PIN is 4 to 6 digits.");
 exports.SetKioskPinRequest = zod_1.z.object({ pin: Pin });
 /** `PUT /me/work/:employeeId/kiosk-pin`: the current PIN proves it is them. */
 exports.ChangeMyKioskPinRequest = zod_1.z.object({ currentPin: Pin, pin: Pin });
+/** `POST /me/work/:employeeId/kiosk-pin/check`: the person proves it is them before seeing their pay on a shared phone. */
+exports.CheckMyKioskPinRequest = zod_1.z.object({ pin: zod_1.z.string().regex(/^\d{4}$/, "Enter your four digits.") });
 exports.KioskPinState = zod_1.z.object({ hasPin: zod_1.z.boolean(), setAt: zod_1.z.string().nullable() });
 /** `POST /kiosk/pair`: the tablet trades the code for its device cookie. */
 exports.KioskPairRequest = zod_1.z.object({ code: zod_1.z.string().trim().regex(/^\d{8}$/, "The code is 8 digits.") });
@@ -332,6 +353,17 @@ exports.KioskPunchResult = zod_1.z.object({
     displayName: zod_1.z.string(),
     direction: zod_1.z.enum(["in", "out"]),
     at: zod_1.z.string(),
+});
+/**
+ * `GET /kiosk/qr`: the code the tablet shows for phones to scan. It changes
+ * every 30 seconds and a scan is good for 90, so a photo sent home has run out
+ * before it is any use.
+ */
+exports.KioskQr = zod_1.z.object({
+    url: zod_1.z.string(),
+    expiresAt: zod_1.z.string(),
+    /** When the tablet should ask for the next one. */
+    refreshInMs: zod_1.z.number().int(),
 });
 // ---------------------------------------------------------------------------
 // Holidays and weekly days off (AC-TM12)
@@ -438,6 +470,8 @@ exports.PhoneClockRequest = zod_1.z
     lat: zod_1.z.number().min(-90).max(90).optional(),
     lng: zod_1.z.number().min(-180).max(180).optional(),
     accuracyM: zod_1.z.number().min(0).max(100000).optional(),
+    /** The code scanned off the entrance tablet, when the punch came from a scan. */
+    code: zod_1.z.string().trim().max(200).optional(),
 })
     .merge(offline_1.ReportedTime)
     .superRefine(offline_1.reportedTimePair);
@@ -448,6 +482,30 @@ exports.PhoneClockResult = zod_1.z.object({
     /** Why it waits, in words; null when validated. */
     pendingReason: zod_1.z.string().nullable(),
     distanceM: zod_1.z.number().int().nullable(),
+});
+/**
+ * `GET /me/work/:employeeId/clock`: what the person's clock-in card needs:
+ * how their branch clocks in, whether they are in, and their shift.
+ */
+exports.MyClock = zod_1.z.object({
+    branchName: zod_1.z.string().nullable(),
+    clockMode: exports.ClockMode,
+    open: zod_1.z.object({ id: Uuid, clockInAt: zod_1.z.string(), validated: zod_1.z.boolean() }).nullable(),
+    /** The shift a clock-in now or next would belong to, today. */
+    shift: zod_1.z.object({ startsAt: zod_1.z.string(), endsAt: zod_1.z.string() }).nullable(),
+    /** When a self clock-in opens for that shift; null when it is open already or there is no limit. */
+    opensAt: zod_1.z.string().nullable(),
+});
+/** `GET /ops/attendance/far-clock-ins`: people who clocked in, or tried to, away from work this month. */
+exports.FarClockIns = zod_1.z.object({
+    month: zod_1.z.string(),
+    people: zod_1.z.array(zod_1.z.object({
+        employeeId: Uuid,
+        displayName: zod_1.z.string(),
+        /** Clock-ins saved far from work, and attempts refused for it. */
+        times: zod_1.z.number().int(),
+        lastAt: zod_1.z.string(),
+    })),
 });
 /** One published shift on the phone's shift card, with its template's planned break. */
 exports.MyWorkTodayShift = zod_1.z.object({
@@ -494,13 +552,21 @@ exports.MyShiftRequestList = zod_1.z.object({
     mine: zod_1.z.array(exports.ShiftRequest),
     /** Swaps colleagues asked of them, waiting for an answer. */
     askedOfMe: zod_1.z.array(exports.ShiftRequest),
+    /** Swaps they already answered, newest first: what came of each. */
+    answered: zod_1.z.array(exports.ShiftRequest),
 });
 /**
  * `GET /me/work/:employeeId/shift-options`: what a request of the person's own
  * may name (AC-TM5). The active shifts of the branch they work at, and the
  * colleagues there a swap could be with: a roster card each, never a file.
  */
-exports.MyShiftOptions = zod_1.z.object({ shifts: zod_1.z.array(people_1.ShiftTemplate), colleagues: zod_1.z.array(people_1.RosterCard) });
+exports.MyShiftOptions = zod_1.z.object({
+    shifts: zod_1.z.array(people_1.ShiftTemplate),
+    colleagues: zod_1.z.array(people_1.RosterCard),
+    /** The active rotations of their branch, and the one they are on. */
+    rotations: zod_1.z.array(zod_1.z.object({ id: Uuid, name: zod_1.z.string(), stepNames: zod_1.z.array(zod_1.z.string()), rule: exports.RotationRule, ruleValue: zod_1.z.number().int() })),
+    currentRotation: zod_1.z.object({ patternId: Uuid, name: zod_1.z.string(), startsOn: IsoDate }).nullable(),
+});
 exports.MyAttendance = zod_1.z.object({
     from: IsoDate,
     to: IsoDate,

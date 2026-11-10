@@ -69,6 +69,8 @@ export * from './people-time';
 export * from './people-leave';
 export * from './people-pay';
 export * from './people-checklists';
+export * from './people-desk';
+export * from './people-talent';
 // The list framework (ADR-058 slice 2): saved views and the export log.
 export * from './lists';
 export * from './assistant';

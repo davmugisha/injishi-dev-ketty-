@@ -1,97 +1,72 @@
 "use client";
 
+import { Calendar, CalendarXmark, Check, CircleCheck, Persons, ShieldExclamation, Suitcase } from "@gravity-ui/icons";
+import { Card, Chip, Table, Tabs, Toast, toast } from "@heroui/react";
+import { EmptyState, KPIGroup, Segment, Widget } from "@heroui-pro/react";
+import { KPI } from "@heroui-pro/react/kpi";
 import {
-  Calendar,
-  Check,
-  CircleCheck,
-  CircleXmark,
-  Hourglass,
-  ShieldExclamation,
-  TriangleExclamation,
-  Xmark,
-} from "@gravity-ui/icons";
-import {
-  Alert,
-  Avatar,
-  Button,
-  Card,
-  Chip,
-  FieldError,
-  Label,
-  Table,
-  Tabs,
-  TextArea,
-  TextField,
-  Toast,
-  toast,
-} from "@heroui/react";
-import { EmptyState, Segment, Stepper } from "@heroui-pro/react";
-import {
-  AgendaCalendar,
   formatNumber,
   GateChip,
-  KeyValueList,
   LinkButton,
   PageContent,
   PageHeader,
-  type ScheduleKind,
   StatusDot,
   type Tone,
   toneColor,
 } from "@injishi/ui";
-import { useOptimistic, useState, useTransition } from "react";
-import type { LeaveBalance, LeaveCalendarEntry, LeaveRequest, LeaveStep, LeaveType } from "../../model/people.ts";
+import { useMemo, useOptimistic, useState, useTransition } from "react";
+import type {
+  ExtraDaysAsk,
+  LeaveBalance,
+  LeaveCalendarEntry,
+  LeaveMonth,
+  LeaveRequest,
+  LeaveStep,
+  LeaveStretch,
+  LeaveType,
+} from "../../model/people.ts";
 import type { Persona } from "../../model/shared.ts";
 import { useBoardHref, useHrActions } from "../mount.tsx";
-import { addDays, rangeLong } from "./days.ts";
-import { firstName, initials } from "./parts.tsx";
+import { LeaveByMonth } from "./leave-by-month";
+import { type CalendarBar, LEAVE_KINDS, LeaveCalendar, leaveColor } from "./leave-calendar";
+import { LeaveDecisionDrawer } from "./leave-decision-drawer";
+import { LeaveExtraDays } from "./leave-extra-days";
+import { Hint, Pager, Person, pageOf, Ring, TAB_CLASS } from "./parts";
 
-interface LeaveData {
+export interface LeaveData {
   requests: LeaveRequest[];
   balances: LeaveBalance[];
   types: LeaveType[];
   calendar: LeaveCalendarEntry[];
+  byMonth: LeaveMonth[];
+  stretches: LeaveStretch[];
+  /** Days people asked for on top of what a kind of leave gives. */
+  extraDays: ExtraDaysAsk[];
 }
 
 type Group = "mine" | "lm" | "done";
 
 const TABS: { id: Group; label: string }[] = [
   { id: "mine", label: "With you" },
-  { id: "lm", label: "With line managers" },
+  { id: "lm", label: "With managers" },
   { id: "done", label: "Decided" },
 ];
 
 /** Approval-step chip and the two progress dots (line manager, then HR). */
 const STEP: Record<LeaveStep, { label: string; tone: Tone; dots: [Tone | null, Tone | null] }> = {
-  hr: { label: "Manager ✓ · with you", tone: "accent", dots: ["success", "accent"] },
-  lm: { label: "With line manager", tone: "default", dots: ["accent", null] },
+  hr: { label: "With you", tone: "accent", dots: ["success", "accent"] },
+  lm: { label: "With manager", tone: "default", dots: ["accent", null] },
   approved: { label: "Approved", tone: "success", dots: ["success", "success"] },
-  declined: { label: "Declined by HR", tone: "danger", dots: ["success", "danger"] },
-  lmdeclined: { label: "Declined by manager", tone: "danger", dots: ["danger", null] },
+  declined: { label: "Declined", tone: "danger", dots: ["success", "danger"] },
+  lmdeclined: { label: "Manager declined", tone: "danger", dots: ["danger", null] },
 };
 
-/**
- * A request of a one-step leave type (no line manager named, `lm` empty) never had a manager step:
- * its chip says only where it is, and the first dot stays empty.
- */
-function stepChip(r: LeaveRequest, step: LeaveStep) {
-  const s = STEP[step];
-  if (r.lm) return s;
-  return { ...s, label: step === "hr" ? "With you" : s.label, dots: [null, s.dots[1]] as [Tone | null, Tone | null] };
-}
+const KPI_CLASS = "min-w-[min(140px,100%)] flex-[1_1_140px]";
 
-/** Calendar: from today (a request's `cal` counts its first day from today), on the Agenda. */
-const CAL_LENGTH = 21;
-const LEAVE_KINDS: ScheduleKind[] = [
-  { id: "approved", label: "Approved", color: "var(--chart-3)" },
-  { id: "pending", label: "Pending", color: "var(--chart-3)", tentative: true },
-];
-
-type Decision = { id: string; decision: "approved" | "declined"; reason: string | null };
+type Decision = { id: string; decision: "approved" | "declined" | "cancelled"; reason: string | null };
 
 const stepOf = (r: LeaveRequest): LeaveStep => r.hrDecision ?? r.step;
 const groupOf = (step: LeaveStep): Group => (step === "hr" ? "mine" : step === "lm" ? "lm" : "done");
-const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
 
 export function LeaveView({
   persona,
@@ -101,155 +76,114 @@ export function LeaveView({
 }: {
   persona: Persona;
   data: LeaveData;
-  initial: { request: string; tab: Group; show: "bal" | "rules" };
+  /** `open`: the address named a request (`?request=`), so it opens at once. */
+  initial: { request: string; tab: Group; show: "bal" | "rules"; open?: boolean };
   /** Today in Kigali ("2026-10-15"): the calendar's first day. */
   today: string;
 }) {
+  const { cancelLeave, decideLeave } = useHrActions();
   const screenHref = useBoardHref();
-  const { decideLeave } = useHrActions();
-  const [tab, setTab] = useState<Group>(initial.tab);
+  const [tab, setTab] = useState<Group>(() => {
+    const named = initial.open ? data.requests.find((r) => r.id === initial.request) : undefined;
+    return named ? groupOf(stepOf(named)) : initial.tab;
+  });
   const [sel, setSel] = useState(initial.request);
-  const [declining, setDeclining] = useState(false);
-  const [why, setWhy] = useState("");
-  const [whyErr, setWhyErr] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(Boolean(initial.open));
+  const [page, setPage] = useState(1);
+  const [balancePage, setBalancePage] = useState(1);
   const [lower, setLower] = useState<"bal" | "rules">(initial.show);
   const [pending, startTransition] = useTransition();
-  const [requests, decideOptimistic] = useOptimistic(data.requests, (state, d: Decision) =>
-    state.map((r) => (r.id === d.id ? { ...r, hrDecision: d.decision, hrReason: d.reason } : r)),
-  );
+  // The queue, and approved leave too old for it that is not over yet: it can still be opened and cancelled.
+  const queue = useMemo(() => {
+    const listed = new Set(data.requests.map((r) => r.id));
+    return [...data.requests, ...data.stretches.flatMap((s) => (s.request && !listed.has(s.id) ? [s.request] : []))];
+  }, [data.requests, data.stretches]);
+  const [requests, decideOptimistic] = useOptimistic(queue, (state, d: Decision) => {
+    if (d.decision === "cancelled") return state.filter((r) => r.id !== d.id);
+    const decision = d.decision;
+    return state.map((r) => {
+      if (r.id !== d.id) return r;
+      // Approving the first step moves it on to the next; only the last step settles it.
+      if (r.step === "lm" && decision === "approved") return { ...r, step: "hr" as const };
+      return { ...r, hrDecision: decision, hrReason: d.reason };
+    });
+  });
 
-  const calDays = Array.from({ length: CAL_LENGTH }, (_, i) => addDays(today, i));
   const year = Number(today.slice(0, 4));
   const rows = requests.filter((r) => groupOf(stepOf(r)) === tab);
   const count = (g: Group) => requests.filter((r) => groupOf(stepOf(r)) === g).length;
-
-  const found = requests.find((r) => r.id === sel) ?? requests[0];
-  // Live data can hold no request at all: the queue then shows its empty state and nothing to decide.
-  if (!found) {
-    return (
-      <PageContent>
-        <PageHeader eyebrow={`People › Leave · ${year} leave year`} title="Leave" description="Nothing to decide." />
-        <EmptyState size="sm">
-          <EmptyState.Header>
-            <EmptyState.Media variant="icon">
-              <CircleCheck />
-            </EmptyState.Media>
-            <EmptyState.Title>No leave requests</EmptyState.Title>
-            <EmptyState.Description>Requests arrive here when they wait for HR.</EmptyState.Description>
-          </EmptyState.Header>
-        </EmptyState>
-      </PageContent>
-    );
-  }
-  const cur = found;
-  const first = firstName(cur.name);
-  const lmFirst = firstName(cur.lm);
-  const st = stepOf(cur);
-  const hrDone = st === "approved" || st === "declined";
+  const cur = requests.find((r) => r.id === sel) ?? null;
 
   const pick = (id: string) => {
     setSel(id);
-    setDeclining(false);
-    setWhyErr(false);
-    setWhy("");
+    setDrawerOpen(true);
   };
-  const decide = (decision: "approved" | "declined", reason: string | null) =>
+  const decide = (decision: "approved" | "declined", reason: string | null) => {
+    if (!cur) return;
+    const { id } = cur;
+    setDrawerOpen(false);
     startTransition(async () => {
-      decideOptimistic({ id: cur.id, decision, reason });
-      setDeclining(false);
-      const result = await decideLeave(cur.id, decision, reason ?? undefined);
+      decideOptimistic({ id, decision, reason });
+      const result = await decideLeave(id, decision, reason ?? undefined);
       if (!result.ok) toast.danger(result.error);
+      else toast.success(decision === "approved" ? "Approved" : "Declined");
     });
-  const decline = () => {
-    if (!declining) {
-      setDeclining(true);
-      return;
-    }
-    if (!why.trim()) {
-      setWhyErr(true);
-      return;
-    }
-    decide("declined", why.trim());
+  };
+  const cancel = (reason: string) => {
+    if (!cur) return;
+    const { id } = cur;
+    setDrawerOpen(false);
+    startTransition(async () => {
+      decideOptimistic({ id, decision: "cancelled", reason });
+      const result = await cancelLeave(id, reason);
+      if (!result.ok) toast.danger(result.error);
+      else toast.success("Leave cancelled. The days are back on the balance.");
+    });
   };
 
-  // Approval steps: requested → line manager → HR. A one-step leave type has no line manager step
-  // (`lm` is empty): it goes from the request straight to HR, and nobody is named as having approved it.
-  const lmStep = Boolean(cur.lm);
-  const currentStep = lmStep ? (st === "lm" ? 1 : st === "hr" || st === "lmdeclined" ? 2 : 3) : st === "hr" ? 1 : 2;
-  const steps = [
-    { title: `Requested by ${first}`, desc: cur.sub, cross: false, unreached: false },
-    ...(lmStep
-      ? [
-          {
-            title:
-              st === "lm"
-                ? `Line manager · ${cur.lm}`
-                : st === "lmdeclined"
-                  ? `Declined by ${cur.lm}`
-                  : `Approved by ${cur.lm}`,
-            desc: st === "lm" ? `Waiting since ${cur.sub.split(" ·")[0]}` : cur.lmNote,
-            cross: st === "lmdeclined",
-            unreached: false,
-          },
-        ]
-      : []),
-    {
-      title: st === "approved" ? "Approved by HR" : st === "declined" ? "Declined by HR" : "HR decision · you",
-      desc: hrDone
-        ? (cur.by ?? `${persona.name} · just now`)
-        : st === "hr"
-          ? "Balance and roster checked below"
-          : "Not reached",
-      cross: st === "declined",
-      unreached: st === "lmdeclined",
-    },
-  ];
-
-  const outcome =
-    st === "approved"
-      ? {
-          status: "success" as const,
-          icon: <CircleCheck />,
-          title: `Approved · ${first} sees it in the staff app`,
-          text:
-            cur.by ??
-            `Balance updated to ${cur.balance.split("→ ")[1] ?? cur.balance}. The shifts are released on the roster for re-assignment.`,
-        }
-      : st === "declined"
-        ? {
-            status: "default" as const,
-            icon: <CircleXmark />,
-            title: `Declined · ${first} sees it in the staff app`,
-            text: `Reason recorded: “${cur.hrReason || "See note"}”. The balance is unchanged. No message is sent.`,
-          }
-        : st === "lmdeclined"
-          ? {
-              status: "default" as const,
-              icon: <CircleXmark />,
-              title: "Declined by the line manager",
-              text: cur.by ?? "",
-            }
-          : null;
-
-  // Calendar bars: requests with dates in range (not declined by HR) plus approved leave outside this list.
-  const calRows = [
+  // Calendar bars: requests with dates in range (not declined) plus approved leave outside this list.
+  const calBars: CalendarBar[] = [
     ...requests
-      .filter((r) => r.cal && stepOf(r) !== "declined")
-      .map((r) => ({ id: r.id, name: r.name, type: r.type, step: stepOf(r), cal: r.cal as [number, number] })),
-    ...data.calendar.map((c) => ({ id: c.id, name: c.name, type: c.type, step: c.step as LeaveStep, cal: c.cal })),
-  ]
-    .sort((a, b) => a.cal[0] - b.cal[0])
-    .map((r) => ({
-      ...r,
-      label: `${r.type.split(" ·")[0]}${r.step === "approved" ? "" : " · pending"}`,
-      approved: r.step === "approved",
-    }));
-  const calRange = rangeLong(calDays[0], calDays[CAL_LENGTH - 1]);
-  const calAria = `Leave ${calRange}: ${calRows.map((c) => `${c.name} ${c.label}`).join("; ")}`;
-  // The next request beyond the calendar that still waits on somebody.
-  const next = requests.find(
-    (r) => !r.cal && (stepOf(r) === "lm" || stepOf(r) === "hr") && !r.roster.startsWith("Past dates"),
-  );
+      .filter((r) => r.cal && stepOf(r) !== "declined" && stepOf(r) !== "lmdeclined")
+      .map((r) => ({
+        id: r.id,
+        name: r.name,
+        type: r.type,
+        approved: stepOf(r) === "approved",
+        cal: r.cal as [number, number],
+        isRequest: true,
+      })),
+    ...data.calendar
+      .filter((c) => !requests.some((r) => r.id === c.id))
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        type: c.type,
+        approved: true,
+        cal: c.cal,
+        isRequest: false,
+      })),
+  ];
+  const awayOn = (i: number) =>
+    new Set(calBars.filter((b) => b.approved && i >= b.cal[0] && i < b.cal[0] + b.cal[1]).map((b) => b.name));
+  const awayToday = awayOn(0).size;
+  const awayWeek = new Set(Array.from({ length: 7 }, (_, i) => [...awayOn(i)]).flat()).size;
+  /** A bar or a row opens its request, on the tab it belongs to. */
+  const open = (id: string) => {
+    const r = requests.find((x) => x.id === id);
+    if (!r) return;
+    setTab(groupOf(stepOf(r)));
+    setPage(1);
+    pick(id);
+  };
+  const switchTab = (g: Group) => {
+    setTab(g);
+    setPage(1);
+  };
+  // Requests further out than the calendar's days that still wait on somebody.
+  const later = requests
+    .filter((r) => !r.cal && (stepOf(r) === "lm" || stepOf(r) === "hr") && !r.roster.startsWith("Past dates"))
+    .map((r) => ({ id: r.id, name: r.name, type: r.type, dates: r.dates, days: r.days }));
 
   // Balances move pending days into taken when HR approves; a decline releases them.
   const balances = data.balances.map((b) => {
@@ -257,7 +191,14 @@ export function LeaveView({
     const approved = req?.hrDecision === "approved";
     const declined = req?.hrDecision === "declined";
     const taken = approved ? b.taken + b.pending : b.taken;
-    return { ...b, taken, pending: approved || declined ? 0 : b.pending, available: b.carried + b.accrued - taken };
+    // "Left" is the API's balance, which has expired days taken off; adding up the year here would not.
+    const left = b.left ?? b.carried + b.accrued - b.taken;
+    return {
+      ...b,
+      taken,
+      pending: approved || declined ? 0 : b.pending,
+      available: approved ? left - b.pending : left,
+    };
   });
 
   const requestsTable = (
@@ -265,20 +206,14 @@ export function LeaveView({
       <Table.ScrollContainer>
         <Table.Content
           aria-label={`Leave requests: ${TABS.find((t) => t.id === tab)?.label ?? ""}`}
-          selectionMode="single"
-          selectionBehavior="replace"
-          selectedKeys={new Set([sel])}
-          onSelectionChange={(keys) => {
-            if (keys === "all") return;
-            const [k] = [...keys];
-            if (k) pick(String(k));
-          }}
+          className="min-w-[560px]"
+          onRowAction={(key) => pick(String(key))}
         >
           <Table.Header>
             <Table.Column isRowHeader>Employee</Table.Column>
             <Table.Column>Leave</Table.Column>
             <Table.Column className="text-right">Days</Table.Column>
-            <Table.Column>Approval step</Table.Column>
+            <Table.Column>Step</Table.Column>
           </Table.Header>
           <Table.Body
             renderEmptyState={() => (
@@ -287,31 +222,34 @@ export function LeaveView({
                   <EmptyState.Media variant="icon">
                     <CircleCheck />
                   </EmptyState.Media>
-                  <EmptyState.Title>Nothing waiting for you</EmptyState.Title>
-                  <EmptyState.Description>Requests arrive here when they wait for HR.</EmptyState.Description>
+                  <EmptyState.Title>Nothing here</EmptyState.Title>
                 </EmptyState.Header>
               </EmptyState>
             )}
           >
-            {rows.map((r) => {
-              const s = stepChip(r, stepOf(r));
+            {pageOf(rows, page).map((r) => {
+              const step = stepOf(r);
+              const s = STEP[step];
               return (
-                <Table.Row key={r.id} id={r.id} className="cursor-pointer">
+                <Table.Row
+                  key={r.id}
+                  id={r.id}
+                  className={`cursor-pointer ${drawerOpen && r.id === sel ? "bg-accent-soft" : ""}`}
+                >
                   <Table.Cell>
-                    <span className="flex items-center gap-2.5">
-                      <Avatar size="sm" variant="soft" color="accent">
-                        <Avatar.Fallback>{initials(r.name)}</Avatar.Fallback>
-                      </Avatar>
-                      <span className="flex min-w-0 flex-col">
-                        <span className="font-medium">{r.name}</span>
-                        <span className="text-xs text-muted">{r.dept}</span>
-                      </span>
-                    </span>
+                    <Person name={r.name} sub={r.dept} />
                   </Table.Cell>
                   <Table.Cell>
-                    <span className="flex flex-col">
-                      <span>{r.type}</span>
-                      <span className="text-xs text-muted">{r.dates}</span>
+                    <span className="flex items-start gap-2">
+                      <span
+                        aria-hidden="true"
+                        className="mt-1.5 size-2 shrink-0 rounded-full"
+                        style={{ background: leaveColor(r.type) }}
+                      />
+                      <span className="flex flex-col">
+                        <span>{r.type.split(" ·")[0]}</span>
+                        <span className="text-xs text-muted">{r.dates}</span>
+                      </span>
                     </span>
                   </Table.Cell>
                   <Table.Cell className="text-right tabular">{r.days}</Table.Cell>
@@ -320,7 +258,7 @@ export function LeaveView({
                       <StatusDot tone={s.dots[0]} />
                       <StatusDot tone={s.dots[1]} />
                       <Chip size="sm" variant="soft" color={toneColor(s.tone)} className="whitespace-nowrap">
-                        {s.label}
+                        {r.blockedWhy && (step === "hr" || step === "lm") ? "Someone else decides" : s.label}
                       </Chip>
                     </span>
                   </Table.Cell>
@@ -336,202 +274,139 @@ export function LeaveView({
   return (
     <PageContent>
       <PageHeader
-        eyebrow={`People › Leave · ${year} leave year`}
+        eyebrow={`${year} leave year`}
         title="Leave"
-        description="Two-step leave types go to the line manager first; the others come straight to HR. Approving updates balances and releases the shifts on the roster."
         actions={
           <LinkButton href={screenHref("Roster")} variant="secondary">
             <Calendar className="size-4" />
-            Check roster
+            Roster
           </LinkButton>
         }
       />
 
-      <div className="flex flex-wrap items-start gap-4">
-        <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-3">
-          <Tabs variant="secondary" selectedKey={tab} onSelectionChange={(k) => setTab(String(k) as Group)}>
-            <Tabs.ListContainer>
-              <Tabs.List aria-label="Requests" className="justify-start gap-1">
-                {TABS.map((t) => (
-                  <Tabs.Tab key={t.id} id={t.id} className="w-auto flex-none gap-1.5 px-3">
-                    {t.label}
-                    <Chip size="sm" variant="soft">
-                      {count(t.id)}
-                    </Chip>
-                    <Tabs.Indicator />
-                  </Tabs.Tab>
-                ))}
-              </Tabs.List>
-            </Tabs.ListContainer>
+      <section aria-label="Leave at a glance">
+        <KPIGroup className="flex-wrap">
+          <KPI className={KPI_CLASS}>
+            <KPI.Header>
+              <KPI.Icon status={count("mine") ? "warning" : "success"}>
+                <Suitcase />
+              </KPI.Icon>
+              <KPI.Title>To decide</KPI.Title>
+            </KPI.Header>
+            <KPI.Content>
+              <KPI.Value value={count("mine")} className="tabular" />
+            </KPI.Content>
+            <KPI.Footer>
+              <p className="text-xs leading-4 text-muted">{count("lm")} with managers</p>
+            </KPI.Footer>
+          </KPI>
+          <KPIGroup.Separator />
+          <KPI className={KPI_CLASS}>
+            <KPI.Header>
+              <KPI.Icon status="success">
+                <CalendarXmark />
+              </KPI.Icon>
+              <KPI.Title>Away today</KPI.Title>
+            </KPI.Header>
+            <KPI.Content>
+              <KPI.Value value={awayToday} className="tabular" />
+            </KPI.Content>
+            <KPI.Footer>
+              <p className="text-xs leading-4 text-muted">{awayWeek} this week</p>
+            </KPI.Footer>
+          </KPI>
+          <KPIGroup.Separator />
+          <KPI className={KPI_CLASS}>
+            <KPI.Header>
+              <KPI.Icon status="success">
+                <Persons />
+              </KPI.Icon>
+              <KPI.Title>Decided</KPI.Title>
+            </KPI.Header>
+            <KPI.Content>
+              <KPI.Value value={count("done")} className="tabular" />
+            </KPI.Content>
+            <KPI.Footer>
+              <p className="text-xs leading-4 text-muted">
+                {requests.filter((r) => stepOf(r) === "approved").length} approved
+              </p>
+            </KPI.Footer>
+          </KPI>
+        </KPIGroup>
+      </section>
+
+      <Tabs variant="secondary" selectedKey={tab} onSelectionChange={(k) => switchTab(String(k) as Group)}>
+        <Tabs.ListContainer>
+          <Tabs.List aria-label="Requests" className="justify-start gap-1">
             {TABS.map((t) => (
-              <Tabs.Panel key={t.id} id={t.id} className="pt-3">
-                {requestsTable}
-              </Tabs.Panel>
+              <Tabs.Tab key={t.id} id={t.id} className={TAB_CLASS}>
+                {t.label}
+                <Chip size="sm" variant="soft">
+                  {count(t.id)}
+                </Chip>
+                <Tabs.Indicator />
+              </Tabs.Tab>
             ))}
-          </Tabs>
+          </Tabs.List>
+        </Tabs.ListContainer>
+        {TABS.map((t) => (
+          <Tabs.Panel key={t.id} id={t.id} className="flex flex-col gap-3 pt-3">
+            {requestsTable}
+            <Pager page={page} total={rows.length} onPage={setPage} />
+          </Tabs.Panel>
+        ))}
+      </Tabs>
 
-          <section aria-labelledby="cal-h" className="flex flex-col gap-2">
-            <h2 id="cal-h" className="text-base font-semibold">
-              Leave calendar
-            </h2>
-            <AgendaCalendar
-              label={calAria}
-              today={today}
-              defaultView="month"
-              views={["week", "month"]}
-              kinds={LEAVE_KINDS}
-              events={calRows.map((c) => ({
-                id: c.id,
-                kind: c.approved ? "approved" : "pending",
-                title: `${c.name} · ${c.label}`,
-                start: addDays(today, c.cal[0]),
-                end: addDays(today, c.cal[0] + c.cal[1] - 1),
-              }))}
-              onSelect={(e) => {
-                if (requests.some((r) => r.id === e.id)) setSel(e.id);
-              }}
-              hint={
-                next
-                  ? `Next: ${next.name}, ${next.homeType.toLowerCase()} ${next.dates}, ${
-                      stepOf(next) === "lm" ? `with ${next.lm}` : "with you"
-                    }.`
-                  : undefined
-              }
-            />
-          </section>
-        </div>
+      <LeaveDecisionDrawer
+        request={cur}
+        step={cur ? stepOf(cur) : "hr"}
+        isOpen={drawerOpen}
+        pending={pending}
+        persona={persona}
+        onOpenChange={setDrawerOpen}
+        onDecide={decide}
+        onCancel={cancel}
+      />
 
-        <Card
-          aria-labelledby="dec-h"
-          className="min-w-0 flex-[1_1_360px] gap-3.5 p-[18px]"
-          render={(props) => <section {...(props as object)} />}
-        >
-          <div className="flex items-start gap-3">
-            <Avatar variant="soft" color="accent">
-              <Avatar.Fallback>{initials(cur.name)}</Avatar.Fallback>
-            </Avatar>
-            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <h2 id="dec-h" className="text-base leading-[22px] font-semibold">
-                {cur.name}
-              </h2>
-              <span className="text-[13px] text-muted">
-                {cur.type} · {cur.dates} · {days(cur.days)}
-              </span>
-            </div>
-          </div>
+      <LeaveExtraDays asks={data.extraDays} />
 
-          <Stepper orientation="vertical" size="sm" currentStep={currentStep} aria-label="Approval steps">
-            {steps.map((s) => (
-              <Stepper.Step key={s.title}>
-                {s.unreached ? (
-                  <Stepper.Indicator className="border-border bg-transparent text-muted">3</Stepper.Indicator>
-                ) : s.cross ? (
-                  <Stepper.Indicator>
-                    <Xmark className="size-3" />
-                  </Stepper.Indicator>
-                ) : (
-                  <Stepper.Indicator />
-                )}
-                <Stepper.Content>
-                  <Stepper.Title className={`text-sm ${s.unreached ? "text-muted" : ""}`}>{s.title}</Stepper.Title>
-                  <Stepper.Description className={s.unreached ? "opacity-60" : ""}>{s.desc}</Stepper.Description>
-                </Stepper.Content>
-                <Stepper.Separator />
-              </Stepper.Step>
+      <LeaveByMonth months={data.byMonth} />
+
+      <Widget aria-labelledby="cal-h">
+        <Widget.Header className="flex-wrap gap-2">
+          <Widget.Title id="cal-h">Who is away</Widget.Title>
+          <Widget.Legend className="flex-wrap">
+            {LEAVE_KINDS.map((k) => (
+              <Widget.LegendItem key={k.label} color={k.color}>
+                {k.label}
+              </Widget.LegendItem>
             ))}
-          </Stepper>
-
-          <KeyValueList
-            items={[
-              { label: "Balance", value: <span className="tabular">{cur.balance}</span> },
-              { label: "Roster", value: cur.roster },
-              { label: "Evidence", value: cur.attach },
-            ]}
+            <span className="flex items-center gap-1.5 text-xs text-muted">
+              <span aria-hidden="true" className="h-3 w-5 rounded-[4px] border-[1.5px] border-dashed border-muted" />
+              Pending
+            </span>
+          </Widget.Legend>
+        </Widget.Header>
+        <Widget.Content className="flex flex-col gap-2">
+          <LeaveCalendar
+            today={today}
+            bars={calBars}
+            later={later}
+            leave={data.stretches}
+            selected={drawerOpen ? sel : ""}
+            onPick={open}
           />
-
-          {cur.warn && st === "hr" ? (
-            <Alert status="warning">
-              <Alert.Indicator>
-                <TriangleExclamation />
-              </Alert.Indicator>
-              <Alert.Content>
-                <Alert.Title>{cur.warn}</Alert.Title>
-                <Alert.Description>
-                  {lmStep ? `${lmFirst} approved the first step. ` : ""}You can approve and fill the gap on the roster,
-                  or decline with a reason.
-                </Alert.Description>
-              </Alert.Content>
-            </Alert>
-          ) : null}
-
-          {st === "hr" ? (
-            <>
-              {declining ? (
-                <TextField
-                  value={why}
-                  onChange={(v) => {
-                    setWhy(v);
-                    setWhyErr(false);
-                  }}
-                  isInvalid={whyErr}
-                  className="flex flex-col gap-1"
-                >
-                  <Label>Reason for declining</Label>
-                  <TextArea rows={2} placeholder="Recorded on the request. No message is sent." />
-                  <FieldError>Add a reason before declining.</FieldError>
-                </TextField>
-              ) : null}
-              <div className="flex items-center gap-2">
-                <Button className="flex-1" onPress={() => decide("approved", null)} isDisabled={pending}>
-                  <Check className="size-4" />
-                  Approve as HR
-                </Button>
-                <Button variant="secondary" onPress={decline} isDisabled={pending}>
-                  {declining ? "Confirm decline" : "Decline"}
-                </Button>
-              </div>
-            </>
-          ) : null}
-
-          {st === "lm" ? (
-            <>
-              <Alert>
-                <Alert.Indicator>
-                  <Hourglass />
-                </Alert.Indicator>
-                <Alert.Content>
-                  <Alert.Title>Waiting for {cur.lm}</Alert.Title>
-                  <Alert.Description>HR decides after the line manager.</Alert.Description>
-                </Alert.Content>
-              </Alert>
-              <Button
-                variant="secondary"
-                className="self-start"
-                onPress={() =>
-                  toast.warning("Leave reminders are not available yet. Contact the line manager directly.")
-                }
-              >
-                {`Remind ${lmFirst}`}
-              </Button>
-            </>
-          ) : null}
-
-          {outcome ? (
-            <Alert status={outcome.status}>
-              <Alert.Indicator>{outcome.icon}</Alert.Indicator>
-              <Alert.Content>
-                <Alert.Title>{outcome.title}</Alert.Title>
-                <Alert.Description>{outcome.text}</Alert.Description>
-              </Alert.Content>
-            </Alert>
-          ) : null}
-        </Card>
-      </div>
+        </Widget.Content>
+      </Widget>
 
       <Card aria-labelledby="bt-h" className="gap-3 p-[18px]" render={(props) => <section {...(props as object)} />}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="bt-h" className="text-[15px] leading-[22px] font-semibold">
-            Balances and Rules
+          <h2 id="bt-h" className="flex items-center gap-1 text-[15px] leading-[22px] font-semibold">
+            Balances and rules
+            <Hint label="About balances and rules">
+              Annual leave, in days. Rule changes need the owner’s approval; statutory minimums also need payroll expert
+              sign-off.
+            </Hint>
           </h2>
           <Segment
             aria-label="Show"
@@ -539,91 +414,108 @@ export function LeaveView({
             onSelectionChange={(k) => setLower(k === "rules" ? "rules" : "bal")}
           >
             <Segment.Item id="bal">Balances</Segment.Item>
-            <Segment.Item id="rules">Leave types and rules</Segment.Item>
+            <Segment.Item id="rules">Rules</Segment.Item>
           </Segment>
         </div>
         {lower === "bal" ? (
-          <>
-            <Table variant="secondary">
-              <Table.ScrollContainer>
-                <Table.Content aria-label="Annual leave balances">
-                  <Table.Header>
-                    <Table.Column isRowHeader>Employee</Table.Column>
-                    <Table.Column className="text-right">Carried from {year - 1}</Table.Column>
-                    <Table.Column className="text-right">Accrued {year}</Table.Column>
-                    <Table.Column className="text-right">Taken</Table.Column>
-                    <Table.Column className="text-right">Pending</Table.Column>
-                    <Table.Column className="text-right">Available</Table.Column>
-                    <Table.Column className="text-right">Sick days used</Table.Column>
-                  </Table.Header>
-                  <Table.Body>
-                    {balances.map((b) => (
-                      <Table.Row key={b.id} id={b.id}>
-                        <Table.Cell className="font-medium">{b.name}</Table.Cell>
-                        <Table.Cell className="text-right tabular">{formatNumber(b.carried)}</Table.Cell>
-                        <Table.Cell className="text-right tabular">{formatNumber(b.accrued)}</Table.Cell>
-                        <Table.Cell className="text-right tabular">{formatNumber(b.taken)}</Table.Cell>
-                        <Table.Cell className="text-right tabular">{formatNumber(b.pending)}</Table.Cell>
-                        <Table.Cell className="text-right font-semibold tabular">
-                          {formatNumber(b.available)}
-                        </Table.Cell>
-                        <Table.Cell className="text-right tabular">{formatNumber(b.sick)}</Table.Cell>
-                      </Table.Row>
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr))]">
+            {pageOf(balances, balancePage).map((b) => {
+              const total = b.carried + b.accrued;
+              const pct = (n: number) => `${total > 0 ? Math.max(0, Math.min(100, (n / total) * 100)) : 0}%`;
+              const low = b.available <= 3;
+              return (
+                <Card key={b.id} variant="secondary" className="gap-3 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <Person
+                      name={b.name}
+                      sub={
+                        <span className="flex items-center gap-1">
+                          {formatNumber(total)} days this year
+                          <Hint label="Where the days come from">
+                            {formatNumber(b.carried)} carried from {year - 1} · {formatNumber(b.accrued)} accrued in{" "}
+                            {year}
+                          </Hint>
+                        </span>
+                      }
+                    />
+                    <Ring
+                      value={Math.max(b.available, 0)}
+                      max={total}
+                      label={`${formatNumber(Math.floor(b.available))} of ${formatNumber(Math.round(total))} days left`}
+                      color={low ? "warning" : "success"}
+                      size="size-12"
+                    >
+                      <span className="text-[12px]">{formatNumber(Math.floor(b.available))}</span>
+                    </Ring>
+                  </div>
+                  <div
+                    role="img"
+                    aria-label={`${formatNumber(b.taken)} taken, ${formatNumber(b.pending)} pending`}
+                    className="flex h-2 overflow-hidden rounded-full bg-default"
+                  >
+                    <span className="h-full bg-accent" style={{ width: pct(b.taken) }} />
+                    <span className="h-full bg-warning" style={{ width: pct(b.pending) }} />
+                  </div>
+                  <dl className="grid grid-cols-4 gap-1 text-center">
+                    {[
+                      { label: "Taken", value: b.taken, dot: "bg-accent" },
+                      { label: "Pending", value: b.pending, dot: "bg-warning" },
+                      { label: "Left", value: b.available, dot: "bg-default" },
+                      { label: "Sick", value: b.sick, dot: "bg-[var(--chart-4)]" },
+                    ].map((x) => (
+                      <div key={x.label} className="flex flex-col items-center gap-0.5">
+                        <dt className="flex items-center gap-1 text-xs font-medium text-muted">
+                          <span aria-hidden="true" className={`size-1.5 rounded-full ${x.dot}`} />
+                          {x.label}
+                        </dt>
+                        <dd className="text-[14px] font-semibold tabular">{formatNumber(x.value)}</dd>
+                      </div>
                     ))}
-                  </Table.Body>
-                </Table.Content>
-              </Table.ScrollContainer>
-            </Table>
-            <p className="text-xs text-muted">
-              Annual leave in days. Carried days must be used within the window the annual leave type sets, or they
-              expire.
-            </p>
-          </>
+                  </dl>
+                </Card>
+              );
+            })}
+          </div>
         ) : (
-          <>
-            <Table variant="secondary">
-              <Table.ScrollContainer>
-                <Table.Content aria-label="Leave types and rules">
-                  <Table.Header>
-                    <Table.Column isRowHeader>Leave type</Table.Column>
-                    <Table.Column>Paid</Table.Column>
-                    <Table.Column>Accrual</Table.Column>
-                    <Table.Column>Carry forward</Table.Column>
-                    <Table.Column>Approval</Table.Column>
-                    <Table.Column>Status</Table.Column>
-                  </Table.Header>
-                  <Table.Body>
-                    {data.types.map((t) => (
-                      <Table.Row key={t.id} id={t.id}>
-                        <Table.Cell className="font-medium">{t.name}</Table.Cell>
-                        <Table.Cell>{t.paid}</Table.Cell>
-                        <Table.Cell>{t.accrual}</Table.Cell>
-                        <Table.Cell>{t.carry}</Table.Cell>
-                        <Table.Cell>{t.flow}</Table.Cell>
-                        <Table.Cell>
-                          {t.verified ? (
-                            <Chip size="sm" variant="soft" color="success" className="whitespace-nowrap">
-                              <Check className="size-3" />
-                              <Chip.Label>{t.status}</Chip.Label>
-                            </Chip>
-                          ) : (
-                            <GateChip icon={<ShieldExclamation className="size-3" />} className="whitespace-nowrap">
-                              {t.status}
-                            </GateChip>
-                          )}
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
-                  </Table.Body>
-                </Table.Content>
-              </Table.ScrollContainer>
-            </Table>
-            <p className="text-xs text-muted">
-              Every value is configurable. Changes are versioned with an effective date and need the owner’s approval;
-              statutory minimums also need payroll expert sign-off.
-            </p>
-          </>
+          <Table variant="secondary">
+            <Table.ScrollContainer>
+              <Table.Content aria-label="Leave types and rules">
+                <Table.Header>
+                  <Table.Column isRowHeader>Leave type</Table.Column>
+                  <Table.Column>Paid</Table.Column>
+                  <Table.Column>Accrual</Table.Column>
+                  <Table.Column>Carry forward</Table.Column>
+                  <Table.Column>Approval</Table.Column>
+                  <Table.Column>Status</Table.Column>
+                </Table.Header>
+                <Table.Body>
+                  {data.types.map((t) => (
+                    <Table.Row key={t.id} id={t.id}>
+                      <Table.Cell className="font-medium">{t.name}</Table.Cell>
+                      <Table.Cell>{t.paid}</Table.Cell>
+                      <Table.Cell>{t.accrual}</Table.Cell>
+                      <Table.Cell>{t.carry}</Table.Cell>
+                      <Table.Cell>{t.flow}</Table.Cell>
+                      <Table.Cell>
+                        {t.verified ? (
+                          <Chip size="sm" variant="soft" color="success" className="whitespace-nowrap">
+                            <Check className="size-3" />
+                            <Chip.Label>{t.status}</Chip.Label>
+                          </Chip>
+                        ) : (
+                          <GateChip icon={<ShieldExclamation className="size-3" />} className="whitespace-nowrap">
+                            {t.status}
+                          </GateChip>
+                        )}
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
+          </Table>
         )}
+        {lower === "bal" ? <Pager page={balancePage} total={balances.length} onPage={setBalancePage} /> : null}
       </Card>
       <Toast.Provider placement="bottom" />
     </PageContent>

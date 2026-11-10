@@ -9,11 +9,16 @@ import {
   isOrgHoliday,
   isWeeklyOff,
   linkEntry,
+  clockInOpensAt,
+  distanceWords,
+  kigaliClock,
   phonePunchVerdict,
+  selfPunchDecision,
   punchPendingReasons,
   rotationStepOn,
   takesLateClockOut,
   weeklyOffsFor,
+  type PunchVerdict,
 } from './time-rules';
 
 // Kigali is UTC+2 all year: 08:00 Kigali is 06:00Z.
@@ -214,6 +219,67 @@ describe('the phone punch (AC-TM9)', () => {
     expect(phonePunchVerdict({ point: { ...branch, accuracyM: 500 }, branch, radiusM: 150 }).validated).toBe(false);
     expect(phonePunchVerdict({ point: null, branch, radiusM: 150 }).reason).toBe('No location was sent.');
     expect(phonePunchVerdict({ point: { ...branch, accuracyM: 5 }, branch: null, radiusM: 150 }).distanceM).toBeNull();
+  });
+});
+
+describe('clock-in rules (selfPunchDecision, clockInOpensAt)', () => {
+  const branch = { lat: -1.9441, lng: 30.0619 };
+  const at = (point: { lat: number; lng: number; accuracyM: number | null } | null): PunchVerdict =>
+    phonePunchVerdict({ point, branch, radiusM: 150 });
+  const inside = at({ ...branch, accuracyM: 20 });
+  const home = at({ lat: -1.9729, lng: 30.0619, accuracyM: 20 });
+  const vague = at({ ...branch, accuracyM: 900 });
+  const none = at(null);
+
+  it('anywhere: records every clock-in, the far ones for HR', () => {
+    expect(selfPunchDecision({ mode: 'anywhere', direction: 'in', scanned: false, verdict: inside })).toEqual({ allow: true, validated: true, reason: null });
+    const far = selfPunchDecision({ mode: 'anywhere', direction: 'in', scanned: false, verdict: home });
+    expect(far.allow && !far.validated && /m from the branch/.test(far.reason ?? '')).toBe(true);
+  });
+
+  it('at work only: refuses away from work, without location, or with a vague fix', () => {
+    expect(selfPunchDecision({ mode: 'at_work', direction: 'in', scanned: false, verdict: inside })).toEqual({ allow: true, validated: true, reason: null });
+    expect(selfPunchDecision({ mode: 'at_work', direction: 'in', scanned: false, verdict: home })).toEqual({
+      allow: false,
+      reason: 'You are 3.2 km from work. Clock in when you get there.',
+      far: true,
+    });
+    expect(selfPunchDecision({ mode: 'at_work', direction: 'in', scanned: false, verdict: none })).toMatchObject({ allow: false, far: false });
+    expect(selfPunchDecision({ mode: 'at_work', direction: 'in', scanned: false, verdict: vague })).toMatchObject({ allow: false, far: false });
+  });
+
+  it('entrance only: a phone needs the code to clock in', () => {
+    expect(selfPunchDecision({ mode: 'entrance', direction: 'in', scanned: false, verdict: inside })).toMatchObject({ allow: false });
+    expect(selfPunchDecision({ mode: 'entrance', direction: 'in', scanned: true, verdict: inside })).toEqual({ allow: true, validated: true, reason: null });
+  });
+
+  it('a scanned code is proof, unless the phone says it is far away', () => {
+    expect(selfPunchDecision({ mode: 'at_work', direction: 'in', scanned: true, verdict: none })).toEqual({ allow: true, validated: true, reason: null });
+    expect(selfPunchDecision({ mode: 'entrance', direction: 'in', scanned: true, verdict: home })).toEqual({
+      allow: true,
+      validated: false,
+      reason: 'Scanned the code, but the phone was 3.2 km from work.',
+    });
+  });
+
+  it('never refuses a clock out', () => {
+    for (const mode of ['anywhere', 'at_work', 'entrance'] as const) {
+      expect(selfPunchDecision({ mode, direction: 'out', scanned: false, verdict: home }).allow).toBe(true);
+    }
+  });
+
+  it('opens a clock-in some minutes before the shift', () => {
+    const shiftStartsAt = new Date('2026-11-05T05:00:00Z');
+    expect(clockInOpensAt({ at: new Date('2026-11-05T04:00:00Z'), shiftStartsAt, opensMinutesBefore: 30 })?.toISOString()).toBe('2026-11-05T04:30:00.000Z');
+    expect(clockInOpensAt({ at: new Date('2026-11-05T04:40:00Z'), shiftStartsAt, opensMinutesBefore: 30 })).toBeNull();
+    expect(clockInOpensAt({ at: new Date('2026-11-05T04:00:00Z'), shiftStartsAt, opensMinutesBefore: null })).toBeNull();
+    expect(clockInOpensAt({ at: new Date('2026-11-05T04:00:00Z'), shiftStartsAt: null, opensMinutesBefore: 30 })).toBeNull();
+  });
+
+  it('says distances and times as people do', () => {
+    expect(distanceWords(350)).toBe('350 m');
+    expect(distanceWords(3240)).toBe('3.2 km');
+    expect(kigaliClock(new Date('2026-11-05T04:30:00Z'))).toBe('06:30');
   });
 });
 

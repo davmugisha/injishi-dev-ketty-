@@ -8,6 +8,7 @@ export const BOARDS = [
   "Register",
   "Onboarding",
   "Account",
+  "MyHr",
   "GlobalSearch",
   "Notifications",
   "StatesGallery",
@@ -69,6 +70,7 @@ export const BOARDS = [
   "PayrollRules",
   "Talent",
   "StaffServices",
+  "HrReport",
   "StaffToday",
   "StaffTask",
   "StaffReport",
@@ -300,6 +302,28 @@ export const screens: Record<BoardId, ScreenEntry> = {
       search: "Search bookings, guests, folios…",
       pills: [],
       notifications: 6,
+      assistant: true,
+    },
+  },
+  // Not drawn on the artifact: the person's own HR, added with the HR merge (ADR-058, 058-self-service).
+  MyHr: {
+    board: "MyHr",
+    title: "Me · payslips, leave, attendance and profile",
+    pageTitle: "Me",
+    route: "/me",
+    href: "/me",
+    surface: "workspace",
+    frame: {
+      width: 1440,
+      height: 1400,
+    },
+    section: "overview",
+    area: "shared",
+    persona: "owner",
+    topbar: {
+      search: "Search…",
+      pills: [],
+      notifications: 0,
       assistant: true,
     },
   },
@@ -1881,15 +1905,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
     persona: "hr",
     topbar: {
       search: "Search staff, shifts, leave…",
-      pills: [
-        {
-          kind: "chip",
-          label: "Ishyamba kiosk last seen 09:12",
-          tone: "default",
-          board: null,
-          dot: "warning",
-        },
-      ],
+      pills: [],
       notifications: 3,
       assistant: true,
     },
@@ -1966,14 +1982,29 @@ export const screens: Record<BoardId, ScreenEntry> = {
     persona: "hr",
     topbar: {
       search: "Search staff, shifts, leave…",
-      pills: [
-        {
-          kind: "gate",
-          label: "3 rule sets awaiting sign-off",
-          board: null,
-          icon: "ShieldExclamation",
-        },
-      ],
+      pills: [],
+      notifications: 3,
+      assistant: true,
+    },
+  },
+  // Not drawn on the artifact: everything that took place over a period, in one report.
+  HrReport: {
+    board: "HrReport",
+    title: "HR report · staff, attendance, leave, pay and requests",
+    pageTitle: "HR · Report",
+    route: "/hr-report",
+    href: "/hr-report",
+    surface: "workspace",
+    frame: {
+      width: 1440,
+      height: 1600,
+    },
+    section: "people",
+    area: "people",
+    persona: "hr",
+    topbar: {
+      search: "Search staff, shifts, leave…",
+      pills: [],
       notifications: 3,
       assistant: true,
     },
@@ -2023,15 +2054,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
     persona: "hr",
     topbar: {
       search: "Search staff, shifts, leave…",
-      pills: [
-        {
-          kind: "chip",
-          label: "2 keys due back from a leaver",
-          tone: "default",
-          board: null,
-          dot: "warning",
-        },
-      ],
+      pills: [],
       notifications: 3,
       assistant: true,
     },

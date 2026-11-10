@@ -142,7 +142,7 @@ exports.SHIFT_REQUEST_LIST = (0, list_query_1.defineListSpec)({
             key: "kind",
             label: "Kind",
             type: "enum",
-            enumValues: ["change", "swap"],
+            enumValues: ["change", "swap", "rotation"],
             enumLabels: { change: "Different shift", swap: "Swap" },
             filterable: true,
             groupable: true,

@@ -50,6 +50,7 @@ export class MyStaffService {
           issuedOn: null,
           expiresOn: c.ends_on,
           checkedAt: null,
+          rejectReason: null,
         })),
         ...documents.map((d) => ({
           id: d.id,
@@ -61,6 +62,7 @@ export class MyStaffService {
           issuedOn: d.issued_on,
           expiresOn: d.expires_on,
           checkedAt: d.status === 'approved' ? d.updated_at : null,
+          rejectReason: d.reject_reason,
         })),
       ],
     };

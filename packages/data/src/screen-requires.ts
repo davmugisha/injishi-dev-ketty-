@@ -110,6 +110,8 @@ export const SCREEN_REQUIRES: Readonly<Record<BoardId, ScreenRequires>> = {
   // Any signed in person (the shared boards).
   Account: SELF,
   Notifications: SELF,
+  // Me: every signed-in person's own HR, read through their own file (`/me/work`).
+  MyHr: SELF,
   GlobalSearch: SELF,
   Assistant: SELF,
   AccessDenied: SELF,
@@ -188,6 +190,8 @@ export const SCREEN_REQUIRES: Readonly<Record<BoardId, ScreenRequires>> = {
   PayrollRules: business("hr", PAY_RUN),
   Talent: business("hr", ["hr.people.manage", "hr.people.view"]),
   StaffServices: business("hr", ["hr.people.manage", "hr.people.view"]),
+  // `GET /ops/hr/report` asks `people.manage`.
+  HrReport: business("hr", ["hr.people.manage"]),
 
   // The staff phone: rooms and work orders are PMS's; a person's own schedule
   // and profile need no permission, only that HR runs there.

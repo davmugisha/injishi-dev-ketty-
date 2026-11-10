@@ -7,6 +7,7 @@ import type {
   KioskPinState,
   KioskPunchRequest,
   KioskPunchResult,
+  KioskQr,
   KioskSession,
   SetKioskPinRequest,
   UnlockKioskPinRequest,
@@ -21,10 +22,13 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 import { assertOwnedByOrg } from '../../../shared/auth/assert-owned';
 import { assertInBranchScope, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import { resolveAppUrl } from '../../../shared/config/app-url';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import { CODE_WINDOW_MS, CODE_WINDOWS_GOOD, clockCodeKey, readClockCode, signClockCode, windowOf } from '../infrastructure/clock-code';
 import { EmployeesRepository, type EmployeeRow } from '../infrastructure/employees.repository';
 import { writeHrAudit } from '../infrastructure/hr-audit';
 import { KioskRepository, type KioskRow } from '../infrastructure/kiosk.repository';
@@ -70,6 +74,9 @@ const MISMATCH = 'That employee number and PIN do not match.';
  */
 @Injectable()
 export class KioskService {
+  private readonly codeKey: Buffer;
+  private readonly appUrl: string;
+
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly kiosks: KioskRepository,
@@ -77,7 +84,11 @@ export class KioskService {
     private readonly time: TimeRepository,
     private readonly timeService: TimeService,
     @Inject(HR_PIN_PEPPER) private readonly pepper: string,
-  ) {}
+    config: ConfigService,
+  ) {
+    this.codeKey = clockCodeKey(pepper);
+    this.appUrl = resolveAppUrl({ appUrl: config.get<string>('APP_URL'), nodeEnv: config.get<string>('NODE_ENV') });
+  }
 
   // --- The operator side (`attendance.record` at the kiosk's branch) ----------------------------
 
@@ -237,6 +248,24 @@ export class KioskService {
     return this.ownPinState(employee.id);
   }
 
+  /**
+   * `POST /me/work/:employeeId/kiosk-pin/check`: the person's own PIN, before their pay shows on a
+   * shared phone. Wrong guesses count on the same lock as changing it (AC-TM11).
+   */
+  async checkMyPin(employee: EmployeeRow, pin: string): Promise<{ ok: true }> {
+    const now = new Date();
+    await this.assertNotLocked(null, employee.id, now);
+    const held = await this.kiosks.pinOf(employee.id);
+    if (!held) throw new ConflictException('You have no PIN yet. Ask whoever runs attendance at your branch to set one.');
+    if (!(await verifyPin(pin, held.pinHash, this.pepper))) {
+      const state = await this.kiosks.recordFailure(employee.orgId, null, employee.id, now);
+      if (state.lockedUntil && state.lockedUntil > now) throw lockedError(state.lockedUntil, now);
+      throw new UnprocessableEntityException({ code: 'pin_mismatch', message: 'That is not your PIN.' });
+    }
+    await this.kiosks.clearFailures(null, employee.id);
+    return { ok: true };
+  }
+
   // --- The device side (`/kiosk/*`) -------------------------------------------------------
 
   /**
@@ -320,6 +349,42 @@ export class KioskService {
     return { displayName: displayNameOf(employee), direction: open ? 'out' : 'in', at: now.toISOString() };
   }
 
+  // --- The code on the screen, for phones (clock-in rules) ----------------------------------
+
+  /** `GET /kiosk/qr`: the link the tablet draws as a QR code, new every 30 seconds. */
+  qr(kiosk: KioskContext, now = Date.now()): KioskQr {
+    const window = windowOf(now);
+    const code = signClockCode(this.codeKey, kiosk.id, window);
+    return {
+      url: `${this.appUrl}/clock?c=${code}`,
+      expiresAt: new Date((window + CODE_WINDOWS_GOOD) * CODE_WINDOW_MS).toISOString(),
+      // A quarter second past the turn, so the tablet never asks a moment early.
+      refreshInMs: (window + 1) * CODE_WINDOW_MS - now + 250,
+    };
+  }
+
+  /**
+   * The tablet a scanned code names, for a person clocking in with it. It must
+   * be genuine, fresh, from a tablet still paired, and at the person's branch.
+   */
+  async scanned(code: string, employee: EmployeeRow, now = Date.now()): Promise<{ kioskId: string; kioskName: string }> {
+    const read = readClockCode(this.codeKey, code, now);
+    if (read === 'expired') {
+      throw new UnprocessableEntityException({ code: 'code_expired', message: 'That code has run out. Scan the code on the tablet again.' });
+    }
+    if (read === 'wrong') {
+      throw new UnprocessableEntityException({ code: 'code_wrong', message: 'That is not a clock-in code. Scan the code on the tablet at the entrance.' });
+    }
+    const kiosk = await this.kiosks.find(read.kioskId);
+    if (!kiosk || kiosk.status !== 'active') {
+      throw new UnprocessableEntityException({ code: 'code_wrong', message: 'That tablet is no longer set up for clocking in.' });
+    }
+    if (kiosk.orgId !== employee.orgId || kiosk.propertyId !== employee.workPropertyId) {
+      throw new UnprocessableEntityException({ code: 'code_branch', message: `That code is for ${kiosk.branchName}, not the branch you work at.` });
+    }
+    return { kioskId: kiosk.id, kioskName: kiosk.name };
+  }
+
   // --- Helpers -------------------------------------------------------------
 
   private async assertNotLocked(kioskId: string | null, employeeId: string, now: Date): Promise<void> {
@@ -360,7 +425,7 @@ function normalIp(ip: string): string {
 }
 
 /** An empty list allows any address (AC-TM10). */
-export function ipAllowed(allowed: readonly string[], ip: string | undefined): boolean {
+function ipAllowed(allowed: readonly string[], ip: string | undefined): boolean {
   if (allowed.length === 0) return true;
   if (!ip) return false;
   const seen = normalIp(ip);

@@ -37,11 +37,14 @@ import {
   OpsPayClaimsController,
   OpsPayComponentsController,
   OpsPayFilesController,
+  OpsPayrollContributionsController,
   OpsPayrollController,
   OpsPayslipsController,
   OpsPayStructuresController,
 } from './payroll.controller';
 import { OpsPoliciesController } from './policies.controller';
+import { OpsAssetLoansController, OpsHrTicketsController } from './hr-desk.controller';
+import { OpsTalentController } from './talent.controller';
 import { OpsRosterController, OpsShiftTemplatesController } from './roster.controller';
 import { OpsEbmController } from './ebm.controller';
 import { OpsFoliosController } from './folios.controller';
@@ -180,6 +183,10 @@ const CONTROLLERS: Ctor[] = [
   OpsLoansController,
   OpsPayClaimsController,
   OpsPayComponentsController,
+  OpsPayrollContributionsController,
+  OpsHrTicketsController,
+  OpsAssetLoansController,
+  OpsTalentController,
   OpsPayStructuresController,
   OpsContractsController,
   OpsPayrollController,
@@ -357,6 +364,8 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/refund-requests': ['owner', 'manager', 'finance'],
   '/ops/team': ['owner'],
   '/ops/team/invitations': ['owner'],
+  // HR onboarding: logins HR asked for, which the owner decides.
+  '/ops/team/access-requests': ['owner'],
   '/ops/threads': ['owner', 'manager', 'receptionist'],
   '/ops/threads/:id/messages': ['owner', 'manager', 'receptionist'],
   // The HR module (ADR-058, contract 4). A file is read by `people.view` and
@@ -391,6 +400,10 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/employees/:id/notes': ['owner', 'hr'],
   '/ops/employees/:id/notes/:noteId/files/:index': ['owner', 'hr'],
   '/ops/employees/:id/documents': ['owner', 'hr'],
+  // HR onboarding: a file's login is read with the file's other private parts, and the
+  // roles a login may be are read by whoever keeps the files, before there is one.
+  '/ops/employees/:id/access': ['owner', 'hr'],
+  '/ops/employees/access-options': ['owner', 'hr'],
   '/ops/documents': ['owner', 'hr'],
   '/ops/documents/:id/file': ['owner', 'hr'],
   '/ops/document-requests': ['owner', 'hr'],
@@ -402,7 +415,7 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/hr/settings': ['owner', 'manager', 'receptionist', 'hr'],
   // Checklists are read by whoever reads files; the desk reads neither.
   '/ops/hr/checklist-templates': ['owner', 'manager', 'hr'],
-  '/ops/hr/checklist-board': ['owner', 'manager', 'hr'],
+  '/ops/hr/checklists': ['owner', 'manager', 'hr'],
   '/ops/policies': ['owner', 'manager', 'receptionist', 'hr'],
   '/ops/policies/:id/files/:index': ['owner', 'manager', 'receptionist', 'hr'],
   '/ops/staff-announcements': ['owner', 'manager', 'receptionist', 'hr'],
@@ -417,8 +430,10 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/roster/cover': ['owner', 'manager', 'receptionist', 'hr'],
   '/ops/hr/compensation': ['owner', 'hr'],
   '/ops/hr/expiring-documents': ['owner', 'hr'],
-  '/ops/hr/checklists': ['owner', 'hr'],
+  // '/ops/hr/checklists' is the checklists board, listed with the HR content above.
   '/ops/hr/dependants': ['owner', 'hr'],
+  // The HR report: everything that took place over a period, `people.manage` alone.
+  '/ops/hr/report': ['owner', 'hr'],
   // Time (058-time). The week grid reads like the roster; the desk reads the
   // rotations it clocks people onto, the policies it punches under, its
   // kiosks and whether a person has a PIN. Requests are decided by those who
@@ -433,6 +448,8 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/attendance-requests/ids': ['owner', 'manager', 'hr'],
   '/ops/attendance/policies': ['owner', 'manager', 'receptionist', 'hr'],
   '/ops/attendance/kiosks': ['owner', 'manager', 'receptionist', 'hr'],
+  // Who clocked in far from work: where people were, so only those who validate.
+  '/ops/attendance/far-clock-ins': ['owner', 'manager', 'hr'],
   '/ops/attendance/insights/late-early': ['owner', 'hr'],
   '/ops/attendance/insights/monthly': ['owner', 'hr'],
   '/ops/employees/:id/kiosk-pin': ['owner', 'manager', 'receptionist', 'hr'],
@@ -466,14 +483,19 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/pay-adjustments': ['owner'],
   '/ops/loans': ['owner'],
   '/ops/loans/:id': ['owner'],
-  '/ops/pay-claims': ['owner'],
-  '/ops/pay-claims/ids': ['owner'],
-  '/ops/pay-claims/:id/receipt': ['owner'],
+  '/ops/pay-claims': ['owner', 'hr'],
+  '/ops/hr-tickets': ['owner', 'hr'],
+  '/ops/asset-loans': ['owner', 'hr'],
+  '/ops/talent': ['owner', 'hr'],
+  '/ops/review-cycles/current': ['owner', 'hr'],
+  '/ops/pay-claims/ids': ['owner', 'hr'],
+  '/ops/pay-claims/:id/receipt': ['owner', 'hr'],
   '/ops/pay-components': ['owner'],
   '/ops/pay-structures': ['owner'],
   '/ops/contracts': ['owner', 'hr'],
   '/ops/payroll/dashboard': ['owner', 'hr'],
   '/ops/payroll/rules': ['owner', 'hr'],
+  '/ops/payroll-contributions': ['owner', 'hr'],
   '/ops/pay-files/:id': ['owner'],
   // Rentals (blueprint 2.3, WP 1.4 and 1.5a). The landlord's profile and setup
   // read under any rentals permission: the leases, units, listing or money side.
@@ -588,6 +610,8 @@ describe('pay runs: drafted by payroll.draft, confirmed by payroll.run (ADR-069 
     'GET /ops/pay-runs/:id',
     'POST /ops/pay-runs/:id/recompute',
     'POST /ops/pay-runs/:id/hold',
+    'POST /ops/pay-runs/:id/submit',
+    'POST /ops/pay-runs/:id/withdraw',
     'GET /ops/payroll/dashboard',
     'GET /ops/payroll/rules',
   ];

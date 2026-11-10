@@ -3,12 +3,15 @@ import {
   CreateEmployeeNoteRequest,
   CreateEmployeeRequest,
   CreatePayAccountRequest,
+  GrantEmployeeAccessRequest,
   OffboardEmployeeRequest,
   SetEmployeePhotoRequest,
   UpdateEmployeeRequest,
   UploadEmployeeDocumentRequest,
   type CreateContractResponse,
   type Employee,
+  type EmployeeAccess,
+  type EmployeeAccessOptions,
   type EmployeeDocument,
   type EmployeeDocumentList,
   type EmployeeFile,
@@ -16,6 +19,7 @@ import {
   type EmployeeNoteList,
   type EmployeePage,
   type FileLink,
+  type GrantEmployeeAccessResponse,
   type ListIds,
   type ListQuery,
   type LeaveBalances,
@@ -38,6 +42,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { StaffAccessService } from '../../../modules/organization/application/staff-access.service';
 import { ChecklistsService } from '../../../modules/hr/application/checklists.service';
 import { EmployeesService } from '../../../modules/hr/application/employees.service';
 import { LeaveService } from '../../../modules/hr/application/leave.service';
@@ -85,6 +90,7 @@ export class OpsEmployeesController {
     private readonly leave: LeaveService,
     private readonly peopleFile: PeopleFileService,
     private readonly checklists: ChecklistsService,
+    private readonly access: StaffAccessService,
   ) {}
 
   /** One page through the list contract (058-list-framework AC-LF3, AC-LF4). */
@@ -129,6 +135,16 @@ export class OpsEmployeesController {
       // A file of people's details must not sit in a proxy cache.
       .header('cache-control', 'no-store')
       .send(file.body);
+  }
+
+  /**
+   * The roles, branches and rights a login may be given with, for the new employee form, before
+   * there is a file. `people.manage`, like the file's own access read. Before `:id`.
+   */
+  @Get('access-options')
+  @RequirePermission('people.manage')
+  accessOptions(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<EmployeeAccessOptions> {
+    return this.access.options(workspace);
   }
 
   /**
@@ -193,6 +209,49 @@ export class OpsEmployeesController {
     const employee = await this.employees.offboard(workspace, user.id, id, body);
     await this.checklists.startDefault(workspace, user.id, employee.id, 'offboarding');
     return employee;
+  }
+
+  /**
+   * Where the file's Injishi login stands, and the roles that may be given (HR onboarding).
+   * `people.manage`: the access of a colleague is part of their file, as their documents are.
+   */
+  @Get(':id/access')
+  @RequirePermission('people.manage')
+  readAccess(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<EmployeeAccess> {
+    return this.access.read(workspace, id);
+  }
+
+  /**
+   * Give the file its login. With `team.invite` alone a role that reaches money, staff files,
+   * payroll or prices is REQUESTED and the owner approves it; a front-line one is sent at once.
+   * The owner (`team.manage`) sends any role at once. Never re-roles or removes a login.
+   */
+  @Post(':id/access')
+  @RequirePermission('people.manage')
+  @RequireAnyPermission('team.invite', 'team.manage')
+  grantAccess(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(GrantEmployeeAccessRequest)) body: GrantEmployeeAccessRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<GrantEmployeeAccessResponse> {
+    return this.access.grant(workspace, user.id, id, body);
+  }
+
+  /** Take back a request still waiting for the owner, or the live invitation sent for the file. */
+  @Post(':id/access/cancel')
+  @HttpCode(200)
+  @RequirePermission('people.manage')
+  @RequireAnyPermission('team.invite', 'team.manage')
+  cancelAccess(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<EmployeeAccess> {
+    return this.access.cancel(workspace, user.id, id);
   }
 
   /** The balance per type is the sum of the ledger, and the rows are beside it. */

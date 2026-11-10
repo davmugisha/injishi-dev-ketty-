@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.EmployeeDependantList = exports.EmployeeDependant = exports.DependantRelation = exports.MarkChecklistItemRequest = exports.HrChecklistQuery = exports.HrChecklistItemList = exports.HrChecklistItem = exports.HrChecklistKind = exports.ExpiringDocumentQuery = exports.ExpiringDocumentList = exports.ExpiringDocument = exports.HrCompensation = exports.PayAccountLabel = exports.ContractTerms = exports.CoverQuery = exports.CoverRequirementList = exports.CoverRequirement = exports.HrTeamList = exports.HrPlacement = exports.HrTeam = void 0;
+exports.EmployeeDependantList = exports.EmployeeDependant = exports.DependantRelation = exports.ExpiringDocumentQuery = exports.ExpiringDocumentList = exports.ExpiringDocument = exports.HrCompensation = exports.PayAccountLabel = exports.ContractTerms = exports.SaveCoverRequest = exports.CoverQuery = exports.CoverRequirementList = exports.CoverRequirement = exports.HrTeamList = exports.HrPlacement = exports.HrTeam = void 0;
 const zod_1 = require("zod");
 /**
  * The workforce reads the new interface's HR screens draw with (real-data,
@@ -69,6 +69,16 @@ exports.CoverRequirement = zod_1.z.object({
 exports.CoverRequirementList = zod_1.z.object({ requirements: zod_1.z.array(exports.CoverRequirement) });
 /** Every branch in the caller's scope when no branch is named. */
 exports.CoverQuery = zod_1.z.object({ propertyId: Uuid.optional() });
+/**
+ * `PUT /ops/roster/cover`: the fewest people a team needs, per weekday (Monday first), and the shifts
+ * that count. Saving again changes the team's minimum rather than adding another.
+ */
+exports.SaveCoverRequest = zod_1.z.object({
+    teamId: Uuid,
+    shiftTemplateIds: zod_1.z.array(Uuid).min(1, "Choose at least one shift.").max(12),
+    minByWeekday: zod_1.z.array(zod_1.z.number().int().min(0).max(99)).length(7),
+    note: zod_1.z.string().trim().max(200).nullable().optional(),
+});
 // ---------------------------------------------------------------------------
 // Compensation (`GET /ops/hr/compensation`, people.manage or payroll.run)
 // ---------------------------------------------------------------------------
@@ -119,30 +129,6 @@ exports.ExpiringDocumentList = zod_1.z.object({ documents: zod_1.z.array(exports
 exports.ExpiringDocumentQuery = zod_1.z.object({
     withinDays: zod_1.z.coerce.number().int().min(1).max(366).optional(),
 });
-// ---------------------------------------------------------------------------
-// Checklists (`GET /ops/hr/checklists`, `POST /ops/hr/checklist-items/:id`)
-// ---------------------------------------------------------------------------
-exports.HrChecklistKind = zod_1.z.enum(["onboarding", "offboarding"]);
-exports.HrChecklistItem = zod_1.z.object({
-    id: Uuid,
-    employeeId: Uuid,
-    checklist: exports.HrChecklistKind,
-    code: zod_1.z.string(),
-    title: zod_1.z.string(),
-    detail: zod_1.z.string().nullable(),
-    /** Only someone who may manage the team ticks it. */
-    ownerOnly: zod_1.z.boolean(),
-    sortOrder: zod_1.z.number().int(),
-    doneAt: zod_1.z.string().nullable(),
-    doneByName: zod_1.z.string().nullable(),
-});
-exports.HrChecklistItemList = zod_1.z.object({ items: zod_1.z.array(exports.HrChecklistItem) });
-exports.HrChecklistQuery = zod_1.z.object({
-    checklist: exports.HrChecklistKind,
-    employeeId: Uuid.optional(),
-});
-/** Tick a step, or take the tick back. */
-exports.MarkChecklistItemRequest = zod_1.z.object({ done: zod_1.z.boolean() });
 // ---------------------------------------------------------------------------
 // Dependants (`GET /ops/hr/dependants`, people.manage)
 // ---------------------------------------------------------------------------

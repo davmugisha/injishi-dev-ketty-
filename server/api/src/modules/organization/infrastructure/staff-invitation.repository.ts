@@ -8,6 +8,7 @@ import {
   orgMemberships,
   orgs,
   properties,
+  staffAccessRequests,
   users,
   workspaces,
 } from '../../../database/drizzle/schema';
@@ -320,10 +321,19 @@ export class StaffInvitationRepository {
       if (spent.length === 0) throw new StaffInvitationRefused('no_live_invitation');
 
       // Every way into a business ends with a file (ADR-058, 058-self-service
-      // AC-J2): a thin one is written in this transaction when the membership
-      // has no active file, so the Staff list never misses somebody who joined
-      // through Team.
-      await ensureStaffFileTx(tx, { orgId: input.orgId, membershipId });
+      // AC-J2): the file HR gave this login for is linked (HR onboarding), and
+      // a thin one is written only when there is none, so the Staff list never
+      // misses somebody who joined through Team nor lists them twice.
+      const [given] = await tx
+        .select({ employeeId: staffAccessRequests.employeeId })
+        .from(staffAccessRequests)
+        .where(eq(staffAccessRequests.invitationId, invitation.id))
+        .limit(1);
+      await ensureStaffFileTx(tx, {
+        orgId: input.orgId,
+        membershipId,
+        employeeId: given?.employeeId ?? null,
+      });
 
       const [workspace] = await tx
         .select({ id: workspaces.id })

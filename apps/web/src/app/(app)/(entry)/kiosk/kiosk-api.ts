@@ -14,7 +14,7 @@
  * sets it as an HttpOnly cookie scoped to `/api/v1/kiosk`, and
  * `credentials: "include"` is what sends it back.
  */
-import { KioskPunchResult, KioskSession } from "@injishi/contracts";
+import { KioskPunchResult, KioskQr, KioskSession } from "@injishi/contracts";
 
 import { API_URL, apiFetch, apiFetchParsed } from "@/lib/api";
 
@@ -35,6 +35,15 @@ export async function readSession(): Promise<SessionOutcome> {
   // A refusal here is a server in trouble (a 5xx, a throttle): either way
   // nothing could be recorded, which is what "cannot reach" tells a person.
   return { kind: "unreachable" };
+}
+
+/**
+ * `GET /kiosk/qr`: the link this tablet draws as a QR code for phones to scan,
+ * new every 30 seconds. Null when it could not be had: the PIN pad still works.
+ */
+export async function readQr(): Promise<KioskQr | null> {
+  const result = await apiFetchParsed(KioskQr, "/api/v1/kiosk/qr");
+  return result.status === "ok" ? result.data : null;
 }
 
 type PairOutcome =

@@ -69,9 +69,22 @@ export const checklistTemplateItems = pgTable(
       .notNull()
       .references(() => checklistTemplates.id, { onDelete: 'cascade' }),
     label: text('label').notNull(),
+    /**
+     * A short stable name for the step ("assets", "access"), so a screen can
+     * lead from it to the board that does it. Null for a step with no such
+     * place. Copied onto every person's task.
+     */
+    code: text('code'),
+    /** A line under the label: what exactly is to be done. */
+    detail: text('detail'),
     sortOrder: integer('sort_order').notNull().default(0),
     /** The person does it themselves; otherwise the office does. */
     byEmployee: boolean('by_employee').notNull().default(false),
+    /**
+     * Only someone who may manage the team ticks it: taking an account away is
+     * staffing the business, which is the owner's (AC-O2).
+     */
+    ownerOnly: boolean('owner_only').notNull().default(false),
     /** Days from the first day (joining) or the last (leaving); negative is before it. */
     dueAfterDays: integer('due_after_days').notNull().default(0),
     /**
@@ -120,11 +133,20 @@ export const employeeChecklistTasks = pgTable(
       .notNull()
       .references(() => employeeChecklists.id),
     label: text('label').notNull(),
+    /** The template step's code, when it had one: unique within a checklist. */
+    code: text('code'),
+    detail: text('detail'),
     sortOrder: integer('sort_order').notNull().default(0),
     byEmployee: boolean('by_employee').notNull().default(false),
+    ownerOnly: boolean('owner_only').notNull().default(false),
     dueOn: date('due_on').notNull(),
     doneAt: timestamp('done_at', { withTimezone: true }),
     doneByUserId: uuid('done_by_user_id').references(() => users.id),
   },
-  (t) => [index('employee_checklist_tasks_checklist_idx').on(t.checklistId, t.sortOrder)],
+  (t) => [
+    index('employee_checklist_tasks_checklist_idx').on(t.checklistId, t.sortOrder),
+    uniqueIndex('employee_checklist_tasks_code_uk')
+      .on(t.checklistId, t.code)
+      .where(sql`${t.code} is not null`),
+  ],
 );

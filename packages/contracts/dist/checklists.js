@@ -32,8 +32,14 @@ exports.CHECKLIST_KIND_LABEL = {
 exports.ChecklistTemplateItem = zod_1.z.object({
     id: Uuid,
     label: zod_1.z.string(),
+    /** A short stable name ("assets", "access") a screen can lead from; null for most steps. */
+    code: zod_1.z.string().nullable(),
+    /** A line under the label: what exactly is to be done. */
+    detail: zod_1.z.string().nullable(),
     /** The person does this themselves; otherwise the office does. */
     byEmployee: zod_1.z.boolean(),
+    /** Only someone who may manage the team ticks it (AC-O2). */
+    ownerOnly: zod_1.z.boolean(),
     /**
      * When it is due, in days from the day the checklist counts from: the first
      * day for somebody joining, the last day for somebody leaving. Negative is
@@ -54,7 +60,14 @@ exports.ChecklistTemplate = zod_1.z.object({
 exports.ChecklistTemplateList = zod_1.z.object({ templates: zod_1.z.array(exports.ChecklistTemplate) });
 const TemplateItemInput = zod_1.z.object({
     label: zod_1.z.string().trim().min(2, "Say what is to be done.").max(160),
+    code: zod_1.z
+        .string()
+        .regex(/^[a-z0-9-]{1,40}$/, "A code is lower case letters, digits and dashes.")
+        .nullable()
+        .optional(),
+    detail: zod_1.z.string().trim().max(500).nullable().optional(),
     byEmployee: zod_1.z.boolean().optional(),
+    ownerOnly: zod_1.z.boolean().optional(),
     dueAfterDays: zod_1.z.number().int().min(-60, "At most 60 days before.").max(365, "At most a year after.").optional(),
     jobPositionId: Uuid.nullable().optional(),
 });
@@ -77,7 +90,10 @@ exports.UpdateChecklistTemplateRequest = exports.CreateChecklistTemplateRequest.
 exports.ChecklistTask = zod_1.z.object({
     id: Uuid,
     label: zod_1.z.string(),
+    code: zod_1.z.string().nullable(),
+    detail: zod_1.z.string().nullable(),
     byEmployee: zod_1.z.boolean(),
+    ownerOnly: zod_1.z.boolean(),
     dueOn: IsoDate,
     doneAt: zod_1.z.string().nullable(),
     doneByName: zod_1.z.string().nullable(),

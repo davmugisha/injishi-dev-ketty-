@@ -1,12 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.SETUP_DURING_REVIEW_STATUSES = exports.TwoFactorSent = exports.TwoFactorChallenge = exports.MyWorkspaces = exports.TwoFactorStatus = exports.WorkspaceAccess = exports.WorkspaceBranch = exports.BranchCoverage = exports.SetRolePermissionsRequest = exports.OperatorRoleList = exports.OperatorPermissionArea = exports.OperatorRolePermissions = exports.PERMISSION_AREA_OF = exports.PERMISSION_AREA_LABEL = exports.PERMISSION_AREA = exports.LOCKED_PERMISSION_REASON = exports.LOCKED_PERMISSIONS = exports.RolePermissionOverride = exports.CustomisableOrgRole = exports.PERMISSION_LABEL = exports.Permission = void 0;
+exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.SETUP_DURING_REVIEW_STATUSES = exports.TwoFactorSent = exports.TwoFactorChallenge = exports.MyWorkspaces = exports.TwoFactorStatus = exports.WorkspaceAccess = exports.WorkspaceBranch = exports.BranchCoverage = exports.SetRolePermissionsRequest = exports.OperatorRoleList = exports.OperatorPermissionArea = exports.OperatorRolePermissions = exports.OWNER_APPROVED_ACCESS = exports.PERMISSION_AREA_OF = exports.PERMISSION_AREA_LABEL = exports.PERMISSION_AREA = exports.LOCKED_PERMISSION_REASON = exports.LOCKED_PERMISSIONS = exports.RolePermissionOverride = exports.CustomisableOrgRole = exports.PERMISSION_LABEL = exports.Permission = void 0;
 exports.can = can;
 exports.permissionsForRole = permissionsForRole;
 exports.isCustomisableOrgRole = isCustomisableOrgRole;
 exports.isLockedPermission = isLockedPermission;
 exports.effectivePermissionsForRole = effectivePermissionsForRole;
 exports.parseRolePermissionOverride = parseRolePermissionOverride;
+exports.accessNeedsOwner = accessNeedsOwner;
 exports.isOperational = isOperational;
 exports.canSetUpDuringReview = canSetUpDuringReview;
 exports.workspaceLabel = workspaceLabel;
@@ -220,6 +221,18 @@ exports.Permission = zod_1.z.enum([
      */
     "lostfound.manage",
     /**
+     * Give a staff file its Injishi login (HR onboarding): send the invitation for an employee
+     * HR has put on file, into a role and some or every branch.
+     *
+     * The owner's and `hr`'s by default, and in `OWNER_BY_DEFAULT` so a manager does not inherit
+     * it; an owner may move it like any other permission (ADR-055). It is NOT the lock on the
+     * door: `team.manage` stays the owner's alone, so whoever holds only this cannot re-role or
+     * remove anybody and cannot change what a role may do. A role that reaches money, staff
+     * files, payroll or prices at this business (`accessNeedsOwner`) is only REQUESTED with it,
+     * and the owner approves the request on Team and roles before any invitation is sent.
+     */
+    "team.invite",
+    /**
      * Decide where the business's rent is paid out: add, change, retire and
      * make primary a bank account, MoMo number or MoMo Pay code (rentals
      * blueprint 2.1). Owner by default, because whoever holds it decides whose
@@ -316,6 +329,8 @@ const OWNER_BY_DEFAULT = [
     // payout account decides where the rent goes.
     "lease.sign",
     "payout.manage",
+    // HR onboarding: giving a staff file its login.
+    "team.invite",
 ];
 /**
  * Role to permissions, inside a business workspace.
@@ -379,6 +394,7 @@ const ROLE_PERMISSIONS = {
         "attendance.approve",
         "leave.approve",
         "payroll.draft",
+        "team.invite",
     ]),
     housekeeper: new Set(["housekeeping.set", "ticket.advance"]),
     cashier: new Set([
@@ -442,6 +458,7 @@ exports.PERMISSION_LABEL = {
     "payroll.draft": "draft the pay run",
     "payroll.run": "confirm the pay run",
     "lostfound.manage": "keep the lost and found register",
+    "team.invite": "give staff their logins",
     "payout.manage": "choose where rent and booking money are paid out",
     "expense.manage": "record expenses",
     "tax.manage": "keep tax declarations and lease filings",
@@ -646,6 +663,7 @@ exports.PERMISSION_AREA_OF = {
     "payroll.draft": "people",
     "payroll.run": "people",
     "lostfound.manage": "front_desk",
+    "team.invite": "people",
     "pos.sell": "services",
     "pos.checkout": "services",
     "pos.discount": "services",
@@ -656,6 +674,38 @@ exports.PERMISSION_AREA_OF = {
     "register.operate": "money",
     "shift.review": "money",
 };
+/**
+ * What makes a login the owner's to approve when it is given with `team.invite` alone.
+ *
+ * A role holding any of these AT THIS BUSINESS reads the money, a staff file or the payroll, sets
+ * prices, or gives logins itself. HR may still ask for it, and the owner decides: whoever writes
+ * the staff file must not also be able to hand a colleague, or a second address of their own, the
+ * takings. Front-line roles (the desk, housekeeping) hold none of these by default, so their logins
+ * go out at once. Judged on the role's EFFECTIVE set, so a business that let its front desk read
+ * the takings gets the owner asked for a front desk login too.
+ */
+exports.OWNER_APPROVED_ACCESS = [
+    "money.view",
+    "refund.decide",
+    "ebm.manage",
+    "ebm.refund",
+    "people.view",
+    "people.manage",
+    "payroll.draft",
+    "payroll.run",
+    "team.invite",
+    "department.manage",
+    "outlet.manage",
+    "offer.manage",
+    "menu.manage",
+    "unit.manage",
+    "deposit.return",
+    "listing.manage",
+];
+/** Does a login into a role holding these permissions need the owner's approval? */
+function accessNeedsOwner(permissions) {
+    return permissions.some((p) => exports.OWNER_APPROVED_ACCESS.includes(p));
+}
 // ---------------------------------------------------------------------------
 // What each role may do, at THIS business
 // ---------------------------------------------------------------------------

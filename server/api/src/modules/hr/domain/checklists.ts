@@ -14,6 +14,9 @@ export interface TemplateItem {
   dueAfterDays: number;
   /** Only for people in this job; null is everybody. */
   jobPositionId: string | null;
+  code?: string | null;
+  detail?: string | null;
+  ownerOnly?: boolean;
 }
 
 export interface TaskToWrite {
@@ -21,6 +24,9 @@ export interface TaskToWrite {
   sortOrder: number;
   byEmployee: boolean;
   dueOn: string;
+  code: string | null;
+  detail: string | null;
+  ownerOnly: boolean;
 }
 
 /** A date some days on, or back. UTC arithmetic on a calendar date, so no clock is involved. */
@@ -61,6 +67,9 @@ export function tasksFor(
       sortOrder: index,
       byEmployee: item.byEmployee,
       dueOn: addDays(anchorOn, item.dueAfterDays),
+      code: item.code ?? null,
+      detail: item.detail ?? null,
+      ownerOnly: item.ownerOnly ?? false,
     }));
 }
 

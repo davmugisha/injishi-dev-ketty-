@@ -152,11 +152,11 @@ export declare const LeaseFilingView: z.ZodObject<{
     unitLabel: string;
     tenantName: string;
     dueOn: string;
+    late: boolean;
     filedOn: string | null;
     daysLeft: number | null;
     leaseReference: string;
     signedOn: string | null;
-    late: boolean;
     proofUrl: string | null;
 }, {
     status: "pending" | "filed";
@@ -168,11 +168,11 @@ export declare const LeaseFilingView: z.ZodObject<{
     unitLabel: string;
     tenantName: string;
     dueOn: string;
+    late: boolean;
     filedOn: string | null;
     daysLeft: number | null;
     leaseReference: string;
     signedOn: string | null;
-    late: boolean;
     proofUrl: string | null;
 }>;
 export type LeaseFilingView = z.infer<typeof LeaseFilingView>;
@@ -218,11 +218,11 @@ export declare const LeaseFilingList: z.ZodObject<{
         unitLabel: string;
         tenantName: string;
         dueOn: string;
+        late: boolean;
         filedOn: string | null;
         daysLeft: number | null;
         leaseReference: string;
         signedOn: string | null;
-        late: boolean;
         proofUrl: string | null;
     }, {
         status: "pending" | "filed";
@@ -234,11 +234,11 @@ export declare const LeaseFilingList: z.ZodObject<{
         unitLabel: string;
         tenantName: string;
         dueOn: string;
+        late: boolean;
         filedOn: string | null;
         daysLeft: number | null;
         leaseReference: string;
         signedOn: string | null;
-        late: boolean;
         proofUrl: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -252,11 +252,11 @@ export declare const LeaseFilingList: z.ZodObject<{
         unitLabel: string;
         tenantName: string;
         dueOn: string;
+        late: boolean;
         filedOn: string | null;
         daysLeft: number | null;
         leaseReference: string;
         signedOn: string | null;
-        late: boolean;
         proofUrl: string | null;
     }[];
 }, {
@@ -270,11 +270,11 @@ export declare const LeaseFilingList: z.ZodObject<{
         unitLabel: string;
         tenantName: string;
         dueOn: string;
+        late: boolean;
         filedOn: string | null;
         daysLeft: number | null;
         leaseReference: string;
         signedOn: string | null;
-        late: boolean;
         proofUrl: string | null;
     }[];
 }>;
@@ -421,10 +421,10 @@ export declare const TaxYearView: z.ZodObject<{
             amountRwf: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
             amountRwf: number;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
         }, {
             amountRwf: number;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
         }>, "many">;
         entries: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
@@ -437,14 +437,14 @@ export declare const TaxYearView: z.ZodObject<{
             id: string;
             amountRwf: number;
             propertyName: string | null;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
             paidOn: string;
             payeeName: string | null;
         }, {
             id: string;
             amountRwf: number;
             propertyName: string | null;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
             paidOn: string;
             payeeName: string | null;
         }>, "many">;
@@ -453,28 +453,28 @@ export declare const TaxYearView: z.ZodObject<{
             id: string;
             amountRwf: number;
             propertyName: string | null;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
             paidOn: string;
             payeeName: string | null;
         }[];
         totalRwf: number;
         byCategory: {
             amountRwf: number;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
         }[];
     }, {
         entries: {
             id: string;
             amountRwf: number;
             propertyName: string | null;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
             paidOn: string;
             payeeName: string | null;
         }[];
         totalRwf: number;
         byCategory: {
             amountRwf: number;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
         }[];
     }>;
     /** The person's estimate (null for a company). */
@@ -626,11 +626,11 @@ export declare const TaxYearView: z.ZodObject<{
         unitLabel: string;
         tenantName: string;
         dueOn: string;
+        late: boolean;
         filedOn: string | null;
         daysLeft: number | null;
         leaseReference: string;
         signedOn: string | null;
-        late: boolean;
         proofUrl: string | null;
     }, {
         status: "pending" | "filed";
@@ -642,11 +642,11 @@ export declare const TaxYearView: z.ZodObject<{
         unitLabel: string;
         tenantName: string;
         dueOn: string;
+        late: boolean;
         filedOn: string | null;
         daysLeft: number | null;
         leaseReference: string;
         signedOn: string | null;
-        late: boolean;
         proofUrl: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -660,11 +660,11 @@ export declare const TaxYearView: z.ZodObject<{
         unitLabel: string;
         tenantName: string;
         dueOn: string;
+        late: boolean;
         filedOn: string | null;
         daysLeft: number | null;
         leaseReference: string;
         signedOn: string | null;
-        late: boolean;
         proofUrl: string | null;
     }[];
     declaration: {
@@ -717,14 +717,14 @@ export declare const TaxYearView: z.ZodObject<{
             id: string;
             amountRwf: number;
             propertyName: string | null;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
             paidOn: string;
             payeeName: string | null;
         }[];
         totalRwf: number;
         byCategory: {
             amountRwf: number;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
         }[];
     };
     rentalTax: {
@@ -766,11 +766,11 @@ export declare const TaxYearView: z.ZodObject<{
         unitLabel: string;
         tenantName: string;
         dueOn: string;
+        late: boolean;
         filedOn: string | null;
         daysLeft: number | null;
         leaseReference: string;
         signedOn: string | null;
-        late: boolean;
         proofUrl: string | null;
     }[];
     declaration: {
@@ -823,14 +823,14 @@ export declare const TaxYearView: z.ZodObject<{
             id: string;
             amountRwf: number;
             propertyName: string | null;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
             paidOn: string;
             payeeName: string | null;
         }[];
         totalRwf: number;
         byCategory: {
             amountRwf: number;
-            category: "other" | "utilities" | "cleaning" | "repairs" | "security" | "insurance" | "loan_interest";
+            category: "other" | "utilities" | "cleaning" | "insurance" | "repairs" | "security" | "loan_interest";
         }[];
     };
     rentalTax: {

@@ -65,6 +65,8 @@ export const hrSettings = pgTable(
     payRunAutoDraftDay: integer('pay_run_auto_draft_day'),
     /** 058-payroll AC-PY14: printed on payslips and declarations; a run needs it to confirm. */
     rssbEmployerNumber: text('rssb_employer_number'),
+    /** HR's optional features Injishi staff switched off for the business (`HrFeature`); empty is all on. */
+    featuresOff: text('features_off').array().notNull().default(sql`'{}'::text[]`),
     ...timestamps,
   },
   (t) => [
@@ -72,6 +74,10 @@ export const hrSettings = pgTable(
     check(
       'hr_settings_prefix_ck',
       sql`${t.employeeNumberPrefix} IS NULL OR ${t.employeeNumberPrefix} ~ '^[A-Z0-9-]{1,8}$'`,
+    ),
+    check(
+      'hr_settings_features_off_ck',
+      sql`${t.featuresOff} <@ ARRAY['talent','reviews','insurance','loans','claims','assets','announcements','helpDesk']::text[]`,
     ),
   ],
 );

@@ -21,7 +21,7 @@ type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
  */
 
 /** The business's number prefix (058-people-file AC-PF12), or none. */
-export async function employeeNumberPrefixTx(tx: Tx | Database, orgId: string): Promise<string> {
+async function employeeNumberPrefixTx(tx: Tx | Database, orgId: string): Promise<string> {
   const [row] = await tx
     .select({ prefix: hrSettings.employeeNumberPrefix })
     .from(hrSettings)
@@ -69,7 +69,10 @@ export async function mintEmployeeNumberTx(tx: Tx, orgId: string): Promise<strin
  * Every way into a business ends with a file (058-self-service AC-J2).
  *
  * Called inside the transaction that wrote or reactivated a membership. An
- * active file already on the membership is kept. Otherwise a thin file is
+ * active file already on the membership is kept. A file HR wrote BEFORE the
+ * login is linked rather than doubled (HR onboarding): the file the invitation
+ * was given for (`employeeId`), else the one active file of the business with
+ * no account whose email is the account's. Otherwise a thin file is
  * written, as migration 0053's backfill wrote one for every member: the name
  * from the account (else its email), its email and proved phone, today in
  * Kigali as the hire date, a minted number, and the statutory fields empty so
@@ -79,7 +82,7 @@ export async function mintEmployeeNumberTx(tx: Tx, orgId: string): Promise<strin
  */
 export async function ensureStaffFileTx(
   tx: Tx,
-  input: { orgId: string; membershipId: string },
+  input: { orgId: string; membershipId: string; employeeId?: string | null },
 ): Promise<string> {
   const [active] = await tx
     .select({ id: employees.id })
@@ -95,6 +98,24 @@ export async function ensureStaffFileTx(
     .where(eq(orgMemberships.id, input.membershipId))
     .limit(1);
   if (!person) throw new Error('A membership with no account cannot have a file written for it.');
+
+  const onFile = await unlinkedFileTx(tx, input.orgId, input.employeeId ?? null, person.email);
+  if (onFile) {
+    await tx
+      .update(employees)
+      .set({ orgMembershipId: input.membershipId, updatedAt: new Date() })
+      .where(eq(employees.id, onFile));
+    await tx
+      .update(departmentMembers)
+      .set({ employeeId: onFile, updatedAt: new Date() })
+      .where(
+        and(
+          eq(departmentMembers.orgMembershipId, input.membershipId),
+          isNull(departmentMembers.employeeId),
+        ),
+      );
+    return onFile;
+  }
 
   const [previous] = await tx
     .select({ id: employees.id })
@@ -137,4 +158,36 @@ export async function ensureStaffFileTx(
       ),
     );
   return row.id;
+}
+
+/**
+ * The file HR wrote for this person before they had a login: active, of this business, with no
+ * account yet. The one named, when it still qualifies; else the single such file carrying the
+ * account's email (two of them is ambiguous, and then none is guessed).
+ */
+async function unlinkedFileTx(
+  tx: Tx,
+  orgId: string,
+  employeeId: string | null,
+  email: string,
+): Promise<string | null> {
+  const unlinked = and(
+    eq(employees.orgId, orgId),
+    eq(employees.status, 'active'),
+    isNull(employees.orgMembershipId),
+  );
+  if (employeeId) {
+    const [named] = await tx
+      .select({ id: employees.id })
+      .from(employees)
+      .where(and(unlinked, eq(employees.id, employeeId)))
+      .limit(1);
+    if (named) return named.id;
+  }
+  const byEmail = await tx
+    .select({ id: employees.id })
+    .from(employees)
+    .where(and(unlinked, sql`lower(${employees.email}) = ${email.toLowerCase()}`))
+    .limit(2);
+  return byEmail.length === 1 ? byEmail[0].id : null;
 }

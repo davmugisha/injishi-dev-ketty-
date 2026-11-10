@@ -17,6 +17,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { HrFeatureOn } from '../../../modules/hr/application/hr-feature.guard';
 import { MyPayService } from '../../../modules/hr/application/my-pay.service';
 import {
   CurrentUser,
@@ -72,6 +73,7 @@ export class MeWorkPayController {
   }
 
   /** A retry with the same key answers the first claim. */
+  @HrFeatureOn('claims')
   @Post(':employeeId/claims')
   createClaim(
     @Param('employeeId', ParseUUIDPipe) employeeId: string,

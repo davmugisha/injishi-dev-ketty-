@@ -1,21 +1,51 @@
 "use client";
 
 import {
+  ArrowRight,
+  Calculator,
+  Calendar,
   Check,
   CircleCheck,
+  CircleDollar,
+  Ellipsis,
+  Eye,
+  FileDollar,
   Hourglass,
   Lock,
   PaperPlane,
+  Person as PersonIcon,
+  Persons,
   PersonsLock,
   ScalesBalanced,
+  ShieldCheck,
   ShieldExclamation,
+  Wallet,
+  Wrench,
 } from "@gravity-ui/icons";
-import { Alert, Button, Card, Chip, Label, Modal, Table, TextArea, TextField } from "@heroui/react";
-import { KPIGroup, ListView, Segment, Stepper } from "@heroui-pro/react";
+import {
+  Alert,
+  Avatar,
+  AvatarGroup,
+  Button,
+  Chip,
+  Drawer,
+  Dropdown,
+  Label,
+  Modal,
+  Tabs,
+  TextArea,
+  TextField,
+  Toast,
+  toast,
+} from "@heroui/react";
+import { ItemCard, ItemCardGroup, KPIGroup, Stepper } from "@heroui-pro/react";
+import { DataGrid, type DataGridColumn } from "@heroui-pro/react/data-grid";
 import { KPI } from "@heroui-pro/react/kpi";
 import { GateChip, Icon, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import NextLink from "next/link";
-import { Fragment, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Fragment, type ReactNode, useMemo, useState, useTransition } from "react";
+import type { Done } from "../../model/commands.ts";
 import type {
   FinalSettlement,
   PayLine,
@@ -26,21 +56,34 @@ import type {
   PayRunOutput,
   PayRunRule,
   PayRunStage,
+  PayRunState,
   PayRunStep,
   PayRunTotal,
 } from "../../model/payroll.ts";
-import { useBoardHref } from "../mount.tsx";
-import { AmountList, type AmountRow } from "./parts.tsx";
-import { amount, payLineFigures, pct, rwf, signedRwf } from "./pay-calc.ts";
+import { useBoardHref, useHrActions, useHrFeature } from "../mount.tsx";
+import { avatarColor, firstName, initials, Person, TAB_CLASS } from "../people/parts";
+import { BlockerFixDrawer } from "./blocker-fix-drawer";
+import { ClaimsPanel } from "./claims-panel";
+import { FinalSettlements } from "./final-settlements";
+import { FixPay } from "./fix-pay";
+import { LoansPanel } from "./loans-panel";
+import { AmountList, type AmountRow, LineDonut, openPendingTab } from "./parts";
+import { PastRunDrawer } from "./past-run-drawer";
+import { type PayLineFigures, payLineFigures, pct, rwf, signedRwf } from "./pay-calc";
+import { PayLinesGrid } from "./pay-lines-grid";
+import { Change, PaymentRails, PayRunCharts } from "./pay-run-charts";
 
-interface PayRunData {
+export interface PayRunData {
+  /** Where the run stands and what the person may do; `live: false` on the sample board. */
+  state: PayRunState;
   rates: PayRates;
   lines: PayLine[];
   steps: PayRunStep[];
   exceptions: PayRunException[];
   rules: PayRunRule[];
   totals: PayRunTotal[];
-  settlement: FinalSettlement | null;
+  /** Everyone leaving this month. */
+  settlements: FinalSettlement[];
   files: PaymentFile[];
   outputs: PayRunOutput[];
   history: PayRunHistory[];
@@ -69,12 +112,359 @@ function totalFoot(t: PayRunTotal) {
   return t.footAmount === null ? t.foot : `${t.foot} ${rwf(t.footAmount)}`;
 }
 
+/** Each total's icon, and the field of an earlier month it is compared with. */
+const TOTAL_LOOK: Record<string, { icon: ReactNode; was?: "staff" | "gross" | "paye" | "rssb" | "net" }> = {
+  staff: { icon: <Persons />, was: "staff" },
+  gross: { icon: <CircleDollar />, was: "gross" },
+  paye: { icon: <FileDollar />, was: "paye" },
+  rssb: { icon: <ShieldCheck />, was: "rssb" },
+  loans: { icon: <Calculator /> },
+  net: { icon: <Wallet />, was: "net" },
+};
+
+/** A blocker's cause, said of several people at once: "8 still clocked in". */
+const BLOCKER_LABEL: Record<string, string> = {
+  open_attendance: "still clocked in",
+  unvalidated_attendance: "clock records to check",
+  overtime_day_unknown: "overtime days to set",
+  missing_rssb_number: "without an RSSB number",
+  missing_id: "without an ID document",
+};
+
+/** Previous runs: each month against the one before it, newest first. */
+type HistoryRow = PayRunHistory & { before: PayRunHistory | null };
+const historyColumns: DataGridColumn<HistoryRow>[] = [
+  {
+    id: "period",
+    header: "Period",
+    isRowHeader: true,
+    minWidth: 150,
+    cell: (h) => <span className="font-semibold">{h.period}</span>,
+  },
+  {
+    id: "staff",
+    header: "Staff",
+    align: "end",
+    cell: (h) => (
+      <span className="inline-flex items-center gap-2 tabular">
+        {h.staff}
+        <Change now={h.staff} before={h.before?.staff} unit="count" />
+      </span>
+    ),
+  },
+  {
+    id: "net",
+    header: "Net pay",
+    align: "end",
+    minWidth: 190,
+    cell: (h) => (
+      <span className="inline-flex items-center gap-2 tabular">
+        <span className="font-semibold">{rwf(h.net)}</span>
+        <Change now={h.net} before={h.before?.net} />
+      </span>
+    ),
+  },
+  {
+    id: "prepared",
+    header: "Prepared",
+    cell: (h) =>
+      h.preparedBy === "—" ? <span className="text-muted">—</span> : <Person name={h.preparedBy} sub={h.preparedAt} />,
+  },
+  {
+    id: "confirmed",
+    header: "Confirmed",
+    cell: (h) =>
+      h.confirmedBy === "—" ? (
+        <span className="text-muted">—</span>
+      ) : (
+        <Person name={h.confirmedBy} sub={h.confirmedAt} />
+      ),
+  },
+  {
+    id: "outcome",
+    header: "Outcome",
+    cell: (h) => (
+      <span className="flex flex-wrap items-center gap-1.5">
+        <Chip size="sm" variant="soft" color="success">
+          <CircleCheck className="size-3" aria-hidden="true" />
+          <Chip.Label>{h.outcome}</Chip.Label>
+        </Chip>
+        {h.combinedPermission ? (
+          <Chip size="sm" variant="soft" color="warning">
+            One person
+          </Chip>
+        ) : null}
+      </span>
+    ),
+  },
+  {
+    id: "open",
+    header: <span className="sr-only">Open</span>,
+    width: 48,
+    align: "end",
+    cell: () => <ArrowRight className="size-4 text-muted" aria-hidden="true" />,
+  },
+];
+
+/** A live line's figures are the API's; the sample board works them out from the rule snapshot. */
+function figuresOf(line: PayLine, rates: PayRates): PayLineFigures {
+  const f = line.figures;
+  if (!f) return payLineFigures(line, rates);
+  return {
+    gross: f.gross,
+    paye: f.paye,
+    pension: 0,
+    maternity: 0,
+    rssb: f.rssb,
+    otherDeductions: f.otherDeductions,
+    onTop: f.nonIncome,
+    net: f.net,
+    employer: f.employer,
+  };
+}
+
+/** Which dialog is open: handing the month over, sending it back, or freezing it. */
+type Dialog = null | "submit" | "sendBack" | "confirm";
+
+/** The parts of the board below the totals. */
+type BoardTab = "lines" | "exceptions" | "documents" | "claims" | "loans" | "history";
+
+/** What can be done about one exception, in a menu so the rows stay quiet. */
+function ExceptionMenu({
+  x,
+  canHold,
+  isDisabled,
+  onFix,
+  onOpenFile,
+  onHold,
+  onLook,
+}: {
+  x: PayRunException;
+  canHold: boolean;
+  isDisabled: boolean;
+  onFix: () => void;
+  onOpenFile: () => void;
+  onHold: () => void;
+  onLook: () => void;
+}) {
+  const items: { id: string; label: string; icon: ReactNode; run: () => void }[] = [
+    ...(x.blocker ? [{ id: "fix", label: "Fix", icon: <Wrench className="size-4 text-muted" />, run: onFix }] : []),
+    ...(x.blocker && x.employeeId
+      ? [{ id: "file", label: "Open file", icon: <PersonIcon className="size-4 text-muted" />, run: onOpenFile }]
+      : []),
+    ...(canHold
+      ? [{ id: "hold", label: "Pay next month", icon: <Calendar className="size-4 text-muted" />, run: onHold }]
+      : []),
+    ...(!x.blocker && x.lineId
+      ? [{ id: "look", label: "See the pay line", icon: <Eye className="size-4 text-muted" />, run: onLook }]
+      : []),
+  ];
+  if (items.length === 0) return null;
+  const name = `Act on ${x.who || x.title}`;
+  return (
+    <Dropdown>
+      <Button isIconOnly size="sm" variant="ghost" aria-label={name} isDisabled={isDisabled}>
+        <Ellipsis className="size-4" aria-hidden="true" />
+      </Button>
+      <Dropdown.Popover placement="bottom end" className="min-w-[180px]">
+        <Dropdown.Menu aria-label={name} onAction={(k) => items.find((i) => i.id === k)?.run()}>
+          {items.map((i) => (
+            <Dropdown.Item key={i.id} id={i.id} textValue={i.label}>
+              {i.icon}
+              <Label>{i.label}</Label>
+            </Dropdown.Item>
+          ))}
+        </Dropdown.Menu>
+      </Dropdown.Popover>
+    </Dropdown>
+  );
+}
+
+/**
+ * Where a live run stands and the buttons that move it. HR prepares and submits (`payroll.draft`);
+ * whoever confirms (`payroll.run`, the owner) confirms or sends it back. An owner who prepares the
+ * month alone confirms it without submitting.
+ */
+function LiveStatus({
+  state,
+  headcount,
+  blockers,
+  pending,
+  onPrepare,
+  onRecompute,
+  onSubmit,
+  onWithdraw,
+  onSendBack,
+  onConfirm,
+  onFix,
+}: {
+  state: PayRunState;
+  headcount: number;
+  blockers: number;
+  pending: boolean;
+  onPrepare: (period: string) => void;
+  onRecompute: () => void;
+  onSubmit: () => void;
+  onWithdraw: () => void;
+  onSendBack: () => void;
+  onConfirm: () => void;
+  /** Opens the list of what stops the month, to put each right. */
+  onFix: () => void;
+}) {
+  const prepareNext =
+    state.nextPeriod && state.canPrepare ? (
+      <Button isPending={pending} onPress={() => onPrepare(state.nextPeriod as string)}>
+        <PaperPlane className="size-4" aria-hidden="true" />
+        Prepare {state.nextPeriodLabel}
+      </Button>
+    ) : null;
+
+  if (!state.runId) {
+    return (
+      <Alert status="accent" role="status" className="flex-wrap items-center">
+        <Alert.Indicator>
+          <Hourglass aria-hidden="true" />
+        </Alert.Indicator>
+        <Alert.Content className="min-w-0 flex-[1_1_260px]">
+          <Alert.Title>No pay run for {state.nextPeriodLabel ?? "this month"} yet</Alert.Title>
+          <Alert.Description>
+            {state.canPrepare ? "Nothing is paid until it is confirmed." : "HR prepares it first."}
+          </Alert.Description>
+        </Alert.Content>
+        <div className="ms-auto shrink-0">{prepareNext}</div>
+      </Alert>
+    );
+  }
+
+  if (state.stage === "review") {
+    return (
+      <Alert status={blockers > 0 ? "warning" : "accent"} role="status" className="flex-wrap items-center">
+        <Alert.Indicator>
+          <PersonsLock aria-hidden="true" />
+        </Alert.Indicator>
+        <Alert.Content className="min-w-0 flex-[1_1_260px]">
+          <Alert.Title>
+            {blockers > 0
+              ? `${blockers} thing${blockers === 1 ? "" : "s"} stop${blockers === 1 ? "s" : ""} this month`
+              : state.canConfirm
+                ? "Ready to confirm"
+                : `Ready to submit to ${state.confirmerName}`}
+          </Alert.Title>
+          <Alert.Description>
+            {state.canConfirm
+              ? "Confirming freezes the month."
+              : `${state.confirmerName} confirms and releases the files.`}
+          </Alert.Description>
+        </Alert.Content>
+        <div className="ms-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <Button variant="secondary" isPending={pending} onPress={onRecompute}>
+            Compute again
+          </Button>
+          {blockers > 0 ? (
+            <Button onPress={onFix}>
+              <Wrench className="size-4" aria-hidden="true" />
+              Fix {blockers}
+            </Button>
+          ) : null}
+          {state.canConfirm ? (
+            <Button isDisabled={blockers > 0} isPending={pending} onPress={onConfirm}>
+              <CircleCheck className="size-4" aria-hidden="true" />
+              Confirm pay for {headcount}
+            </Button>
+          ) : (
+            <Button isDisabled={blockers > 0} isPending={pending} onPress={onSubmit}>
+              <PaperPlane className="size-4" aria-hidden="true" />
+              Submit for confirmation
+            </Button>
+          )}
+        </div>
+      </Alert>
+    );
+  }
+
+  if (state.stage === "submitted") {
+    return (
+      <Alert status="default" role="status" className="flex-wrap items-center">
+        <Alert.Indicator>
+          <Hourglass aria-hidden="true" />
+        </Alert.Indicator>
+        <Alert.Content className="min-w-0 flex-[1_1_260px]">
+          <Alert.Title>
+            {state.canConfirm
+              ? `Submitted by ${state.preparerName} · ${state.submittedLabel}`
+              : `Submitted to ${state.confirmerName} · awaiting confirmation`}
+          </Alert.Title>
+          <Alert.Description>
+            {state.submitNote
+              ? `“${state.submitNote}”`
+              : state.canConfirm
+                ? "Check the lines, then confirm."
+                : "Locked while it waits."}
+          </Alert.Description>
+        </Alert.Content>
+        <div className="ms-auto flex shrink-0 flex-wrap items-center gap-2">
+          {state.canConfirm ? (
+            <>
+              <Button variant="secondary" isPending={pending} onPress={onSendBack}>
+                Send back
+              </Button>
+              <Button isPending={pending} onPress={onConfirm}>
+                <CircleCheck className="size-4" aria-hidden="true" />
+                Confirm pay for {headcount}
+              </Button>
+            </>
+          ) : (
+            <Button variant="secondary" isPending={pending} onPress={onWithdraw}>
+              Withdraw to edit
+            </Button>
+          )}
+        </div>
+      </Alert>
+    );
+  }
+
+  return (
+    <Alert status="success" role="status" className="flex-wrap items-center">
+      <Alert.Indicator>
+        <CircleCheck aria-hidden="true" />
+      </Alert.Indicator>
+      <Alert.Content className="min-w-0 flex-[1_1_260px]">
+        <Alert.Title>Confirmed by {state.confirmedLabel}</Alert.Title>
+      </Alert.Content>
+      <div className="ms-auto shrink-0">{prepareNext}</div>
+    </Alert>
+  );
+}
+
 export function PayRunView({ data, initialStage }: { data: PayRunData; initialStage: PayRunStage }) {
+  const { buildPayFile, confirmPayRun, holdPayslip, preparePayRun, recomputePayRun, submitPayRun, withdrawPayRun } =
+    useHrActions();
   const screenHref = useBoardHref();
-  const { rates, lines, exceptions } = data;
+  // Claims and loans are features Injishi may switch off: their tabs go, the deductions already made stay.
+  const claimsOn = useHrFeature("claims");
+  const loansOn = useHrFeature("loans");
+  const router = useRouter();
+  const { rates, lines, exceptions, state } = data;
+  const live = state.live;
   const [stage, setStage] = useState<PayRunStage>(initialStage);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [onlyExceptions, setOnlyExceptions] = useState(false);
+  const [dialog, setDialog] = useState<Dialog>(null);
+  const dialogOpen = dialog === "submit";
+  const setDialogOpen = (open: boolean) => setDialog(open ? "submit" : null);
+  const [words, setWords] = useState("");
+  const [pending, startTransition] = useTransition();
+  /** Run one of the board's actions; a refusal is shown in the API's words. */
+  const act = (run: () => Promise<Done>, done?: string) =>
+    startTransition(async () => {
+      const result = await run();
+      if (!result.ok) toast.danger(result.error);
+      else if (done) toast.success(done);
+    });
+  const runId = state.runId;
+  const [lineOpen, setLineOpen] = useState(false);
+  const [fixOpen, setFixOpen] = useState(false);
+  const [tab, setTab] = useState<BoardTab>("lines");
+  // The earlier month whose run is open in a drawer.
+  const [pastRun, setPastRun] = useState<string | null>(null);
   const [reviewed, setReviewed] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(exceptions.map((x) => [x.id, x.reviewed])),
   );
@@ -82,61 +472,123 @@ export function PayRunView({ data, initialStage }: { data: PayRunData; initialSt
     () => exceptions.find((x) => !x.reviewed && x.lineId)?.lineId ?? lines[0]?.id ?? "",
   );
 
-  const figures = useMemo(() => new Map(lines.map((l) => [l.id, payLineFigures(l, rates)])), [lines, rates]);
+  const figures = useMemo(() => new Map(lines.map((l) => [l.id, figuresOf(l, rates)])), [lines, rates]);
   const locked = stage !== "review";
   const confirmed = stage === "confirmed";
   const reviewedCount = exceptions.filter((x) => reviewed[x.id]).length;
-  const unreviewed = exceptions.length - reviewedCount;
+  // A live month waits on its blockers, not on a reviewer's ticks.
+  const blockers = exceptions.filter((x) => x.blocker);
+  const unreviewed = live ? blockers.length : exceptions.length - reviewedCount;
   const staffTotal = data.totals.find((t) => t.id === "staff")?.value ?? lines.length;
   const netTotal = data.totals.find((t) => t.id === "net");
-  const shownLines = onlyExceptions ? lines.filter((l) => l.isException) : lines;
+  // The month before, for the change on each total.
+  const prev = data.history[0] ?? null;
+  // Blockers with one cause fold into one row ("8 still clocked in"), fixed together in the drawer.
+  const exRows: ({ kind: "one"; x: PayRunException } | { kind: "group"; code: string; items: PayRunException[] })[] =
+    [];
+  if (live) {
+    const byCode = new Map<string, PayRunException[]>();
+    for (const x of blockers) byCode.set(x.code ?? x.id, [...(byCode.get(x.code ?? x.id) ?? []), x]);
+    for (const [code, items] of byCode)
+      exRows.push(items.length > 1 ? { kind: "group", code, items } : { kind: "one", x: items[0] });
+    for (const x of exceptions) if (!x.blocker) exRows.push({ kind: "one", x });
+  } else for (const x of exceptions) exRows.push({ kind: "one", x });
+  // Recording a loan is `payroll.run`'s (`POST /ops/loans`), so only they are offered it.
+  const canLend = live && state.canConfirm;
+  const hasExceptionsTab = exceptions.length > 0 || data.settlements.length > 0;
+  const tabs: { id: BoardTab; label: string; count?: number }[] = [
+    { id: "lines", label: "Pay lines" },
+    ...(hasExceptionsTab ? [{ id: "exceptions" as const, label: "Exceptions", count: exceptions.length }] : []),
+    { id: "documents", label: "Payslips and returns" },
+    ...(claimsOn ? [{ id: "claims" as const, label: "Claims" }] : []),
+    ...(canLend && loansOn ? [{ id: "loans" as const, label: "Loans and advances" }] : []),
+    ...(data.history.length ? [{ id: "history" as const, label: "Previous runs", count: data.history.length }] : []),
+  ];
+  // The tab open can go away, when the last exception of the month is fixed.
+  const shownTab = tabs.some((t) => t.id === tab) ? tab : "lines";
+  /** A line's breakdown opens in the drawer beside the list. */
+  const openLine = (id: string) => {
+    setSelectedId(id);
+    setLineOpen(true);
+  };
 
   const selected = lines.find((l) => l.id === selectedId) ?? lines[0];
   const sel = selected ? figures.get(selected.id) : undefined;
   const breakdown: AmountRow[] =
-    selected && sel
+    selected && sel && selected.figures
       ? [
           { label: "Base", value: rwf(selected.base) },
-          { label: "Allowances (taxable)", value: rwf(selected.allowances) },
+          { label: "Allowances", value: rwf(selected.allowances) },
           ...(selected.other
             ? [{ label: selected.otherLabel ?? "Other pay", value: signedRwf(selected.other, "+") }]
             : []),
           { label: "Gross pay", value: rwf(sel.gross), total: true },
-          { label: `PAYE · ${rates.id} bands`, value: signedRwf(sel.paye, "−") },
-          { label: `RSSB pension ${pct(rates.pension)} · ${rates.id}`, value: signedRwf(sel.pension, "−") },
-          {
-            label: `RSSB maternity ${pct(rates.maternity)} · ${rates.id}`,
-            value: signedRwf(sel.maternity, "−"),
-          },
-          ...(selected.loan
-            ? [{ label: selected.loanLabel ?? "Loan repayment", value: signedRwf(selected.loan, "−") }]
+          { label: `PAYE · bands ${rates.id}`, value: signedRwf(sel.paye, "−") },
+          { label: "RSSB, employee share", value: signedRwf(sel.rssb, "−") },
+          ...(selected.figures.otherDeductions
+            ? [
+                {
+                  label: selected.loanLabel ?? "Loans and deductions",
+                  value: signedRwf(selected.figures.otherDeductions, "−"),
+                },
+              ]
+            : []),
+          ...(selected.figures.nonIncome
+            ? [
+                {
+                  label: selected.figures.nonIncomeLabel ?? "Paid on top",
+                  value: signedRwf(selected.figures.nonIncome, "+"),
+                },
+              ]
             : []),
           { label: `Net pay · ${selected.payBy}`, value: rwf(sel.net), total: true },
-          { label: "Employer pension, maternity, occupational hazards", value: rwf(sel.employer) },
+          { label: "Employer RSSB contributions", value: rwf(sel.employer) },
         ]
-      : [];
+      : selected && sel
+        ? [
+            { label: "Base", value: rwf(selected.base) },
+            { label: "Allowances (taxable)", value: rwf(selected.allowances) },
+            ...(selected.other
+              ? [{ label: selected.otherLabel ?? "Other pay", value: signedRwf(selected.other, "+") }]
+              : []),
+            { label: "Gross pay", value: rwf(sel.gross), total: true },
+            { label: `PAYE · ${rates.id} bands`, value: signedRwf(sel.paye, "−") },
+            { label: `RSSB pension ${pct(rates.pension)} · ${rates.id}`, value: signedRwf(sel.pension, "−") },
+            {
+              label: `RSSB maternity ${pct(rates.maternity)} · ${rates.id}`,
+              value: signedRwf(sel.maternity, "−"),
+            },
+            ...(selected.loan
+              ? [{ label: selected.loanLabel ?? "Loan repayment", value: signedRwf(selected.loan, "−") }]
+              : []),
+            { label: `Net pay · ${selected.payBy}`, value: rwf(sel.net), total: true },
+            { label: "Employer pension, maternity, occupational hazards", value: rwf(sel.employer) },
+          ]
+        : [];
 
-  const leaver = data.settlement ? lines.find((l) => l.id === data.settlement?.lineId) : undefined;
-  const leaverFig = leaver ? figures.get(leaver.id) : undefined;
-  const settlementRows: AmountRow[] =
-    data.settlement && leaver && leaverFig
-      ? [
-          { label: data.settlement.payLabel, value: rwf(leaver.base) },
-          { label: "Allowance, pro-rata", value: rwf(leaver.allowances) },
-          { label: data.settlement.leaveLabel, value: rwf(leaver.other) },
-          { label: "Gross", value: rwf(leaverFig.gross), total: true },
-          { label: "PAYE and RSSB", value: signedRwf(leaverFig.paye + leaverFig.rssb, "−") },
-          { label: data.settlement.advanceLabel, value: signedRwf(leaver.loan, "−") },
-          { label: `Net final pay · ${leaver.payBy}`, value: rwf(leaverFig.net), total: true },
-        ]
-      : [];
+  /** Build a payment file or a declaration and open it; whoever was left out is named. */
+  const buildFile = (id: string, kind: "bank" | "momo" | "paye" | "rssb") => {
+    const pendingTab = openPendingTab();
+    startTransition(async () => {
+      const result = await buildPayFile(id, kind).catch(() => null);
+      if (!result?.ok) {
+        pendingTab.close();
+        toast.danger(result?.error ?? "The file could not be built. Try again.");
+        return;
+      }
+      pendingTab.go(result.url);
+      if (result.leftOut.length > 0) toast.warning(`Left out: ${result.leftOut.join("; ")}`);
+      else toast.success(pendingTab.opened ? "Built and opened in a new tab." : "Built. The download is starting.");
+    });
+  };
 
   const markReviewed = (x: PayRunException) => {
     setReviewed((r) => ({ ...r, [x.id]: true }));
-    if (x.lineId) setSelectedId(x.lineId);
+    if (x.lineId) openLine(x.lineId);
   };
 
   const stepDesc = (s: PayRunStep) => {
+    if (live) return confirmed && s.confirmedDesc ? s.confirmedDesc : s.desc;
     if (s.id === "review" && stage === "review")
       return `Checks passed · ${reviewedCount} of ${exceptions.length} exceptions`;
     if (confirmed && s.confirmedDesc) return s.confirmedDesc;
@@ -146,9 +598,9 @@ export function PayRunView({ data, initialStage }: { data: PayRunData; initialSt
   return (
     <PageContent>
       <PageHeader
-        eyebrow="People › Pay run · period 1–31 October 2026 · pay date Friday 23 October"
-        title="October 2026 Pay Run"
-        description="Amahoro Hospitality Ltd (44 staff) and Amahoro Residences Ltd (4 staff). Each employer files its own declarations."
+        eyebrow={state.eyebrow}
+        title={state.title}
+        description={state.description}
         actions={
           <LinkButton href={screenHref("PayrollRules")} variant="secondary">
             <ScalesBalanced className="size-4" aria-hidden="true" />
@@ -158,13 +610,18 @@ export function PayRunView({ data, initialStage }: { data: PayRunData; initialSt
       />
 
       <div className="overflow-x-auto">
-        <Stepper aria-label="Pay run steps" currentStep={STAGE_STEP[stage]} size="md" className="min-w-[640px]">
+        <Stepper
+          aria-label="Pay run steps"
+          currentStep={live && !runId ? 0 : STAGE_STEP[stage]}
+          size="md"
+          className="min-w-[640px]"
+        >
           {data.steps.map((s, i) => (
             <Stepper.Step key={s.id}>
               <StepIndicator locked={i === RELEASE_STEP} />
               <Stepper.Content>
                 <Stepper.Title className="text-[14px] leading-5">{s.title}</Stepper.Title>
-                <Stepper.Description className="text-[10px] leading-[14px]">{stepDesc(s)}</Stepper.Description>
+                <Stepper.Description className="text-xs leading-4">{stepDesc(s)}</Stepper.Description>
               </Stepper.Content>
               <Stepper.Separator />
             </Stepper.Step>
@@ -172,17 +629,34 @@ export function PayRunView({ data, initialStage }: { data: PayRunData; initialSt
         </Stepper>
       </div>
 
-      {stage === "review" ? (
+      {live ? (
+        <LiveStatus
+          state={state}
+          headcount={staffTotal}
+          blockers={blockers.length}
+          pending={pending}
+          onPrepare={(period) => act(() => preparePayRun(period), "Month computed. Check the lines.")}
+          onRecompute={() => runId && act(() => recomputePayRun(runId), "Computed again.")}
+          onSubmit={() => {
+            setWords("");
+            setDialog("submit");
+          }}
+          onWithdraw={() => runId && act(() => withdrawPayRun(runId, null), "Withdrawn for editing.")}
+          onSendBack={() => {
+            setWords("");
+            setDialog("sendBack");
+          }}
+          onConfirm={() => setDialog("confirm")}
+          onFix={() => setFixOpen(true)}
+        />
+      ) : stage === "review" ? (
         <Alert status="accent" role="status" className="flex-wrap items-center">
           <Alert.Indicator>
             <PersonsLock aria-hidden="true" />
           </Alert.Indicator>
           <Alert.Content className="min-w-0 flex-[1_1_260px]">
-            <Alert.Title>You prepared this run. Didier Mugenzi must confirm it.</Alert.Title>
-            <Alert.Description>
-              Preparing and confirming are separate permissions. You can submit, withdraw and correct the draft; you
-              cannot confirm it or release payment files.
-            </Alert.Description>
+            <Alert.Title>You prepared this run. {state.confirmerName} must confirm it.</Alert.Title>
+            <Alert.Description>You submit; they confirm and release the files.</Alert.Description>
           </Alert.Content>
           <div className="ms-auto flex shrink-0 flex-col items-end gap-1">
             {unreviewed === 0 ? (
@@ -209,11 +683,8 @@ export function PayRunView({ data, initialStage }: { data: PayRunData; initialSt
             <Hourglass aria-hidden="true" />
           </Alert.Indicator>
           <Alert.Content className="min-w-0 flex-[1_1_260px]">
-            <Alert.Title>Submitted to Didier Mugenzi · awaiting confirmation</Alert.Title>
-            <Alert.Description>
-              You prepared this run, so only he can confirm it. The snapshot is locked; withdraw it if something needs
-              to change.
-            </Alert.Description>
+            <Alert.Title>Submitted to {state.confirmerName} · awaiting confirmation</Alert.Title>
+            <Alert.Description>Locked while it waits.</Alert.Description>
           </Alert.Content>
           <Button variant="secondary" className="ms-auto shrink-0" onPress={() => setStage("review")}>
             Withdraw to edit
@@ -225,17 +696,14 @@ export function PayRunView({ data, initialStage }: { data: PayRunData; initialSt
             <CircleCheck aria-hidden="true" />
           </Alert.Indicator>
           <Alert.Content className="min-w-0 flex-[1_1_260px]">
-            <Alert.Title>Confirmed by Didier Mugenzi · today 11:20</Alert.Title>
-            <Alert.Description>
-              He recorded a documented exception because the rule versions are still awaiting sign-off. Payment files
-              now wait for release by someone with that permission.
-            </Alert.Description>
+            <Alert.Title>Confirmed by {state.confirmerName} · today 11:20</Alert.Title>
+            <Alert.Description>With a documented exception · files await release</Alert.Description>
           </Alert.Content>
         </Alert>
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-muted">Rule versions in this snapshot</span>
+        <span className="text-xs font-medium text-muted">Rules</span>
         {data.rules.map((r) => (
           <NextLink key={r.id} href={screenHref("PayrollRules")} className="text-inherit no-underline">
             <GateChip
@@ -255,362 +723,406 @@ export function PayRunView({ data, initialStage }: { data: PayRunData; initialSt
 
       <section aria-label="Run totals">
         <KPIGroup className="flex-wrap">
-          {data.totals.map((t, i) => (
-            <Fragment key={t.id}>
-              {i > 0 ? <KPIGroup.Separator /> : null}
-              <KPI className="min-w-[160px] flex-[1_1_160px] gap-1">
-                <KPI.Header>
-                  <KPI.Title>{t.label}</KPI.Title>
-                </KPI.Header>
-                <KPI.Content className="flex-none">
-                  <KPI.Value
-                    value={t.value}
-                    formatOptions={t.format === "rwf" ? { style: "currency", currency: "RWF" } : undefined}
-                    className="text-[20px] leading-7 tabular"
-                  />
-                </KPI.Content>
-                <KPI.Footer>
-                  <p className="text-xs leading-4 text-muted">{totalFoot(t)}</p>
-                </KPI.Footer>
-              </KPI>
-            </Fragment>
-          ))}
+          {data.totals.map((t, i) => {
+            const look = TOTAL_LOOK[t.id];
+            const was = look?.was && prev ? prev[look.was] : undefined;
+            const up = was ? t.value > was : false;
+            const trend =
+              was && was !== t.value ? (
+                <KPI.Trend trend={up ? "up" : "down"}>
+                  {t.format === "count"
+                    ? `${up ? "+" : "−"}${Math.abs(t.value - was)}`
+                    : `${up ? "+" : "−"}${Math.abs(((t.value - was) / was) * 100).toFixed(1)}%`}
+                </KPI.Trend>
+              ) : null;
+            const foot = totalFoot(t) || (trend && prev ? `on ${prev.period.split(" ")[0]}` : "");
+            return (
+              <Fragment key={t.id}>
+                {i > 0 ? <KPIGroup.Separator /> : null}
+                <KPI className="min-w-[170px] flex-[1_1_170px] gap-1.5">
+                  <KPI.Header>
+                    {look ? <KPI.Icon>{look.icon}</KPI.Icon> : null}
+                    <KPI.Title>{t.label}</KPI.Title>
+                  </KPI.Header>
+                  <KPI.Content className="flex flex-none flex-wrap items-center gap-x-2 gap-y-1">
+                    <KPI.Value
+                      value={t.value}
+                      formatOptions={t.format === "rwf" ? { style: "currency", currency: "RWF" } : undefined}
+                      className="text-[20px] leading-7 font-bold tabular"
+                    />
+                    {trend}
+                  </KPI.Content>
+                  {foot ? (
+                    <KPI.Footer>
+                      <p className="text-xs leading-4 text-muted">{foot}</p>
+                    </KPI.Footer>
+                  ) : null}
+                </KPI>
+              </Fragment>
+            );
+          })}
         </KPIGroup>
       </section>
 
-      <section className="flex flex-col gap-[10px]" aria-labelledby="lines-h">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="lines-h" className="text-[15px] leading-[22px] font-semibold">
-            Pay Lines
-          </h2>
-          <Segment
-            aria-label="Show lines"
-            selectedKey={onlyExceptions ? "exceptions" : "all"}
-            onSelectionChange={(k) => setOnlyExceptions(k === "exceptions")}
-          >
-            <Segment.Item id="all">All lines</Segment.Item>
-            <Segment.Item id="exceptions">Exceptions only</Segment.Item>
-          </Segment>
-        </div>
-        <Table>
-          <Table.ScrollContainer>
-            <Table.Content
-              aria-label="Pay lines"
-              className="min-w-[1040px]"
-              selectionMode="single"
-              disallowEmptySelection
-              selectedKeys={new Set([selectedId])}
-              onSelectionChange={(keys) => {
-                if (keys !== "all") {
-                  const [first] = keys;
-                  if (first !== undefined) setSelectedId(String(first));
-                }
-              }}
-            >
-              <Table.Header>
-                <Table.Column isRowHeader>Employee</Table.Column>
-                <Table.Column className="text-right">Base</Table.Column>
-                <Table.Column className="text-right">Allowances</Table.Column>
-                <Table.Column className="text-right">Overtime and other</Table.Column>
-                <Table.Column className="text-right">Gross</Table.Column>
-                <Table.Column className="text-right">PAYE</Table.Column>
-                <Table.Column className="text-right">RSSB</Table.Column>
-                <Table.Column className="text-right">Loans</Table.Column>
-                <Table.Column className="text-right">Net</Table.Column>
-                <Table.Column>Flag</Table.Column>
-              </Table.Header>
-              <Table.Body>
-                {shownLines.map((l) => {
-                  const f = figures.get(l.id);
-                  if (!f) return null;
-                  return (
-                    <Table.Row key={l.id} id={l.id} className="cursor-pointer">
-                      <Table.Cell>
-                        <span className="flex flex-col">
-                          <span className="font-medium">{l.name}</span>
-                          <span className="text-xs text-muted">
-                            {l.role} · {l.payBy}
-                          </span>
-                        </span>
-                      </Table.Cell>
-                      <Table.Cell className="text-right tabular">{amount(l.base)}</Table.Cell>
-                      <Table.Cell className="text-right tabular">{amount(l.allowances)}</Table.Cell>
-                      <Table.Cell className="text-right tabular">{amount(l.other, true)}</Table.Cell>
-                      <Table.Cell className="text-right font-medium tabular">{amount(f.gross)}</Table.Cell>
-                      <Table.Cell className="text-right tabular">{amount(f.paye)}</Table.Cell>
-                      <Table.Cell className="text-right tabular">{amount(f.rssb)}</Table.Cell>
-                      <Table.Cell className="text-right tabular">{amount(l.loan, true)}</Table.Cell>
-                      <Table.Cell className="text-right font-semibold tabular">{amount(f.net)}</Table.Cell>
-                      <Table.Cell>
-                        <Chip size="sm" variant="soft" color={toneColor(l.flagTone)}>
-                          {l.flag}
-                        </Chip>
-                      </Table.Cell>
-                    </Table.Row>
-                  );
-                })}
-              </Table.Body>
-            </Table.Content>
-          </Table.ScrollContainer>
-        </Table>
-        <p className="text-xs text-muted">
-          {onlyExceptions
-            ? `Showing ${shownLines.length} exception lines of ${staffTotal}`
-            : `Showing ${shownLines.length} of ${staffTotal} lines · exceptions and a sample of regular lines`}{" "}
-          · amounts in RWF · RSSB column is the employee share (pension and maternity); employer shares are in the
-          totals.
-        </p>
-      </section>
+      <PayRunCharts
+        totals={data.totals}
+        history={data.history}
+        period={data.state.period}
+        nets={lines.filter((l) => !l.confidential).map((l) => figures.get(l.id)?.net ?? 0)}
+        rails={
+          <PaymentRails
+            files={data.files}
+            unpaid={lines
+              .filter((l) => l.payBy === "No pay account" && !l.confidential)
+              .map((l) => ({ id: l.employeeId, name: l.name }))}
+            confirmed={confirmed}
+            lockLabel={
+              !confirmed
+                ? "Locked until confirmation"
+                : live && state.canConfirm
+                  ? "You release"
+                  : `Release: ${state.confirmerName}`
+            }
+            note={
+              live
+                ? confirmed
+                  ? state.canConfirm
+                    ? "Build each file, then upload it to the bank or MoMo portal."
+                    : `Waiting for ${state.confirmerName} to release.`
+                  : "Built once the owner confirms."
+                : confirmed
+                  ? `Waiting for ${state.confirmerName} to release.`
+                  : "Locked until the owner confirms."
+            }
+            canBuild={live && confirmed && state.canConfirm && !!runId}
+            building={pending}
+            onBuild={(kind) => runId && buildFile(runId, kind)}
+          />
+        }
+      />
 
-      <div className="grid items-start gap-[16px] [grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))]">
-        <Card aria-labelledby="ex-h" className="gap-[10px] p-[16px]">
-          <Card.Header>
-            <Card.Title id="ex-h" className="text-[15px] font-semibold">
-              Exceptions · {reviewedCount} of {exceptions.length} reviewed
-            </Card.Title>
-            <Card.Description>Each one carries its reason and who approved it</Card.Description>
-          </Card.Header>
-          <Card.Content className="flex flex-col gap-[10px]">
-            {exceptions.map((x) => {
-              const done = !!reviewed[x.id];
-              return (
-                <div key={x.id} className="flex items-start gap-[10px] border-t border-separator pt-2">
-                  <Icon name={x.icon} className="mt-0.5 size-4 shrink-0" />
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="text-[13px] font-medium">{x.title}</span>
-                    <span className="text-xs leading-4 text-muted">{x.detail}</span>
-                  </div>
-                  {!done && !locked ? (
-                    <Button size="sm" variant="secondary" className="shrink-0" onPress={() => markReviewed(x)}>
-                      Mark reviewed
-                    </Button>
-                  ) : (
-                    <Chip size="sm" variant="soft" color={done ? "success" : "warning"} className="shrink-0">
-                      {done ? "Reviewed" : "Not reviewed"}
-                    </Chip>
-                  )}
-                </div>
-              );
-            })}
-          </Card.Content>
-        </Card>
+      <Tabs variant="secondary" selectedKey={shownTab} onSelectionChange={(k) => setTab(String(k) as BoardTab)}>
+        <Tabs.ListContainer className="overflow-x-auto">
+          <Tabs.List aria-label="Pay run part" className="justify-start gap-1">
+            {tabs.map((t) => (
+              <Tabs.Tab key={t.id} id={t.id} className={TAB_CLASS}>
+                {t.label}
+                {t.count ? (
+                  <Chip
+                    size="sm"
+                    variant="soft"
+                    color={t.id === "exceptions" && blockers.length ? "danger" : "default"}
+                  >
+                    {t.count}
+                  </Chip>
+                ) : null}
+                <Tabs.Indicator />
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+        </Tabs.ListContainer>
 
-        {selected ? (
-          <Card aria-labelledby="pl-h" className="gap-[10px] p-[16px]">
-            <Card.Header>
-              <Card.Title id="pl-h" className="text-[15px] font-semibold">
-                Pay Line · {selected.name}
-              </Card.Title>
-              <Card.Description>How each figure was calculated, with the rule version used</Card.Description>
-            </Card.Header>
-            <Card.Content className="flex flex-col gap-[10px]">
-              <AmountList rows={breakdown} />
-              <p className="text-xs leading-4 text-muted">
-                {selected.note ??
-                  "Regular line. Rates come from the configured rule versions above, which are awaiting payroll expert sign-off."}
-              </p>
-            </Card.Content>
-          </Card>
-        ) : null}
+        <Tabs.Panel id="lines" className="flex flex-col gap-4 pt-3">
+          <PayLinesGrid
+            lines={lines}
+            figures={figures}
+            staffTotal={staffTotal}
+            exceptionCount={exceptions.length}
+            onOpen={openLine}
+          />
+        </Tabs.Panel>
 
-        {data.settlement ? (
-          <Card aria-labelledby="fs-h" className="gap-[10px] p-[16px]">
-            <Card.Header>
-              <Card.Title id="fs-h" className="text-[15px] font-semibold">
-                Final Settlement · {data.settlement.name}
-              </Card.Title>
-              <Card.Description>{data.settlement.desc}</Card.Description>
-            </Card.Header>
-            <Card.Content className="flex flex-col gap-[10px]">
-              <AmountList rows={settlementRows} />
-            </Card.Content>
-            <Card.Footer>
-              <LinkButton href={screenHref(data.settlement.board)} size="sm" variant="ghost">
-                Offboarding checklist
-              </LinkButton>
-            </Card.Footer>
-          </Card>
-        ) : null}
-      </div>
-
-      <div className="grid items-start gap-[16px] [grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr))]">
-        <Card aria-labelledby="pf-h" className="gap-[12px] p-[16px]">
-          <Card.Header className="flex flex-row items-start gap-2">
-            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <Card.Title id="pf-h" className="text-[15px] font-semibold">
-                Payment Files
-              </Card.Title>
-              <Card.Description>
-                Released separately, by someone with the Release payment files permission
-              </Card.Description>
-            </div>
-            <Chip size="sm" variant="soft" color={confirmed ? "warning" : "default"} className="shrink-0">
-              <Lock className="size-3" aria-hidden="true" />
-              <Chip.Label>{confirmed ? "Release: Didier Mugenzi" : "Locked until confirmation"}</Chip.Label>
-            </Chip>
-          </Card.Header>
-          <Card.Content className="flex flex-col gap-[12px]">
-            <Table variant="secondary" className={confirmed ? undefined : "opacity-60"}>
-              <Table.ScrollContainer>
-                <Table.Content aria-label="Payment files">
-                  <Table.Header>
-                    <Table.Column isRowHeader>Rail</Table.Column>
-                    <Table.Column className="text-right">Staff</Table.Column>
-                    <Table.Column className="text-right">Amount</Table.Column>
-                    <Table.Column>File</Table.Column>
-                  </Table.Header>
-                  <Table.Body>
-                    {data.files.map((f) => (
-                      <Table.Row key={f.id} id={f.id}>
-                        <Table.Cell>
-                          <span className="flex flex-col">
-                            <span className="font-medium">{f.rail}</span>
-                            <span className="text-xs text-muted">{f.how}</span>
-                          </span>
-                        </Table.Cell>
-                        <Table.Cell className="text-right tabular">{f.staff}</Table.Cell>
-                        <Table.Cell className="text-right tabular">{rwf(f.amount)}</Table.Cell>
-                        <Table.Cell>
-                          <GateChip
-                            icon={
-                              confirmed ? (
-                                <Icon name={f.confirmedIcon} className="size-3" />
-                              ) : (
-                                <Lock className="size-3" aria-hidden="true" />
-                              )
-                            }
-                          >
-                            {confirmed ? f.confirmedGate : "After confirmation"}
-                          </GateChip>
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
-                  </Table.Body>
-                </Table.Content>
-              </Table.ScrollContainer>
-            </Table>
-            <p className="text-xs leading-4 text-muted">
-              {confirmed
-                ? "Waiting for Didier Mugenzi to release. GT Bank production access is not verified, so the bank file is downloaded and uploaded in the bank’s portal by the releaser."
-                : "Previews stay locked until the owner confirms the run."}{" "}
-              Injishi never pays on confirmation alone, and a payment counts as paid only when the bank or MoMo provider
-              confirms it.
-            </p>
-          </Card.Content>
-        </Card>
-
-        <Card aria-labelledby="ps-h" className="gap-[12px] p-[16px]">
-          <Card.Header>
-            <Card.Title id="ps-h" className="text-[15px] font-semibold">
-              Payslips and Declarations
-            </Card.Title>
-            <Card.Description>Prepared from the confirmed snapshot only</Card.Description>
-          </Card.Header>
-          <Card.Content>
-            <ListView
-              aria-label="Payslips and declarations"
-              variant="secondary"
-              items={data.outputs.map((o) => ({ ...o, ready: o.readyAfter === "confirmation" && confirmed }))}
-            >
-              {(o) => {
-                const { ready } = o;
-                return (
-                  <ListView.Item id={o.id} textValue={o.title}>
-                    <ListView.ItemContent>
-                      <Icon name={o.icon} className="size-4 shrink-0 text-muted" />
-                      <div className="flex min-w-0 flex-col">
-                        <ListView.Title>{o.title}</ListView.Title>
-                        <ListView.Description>{o.meta}</ListView.Description>
-                      </div>
-                    </ListView.ItemContent>
-                    <ListView.ItemAction>
-                      <Chip size="sm" variant="soft" color={ready ? "success" : "default"}>
-                        {o.readyAfter === "release" ? "After release" : ready ? "Ready" : "After confirmation"}
-                      </Chip>
-                    </ListView.ItemAction>
-                  </ListView.Item>
-                );
-              }}
-            </ListView>
-          </Card.Content>
-        </Card>
-      </div>
-
-      <section className="flex flex-col gap-[10px]" aria-labelledby="hist-h">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="hist-h" className="text-[15px] leading-[22px] font-semibold">
-            Previous Runs
-          </h2>
-          <span className="text-xs text-muted">
-            Confirmed runs are never edited. Corrections become adjustment lines in a later run.
-          </span>
-        </div>
-        <Table>
-          <Table.ScrollContainer>
-            <Table.Content aria-label="Previous runs">
-              <Table.Header>
-                <Table.Column isRowHeader>Period</Table.Column>
-                <Table.Column className="text-right">Staff</Table.Column>
-                <Table.Column className="text-right">Net</Table.Column>
-                <Table.Column>Prepared</Table.Column>
-                <Table.Column>Confirmed</Table.Column>
-                <Table.Column>Released</Table.Column>
-                <Table.Column>Outcome</Table.Column>
-              </Table.Header>
-              <Table.Body>
-                {data.history.map((h) => (
-                  <Table.Row key={h.id} id={h.id}>
-                    <Table.Cell className="font-medium">{h.period}</Table.Cell>
-                    <Table.Cell className="text-right tabular">{h.staff}</Table.Cell>
-                    <Table.Cell className="text-right tabular">{rwf(h.net)}</Table.Cell>
-                    <Table.Cell>
-                      <span className="flex flex-col">
-                        <span>{h.preparedBy}</span>
-                        <span className="text-xs text-muted tabular">{h.preparedAt}</span>
-                      </span>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <span className="flex flex-col">
-                        <span>{h.confirmedBy}</span>
-                        <span className="text-xs text-muted tabular">{h.confirmedAt}</span>
-                      </span>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <span className="flex flex-col">
-                        <span>{h.releasedBy}</span>
-                        <span className="text-xs text-muted tabular">{h.releasedAt}</span>
-                      </span>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <span className="flex flex-wrap items-center gap-1.5">
-                        <Chip size="sm" variant="soft" color="success">
-                          {h.outcome}
-                        </Chip>
-                        {h.combinedPermission ? (
-                          <Chip size="sm" variant="soft" color="warning">
-                            One person, combined permission
+        {hasExceptionsTab ? (
+          <Tabs.Panel id="exceptions" className="flex flex-col gap-4 pt-3">
+            <div className="grid items-start gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr))]">
+              {exceptions.length ? (
+                <ItemCardGroup layout="list" variant="default" aria-labelledby="ex-h">
+                  <ItemCardGroup.Header className="flex items-center gap-2">
+                    <ItemCardGroup.Title id="ex-h" aria-level={2} className="flex-1">
+                      Exceptions
+                    </ItemCardGroup.Title>
+                    {live ? (
+                      <>
+                        {blockers.length ? (
+                          <Chip size="sm" variant="soft" color="danger">
+                            {blockers.length} to fix
                           </Chip>
                         ) : null}
-                      </span>
-                    </Table.Cell>
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </Table.Content>
-          </Table.ScrollContainer>
-        </Table>
-      </section>
+                        {exceptions.length - blockers.length ? (
+                          <Chip size="sm" variant="soft" color="warning">
+                            {exceptions.length - blockers.length} worth a look
+                          </Chip>
+                        ) : null}
+                      </>
+                    ) : (
+                      <Chip
+                        size="sm"
+                        variant="soft"
+                        color={reviewedCount === exceptions.length ? "success" : "warning"}
+                      >
+                        {reviewedCount} of {exceptions.length} reviewed
+                      </Chip>
+                    )}
+                  </ItemCardGroup.Header>
+                  {exRows.map((row) => {
+                    if (row.kind === "group") {
+                      const names = row.items.map((x) => x.who ?? x.title.split(" · ")[0]);
+                      return (
+                        <ItemCard key={row.code} className="items-start">
+                          <ItemCard.Icon className="size-9 rounded-xl bg-danger-soft text-danger-soft-foreground [&>svg]:size-[18px]">
+                            <Icon name={row.items[0].icon} />
+                          </ItemCard.Icon>
+                          <ItemCard.Content className="min-w-0 flex-1 gap-1.5">
+                            <ItemCard.Title className="whitespace-normal">
+                              {row.items.length} {BLOCKER_LABEL[row.code] ?? "to fix"}
+                            </ItemCard.Title>
+                            <span className="flex flex-wrap items-center gap-2">
+                              <AvatarGroup size="sm" variant="soft" overlap="ring" max={6} aria-hidden="true">
+                                {names.map((n) => (
+                                  <Avatar key={n} color={avatarColor(n)}>
+                                    <Avatar.Fallback>{initials(n)}</Avatar.Fallback>
+                                  </Avatar>
+                                ))}
+                              </AvatarGroup>
+                              <ItemCard.Description className="min-w-0 flex-1 truncate">
+                                {names.map(firstName).join(", ")}
+                              </ItemCard.Description>
+                            </span>
+                          </ItemCard.Content>
+                          <ItemCard.Action className="shrink-0 self-center">
+                            <Button size="sm" onPress={() => setFixOpen(true)}>
+                              <Wrench className="size-4" aria-hidden="true" />
+                              Fix {row.items.length}
+                            </Button>
+                          </ItemCard.Action>
+                        </ItemCard>
+                      );
+                    }
+                    const x = row.x;
+                    const done = !!reviewed[x.id];
+                    const tone = x.blocker ? "danger" : live || !done ? "warning" : "success";
+                    return (
+                      <ItemCard key={x.id} className="items-start">
+                        <ItemCard.Icon
+                          className={`size-9 rounded-xl [&>svg]:size-[18px] ${
+                            tone === "danger"
+                              ? "bg-danger-soft text-danger-soft-foreground"
+                              : tone === "warning"
+                                ? "bg-warning-soft text-warning-soft-foreground"
+                                : "bg-success-soft text-success-soft-foreground"
+                          }`}
+                        >
+                          <Icon name={x.icon} />
+                        </ItemCard.Icon>
+                        <ItemCard.Content className="min-w-0 flex-1">
+                          <ItemCard.Title className="whitespace-normal">{x.title}</ItemCard.Title>
+                          <ItemCard.Description className="whitespace-normal">{x.detail}</ItemCard.Description>
+                        </ItemCard.Content>
+                        <ItemCard.Action className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 self-center">
+                          {live ? (
+                            <ExceptionMenu
+                              x={x}
+                              canHold={!!(x.canHold && runId && x.employeeId)}
+                              isDisabled={pending}
+                              onFix={() => setFixOpen(true)}
+                              onOpenFile={() =>
+                                router.push(
+                                  `${screenHref("Employees")}?employee=${encodeURIComponent(x.employeeId ?? "")}`,
+                                )
+                              }
+                              onHold={() => {
+                                const who = x.employeeId;
+                                if (!runId || !who) return;
+                                act(
+                                  () => holdPayslip(runId, who, `Paid next month: ${x.detail}`.slice(0, 500)),
+                                  "Paid next month. The draft is computed again without them.",
+                                );
+                              }}
+                              onLook={() => (x.lineId ? openLine(x.lineId) : undefined)}
+                            />
+                          ) : !done && !locked ? (
+                            <Button size="sm" variant="secondary" onPress={() => markReviewed(x)}>
+                              Mark reviewed
+                            </Button>
+                          ) : (
+                            <Chip size="sm" variant="soft" color={done ? "success" : "warning"}>
+                              {done ? "Reviewed" : "Not reviewed"}
+                            </Chip>
+                          )}
+                        </ItemCard.Action>
+                      </ItemCard>
+                    );
+                  })}
+                </ItemCardGroup>
+              ) : null}
 
-      <Modal.Backdrop isOpen={dialogOpen && stage === "review"} onOpenChange={setDialogOpen}>
+              <FinalSettlements settlements={data.settlements} lines={lines} figures={figures} />
+            </div>
+          </Tabs.Panel>
+        ) : null}
+
+        <Tabs.Panel id="documents" className="flex flex-col gap-4 pt-3">
+          <ItemCardGroup
+            layout="grid"
+            aria-labelledby="ps-h"
+            className="[grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr))]"
+          >
+            <ItemCardGroup.Header>
+              <ItemCardGroup.Title id="ps-h" aria-level={2}>
+                Payslips and declarations
+              </ItemCardGroup.Title>
+            </ItemCardGroup.Header>
+            {data.outputs.map((o) => {
+              const ready = o.readyAfter === "confirmation" && confirmed;
+              return (
+                <ItemCard key={o.id}>
+                  <ItemCard.Icon
+                    className={`size-10 rounded-xl [&>svg]:size-5 ${ready ? "bg-success-soft text-success-soft-foreground" : "bg-default text-muted"}`}
+                  >
+                    <Icon name={o.icon} />
+                  </ItemCard.Icon>
+                  <ItemCard.Content className="min-w-0 flex-1">
+                    <ItemCard.Title>{o.title}</ItemCard.Title>
+                    <ItemCard.Description className="whitespace-normal">{o.meta}</ItemCard.Description>
+                  </ItemCard.Content>
+                  <ItemCard.Action>
+                    {live && ready && state.canConfirm && runId && o.kind ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        isPending={pending}
+                        onPress={() => buildFile(runId, o.kind as "paye" | "rssb")}
+                      >
+                        Build
+                      </Button>
+                    ) : (
+                      <Chip size="sm" variant="soft" color={ready ? "success" : "default"}>
+                        {!ready ? <Lock className="size-3" aria-hidden="true" /> : null}
+                        <Chip.Label>
+                          {o.readyAfter === "release" ? "After release" : ready ? "Ready" : "After confirmation"}
+                        </Chip.Label>
+                      </Chip>
+                    )}
+                  </ItemCard.Action>
+                </ItemCard>
+              );
+            })}
+          </ItemCardGroup>
+        </Tabs.Panel>
+
+        {claimsOn ? (
+          <Tabs.Panel id="claims" className="flex flex-col gap-4 pt-3">
+            <ClaimsPanel canDecide={state.canConfirm} />
+          </Tabs.Panel>
+        ) : null}
+
+        {canLend && loansOn ? (
+          <Tabs.Panel id="loans" className="flex flex-col gap-4 pt-3">
+            <LoansPanel period={state.period} isConfirmed={confirmed} />
+          </Tabs.Panel>
+        ) : null}
+
+        {data.history.length ? (
+          <Tabs.Panel id="history" className="flex flex-col gap-4 pt-3">
+            <DataGrid
+              aria-label="Previous runs"
+              data={data.history.map((h, i) => ({ ...h, before: data.history[i + 1] ?? null }))}
+              columns={historyColumns}
+              getRowId={(h) => h.id}
+              onRowAction={(key) => setPastRun(String(key))}
+              contentClassName="min-w-[820px] [&_tbody_tr]:cursor-pointer"
+              renderEmptyState={() => <span className="text-xs text-muted">No confirmed month before this one.</span>}
+            />
+          </Tabs.Panel>
+        ) : null}
+      </Tabs>
+
+      {live ? (
+        <Modal.Backdrop isOpen={dialog !== null} onOpenChange={(open) => (open ? undefined : setDialog(null))}>
+          <Modal.Container size="md">
+            <Modal.Dialog aria-labelledby="live-d-h">
+              <Modal.Header>
+                <Modal.Heading id="live-d-h" className="text-[18px] leading-6 font-semibold">
+                  {dialog === "confirm"
+                    ? `Confirm ${state.title.replace(" pay run", "")} pay for ${staffTotal}?`
+                    : dialog === "submit"
+                      ? `Submit ${state.title.replace(" pay run", "")} to ${state.confirmerName}?`
+                      : `Send ${state.title.replace(" pay run", "")} back to ${state.preparerName}?`}
+                </Modal.Heading>
+                <p className="mt-1.5 text-sm leading-5 text-muted">
+                  {dialog === "confirm"
+                    ? "This freezes the month. It cannot be undone."
+                    : dialog === "submit"
+                      ? "Locked while it waits. You can withdraw it until confirmed."
+                      : "It goes back with your reason. Nothing is paid."}
+                </p>
+              </Modal.Header>
+              <Modal.Body className="flex flex-col gap-[16px]">
+                {dialog === "submit" || dialog === "confirm" ? (
+                  <KeyValueList
+                    items={[
+                      { label: "Staff", value: String(staffTotal) },
+                      { label: "Net pay", value: netTotal ? rwf(netTotal.value) : "—" },
+                      { label: "Employer cost", value: netTotal?.footAmount ? rwf(netTotal.footAmount) : "—" },
+                      { label: "Rules", value: data.rules.map((r) => r.label.split(" · ")[0]).join(", ") || "—" },
+                    ]}
+                  />
+                ) : null}
+                {dialog === "confirm" ? null : (
+                  <TextField fullWidth value={words} onChange={setWords}>
+                    <Label>
+                      {dialog === "submit" ? `Note to ${state.confirmerName} (optional)` : "Why (optional)"}
+                    </Label>
+                    <TextArea
+                      variant="secondary"
+                      rows={2}
+                      placeholder={
+                        dialog === "submit"
+                          ? "Two people paid next month while their files are fixed"
+                          : "Overtime not approved yet"
+                      }
+                    />
+                  </TextField>
+                )}
+              </Modal.Body>
+              <Modal.Footer>
+                <Button variant="ghost" onPress={() => setDialog(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  isPending={pending}
+                  onPress={() => {
+                    const said = words.trim() || null;
+                    const which = dialog;
+                    setDialog(null);
+                    if (!runId) return;
+                    if (which === "confirm")
+                      act(() => confirmPayRun(runId), "Confirmed. Payslips and files are ready.");
+                    else if (which === "submit")
+                      act(() => submitPayRun(runId, said), `Submitted to ${state.confirmerName}.`);
+                    else act(() => withdrawPayRun(runId, said), `Sent back to ${state.preparerName}.`);
+                  }}
+                >
+                  {dialog === "confirm"
+                    ? `Confirm pay for ${staffTotal}`
+                    : dialog === "submit"
+                      ? "Submit for confirmation"
+                      : "Send back"}
+                </Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      ) : null}
+
+      <Modal.Backdrop isOpen={!live && dialogOpen && stage === "review"} onOpenChange={setDialogOpen}>
         <Modal.Container size="md">
           <Modal.Dialog aria-labelledby="sd-h">
             <Modal.Header>
               <Modal.Heading id="sd-h" className="text-[18px] leading-6 font-semibold">
-                Submit October run to Didier Mugenzi?
+                Submit October run to {state.confirmerName}?
               </Modal.Heading>
-              <p className="mt-1.5 text-sm leading-5 text-muted">
-                The snapshot is locked while he reviews it. You can withdraw it until he confirms.
-              </p>
+              <p className="mt-1.5 text-sm leading-5 text-muted">Locked while it is reviewed.</p>
             </Modal.Header>
             <Modal.Body className="flex flex-col gap-[16px]">
               <KeyValueList
@@ -627,18 +1139,11 @@ export function PayRunView({ data, initialStage }: { data: PayRunData; initialSt
                 </Alert.Indicator>
                 <Alert.Content>
                   <Alert.Title>Rules are awaiting payroll expert sign-off</Alert.Title>
-                  <Alert.Description>
-                    Didier must either wait for sign-off or record a documented exception when he confirms.
-                  </Alert.Description>
                 </Alert.Content>
               </Alert>
               <TextField fullWidth>
-                <Label>Note to Didier (optional)</Label>
-                <TextArea
-                  variant="secondary"
-                  rows={2}
-                  placeholder="For example: Joseph’s retroactive line follows your 30 Sep approval"
-                />
+                <Label>Note to {state.confirmerName} (optional)</Label>
+                <TextArea variant="secondary" rows={2} placeholder="Retroactive line follows your 30 Sep approval" />
               </TextField>
             </Modal.Body>
             <Modal.Footer>
@@ -657,6 +1162,91 @@ export function PayRunView({ data, initialStage }: { data: PayRunData; initialSt
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
+      <PastRunDrawer
+        summary={data.history.find((h) => h.id === pastRun) ?? null}
+        previous={data.history[data.history.findIndex((h) => h.id === pastRun) + 1] ?? null}
+        canFiles={state.canConfirm}
+        building={pending}
+        onBuild={(kind) => pastRun && buildFile(pastRun, kind)}
+        onOpenChange={(open) => {
+          if (!open) setPastRun(null);
+        }}
+      />
+      <BlockerFixDrawer
+        isOpen={fixOpen}
+        onOpenChange={setFixOpen}
+        blockers={exceptions.filter((x) => x.blocker)}
+        runId={runId}
+        holding={pending}
+        canSetEmployerNumber={state.canConfirm}
+        onHold={(x) =>
+          runId && x.employeeId
+            ? act(
+                () => holdPayslip(runId, x.employeeId as string, `Paid next month: ${x.detail}`.slice(0, 500)),
+                "Paid next month. The draft is computed again without them.",
+              )
+            : undefined
+        }
+      />
+      <Drawer.Backdrop isOpen={lineOpen && !!selected} onOpenChange={setLineOpen}>
+        <Drawer.Content placement="right">
+          <Drawer.Dialog aria-labelledby="pl-h" className="w-full max-w-[460px]">
+            <Drawer.CloseTrigger aria-label="Close" />
+            {selected ? (
+              <>
+                <Drawer.Header className="flex flex-col gap-2">
+                  <Drawer.Heading id="pl-h" className="sr-only">
+                    Pay line · {selected.name}
+                  </Drawer.Heading>
+                  {selected.confidential ? (
+                    <span className="flex items-center gap-2 text-[17px] font-semibold">
+                      <Lock className="size-4 text-muted" aria-hidden="true" />
+                      Owner
+                    </span>
+                  ) : (
+                    <Person name={selected.name} sub={`${selected.role} · ${selected.payBy}`} size="md" />
+                  )}
+                  {selected.flag !== "Regular" ? (
+                    <Chip size="sm" variant="soft" color={toneColor(selected.flagTone)} className="self-start">
+                      {selected.flag}
+                    </Chip>
+                  ) : null}
+                </Drawer.Header>
+                <Drawer.Body className="flex flex-col gap-4">
+                  {selected.confidential ? (
+                    <p className="text-sm text-muted">Only the owner sees these figures.</p>
+                  ) : sel ? (
+                    <>
+                      <LineDonut
+                        gross={sel.gross}
+                        net={sel.net}
+                        paye={sel.paye}
+                        rssb={sel.rssb}
+                        other={sel.otherDeductions}
+                      />
+                      <AmountList rows={breakdown} />
+                      <p className="text-xs leading-4 text-muted">{selected.note ?? "Regular line."}</p>
+                    </>
+                  ) : null}
+                  {!selected.confidential && selected.employeeId && live ? (
+                    <FixPay
+                      key={selected.id}
+                      employeeId={selected.employeeId}
+                      name={selected.name}
+                      period={state.period}
+                      runId={runId}
+                      canAddAmounts={state.canConfirm}
+                      editable={stage === "review"}
+                      fileHref={`${screenHref("Employees")}?employee=${encodeURIComponent(selected.employeeId)}`}
+                    />
+                  ) : null}
+                </Drawer.Body>
+              </>
+            ) : null}
+          </Drawer.Dialog>
+        </Drawer.Content>
+      </Drawer.Backdrop>
+      <Toast.Provider placement="bottom" />
     </PageContent>
   );
 }

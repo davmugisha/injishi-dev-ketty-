@@ -41,7 +41,8 @@ import {
   departmentPositionEnum,
   departments,
 } from './operations';
-import { orgMemberships, orgs, workspaces } from './org';
+import { orgRoleEnum } from './enums';
+import { orgInvitations, orgMemberships, orgs, workspaces } from './org';
 
 // --- Vocabulary --------------------------------------------------------------
 
@@ -104,6 +105,8 @@ export const hrAttendanceStatusEnum = pgEnum('hr_attendance_status', [
   'open',
   'closed',
   'superseded',
+  // HR found the person was not at work: the record counts for nothing (clock-in rules).
+  'rejected',
 ]);
 
 /** Why a phone punch waits for validation (mobile spec 0003, D-ao): the location reasons, then a late arrival. */
@@ -906,6 +909,15 @@ export const payRuns = pgTable(
     ruleVersions: jsonb('rule_versions').notNull(),
     confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
     confirmedByUserId: uuid('confirmed_by_user_id').references(() => users.id),
+    /**
+     * Submitted to whoever confirms it (ADR-069 D-e: whoever prepares the month
+     * is not, by default, whoever signs it). A submitted draft is locked: it is
+     * withdrawn to be changed, which clears all three. A confirmed run keeps
+     * them, as who handed it over and what they said.
+     */
+    submittedAt: timestamp('submitted_at', { withTimezone: true }),
+    submittedByUserId: uuid('submitted_by_user_id').references(() => users.id),
+    submitNote: text('submit_note'),
     ...timestamps,
   },
   (t) => [
@@ -973,5 +985,63 @@ export const payslips = pgTable(
       sql`${t.netRwf} = ${t.grossRwf} + ${t.nonIncomeRwf} - ${t.payeRwf} - ${t.employeeContributionsRwf} - ${t.otherDeductionsRwf}`,
     ),
     check('payslips_paid_ck', sql`(${t.paidAt} IS NULL) = (${t.paidMethod} IS NULL) AND (${t.paidAt} IS NULL OR ${t.status} = 'confirmed')`),
+  ],
+);
+
+// --- Logins given while putting a person on file -------------------------------
+
+/**
+ * A login HR gave, or asked the owner for, while putting a person on file (HR onboarding).
+ *
+ * The staff file and the login stay two things (an employee file is not an Injishi account):
+ * this row is what joins them. It names the file, the address the invitation goes to, the role
+ * and the branches, and who asked. A front-line login is `approved` at once and its invitation
+ * sent; a login into a role that reaches money, staff files or payroll waits `pending` until the
+ * owner approves it (which sends the invitation) or declines it with a reason HR reads.
+ *
+ * `invitation_id` is how an accepted invitation finds the file it was for, so the person's
+ * account is linked to the file HR wrote rather than a second, thin file being written for them.
+ */
+export const staffAccessRequests = pgTable(
+  'staff_access_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    employeeId: uuid('employee_id')
+      .notNull()
+      .references(() => employees.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    orgRole: orgRoleEnum('org_role').notNull(),
+    /** Null is every branch, as on an invitation (ADR-054). */
+    branchPropertyIds: uuid('branch_property_ids').array(),
+    /** `pending`, `approved` (its invitation sent), `declined` or `cancelled`. */
+    status: text('status').notNull().default('pending'),
+    /** What HR wrote for the owner beside a request. */
+    note: text('note'),
+    requestedByUserId: uuid('requested_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    decidedByUserId: uuid('decided_by_user_id').references(() => users.id),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    /** Why the owner declined, which HR reads. */
+    decisionNote: text('decision_note'),
+    invitationId: uuid('invitation_id').references(() => orgInvitations.id, { onDelete: 'set null' }),
+    ...timestamps,
+  },
+  (t) => [
+    index('staff_access_requests_org_status_idx').on(t.orgId, t.status),
+    index('staff_access_requests_employee_idx').on(t.employeeId),
+    index('staff_access_requests_invitation_idx').on(t.invitationId),
+    // One request waiting for the owner per file: a second ask replaces nothing silently.
+    uniqueIndex('staff_access_requests_one_pending_uk')
+      .on(t.employeeId)
+      .where(sql`${t.status} = 'pending'`),
+    check(
+      'staff_access_requests_status_ck',
+      sql`${t.status} in ('pending', 'approved', 'declined', 'cancelled')`,
+    ),
+    check('staff_access_requests_not_owner_ck', sql`${t.orgRole} <> 'owner'`),
   ],
 );

@@ -79,6 +79,35 @@ describe('pay computation (ADR-058 AC-Y1, AC-Y2, AC-Y4)', () => {
     expect(p.employeeContributionsRwf).toBe(7_500);
   });
 
+  it('takes a contribution on net pay after PAYE (CBHI is 0.5% of net salary)', () => {
+    const p = slip({
+      rssb: {
+        contributions: [
+          ...RSSB.contributions,
+          { code: 'cbhi', label: 'CBHI', base: 'net', employeeRate: 0.005, employerRate: 0, optional: true },
+        ],
+      },
+    });
+    // Net before CBHI: 200,000 less 10,600 contributions less 20,000 PAYE = 169,400; 0.5% is 847.
+    const cbhi = p.lines.filter((l) => l.code === 'cbhi');
+    expect(cbhi.map((l) => [l.side, l.amountRwf])).toEqual([['employee', 847]]);
+    expect(p.payeRwf).toBe(20_000);
+    expect(p.netRwf).toBe(169_400 - 847);
+  });
+
+  it("adds a private insurer's fixed premium to each side, after tax", () => {
+    const p = slip({
+      fixedContributions: [{ code: 'private_health', label: 'Health insurance', employeeRwf: 5_000, employerRwf: 15_000 }],
+    });
+    expect(p.lines.filter((l) => l.code === 'private_health').map((l) => [l.side, l.amountRwf])).toEqual([
+      ['employee', 5_000],
+      ['employer', 15_000],
+    ]);
+    expect(p.payeRwf).toBe(20_000);
+    expect(p.employerContributionsRwf).toBe(10_600 + 15_000);
+    expect(p.netRwf).toBe(200_000 - 20_000 - 10_600 - 5_000);
+  });
+
   it('gives one payslip two line groups for a wage change on the 16th', () => {
     const p = slip({
       contracts: [

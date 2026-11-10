@@ -10,15 +10,15 @@ import {
   employeePayAccounts,
   employees,
   employmentContracts,
-  hrChecklistItems,
   hrTeamMembers,
   hrTeams,
   rosterCoverRequirements,
+  shiftTemplates,
   users,
 } from '../../../database/drizzle/schema';
 import { inBranchScope, type BranchScope } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import type { Tx } from './employees.repository';
+import { writeHrAudit } from './hr-audit';
 
 export interface TeamRow {
   id: string;
@@ -82,21 +82,6 @@ export interface ExpiringDocumentRow {
   employeeId: string;
   title: string;
   expiresOn: string;
-}
-
-export interface ChecklistRow {
-  id: string;
-  orgId: string;
-  employeeId: string;
-  workPropertyId: string | null;
-  checklist: 'onboarding' | 'offboarding';
-  code: string;
-  title: string;
-  detail: string | null;
-  ownerOnly: boolean;
-  sortOrder: number;
-  doneAt: Date | null;
-  doneByName: string | null;
 }
 
 export interface DependantRow {
@@ -167,6 +152,83 @@ export class HrWorkforceRepository {
       .where(and(eq(employees.orgId, orgId), this.onBooks(today), inBranchScope(employees.workPropertyId, scope)))
       .orderBy(asc(employees.employeeNumber));
     return rows.map((r) => ({ ...r, hasKioskPin: Boolean(r.hasKioskPin) }));
+  }
+
+  /** A team of this business, with its branch. */
+  async teamOf(orgId: string, teamId: string): Promise<{ id: string; propertyId: string } | null> {
+    const [row] = await this.db
+      .select({ id: hrTeams.id, propertyId: hrTeams.propertyId })
+      .from(hrTeams)
+      .where(and(eq(hrTeams.id, teamId), eq(hrTeams.orgId, orgId)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  /** Which of these shifts are active shifts of the branch. */
+  async activeShiftIds(orgId: string, propertyId: string, ids: string[]): Promise<string[]> {
+    const rows = await this.db
+      .select({ id: shiftTemplates.id })
+      .from(shiftTemplates)
+      .where(
+        and(
+          eq(shiftTemplates.orgId, orgId),
+          eq(shiftTemplates.propertyId, propertyId),
+          eq(shiftTemplates.status, 'active'),
+          inArray(shiftTemplates.id, ids),
+        ),
+      );
+    return rows.map((r) => r.id);
+  }
+
+  /** Set a team's minimum cover: its active row is changed, or the first one made. Audited. */
+  async saveCover(
+    orgId: string,
+    actorUserId: string,
+    input: {
+      teamId: string;
+      propertyId: string;
+      shiftTemplateIds: string[];
+      minByWeekday: number[];
+      note: string | null;
+    },
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select({ id: rosterCoverRequirements.id })
+        .from(rosterCoverRequirements)
+        .where(and(eq(rosterCoverRequirements.teamId, input.teamId), eq(rosterCoverRequirements.status, 'active')))
+        .orderBy(asc(rosterCoverRequirements.sortOrder))
+        .limit(1);
+      if (existing) {
+        await tx
+          .update(rosterCoverRequirements)
+          .set({
+            shiftTemplateIds: input.shiftTemplateIds,
+            minByWeekday: input.minByWeekday,
+            note: input.note,
+            updatedAt: new Date(),
+          })
+          .where(eq(rosterCoverRequirements.id, existing.id));
+      } else {
+        await tx.insert(rosterCoverRequirements).values({
+          orgId,
+          propertyId: input.propertyId,
+          teamId: input.teamId,
+          label: 'Minimum cover',
+          shiftTemplateIds: input.shiftTemplateIds,
+          minByWeekday: input.minByWeekday,
+          note: input.note,
+        });
+      }
+      await writeHrAudit(tx, {
+        actorUserId,
+        subjectType: 'org',
+        subjectId: orgId,
+        eventType: 'hr.roster_cover_saved',
+        orgId,
+        diff: { teamId: input.teamId, minByWeekday: input.minByWeekday },
+      });
+    });
   }
 
   async cover(orgId: string, scope: BranchScope, propertyId: string | null): Promise<CoverRow[]> {
@@ -278,71 +340,6 @@ export class HrWorkforceRepository {
       )
       .orderBy(asc(employeeDocuments.expiresOn));
     return rows.map((r) => ({ ...r, expiresOn: r.expiresOn as string }));
-  }
-
-  // The joined select builder's type is drizzle's to spell; every caller narrows it to ChecklistRow.
-  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-  private checklistQuery(tx?: Tx) {
-    return (tx ?? this.db)
-      .select({
-        id: hrChecklistItems.id,
-        orgId: hrChecklistItems.orgId,
-        employeeId: hrChecklistItems.employeeId,
-        workPropertyId: employees.workPropertyId,
-        checklist: sql<'onboarding' | 'offboarding'>`${hrChecklistItems.checklist}`,
-        code: hrChecklistItems.code,
-        title: hrChecklistItems.title,
-        detail: hrChecklistItems.detail,
-        ownerOnly: hrChecklistItems.ownerOnly,
-        sortOrder: hrChecklistItems.sortOrder,
-        doneAt: hrChecklistItems.doneAt,
-        doneByName: users.name,
-      })
-      .from(hrChecklistItems)
-      .innerJoin(employees, eq(employees.id, hrChecklistItems.employeeId))
-      .leftJoin(users, eq(users.id, hrChecklistItems.doneByUserId));
-  }
-
-  async checklists(
-    orgId: string,
-    scope: BranchScope,
-    checklist: 'onboarding' | 'offboarding',
-    employeeId: string | null,
-  ): Promise<ChecklistRow[]> {
-    return this.checklistQuery()
-      .where(
-        and(
-          eq(hrChecklistItems.orgId, orgId),
-          eq(hrChecklistItems.checklist, checklist),
-          inBranchScope(employees.workPropertyId, scope),
-          employeeId ? eq(hrChecklistItems.employeeId, employeeId) : undefined,
-        ),
-      )
-      .orderBy(asc(employees.employeeNumber), asc(hrChecklistItems.sortOrder), asc(hrChecklistItems.code));
-  }
-
-  async findChecklistItem(id: string, tx?: Tx): Promise<ChecklistRow | null> {
-    const [row] = await this.checklistQuery(tx).where(eq(hrChecklistItems.id, id)).limit(1);
-    return row ?? null;
-  }
-
-  /** Tick or untick; false when it already was. */
-  async markChecklistItem(tx: Tx, id: string, done: boolean, userId: string): Promise<boolean> {
-    const moved = await tx
-      .update(hrChecklistItems)
-      .set(
-        done
-          ? { doneAt: new Date(), doneByUserId: userId, updatedAt: new Date() }
-          : { doneAt: null, doneByUserId: null, updatedAt: new Date() },
-      )
-      .where(
-        and(
-          eq(hrChecklistItems.id, id),
-          done ? sql`${hrChecklistItems.doneAt} is null` : sql`${hrChecklistItems.doneAt} is not null`,
-        ),
-      )
-      .returning({ id: hrChecklistItems.id });
-    return moved.length > 0;
   }
 
   async dependants(orgId: string, scope: BranchScope, employeeIds: readonly string[] | null): Promise<DependantRow[]> {

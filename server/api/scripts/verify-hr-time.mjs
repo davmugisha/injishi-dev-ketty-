@@ -429,9 +429,14 @@ check('approving replaces the morning with the evening, published', changed.stat
 const swapNoAccounts = await post(manager, '/ops/shift-requests', { kind: 'swap', employeeId: cookA.id, swapEmployeeId: cookB.id, from: addDays(nextMonday, 1), to: addDays(nextMonday, 1), reason: 'Doctor' });
 const acceptFor = await post(manager, `/ops/shift-requests/${swapNoAccounts.body?.id}/accept-for-colleague`, {});
 check('for a colleague with no account, the manager accepts for them', acceptFor.status === 200 && acceptFor.body?.status === 'requested', acceptFor);
+const nothingToSwap = await post(self(desk), `/me/work/${deskFile.employeeId}/shift-requests`, { kind: 'swap', swapEmployeeId: keeperFile.employeeId, from: addDays(nextMonday, 5), to: addDays(nextMonday, 5), reason: 'Exam' });
+check('a swap on a day neither of them works: 422', nothingToSwap.status === 422, nothingToSwap);
+const pastSwap = await post(self(desk), `/me/work/${deskFile.employeeId}/shift-requests`, { kind: 'swap', swapEmployeeId: keeperFile.employeeId, from: addDays(today, -1), to: addDays(today, -1), reason: 'Late' });
+check('a swap of a day that has passed: 422', pastSwap.status === 422, pastSwap);
+await roster(manager, deskFile.employeeId, morning.id, addDays(nextMonday, 5));
 const declineMe = await post(self(desk), `/me/work/${deskFile.employeeId}/shift-requests`, { kind: 'swap', swapEmployeeId: keeperFile.employeeId, from: addDays(nextMonday, 5), to: addDays(nextMonday, 5), reason: 'Exam' });
 const declined = await post(self(housekeeper), `/me/work/${keeperFile.employeeId}/shift-requests/${declineMe.body?.id}/decline`, {});
-check('a swap the colleague declines is cancelled', declined.status === 200 && declined.body?.status === 'cancelled', declined);
+check('a swap the colleague declines is refused, with why', declined.status === 200 && declined.body?.status === 'rejected' && /said no/.test(declined.body?.decisionNote ?? ''), declined);
 const own = await post(self(manager), `/me/work/${managerFile.employeeId}/shift-requests`, { kind: 'change', shiftTemplateId: evening.id, from: addDays(nextMonday, 2), to: addDays(nextMonday, 2), reason: 'School run' });
 const ownDecide = await post(manager, `/ops/shift-requests/${own.body?.id}/approve`, {});
 check('nobody decides their own request: 403', own.status === 201 && ownDecide.status === 403, [own.status, ownDecide.status]);

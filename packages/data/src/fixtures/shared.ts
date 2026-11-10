@@ -2475,6 +2475,298 @@ const exportHistory: ExportRecord[] = [
   },
 ];
 
+// ── Me (/me) ─────────────────────────────────────────────────────────────────
+
+export type MyHrTone = "accent" | "success" | "warning" | "danger" | "default" | "info";
+
+/**
+ * A person's own HR, as they read it on Me (/me): who HR has them as, their pay, leave and time,
+ * and what they can ask for. One document, read from their own staff file only (`/me/work`).
+ */
+export interface MyHr {
+  id: string;
+  /** The person has a staff file at this business; without one the page says so and nothing else. */
+  hasFile: boolean;
+  /** Today in Kigali ("2026-10-18"): where the two weeks of shifts start. */
+  today: string;
+  /** They have left: their file reads, and nothing can be asked. */
+  readOnly: boolean;
+  person: MyHrPerson;
+  /** Four figures across the top: leave left, next shift, the month so far, the last pay. */
+  figures: MyHrFigure[];
+  /** Published shifts of the next two weeks. */
+  shifts: MyHrShift[];
+  payslips: MyHrPayslip[];
+  claims: MyHrItem[];
+  loans: MyHrItem[];
+  balances: MyHrBalance[];
+  /** The kinds of leave the person may ask for. */
+  leaveTypes: { id: string; name: string }[];
+  /** Leave, extra days, shift changes and time corrections they asked for, newest first. */
+  requests: MyHrRequest[];
+  month: MyHrMonth | null;
+  records: MyHrRecord[];
+  documents: MyHrDocument[];
+  /** Joining and leaving checklist tasks; `mine` are the person's to tick. */
+  tasks: MyHrTask[];
+  kioskPin: { hasPin: boolean; setOn: string | null } | null;
+  /** Questions the person asked HR or IT, newest first. */
+  tickets?: MyHrTicket[];
+  /** Things signed out to them and not back yet. */
+  assets?: MyHrAsset[];
+  /** What HR posted that is for them, newest first. */
+  announcements?: MyHrAnnouncement[];
+  /** Their own reviews, the latest cycle first. */
+  reviews?: MyHrReview[];
+  /** The clock-in card: how their branch clocks in, whether they are in now, and their shift. */
+  clock?: MyHrClock | null;
+}
+
+/** How a branch's staff clock themselves in: see `ClockMode` in the contracts. */
+export type MyHrClockMode = "anywhere" | "at_work" | "entrance";
+
+export interface MyHrClock {
+  branch: string | null;
+  mode: MyHrClockMode;
+  /** In since (ISO), and whether HR has still to check it. */
+  open: { since: string; checked: boolean } | null;
+  /** The shift a clock-in now belongs to, ISO times. */
+  shift: { startsAt: string; endsAt: string } | null;
+  /** When a clock-in opens for that shift (ISO); null when it is open now. */
+  opensAt: string | null;
+}
+
+export interface MyHrTicket {
+  id: string;
+  title: string;
+  meta: string;
+  chip: string;
+  tone: MyHrTone;
+  /** HR's last answer, when there is one. */
+  answer: string | null;
+}
+
+export interface MyHrAnnouncement {
+  id: string;
+  title: string;
+  body: string;
+  /** "6 Nov · until 20 Nov". */
+  meta: string;
+}
+
+/** A person's own review: where it stands, and whether their part can still be written. */
+export interface MyHrReview {
+  id: string;
+  title: string;
+  /** "1 Nov – 30 Nov". */
+  meta: string;
+  chip: string;
+  tone: MyHrTone;
+  /** What they wrote. */
+  note: string | null;
+  canWrite: boolean;
+}
+
+export interface MyHrAsset {
+  id: string;
+  name: string;
+  meta: string;
+  chip: string;
+  tone: MyHrTone;
+}
+
+export interface MyHrPerson {
+  employeeId: string | null;
+  name: string;
+  initials: string;
+  job: string;
+  branch: string;
+  business: string;
+  staffNo: string;
+  manager: string | null;
+  status: string;
+}
+
+export interface MyHrFigure {
+  id: string;
+  label: string;
+  value: string;
+  foot: string;
+}
+
+export interface MyHrShift {
+  id: string;
+  /** "2026-10-19". */
+  date: string;
+  day: string;
+  time: string;
+  name: string;
+  today: boolean;
+}
+
+export interface MyHrPayslip {
+  id: string;
+  /** "2026-09": the year to date adds up the payslips of one year. */
+  period: string;
+  month: string;
+  gross: number;
+  net: number;
+  paid: string;
+  tone: MyHrTone;
+}
+
+/** A claim or a loan: what it is, where it stands. */
+export interface MyHrItem {
+  id: string;
+  /** What it is for: "Printer paper for the front desk", "Salary advance". */
+  title: string;
+  /** In francs; null for a claim of leave days paid out, which payroll prices. */
+  amount: number | null;
+  /** A loan's share already repaid, 0 to 1; null for a claim. */
+  repaid: number | null;
+  meta: string;
+  chip: string;
+  tone: MyHrTone;
+  canCancel: boolean;
+}
+
+export interface MyHrBalance {
+  id: string;
+  name: string;
+  /** Null: the kind keeps no balance (sick leave, unpaid leave). */
+  days: number | null;
+  foot: string;
+}
+
+export interface MyHrRequest {
+  /** `leave:<id>`, `extra:<id>`, `shift:<id>` or `fix:<id>`. */
+  id: string;
+  kind: string;
+  title: string;
+  meta: string;
+  chip: string;
+  tone: MyHrTone;
+  canCancel: boolean;
+}
+
+export interface MyHrMonth {
+  label: string;
+  daysWorked: number;
+  worked: string;
+  expected: string;
+  late: number;
+  overtime: string;
+}
+
+export interface MyHrRecord {
+  id: string;
+  day: string;
+  times: string;
+  worked: string;
+  note: string;
+  chip: string;
+  tone: MyHrTone;
+  workDate: string;
+  /** "07:01", "15:04", in Kigali: what a correction starts from. */
+  inAt: string;
+  outAt: string | null;
+  /** A closed record can be asked to be put right. */
+  canAsk: boolean;
+}
+
+export interface MyHrDocument {
+  id: string;
+  title: string;
+  meta: string;
+  chip: string;
+  tone: MyHrTone;
+  /** HR asked for it, or sent it back. */
+  canSend: boolean;
+}
+
+export interface MyHrTask {
+  id: string;
+  label: string;
+  meta: string;
+  done: boolean;
+  mine: boolean;
+  checklist: string;
+}
+
+/** Diane Ingabire's own HR in the prototype's October. */
+const myHr: MyHr[] = [
+  {
+    id: "hr",
+    hasFile: true,
+    today: "2026-10-18",
+    readOnly: false,
+    person: {
+      employeeId: null,
+      name: "Diane Ingabire",
+      initials: "DI",
+      job: "HR officer",
+      branch: "Isangano Lakeside Hotel",
+      business: "Amahoro Hospitality Ltd",
+      staffNo: "EMP-0088",
+      manager: "Aline Uwase",
+      status: "active",
+    },
+    figures: [
+      { id: "leave", label: "Annual leave balance", value: "14 days", foot: "Available this year" },
+      { id: "shift", label: "Next shift", value: "Mon 19 Oct", foot: "08:00 – 17:00 · Office" },
+      { id: "month", label: "Hours this month", value: "92 h 30 min", foot: "of 99 h scheduled · 11 days worked" },
+      { id: "pay", label: "Last net pay", value: "RWF 386,560", foot: "September 2026 · paid 30 Sep" },
+    ],
+    shifts: [
+      { id: "2026-10-19", date: "2026-10-19", day: "Mon 19 Oct", time: "08:00 – 17:00", name: "Office", today: false },
+      { id: "2026-10-20", date: "2026-10-20", day: "Tue 20 Oct", time: "08:00 – 17:00", name: "Office", today: false },
+    ],
+    payslips: [
+      {
+        id: "sep",
+        period: "2026-09",
+        month: "September 2026",
+        gross: 550000,
+        net: 386560,
+        paid: "Paid 30 Sep",
+        tone: "success",
+      },
+    ],
+    claims: [],
+    loans: [],
+    balances: [
+      { id: "annual", name: "Annual leave", days: 14, foot: "Available" },
+      { id: "sick", name: "Sick leave", days: null, foot: "No fixed balance" },
+    ],
+    leaveTypes: [
+      { id: "annual", name: "Annual leave" },
+      { id: "sick", name: "Sick leave" },
+    ],
+    requests: [],
+    month: {
+      label: "October 2026",
+      daysWorked: 11,
+      worked: "92 h 30 min",
+      expected: "99 h",
+      late: 0,
+      overtime: "0 h",
+    },
+    records: [],
+    documents: [
+      {
+        id: "id",
+        title: "National ID copy",
+        meta: "Verified by HR",
+        chip: "Verified",
+        tone: "success",
+        canSend: false,
+      },
+    ],
+    tasks: [],
+    kioskPin: { hasPin: true, setOn: "3 Mar 2026" },
+  },
+];
+
 export const fixtures = {
   // InviteAccept
   "shared.invitations": invitations,
@@ -2494,6 +2786,8 @@ export const fixtures = {
   // Onboarding
   "shared.setupItems": setupItems,
   "shared.goLiveGates": goLiveGates,
+  // Me
+  "shared.myHr": myHr,
   // Account
   "shared.accountIdentities": accountIdentities,
   "shared.profileFields": profileFields,

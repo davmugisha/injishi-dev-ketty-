@@ -40,7 +40,8 @@ export type RosterStatus = z.infer<typeof RosterStatus>;
 export declare const AttendanceSource: z.ZodEnum<["supervisor", "self", "phone", "kiosk"]>;
 export type AttendanceSource = z.infer<typeof AttendanceSource>;
 /** `closed` becomes `superseded` only when a correction replaces it. */
-export declare const AttendanceStatus: z.ZodEnum<["open", "closed", "superseded"]>;
+/** `rejected`: HR found the person was not at work, so the record counts for nothing (058-time, clock-in rules). */
+export declare const AttendanceStatus: z.ZodEnum<["open", "closed", "superseded", "rejected"]>;
 export type AttendanceStatus = z.infer<typeof AttendanceStatus>;
 /**
  * Why a phone punch waits for a person to validate it (mobile spec 0003, D-ao),
@@ -2728,7 +2729,7 @@ export declare const AttendanceRecord: z.ZodObject<{
     clockOutAt: z.ZodNullable<z.ZodString>;
     source: z.ZodEnum<["supervisor", "self", "phone", "kiosk"]>;
     validated: z.ZodBoolean;
-    status: z.ZodEnum<["open", "closed", "superseded"]>;
+    status: z.ZodEnum<["open", "closed", "superseded", "rejected"]>;
     supersedesId: z.ZodNullable<z.ZodString>;
     note: z.ZodNullable<z.ZodString>;
     /** Closed by the sweep, not by a person: unvalidated until someone puts the times right (AC-TM4). */
@@ -2782,8 +2783,10 @@ export declare const AttendanceRecord: z.ZodObject<{
         outDistanceM: number | null;
         outAccuracyM: number | null;
     }>>;
+    /** The tablet a punch came from: its PIN pad, or the code on its screen a phone scanned. */
+    kioskId: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "superseded" | "open" | "closed";
+    status: "rejected" | "superseded" | "open" | "closed";
     id: string;
     source: "phone" | "supervisor" | "self" | "kiosk";
     note: string | null;
@@ -2816,8 +2819,9 @@ export declare const AttendanceRecord: z.ZodObject<{
         outDistanceM: number | null;
         outAccuracyM: number | null;
     } | null;
+    kioskId: string | null;
 }, {
-    status: "superseded" | "open" | "closed";
+    status: "rejected" | "superseded" | "open" | "closed";
     id: string;
     source: "phone" | "supervisor" | "self" | "kiosk";
     note: string | null;
@@ -2850,6 +2854,7 @@ export declare const AttendanceRecord: z.ZodObject<{
         outDistanceM: number | null;
         outAccuracyM: number | null;
     } | null;
+    kioskId: string | null;
 }>;
 export type AttendanceRecord = z.infer<typeof AttendanceRecord>;
 export declare const ClockInRequest: z.ZodObject<{
@@ -2893,6 +2898,15 @@ export declare const CorrectAttendanceRequest: z.ZodObject<{
     clockOutAt: string;
 }>;
 export type CorrectAttendanceRequest = z.infer<typeof CorrectAttendanceRequest>;
+/** `POST /ops/attendance/:id/reject`: the person was not at work, so the clock-in counts for nothing. */
+export declare const RejectAttendanceRequest: z.ZodObject<{
+    note: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    note: string;
+}, {
+    note: string;
+}>;
+export type RejectAttendanceRequest = z.infer<typeof RejectAttendanceRequest>;
 /** A type is archived, never deleted: requests and the ledger name it. */
 export declare const LeaveTypeStatus: z.ZodEnum<["active", "archived"]>;
 export type LeaveTypeStatus = z.infer<typeof LeaveTypeStatus>;

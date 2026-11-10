@@ -2675,11 +2675,11 @@ export declare const LeaseDetail: z.ZodObject<{
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
+        agreedRwf: number;
         deductions: {
             amountRwf: number;
             label: string;
         }[];
-        agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
         refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
@@ -2695,11 +2695,11 @@ export declare const LeaseDetail: z.ZodObject<{
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
+        agreedRwf: number;
         deductions: {
             amountRwf: number;
             label: string;
         }[];
-        agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
         refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
@@ -2771,11 +2771,11 @@ export declare const LeaseDetail: z.ZodObject<{
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
+        agreedRwf: number;
         deductions: {
             amountRwf: number;
             label: string;
         }[];
-        agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
         refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
@@ -2822,6 +2822,15 @@ export declare const LeaseDetail: z.ZodObject<{
     cancelledAt: string | null;
     tab: "active" | "cancelled" | "ending" | "ended" | "to_sign" | "waiting_for_tenant" | "ready_to_start";
     actions: ("start" | "landlord_sign" | "edit_terms" | "tenant_sign" | "cancel" | "acknowledge_notice" | "near_end" | "withdraw_notice" | "record_move_out")[];
+    invitation: {
+        status: "expired" | "sent" | "accepted" | "revoked";
+        expiresAt: string;
+        email: string;
+        sentAt: string;
+        lastSentAt: string;
+        sendCount: number;
+        acceptedAt: string | null;
+    } | null;
     notice: {
         message: string | null;
         status: "submitted" | "withdrawn" | "acknowledged";
@@ -2856,15 +2865,6 @@ export declare const LeaseDetail: z.ZodObject<{
         typedName: string | null;
         voidedAt: string | null;
     }[];
-    invitation: {
-        status: "expired" | "sent" | "accepted" | "revoked";
-        expiresAt: string;
-        email: string;
-        sentAt: string;
-        lastSentAt: string;
-        sendCount: number;
-        acceptedAt: string | null;
-    } | null;
     contractProblems: string[];
     supersedesLeaseId: string | null;
     activatedAt: string | null;
@@ -2922,11 +2922,11 @@ export declare const LeaseDetail: z.ZodObject<{
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
+        agreedRwf: number;
         deductions: {
             amountRwf: number;
             label: string;
         }[];
-        agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
         refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
@@ -2973,6 +2973,15 @@ export declare const LeaseDetail: z.ZodObject<{
     cancelledAt: string | null;
     tab: "active" | "cancelled" | "ending" | "ended" | "to_sign" | "waiting_for_tenant" | "ready_to_start";
     actions: ("start" | "landlord_sign" | "edit_terms" | "tenant_sign" | "cancel" | "acknowledge_notice" | "near_end" | "withdraw_notice" | "record_move_out")[];
+    invitation: {
+        status: "expired" | "sent" | "accepted" | "revoked";
+        expiresAt: string;
+        email: string;
+        sentAt: string;
+        lastSentAt: string;
+        sendCount: number;
+        acceptedAt: string | null;
+    } | null;
     notice: {
         message: string | null;
         status: "submitted" | "withdrawn" | "acknowledged";
@@ -3007,15 +3016,6 @@ export declare const LeaseDetail: z.ZodObject<{
         typedName: string | null;
         voidedAt: string | null;
     }[];
-    invitation: {
-        status: "expired" | "sent" | "accepted" | "revoked";
-        expiresAt: string;
-        email: string;
-        sentAt: string;
-        lastSentAt: string;
-        sendCount: number;
-        acceptedAt: string | null;
-    } | null;
     contractProblems: string[];
     supersedesLeaseId: string | null;
     activatedAt: string | null;

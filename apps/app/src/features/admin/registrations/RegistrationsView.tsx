@@ -1,13 +1,22 @@
 "use client";
 
-import { Button, Input, Label, TextField } from "@heroui/react";
-import type { AdminOrgListResponse, AdminOrgRow, AdminOrgStage, OrgRegistrationStatus } from "@injishi/contracts";
+import { Button, Input, Label, Switch, TextField } from "@heroui/react";
+import type {
+  AdminOrgListResponse,
+  AdminOrgRow,
+  AdminOrgStage,
+  HrFeature,
+  HrFeatureList,
+  OrgRegistrationStatus,
+} from "@injishi/contracts";
 import {
   DateText,
   EmptyBlock,
   type IconKey,
+  LoadingBlock,
   PageContent,
   type PlaceChain,
+  SectionCard,
   ServerDataGrid,
   StatusChip,
   type StatusTone,
@@ -29,7 +38,7 @@ import {
   useListUrl,
 } from "../list/list-kit";
 import { EntityMark } from "../list/stat-cards";
-import { decideStarGradeAction, loadStarGrade } from "./actions";
+import { decideStarGradeAction, loadHrFeatures, loadStarGrade, setHrFeatureAction } from "./actions";
 
 /** Where a registration stands, in the order it moves: paid, a field visit, a second officer's approval. */
 export type Stage = "unpaid" | "visit" | "approval" | "active" | "rejected" | "suspended";
@@ -171,6 +180,72 @@ export function StarGradeSection({ orgId }: { orgId: string }) {
       </div>
       {error ? <p className="m-0 text-sm text-danger">{error}</p> : null}
     </section>
+  );
+}
+
+/**
+ * The business's optional HR features, which Injishi switches (the owner does not). Off hides a feature from the
+ * business's screens and refuses new work through it; nothing is deleted. One still carrying work says why it
+ * cannot be switched off yet.
+ */
+export function HrFeaturesSection({ orgId }: { orgId: string }) {
+  const [list, setList] = useState<HrFeatureList | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<HrFeature | null>(null);
+  useEffect(() => {
+    let live = true;
+    void loadHrFeatures(orgId).then((r) => {
+      if (!live) return;
+      if (r.ok) setList(r.value);
+      else setError(r.error);
+    });
+    return () => {
+      live = false;
+    };
+  }, [orgId]);
+  const flip = async (feature: HrFeature, on: boolean) => {
+    setBusy(feature);
+    setError(null);
+    const r = await setHrFeatureAction(orgId, feature, on);
+    setBusy(null);
+    if (r.ok) setList(r.value);
+    else setError(r.error);
+  };
+  return (
+    <SectionCard
+      title="HR features"
+      description="Injishi switches these, not the owner. Off hides one; nothing is deleted."
+    >
+      {list ? (
+        <ul className="m-0 flex list-none flex-col divide-y divide-separator rounded-xl border border-separator p-0">
+          {list.features.map((f) => (
+            <li key={f.id} className="flex items-start gap-3 px-3 py-2.5">
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-sm font-medium">{f.label}</span>
+                <span className="text-xs text-muted">{f.detail}</span>
+                {f.on && f.blockedOff ? <span className="text-xs text-warning">{f.blockedOff}</span> : null}
+              </span>
+              <Switch
+                size="sm"
+                isSelected={f.on}
+                isDisabled={busy !== null || (f.on && Boolean(f.blockedOff))}
+                onChange={(on) => void flip(f.id, on)}
+                aria-label={`${f.label}: ${f.on ? "on" : "off"}`}
+              >
+                <Switch.Content>
+                  <Switch.Control>
+                    <Switch.Thumb />
+                  </Switch.Control>
+                </Switch.Content>
+              </Switch>
+            </li>
+          ))}
+        </ul>
+      ) : error ? null : (
+        <LoadingBlock shape="list" rows={3} label="Loading the HR features" />
+      )}
+      {error ? <p className="m-0 text-sm text-danger">{error}</p> : null}
+    </SectionCard>
   );
 }
 

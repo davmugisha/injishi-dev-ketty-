@@ -228,10 +228,12 @@ export const MyDocument = z.object({
   expiresOn: IsoDate.nullable(),
   /** When HR last acted on it (approved a document). */
   checkedAt: z.string().nullable(),
+  /** Why HR sent a document back. */
+  rejectReason: z.string().nullable(),
 });
 export type MyDocument = z.infer<typeof MyDocument>;
 
-/** `GET /me/work/:employeeId/documents`. */
+/** `GET /me/work/:employeeId/papers`: the contracts and documents on a person's own file, for the phone. */
 export const MyDocumentList = z.object({ documents: z.array(MyDocument) });
 export type MyDocumentList = z.infer<typeof MyDocumentList>;
 

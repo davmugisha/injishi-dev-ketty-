@@ -623,7 +623,7 @@ export declare const EndRotationAssignmentRequest: z.ZodObject<{
     endsOn: string;
 }>;
 export type EndRotationAssignmentRequest = z.infer<typeof EndRotationAssignmentRequest>;
-export declare const ShiftRequestKind: z.ZodEnum<["change", "swap"]>;
+export declare const ShiftRequestKind: z.ZodEnum<["change", "swap", "rotation"]>;
 export type ShiftRequestKind = z.infer<typeof ShiftRequestKind>;
 export declare const ShiftRequestStatus: z.ZodEnum<["requested", "awaiting_colleague", "approved", "rejected", "cancelled"]>;
 export type ShiftRequestStatus = z.infer<typeof ShiftRequestStatus>;
@@ -643,7 +643,7 @@ export declare const ShiftRequest: z.ZodObject<{
         jobPositionTitle: string | null;
     }>;
     branchId: z.ZodNullable<z.ZodString>;
-    kind: z.ZodEnum<["change", "swap"]>;
+    kind: z.ZodEnum<["change", "swap", "rotation"]>;
     shiftTemplate: z.ZodNullable<z.ZodObject<{
         id: z.ZodString;
         name: z.ZodString;
@@ -666,6 +666,17 @@ export declare const ShiftRequest: z.ZodObject<{
         employeeId: string;
         displayName: string;
         jobPositionTitle: string | null;
+    }>>;
+    /** The rotation asked to join (`rotation`). */
+    rotation: z.ZodNullable<z.ZodObject<{
+        id: z.ZodString;
+        name: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        id: string;
+    }, {
+        name: string;
+        id: string;
     }>>;
     fromDate: z.ZodString;
     toDate: z.ZodString;
@@ -694,7 +705,7 @@ export declare const ShiftRequest: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
     id: string;
-    kind: "change" | "swap";
+    kind: "change" | "swap" | "rotation";
     decidedAt: string | null;
     reason: string;
     decisionNote: string | null;
@@ -714,6 +725,10 @@ export declare const ShiftRequest: z.ZodObject<{
     } | null;
     fromDate: string;
     toDate: string;
+    rotation: {
+        name: string;
+        id: string;
+    } | null;
     shiftTemplate: {
         name: string;
         id: string;
@@ -727,7 +742,7 @@ export declare const ShiftRequest: z.ZodObject<{
 }, {
     status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
     id: string;
-    kind: "change" | "swap";
+    kind: "change" | "swap" | "rotation";
     decidedAt: string | null;
     reason: string;
     decisionNote: string | null;
@@ -747,6 +762,10 @@ export declare const ShiftRequest: z.ZodObject<{
     } | null;
     fromDate: string;
     toDate: string;
+    rotation: {
+        name: string;
+        id: string;
+    } | null;
     shiftTemplate: {
         name: string;
         id: string;
@@ -804,6 +823,28 @@ export declare const CreateShiftRequestRequest: z.ZodEffects<z.ZodDiscriminatedU
     to: string;
     employeeId: string;
     swapEmployeeId: string;
+}>, z.ZodObject<{
+    from: z.ZodString;
+    to: z.ZodString;
+    reason: z.ZodString;
+} & {
+    kind: z.ZodLiteral<"rotation">;
+    employeeId: z.ZodString;
+    rotationPatternId: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    kind: "rotation";
+    reason: string;
+    from: string;
+    to: string;
+    employeeId: string;
+    rotationPatternId: string;
+}, {
+    kind: "rotation";
+    reason: string;
+    from: string;
+    to: string;
+    employeeId: string;
+    rotationPatternId: string;
 }>]>, {
     kind: "change";
     reason: string;
@@ -818,6 +859,13 @@ export declare const CreateShiftRequestRequest: z.ZodEffects<z.ZodDiscriminatedU
     to: string;
     employeeId: string;
     swapEmployeeId: string;
+} | {
+    kind: "rotation";
+    reason: string;
+    from: string;
+    to: string;
+    employeeId: string;
+    rotationPatternId: string;
 }, {
     kind: "change";
     reason: string;
@@ -832,6 +880,13 @@ export declare const CreateShiftRequestRequest: z.ZodEffects<z.ZodDiscriminatedU
     to: string;
     employeeId: string;
     swapEmployeeId: string;
+} | {
+    kind: "rotation";
+    reason: string;
+    from: string;
+    to: string;
+    employeeId: string;
+    rotationPatternId: string;
 }>;
 export type CreateShiftRequestRequest = z.infer<typeof CreateShiftRequestRequest>;
 /** The same, raised by the person through self service: their own file is the path. */
@@ -873,6 +928,25 @@ export declare const CreateMyShiftRequestRequest: z.ZodEffects<z.ZodDiscriminate
     from: string;
     to: string;
     swapEmployeeId: string;
+}>, z.ZodObject<{
+    from: z.ZodString;
+    to: z.ZodString;
+    reason: z.ZodString;
+} & {
+    kind: z.ZodLiteral<"rotation">;
+    rotationPatternId: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    kind: "rotation";
+    reason: string;
+    from: string;
+    to: string;
+    rotationPatternId: string;
+}, {
+    kind: "rotation";
+    reason: string;
+    from: string;
+    to: string;
+    rotationPatternId: string;
 }>]>, {
     kind: "change";
     reason: string;
@@ -885,6 +959,12 @@ export declare const CreateMyShiftRequestRequest: z.ZodEffects<z.ZodDiscriminate
     from: string;
     to: string;
     swapEmployeeId: string;
+} | {
+    kind: "rotation";
+    reason: string;
+    from: string;
+    to: string;
+    rotationPatternId: string;
 }, {
     kind: "change";
     reason: string;
@@ -897,6 +977,12 @@ export declare const CreateMyShiftRequestRequest: z.ZodEffects<z.ZodDiscriminate
     from: string;
     to: string;
     swapEmployeeId: string;
+} | {
+    kind: "rotation";
+    reason: string;
+    from: string;
+    to: string;
+    rotationPatternId: string;
 }>;
 export type CreateMyShiftRequestRequest = z.infer<typeof CreateMyShiftRequestRequest>;
 export declare const DecideRequestBody: z.ZodObject<{
@@ -1147,9 +1233,21 @@ export declare const AttendancePolicy: z.ZodObject<{
     saved: boolean;
 }>;
 export type AttendancePolicy = z.infer<typeof AttendancePolicy>;
+/**
+ * How staff of a branch clock themselves in (058-time, clock-in rules):
+ * `anywhere` from their phone, the far ones waiting for HR; `at_work` from
+ * their phone, refused away from work; `entrance` only by the tablet at the
+ * entrance, its PIN pad or the code on its screen. A scanned code counts in
+ * every mode.
+ */
+export declare const ClockMode: z.ZodEnum<["anywhere", "at_work", "entrance"]>;
+export type ClockMode = z.infer<typeof ClockMode>;
 export declare const BranchClockSettings: z.ZodObject<{
     propertyId: z.ZodString;
     branchName: z.ZodString;
+    clockMode: z.ZodEnum<["anywhere", "at_work", "entrance"]>;
+    /** A self clock-in opens this many minutes before the shift; null: any time. */
+    opensMinutesBefore: z.ZodNullable<z.ZodNumber>;
     geofenceRadiusM: z.ZodNumber;
     /** The geofence's own centre, set here: where staff clock in, when that is not the map pin. */
     centre: z.ZodNullable<z.ZodObject<{
@@ -1169,6 +1267,8 @@ export declare const BranchClockSettings: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     propertyId: string;
     branchName: string;
+    clockMode: "anywhere" | "at_work" | "entrance";
+    opensMinutesBefore: number | null;
     geofenceRadiusM: number;
     centre: {
         lat: number;
@@ -1179,6 +1279,8 @@ export declare const BranchClockSettings: z.ZodObject<{
 }, {
     propertyId: string;
     branchName: string;
+    clockMode: "anywhere" | "at_work" | "entrance";
+    opensMinutesBefore: number | null;
     geofenceRadiusM: number;
     centre: {
         lat: number;
@@ -1234,6 +1336,9 @@ export declare const AttendanceSettings: z.ZodObject<{
     clock: z.ZodArray<z.ZodObject<{
         propertyId: z.ZodString;
         branchName: z.ZodString;
+        clockMode: z.ZodEnum<["anywhere", "at_work", "entrance"]>;
+        /** A self clock-in opens this many minutes before the shift; null: any time. */
+        opensMinutesBefore: z.ZodNullable<z.ZodNumber>;
         geofenceRadiusM: z.ZodNumber;
         /** The geofence's own centre, set here: where staff clock in, when that is not the map pin. */
         centre: z.ZodNullable<z.ZodObject<{
@@ -1253,6 +1358,8 @@ export declare const AttendanceSettings: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         propertyId: string;
         branchName: string;
+        clockMode: "anywhere" | "at_work" | "entrance";
+        opensMinutesBefore: number | null;
         geofenceRadiusM: number;
         centre: {
             lat: number;
@@ -1263,6 +1370,8 @@ export declare const AttendanceSettings: z.ZodObject<{
     }, {
         propertyId: string;
         branchName: string;
+        clockMode: "anywhere" | "at_work" | "entrance";
+        opensMinutesBefore: number | null;
         geofenceRadiusM: number;
         centre: {
             lat: number;
@@ -1288,6 +1397,8 @@ export declare const AttendanceSettings: z.ZodObject<{
     clock: {
         propertyId: string;
         branchName: string;
+        clockMode: "anywhere" | "at_work" | "entrance";
+        opensMinutesBefore: number | null;
         geofenceRadiusM: number;
         centre: {
             lat: number;
@@ -1313,6 +1424,8 @@ export declare const AttendanceSettings: z.ZodObject<{
     clock: {
         propertyId: string;
         branchName: string;
+        clockMode: "anywhere" | "at_work" | "entrance";
+        opensMinutesBefore: number | null;
         geofenceRadiusM: number;
         centre: {
             lat: number;
@@ -1372,14 +1485,22 @@ export declare const PutBranchClockSettingsRequest: z.ZodObject<{
         lat: number;
         lng: number;
     }>>>;
+    /** Left out, the branch keeps what it had. */
+    clockMode: z.ZodOptional<z.ZodEnum<["anywhere", "at_work", "entrance"]>>;
+    /** Left out, kept; null, a self clock-in opens any time. */
+    opensMinutesBefore: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     geofenceRadiusM: number;
+    clockMode?: "anywhere" | "at_work" | "entrance" | undefined;
+    opensMinutesBefore?: number | null | undefined;
     centre?: {
         lat: number;
         lng: number;
     } | null | undefined;
 }, {
     geofenceRadiusM: number;
+    clockMode?: "anywhere" | "at_work" | "entrance" | undefined;
+    opensMinutesBefore?: number | null | undefined;
     centre?: {
         lat: number;
         lng: number;
@@ -1586,6 +1707,15 @@ export declare const ChangeMyKioskPinRequest: z.ZodObject<{
     currentPin: string;
 }>;
 export type ChangeMyKioskPinRequest = z.infer<typeof ChangeMyKioskPinRequest>;
+/** `POST /me/work/:employeeId/kiosk-pin/check`: the person proves it is them before seeing their pay on a shared phone. */
+export declare const CheckMyKioskPinRequest: z.ZodObject<{
+    pin: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    pin: string;
+}, {
+    pin: string;
+}>;
+export type CheckMyKioskPinRequest = z.infer<typeof CheckMyKioskPinRequest>;
 export declare const KioskPinState: z.ZodObject<{
     hasPin: z.ZodBoolean;
     setAt: z.ZodNullable<z.ZodString>;
@@ -1644,6 +1774,26 @@ export declare const KioskPunchResult: z.ZodObject<{
     displayName: string;
 }>;
 export type KioskPunchResult = z.infer<typeof KioskPunchResult>;
+/**
+ * `GET /kiosk/qr`: the code the tablet shows for phones to scan. It changes
+ * every 30 seconds and a scan is good for 90, so a photo sent home has run out
+ * before it is any use.
+ */
+export declare const KioskQr: z.ZodObject<{
+    url: z.ZodString;
+    expiresAt: z.ZodString;
+    /** When the tablet should ask for the next one. */
+    refreshInMs: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    expiresAt: string;
+    url: string;
+    refreshInMs: number;
+}, {
+    expiresAt: string;
+    url: string;
+    refreshInMs: number;
+}>;
+export type KioskQr = z.infer<typeof KioskQr>;
 export declare const OrgHoliday: z.ZodObject<{
     id: z.ZodString;
     /** Null: every branch. */
@@ -2286,28 +2436,34 @@ export declare const PhoneClockRequest: z.ZodEffects<z.ZodObject<{
     lat: z.ZodOptional<z.ZodNumber>;
     lng: z.ZodOptional<z.ZodNumber>;
     accuracyM: z.ZodOptional<z.ZodNumber>;
+    /** The code scanned off the entrance tablet, when the punch came from a scan. */
+    code: z.ZodOptional<z.ZodString>;
 } & {
     occurredAt: z.ZodOptional<z.ZodString>;
     deviceSentAt: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    code?: string | undefined;
     occurredAt?: string | undefined;
     deviceSentAt?: string | undefined;
     lat?: number | undefined;
     lng?: number | undefined;
     accuracyM?: number | undefined;
 }, {
+    code?: string | undefined;
     occurredAt?: string | undefined;
     deviceSentAt?: string | undefined;
     lat?: number | undefined;
     lng?: number | undefined;
     accuracyM?: number | undefined;
 }>, {
+    code?: string | undefined;
     occurredAt?: string | undefined;
     deviceSentAt?: string | undefined;
     lat?: number | undefined;
     lng?: number | undefined;
     accuracyM?: number | undefined;
 }, {
+    code?: string | undefined;
     occurredAt?: string | undefined;
     deviceSentAt?: string | undefined;
     lat?: number | undefined;
@@ -2339,7 +2495,7 @@ export declare const PhoneClockResult: z.ZodObject<{
         clockOutAt: z.ZodNullable<z.ZodString>;
         source: z.ZodEnum<["supervisor", "self", "phone", "kiosk"]>;
         validated: z.ZodBoolean;
-        status: z.ZodEnum<["open", "closed", "superseded"]>;
+        status: z.ZodEnum<["open", "closed", "superseded", "rejected"]>;
         supersedesId: z.ZodNullable<z.ZodString>;
         note: z.ZodNullable<z.ZodString>;
         autoClosed: z.ZodBoolean;
@@ -2383,8 +2539,9 @@ export declare const PhoneClockResult: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         }>>;
+        kioskId: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "superseded" | "open" | "closed";
+        status: "rejected" | "superseded" | "open" | "closed";
         id: string;
         source: "phone" | "supervisor" | "self" | "kiosk";
         note: string | null;
@@ -2417,8 +2574,9 @@ export declare const PhoneClockResult: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         } | null;
+        kioskId: string | null;
     }, {
-        status: "superseded" | "open" | "closed";
+        status: "rejected" | "superseded" | "open" | "closed";
         id: string;
         source: "phone" | "supervisor" | "self" | "kiosk";
         note: string | null;
@@ -2451,6 +2609,7 @@ export declare const PhoneClockResult: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         } | null;
+        kioskId: string | null;
     }>;
     validated: z.ZodBoolean;
     /** Why it waits, in words; null when validated. */
@@ -2458,7 +2617,7 @@ export declare const PhoneClockResult: z.ZodObject<{
     distanceM: z.ZodNullable<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     record: {
-        status: "superseded" | "open" | "closed";
+        status: "rejected" | "superseded" | "open" | "closed";
         id: string;
         source: "phone" | "supervisor" | "self" | "kiosk";
         note: string | null;
@@ -2491,13 +2650,14 @@ export declare const PhoneClockResult: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         } | null;
+        kioskId: string | null;
     };
     validated: boolean;
     pendingReason: string | null;
     distanceM: number | null;
 }, {
     record: {
-        status: "superseded" | "open" | "closed";
+        status: "rejected" | "superseded" | "open" | "closed";
         id: string;
         source: "phone" | "supervisor" | "self" | "kiosk";
         note: string | null;
@@ -2530,12 +2690,112 @@ export declare const PhoneClockResult: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         } | null;
+        kioskId: string | null;
     };
     validated: boolean;
     pendingReason: string | null;
     distanceM: number | null;
 }>;
 export type PhoneClockResult = z.infer<typeof PhoneClockResult>;
+/**
+ * `GET /me/work/:employeeId/clock`: what the person's clock-in card needs:
+ * how their branch clocks in, whether they are in, and their shift.
+ */
+export declare const MyClock: z.ZodObject<{
+    branchName: z.ZodNullable<z.ZodString>;
+    clockMode: z.ZodEnum<["anywhere", "at_work", "entrance"]>;
+    open: z.ZodNullable<z.ZodObject<{
+        id: z.ZodString;
+        clockInAt: z.ZodString;
+        validated: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        clockInAt: string;
+        validated: boolean;
+    }, {
+        id: string;
+        clockInAt: string;
+        validated: boolean;
+    }>>;
+    /** The shift a clock-in now or next would belong to, today. */
+    shift: z.ZodNullable<z.ZodObject<{
+        startsAt: z.ZodString;
+        endsAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        startsAt: string;
+        endsAt: string;
+    }, {
+        startsAt: string;
+        endsAt: string;
+    }>>;
+    /** When a self clock-in opens for that shift; null when it is open already or there is no limit. */
+    opensAt: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    shift: {
+        startsAt: string;
+        endsAt: string;
+    } | null;
+    open: {
+        id: string;
+        clockInAt: string;
+        validated: boolean;
+    } | null;
+    branchName: string | null;
+    clockMode: "anywhere" | "at_work" | "entrance";
+    opensAt: string | null;
+}, {
+    shift: {
+        startsAt: string;
+        endsAt: string;
+    } | null;
+    open: {
+        id: string;
+        clockInAt: string;
+        validated: boolean;
+    } | null;
+    branchName: string | null;
+    clockMode: "anywhere" | "at_work" | "entrance";
+    opensAt: string | null;
+}>;
+export type MyClock = z.infer<typeof MyClock>;
+/** `GET /ops/attendance/far-clock-ins`: people who clocked in, or tried to, away from work this month. */
+export declare const FarClockIns: z.ZodObject<{
+    month: z.ZodString;
+    people: z.ZodArray<z.ZodObject<{
+        employeeId: z.ZodString;
+        displayName: z.ZodString;
+        /** Clock-ins saved far from work, and attempts refused for it. */
+        times: z.ZodNumber;
+        lastAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        employeeId: string;
+        displayName: string;
+        times: number;
+        lastAt: string;
+    }, {
+        employeeId: string;
+        displayName: string;
+        times: number;
+        lastAt: string;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    people: {
+        employeeId: string;
+        displayName: string;
+        times: number;
+        lastAt: string;
+    }[];
+    month: string;
+}, {
+    people: {
+        employeeId: string;
+        displayName: string;
+        times: number;
+        lastAt: string;
+    }[];
+    month: string;
+}>;
+export type FarClockIns = z.infer<typeof FarClockIns>;
 /** One published shift on the phone's shift card, with its template's planned break. */
 export declare const MyWorkTodayShift: z.ZodObject<{
     rosterEntryId: z.ZodString;
@@ -2835,7 +3095,7 @@ export declare const MyShiftRequestList: z.ZodObject<{
             jobPositionTitle: string | null;
         }>;
         branchId: z.ZodNullable<z.ZodString>;
-        kind: z.ZodEnum<["change", "swap"]>;
+        kind: z.ZodEnum<["change", "swap", "rotation"]>;
         shiftTemplate: z.ZodNullable<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
@@ -2858,6 +3118,17 @@ export declare const MyShiftRequestList: z.ZodObject<{
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
+        }>>;
+        /** The rotation asked to join (`rotation`). */
+        rotation: z.ZodNullable<z.ZodObject<{
+            id: z.ZodString;
+            name: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            id: string;
+        }, {
+            name: string;
+            id: string;
         }>>;
         fromDate: z.ZodString;
         toDate: z.ZodString;
@@ -2886,7 +3157,7 @@ export declare const MyShiftRequestList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         id: string;
-        kind: "change" | "swap";
+        kind: "change" | "swap" | "rotation";
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
@@ -2906,6 +3177,10 @@ export declare const MyShiftRequestList: z.ZodObject<{
         } | null;
         fromDate: string;
         toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
         shiftTemplate: {
             name: string;
             id: string;
@@ -2919,7 +3194,7 @@ export declare const MyShiftRequestList: z.ZodObject<{
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         id: string;
-        kind: "change" | "swap";
+        kind: "change" | "swap" | "rotation";
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
@@ -2939,6 +3214,10 @@ export declare const MyShiftRequestList: z.ZodObject<{
         } | null;
         fromDate: string;
         toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
         shiftTemplate: {
             name: string;
             id: string;
@@ -2967,7 +3246,7 @@ export declare const MyShiftRequestList: z.ZodObject<{
             jobPositionTitle: string | null;
         }>;
         branchId: z.ZodNullable<z.ZodString>;
-        kind: z.ZodEnum<["change", "swap"]>;
+        kind: z.ZodEnum<["change", "swap", "rotation"]>;
         shiftTemplate: z.ZodNullable<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
@@ -2990,6 +3269,17 @@ export declare const MyShiftRequestList: z.ZodObject<{
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
+        }>>;
+        /** The rotation asked to join (`rotation`). */
+        rotation: z.ZodNullable<z.ZodObject<{
+            id: z.ZodString;
+            name: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            id: string;
+        }, {
+            name: string;
+            id: string;
         }>>;
         fromDate: z.ZodString;
         toDate: z.ZodString;
@@ -3018,7 +3308,7 @@ export declare const MyShiftRequestList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         id: string;
-        kind: "change" | "swap";
+        kind: "change" | "swap" | "rotation";
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
@@ -3038,6 +3328,10 @@ export declare const MyShiftRequestList: z.ZodObject<{
         } | null;
         fromDate: string;
         toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
         shiftTemplate: {
             name: string;
             id: string;
@@ -3051,7 +3345,7 @@ export declare const MyShiftRequestList: z.ZodObject<{
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         id: string;
-        kind: "change" | "swap";
+        kind: "change" | "swap" | "rotation";
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
@@ -3071,6 +3365,161 @@ export declare const MyShiftRequestList: z.ZodObject<{
         } | null;
         fromDate: string;
         toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
+        shiftTemplate: {
+            name: string;
+            id: string;
+        } | null;
+        swapWith: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
+        colleagueAcceptedAt: string | null;
+    }>, "many">;
+    /** Swaps they already answered, newest first: what came of each. */
+    answered: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        employee: z.ZodObject<{
+            employeeId: z.ZodString;
+            displayName: z.ZodString;
+            jobPositionTitle: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }>;
+        branchId: z.ZodNullable<z.ZodString>;
+        kind: z.ZodEnum<["change", "swap", "rotation"]>;
+        shiftTemplate: z.ZodNullable<z.ZodObject<{
+            id: z.ZodString;
+            name: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            id: string;
+        }, {
+            name: string;
+            id: string;
+        }>>;
+        swapWith: z.ZodNullable<z.ZodObject<{
+            employeeId: z.ZodString;
+            displayName: z.ZodString;
+            jobPositionTitle: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }>>;
+        /** The rotation asked to join (`rotation`). */
+        rotation: z.ZodNullable<z.ZodObject<{
+            id: z.ZodString;
+            name: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            id: string;
+        }, {
+            name: string;
+            id: string;
+        }>>;
+        fromDate: z.ZodString;
+        toDate: z.ZodString;
+        reason: z.ZodString;
+        status: z.ZodEnum<["requested", "awaiting_colleague", "approved", "rejected", "cancelled"]>;
+        colleagueAcceptedAt: z.ZodNullable<z.ZodString>;
+        routedTo: z.ZodNullable<z.ZodObject<{
+            employeeId: z.ZodString;
+            displayName: z.ZodString;
+            jobPositionTitle: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }>>;
+        /** Routed to the caller's own file. */
+        routedToMe: z.ZodBoolean;
+        decidedAt: z.ZodNullable<z.ZodString>;
+        decidedByName: z.ZodNullable<z.ZodString>;
+        decisionNote: z.ZodNullable<z.ZodString>;
+        createdAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
+        id: string;
+        kind: "change" | "swap" | "rotation";
+        decidedAt: string | null;
+        reason: string;
+        decisionNote: string | null;
+        decidedByName: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        routedToMe: boolean;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
+        fromDate: string;
+        toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
+        shiftTemplate: {
+            name: string;
+            id: string;
+        } | null;
+        swapWith: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
+        colleagueAcceptedAt: string | null;
+    }, {
+        status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
+        id: string;
+        kind: "change" | "swap" | "rotation";
+        decidedAt: string | null;
+        reason: string;
+        decisionNote: string | null;
+        decidedByName: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        routedToMe: boolean;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
+        fromDate: string;
+        toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
         shiftTemplate: {
             name: string;
             id: string;
@@ -3083,10 +3532,10 @@ export declare const MyShiftRequestList: z.ZodObject<{
         colleagueAcceptedAt: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    mine: {
+    answered: {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         id: string;
-        kind: "change" | "swap";
+        kind: "change" | "swap" | "rotation";
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
@@ -3106,6 +3555,48 @@ export declare const MyShiftRequestList: z.ZodObject<{
         } | null;
         fromDate: string;
         toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
+        shiftTemplate: {
+            name: string;
+            id: string;
+        } | null;
+        swapWith: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
+        colleagueAcceptedAt: string | null;
+    }[];
+    mine: {
+        status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
+        id: string;
+        kind: "change" | "swap" | "rotation";
+        decidedAt: string | null;
+        reason: string;
+        decisionNote: string | null;
+        decidedByName: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        routedToMe: boolean;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
+        fromDate: string;
+        toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
         shiftTemplate: {
             name: string;
             id: string;
@@ -3120,7 +3611,7 @@ export declare const MyShiftRequestList: z.ZodObject<{
     askedOfMe: {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         id: string;
-        kind: "change" | "swap";
+        kind: "change" | "swap" | "rotation";
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
@@ -3140,6 +3631,10 @@ export declare const MyShiftRequestList: z.ZodObject<{
         } | null;
         fromDate: string;
         toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
         shiftTemplate: {
             name: string;
             id: string;
@@ -3152,10 +3647,10 @@ export declare const MyShiftRequestList: z.ZodObject<{
         colleagueAcceptedAt: string | null;
     }[];
 }, {
-    mine: {
+    answered: {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         id: string;
-        kind: "change" | "swap";
+        kind: "change" | "swap" | "rotation";
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
@@ -3175,6 +3670,48 @@ export declare const MyShiftRequestList: z.ZodObject<{
         } | null;
         fromDate: string;
         toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
+        shiftTemplate: {
+            name: string;
+            id: string;
+        } | null;
+        swapWith: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
+        colleagueAcceptedAt: string | null;
+    }[];
+    mine: {
+        status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
+        id: string;
+        kind: "change" | "swap" | "rotation";
+        decidedAt: string | null;
+        reason: string;
+        decisionNote: string | null;
+        decidedByName: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        routedToMe: boolean;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
+        fromDate: string;
+        toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
         shiftTemplate: {
             name: string;
             id: string;
@@ -3189,7 +3726,7 @@ export declare const MyShiftRequestList: z.ZodObject<{
     askedOfMe: {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         id: string;
-        kind: "change" | "swap";
+        kind: "change" | "swap" | "rotation";
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
@@ -3209,6 +3746,10 @@ export declare const MyShiftRequestList: z.ZodObject<{
         } | null;
         fromDate: string;
         toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
         shiftTemplate: {
             name: string;
             id: string;
@@ -3278,6 +3819,39 @@ export declare const MyShiftOptions: z.ZodObject<{
         displayName: string;
         jobPositionTitle: string | null;
     }>, "many">;
+    /** The active rotations of their branch, and the one they are on. */
+    rotations: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        name: z.ZodString;
+        stepNames: z.ZodArray<z.ZodString, "many">;
+        rule: z.ZodEnum<["every_n_days", "weekly", "monthly"]>;
+        ruleValue: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        id: string;
+        rule: "monthly" | "every_n_days" | "weekly";
+        stepNames: string[];
+        ruleValue: number;
+    }, {
+        name: string;
+        id: string;
+        rule: "monthly" | "every_n_days" | "weekly";
+        stepNames: string[];
+        ruleValue: number;
+    }>, "many">;
+    currentRotation: z.ZodNullable<z.ZodObject<{
+        patternId: z.ZodString;
+        name: z.ZodString;
+        startsOn: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        startsOn: string;
+        patternId: string;
+    }, {
+        name: string;
+        startsOn: string;
+        patternId: string;
+    }>>;
 }, "strip", z.ZodTypeAny, {
     shifts: {
         status: "active" | "archived";
@@ -3297,6 +3871,18 @@ export declare const MyShiftOptions: z.ZodObject<{
         displayName: string;
         jobPositionTitle: string | null;
     }[];
+    rotations: {
+        name: string;
+        id: string;
+        rule: "monthly" | "every_n_days" | "weekly";
+        stepNames: string[];
+        ruleValue: number;
+    }[];
+    currentRotation: {
+        name: string;
+        startsOn: string;
+        patternId: string;
+    } | null;
 }, {
     shifts: {
         status: "active" | "archived";
@@ -3316,6 +3902,18 @@ export declare const MyShiftOptions: z.ZodObject<{
         displayName: string;
         jobPositionTitle: string | null;
     }[];
+    rotations: {
+        name: string;
+        id: string;
+        rule: "monthly" | "every_n_days" | "weekly";
+        stepNames: string[];
+        ruleValue: number;
+    }[];
+    currentRotation: {
+        name: string;
+        startsOn: string;
+        patternId: string;
+    } | null;
 }>;
 export type MyShiftOptions = z.infer<typeof MyShiftOptions>;
 export declare const MyAttendance: z.ZodObject<{
@@ -3343,7 +3941,7 @@ export declare const MyAttendance: z.ZodObject<{
         clockOutAt: z.ZodNullable<z.ZodString>;
         source: z.ZodEnum<["supervisor", "self", "phone", "kiosk"]>;
         validated: z.ZodBoolean;
-        status: z.ZodEnum<["open", "closed", "superseded"]>;
+        status: z.ZodEnum<["open", "closed", "superseded", "rejected"]>;
         supersedesId: z.ZodNullable<z.ZodString>;
         note: z.ZodNullable<z.ZodString>;
         autoClosed: z.ZodBoolean;
@@ -3387,8 +3985,9 @@ export declare const MyAttendance: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         }>>;
+        kioskId: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "superseded" | "open" | "closed";
+        status: "rejected" | "superseded" | "open" | "closed";
         id: string;
         source: "phone" | "supervisor" | "self" | "kiosk";
         note: string | null;
@@ -3421,8 +4020,9 @@ export declare const MyAttendance: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         } | null;
+        kioskId: string | null;
     }, {
-        status: "superseded" | "open" | "closed";
+        status: "rejected" | "superseded" | "open" | "closed";
         id: string;
         source: "phone" | "supervisor" | "self" | "kiosk";
         note: string | null;
@@ -3455,6 +4055,7 @@ export declare const MyAttendance: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         } | null;
+        kioskId: string | null;
     }>, "many">;
     requests: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -3602,7 +4203,7 @@ export declare const MyAttendance: z.ZodObject<{
     from: string;
     to: string;
     records: {
-        status: "superseded" | "open" | "closed";
+        status: "rejected" | "superseded" | "open" | "closed";
         id: string;
         source: "phone" | "supervisor" | "self" | "kiosk";
         note: string | null;
@@ -3635,6 +4236,7 @@ export declare const MyAttendance: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         } | null;
+        kioskId: string | null;
     }[];
 }, {
     requests: {
@@ -3671,7 +4273,7 @@ export declare const MyAttendance: z.ZodObject<{
     from: string;
     to: string;
     records: {
-        status: "superseded" | "open" | "closed";
+        status: "rejected" | "superseded" | "open" | "closed";
         id: string;
         source: "phone" | "supervisor" | "self" | "kiosk";
         note: string | null;
@@ -3704,6 +4306,7 @@ export declare const MyAttendance: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         } | null;
+        kioskId: string | null;
     }[];
 }>;
 export type MyAttendance = z.infer<typeof MyAttendance>;
@@ -4130,7 +4733,7 @@ export declare const MyTeamAttendance: z.ZodObject<{
         clockOutAt: z.ZodNullable<z.ZodString>;
         source: z.ZodEnum<["supervisor", "self", "phone", "kiosk"]>;
         validated: z.ZodBoolean;
-        status: z.ZodEnum<["open", "closed", "superseded"]>;
+        status: z.ZodEnum<["open", "closed", "superseded", "rejected"]>;
         supersedesId: z.ZodNullable<z.ZodString>;
         note: z.ZodNullable<z.ZodString>;
         autoClosed: z.ZodBoolean;
@@ -4174,8 +4777,9 @@ export declare const MyTeamAttendance: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         }>>;
+        kioskId: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "superseded" | "open" | "closed";
+        status: "rejected" | "superseded" | "open" | "closed";
         id: string;
         source: "phone" | "supervisor" | "self" | "kiosk";
         note: string | null;
@@ -4208,8 +4812,9 @@ export declare const MyTeamAttendance: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         } | null;
+        kioskId: string | null;
     }, {
-        status: "superseded" | "open" | "closed";
+        status: "rejected" | "superseded" | "open" | "closed";
         id: string;
         source: "phone" | "supervisor" | "self" | "kiosk";
         note: string | null;
@@ -4242,6 +4847,7 @@ export declare const MyTeamAttendance: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         } | null;
+        kioskId: string | null;
     }>, "many">;
     /** Each report's month when the range is one month; else empty. */
     summaries: z.ZodArray<z.ZodObject<{
@@ -4297,7 +4903,7 @@ export declare const MyTeamAttendance: z.ZodObject<{
     from: string;
     to: string;
     records: {
-        status: "superseded" | "open" | "closed";
+        status: "rejected" | "superseded" | "open" | "closed";
         id: string;
         source: "phone" | "supervisor" | "self" | "kiosk";
         note: string | null;
@@ -4330,6 +4936,7 @@ export declare const MyTeamAttendance: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         } | null;
+        kioskId: string | null;
     }[];
     summaries: {
         employee: {
@@ -4349,7 +4956,7 @@ export declare const MyTeamAttendance: z.ZodObject<{
     from: string;
     to: string;
     records: {
-        status: "superseded" | "open" | "closed";
+        status: "rejected" | "superseded" | "open" | "closed";
         id: string;
         source: "phone" | "supervisor" | "self" | "kiosk";
         note: string | null;
@@ -4382,6 +4989,7 @@ export declare const MyTeamAttendance: z.ZodObject<{
             outDistanceM: number | null;
             outAccuracyM: number | null;
         } | null;
+        kioskId: string | null;
     }[];
     summaries: {
         employee: {
@@ -4431,7 +5039,7 @@ export declare const MyTeamRequests: z.ZodObject<{
             jobPositionTitle: string | null;
         }>;
         branchId: z.ZodNullable<z.ZodString>;
-        kind: z.ZodEnum<["change", "swap"]>;
+        kind: z.ZodEnum<["change", "swap", "rotation"]>;
         shiftTemplate: z.ZodNullable<z.ZodObject<{
             id: z.ZodString;
             name: z.ZodString;
@@ -4454,6 +5062,17 @@ export declare const MyTeamRequests: z.ZodObject<{
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
+        }>>;
+        /** The rotation asked to join (`rotation`). */
+        rotation: z.ZodNullable<z.ZodObject<{
+            id: z.ZodString;
+            name: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            id: string;
+        }, {
+            name: string;
+            id: string;
         }>>;
         fromDate: z.ZodString;
         toDate: z.ZodString;
@@ -4482,7 +5101,7 @@ export declare const MyTeamRequests: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         id: string;
-        kind: "change" | "swap";
+        kind: "change" | "swap" | "rotation";
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
@@ -4502,6 +5121,10 @@ export declare const MyTeamRequests: z.ZodObject<{
         } | null;
         fromDate: string;
         toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
         shiftTemplate: {
             name: string;
             id: string;
@@ -4515,7 +5138,7 @@ export declare const MyTeamRequests: z.ZodObject<{
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         id: string;
-        kind: "change" | "swap";
+        kind: "change" | "swap" | "rotation";
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
@@ -4535,6 +5158,10 @@ export declare const MyTeamRequests: z.ZodObject<{
         } | null;
         fromDate: string;
         toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
         shiftTemplate: {
             name: string;
             id: string;
@@ -4912,7 +5539,7 @@ export declare const MyTeamRequests: z.ZodObject<{
     shift: {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         id: string;
-        kind: "change" | "swap";
+        kind: "change" | "swap" | "rotation";
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
@@ -4932,6 +5559,10 @@ export declare const MyTeamRequests: z.ZodObject<{
         } | null;
         fromDate: string;
         toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
         shiftTemplate: {
             name: string;
             id: string;
@@ -5046,7 +5677,7 @@ export declare const MyTeamRequests: z.ZodObject<{
     shift: {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         id: string;
-        kind: "change" | "swap";
+        kind: "change" | "swap" | "rotation";
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
@@ -5066,6 +5697,10 @@ export declare const MyTeamRequests: z.ZodObject<{
         } | null;
         fromDate: string;
         toDate: string;
+        rotation: {
+            name: string;
+            id: string;
+        } | null;
         shiftTemplate: {
             name: string;
             id: string;

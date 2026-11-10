@@ -659,6 +659,8 @@ export declare const MyDocument: z.ZodObject<{
     expiresOn: z.ZodNullable<z.ZodString>;
     /** When HR last acted on it (approved a document). */
     checkedAt: z.ZodNullable<z.ZodString>;
+    /** Why HR sent a document back. */
+    rejectReason: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status: string;
     id: string;
@@ -669,6 +671,7 @@ export declare const MyDocument: z.ZodObject<{
     startsOn: string | null;
     title: string;
     contractType: string | null;
+    rejectReason: string | null;
 }, {
     status: string;
     id: string;
@@ -679,9 +682,10 @@ export declare const MyDocument: z.ZodObject<{
     startsOn: string | null;
     title: string;
     contractType: string | null;
+    rejectReason: string | null;
 }>;
 export type MyDocument = z.infer<typeof MyDocument>;
-/** `GET /me/work/:employeeId/documents`. */
+/** `GET /me/work/:employeeId/papers`: the contracts and documents on a person's own file, for the phone. */
 export declare const MyDocumentList: z.ZodObject<{
     documents: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -695,6 +699,8 @@ export declare const MyDocumentList: z.ZodObject<{
         expiresOn: z.ZodNullable<z.ZodString>;
         /** When HR last acted on it (approved a document). */
         checkedAt: z.ZodNullable<z.ZodString>;
+        /** Why HR sent a document back. */
+        rejectReason: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         status: string;
         id: string;
@@ -705,6 +711,7 @@ export declare const MyDocumentList: z.ZodObject<{
         startsOn: string | null;
         title: string;
         contractType: string | null;
+        rejectReason: string | null;
     }, {
         status: string;
         id: string;
@@ -715,6 +722,7 @@ export declare const MyDocumentList: z.ZodObject<{
         startsOn: string | null;
         title: string;
         contractType: string | null;
+        rejectReason: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     documents: {
@@ -727,6 +735,7 @@ export declare const MyDocumentList: z.ZodObject<{
         startsOn: string | null;
         title: string;
         contractType: string | null;
+        rejectReason: string | null;
     }[];
 }, {
     documents: {
@@ -739,6 +748,7 @@ export declare const MyDocumentList: z.ZodObject<{
         startsOn: string | null;
         title: string;
         contractType: string | null;
+        rejectReason: string | null;
     }[];
 }>;
 export type MyDocumentList = z.infer<typeof MyDocumentList>;

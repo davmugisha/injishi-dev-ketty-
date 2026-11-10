@@ -252,6 +252,16 @@
     "scope": "org"
   },
   {
+    "collection": "shared.myHr",
+    "area": "shared",
+    "class": "derived",
+    "target": "the person's own staff file and everything under /me/work/:employeeId",
+    "crud": "R (writes through the /me/work routes)",
+    "seed": "demo",
+    "scope": "user",
+    "live": "GET /me/work (the file at this business), then /payslips, /claims, /loans, /leave/balances, /leave/types, /leave/requests, /leave/allocation-requests, /shift-requests, /attendance/summary, /attendance, /roster, /documents, /checklists, /kiosk-pin and /leave/approvers of that file. Any other file answers 404."
+  },
+  {
     "collection": "shared.accountIdentities",
     "area": "shared",
     "class": "extend",
@@ -3015,12 +3025,12 @@
     "collection": "people.offboarding",
     "area": "people",
     "class": "new",
-    "target": "hr_checklist_items (checklist='offboarding'). The final act POST /ops/employees/:id/offboard exists",
+    "target": "employee_checklists (kind='offboarding') and employee_checklist_tasks. The final act POST /ops/employees/:id/offboard exists",
     "missing": "Checklist table + toggle route",
     "crud": "R U",
     "seed": "demo",
     "scope": "org",
-    "live": "hr_checklist_items (new, checklist offboarding) of the leaver: GET /ops/hr/checklists, POST /ops/hr/checklist-items/:id."
+    "live": "employee_checklists (kind offboarding) and its employee_checklist_tasks of the leaver: GET /ops/hr/checklists, POST /ops/hr/checklist-tasks/:id/done|undo."
   },
   {
     "collection": "people.rosterGroups",
@@ -3177,6 +3187,26 @@
     "live": "leave_types (+ verified_at, verified_by_user_id): GET /ops/leave/types."
   },
   {
+    "collection": "people.newEmployeeForm",
+    "area": "people",
+    "class": "derived",
+    "target": "the new employee form's choices at each employer HR keeps files for",
+    "crud": "R (the form writes through POST /ops/employees and the file's routes)",
+    "seed": "demo",
+    "scope": "org",
+    "live": "Per business workspace: its branches, GET /ops/hr/catalog/job-positions and /employee-types, the active files of GET /ops/employees as managers, and GET /ops/employees/access-options for the roles a login may be."
+  },
+  {
+    "collection": "people.accessRequests",
+    "area": "people",
+    "class": "entity",
+    "target": "staff_access_requests: logins HR asked the owner for while putting people on file",
+    "crud": "R (approve and decline through POST /ops/team/access-requests/:id/approve|decline)",
+    "seed": "demo",
+    "scope": "org",
+    "live": "GET /ops/team/access-requests in every business the person manages the team of (team.manage)."
+  },
+  {
     "collection": "people.leaveCalendar",
     "area": "people",
     "class": "derived",
@@ -3188,6 +3218,60 @@
     "live": "Approved leave in the 21 days from today decided too long ago to be in the queue."
   },
   {
+    "collection": "people.leaveStretches",
+    "area": "people",
+    "class": "derived",
+    "target": "leave_requests approved or requested this year; GET /ops/leave/requests",
+    "missing": "—",
+    "crud": "R",
+    "seed": "none",
+    "scope": "org",
+    "live": "Every approved or pending stretch of leave that ends this year or later, for the calendar."
+  },
+  {
+    "collection": "people.extraDays",
+    "area": "people",
+    "class": "derived",
+    "target": "leave_allocation_requests; GET /ops/leave/allocation-requests",
+    "missing": "—",
+    "crud": "R, U",
+    "seed": "none",
+    "scope": "org",
+    "live": "Days asked for on top of an entitlement: what waits, and what was decided in the last two weeks."
+  },
+  {
+    "collection": "people.documentsToCheck",
+    "area": "people",
+    "class": "derived",
+    "target": "employee_documents submitted; GET /ops/documents?status=submitted",
+    "missing": "—",
+    "crud": "R",
+    "seed": "none",
+    "scope": "org",
+    "live": "Documents people handed in that HR has not checked yet, oldest first."
+  },
+  {
+    "collection": "people.leaveByMonth",
+    "area": "people",
+    "class": "derived",
+    "target": "leave_requests approved this year; GET /ops/leave/requests",
+    "missing": "—",
+    "crud": "R",
+    "seed": "none",
+    "scope": "org",
+    "live": "Approved leave that has started, summed by the month it starts in, January to this month."
+  },
+  {
+    "collection": "payroll.payRunState",
+    "area": "payroll",
+    "class": "derived",
+    "target": "pay_runs (status, submitted_*, confirmed_*) of the business's newest run, and the person's payroll.draft / payroll.run",
+    "crud": "R",
+    "seed": "demo",
+    "scope": "org",
+    "live": "GET /ops/pay-runs (newest month), GET /ops/pay-runs/:id; the grant's permissions say who may prepare and confirm."
+  },
+  {
     "collection": "payroll.payRates",
     "area": "payroll",
     "class": "reference",
@@ -3195,7 +3279,8 @@
     "missing": "Occupational hazards is not in the seed hr.rw.rssb. Production has no rows. Fixture values (60k/100k/200k, 6%, 0.3%, 2%) must NOT be seeded: rates come only from the accountant's sheet in a prod migration",
     "crud": "R",
     "seed": "prod",
-    "scope": "platform"
+    "scope": "platform",
+    "live": "the PAYE and RSSB rules in force: GET /ops/payroll/rules (hr.rw.paye bands, hr.rw.rssb contributions)."
   },
   {
     "collection": "payroll.payLines",
@@ -3205,7 +3290,8 @@
     "missing": "Line base and allowances are non-integer in the fixture (pm, fn); the backend gives whole francs, half up",
     "crud": "R U",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "live": "the newest run's payslips: GET /ops/pay-runs/:id, each line carrying the API's figures; job titles from GET /ops/employees, pay rails from GET /ops/hr/compensation."
   },
   {
     "collection": "payroll.payRunSteps",
@@ -3215,7 +3301,8 @@
     "missing": "pay_runs has no submitted/review or released stamps (see payRunHistory)",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "live": "pay_runs computed_at, submitted_* (0074), confirmed_* and the run's pay exports."
   },
   {
     "collection": "payroll.payRunExceptions",
@@ -3225,7 +3312,8 @@
     "missing": "\"Mark reviewed\" needs pay_run_exception_reviews [NEW]",
     "crud": "R U",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "live": "PayRunDetail.blockers (fix on the file, or POST .../hold to pay next month) and lines worth a look (joiners, leavers, overtime, adjustments)."
   },
   {
     "collection": "payroll.payRunRules",
@@ -3235,7 +3323,8 @@
     "missing": "No sign-off status on config_entries",
     "crud": "R",
     "seed": "prod",
-    "scope": "platform"
+    "scope": "platform",
+    "live": "pay_runs.rule_versions, named from GET /ops/payroll/rules; a SAMPLE or RESEARCHED rule reads as awaiting sign-off."
   },
   {
     "collection": "payroll.payRunTotals",
@@ -3245,7 +3334,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "live": "the run's totals (PayRun headcount, gross, PAYE, contributions, net) and the payslips' other deductions."
   },
   {
     "collection": "payroll.finalSettlements",
@@ -3255,7 +3345,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "live": "the newest run's payslip of a leaver (settlement and leave encashment lines)."
   },
   {
     "collection": "payroll.paymentFiles",
@@ -3265,7 +3356,8 @@
     "missing": "pay_exports.kind = bank\\",
     "crud": "momo; the fixture splits MTN and Airtel files (add a network column)",
     "seed": "demo",
-    "scope": "demo"
+    "scope": "demo",
+    "live": "the run's payslips grouped by pay account kind; built with POST /ops/pay-runs/:id/exports (payroll.run)."
   },
   {
     "collection": "payroll.payRunOutputs",
@@ -3275,7 +3367,8 @@
     "missing": "The \"payroll journal for Finance\" output is not built (payroll posts nothing to ledger_*)",
     "crud": "R C",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "live": "payslips and the PAYE and RSSB declarations, built with POST /ops/pay-runs/:id/declarations (payroll.run)."
   },
   {
     "collection": "payroll.payRunHistory",
@@ -3285,7 +3378,8 @@
     "missing": "created_by_user_id (preparedBy), submitted_*, released_*, and an outcome. hr_pay_run_status = draft\\",
     "crud": "confirmed only",
     "seed": "demo",
-    "scope": "demo"
+    "scope": "demo",
+    "live": "GET /ops/pay-runs: the confirmed runs before the newest, with who submitted and who confirmed."
   },
   {
     "collection": "payroll.ruleSets",
@@ -3341,7 +3435,7 @@
     "collection": "payroll.onboardingTasks",
     "area": "payroll",
     "class": "new",
-    "target": "hr_checklist_items (checklist='onboarding')",
+    "target": "employee_checklists (kind='onboarding') and employee_checklist_tasks",
     "missing": "Table + routes",
     "crud": "R U",
     "seed": "demo",
@@ -3414,6 +3508,16 @@
     "target": "employees via GET /me/work/ (MyWorkFile: number, branch, position, openRecord) + GET /me/work/:employeeId/roster",
     "deferred": "One collection holds the housekeeper's, the supervisor's and the technician's files side by side, but a signed-in phone may read only its own file (work numbers are the person's and their supervisor's only), so no one persona can return the three; the kiosk reads profiles anonymously behind a device-paired cookie. Needs the profile split per persona (a self document keyed by the session) before it can go live.",
     "missing": "MyWorkFile lacks hired_on (since), department, a photo link and today's shift. The housekeeping \"area\" (Floor 2) is stored nowhere",
+    "crud": "R",
+    "seed": "demo",
+    "scope": "user"
+  },
+  {
+    "collection": "staff.myProfile",
+    "area": "staff",
+    "class": "exists",
+    "target": "the signed-in person's own file (GET /me/work) and today's roster entry",
+    "missing": "hired_on (since), department, a photo link and the housekeeping area are not on MyWorkFile",
     "crud": "R",
     "seed": "demo",
     "scope": "user"
@@ -3533,11 +3637,21 @@
     "area": "staff",
     "class": "derived",
     "target": "employees at the same branch and department + their roster_entries that day",
-    "deferred": "Who may take a shift depends on the shift date the person picks on the screen, and a collection read carries no date parameter; a fixed list would offer colleagues the swap rules refuse. Needs a per-date read (GET /me/work/:id/shift-requests/candidates?date=) before the Ask button can go live.",
     "missing": "Self route listing swap candidates (GET /me/work/:id/team returns direct reports only)",
     "crud": "R",
     "seed": "none",
-    "scope": "user"
+    "scope": "user",
+    "live": "GET /me/work/:id/shift-options: the active colleagues at the person's branch, the ones a swap request may name (POST /me/work/:id/shift-requests refuses anyone else); those in the person's job first. A swap does not need the colleague to work that day: approving it moves the shift."
+  },
+  {
+    "collection": "staff.swapAsks",
+    "area": "staff",
+    "class": "derived",
+    "target": "shift_requests (kind swap, status awaiting_colleague) naming the person as the colleague",
+    "crud": "R U",
+    "seed": "none",
+    "scope": "user",
+    "live": "GET /me/work/:id/shift-requests (askedOfMe); answered with POST .../shift-requests/:id/accept|decline."
   },
   {
     "collection": "staff.requests",
@@ -3609,7 +3723,18 @@
     "missing": "No self read route (/me/work has only POST .../files for attachments)",
     "crud": "R C",
     "seed": "demo",
-    "scope": "user"
+    "scope": "user",
+    "live": "GET /me/work/:id/papers (contracts and documents on the file). A document HR asked for or sent back is sent from the phone: POST /me/work/:id/documents/files, then POST /me/work/:id/documents."
+  },
+  {
+    "collection": "staff.claims",
+    "area": "staff",
+    "class": "derived",
+    "target": "pay_claims of the person (reimbursements, leave paid out)",
+    "crud": "C R U",
+    "seed": "none",
+    "scope": "user",
+    "live": "GET /me/work/:id/claims; asked with POST /me/work/:id/claims (a receipt photo through POST /me/work/:id/files), taken back with POST .../claims/:id/cancel."
   },
   {
     "collection": "staff.assets",

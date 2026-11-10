@@ -27,3 +27,17 @@ export interface Persona {
   initials: string;
   role: string;
 }
+
+/**
+ * HR's optional features, which Injishi staff switch on or off for a business (`HrFeature` in
+ * @injishi/contracts). A view hides what is off; the API refuses work through it.
+ */
+export type HrFeatureId =
+  | "talent"
+  | "reviews"
+  | "insurance"
+  | "loans"
+  | "claims"
+  | "assets"
+  | "announcements"
+  | "helpDesk";

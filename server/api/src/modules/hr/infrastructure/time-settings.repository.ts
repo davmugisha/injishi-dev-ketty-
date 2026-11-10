@@ -9,7 +9,7 @@ import {
   properties,
 } from '../../../database/drizzle/schema';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import type { AttendanceRules, OrgHolidayRule, WeeklyOffRule } from '../domain/time-rules';
+import type { AttendanceRules, ClockMode, OrgHolidayRule, WeeklyOffRule } from '../domain/time-rules';
 import type { Tx } from './employees.repository';
 
 /** The default geofence radius when a branch has none saved (058-time AC-TM9). */
@@ -120,17 +120,52 @@ export class TimeSettingsRepository {
 
   // --- The geofence (AC-TM9) ---------------------------------------------------------
 
-  async clockSettings(orgId: string): Promise<{ propertyId: string; geofenceRadiusM: number; centre: Centre | null }[]> {
+  async clockSettings(orgId: string): Promise<
+    { propertyId: string; geofenceRadiusM: number; centre: Centre | null; clockMode: ClockMode; opensMinutesBefore: number | null }[]
+  > {
     const rows = await this.db
       .select({
         propertyId: branchClockSettings.propertyId,
         geofenceRadiusM: branchClockSettings.geofenceRadiusM,
         latitude: branchClockSettings.latitude,
         longitude: branchClockSettings.longitude,
+        clockMode: branchClockSettings.clockMode,
+        opensMinutesBefore: branchClockSettings.opensMinutesBefore,
       })
       .from(branchClockSettings)
       .where(eq(branchClockSettings.orgId, orgId));
-    return rows.map((r) => ({ propertyId: r.propertyId, geofenceRadiusM: r.geofenceRadiusM, centre: centreOf(r.latitude, r.longitude) }));
+    return rows.map((r) => ({
+      propertyId: r.propertyId,
+      geofenceRadiusM: r.geofenceRadiusM,
+      centre: centreOf(r.latitude, r.longitude),
+      clockMode: r.clockMode,
+      opensMinutesBefore: r.opensMinutesBefore,
+    }));
+  }
+
+  /**
+   * A branch's clock-in rules: its geofence as `geofenceFor` reads it, how its
+   * staff clock themselves in, and how early a self clock-in opens.
+   */
+  async clockRulesFor(
+    propertyId: string | null,
+  ): Promise<{ radiusM: number; centre: Centre | null; clockMode: ClockMode; opensMinutesBefore: number | null; branchName: string | null }> {
+    if (!propertyId) return { radiusM: DEFAULT_RADIUS_M, centre: null, clockMode: 'anywhere', opensMinutesBefore: null, branchName: null };
+    const [[row], fence] = await Promise.all([
+      this.db
+        .select({ name: properties.name, clockMode: branchClockSettings.clockMode, opensMinutesBefore: branchClockSettings.opensMinutesBefore })
+        .from(properties)
+        .leftJoin(branchClockSettings, eq(branchClockSettings.propertyId, properties.id))
+        .where(eq(properties.id, propertyId))
+        .limit(1),
+      this.geofenceFor(propertyId),
+    ]);
+    return {
+      ...fence,
+      clockMode: row?.clockMode ?? 'anywhere',
+      opensMinutesBefore: row?.opensMinutesBefore ?? null,
+      branchName: row?.name ?? null,
+    };
   }
 
   /**
@@ -160,7 +195,14 @@ export class TimeSettingsRepository {
   /** `centre` undefined leaves the stored one; null clears it back to the property's pin. */
   async putClockSettings(
     tx: Tx,
-    values: { propertyId: string; orgId: string; geofenceRadiusM: number; centre?: Centre | null },
+    values: {
+      propertyId: string;
+      orgId: string;
+      geofenceRadiusM: number;
+      centre?: Centre | null;
+      clockMode?: ClockMode;
+      opensMinutesBefore?: number | null;
+    },
   ): Promise<void> {
     const centre =
       values.centre === undefined
@@ -169,12 +211,17 @@ export class TimeSettingsRepository {
             latitude: values.centre ? values.centre.lat.toFixed(6) : null,
             longitude: values.centre ? values.centre.lng.toFixed(6) : null,
           };
+    // Left out, each rule keeps what the row had.
+    const rules = {
+      ...(values.clockMode !== undefined ? { clockMode: values.clockMode } : {}),
+      ...(values.opensMinutesBefore !== undefined ? { opensMinutesBefore: values.opensMinutesBefore } : {}),
+    };
     await tx
       .insert(branchClockSettings)
-      .values({ propertyId: values.propertyId, orgId: values.orgId, geofenceRadiusM: values.geofenceRadiusM, ...centre })
+      .values({ propertyId: values.propertyId, orgId: values.orgId, geofenceRadiusM: values.geofenceRadiusM, ...centre, ...rules })
       .onConflictDoUpdate({
         target: branchClockSettings.propertyId,
-        set: { geofenceRadiusM: values.geofenceRadiusM, ...centre, updatedAt: new Date() },
+        set: { geofenceRadiusM: values.geofenceRadiusM, ...centre, ...rules, updatedAt: new Date() },
       });
   }
 

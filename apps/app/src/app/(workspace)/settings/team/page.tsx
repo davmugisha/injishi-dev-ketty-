@@ -5,6 +5,7 @@ import type {
   TeamRolesPermissionArea,
   TeamRolesRole,
 } from "@injishi/data/fixtures/owner";
+import type { AccessRequestView } from "@injishi/data/fixtures/people";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { TeamRolesView } from "@/features/owner/TeamRolesView";
@@ -22,11 +23,12 @@ export default async function TeamRolesPage() {
   const ctx = await requestContext();
   // The scope picker lists the live branches a grant can name (not the prototype's tree, whose outlet rows
   // cannot be granted), and the member panel says whether People holds a file, read from People.
-  const [members, roles, areas, invites, scopes, employeeFiles] = await Promise.all([
+  const [members, roles, areas, invites, accessRequests, scopes, employeeFiles] = await Promise.all([
     getCollection<TeamRolesMember>("owner.teamRolesMembers"),
     getCollection<TeamRolesRole>("owner.teamRolesRoles"),
     getCollection<TeamRolesPermissionArea>("owner.teamRolesPermissionAreas"),
     getCollection<TeamRolesInviteDraft>("owner.teamRolesInvite"),
+    getCollection<AccessRequestView>("people.accessRequests"),
     teamScopes(ctx),
     employeeFileEmails(ctx),
   ]);
@@ -42,6 +44,7 @@ export default async function TeamRolesPage() {
         invite,
         businessName: businessNames(ctx, { permission: "team.manage" }),
         employeeFiles,
+        accessRequests,
       }}
     />
   );

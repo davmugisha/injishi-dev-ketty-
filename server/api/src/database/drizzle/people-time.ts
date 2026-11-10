@@ -43,7 +43,7 @@ import { orgs } from './org';
 import { attendanceRecords, employees, hrCatalogStatusEnum, shiftTemplates } from './people';
 
 export const hrRotationRuleEnum = pgEnum('hr_rotation_rule', ['every_n_days', 'weekly', 'monthly']);
-export const hrShiftRequestKindEnum = pgEnum('hr_shift_request_kind', ['change', 'swap']);
+export const hrShiftRequestKindEnum = pgEnum('hr_shift_request_kind', ['change', 'swap', 'rotation']);
 export const hrShiftRequestStatusEnum = pgEnum('hr_shift_request_status', [
   'requested',
   'awaiting_colleague',
@@ -58,6 +58,8 @@ export const hrAttendanceRequestStatusEnum = pgEnum('hr_attendance_request_statu
   'cancelled',
 ]);
 export const hrKioskStatusEnum = pgEnum('hr_kiosk_status', ['pairing', 'active', 'revoked']);
+/** How a branch's staff clock themselves in (clock-in rules): see `ClockMode` in the contracts. */
+export const hrClockModeEnum = pgEnum('hr_clock_mode', ['anywhere', 'at_work', 'entrance']);
 /** What a comment is on (index contract 12). Each later child's request joins this list. */
 export const hrCommentSubjectEnum = pgEnum('hr_comment_subject', [
   'leave_request',
@@ -185,6 +187,8 @@ export const shiftRequests = pgTable(
     shiftTemplateId: uuid('shift_template_id').references(() => shiftTemplates.id),
     /** The colleague to swap with (`swap`), at the same branch. */
     swapEmployeeId: uuid('swap_employee_id').references(() => employees.id),
+    /** The rotation asked to join (`rotation`), at the person's branch, from `fromDate`. */
+    rotationPatternId: uuid('rotation_pattern_id').references(() => rotationPatterns.id),
     fromDate: date('from_date').notNull(),
     toDate: date('to_date').notNull(),
     reason: text('reason').notNull(),
@@ -202,8 +206,9 @@ export const shiftRequests = pgTable(
   (t) => [
     check(
       'shift_requests_kind_ck',
-      sql`(${t.kind} = 'change' AND ${t.shiftTemplateId} IS NOT NULL AND ${t.swapEmployeeId} IS NULL)
-        OR (${t.kind} = 'swap' AND ${t.swapEmployeeId} IS NOT NULL AND ${t.shiftTemplateId} IS NULL)`,
+      sql`(${t.kind}::text = 'change' AND ${t.shiftTemplateId} IS NOT NULL AND ${t.swapEmployeeId} IS NULL AND ${t.rotationPatternId} IS NULL)
+        OR (${t.kind}::text = 'swap' AND ${t.swapEmployeeId} IS NOT NULL AND ${t.shiftTemplateId} IS NULL AND ${t.rotationPatternId} IS NULL)
+        OR (${t.kind}::text = 'rotation' AND ${t.rotationPatternId} IS NOT NULL AND ${t.shiftTemplateId} IS NULL AND ${t.swapEmployeeId} IS NULL)`,
     ),
     check('shift_requests_dates_ck', sql`${t.toDate} >= ${t.fromDate} AND ${t.toDate} - ${t.fromDate} <= 30`),
     check('shift_requests_self_ck', sql`${t.swapEmployeeId} IS NULL OR ${t.swapEmployeeId} <> ${t.employeeId}`),
@@ -314,10 +319,17 @@ export const branchClockSettings = pgTable(
     geofenceRadiusM: integer('geofence_radius_m').notNull().default(150),
     latitude: numeric('latitude', { precision: 9, scale: 6 }),
     longitude: numeric('longitude', { precision: 9, scale: 6 }),
+    clockMode: hrClockModeEnum('clock_mode').notNull().default('anywhere'),
+    /** A self clock-in opens this many minutes before the shift; null: any time. */
+    opensMinutesBefore: integer('opens_minutes_before'),
     ...timestamps,
   },
   (t) => [
     check('branch_clock_settings_radius_ck', sql`${t.geofenceRadiusM} BETWEEN 25 AND 2000`),
+    check(
+      'branch_clock_settings_opens_ck',
+      sql`${t.opensMinutesBefore} IS NULL OR ${t.opensMinutesBefore} BETWEEN 5 AND 240`,
+    ),
     check(
       'branch_clock_settings_centre_ck',
       sql`(${t.latitude} IS NULL AND ${t.longitude} IS NULL)

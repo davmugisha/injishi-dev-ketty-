@@ -1,33 +1,43 @@
 "use client";
 
 import {
-  ArrowsRotateLeft,
+  ArrowRightArrowLeft,
+  ArrowUpRight,
   Check,
+  ChevronDown,
+  ChevronRight,
   CircleCheck,
-  CircleInfo,
+  Clock,
   Flag,
+  Moon,
   PaperPlane,
+  Pencil,
+  PersonPlus,
+  Persons,
+  Plus,
   ShieldExclamation,
   Suitcase,
+  Sun,
   TriangleExclamation,
 } from "@gravity-ui/icons";
 import {
-  Alert,
+  Avatar,
   Button,
   Card,
   Chip,
-  Description,
-  Fieldset,
   Label,
   Modal,
+  Popover,
+  ProgressBar,
   Table,
   Tabs,
   Toast,
   toast,
 } from "@heroui/react";
-import { ListView, NativeSelect, Segment } from "@heroui-pro/react";
-import { GateChip, KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
-import { Fragment, useState, useTransition } from "react";
+import { EmptyState, KPIGroup, NativeSelect, Segment } from "@heroui-pro/react";
+import { KPI } from "@heroui-pro/react/kpi";
+import { GateChip, LinkButton, PageContent, PageHeader } from "@injishi/ui";
+import { Fragment, type ReactNode, type SVGProps, useState, useTransition } from "react";
 import type {
   PublicHoliday,
   RosterGroup,
@@ -39,10 +49,14 @@ import type {
   WeekId,
 } from "../../model/people.ts";
 import { useBoardHref, useHrActions, useHrShell } from "../mount.tsx";
-import { addDays, longDay, shortDay, weekdayLong } from "./days.ts";
-import { PanelCard } from "./parts.tsx";
+import { CoverDrawer } from "./cover-drawer";
+import { addDays, dayOfMonth, longDay, shortDay, weekdayIndex, weekdayShort } from "./days";
+import { NewRotationDrawer } from "./new-rotation-drawer";
+import { avatarColor, firstName, Hint, initials, PanelCard, Person, Ring, TAB_CLASS, Tip } from "./parts";
+import { RosterCover } from "./roster-cover";
+import { RotationDrawer } from "./rotation-drawer";
 
-interface RosterData {
+export interface RosterData {
   groups: RosterGroup[];
   staff: RosterStaff[];
   weeks: RosterWeek[];
@@ -53,32 +67,168 @@ interface RosterData {
 
 type Grid = Record<string, ShiftCode[]>;
 
-/** Cell label, long name (aria + editor) and legend label per shift code. */
-const LABEL: Record<ShiftCode, string> = { M: "07–15", E: "15–23", N: "23–07", O: "Off", L: "Leave" };
-const NAME: Record<ShiftCode, string> = {
-  M: "Morning 07:00–15:00",
-  E: "Evening 15:00–23:00",
-  N: "Night 23:00–07:00",
-  O: "Day off",
-  L: "On leave",
+/** A sun half under the horizon: the evening shift. */
+function Sunset(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M4.5 10.5a3.5 3.5 0 0 1 7 0" />
+      <path d="M1.5 10.5h13M4.5 13h7" />
+      <path d="M8 3v2M3.4 5l1.2 1.2M12.6 5l-1.2 1.2" />
+    </svg>
+  );
+}
+
+/**
+ * Each shift's look: a solid pill in the theme colours with light text on it, strong enough to read
+ * for everyone, so a week's pattern shows at a glance. A day off is left empty.
+ */
+const SHIFT: Record<ShiftCode, { time: string; name: string; icon: (cls: string) => ReactNode; pill: string }> = {
+  M: {
+    time: "Morning",
+    name: "Morning",
+    icon: (c) => <Sun className={c} aria-hidden="true" />,
+    pill: "bg-accent! text-accent-foreground!",
+  },
+  E: {
+    time: "Evening",
+    name: "Evening",
+    icon: (c) => <Sunset className={c} />,
+    pill: "bg-[var(--chart-4)]! text-[var(--eclipse)]!",
+  },
+  N: {
+    time: "Night",
+    name: "Night",
+    icon: (c) => <Moon className={c} aria-hidden="true" />,
+    pill: "bg-foreground! text-background!",
+  },
+  O: {
+    time: "Off",
+    name: "Day off",
+    icon: () => null,
+    pill: "",
+  },
+  L: {
+    time: "Leave",
+    name: "On leave",
+    icon: (c) => <Suitcase className={c} aria-hidden="true" />,
+    pill: "bg-warning! text-warning-foreground!",
+  },
 };
-const LEGEND: Record<ShiftCode, string> = {
-  M: "Morning 07–15",
-  E: "Evening 15–23",
-  N: "Night 23–07",
-  O: "Day off",
-  L: "Leave",
-};
-const SWATCH: Record<ShiftCode, string> = {
-  M: "bg-accent-soft text-accent-soft-foreground",
-  E: "bg-default text-default-foreground",
-  N: "bg-foreground text-background",
-  O: "bg-transparent text-muted shadow-[inset_0_0_0_1px_var(--separator)]",
-  L: "bg-warning-soft text-warning-soft-foreground",
-};
-/** Rwanda's labour law caps the normal working week at 45 hours; no business setting on the API changes it. */
+const LEGEND: { code: ShiftCode; label: string }[] = [
+  { code: "M", label: "Morning" },
+  { code: "E", label: "Evening" },
+  { code: "N", label: "Night" },
+  { code: "O", label: "Off" },
+  { code: "L", label: "Leave" },
+];
 const MAX_WEEK_HOURS = 45;
 const plural = (n: number, one: string, many = `${one}s`) => (n === 1 ? one : many);
+const KPI_CLASS = "min-w-[min(170px,100%)] flex-[1_1_170px]";
+
+/**
+ * A gap's Assign button: choose the shift, then who takes it. It opens on the counted shift with the
+ * fewest people that day. A shift the rule does not count can still be given, and says the gap stays open.
+ */
+function GapAssign({
+  group,
+  dayLabel,
+  free,
+  hoursOf,
+  onShift,
+  onAssign,
+}: {
+  group: RosterGroup;
+  dayLabel: string;
+  free: { id: string; name: string; after: number }[];
+  /** A shift's real hours at this branch. */
+  hoursOf: (shift: ShiftCode) => string;
+  /** How many of the department are on a shift that day. */
+  onShift: (shift: ShiftCode) => number;
+  onAssign: (employeeId: string, shift: ShiftCode) => void;
+}) {
+  const fewest = () => [...group.shifts].sort((a, b) => onShift(a) - onShift(b))[0] ?? "M";
+  const [open, setOpen] = useState(false);
+  const [shift, setShift] = useState<ShiftCode>(fewest);
+  return (
+    <Popover
+      isOpen={open}
+      onOpenChange={(o) => {
+        if (o) setShift(fewest());
+        setOpen(o);
+      }}
+    >
+      <Button size="sm" variant="secondary" aria-label={`Assign someone to ${dayLabel}, ${group.name}`}>
+        <PersonPlus className="size-4" />
+        Assign
+        <ChevronDown className="size-3.5" aria-hidden="true" />
+      </Button>
+      <Popover.Content placement="bottom end" className="w-[290px] p-0">
+        <Popover.Dialog aria-label={`Assign someone to ${dayLabel}, ${group.name}`} className="flex flex-col gap-3 p-3">
+          <fieldset className="m-0 grid grid-cols-3 gap-1.5 border-0 p-0">
+            <legend className="sr-only">Shift</legend>
+            {(["M", "E", "N"] as ShiftCode[]).map((k) => (
+              <Button
+                key={k}
+                size="sm"
+                variant={shift === k ? "primary" : "secondary"}
+                aria-pressed={shift === k}
+                fullWidth
+                className="h-auto flex-col gap-0.5 px-1 py-2"
+                onPress={() => setShift(k)}
+              >
+                <span className="flex items-center gap-1">
+                  {SHIFT[k].icon("size-3.5")}
+                  {SHIFT[k].name}
+                </span>
+                <span className="text-[11px] font-normal opacity-80 tabular">
+                  {hoursOf(k)} · {onShift(k)} on
+                </span>
+              </Button>
+            ))}
+          </fieldset>
+          {group.shifts.includes(shift) ? null : (
+            <p className="flex items-start gap-1.5 text-xs text-warning">
+              <TriangleExclamation className="mt-px size-3.5 shrink-0" aria-hidden="true" />
+              Not counted in {group.rule.toLowerCase()}, so this gap stays open.
+            </p>
+          )}
+          <ul className="m-0 flex list-none flex-col p-0" aria-label={`Who can take ${SHIFT[shift].name}`}>
+            {free.map((f) => (
+              <li key={f.id}>
+                <Button
+                  variant="ghost"
+                  fullWidth
+                  className="h-auto justify-start px-2 py-1.5 text-left"
+                  aria-label={`Assign ${f.name} to ${SHIFT[shift].name}`}
+                  onPress={() => {
+                    onAssign(f.id, shift);
+                    setOpen(false);
+                  }}
+                >
+                  <Person name={f.name} sub={`${f.after} h if assigned`} className="flex-1 text-[13px]" />
+                  {f.after > MAX_WEEK_HOURS ? (
+                    <TriangleExclamation
+                      className="size-4 shrink-0 text-warning"
+                      aria-label={`${f.after - MAX_WEEK_HOURS} h overtime`}
+                    />
+                  ) : null}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </Popover.Dialog>
+      </Popover.Content>
+    </Popover>
+  );
+}
 
 export function RosterView({
   data,
@@ -86,6 +236,8 @@ export function RosterView({
   today,
   branchName,
   otherBranchName,
+  branches = [],
+  branchId = "",
 }: {
   data: RosterData;
   initialWeek: WeekId;
@@ -94,18 +246,32 @@ export function RosterView({
   /** The branch this roster is for, and the one a shift can be lent to. */
   branchName: string;
   otherBranchName: string;
+  /** Every branch of the business, to work on another one's roster. */
+  branches?: { id: string; name: string }[];
+  branchId?: string;
 }) {
+  const {
+    acceptSwapForColleague,
+    decideShiftSwap,
+    pickRosterBranch,
+    publishRosterWeek,
+    setRosterLent,
+    setRosterShift,
+  } = useHrActions();
   const screenHref = useBoardHref();
-  const { decideShiftSwap, publishRosterWeek, setRosterLent, setRosterShift } = useHrActions();
   const { TopbarStatus } = useHrShell();
   const { groups, staff, rotations, holidays } = data;
-  // A lent shift's cell names the branch it is lent to, shortened to its first word ("Ishyamba").
-  const lentShort = otherBranchName.trim().split(" ")[0] || otherBranchName;
   const weekOf = (w: WeekId) => data.weeks.find((x) => x.id === w) ?? data.weeks[0];
 
   const [wk, setWk] = useState<WeekId>(initialWeek);
   const [grids, setGrids] = useState<Partial<Record<WeekId, Grid | null>>>({});
-  const [sel, setSel] = useState<{ r: string; d: number }>({ r: staff[0]?.id ?? "", d: 5 });
+  // The cell whose editor is open, "<staffId>-<day>".
+  const [editing, setEditing] = useState<string | null>(null);
+  // The rotation whose drawer is open.
+  const [rotationOpen, setRotationOpen] = useState<string | null>(null);
+  const [newRotation, setNewRotation] = useState(false);
+  // The team whose minimum cover is being set.
+  const [coverFor, setCoverFor] = useState<string | null>(null);
   const [dept, setDept] = useState("all");
   const [lent, setLent] = useState<Record<WeekId, Record<string, boolean>>>(() => ({
     this: Object.fromEntries((weekOf("this")?.lent ?? []).map((k) => [k, true])),
@@ -127,15 +293,63 @@ export function RosterView({
   }));
   const [dialog, setDialog] = useState(false);
 
-  // Live data can hold no team with a minimum cover at this branch, and so no one to roster yet.
+  // A server refresh brings the truth (a rotation's drafts, someone new, a decided swap), so local edits
+  // give way to it. This render stops here: the old grid has no row for someone new.
+  const [seen, setSeen] = useState(data);
+  if (seen !== data) {
+    setSeen(data);
+    setGrids({});
+    setSwapState({});
+    setLent({
+      this: Object.fromEntries((weekOf("this")?.lent ?? []).map((k) => [k, true])),
+      next: Object.fromEntries((weekOf("next")?.lent ?? []).map((k) => [k, true])),
+    });
+    setPub({ this: weekOf("this")?.status ?? "draft", next: weekOf("next")?.status ?? "draft" });
+    setEdits({ this: weekOf("this")?.pendingChanges ?? 0, next: weekOf("next")?.pendingChanges ?? 0 });
+    setPubAt({ this: weekOf("this")?.publishedAt ?? "", next: weekOf("next")?.publishedAt ?? "" });
+    return null;
+  }
+
+  // A branch with nobody active on any of its teams has no one to roster yet.
   if (staff.length === 0 || groups.length === 0 || data.weeks.length === 0) {
     return (
       <PageContent>
         <PageHeader
-          eyebrow={`${branchName} · today is ${longDay(today)}`}
+          eyebrow={`${branchName} · ${longDay(today)}`}
           title="Roster"
-          description="No team at this branch has a minimum cover set yet, so there is no roster grid to draw."
+          actions={
+            branches.length > 1 ? (
+              <NativeSelect aria-label="Branch">
+                <NativeSelect.Trigger
+                  aria-label="Branch"
+                  value={branchId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    startTransition(async () => {
+                      const result = await pickRosterBranch(id);
+                      if (!result.ok) toast.danger(result.error);
+                    });
+                  }}
+                >
+                  {branches.map((b) => (
+                    <NativeSelect.Option key={b.id} value={b.id}>
+                      {b.name}
+                    </NativeSelect.Option>
+                  ))}
+                  <NativeSelect.Indicator />
+                </NativeSelect.Trigger>
+              </NativeSelect>
+            ) : null
+          }
         />
+        <EmptyState size="sm" className="py-12">
+          <EmptyState.Header>
+            <EmptyState.Media variant="icon">
+              <ShieldExclamation />
+            </EmptyState.Media>
+            <EmptyState.Title>Nobody on staff at this branch yet</EmptyState.Title>
+          </EmptyState.Header>
+        </EmptyState>
       </PageContent>
     );
   }
@@ -151,17 +365,16 @@ export function RosterView({
   const gridOf = (w: WeekId): Grid => grids[w] ?? initialGrid(w);
   const grid = gridOf(wk);
   const lentNow = lent[wk];
-  // A change to a published week shows in the person's staff app at once (the API publishes it; its
-  // `roster.changed` outbox row is not delivered as a message), so only a draft week's changes wait.
-  const bump = (_w: WeekId, _n: number) => edits;
   const copy = (g: Grid): Grid => Object.fromEntries(Object.entries(g).map(([k, v]) => [k, [...v]]));
+  // A change to a published week reaches the person at once (the API publishes it and tells them),
+  // so nothing waits to be sent: only a draft week's changes wait for Publish.
   const setCell = (rid: string, d: number, v: ShiftCode) => {
     const before = grid[rid][d];
+    if (before === v) return;
     const week = wk;
     const next = copy(grid);
     next[rid][d] = v;
     setGrids({ ...grids, [wk]: next });
-    setEdits(bump(wk, 1));
     if (v === "L") return;
     startTransition(async () => {
       const result = await setRosterShift(week, rid, d, v);
@@ -187,98 +400,111 @@ export function RosterView({
     });
   };
 
-  const hoursOf = (rid: string, g: Grid = grid) => g[rid].filter((v) => v !== "O" && v !== "L").length * 8;
+  /** A shift's real hours at this branch, or its name where the branch has no such shift. */
+  const hoursLabel = (v: ShiftCode) =>
+    (v === "M" || v === "E" || v === "N" ? W.shiftTimes?.[v] : undefined) ?? SHIFT[v].time;
+  /** A cell's label: the hours of the shift it holds, or the branch's hours for one changed just now. */
+  const cellHours = (p: RosterStaff, d: number) => {
+    const v = grid[p.id][d];
+    return p.shifts[wk].charAt(d) === v ? (p.times?.[wk]?.[d] ?? hoursLabel(v)) : hoursLabel(v);
+  };
+  /** How long a shift letter is here; 8 h where the branch has no such shift yet. */
+  const lengthOf = (v: ShiftCode) => (v === "M" || v === "E" || v === "N" ? (W.shiftLengths?.[v] ?? 8) : 0);
+  /** A person's hours in the week shown, each day at its own shift's real length. */
+  const hoursOf = (rid: string, g: Grid = grid) => {
+    const p = staff.find((x) => x.id === rid);
+    return g[rid].reduce((sum, v, d) => {
+      if (v === "O" || v === "L") return sum;
+      const own = p?.shifts[wk].charAt(d) === v ? p?.lengths?.[wk]?.[d] : undefined;
+      return sum + (own || lengthOf(v));
+    }, 0);
+  };
   const coverOf = (G: RosterGroup, d: number, g: Grid, ln: Record<string, boolean> = lentNow) =>
     staff.filter((p) => p.group === G.id && G.shifts.includes(g[p.id][d]) && !ln[`${p.id}-${d}`]).length;
 
-  // Below-minimum shifts across every department (not only the tab shown).
-  const gaps: string[] = [];
-  for (const G of groups) {
-    G.min.forEach((mn, d) => {
+  // Below-minimum shifts across every department, each with the people off that day who could take it.
+  const gaps = groups.flatMap((G) =>
+    G.min.flatMap((mn, d) => {
       const n = coverOf(G, d, grid);
-      if (n < mn) gaps.push(`${days[d]} ${G.name.toLowerCase()} ${n} of ${mn}`);
-    });
-  }
-  const hasWarnings = gaps.length > 0;
-  const warnTitle = `${gaps.length} ${plural(gaps.length, "shift is", "shifts are")} below minimum cover`;
-  const warnText = `Week of ${W.range}: ${gaps.join(" · ")}. Assign someone or approve overtime before ${days[5]}.`;
+      if (n >= mn) return [];
+      const free = staff
+        .filter((p) => p.group === G.id && grid[p.id][d] === "O")
+        .map((p) => ({ ...p, after: hoursOf(p.id) + (lengthOf(G.shifts[0] ?? "M") || 8) }))
+        .sort((a, b) => a.after - b.after)
+        .slice(0, 3);
+      return [{ id: `${G.id}-${d}`, G, d, n, mn, free }];
+    }),
+  );
+  const gapsBy = (gid: string) => gaps.filter((g) => g.G.id === gid).length;
 
   const shownGroups = groups.filter((G) => dept === "all" || dept === G.id);
   const tabs = [
-    { id: "all", label: "All departments", n: staff.length },
+    { id: "all", label: "All", n: staff.length },
     ...groups.map((G) => ({ id: G.id, label: G.name, n: staff.filter((p) => p.group === G.id).length })),
   ];
 
-  // Shift editor.
-  const sp = staff.find((p) => p.id === sel.r) ?? staff[0];
-  const sv = grid[sp.id][sel.d];
-  const selLent = !!lentNow[`${sp.id}-${sel.d}`];
-  const home = groups.find((G) => G.id === sp.group)?.name ?? "";
-  const pattern = rotations.find((r) => sp.rotation in r.patterns)?.patterns[sp.rotation] ?? "";
-  const hrs = hoursOf(sp.id);
-
-  // Saturday housekeeping fill.
-  const hk = groups[0];
-  const sat = coverOf(hk, 5, grid);
-  const satMin = hk.min[5];
-  const fill = staff
-    .filter((p) => p.group === hk.id && grid[p.id][5] === "O")
-    .map((p) => {
-      const h = hoursOf(p.id) + 8;
-      return {
-        ...p,
-        note: `Rotation ${p.rotation} day off · would be ${h} h${h > MAX_WEEK_HOURS ? `, ${h - MAX_WEEK_HOURS} h overtime` : ""}`,
-      };
-    });
-
-  // Swap requests apply to this week's grid.
-  const gThis = gridOf("this");
+  // A swap's effect is read on the week it falls in. Someone from another branch is not on this grid,
+  // so the swap still shows, without a figure for cover.
   const swaps = data.swaps.map((w) => {
     const st = swapState[w.id] ?? "pending";
+    const week: WeekId = w.week ?? "this";
+    const before = gridOf(week);
     const G = groups.find((x) => x.id === staff.find((p) => p.id === w.a)?.group) ?? groups[0];
-    const swapped = copy(gThis);
-    const t = swapped[w.a][w.day];
-    swapped[w.a][w.day] = swapped[w.b][w.day];
-    swapped[w.b][w.day] = t;
-    const delta = coverOf(G, w.day, swapped, lent.this) - coverOf(G, w.day, gThis, lent.this);
+    const swapped = copy(before);
+    const onGrid = (w.kind ?? "swap") === "swap" && w.day >= 0 && Boolean(swapped[w.a] && swapped[w.b]);
+    if (onGrid) {
+      const t = swapped[w.a][w.day];
+      swapped[w.a][w.day] = swapped[w.b][w.day];
+      swapped[w.b][w.day] = t;
+    }
+    const delta = onGrid ? coverOf(G, w.day, swapped, lent[week]) - coverOf(G, w.day, before, lent[week]) : 0;
     return {
       ...w,
+      week,
       st,
       swapped,
       impact:
         st === "pending"
-          ? delta === 0
-            ? "No change to cover"
-            : `Cover changes by ${delta}`
+          ? w.overdue
+            ? "Date passed"
+            : w.waiting
+              ? `Waiting for ${w.colleague || "the colleague"}`
+              : (w.kind ?? "swap") !== "swap"
+                ? w.kind === "rotation"
+                  ? "Rotation"
+                  : "Different shift"
+                : delta === 0
+                  ? "Cover unchanged"
+                  : `Cover ${delta > 0 ? "+" : ""}${delta}`
           : st === "approved"
-            ? "Approved · recorded"
-            : "Declined · recorded",
-      tone: st === "declined" ? ("default" as const) : delta < 0 ? ("warning" as const) : ("success" as const),
-      outcome:
-        st === "approved"
-          ? `Shifts swapped in the week ${weekOf("this")?.number ?? ""} grid.`
-          : "The original shifts stay.",
+            ? "Approved"
+            : "Declined",
+      tone:
+        st === "declined" || w.waiting
+          ? ("default" as const)
+          : w.overdue || delta < 0
+            ? ("warning" as const)
+            : ("success" as const),
     };
   });
+  const pendingSwaps = swaps.filter((s) => s.st === "pending").length;
 
   const isPub = pub[wk] === "published";
   const ed = edits[wk];
   const wkNo = W.number;
-  const otherWeek = data.weeks.find((x) => x.id !== wk);
-  const pubTitle = `Week ${wkNo} published ${pubAt[wk] || "today"} to ${staff.length} staff`;
-  const pubNote = ed
-    ? `${ed} shift ${plural(ed, "change")} since publishing. Publish them so the people affected see them in the staff app.`
-    : wk === "this" && otherWeek && pub[otherWeek.id] !== "published"
-      ? `This week shows in the staff app. Week ${otherWeek.number} (${otherWeek.range}) is still a draft.`
-      : "Published weeks show in the staff app.";
-  const pubLabel = `Week ${wkNo} · ${isPub ? (ed ? `published, ${ed} unsent changes` : "published") : "draft, not published"}`;
+  const shiftCount = staff.reduce(
+    (n, p) => n + grid[p.id].filter((v) => v === "M" || v === "E" || v === "N").length,
+    0,
+  );
+  const overtime = staff.filter((p) => hoursOf(p.id) > MAX_WEEK_HOURS);
+  const pubLabel = `Week ${wkNo} · ${isPub ? (ed ? `published, ${ed} unsent` : "published") : "draft"}`;
   const showPublish = !isPub || ed > 0;
-  const publishLabel = isPub ? `Publish ${ed} ${plural(ed, "change")}` : "Publish roster";
-  const dlgTitle = isPub ? `Send ${ed} ${plural(ed, "change")} for week ${wkNo}?` : `Publish week ${W.range}?`;
+  const publishLabel = isPub ? `Publish ${ed} ${plural(ed, "shift")}` : "Publish roster";
+  const dlgTitle = isPub ? `Send ${ed} ${plural(ed, "shift")} for week ${wkNo}?` : `Publish week ${W.range}?`;
   const dlgText = isPub
-    ? "The changed shifts show in the staff app of the people affected. No SMS or message is sent."
-    : `${staff.length} staff at ${branchName} see their shifts in the staff app. No SMS or message is sent.`;
-  const confirmLabel = `${isPub ? "Send changes" : "Publish"}${hasWarnings ? ` with ${gaps.length} ${plural(gaps.length, "gap")}` : ""}`;
+    ? "Only people whose shifts changed see it in the app."
+    : `${staff.length} staff see their shifts in the app.`;
+  const confirmLabel = `${isPub ? "Send" : "Publish"}${gaps.length ? ` with ${gaps.length} ${plural(gaps.length, "gap")}` : ""}`;
 
   const publish = () => {
     const week = wk;
@@ -297,24 +523,145 @@ export function RosterView({
       }
     });
   };
-  const reset = () => {
-    toast.warning("Resetting the whole roster to rotations is not available yet. Edit individual shifts to save them.");
-  };
   const decideSwap = (w: (typeof swaps)[number], decision: "approved" | "declined") => {
-    const before = grids.this ?? null;
-    if (decision === "approved") setGrids({ ...grids, this: w.swapped });
+    const before = grids[w.week] ?? null;
+    if (decision === "approved" && w.day >= 0) setGrids({ ...grids, [w.week]: w.swapped });
     setSwapState({ ...swapState, [w.id]: decision });
-    setEdits(bump("this", 2));
     startTransition(async () => {
       const result = await decideShiftSwap(w.id, decision);
       if (!result.ok) {
-        if (decision === "approved") setGrids((g) => ({ ...g, this: before }));
+        if (decision === "approved" && w.day >= 0) setGrids((g) => ({ ...g, [w.week]: before }));
         setSwapState((s) => ({ ...s, [w.id]: undefined }));
         toast.danger(result.error);
       }
     });
   };
-  const approveSwap = (w: (typeof swaps)[number]) => decideSwap(w, "approved");
+
+  const acceptFor = (w: (typeof swaps)[number]) =>
+    startTransition(async () => {
+      const result = await acceptSwapForColleague(w.id);
+      if (!result.ok) toast.danger(result.error);
+    });
+
+  const colBg = (d: number) =>
+    dates[d] === today ? "bg-accent-soft/50" : weekdayIndex(dates[d]) >= 5 ? "bg-surface-secondary/70" : "";
+
+  /** One day of one person: the shift as a coloured block, its editor in a popover beside it. */
+  const cell = (p: RosterStaff, d: number) => {
+    const v = grid[p.id][d];
+    const key = `${p.id}-${d}`;
+    const isLent = !!lentNow[key];
+    const isOpen = editing === key;
+    const s = SHIFT[v];
+    const label = cellHours(p, d);
+    const hrs = hoursOf(p.id);
+    const home = groups.find((G) => G.id === p.group)?.name ?? "";
+    return (
+      <Popover isOpen={isOpen} onOpenChange={(o) => setEditing(o ? key : null)}>
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label={`${p.name}, ${longDays[d]}: ${s.name}${v === "O" || v === "L" ? "" : ` ${label}`}${isLent ? `, lent to ${otherBranchName}` : ""}. Edit shift`}
+          className={`group relative h-8 w-full min-w-0 gap-1 rounded-full px-2 text-[12px] font-semibold tabular transition ${
+            v === "O"
+              ? "bg-transparent! text-muted hover:bg-default!"
+              : `${s.pill} shadow-[0_1px_2px_rgb(0_0_0/0.12)] hover:brightness-110`
+          } ${isOpen ? "ring-2 ring-[var(--focus)] ring-offset-2" : ""}`}
+        >
+          {v === "O" ? (
+            <>
+              <span aria-hidden="true" className="size-1 rounded-full bg-separator group-hover:hidden" />
+              <Plus className="hidden size-4 group-hover:block" aria-hidden="true" />
+            </>
+          ) : (
+            <>
+              {v === "L" ? s.icon("size-3.5 shrink-0") : null}
+              <span className="truncate">{label}</span>
+            </>
+          )}
+          {isLent ? (
+            <span
+              aria-hidden="true"
+              className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-surface text-foreground shadow-sm"
+            >
+              <ArrowUpRight className="size-2.5" />
+            </span>
+          ) : null}
+        </Button>
+        <Popover.Content placement="bottom" className="w-[300px] p-0">
+          <Popover.Dialog aria-label={`Edit ${p.name}, ${longDays[d]}`} className="flex flex-col gap-3 p-4">
+            <Person name={p.name} sub={longDays[d]} />
+            {v === "L" ? (
+              <span className="flex items-center gap-2 rounded-xl bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
+                <Suitcase className="size-4" aria-hidden="true" />
+                On approved leave
+              </span>
+            ) : (
+              <>
+                <fieldset className="m-0 grid grid-cols-2 gap-1.5 border-0 p-0">
+                  <legend className="sr-only">Shift</legend>
+                  {(["M", "E", "N", "O"] as ShiftCode[]).map((k) => (
+                    <Button
+                      key={k}
+                      size="sm"
+                      variant={v === k ? "primary" : "secondary"}
+                      aria-pressed={v === k}
+                      fullWidth
+                      className="h-auto flex-col gap-0.5 py-2"
+                      onPress={() => {
+                        setCell(p.id, d, k);
+                        setEditing(null);
+                      }}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        {SHIFT[k].icon("size-3.5")}
+                        {k === "O" ? "Day off" : SHIFT[k].name}
+                      </span>
+                      {k === "O" ? null : (
+                        <span className="text-[11px] font-normal opacity-80 tabular">{hoursLabel(k)}</span>
+                      )}
+                    </Button>
+                  ))}
+                </fieldset>
+                {v !== "O" ? (
+                  <NativeSelect fullWidth className="flex flex-col gap-1">
+                    <Label htmlFor={`wi-${key}`}>Work in</Label>
+                    <NativeSelect.Trigger
+                      id={`wi-${key}`}
+                      value={isLent ? "lent" : "home"}
+                      onChange={(ev) => setLentCell(p.id, d, ev.target.value === "lent")}
+                    >
+                      <NativeSelect.Option value="home">{home}</NativeSelect.Option>
+                      <NativeSelect.Option value="lent">Lent to {otherBranchName}</NativeSelect.Option>
+                      <NativeSelect.Indicator />
+                    </NativeSelect.Trigger>
+                  </NativeSelect>
+                ) : null}
+              </>
+            )}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted">Week · rotation {p.rotation}</span>
+                <span className="font-semibold tabular">
+                  {hrs} / {MAX_WEEK_HOURS} h
+                </span>
+              </div>
+              <ProgressBar
+                aria-label={`${hrs} of ${MAX_WEEK_HOURS} hours`}
+                value={Math.min(100, (hrs / MAX_WEEK_HOURS) * 100)}
+                size="sm"
+                color={hrs > MAX_WEEK_HOURS ? "warning" : "accent"}
+              >
+                <ProgressBar.Track>
+                  <ProgressBar.Fill />
+                </ProgressBar.Track>
+              </ProgressBar>
+            </div>
+          </Popover.Dialog>
+        </Popover.Content>
+      </Popover>
+    );
+  };
 
   return (
     <PageContent>
@@ -325,15 +672,39 @@ export function RosterView({
         label={pubLabel}
       />
       <PageHeader
-        eyebrow={`${W.label} · ${branchName} · today is ${longDay(today)}`}
+        eyebrow={`${W.label} · ${branchName}`}
         title="Roster"
-        description="Click any shift to change it. Staff see a week in the staff app once you publish it, and later changes show there for the people affected. No SMS or message is sent."
         actions={
           <>
+            {branches.length > 1 ? (
+              <NativeSelect aria-label="Branch">
+                <NativeSelect.Trigger
+                  aria-label="Branch"
+                  value={branchId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    startTransition(async () => {
+                      const result = await pickRosterBranch(id);
+                      if (!result.ok) toast.danger(result.error);
+                    });
+                  }}
+                >
+                  {branches.map((b) => (
+                    <NativeSelect.Option key={b.id} value={b.id}>
+                      {b.name}
+                    </NativeSelect.Option>
+                  ))}
+                  <NativeSelect.Indicator />
+                </NativeSelect.Trigger>
+              </NativeSelect>
+            ) : null}
             <Segment
               aria-label="Week"
               selectedKey={wk}
-              onSelectionChange={(k) => setWk(k === "next" ? "next" : "this")}
+              onSelectionChange={(k) => {
+                setWk(k === "next" ? "next" : "this");
+                setEditing(null);
+              }}
             >
               {data.weeks.map((w) => (
                 <Segment.Item key={w.id} id={w.id}>
@@ -342,10 +713,6 @@ export function RosterView({
                 </Segment.Item>
               ))}
             </Segment>
-            <Button variant="ghost" onPress={reset}>
-              <ArrowsRotateLeft className="size-4" />
-              Reset to rotations
-            </Button>
             {showPublish ? (
               <Button onPress={() => setDialog(true)}>
                 <PaperPlane className="size-4" />
@@ -356,42 +723,105 @@ export function RosterView({
         }
       />
 
-      {hasWarnings ? (
-        <Alert status="warning" role="status">
-          <Alert.Indicator>
-            <TriangleExclamation />
-          </Alert.Indicator>
-          <Alert.Content>
-            <Alert.Title>{warnTitle}</Alert.Title>
-            <Alert.Description>{warnText}</Alert.Description>
-          </Alert.Content>
-        </Alert>
-      ) : null}
-      {isPub ? (
-        <Alert status="success" role="status">
-          <Alert.Indicator>
-            <CircleCheck />
-          </Alert.Indicator>
-          <Alert.Content>
-            <Alert.Title>{pubTitle}</Alert.Title>
-            <Alert.Description>{pubNote}</Alert.Description>
-          </Alert.Content>
-        </Alert>
-      ) : null}
+      <section aria-label="This week at a glance">
+        <KPIGroup className="flex-wrap">
+          <KPI className={KPI_CLASS}>
+            <KPI.Header>
+              <KPI.Icon status={isPub ? "success" : "warning"}>{isPub ? <CircleCheck /> : <PaperPlane />}</KPI.Icon>
+              <KPI.Title>Week {wkNo}</KPI.Title>
+            </KPI.Header>
+            <KPI.Content>
+              <span className="text-[20px] leading-7 font-semibold">{isPub ? "Published" : "Draft"}</span>
+            </KPI.Content>
+            <KPI.Footer>
+              <p className="truncate text-xs leading-4 text-muted">
+                {isPub ? `${pubAt[wk] || "Today"}${ed ? ` · ${ed} unsent` : ""}` : "Not sent to staff"}
+              </p>
+            </KPI.Footer>
+          </KPI>
+          <KPIGroup.Separator />
+          <KPI className={KPI_CLASS}>
+            <KPI.Header>
+              <KPI.Icon status="success">
+                <Persons />
+              </KPI.Icon>
+              <KPI.Title>Shifts</KPI.Title>
+            </KPI.Header>
+            <KPI.Content>
+              <KPI.Value value={shiftCount} className="tabular" />
+            </KPI.Content>
+            <KPI.Footer>
+              <p className="text-xs leading-4 text-muted">{staff.length} staff</p>
+            </KPI.Footer>
+          </KPI>
+          <KPIGroup.Separator />
+          <KPI className={KPI_CLASS}>
+            <KPI.Header>
+              <KPI.Icon status={gaps.length ? "warning" : "success"}>
+                <TriangleExclamation />
+              </KPI.Icon>
+              <KPI.Title>Below cover</KPI.Title>
+            </KPI.Header>
+            <KPI.Content>
+              <KPI.Value value={gaps.length} className="tabular" />
+            </KPI.Content>
+            <KPI.Footer>
+              <p className="truncate text-xs leading-4 text-muted">
+                {gaps.length
+                  ? gaps
+                      .map((g) => days[g.d])
+                      .filter((x, i, a) => a.indexOf(x) === i)
+                      .join(", ")
+                  : "All covered"}
+              </p>
+            </KPI.Footer>
+          </KPI>
+          <KPIGroup.Separator />
+          <KPI className={KPI_CLASS}>
+            <KPI.Header>
+              <KPI.Icon status={overtime.length ? "warning" : "success"}>
+                <Clock />
+              </KPI.Icon>
+              <KPI.Title className="flex items-center gap-1">
+                Overtime
+                <Hint label="Overtime">Over {MAX_WEEK_HOURS} h in the week</Hint>
+              </KPI.Title>
+            </KPI.Header>
+            <KPI.Content>
+              <KPI.Value value={overtime.length} className="tabular" />
+            </KPI.Content>
+            <KPI.Footer>
+              <p className="truncate text-xs leading-4 text-muted">
+                {overtime.length ? overtime.map((p) => firstName(p.name)).join(", ") : "Nobody"}
+              </p>
+            </KPI.Footer>
+          </KPI>
+          <KPIGroup.Separator />
+          <KPI className={KPI_CLASS}>
+            <KPI.Header>
+              <KPI.Icon status={pendingSwaps ? "warning" : "success"}>
+                <ArrowRightArrowLeft />
+              </KPI.Icon>
+              <KPI.Title>Requests</KPI.Title>
+            </KPI.Header>
+            <KPI.Content>
+              <KPI.Value value={pendingSwaps} className="tabular" />
+            </KPI.Content>
+            <KPI.Footer>
+              <p className="text-xs leading-4 text-muted">{pendingSwaps ? "To decide" : "None waiting"}</p>
+            </KPI.Footer>
+          </KPI>
+        </KPIGroup>
+      </section>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Tabs
-          variant="secondary"
-          selectedKey={dept}
-          onSelectionChange={(k) => setDept(String(k))}
-          className="min-w-0 flex-1"
-        >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Tabs variant="secondary" selectedKey={dept} onSelectionChange={(k) => setDept(String(k))} className="min-w-0">
           <Tabs.ListContainer>
             <Tabs.List aria-label="Department" className="justify-start gap-1">
               {tabs.map((t) => (
-                <Tabs.Tab key={t.id} id={t.id} className="w-auto flex-none gap-1.5 px-3">
+                <Tabs.Tab key={t.id} id={t.id} className={TAB_CLASS}>
                   {t.label}
-                  <Chip size="sm" variant="soft">
+                  <Chip size="sm" variant="soft" color={t.id !== "all" && gapsBy(t.id) ? "warning" : "default"}>
                     {t.n}
                   </Chip>
                   <Tabs.Indicator />
@@ -400,310 +830,431 @@ export function RosterView({
             </Tabs.List>
           </Tabs.ListContainer>
         </Tabs>
-        <ul aria-label="Legend" className="flex flex-wrap items-center gap-3 text-xs text-muted">
-          {(Object.keys(LEGEND) as ShiftCode[]).map((k) => (
-            <li key={k} className="flex items-center gap-1.5">
-              <span aria-hidden="true" className={`inline-block size-3 rounded ${SWATCH[k]}`} />
-              {LEGEND[k]}
+        <ul aria-label="Legend" className="flex flex-wrap items-center gap-1.5">
+          {LEGEND.map(({ code, label }) => (
+            <li
+              key={code}
+              className={`flex h-6 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold ${
+                code === "O" ? "border border-dashed border-separator text-muted" : SHIFT[code].pill
+              }`}
+            >
+              {SHIFT[code].icon("size-3")}
+              {label}
             </li>
           ))}
+          <li className="flex h-7 items-center gap-1 px-1.5 text-xs text-muted">
+            <ArrowUpRight className="size-3.5" aria-hidden="true" />
+            Lent
+          </li>
         </ul>
       </div>
 
-      <div className="flex flex-wrap items-start gap-4">
-        <Table className="min-w-0 flex-[999_1_640px]">
-          <Table.ScrollContainer>
-            <Table.Content aria-label={`Roster, ${W.label}`} className="min-w-[760px]">
-              <Table.Header>
-                <Table.Column isRowHeader className="w-[190px]">
-                  Staff · rotation
-                </Table.Column>
-                {days.map((d) => (
-                  <Table.Column key={d} className="px-1 text-center">
-                    {d}
+      <Table>
+        <Table.ScrollContainer>
+          <Table.Content aria-label={`Roster, ${W.label}`} className="min-w-[820px] table-fixed">
+            <Table.Header>
+              <Table.Column isRowHeader className="w-[220px]">
+                Staff
+              </Table.Column>
+              {dates.map((iso) => {
+                const isToday = iso === today;
+                const weekend = weekdayIndex(iso) >= 5;
+                return (
+                  <Table.Column key={iso} className={`px-1 text-center ${isToday ? "bg-accent-soft/50" : ""}`}>
+                    <span className="flex flex-col items-center gap-0.5 leading-none">
+                      <span className={`text-[11px] font-medium ${weekend ? "text-accent" : ""}`}>
+                        {weekdayShort(iso)}
+                      </span>
+                      <span
+                        className={`flex size-7 items-center justify-center rounded-full text-[14px] font-semibold tabular ${
+                          isToday ? "bg-accent text-accent-foreground" : "text-foreground"
+                        }`}
+                      >
+                        {dayOfMonth(iso)}
+                      </span>
+                      {isToday ? <span className="sr-only">today</span> : null}
+                    </span>
                   </Table.Column>
-                ))}
-                <Table.Column className="text-right">Hours</Table.Column>
-              </Table.Header>
-              <Table.Body>
-                {shownGroups.map((G) => {
-                  const rows = staff.filter((p) => p.group === G.id);
-                  return (
-                    <Fragment key={G.id}>
-                      <Table.Row id={`${G.id}-head`}>
-                        <Table.Cell colSpan={9} className="bg-surface-secondary px-3 py-1.5">
-                          <span className="flex items-center gap-2">
-                            <span className="font-semibold">{G.name}</span>
-                            <span className="text-xs text-muted">
-                              {rows.length} staff · {G.note}
-                            </span>
-                          </span>
-                        </Table.Cell>
-                      </Table.Row>
-                      {rows.map((p) => {
-                        const h = hoursOf(p.id);
-                        return (
-                          <Table.Row key={p.id} id={p.id}>
-                            <Table.Cell className="px-3 py-1">
-                              <span className="flex flex-col">
-                                <span className="text-[13px] font-medium">{p.name}</span>
-                                <span className="text-[11px] leading-[14px] text-muted">
-                                  {p.role} · Rotation {p.rotation}
+                );
+              })}
+              <Table.Column className="w-[84px] text-right">Hours</Table.Column>
+            </Table.Header>
+            <Table.Body>
+              {shownGroups.map((G) => {
+                const rows = staff.filter((p) => p.group === G.id);
+                const short = gapsBy(G.id);
+                return (
+                  <Fragment key={G.id}>
+                    <Table.Row id={`${G.id}-head`}>
+                      <Table.Cell colSpan={9} className="bg-surface-secondary px-3 py-2">
+                        <span className="flex items-center gap-2">
+                          <span className="font-semibold">{G.name}</span>
+                          <Chip size="sm" variant="soft">
+                            {rows.length}
+                          </Chip>
+                          {G.note ? <Hint label={`About ${G.name}`}>{G.note}</Hint> : null}
+                          {short ? (
+                            <Chip size="sm" variant="soft" color="warning" className="ml-auto">
+                              <TriangleExclamation className="size-3" />
+                              <Chip.Label>
+                                {short} {plural(short, "gap")}
+                              </Chip.Label>
+                            </Chip>
+                          ) : (
+                            <Chip size="sm" variant="soft" color="success" className="ml-auto">
+                              <Check className="size-3" />
+                              <Chip.Label>Covered</Chip.Label>
+                            </Chip>
+                          )}
+                        </span>
+                      </Table.Cell>
+                    </Table.Row>
+                    {rows.map((p) => {
+                      const h = hoursOf(p.id);
+                      return (
+                        <Table.Row key={p.id} id={p.id}>
+                          <Table.Cell className="px-3 py-1.5">
+                            <Person name={p.name} sub={`${p.role} · ${p.rotation}`} className="text-[13px]" />
+                          </Table.Cell>
+                          {dates.map((iso, d) => (
+                            <Table.Cell key={iso} className={`px-1 py-1.5 ${colBg(d)}`}>
+                              {cell(p, d)}
+                            </Table.Cell>
+                          ))}
+                          <Table.Cell className="px-3 py-1.5 text-right text-[13px] tabular">
+                            <Tip
+                              tip={
+                                h > MAX_WEEK_HOURS ? `${h - MAX_WEEK_HOURS} h overtime` : `${h} of ${MAX_WEEK_HOURS} h`
+                              }
+                              className="w-full"
+                            >
+                              <span className="flex w-full flex-col items-end gap-1">
+                                <span className={`font-semibold ${h > MAX_WEEK_HOURS ? "text-warning" : ""}`}>
+                                  {h} h
+                                </span>
+                                <span className="h-1 w-full max-w-[52px] overflow-hidden rounded-full bg-default">
+                                  <span
+                                    className={`block h-full rounded-full ${h > MAX_WEEK_HOURS ? "bg-warning" : "bg-accent"}`}
+                                    style={{ width: `${Math.min(100, (h / MAX_WEEK_HOURS) * 100)}%` }}
+                                  />
                                 </span>
                               </span>
-                            </Table.Cell>
-                            {grid[p.id].map((v, d) => {
-                              const isSel = sel.r === p.id && sel.d === d;
-                              const isLent = !!lentNow[`${p.id}-${d}`];
-                              return (
-                                <Table.Cell key={`${p.id}-${days[d]}`} className="p-[3px]">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    aria-pressed={isSel}
-                                    aria-label={`${p.name}, ${longDays[d]}: ${NAME[v]}${isLent ? `, lent to ${otherBranchName}` : ""}. Edit shift`}
-                                    onPress={() => setSel({ r: p.id, d })}
-                                    className={`h-auto min-h-8 w-full min-w-0 flex-col gap-0 rounded-lg px-1 py-0.5 text-xs font-semibold tabular hover:opacity-90 ${SWATCH[v]} ${isSel ? "outline-2 outline-offset-1 outline-solid outline-[var(--focus)]" : ""}`}
-                                  >
-                                    {LABEL[v]}
-                                    {isLent ? (
-                                      <span className="block max-w-full truncate text-[10px] leading-[11px] font-medium">
-                                        {lentShort}
-                                      </span>
-                                    ) : null}
-                                  </Button>
-                                </Table.Cell>
-                              );
-                            })}
-                            <Table.Cell className="px-3 py-1 text-right text-[13px] tabular">
-                              {h > MAX_WEEK_HOURS ? (
-                                <Chip size="sm" variant="soft" color="warning">
-                                  {h} h
-                                </Chip>
-                              ) : (
-                                `${h} h`
-                              )}
-                            </Table.Cell>
-                          </Table.Row>
+                            </Tip>
+                          </Table.Cell>
+                        </Table.Row>
+                      );
+                    })}
+                    <Table.Row id={`${G.id}-cover`}>
+                      <Table.Cell className="px-3 py-2">
+                        {G.id === "no-team" ? (
+                          <span className="text-xs font-medium text-muted">{G.rule}</span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 gap-1.5 px-2 text-xs font-medium"
+                            aria-label={`Set minimum cover for ${G.name}`}
+                            onPress={() => setCoverFor(G.id)}
+                          >
+                            <Pencil className="size-3.5" aria-hidden="true" />
+                            {G.rule}
+                          </Button>
+                        )}
+                      </Table.Cell>
+                      {G.min.map((mn, d) => {
+                        const n = coverOf(G, d, grid);
+                        const low = n < mn;
+                        return (
+                          <Table.Cell key={`${G.id}-${dates[d]}`} className={`px-2 py-2 ${colBg(d)}`}>
+                            <Tip
+                              tip={
+                                low
+                                  ? `${mn - n} more ${plural(mn - n, "person", "people")} needed on ${days[d]}`
+                                  : `${n} of ${mn} needed`
+                              }
+                              className="w-full"
+                            >
+                              <span className="flex w-full flex-col items-center gap-1">
+                                <span
+                                  className={`text-[11px] font-semibold tabular ${low ? "text-warning" : "text-muted"}`}
+                                >
+                                  {n}/{mn}
+                                </span>
+                                <span className="h-1 w-full max-w-[56px] overflow-hidden rounded-full bg-default">
+                                  <span
+                                    className={`block h-full rounded-full ${low ? "bg-warning" : "bg-accent"}`}
+                                    style={{ width: `${Math.min(100, mn ? (n / mn) * 100 : 100)}%` }}
+                                  />
+                                </span>
+                              </span>
+                            </Tip>
+                          </Table.Cell>
                         );
                       })}
-                      <Table.Row id={`${G.id}-cover`}>
-                        <Table.Cell className="px-3 py-1.5">
-                          <span className="text-xs font-medium text-muted">{G.rule}</span>
-                        </Table.Cell>
-                        {G.min.map((mn, d) => {
-                          const n = coverOf(G, d, grid);
-                          return (
-                            <Table.Cell key={`${G.id}-${days[d]}`} className="p-1 text-center">
-                              <Chip size="sm" variant="soft" color={n < mn ? "warning" : "success"} className="tabular">
-                                {n} of {mn}
-                              </Chip>
-                            </Table.Cell>
-                          );
-                        })}
-                        <Table.Cell>{""}</Table.Cell>
-                      </Table.Row>
-                    </Fragment>
-                  );
-                })}
-              </Table.Body>
-            </Table.Content>
-          </Table.ScrollContainer>
-        </Table>
+                      <Table.Cell>{""}</Table.Cell>
+                    </Table.Row>
+                  </Fragment>
+                );
+              })}
+            </Table.Body>
+          </Table.Content>
+        </Table.ScrollContainer>
+      </Table>
 
-        <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
-          <PanelCard dense id="ed-h" title="Edit Shift" description={`${sp.name} · ${longDays[sel.d]} · ${NAME[sv]}`}>
-            {sv !== "L" ? (
-              <>
-                <Fieldset className="m-0 min-w-0 grow-0 basis-auto gap-0 border-0 p-0">
-                  <Fieldset.Legend className="sr-only">Shift</Fieldset.Legend>
-                  <Fieldset.Group className="grid grid-cols-2 gap-1.5 space-y-0">
-                    {(["M", "E", "N", "O"] as ShiftCode[]).map((k) => (
-                      <Button
-                        key={k}
-                        size="sm"
-                        variant={sv === k ? "primary" : "secondary"}
-                        fullWidth
-                        aria-pressed={sv === k}
-                        onPress={() => setCell(sp.id, sel.d, k)}
-                      >
-                        {LEGEND[k]}
-                      </Button>
-                    ))}
-                  </Fieldset.Group>
-                </Fieldset>
-                <NativeSelect fullWidth className="flex flex-col gap-1">
-                  <Label htmlFor="ed-dept">Work in</Label>
-                  <NativeSelect.Trigger
-                    id="ed-dept"
-                    aria-describedby="ed-dept-help"
-                    value={selLent ? "lodge" : "home"}
-                    onChange={(ev) => setLentCell(sp.id, sel.d, ev.target.value === "lodge")}
-                  >
-                    <NativeSelect.Option value="home">{home} (home department)</NativeSelect.Option>
-                    <NativeSelect.Option value="lodge">Lent to {otherBranchName}</NativeSelect.Option>
-                    <NativeSelect.Indicator />
-                  </NativeSelect.Trigger>
-                  <Description id="ed-dept-help">
-                    {selLent
-                      ? `Counts toward ${otherBranchName} cover, not ${home.toLowerCase()}.`
-                      : "Lend for one shift without changing the home department."}
-                  </Description>
-                </NativeSelect>
-              </>
-            ) : (
-              <Alert>
-                <Alert.Indicator>
-                  <Suitcase />
-                </Alert.Indicator>
-                <Alert.Content>
-                  <Alert.Title>On approved leave</Alert.Title>
-                  <Alert.Description>Leave days come from Leave and cannot be overwritten here.</Alert.Description>
-                </Alert.Content>
-              </Alert>
-            )}
-            <KeyValueList
-              items={[
-                {
-                  label: "Hours that week",
-                  value: `${hrs} h rostered${hrs > MAX_WEEK_HOURS ? ` · ${hrs - MAX_WEEK_HOURS} h over the ${MAX_WEEK_HOURS} h legal week` : ""}`,
-                },
-                {
-                  label: "Rotation",
-                  value: `Rotation ${sp.rotation} · ${pattern}. Changes apply to the week shown only.`,
-                },
-              ]}
-            />
-          </PanelCard>
+      <RosterCover
+        days={days.map((label, d) => ({
+          label,
+          onShift: shownGroups.reduce((n, G) => n + coverOf(G, d, grid), 0),
+          needed: shownGroups.reduce((n, G) => n + (G.min[d] ?? 0), 0),
+        }))}
+      />
 
-          <PanelCard
-            dense
-            id="fill-h"
-            title={`Fill ${days[5]} · ${hk.name}`}
-            description={`Morning cover ${sat} of ${satMin} · off-duty room attendants`}
-            className="gap-2.5"
-          >
-            {sat < satMin ? (
-              fill.map((f) => (
-                <div key={f.id} className="flex items-center gap-2">
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="text-[13px] font-medium">{f.name}</span>
-                    <span className="text-xs text-muted">{f.note}</span>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    aria-label={`Assign ${f.name} to ${longDays[5]}`}
-                    onPress={() => setCell(f.id, 5, "M")}
-                  >
-                    Assign
-                  </Button>
+      <PanelCard
+        dense
+        id="gap-h"
+        title="Gaps to fill"
+        action={
+          gaps.length ? (
+            <Chip size="sm" variant="soft" color="warning">
+              {gaps.length}
+            </Chip>
+          ) : null
+        }
+        className="gap-2.5"
+      >
+        {gaps.length === 0 ? (
+          <EmptyState size="sm">
+            <EmptyState.Header>
+              <EmptyState.Media variant="icon">
+                <CircleCheck />
+              </EmptyState.Media>
+              <EmptyState.Title>Every shift covered</EmptyState.Title>
+            </EmptyState.Header>
+          </EmptyState>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {gaps.map((g) => (
+              <div key={g.id} className="flex items-center gap-3 rounded-xl bg-surface-secondary p-2.5">
+                <Ring
+                  value={g.n}
+                  max={g.mn}
+                  label={`${g.n} of ${g.mn} covered`}
+                  color={g.n ? "warning" : "danger"}
+                  size="size-10"
+                >
+                  <span className="text-[10px]">
+                    {g.n}/{g.mn}
+                  </span>
+                </Ring>
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-sm font-semibold">
+                    {days[g.d]} · {g.G.name}
+                  </span>
+                  <span className="text-xs text-muted">
+                    {g.G.shifts.length === 1 ? SHIFT[g.G.shifts[0]].name : "Any shift"} · {g.mn - g.n} more needed
+                  </span>
                 </div>
-              ))
-            ) : (
-              <Chip variant="soft" color="success" className="self-start">
-                <Check className="size-3" />
-                <Chip.Label>{weekdayLong(dates[5])} meets minimum cover</Chip.Label>
-              </Chip>
-            )}
-          </PanelCard>
+                {g.free.length === 0 ? (
+                  <Tip tip={`Nobody in ${g.G.name.toLowerCase()} is off that day`}>
+                    <Chip size="sm" variant="soft">
+                      No one free
+                    </Chip>
+                  </Tip>
+                ) : (
+                  <GapAssign
+                    group={g.G}
+                    dayLabel={longDays[g.d]}
+                    free={g.free}
+                    hoursOf={hoursLabel}
+                    onShift={(k) => staff.filter((p) => p.group === g.G.id && grid[p.id][g.d] === k).length}
+                    onAssign={(id, k) => setCell(id, g.d, k)}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </PanelCard>
 
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-4">
           <PanelCard
             dense
             id="sw-h"
-            title="Shift Swap Requests"
-            description="This week · the colleague named in each has agreed to it"
+            title="Shift requests"
+            action={
+              pendingSwaps ? (
+                <Chip size="sm" variant="soft" color="warning">
+                  {pendingSwaps}
+                </Chip>
+              ) : null
+            }
             className="gap-2.5"
           >
+            {swaps.length === 0 ? (
+              <EmptyState size="sm">
+                <EmptyState.Header>
+                  <EmptyState.Media variant="icon">
+                    <ArrowRightArrowLeft />
+                  </EmptyState.Media>
+                  <EmptyState.Title>No requests</EmptyState.Title>
+                </EmptyState.Header>
+              </EmptyState>
+            ) : null}
             {swaps.map((w) => (
-              <Card key={w.id} variant="secondary" className="gap-1.5 p-3">
-                <span className="text-[13px] font-medium">{w.title}</span>
-                <span className="text-xs leading-4 text-muted">{w.detail}</span>
-                <Chip size="sm" variant="soft" color={w.tone} className="self-start">
-                  {w.impact}
-                </Chip>
-                {w.st === "pending" ? (
-                  <div className="flex items-center gap-1.5">
-                    <Button size="sm" onPress={() => approveSwap(w)}>
-                      Approve swap
-                    </Button>
-                    <Button size="sm" variant="ghost" onPress={() => decideSwap(w, "declined")}>
-                      Decline
-                    </Button>
-                  </div>
-                ) : (
-                  <span className="text-xs text-muted">{w.outcome}</span>
-                )}
+              <Card key={w.id} variant="secondary" className="gap-2 p-3">
+                <span className="flex items-center gap-1 text-[13px] font-medium">
+                  {w.title}
+                  {w.detail ? <Hint label="Why they asked">{w.detail}</Hint> : null}
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Chip size="sm" variant="soft" color={w.tone}>
+                    {w.impact}
+                  </Chip>
+                  {w.st === "pending" ? (
+                    <span className="ml-auto flex items-center gap-1.5">
+                      {w.waiting || w.overdue ? null : (
+                        <Button size="sm" onPress={() => decideSwap(w, "approved")}>
+                          <Check className="size-4" />
+                          Approve
+                        </Button>
+                      )}
+                      {w.canAcceptFor && !w.overdue ? (
+                        <Button size="sm" variant="secondary" onPress={() => acceptFor(w)}>
+                          Yes for {w.colleague}
+                        </Button>
+                      ) : null}
+                      <Button size="sm" variant="ghost" onPress={() => decideSwap(w, "declined")}>
+                        Decline
+                      </Button>
+                    </span>
+                  ) : null}
+                </div>
               </Card>
             ))}
           </PanelCard>
-        </div>
-      </div>
 
-      <div className="grid items-start gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))]">
+          <PanelCard
+            dense
+            id="hol-h"
+            title="Public holidays"
+            action={
+              <span className="flex items-center gap-1.5">
+                <GateChip icon={<ShieldExclamation className="size-3" />}>Unverified</GateChip>
+                <LinkButton href={screenHref("PayrollRules")} size="sm" variant="ghost">
+                  Pay rule
+                </LinkButton>
+              </span>
+            }
+            className="gap-2"
+          >
+            {holidays.map((h) => {
+              const [weekday, day, month] = h.date.split(" ");
+              const pending = /not/i.test(h.rostered);
+              return (
+                <div key={h.id} className="flex items-center gap-3 rounded-xl bg-surface-secondary p-2.5">
+                  <span className="flex w-12 shrink-0 flex-col items-center rounded-lg bg-surface py-1 leading-tight">
+                    <span className="text-[10px] font-semibold text-muted">{weekday?.slice(0, 3)}</span>
+                    <span className="text-[17px] font-semibold tabular">{day}</span>
+                    <span className="text-[10px] text-muted">{month?.slice(0, 3)}</span>
+                  </span>
+                  <span className="flex min-w-0 flex-1 items-center gap-2 text-[13px] font-semibold">
+                    <Flag className="size-3.5 shrink-0 text-accent" aria-hidden="true" />
+                    <span className="truncate">{h.name}</span>
+                  </span>
+                  <Chip size="sm" variant="soft" color={pending ? "warning" : "success"} className="shrink-0">
+                    {h.rostered}
+                  </Chip>
+                </div>
+              );
+            })}
+          </PanelCard>
+        </div>
+
         <PanelCard
           dense
           id="rot-h"
           title="Rotations"
-          description="Patterns that generate each new week before you adjust it"
-          className="gap-2.5"
-        >
-          <ListView aria-label="Rotations" variant="secondary" items={rotations}>
-            {(r) => (
-              <ListView.Item id={r.id} textValue={r.name}>
-                <ListView.ItemContent>
-                  <Chip size="sm" variant="soft" className="shrink-0">
-                    {r.code}
-                  </Chip>
-                  <div className="flex min-w-0 flex-col">
-                    <ListView.Title className="whitespace-normal">{r.name}</ListView.Title>
-                    <ListView.Description className="whitespace-normal">{r.who}</ListView.Description>
-                  </div>
-                </ListView.ItemContent>
-                <ListView.ItemAction>
-                  <span className="text-xs text-muted">{r.staff} staff</span>
-                </ListView.ItemAction>
-              </ListView.Item>
-            )}
-          </ListView>
-        </PanelCard>
-
-        <PanelCard
-          dense
-          id="hol-h"
-          title="Public Holidays"
-          description="Rwanda calendar 2026 · sample list, dates of religious holidays confirmed when announced"
-          action={<GateChip icon={<ShieldExclamation className="size-3" />}>Sample · unverified</GateChip>}
-          className="gap-2.5"
-        >
-          <div className="flex items-start gap-2">
-            <CircleInfo className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
-            <span className="text-[13px]">
-              Sample list: the roster does not read public holidays yet, so check these dates before publishing a week.
-              Holiday shifts are paid at the holiday rate in Payroll rules.
+          action={
+            <span className="flex items-center gap-1.5">
+              <Chip size="sm" variant="soft">
+                {rotations.length}
+              </Chip>
+              <Button size="sm" variant="secondary" onPress={() => setNewRotation(true)}>
+                <Plus className="size-4" />
+                New rotation
+              </Button>
             </span>
+          }
+          className="gap-2"
+        >
+          {rotations.length === 0 ? (
+            <EmptyState size="sm">
+              <EmptyState.Header>
+                <EmptyState.Media variant="icon">
+                  <ArrowRightArrowLeft />
+                </EmptyState.Media>
+                <EmptyState.Title>No rotations yet</EmptyState.Title>
+              </EmptyState.Header>
+            </EmptyState>
+          ) : null}
+          <div className="grid gap-2 sm:grid-cols-2">
+            {rotations.map((r) => {
+              const names = (r.people ?? []).map((p) => p.name);
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => setRotationOpen(r.id)}
+                  aria-label={`Open rotation ${r.code}`}
+                  className="flex cursor-pointer flex-col gap-2 rounded-xl bg-surface-secondary p-3 text-left outline-none transition-colors hover:bg-surface-tertiary focus-visible:ring-2 focus-visible:ring-focus"
+                >
+                  <span className="flex items-start gap-2.5">
+                    <span className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-lg bg-accent px-1.5 text-xs font-bold text-accent-foreground">
+                      {r.code}
+                    </span>
+                    <span className="min-w-0 flex-1 text-[13px] leading-[18px] font-semibold">{r.name}</span>
+                    <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
+                  </span>
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1" title={r.who}>
+                      {names.slice(0, 4).map((n) => (
+                        <Avatar key={n} size="sm" color={avatarColor(n)} className="size-7 text-[11px]">
+                          <Avatar.Fallback>{initials(n)}</Avatar.Fallback>
+                        </Avatar>
+                      ))}
+                      {names.length > 4 ? <span className="text-xs text-muted">+{names.length - 4}</span> : null}
+                      {names.length === 0 ? <span className="text-xs text-muted">Nobody yet</span> : null}
+                    </span>
+                    <span className="text-xs text-muted tabular">
+                      {r.staff} {plural(r.staff, "person", "people")}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <ListView aria-label="Public holidays" variant="secondary" items={holidays}>
-            {(h) => (
-              <ListView.Item id={h.id} textValue={h.name}>
-                <ListView.ItemContent>
-                  <Flag className="size-4 shrink-0 text-muted" aria-hidden="true" />
-                  <div className="flex min-w-0 flex-col">
-                    <ListView.Title>{h.name}</ListView.Title>
-                    <ListView.Description>{h.date}</ListView.Description>
-                  </div>
-                </ListView.ItemContent>
-                <ListView.ItemAction>
-                  <span className="text-xs text-muted">{h.rostered}</span>
-                </ListView.ItemAction>
-              </ListView.Item>
-            )}
-          </ListView>
-          <LinkButton href={screenHref("PayrollRules")} size="sm" variant="ghost" className="self-start">
-            Holiday pay rule
-          </LinkButton>
         </PanelCard>
       </div>
+
+      <RotationDrawer
+        rotation={rotations.find((r) => r.id === rotationOpen) ?? null}
+        rotations={rotations}
+        staff={staff}
+        today={today}
+        onOpenChange={(open) => {
+          if (!open) setRotationOpen(null);
+        }}
+      />
+
+      <NewRotationDrawer isOpen={newRotation} onOpenChange={setNewRotation} />
+      <CoverDrawer
+        group={groups.find((G) => G.id === coverFor) ?? null}
+        shiftTimes={W.shiftTimes}
+        onOpenChange={(open) => {
+          if (!open) setCoverFor(null);
+        }}
+      />
 
       <Modal.Backdrop isOpen={dialog} onOpenChange={setDialog}>
         <Modal.Container>
@@ -714,26 +1265,22 @@ export function RosterView({
               </Modal.Heading>
               <p className="text-sm text-muted">{dlgText}</p>
             </Modal.Header>
-            {hasWarnings ? (
+            {gaps.length ? (
               <Modal.Body>
-                <Alert status="warning">
-                  <Alert.Indicator>
-                    <TriangleExclamation />
-                  </Alert.Indicator>
-                  <Alert.Content>
-                    <Alert.Title>{warnTitle}</Alert.Title>
-                    <Alert.Description>
-                      Nobody is told about the gaps automatically. You can still fill them after publishing.
-                    </Alert.Description>
-                  </Alert.Content>
-                </Alert>
+                <span className="flex items-center gap-2 rounded-xl bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground">
+                  <TriangleExclamation className="size-4 shrink-0" aria-hidden="true" />
+                  {gaps.length} {plural(gaps.length, "shift is", "shifts are")} below minimum cover
+                </span>
               </Modal.Body>
             ) : null}
             <Modal.Footer>
               <Button slot="close" variant="ghost">
                 Keep editing
               </Button>
-              <Button onPress={publish}>{confirmLabel}</Button>
+              <Button onPress={publish}>
+                <PaperPlane className="size-4" />
+                {confirmLabel}
+              </Button>
             </Modal.Footer>
           </Modal.Dialog>
         </Modal.Container>

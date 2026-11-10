@@ -18,6 +18,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { HrFeatureOn } from '../../../modules/hr/application/hr-feature.guard';
 import { HrContentService } from '../../../modules/hr/application/hr-content.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import {
@@ -55,6 +56,7 @@ export class OpsStaffAnnouncementsController {
     return this.content.announcements(workspace);
   }
 
+  @HrFeatureOn('announcements')
   @Post()
   @RequirePermission('people.manage')
   create(
@@ -65,6 +67,7 @@ export class OpsStaffAnnouncementsController {
     return this.content.createAnnouncement(workspace, user.id, body);
   }
 
+  @HrFeatureOn('announcements')
   @Patch(':id')
   @RequirePermission('people.manage')
   update(

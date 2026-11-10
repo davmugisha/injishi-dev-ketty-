@@ -184,8 +184,10 @@ exports.MyDocument = zod_1.z.object({
     expiresOn: IsoDate.nullable(),
     /** When HR last acted on it (approved a document). */
     checkedAt: zod_1.z.string().nullable(),
+    /** Why HR sent a document back. */
+    rejectReason: zod_1.z.string().nullable(),
 });
-/** `GET /me/work/:employeeId/documents`. */
+/** `GET /me/work/:employeeId/papers`: the contracts and documents on a person's own file, for the phone. */
 exports.MyDocumentList = zod_1.z.object({ documents: zod_1.z.array(exports.MyDocument) });
 exports.LeaveApproversQuery = zod_1.z.object({ leaveTypeId: primitives_1.Uuid.optional() });
 /** One step of the approval a leave request will go through, and who decides it. */

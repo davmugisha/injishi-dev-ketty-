@@ -16,6 +16,7 @@ import {
   attendanceRequests,
   employees,
   jobPositions,
+  rotationPatterns,
   shiftRequests,
   shiftTemplates,
   users,
@@ -57,6 +58,8 @@ export interface ShiftRequestRow {
   swapPreferredName: string | null;
   swapLegalName: string | null;
   swapPositionTitle: string | null;
+  rotationPatternId: string | null;
+  rotationName: string | null;
   fromDate: string;
   toDate: string;
   reason: string;
@@ -135,6 +138,8 @@ export class TimeRequestsRepository {
     swapPreferredName: swapPerson.preferredName,
     swapLegalName: swapPerson.legalName,
     swapPositionTitle: swapPosition.title,
+    rotationPatternId: shiftRequests.rotationPatternId,
+    rotationName: rotationPatterns.name,
     fromDate: shiftRequests.fromDate,
     toDate: shiftRequests.toDate,
     reason: shiftRequests.reason,
@@ -162,6 +167,7 @@ export class TimeRequestsRepository {
       .leftJoin(shiftTemplates, eq(shiftTemplates.id, shiftRequests.shiftTemplateId))
       .leftJoin(swapPerson, eq(swapPerson.id, shiftRequests.swapEmployeeId))
       .leftJoin(swapPosition, eq(swapPosition.id, swapPerson.jobPositionId))
+      .leftJoin(rotationPatterns, eq(rotationPatterns.id, shiftRequests.rotationPatternId))
       .leftJoin(routedPerson, eq(routedPerson.id, shiftRequests.routedToEmployeeId))
       .leftJoin(routedPosition, eq(routedPosition.id, routedPerson.jobPositionId))
       .leftJoin(decider, eq(decider.id, shiftRequests.decidedByUserId));
@@ -247,14 +253,18 @@ export class TimeRequestsRepository {
   }
 
   /** What a person asked, newest first; and the swaps colleagues asked of them. */
-  async shiftsOf(employeeId: string): Promise<{ mine: ShiftRequestRow[]; askedOfMe: ShiftRequestRow[] }> {
-    const [mine, askedOfMe] = await Promise.all([
+  async shiftsOf(employeeId: string): Promise<{ mine: ShiftRequestRow[]; askedOfMe: ShiftRequestRow[]; answered: ShiftRequestRow[] }> {
+    const [mine, askedOfMe, answered] = await Promise.all([
       this.shift().where(eq(shiftRequests.employeeId, employeeId)).orderBy(desc(shiftRequests.createdAt)).limit(100),
       this.shift()
         .where(and(eq(shiftRequests.swapEmployeeId, employeeId), eq(shiftRequests.status, 'awaiting_colleague')))
         .orderBy(desc(shiftRequests.createdAt)),
+      this.shift()
+        .where(and(eq(shiftRequests.swapEmployeeId, employeeId), inArray(shiftRequests.status, ['requested', 'approved', 'rejected'])))
+        .orderBy(desc(shiftRequests.updatedAt))
+        .limit(20),
     ]);
-    return { mine: mine as ShiftRequestRow[], askedOfMe: askedOfMe as ShiftRequestRow[] };
+    return { mine: mine as ShiftRequestRow[], askedOfMe: askedOfMe as ShiftRequestRow[], answered: answered as ShiftRequestRow[] };
   }
 
   /** Requests routed to a manager's file, open ones first (058-self-service AC-SS15). */
@@ -273,6 +283,7 @@ export class TimeRequestsRepository {
       kind: ShiftRequestKind;
       shiftTemplateId: string | null;
       swapEmployeeId: string | null;
+      rotationPatternId: string | null;
       fromDate: string;
       toDate: string;
       reason: string;

@@ -33,13 +33,10 @@ import {
   numeric,
   pgTable,
   text,
-  timestamp,
-  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
-import { users } from './auth';
 import { timestamps } from './columns';
 import { properties } from './inventory';
 import { departmentMemberStatusEnum, departments } from './operations';
@@ -142,37 +139,6 @@ export const rosterCoverRequirements = pgTable(
       sql`jsonb_typeof(${t.shiftTemplateIds}) = 'array' AND jsonb_array_length(${t.shiftTemplateIds}) BETWEEN 1 AND 12`,
     ),
     index('roster_cover_requirements_property_idx').on(t.propertyId, t.status),
-  ],
-);
-
-/** One step of a person's onboarding or offboarding. */
-export const hrChecklistItems = pgTable(
-  'hr_checklist_items',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    orgId: uuid('org_id')
-      .notNull()
-      .references(() => orgs.id, { onDelete: 'cascade' }),
-    employeeId: uuid('employee_id')
-      .notNull()
-      .references(() => employees.id),
-    checklist: text('checklist').notNull(),
-    /** Stable within a checklist ("assets", "access"), so a step is named the same on every file. */
-    code: text('code').notNull(),
-    title: text('title').notNull(),
-    detail: text('detail'),
-    /** Only someone who may manage the team ticks it (taking an account away is staffing the business). */
-    ownerOnly: boolean('owner_only').notNull().default(false),
-    sortOrder: integer('sort_order').notNull().default(0),
-    doneAt: timestamp('done_at', { withTimezone: true }),
-    doneByUserId: uuid('done_by_user_id').references(() => users.id),
-    ...timestamps,
-  },
-  (t) => [
-    unique('hr_checklist_items_code_uk').on(t.employeeId, t.checklist, t.code),
-    check('hr_checklist_items_checklist_ck', sql`${t.checklist} IN ('onboarding', 'offboarding')`),
-    check('hr_checklist_items_done_ck', sql`(${t.doneAt} IS NULL) = (${t.doneByUserId} IS NULL)`),
-    index('hr_checklist_items_org_idx').on(t.orgId, t.checklist),
   ],
 );
 

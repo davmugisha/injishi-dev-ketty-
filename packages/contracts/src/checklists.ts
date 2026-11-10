@@ -36,8 +36,14 @@ export const CHECKLIST_KIND_LABEL: Readonly<Record<ChecklistKind, string>> = {
 export const ChecklistTemplateItem = z.object({
   id: Uuid,
   label: z.string(),
+  /** A short stable name ("assets", "access") a screen can lead from; null for most steps. */
+  code: z.string().nullable(),
+  /** A line under the label: what exactly is to be done. */
+  detail: z.string().nullable(),
   /** The person does this themselves; otherwise the office does. */
   byEmployee: z.boolean(),
+  /** Only someone who may manage the team ticks it (AC-O2). */
+  ownerOnly: z.boolean(),
   /**
    * When it is due, in days from the day the checklist counts from: the first
    * day for somebody joining, the last day for somebody leaving. Negative is
@@ -64,7 +70,14 @@ export type ChecklistTemplateList = z.infer<typeof ChecklistTemplateList>;
 
 const TemplateItemInput = z.object({
   label: z.string().trim().min(2, "Say what is to be done.").max(160),
+  code: z
+    .string()
+    .regex(/^[a-z0-9-]{1,40}$/, "A code is lower case letters, digits and dashes.")
+    .nullable()
+    .optional(),
+  detail: z.string().trim().max(500).nullable().optional(),
   byEmployee: z.boolean().optional(),
+  ownerOnly: z.boolean().optional(),
   dueAfterDays: z.number().int().min(-60, "At most 60 days before.").max(365, "At most a year after.").optional(),
   jobPositionId: Uuid.nullable().optional(),
 });
@@ -93,7 +106,10 @@ export type UpdateChecklistTemplateRequest = z.infer<typeof UpdateChecklistTempl
 export const ChecklistTask = z.object({
   id: Uuid,
   label: z.string(),
+  code: z.string().nullable(),
+  detail: z.string().nullable(),
   byEmployee: z.boolean(),
+  ownerOnly: z.boolean(),
   dueOn: IsoDate,
   doneAt: z.string().nullable(),
   doneByName: z.string().nullable(),

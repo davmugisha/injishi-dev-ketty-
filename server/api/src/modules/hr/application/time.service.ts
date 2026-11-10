@@ -9,8 +9,10 @@ import type {
   CreateRosterEntryRequest,
   CreateShiftTemplateRequest,
   DecideOvertimeRequest,
+  FarClockIns,
   ListQuery,
   PublishRosterRequest,
+  RejectAttendanceRequest,
   RosterEntry,
   RosterPage,
   RosterPublication,
@@ -29,7 +31,7 @@ import {
 } from '@nestjs/common';
 
 import { assertOwnedByOrg } from '../../../shared/auth/assert-owned';
-import { assertInBranchScope, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import { assertInBranchScope, coversProperty, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { pageOf } from '../../../shared/lists/list-query';
 import { isCalendarDate } from '../../pms/domain/pricing';
@@ -91,7 +93,7 @@ export interface RecordReader {
 }
 
 /** The figure audience of a grant (AC-TM13). */
-export function recordReaderOf(ws: Pick<ScopedWorkspace, 'permissions'>): RecordReader {
+function recordReaderOf(ws: Pick<ScopedWorkspace, 'permissions'>): RecordReader {
   const approve = ws.permissions.includes('attendance.approve');
   return { figures: approve || ws.permissions.includes('people.manage'), location: approve };
 }
@@ -653,6 +655,46 @@ export class TimeService {
     return this.presentRecordById(record.id, recordReaderOf(ws));
   }
 
+  /**
+   * `POST /ops/attendance/:id/reject`: the person was not at work, so a clock-in
+   * nobody vouched for counts for nothing. It stops blocking the pay run, and
+   * the note says why.
+   */
+  async reject(ws: ScopedWorkspace, userId: string, id: string, body: RejectAttendanceRequest): Promise<AttendanceRecord> {
+    const orgId = orgOf(ws);
+    const record = assertOwnedByOrg(await this.time.findRecord(id), ws);
+    assertPersonInReach(ws, record.workPropertyId);
+    const note = `Not counted: ${body.note.trim()}`;
+    await this.db.transaction(async (tx) => {
+      if (!(await this.time.reject(tx, record.id, { note, at: new Date() }))) {
+        throw new ConflictException('Only a clock-in nobody has checked yet can be marked as not counted.');
+      }
+      await writeHrAudit(tx, {
+        actorUserId: userId,
+        subjectType: 'employee',
+        subjectId: record.employeeId,
+        eventType: 'hr.attendance_rejected',
+        orgId,
+        diff: { attendanceRecordId: record.id },
+        reason: body.note.trim(),
+      });
+    });
+    return this.presentRecordById(record.id, recordReaderOf(ws));
+  }
+
+  /** `GET /ops/attendance/far-clock-ins`: this month, in the caller's branches, in name order. */
+  async farClockIns(ws: ScopedWorkspace): Promise<FarClockIns> {
+    const month = kigaliToday().slice(0, 7);
+    const fromDate = `${month}-01`;
+    const rows = await this.time.farClockIns(orgOf(ws), fromDate, new Date(`${fromDate}T00:00:00+02:00`));
+    return {
+      month,
+      people: rows
+        .filter((r) => coversProperty(ws.branchScope, r.workPropertyId))
+        .map((r) => ({ employeeId: r.employeeId, displayName: r.name, times: r.times, lastAt: r.lastAt.toISOString() })),
+    };
+  }
+
   /** `POST /ops/attendance/:id/overtime`: approve all of it, or less (AC-TM8). Only approved overtime reaches pay. */
   async decideOvertime(ws: ScopedWorkspace, userId: string, id: string, body: DecideOvertimeRequest): Promise<AttendanceRecord> {
     const orgId = orgOf(ws);
@@ -928,7 +970,7 @@ function clockTime(raw: string | undefined): Date {
 }
 
 /** Nobody is rostered or clocked in after they have left (AC-O1). */
-export function assertWorking(employee: EmployeeRow, workDate: string): void {
+function assertWorking(employee: EmployeeRow, workDate: string): void {
   if (employee.status === 'offboarded' && employee.offboardedOn && workDate > employee.offboardedOn) {
     throw new UnprocessableEntityException(
       `${employee.legalName} left on ${employee.offboardedOn}, so they cannot work on ${workDate}.`,
@@ -979,7 +1021,7 @@ export function presentEntry(row: RosterEntryRow): RosterEntry {
   };
 }
 
-export function presentPublication(row: PublicationRow): RosterPublication {
+function presentPublication(row: PublicationRow): RosterPublication {
   return {
     id: row.id,
     propertyId: row.propertyId,
@@ -1036,5 +1078,6 @@ export function presentRecord(row: AttendanceRow, reader: RecordReader): Attenda
             outAccuracyM: row.outAccuracyM,
           }
         : null,
+    kioskId: row.kioskId,
   };
 }

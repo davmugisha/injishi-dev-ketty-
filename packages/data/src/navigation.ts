@@ -573,17 +573,18 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
           icon: "LifeRing",
           board: "StaffServices",
         },
+        {
+          id: "hr-report",
+          label: "Reports",
+          icon: "ChartColumn",
+          board: "HrReport",
+        },
       ],
     },
     {
       label: "More",
+      // Guest messages are the desk's; the API refuses them to HR.
       items: [
-        {
-          id: "messages",
-          label: "Messages",
-          icon: "Comments",
-          board: "Messages",
-        },
         {
           id: "departments",
           label: "Departments",
@@ -888,7 +889,13 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
       label: "Reports",
       items: [
         { id: "overview", label: "Overview", icon: "ChartColumn", board: "PsfReport", href: "/psf/report/overview" },
-        { id: "r-membership", label: "Membership activity", icon: "ChartPie", board: "PsfReport", href: "/psf/report/membership" },
+        {
+          id: "r-membership",
+          label: "Membership activity",
+          icon: "ChartPie",
+          board: "PsfReport",
+          href: "/psf/report/membership",
+        },
         { id: "r-economy", label: "District economy", icon: "Wallet", board: "PsfReport", href: "/psf/report/economy" },
         { id: "r-members", label: "Member register", icon: "Persons", board: "PsfReport", href: "/psf/report/members" },
       ],

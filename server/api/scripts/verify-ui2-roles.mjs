@@ -338,6 +338,13 @@ async function main() {
       !/"(idNumber|idDocumentNumber|dateOfBirth|rssbNumber|payAccount)"/.test(text),
       text.slice(0, 200),
     );
+    // Without team.manage the owner's payslip says only that it is there.
+    const ownersSlip = (detail.json?.payslips ?? []).filter((p) => p.confidential);
+    check(
+      "the owner's payslip carries no figures or lines to a drafter",
+      ownersSlip.every((p) => p.grossRwf === 0 && p.netRwf === 0 && p.lines.length === 0),
+      JSON.stringify(ownersSlip).slice(0, 200),
+    );
     const hrConfirm = await post(HR, `/ops/pay-runs/${run.id}/confirm`);
     expectStatus('hr POST /ops/pay-runs/:id/confirm', hrConfirm, 403);
     check('and the refusal names the confirm', /confirm the pay run/i.test(hrConfirm.message), hrConfirm.message);

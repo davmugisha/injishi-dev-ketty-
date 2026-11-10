@@ -32,8 +32,9 @@ const config: NextConfig = {
   serverExternalPackages: ["@libsql/client", "libsql"],
   experimental: {
     optimizePackageImports: ["@gravity-ui/icons"],
-    // A property photograph may be up to 8 MB (the API's ceiling); the default 1 MB would refuse it before the API sees it.
-    serverActions: { bodySizeLimit: "10mb" },
+    // A phone photo of a document or a receipt (the API takes up to 10 MB), or a property photograph (up to
+    // 8 MB), travels through a server action; the default 1 MB would refuse it before the API sees it.
+    serverActions: { bodySizeLimit: "11mb" },
   },
   devIndicators: false,
   // The product's front door is the marketplace (apps/web); this app has no page at `/`.

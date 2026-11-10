@@ -361,11 +361,11 @@ export declare const DepositView: z.ZodObject<{
     leaseId: string;
     refundedRwf: number | null;
     keptRwf: number | null;
+    agreedRwf: number;
     deductions: {
         amountRwf: number;
         label: string;
     }[];
-    agreedRwf: number;
     refundMethod: "none" | "gateway" | "recorded" | null;
     refundStatus: "failed" | "waiting" | "paid" | null;
     refundDestination: string | null;
@@ -381,11 +381,11 @@ export declare const DepositView: z.ZodObject<{
     leaseId: string;
     refundedRwf: number | null;
     keptRwf: number | null;
+    agreedRwf: number;
     deductions: {
         amountRwf: number;
         label: string;
     }[];
-    agreedRwf: number;
     refundMethod: "none" | "gateway" | "recorded" | null;
     refundStatus: "failed" | "waiting" | "paid" | null;
     refundDestination: string | null;
@@ -492,11 +492,11 @@ export declare const MoveOutRow: z.ZodObject<{
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
+        agreedRwf: number;
         deductions: {
             amountRwf: number;
             label: string;
         }[];
-        agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
         refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
@@ -512,11 +512,11 @@ export declare const MoveOutRow: z.ZodObject<{
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
+        agreedRwf: number;
         deductions: {
             amountRwf: number;
             label: string;
         }[];
-        agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
         refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
@@ -536,11 +536,11 @@ export declare const MoveOutRow: z.ZodObject<{
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
+        agreedRwf: number;
         deductions: {
             amountRwf: number;
             label: string;
         }[];
-        agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
         refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
@@ -586,11 +586,11 @@ export declare const MoveOutRow: z.ZodObject<{
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
+        agreedRwf: number;
         deductions: {
             amountRwf: number;
             label: string;
         }[];
-        agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
         refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
@@ -724,11 +724,11 @@ export declare const MoveOutList: z.ZodObject<{
             leaseId: string;
             refundedRwf: number | null;
             keptRwf: number | null;
+            agreedRwf: number;
             deductions: {
                 amountRwf: number;
                 label: string;
             }[];
-            agreedRwf: number;
             refundMethod: "none" | "gateway" | "recorded" | null;
             refundStatus: "failed" | "waiting" | "paid" | null;
             refundDestination: string | null;
@@ -744,11 +744,11 @@ export declare const MoveOutList: z.ZodObject<{
             leaseId: string;
             refundedRwf: number | null;
             keptRwf: number | null;
+            agreedRwf: number;
             deductions: {
                 amountRwf: number;
                 label: string;
             }[];
-            agreedRwf: number;
             refundMethod: "none" | "gateway" | "recorded" | null;
             refundStatus: "failed" | "waiting" | "paid" | null;
             refundDestination: string | null;
@@ -768,11 +768,11 @@ export declare const MoveOutList: z.ZodObject<{
             leaseId: string;
             refundedRwf: number | null;
             keptRwf: number | null;
+            agreedRwf: number;
             deductions: {
                 amountRwf: number;
                 label: string;
             }[];
-            agreedRwf: number;
             refundMethod: "none" | "gateway" | "recorded" | null;
             refundStatus: "failed" | "waiting" | "paid" | null;
             refundDestination: string | null;
@@ -818,11 +818,11 @@ export declare const MoveOutList: z.ZodObject<{
             leaseId: string;
             refundedRwf: number | null;
             keptRwf: number | null;
+            agreedRwf: number;
             deductions: {
                 amountRwf: number;
                 label: string;
             }[];
-            agreedRwf: number;
             refundMethod: "none" | "gateway" | "recorded" | null;
             refundStatus: "failed" | "waiting" | "paid" | null;
             refundDestination: string | null;
@@ -871,11 +871,11 @@ export declare const MoveOutList: z.ZodObject<{
             leaseId: string;
             refundedRwf: number | null;
             keptRwf: number | null;
+            agreedRwf: number;
             deductions: {
                 amountRwf: number;
                 label: string;
             }[];
-            agreedRwf: number;
             refundMethod: "none" | "gateway" | "recorded" | null;
             refundStatus: "failed" | "waiting" | "paid" | null;
             refundDestination: string | null;
@@ -925,11 +925,11 @@ export declare const MoveOutList: z.ZodObject<{
             leaseId: string;
             refundedRwf: number | null;
             keptRwf: number | null;
+            agreedRwf: number;
             deductions: {
                 amountRwf: number;
                 label: string;
             }[];
-            agreedRwf: number;
             refundMethod: "none" | "gateway" | "recorded" | null;
             refundStatus: "failed" | "waiting" | "paid" | null;
             refundDestination: string | null;
@@ -1019,11 +1019,11 @@ export declare const DepositListItem: z.ZodObject<{
     leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
     refundedRwf: number | null;
     keptRwf: number | null;
+    agreedRwf: number;
     deductions: {
         amountRwf: number;
         label: string;
     }[];
-    agreedRwf: number;
     refundMethod: "none" | "gateway" | "recorded" | null;
     refundStatus: "failed" | "waiting" | "paid" | null;
     refundDestination: string | null;
@@ -1045,11 +1045,11 @@ export declare const DepositListItem: z.ZodObject<{
     leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
     refundedRwf: number | null;
     keptRwf: number | null;
+    agreedRwf: number;
     deductions: {
         amountRwf: number;
         label: string;
     }[];
-    agreedRwf: number;
     refundMethod: "none" | "gateway" | "recorded" | null;
     refundStatus: "failed" | "waiting" | "paid" | null;
     refundDestination: string | null;
@@ -1109,11 +1109,11 @@ export declare const DepositList: z.ZodObject<{
         leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         refundedRwf: number | null;
         keptRwf: number | null;
+        agreedRwf: number;
         deductions: {
             amountRwf: number;
             label: string;
         }[];
-        agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
         refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
@@ -1135,11 +1135,11 @@ export declare const DepositList: z.ZodObject<{
         leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         refundedRwf: number | null;
         keptRwf: number | null;
+        agreedRwf: number;
         deductions: {
             amountRwf: number;
             label: string;
         }[];
-        agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
         refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
@@ -1163,11 +1163,11 @@ export declare const DepositList: z.ZodObject<{
         leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         refundedRwf: number | null;
         keptRwf: number | null;
+        agreedRwf: number;
         deductions: {
             amountRwf: number;
             label: string;
         }[];
-        agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
         refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
@@ -1191,11 +1191,11 @@ export declare const DepositList: z.ZodObject<{
         leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         refundedRwf: number | null;
         keptRwf: number | null;
+        agreedRwf: number;
         deductions: {
             amountRwf: number;
             label: string;
         }[];
-        agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
         refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
@@ -1310,11 +1310,11 @@ export declare const TenancyMoveOut: z.ZodObject<{
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
+        agreedRwf: number;
         deductions: {
             amountRwf: number;
             label: string;
         }[];
-        agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
         refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
@@ -1330,11 +1330,11 @@ export declare const TenancyMoveOut: z.ZodObject<{
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
+        agreedRwf: number;
         deductions: {
             amountRwf: number;
             label: string;
         }[];
-        agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
         refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
@@ -1354,11 +1354,11 @@ export declare const TenancyMoveOut: z.ZodObject<{
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
+        agreedRwf: number;
         deductions: {
             amountRwf: number;
             label: string;
         }[];
-        agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
         refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
@@ -1406,11 +1406,11 @@ export declare const TenancyMoveOut: z.ZodObject<{
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
+        agreedRwf: number;
         deductions: {
             amountRwf: number;
             label: string;
         }[];
-        agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
         refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;

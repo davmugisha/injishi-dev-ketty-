@@ -27,21 +27,27 @@
     "@heroui-pro/react": "1.0.0-beta.10",
     "@heroui/react": "3.2.6",
     "@injishi/ui": "workspace:*",
+    "@internationalized/date": "3.12.4",
     "next": ">=15.5.24 <17",
-    "react": ">=19.1.0 <20"
+    "react": ">=19.1.0 <20",
+    "react-aria-components": "1.22.1",
+    "recharts": "3.10.1"
   },
   "devDependencies": {
     "@gravity-ui/icons": "2.22.1",
     "@heroui-pro/react": "1.0.0-beta.10",
     "@heroui/react": "3.2.6",
     "@injishi/ui": "workspace:*",
+    "@internationalized/date": "3.12.4",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@typescript-eslint/parser": "^8.68.0",
     "eslint": "^10.9.1",
-    "next": "16.3.5",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-aria-components": "1.22.1",
+    "react-dom": "19.3.1",
+    "recharts": "3.10.1",
     "typescript": "5.9.3"
   }
 }

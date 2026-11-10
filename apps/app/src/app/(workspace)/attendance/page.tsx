@@ -10,8 +10,10 @@ import { AttendanceView } from "@injishi/product-hr/web";
 import type { Metadata } from "next";
 import { HrMount } from "@/features/hr/hr-mount";
 import { requirePersona } from "@/lib/session";
+import { readClockSetup } from "@/server/clock-rules";
 import { getCollection, requestContext } from "@/server/data";
 import { clock } from "@/server/format";
+import { hrFeaturesOff } from "@/server/hr-features";
 
 export const metadata: Metadata = { title: screens.Attendance.pageTitle };
 
@@ -29,18 +31,21 @@ export default async function AttendancePage({
     getCollection<AttendanceSummary>("people.attendanceSummary"),
   ]);
   const { day, tab } = await searchParams;
-  const { today } = await requestContext();
+  const ctx = await requestContext();
+  const { today } = ctx;
+  const clockSetup = await readClockSetup(ctx);
   return (
-    <HrMount>
+    <HrMount off={await hrFeaturesOff()}>
       <AttendanceView
         persona={persona}
         data={{ records, corrections, exceptions, deskEmployees, summary: summaries[0] }}
         initial={{
           day: day === "yesterday" ? "yesterday" : "today",
-          tab: tab === "exceptions" ? "exceptions" : "records",
+          tab: tab === "exceptions" || tab === "corrections" ? tab : "records",
         }}
         today={today.iso}
         now={clock(new Date())}
+        clockSetup={clockSetup}
       />
     </HrMount>
   );

@@ -379,3 +379,29 @@ export const payDeclarations = pgTable(
   },
   (t) => [index('pay_declarations_run_idx').on(t.payRunId)],
 );
+
+/**
+ * A business's choice on an optional contribution of the RSSB rule (CBHI, RSSB's medical
+ * scheme) or on a private health insurer: one row per business and code. A code without a row
+ * takes the rule's own default. The choice applies to runs not yet confirmed; a confirmed
+ * payslip keeps the lines it froze.
+ */
+export const payrollContributionChoices = pgTable(
+  'payroll_contribution_choices',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    code: text('code').notNull(),
+    enabled: boolean('enabled').notNull(),
+    /** A private insurer's monthly premium per person, each side's part in whole francs. */
+    employeeAmountRwf: amount('employee_amount_rwf'),
+    employerAmountRwf: amount('employer_amount_rwf'),
+    /** A private insurer's name. */
+    provider: text('provider'),
+    updatedByUserId: uuid('updated_by_user_id').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex('payroll_contribution_choices_org_code_uk').on(t.orgId, t.code)],
+);

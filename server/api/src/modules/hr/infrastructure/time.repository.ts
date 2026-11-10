@@ -10,7 +10,7 @@ import {
   type ShiftTemplateStatus,
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lte, notInArray, or, sql } from 'drizzle-orm';
 
 import {
   attendanceKiosks,
@@ -749,7 +749,7 @@ export class TimeRepository {
     const [row] = await (tx ?? this.db)
       .select({ at: sql<Date>`greatest(${attendanceRecords.clockInAt}, coalesce(${attendanceRecords.clockOutAt}, ${attendanceRecords.clockInAt}))` })
       .from(attendanceRecords)
-      .where(and(eq(attendanceRecords.employeeId, employeeId), sql`${attendanceRecords.status} <> 'superseded'`))
+      .where(and(eq(attendanceRecords.employeeId, employeeId), notInArray(attendanceRecords.status, ['superseded', 'rejected'])))
       .orderBy(desc(sql`greatest(${attendanceRecords.clockInAt}, coalesce(${attendanceRecords.clockOutAt}, ${attendanceRecords.clockInAt}))`))
       .limit(1);
     return row ? new Date(row.at) : null;
@@ -763,7 +763,7 @@ export class TimeRepository {
       .where(
         and(
           eq(attendanceRecords.employeeId, employeeId),
-          sql`${attendanceRecords.status} <> 'superseded'`,
+          notInArray(attendanceRecords.status, ['superseded', 'rejected']),
           sql`${attendanceRecords.clockInAt} < ${to}`,
           sql`coalesce(${attendanceRecords.clockOutAt}, now()) > ${from}`,
         ),
@@ -772,16 +772,62 @@ export class TimeRepository {
     return !!row;
   }
 
-  /** A person's newest live record, open or closed, by clock in. */
+  /**
+   * Who clocked in far from work since a date: phone clock-ins saved outside
+   * their branch's radius, and clock-ins the rules refused for distance
+   * (`hr.clock_in_refused` with `far`), counted per person, in name order
+   * (index contract 7) (clock-in rules).
+   */
+  async farClockIns(
+    orgId: string,
+    fromDate: string,
+    since: Date,
+  ): Promise<{ employeeId: string; name: string; workPropertyId: string | null; times: number; lastAt: Date }[]> {
+    const found = await this.db.execute<{ employee_id: string; name: string; work_property_id: string | null; times: number; last_at: Date }>(sql`
+      with far as (
+        select ar.employee_id, ar.clock_in_at as at
+          from attendance_records ar
+          join employees e on e.id = ar.employee_id
+          left join branch_clock_settings b on b.property_id = e.work_property_id
+         where ar.org_id = ${orgId}
+           and ar.work_date >= ${fromDate}
+           and ar.source in ('phone', 'self')
+           and ar.status <> 'superseded'
+           and ar.in_distance_m > coalesce(b.geofence_radius_m, 150)
+        union all
+        select ae.subject_id, ae.occurred_at
+          from audit_events ae
+         where ae.event_type = 'hr.clock_in_refused'
+           and ae.payload_diff->>'orgId' = ${orgId}
+           and ae.payload_diff->>'far' = 'true'
+           and ae.occurred_at >= ${since.toISOString()}::timestamptz
+      )
+      select e.id as employee_id, coalesce(nullif(btrim(e.preferred_name), ''), e.legal_name) as name,
+             e.work_property_id, count(*)::int as times, max(far.at) as last_at
+        from far
+        join employees e on e.id = far.employee_id
+       group by e.id
+       order by 2
+    `);
+    return found.rows.map((r) => ({
+      employeeId: r.employee_id,
+      name: r.name,
+      workPropertyId: r.work_property_id,
+      times: Number(r.times),
+      lastAt: new Date(r.last_at),
+    }));
+  }
+
+  /** A person's newest live record, open or closed, by clock in (superseded and rejected ones are not live). */
   async latestRecord(employeeId: string, tx?: Tx): Promise<AttendanceRow | null> {
     const [row] = await this.records(tx)
-      .where(and(eq(attendanceRecords.employeeId, employeeId), sql`${attendanceRecords.status} <> 'superseded'`))
+      .where(and(eq(attendanceRecords.employeeId, employeeId), notInArray(attendanceRecords.status, ['superseded', 'rejected'])))
       .orderBy(desc(attendanceRecords.clockInAt))
       .limit(1);
     return row ?? null;
   }
 
-  /** People's records in a range, superseded ones left out, for self service, a team and insights. */
+  /** People's records in a range, superseded and rejected ones left out, for self service, a team and insights. */
   async personRecords(input: { employeeIds: readonly string[]; from: string; to: string }, tx?: Tx): Promise<AttendanceRow[]> {
     if (input.employeeIds.length === 0) return [];
     return this.records(tx)
@@ -790,7 +836,7 @@ export class TimeRepository {
           inArray(attendanceRecords.employeeId, [...input.employeeIds]),
           gte(attendanceRecords.workDate, input.from),
           lte(attendanceRecords.workDate, input.to),
-          sql`${attendanceRecords.status} <> 'superseded'`,
+          notInArray(attendanceRecords.status, ['superseded', 'rejected']),
         ),
       )
       .orderBy(asc(attendanceRecords.workDate), asc(attendanceRecords.clockInAt));
@@ -1012,9 +1058,28 @@ export class TimeRepository {
           inArray(attendanceRecords.source, ['self', 'phone']),
           eq(attendanceRecords.validated, false),
           eq(attendanceRecords.autoClosed, false),
-          sql`${attendanceRecords.status} <> 'superseded'`,
+          inArray(attendanceRecords.status, ['open', 'closed']),
         ),
       )
+      .returning({ id: attendanceRecords.id });
+    return rows.length > 0;
+  }
+
+  /**
+   * HR found the person was not at work: a record nobody vouched for counts for
+   * nothing. An open one is closed as it is rejected, so the person can clock
+   * in properly. False when it was not one waiting.
+   */
+  async reject(tx: Tx, id: string, input: { note: string; at: Date }): Promise<boolean> {
+    const rows = await tx
+      .update(attendanceRecords)
+      .set({
+        status: 'rejected',
+        clockOutAt: sql`coalesce(${attendanceRecords.clockOutAt}, greatest(${input.at}::timestamptz, ${attendanceRecords.clockInAt}))`,
+        note: input.note,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(attendanceRecords.id, id), eq(attendanceRecords.validated, false), inArray(attendanceRecords.status, ['open', 'closed'])))
       .returning({ id: attendanceRecords.id });
     return rows.length > 0;
   }

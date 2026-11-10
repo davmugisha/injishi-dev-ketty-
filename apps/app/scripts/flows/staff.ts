@@ -326,6 +326,11 @@ export const flows: Flow[] = [
       );
       await refused(
         404,
+        () => jeanne.api.get(`/api/v1/me/work/${jp.employeeId}/papers`),
+        "reading a colleague's papers",
+      );
+      await refused(
+        404,
         () => jeanne.api.get(`/api/v1/me/work/${jp.employeeId}/documents`),
         "reading a colleague's documents",
       );

@@ -20,6 +20,7 @@ import { PsfSetupRepository } from './infrastructure/psf-setup.repository';
 import { RegistrationDraftService } from './application/registration-draft.service';
 import { RegistrationService } from './application/registration.service';
 import { RolePermissionsService } from './application/role-permissions.service';
+import { StaffAccessService } from './application/staff-access.service';
 import { StaffInvitationService } from './application/staff-invitation.service';
 import { TeamService } from './application/team.service';
 import { BrokerRepository } from './infrastructure/broker.repository';
@@ -36,6 +37,7 @@ import { PsfReportRepository } from './infrastructure/psf-report.repository';
 import { RegistrationDraftRepository } from './infrastructure/registration-draft.repository';
 import { RegistrationMailer } from './infrastructure/registration.mailer';
 import { RolePermissionsRepository } from './infrastructure/role-permissions.repository';
+import { StaffAccessRepository } from './infrastructure/staff-access.repository';
 import { StaffInvitationMailer } from './infrastructure/staff-invitation.mailer';
 import { StaffInvitationRepository } from './infrastructure/staff-invitation.repository';
 import { TeamRepository } from './infrastructure/team.repository';
@@ -102,6 +104,10 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     StaffInvitationRepository,
     StaffInvitationMailer,
     StaffInvitationService,
+    // A staff file's login, given or asked of the owner while putting the person on file (HR
+    // onboarding). It sends through the invitations above, and names the file they are for.
+    StaffAccessRepository,
+    StaffAccessService,
     // PSF membership (ADR-056): a business applies, a PSF membership officer
     // decides. The registration create writes an application through the
     // repository's shared insert, so both doors file the same row.
@@ -137,6 +143,7 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     TeamService,
     RolePermissionsService,
     StaffInvitationService,
+    StaffAccessService,
     PsfMembershipService,
     PsfCertificatesService,
     PsfTeamService,

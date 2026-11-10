@@ -17,9 +17,11 @@ import type {
   CleaningRoom,
   FinishedRoom,
   FoundItem,
+  HelpTicket,
   InspectionCheck,
   InspectionRoom,
   MinibarItem,
+  Payslip,
   ProblemReport,
   ReportPlace,
   StaffProfile,
@@ -29,16 +31,38 @@ import type {
 } from "@injishi/data/fixtures/staff";
 import { type StockKey, stock } from "@injishi/data/media";
 import type {
+  HrFeatureId,
   LeaveApprover,
   StaffLeaveBalance as LeaveBalance,
   StaffLeaveType as LeaveType,
+  LoanedAsset,
   RequestStatus,
   Shift,
+  ShiftChoices,
+  StaffAnnouncement,
+  StaffClaim,
   StaffDocument,
+  StaffLoan,
+  StaffOwnReview,
   StaffRequest,
   StaffTone,
+  SwapAsk,
+  SwapColleague,
 } from "@injishi/product-hr";
 import { ApiError } from "../api";
+import {
+  type ApiLoan,
+  type ApiMyAnnouncement,
+  type ApiMyReview,
+  type ApiTicket,
+  ASSET,
+  agoOf,
+  announcementWords,
+  loanOutcome,
+  loanState,
+  reviewWords,
+  ticketState,
+} from "../desk-view";
 import { clock, dayMonth, dayMonthYear, kigaliDate } from "../format";
 import { type ApiBoard, type ApiBoardTask, type ApiWorkOrder, readBoard, readWorkOrders } from "./operations";
 import { defineSources, type SourceContext } from "./types";
@@ -115,8 +139,11 @@ type ShiftRequestStatus = "requested" | "awaiting_colleague" | "approved" | "rej
 
 interface ApiShiftRequest {
   id: string;
+  employee?: { employeeId: string; displayName: string };
   kind: string;
   swapWith: { employeeId: string; displayName: string } | null;
+  shiftTemplate?: { id: string; name: string } | null;
+  rotation?: { id: string; name: string } | null;
   fromDate: string;
   toDate: string;
   reason: string | null;
@@ -174,6 +201,7 @@ interface ApiMyDocument {
   issuedOn: string | null;
   expiresOn: string | null;
   checkedAt: string | null;
+  rejectReason: string | null;
 }
 
 interface ApiApprovalStep {
@@ -275,12 +303,6 @@ export async function myProfile(ctx: SourceContext): Promise<StaffProfile | null
  */
 export async function phoneSupervisor(ctx: SourceContext): Promise<string | null> {
   return (await readPhone(ctx)).supervisor?.name ?? null;
-}
-
-/** The caller's open attendance record's clock-in time ("07:02"), or null when they are not clocked in. */
-export async function myClockIn(ctx: SourceContext): Promise<string | null> {
-  const { openRecord } = await myFile(ctx);
-  return openRecord ? clock(openRecord.clockInAt) : null;
 }
 
 async function mine<T>(ctx: SourceContext, key: string, path: string): Promise<T> {
@@ -775,24 +797,52 @@ async function workOrders(ctx: SourceContext): Promise<WorkOrder[]> {
 
 // ── Schedule, leave and requests (the caller's own file) ───────────────────────────────────────────
 
+/**
+ * The phone's header of the person: their number, business and branch from their own file, and
+ * today's shift from their roster. Their photo and floor are not recorded on the file.
+ */
+async function profile(ctx: SourceContext, id: string): Promise<StaffProfile> {
+  const today = ctx.today.iso;
+  const [file, roster] = await Promise.all([
+    myFile(ctx),
+    mine<{ entries: ApiRosterEntry[] }>(ctx, "roster", `/roster?from=${today}&to=${addDays(today, 6)}`),
+  ]);
+  const entry = roster.entries.find((e) => e.workDate === today && e.status !== "cancelled");
+  return {
+    id,
+    staffNo: file.employeeNumber ?? "",
+    since: "",
+    workplace: file.businessName ?? "",
+    site: (file.branchName ?? "").split(" ")[0] ?? "",
+    department: file.jobPositionTitle ?? "",
+    area: "",
+    shift: entry ? `${entry.shiftName ?? "Shift"} · ${clock(entry.startsAt)}–${clock(entry.endsAt)}` : "No shift today",
+    clockedInAt: file.openRecord ? clock(file.openRecord.clockInAt) : "",
+    photo: null,
+  };
+}
+
 async function shifts(ctx: SourceContext): Promise<Shift[]> {
   const today = ctx.today.iso;
-  const to = addDays(today, 6);
+  // Two weeks: the schedule shows this week and next.
+  const to = addDays(today, 13);
   const [file, roster, requests] = await Promise.all([
     myFile(ctx),
     mine<{ entries: ApiRosterEntry[] }>(ctx, "roster", `/roster?from=${today}&to=${to}`),
     mine<{ mine: ApiShiftRequest[] }>(ctx, "shift-requests", "/shift-requests"),
   ]);
   const pending = requests.mine.filter((r) => r.status === "requested" || r.status === "awaiting_colleague");
-  return Array.from({ length: 7 }, (_, i) => {
+  return Array.from({ length: 14 }, (_, i) => {
     const date = addDays(today, i);
     const entry = roster.entries.find((e) => e.workDate === date && e.status !== "cancelled");
     const isToday = date === today;
     const clockedIn = isToday && file.openRecord ? ` · clocked in ${clock(file.openRecord.clockInAt)}` : "";
     const swap = pending.find((r) => r.swapWith && r.fromDate <= date && date <= r.toDate);
+    const change = pending.find((r) => r.kind === "change" && r.fromDate <= date && date <= r.toDate);
     return {
       id: date,
-      week: 0,
+      week: i >= 7 ? 1 : 0,
+      changePending: Boolean(change),
       dow: DOW[new Date(`${date}T12:00:00Z`).getUTCDay()] as string,
       date: String(Number(date.slice(8, 10))),
       long: dayLabel(date),
@@ -838,7 +888,9 @@ function leaveSteps(r: ApiLeaveRequest): string {
     const next = r.routedToName ? `${firstName(r.routedToName)} to decide` : "Waiting for a decision";
     return [...decided, next].join(" · ");
   }
-  if (r.status === "cancelled") return "You cancelled this request";
+  // A note means the office cancelled it, and says why; the person's own cancelling carries none.
+  if (r.status === "cancelled")
+    return r.decisionNote ? `Cancelled by HR: ${r.decisionNote}` : "You cancelled this request";
   if (r.status === "rejected")
     return r.decisionNote ? `Declined: ${r.decisionNote}` : decided.join(" · ") || "Declined";
   return decided.length ? `Approved · ${decided.join(" · ")}` : "Approved";
@@ -862,19 +914,323 @@ function shiftSteps(r: ApiShiftRequest): string {
     : "Approved";
 }
 
+/**
+ * Who a swap may be with: the active colleagues at the person's branch (GET .../shift-options), the
+ * ones a swap request may name. Those in the person's own job come first. A colleague need not work
+ * that day: approving a swap moves the shift to whoever does not have it.
+ */
+export async function swapColleagues(ctx: SourceContext): Promise<SwapColleague[]> {
+  const [file, options] = await Promise.all([
+    myFile(ctx),
+    mine<{ colleagues: { employeeId: string; displayName: string; jobPositionTitle: string | null }[] }>(
+      ctx,
+      "shift-options",
+      "/shift-options",
+    ),
+  ]);
+  const own = file.jobPositionTitle ?? null;
+  return [...options.colleagues]
+    .sort(
+      (a, b) =>
+        Number(b.jobPositionTitle === own) - Number(a.jobPositionTitle === own) ||
+        a.displayName.localeCompare(b.displayName),
+    )
+    .map((c) => ({
+      id: c.employeeId,
+      initials: initialsOf(c.displayName),
+      name: c.displayName,
+      first: firstName(c.displayName),
+      note: c.jobPositionTitle ?? "Colleague",
+      busy: false,
+    }));
+}
+
+/** Whether the person has a PIN. Without one, nothing can be typed to prove it, so pay opens on their login. */
+export async function hasOwnPin(ctx: SourceContext): Promise<boolean> {
+  const state = await mine<{ hasPin: boolean }>(ctx, "kiosk-pin", "/kiosk-pin").catch(() => ({ hasPin: false }));
+  return state.hasPin;
+}
+
+/** The HR features the person's business has switched off (`GET /me/work/:id/features`). */
+export async function myFeaturesOff(ctx: SourceContext): Promise<HrFeatureId[]> {
+  return (await mine<{ off: HrFeatureId[] }>(ctx, "features", "/features")).off;
+}
+
+/** "Rotation A · Mornings, then nights" reads "Mornings, then nights" to staff. */
+const rotationLabel = (name: string) => name.replace(/^Rotation [A-Za-z0-9]+ · /, "");
+
+/**
+ * What a person may ask for on their schedule (GET .../shift-options), and what came of the swaps they
+ * answered. Read by the phone's schedule and by Me.
+ */
+export async function shiftChoices(ctx: SourceContext): Promise<ShiftChoices> {
+  const [options, list] = await Promise.all([
+    mine<{
+      shifts?: { id: string; name: string; startsAt: string; endsAt: string; status?: string }[];
+      rotations?: { id: string; name: string; stepNames: string[] }[];
+      currentRotation?: { name: string; startsOn: string } | null;
+    }>(ctx, "shift-options", "/shift-options"),
+    mine<{ answered?: ApiShiftRequest[] }>(ctx, "shift-requests", "/shift-requests"),
+  ]);
+  return {
+    shifts: (options.shifts ?? [])
+      .filter((s) => (s.status ?? "active") === "active")
+      .map((s) => ({ id: s.id, name: s.name, hours: `${s.startsAt.slice(0, 5)}–${s.endsAt.slice(0, 5)}` })),
+    rotations: (options.rotations ?? []).map((r) => ({ id: r.id, name: rotationLabel(r.name), steps: r.stepNames })),
+    current: options.currentRotation
+      ? { name: rotationLabel(options.currentRotation.name), since: dayLabel(options.currentRotation.startsOn) }
+      : null,
+    answered: (list.answered ?? []).map((r) => ({
+      id: r.id,
+      from: r.employee?.displayName ?? "A colleague",
+      when: r.fromDate === r.toDate ? dayLabel(r.fromDate) : `${dayLabel(r.fromDate)} – ${dayLabel(r.toDate)}`,
+      status: r.status === "approved" ? "approved" : r.status === "rejected" ? "declined" : "waiting",
+      note: r.decisionNote ?? "",
+    })),
+  };
+}
+
+/** Swaps colleagues asked of the person, waiting for their yes or no. */
+export async function swapAsks(ctx: SourceContext): Promise<SwapAsk[]> {
+  const { askedOfMe } = await mine<{ askedOfMe: ApiShiftRequest[] }>(ctx, "shift-requests", "/shift-requests");
+  // A day that has passed cannot be swapped any more, so it is not asked of anyone.
+  return askedOfMe
+    .filter((r) => r.status === "awaiting_colleague" && r.toDate >= ctx.today.iso)
+    .map((r) => ({
+      id: r.id,
+      from: r.employee?.displayName ?? "A colleague",
+      first: firstName(r.employee?.displayName) || "A colleague",
+      initials: initialsOf(r.employee?.displayName),
+      when: r.fromDate === r.toDate ? dayLabel(r.fromDate) : `${dayLabel(r.fromDate)} – ${dayLabel(r.toDate)}`,
+      note: r.reason ?? "",
+    }));
+}
+
+interface ApiClaim {
+  id: string;
+  kind: "reimbursement" | "leave_encashment";
+  amountRwf: number | null;
+  leaveType: { name: string } | null;
+  days: number | null;
+  period: string;
+  hasReceipt: boolean;
+  reason: string;
+  status: "requested" | "approved" | "rejected" | "cancelled";
+  decisionNote?: string | null;
+  createdAt?: string;
+}
+interface ApiExtraDays {
+  id: string;
+  leaveType: { name: string };
+  kind: "extra" | "compensatory";
+  days: number;
+  reason: string;
+  status: "requested" | "approved" | "rejected" | "cancelled";
+  routedTo: { displayName: string } | null;
+  decidedByName?: string | null;
+  decisionNote?: string | null;
+  createdAt: string;
+}
+/** A clock correction the person asked for. */
+interface ApiClockFix {
+  id: string;
+  workDate: string;
+  clockInAt: string;
+  clockOutAt: string;
+  reason: string;
+  status: "requested" | "approved" | "rejected" | "cancelled";
+  routedTo: { displayName: string } | null;
+  decidedByName?: string | null;
+  decisionNote?: string | null;
+  createdAt: string;
+}
+
+/** The answer to a request in a line: who decided, and what they said. */
+const decidedLine = (r: { decidedByName?: string | null; decisionNote?: string | null }) =>
+  [r.decidedByName ? `Decided by ${r.decidedByName}` : null, r.decisionNote].filter(Boolean).join(": ");
+
+const monthOf = (period: string) =>
+  new Intl.DateTimeFormat("en-GB", { month: "long", timeZone: "UTC" }).format(new Date(`${period}-01T12:00:00Z`));
+const rwfText = (n: number) => `RWF ${n.toLocaleString("en-US")}`;
+
+/** Money the person asked to be paid back, newest first, with the office's answer. */
+/** The person's questions to HR or IT, newest first. */
+async function helpTickets(ctx: SourceContext): Promise<HelpTicket[]> {
+  const { tickets } = await mine<{ tickets: ApiTicket[] }>(ctx, "tickets", "/tickets");
+  return tickets.map((t) => {
+    const state = ticketState(t);
+    const last = t.messages.at(-1);
+    const answer = [...t.messages].reverse().find((m) => !m.fromStaff);
+    return {
+      id: t.id,
+      title: t.subject,
+      meta: `${t.reference} · ${
+        last && !last.fromStaff
+          ? `${last.authorName ?? "HR"} answered ${agoOf(last.createdAt)}`
+          : `asked ${agoOf(t.createdAt)}`
+      }`,
+      chip: t.status === "closed" ? "Resolved" : t.status === "answered" ? "Answered" : "Open",
+      tone: state.tone,
+      answer: answer?.body ?? null,
+    };
+  });
+}
+
+/** What HR posted that is for the person, newest first. */
+export async function myAnnouncements(ctx: SourceContext): Promise<StaffAnnouncement[]> {
+  const { announcements } = await mine<{ announcements: ApiMyAnnouncement[] }>(ctx, "announcements", "/announcements");
+  return announcements.map(announcementWords);
+}
+
+/** The person's own reviews, the latest cycle first. */
+export async function myReviews(ctx: SourceContext): Promise<StaffOwnReview[]> {
+  const { reviews } = await mine<{ reviews: ApiMyReview[] }>(ctx, "reviews", "/reviews");
+  return reviews.map(reviewWords);
+}
+
+/** What the person has signed out and not brought back, then what came back lately. */
+async function loanedAssets(ctx: SourceContext): Promise<LoanedAsset[]> {
+  const { loans } = await mine<{ loans: ApiLoan[] }>(ctx, "loans", "/assets");
+  const today = ctx.today.iso;
+  return loans
+    .filter((l) => !l.returnedOn || l.returnedOn >= addDays(today, -30))
+    .map((l) => {
+      const state = loanState(l, today);
+      const outcome = loanOutcome(l);
+      return {
+        id: l.id,
+        icon: ASSET[l.kind].icon,
+        name: l.name,
+        meta: [`Since ${dayMonth(l.issuedOn)}`, l.tag].filter(Boolean).join(" · "),
+        chip:
+          outcome === "lost"
+            ? "Lost"
+            : outcome === "damaged"
+              ? "Back damaged"
+              : outcome === "good"
+                ? "Returned"
+                : state.due
+                  ? "Return now"
+                  : l.dueBackOn
+                    ? `Back by ${dayMonth(l.dueBackOn)}`
+                    : "With you",
+        tone:
+          outcome === "good" ? "success" : outcome === "lost" ? "danger" : outcome || state.due ? "warning" : "default",
+      };
+    });
+}
+
+/** The person's confirmed payslips (`GET /me/work/:id/payslips`), newest first, each with its PDF. */
+async function payslips(ctx: SourceContext): Promise<Payslip[]> {
+  const { employeeId } = await myFile(ctx);
+  const { payslips: rows } = await mine<{
+    payslips: { id: string; period: string; grossRwf: number; netRwf: number; paidAt: string | null }[];
+  }>(ctx, "payslips", "/payslips");
+  return [...rows]
+    .sort((a, b) => b.period.localeCompare(a.period))
+    .map((p) => ({
+      id: p.id,
+      month: new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }).format(
+        new Date(`${p.period}-01T12:00:00Z`),
+      ),
+      status: "available" as const,
+      note: null,
+      net: p.netRwf,
+      paid: p.paidAt ? dayMonth(p.paidAt) : null,
+      ref: null,
+      confirmed: null,
+      confirmedBy: null,
+      employer: "",
+      rules: "",
+      payTo: "",
+      lines: [
+        { label: "Gross pay", amount: p.grossRwf, kind: "earning" as const },
+        { label: "Tax and RSSB", amount: p.grossRwf - p.netRwf, kind: "deduction" as const },
+        { label: "Take-home", amount: p.netRwf, kind: "total" as const },
+      ],
+      pdfHref: `/me/payslip/${p.id}?file=${employeeId}`,
+    }));
+}
+
+/** The person's own loans and advances (`GET /me/work/:id/loans`), still being repaid first. Read only. */
+export async function myLoans(ctx: SourceContext): Promise<StaffLoan[]> {
+  const { loans } = await mine<{
+    loans: {
+      id: string;
+      kind: "loan" | "advance";
+      amountRwf: number;
+      remainingRwf: number;
+      settledAt: string | null;
+      schedule: { period: string; amountRwf: number; paid: boolean }[];
+    }[];
+  }>(ctx, "pay-loans", "/loans");
+  return [...loans]
+    .sort((a, b) => Number(a.settledAt !== null) - Number(b.settledAt !== null))
+    .map((l) => {
+      const next = l.schedule.filter((s) => !s.paid).sort((a, b) => a.period.localeCompare(b.period))[0];
+      const repaid = l.settledAt !== null || !next;
+      return {
+        id: l.id,
+        title: `${rwfText(l.amountRwf)} · ${l.kind === "advance" ? "Salary advance" : "Staff loan"}`,
+        meta: repaid
+          ? "All repaid"
+          : `${rwfText(l.remainingRwf)} left · ${rwfText(next.amountRwf)} from your ${monthOf(next.period)} pay`,
+        chip: repaid ? "Repaid" : "Repaying",
+        tone: repaid ? ("success" as const) : ("default" as const),
+      };
+    });
+}
+
+async function claims(ctx: SourceContext): Promise<StaffClaim[]> {
+  const { claims: rows } = await mine<{ claims: ApiClaim[] }>(ctx, "claims", "/claims");
+  return [...rows]
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
+    .map((c) => {
+      const what =
+        c.kind === "reimbursement"
+          ? `${c.amountRwf !== null ? rwfText(c.amountRwf) : "An amount"} · ${c.reason}`
+          : `${c.days ?? ""} days of ${c.leaveType?.name ?? "leave"} paid out`;
+      const answer: Record<ApiClaim["status"], { meta: string; chip: string; tone: StaffTone }> = {
+        requested: {
+          meta: `Waiting for approval${c.hasReceipt ? " · receipt attached" : ""}`,
+          chip: "Waiting",
+          tone: "warning",
+        },
+        approved: { meta: `Approved · paid with your ${monthOf(c.period)} pay`, chip: "Approved", tone: "success" },
+        rejected: { meta: c.decisionNote ? `Refused: ${c.decisionNote}` : "Refused", chip: "Refused", tone: "danger" },
+        cancelled: { meta: "You took it back", chip: "Taken back", tone: "default" },
+      };
+      return { id: c.id, title: what, ...answer[c.status], canCancel: c.status === "requested" };
+    });
+}
+
 async function requests(ctx: SourceContext): Promise<StaffRequest[]> {
-  const [shiftList, leave] = await Promise.all([
+  const today = ctx.today.iso;
+  const [shiftList, leave, extra, fixes] = await Promise.all([
     mine<{ mine: ApiShiftRequest[] }>(ctx, "shift-requests", "/shift-requests"),
     mine<{ requests: ApiLeaveRequest[] }>(ctx, "leave-requests", "/leave/requests"),
+    mine<{ requests: ApiExtraDays[] }>(ctx, "extra-days", "/leave/allocation-requests"),
+    // The API serves at most 31 days at a time.
+    mine<{ requests: ApiClockFix[] }>(
+      ctx,
+      "clock-fixes",
+      `/attendance/requests?from=${addDays(today, -30)}&to=${today}`,
+    ),
   ]);
   const rows: (StaffRequest & { at: string })[] = [
     ...shiftList.mine.map((r) => ({
       id: `shift:${r.id}`,
       shift: r.fromDate,
-      type: r.kind === "swap" ? "Shift swap" : "Shift change",
+      type: r.kind === "swap" ? "Shift swap" : r.kind === "rotation" ? "Rotation" : "Shift change",
       icon: "ArrowRightArrowLeft",
       title: r.fromDate === r.toDate ? dayLabel(r.fromDate) : `${dayLabel(r.fromDate)} – ${dayLabel(r.toDate)}`,
-      sub: r.swapWith ? `With ${r.swapWith.displayName}` : (r.reason ?? "No note"),
+      sub: r.swapWith
+        ? `With ${r.swapWith.displayName}`
+        : r.rotation
+          ? rotationLabel(r.rotation.name)
+          : r.shiftTemplate
+            ? r.shiftTemplate.name
+            : (r.reason ?? "No note"),
       status: SHIFT_STATUS[r.status],
       steps: shiftSteps(r),
       days: 0,
@@ -890,6 +1246,31 @@ async function requests(ctx: SourceContext): Promise<StaffRequest[]> {
       status: LEAVE_STATUS[r.status],
       steps: leaveSteps(r),
       days: r.days,
+      at: r.createdAt,
+    })),
+    // Extra days asked for count against nothing until they are approved, so `days` stays 0.
+    ...extra.requests.map((r) => ({
+      id: `extra:${r.id}`,
+      shift: null,
+      type: r.kind === "extra" ? "Extra days" : "Day in lieu",
+      icon: "Plus",
+      title: `${r.days} more day${r.days === 1 ? "" : "s"} of ${r.leaveType.name}`,
+      sub: r.reason,
+      status: LEAVE_STATUS[r.status],
+      steps: r.status === "requested" ? `With ${r.routedTo?.displayName ?? "your manager"}` : decidedLine(r),
+      days: 0,
+      at: r.createdAt,
+    })),
+    ...fixes.requests.map((r) => ({
+      id: `fix:${r.id}`,
+      shift: null,
+      type: "Clock correction",
+      icon: "Clock",
+      title: `${dayLabel(r.workDate)} · ${clock(r.clockInAt)} – ${clock(r.clockOutAt)}`,
+      sub: r.reason,
+      status: LEAVE_STATUS[r.status],
+      steps: r.status === "requested" ? `With ${r.routedTo?.displayName ?? "your manager"}` : decidedLine(r),
+      days: 0,
       at: r.createdAt,
     })),
   ];
@@ -932,8 +1313,9 @@ async function leaveBalances(ctx: SourceContext): Promise<LeaveBalance[]> {
   return [
     {
       id: ctx.persona?.id ?? "me",
-      left: annual?.balanceDays ?? 0,
-      used: takenThisYear(annual),
+      // Whole days: what is left rounded down, what was used to the nearest day.
+      left: Math.floor(annual?.balanceDays ?? 0),
+      used: Math.round(takenThisYear(annual)),
       entitlement,
       accrual: annual?.leaveType.accrual === "monthly" ? Math.round((entitlement / 12) * 10) / 10 : 0,
       carryOver: annual?.leaveType.carryMaxDays ?? 0,
@@ -967,7 +1349,7 @@ function documentIcon(title: string, kind: ApiMyDocument["kind"]): string {
 }
 
 async function documents(ctx: SourceContext): Promise<StaffDocument[]> {
-  const { documents: docs } = await mine<{ documents: ApiMyDocument[] }>(ctx, "documents", "/documents");
+  const { documents: docs } = await mine<{ documents: ApiMyDocument[] }>(ctx, "papers", "/papers");
   return docs
     .filter((d) => d.kind === "document" || d.status === "active")
     .map((d) => {
@@ -988,11 +1370,25 @@ async function documents(ctx: SourceContext): Promise<StaffDocument[]> {
         return {
           ...doc,
           meta: expires ?? (d.checkedAt ? `Checked by HR · ${dayMonthYear(d.checkedAt)}` : "On file"),
-          chip: expired ? "Expired" : expires ? "Valid" : "Checked",
-          tone: (expired ? "danger" : expires ? "success" : "default") as StaffTone,
+          chip: expired ? "Expired" : expires ? "Valid" : "Approved",
+          tone: (expired ? "danger" : "success") as StaffTone,
         };
       if (d.status === "rejected")
-        return { ...doc, meta: "HR asked for it again", chip: "Rejected", tone: "danger" as StaffTone };
+        return {
+          ...doc,
+          meta: d.rejectReason ? `Sent back: ${d.rejectReason}` : "HR asked for it again",
+          chip: "Sent back",
+          tone: "danger" as StaffTone,
+          canSend: true,
+        };
+      if (d.status === "requested")
+        return {
+          ...doc,
+          meta: "HR asked for it · send a photo",
+          chip: "Asked for",
+          tone: "warning" as StaffTone,
+          canSend: true,
+        };
       return { ...doc, meta: expires ?? "Waiting for HR", chip: "With HR", tone: "warning" as StaffTone };
     });
 }
@@ -1007,6 +1403,17 @@ export const sources = defineSources({
   "staff.problemReports": { list: problemReports, naturalKey: "ticket" },
   "staff.shifts": { list: shifts, parity: "shape" },
   "staff.requests": { list: requests, parity: "shape" },
+  "staff.swapColleagues": { list: swapColleagues, naturalKey: "name", parity: "shape" },
+  "staff.swapAsks": { list: swapAsks, parity: "shape" },
+  "staff.claims": { list: claims, parity: "shape" },
+  "staff.payslips": { list: payslips, naturalKey: "id" },
+  "staff.helpTickets": { list: helpTickets, naturalKey: "id" },
+  "staff.assets": { list: loanedAssets, naturalKey: "id" },
+  "staff.myProfile": {
+    list: async (ctx) => [await profile(ctx, "me")],
+    get: (ctx, id) => profile(ctx, id),
+    naturalKey: "id",
+  },
   "staff.leaveTypes": { list: leaveTypes, naturalKey: "label" },
   "staff.leaveBalances": { list: leaveBalances, naturalKey: "id" },
   "staff.leaveApprovers": { list: leaveApprovers, naturalKey: "name" },
