@@ -124,7 +124,15 @@ const BUSINESS_STAFF: readonly PersonaId[] = [
   "technician",
 ];
 // `store`: a bar or restaurant manager supervises the stock the storekeeper counts (the POS stock screen).
-const MANAGER_SEES: readonly PersonaId[] = ["frontdesk", "outlet", "waiter", "housekeeper", "supervisor", "technician", "store"];
+const MANAGER_SEES: readonly PersonaId[] = [
+  "frontdesk",
+  "outlet",
+  "waiter",
+  "housekeeper",
+  "supervisor",
+  "technician",
+  "store",
+];
 
 export function navigationFor(persona: PersonaId): NavGroup[] {
   return (navigation as Record<string, NavGroup[]>)[persona] ?? [];
