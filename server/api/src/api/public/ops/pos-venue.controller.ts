@@ -16,7 +16,12 @@ import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Put, UseGuard
 import { PosVenueService } from '../../../modules/pos/application/pos-venue.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
-import { CurrentWorkspace, RequirePermission, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
+import {
+  CurrentWorkspace,
+  RequirePermission,
+  RequireProduct,
+  WorkspaceGuard,
+} from '../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -27,9 +32,13 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  * deciding what the floor IS belongs to whoever runs the business. The service applies the tenant and
  * branch scope (another business's or another branch's outlet is a 404) and refuses to remove anything
  * that is in use; "remove" is always archive.
+ *
+ * POS's, like every other `ops/pos` controller (ADR-076 G10): refused where POS is switched off. Setting up
+ * a register is configuration; operating one (shifts, cash) is `OpsPosShiftsController`'s, already POS's.
  */
 @Controller({ path: 'ops/pos/outlets/:outletId', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('pos')
 export class OpsPosVenueController {
   constructor(private readonly venue: PosVenueService) {}
 

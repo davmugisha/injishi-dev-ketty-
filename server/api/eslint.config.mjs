@@ -134,6 +134,12 @@ export default tseslint.config(
             'OpsReportsController',
             // Revenue: Finance's (`finance.money.view`). Stage 6.
             'OpsRevenueController',
+            // The POS back office (dashboard, reports, stock, expenses): POS's
+            // or Finance's. The money reads declare Finance's keys
+            // (`finance.shift.review`, `finance.money.view`) and an expense is
+            // money out, so like Revenue and Reports above it stays open where
+            // POS is off until Finance moves. Stage 6 (5 for the stock routes).
+            'OpsPosBackOfficeController',
             // Offers and refund requests: PMS's by their new keys
             // (`pms.offer.manage`, `pms.refund.decide`), outside slice G's
             // table. Stage 4.

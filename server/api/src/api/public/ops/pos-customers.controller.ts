@@ -19,6 +19,7 @@ import {
   CurrentWorkspace,
   RequireAnyPermission,
   RequirePermission,
+  RequireProduct,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
@@ -35,9 +36,13 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  *
  * A customer belongs to the business: the service filters every query by the caller's workspace, and another
  * business's customer is a 404. Nothing here deletes anything.
+ *
+ * POS's, like every other `ops/pos` controller (ADR-076 G10): refused where POS is switched off. No route
+ * here takes a payment; the orders and payments they touch are already POS's.
  */
 @Controller({ path: 'ops/pos', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('pos')
 export class OpsPosCustomersController {
   constructor(private readonly customers: PosCustomerService) {}
 

@@ -5,7 +5,12 @@ import { GUARDS_METADATA, METHOD_METADATA, PATH_METADATA } from '@nestjs/common/
 import { can, type OrgRole, type Permission } from '@injishi/contracts';
 
 import { SessionGuard } from '../../../shared/auth/session.guard';
-import { REQUIRE_ANY_PERMISSION, REQUIRE_PERMISSION, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
+import {
+  REQUIRE_ANY_PERMISSION,
+  REQUIRE_PERMISSION,
+  REQUIRE_PRODUCT,
+  WorkspaceGuard,
+} from '../../../shared/auth/workspace.guard';
 import { OpsPosCustomersController } from './pos-customers.controller';
 
 /**
@@ -28,6 +33,10 @@ describe('customer routes: permissions', () => {
     const guards = (Reflect.getMetadata(GUARDS_METADATA, controller) ?? []) as unknown[];
     expect(guards).toContain(SessionGuard);
     expect(guards).toContain(WorkspaceGuard);
+  });
+
+  it('belong to POS, so they are refused where POS is switched off (ADR-076 G10)', () => {
+    expect(Reflect.getMetadata(REQUIRE_PRODUCT, controller)).toEqual(['pos']);
   });
 
   it('expose exactly the routes the app relies on', () => {
