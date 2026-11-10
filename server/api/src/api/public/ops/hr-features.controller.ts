@@ -5,11 +5,17 @@ import { HrFeaturesService } from '../../../modules/hr/application/hr-features.s
 import { orgOf } from '../../../modules/hr/application/hr-access';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { SessionGuard } from '../../../shared/auth/session.guard';
-import { CurrentWorkspace, RequireAnyPermission, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
+import {
+  CurrentWorkspace,
+  RequireAnyPermission,
+  RequireProduct,
+  WorkspaceGuard,
+} from '../../../shared/auth/workspace.guard';
 
 /** The HR features switched off for this business, so HR's screens hide them (Injishi staff switch them). */
 @Controller({ path: 'ops/hr/features', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsHrFeaturesController {
   constructor(private readonly features: HrFeaturesService) {}
 

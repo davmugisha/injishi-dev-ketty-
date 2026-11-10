@@ -379,6 +379,7 @@ export class OpsPayClaimsController {
  */
 @Controller({ path: 'ops/payroll-contributions', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsPayrollContributionsController {
   constructor(private readonly contributions: PayrollContributionsService) {}
 

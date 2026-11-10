@@ -22,6 +22,11 @@ import { AuditWriter } from '../../../shared/audit/audit-writer';
 
 type Scope = number[] | null;
 
+/** Where a PSF post sits: a Regional Manager over a province, the others in a district. */
+type PsfPlace =
+  | { level: 'province'; name: string; provinceId: number; districtId: null }
+  | { level: 'district'; name: string; provinceId: number; districtId: number };
+
 const ROLE_OF: Record<PsfTeamRole, 'psf_membership_officer' | 'psf_business_officer'> = {
   regional_manager: 'psf_membership_officer',
   district_manager: 'psf_membership_officer',
@@ -273,7 +278,7 @@ export class PsfTeamService {
     return this.view(grants);
   }
 
-  private async provinceOf(provinceId: number | undefined) {
+  private async provinceOf(provinceId: number | undefined): Promise<PsfPlace> {
     const [p] = provinceId
       ? await this.db.select({ id: provinces.id, name: provinces.name }).from(provinces).where(eq(provinces.id, provinceId)).limit(1)
       : [];
@@ -281,7 +286,7 @@ export class PsfTeamService {
     return { level: 'province' as const, name: p.name, provinceId: p.id, districtId: null };
   }
 
-  private async districtOf(districtId: number | undefined, appoint: Scope, refusal: string) {
+  private async districtOf(districtId: number | undefined, appoint: Scope, refusal: string): Promise<PsfPlace> {
     if (!districtId) throw new NotFoundException('That district was not found.');
     if (appoint !== null && !appoint.includes(districtId)) throw new ForbiddenException(refusal);
     const [d] = await this.db

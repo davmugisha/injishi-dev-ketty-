@@ -1,12 +1,12 @@
 import type { Shape } from "../catalog.ts";
 import type { en } from "./en.ts";
-import { appAdminFr } from "./parts/appAdmin.fr.ts";
-import { appOfficialsFr } from "./parts/appOfficials.fr.ts";
-import { appPlatformFr } from "./parts/appPlatform.fr.ts";
-import { appPsfFr } from "./parts/appPsf.fr.ts";
-import { webHomeFr } from "./parts/webHome.fr.ts";
-import { webPsfFr } from "./parts/webPsf.fr.ts";
-import { webRegisterFr } from "./parts/webRegister.fr.ts";
+import { appAdminFr } from "./parts/app-admin.fr.ts";
+import { appOfficialsFr } from "./parts/app-officials.fr.ts";
+import { appPlatformFr } from "./parts/app-platform.fr.ts";
+import { appPsfFr } from "./parts/app-psf.fr.ts";
+import { webHomeFr } from "./parts/web-home.fr.ts";
+import { webPsfFr } from "./parts/web-psf.fr.ts";
+import { webRegisterFr } from "./parts/web-register.fr.ts";
 
 /**
  * French.

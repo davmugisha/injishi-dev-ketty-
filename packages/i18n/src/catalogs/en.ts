@@ -6,13 +6,13 @@
  * translator starts from and what a missing translation falls back to, which
  * is why it is a real catalog rather than literals spread across components.
  */
-import { appAdminEn } from "./parts/appAdmin.en.ts";
-import { appOfficialsEn } from "./parts/appOfficials.en.ts";
-import { appPlatformEn } from "./parts/appPlatform.en.ts";
-import { appPsfEn } from "./parts/appPsf.en.ts";
-import { webHomeEn } from "./parts/webHome.en.ts";
-import { webPsfEn } from "./parts/webPsf.en.ts";
-import { webRegisterEn } from "./parts/webRegister.en.ts";
+import { appAdminEn } from "./parts/app-admin.en.ts";
+import { appOfficialsEn } from "./parts/app-officials.en.ts";
+import { appPlatformEn } from "./parts/app-platform.en.ts";
+import { appPsfEn } from "./parts/app-psf.en.ts";
+import { webHomeEn } from "./parts/web-home.en.ts";
+import { webPsfEn } from "./parts/web-psf.en.ts";
+import { webRegisterEn } from "./parts/web-register.en.ts";
 
 export const en = {
   ...webHomeEn,

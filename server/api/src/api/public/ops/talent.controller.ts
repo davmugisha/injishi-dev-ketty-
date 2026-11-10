@@ -24,7 +24,7 @@ import { HrFeatureOn } from '../../../modules/hr/application/hr-feature.guard';
 import { TalentService } from '../../../modules/hr/application/talent.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
-import { CurrentWorkspace, RequirePermission, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
+import { CurrentWorkspace, RequirePermission, RequireProduct, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -33,6 +33,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsTalentController {
   constructor(private readonly talent: TalentService) {}
 

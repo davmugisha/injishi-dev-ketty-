@@ -18,6 +18,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { readEnglish } from "./english-source.mjs";
+
 const here = dirname(fileURLToPath(import.meta.url));
 const REGISTER = resolve(here, "../src/app/(app)/(entry)/register");
 const read = (p) => readFileSync(p, "utf8");
@@ -25,10 +27,11 @@ const registerFiles = readdirSync(REGISTER)
   .filter((f) => /\.tsx?$/.test(f))
   .map((f) => [f, read(resolve(REGISTER, f))]);
 const identityClient = read(resolve(here, "../src/data/identity.ts"));
-const scanner = read(resolve(REGISTER, "identity-verifier.tsx"));
-const section = read(resolve(REGISTER, "section-identity.tsx"));
+// Read with their English words put back (#117 moved them into the catalogs).
+const scanner = readEnglish(resolve(REGISTER, "identity-verifier.tsx"));
+const section = readEnglish(resolve(REGISTER, "section-identity.tsx"));
 // The director line is the business's, under "Who is registering it?", not the person's.
-const tinSection = read(resolve(REGISTER, "section-tin.tsx"));
+const tinSection = readEnglish(resolve(REGISTER, "section-tin.tsx"));
 
 describe("no code is sent to any phone (AC-4)", () => {
   test("no register file names the SMS routes or speaks their words", () => {

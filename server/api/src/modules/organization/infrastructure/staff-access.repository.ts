@@ -4,7 +4,6 @@ import { and, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import {
-  auditEvents,
   employees,
   jobPositions,
   orgInvitations,
@@ -12,6 +11,7 @@ import {
   staffAccessRequests,
   users,
 } from '../../../database/drizzle/schema';
+import { AuditWriter } from '../../../shared/audit/audit-writer';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 
 /** A staff file, as giving it a login needs it. */
@@ -209,7 +209,9 @@ export class StaffAccessRepository {
         })
         .returning({ id: staffAccessRequests.id });
       if (!row) throw new Error('Access request insert returned no row.');
-      await tx.insert(auditEvents).values({
+      // Through the one writer (G16): it records the access the act was done under, and
+      // writes the email as "changed", as every personal value in an audit diff is.
+      await AuditWriter.write(tx, {
         actorUserId: input.requestedByUserId,
         subjectType: 'org',
         subjectId: input.orgId,
@@ -221,7 +223,7 @@ export class StaffAccessRepository {
           orgRole: input.orgRole,
           branchIds: input.branchIds,
           invitationId: input.invitationId,
-        } as never,
+        },
         reason: input.note,
       });
       return row.id;
@@ -260,12 +262,12 @@ export class StaffAccessRepository {
         )
         .returning({ id: staffAccessRequests.id });
       if (rows.length === 0) return false;
-      await tx.insert(auditEvents).values({
+      await AuditWriter.write(tx, {
         actorUserId: input.actorUserId,
         subjectType: 'org',
         subjectId: input.orgId,
         eventType: `team.access_${input.status}`,
-        payloadDiff: { requestId: input.id, invitationId: input.invitationId } as never,
+        payloadDiff: { requestId: input.id, invitationId: input.invitationId },
         reason: input.decisionNote,
       });
       return true;

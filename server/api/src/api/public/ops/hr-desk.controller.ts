@@ -13,7 +13,7 @@ import { HrFeatureOn } from '../../../modules/hr/application/hr-feature.guard';
 import { HrDeskService } from '../../../modules/hr/application/hr-desk.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
-import { CurrentWorkspace, RequirePermission, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
+import { CurrentWorkspace, RequirePermission, RequireProduct, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -22,6 +22,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  */
 @Controller({ path: 'ops/hr-tickets', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsHrTicketsController {
   constructor(private readonly desk: HrDeskService) {}
 
@@ -63,6 +64,7 @@ export class OpsHrTicketsController {
  */
 @Controller({ path: 'ops/asset-loans', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
+@RequireProduct('hr')
 export class OpsAssetLoansController {
   constructor(private readonly desk: HrDeskService) {}
 

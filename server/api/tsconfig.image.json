@@ -1,0 +1,20 @@
+{
+  // The container image's build (infra/docker/Dockerfile.api): `nest build -p tsconfig.image.json`.
+  //
+  // Emit only. Type checking the API takes ~2.5 GB of heap (TypeScript 5.9,
+  // `--extendedDiagnostics`, 2026-11-10), and the VPS that builds the image has
+  // 3.8 GB of RAM shared with production, so Node stops at a ~2 GB heap and
+  // every deploy after #119 died with "JavaScript heap out of memory".
+  // `noCheck` skips the checker and keeps the emit: the JavaScript, decorator
+  // metadata included, is byte for byte what `tsconfig.build.json` writes.
+  //
+  // The types are still checked, once per commit, where there is memory for it:
+  // CI's `ci: typecheck` and `ci: build api` stages run `tsc --noEmit` and the
+  // full `nest build`. Nothing reads the API's declarations, so none are written.
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "noCheck": true,
+    "declaration": false,
+    "incremental": false
+  }
+}

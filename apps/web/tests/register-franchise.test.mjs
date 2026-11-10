@@ -24,6 +24,7 @@ const REGISTER = resolve(here, "../src/app/(app)/(entry)/register");
 const { franchiseCandidate, franchiseLine } = await import("@/app/(app)/(entry)/register/franchise-draft");
 const { sectionOrder, documentRows } = await import("@/app/(app)/(entry)/register/register-steps");
 const { FranchiseDeclaration, BusinessDetails } = await import("@injishi/contracts");
+const { readEnglish } = await import("./english-source.mjs");
 
 /** The franchise fields of a business draft, empty as `EMPTY_BUSINESS` holds them. */
 const draft = (over) => ({
@@ -41,7 +42,8 @@ describe("the question", () => {
   });
 
   test("the section offers the three answers the ADR words", () => {
-    const section = readFileSync(resolve(REGISTER, "section-franchise.tsx"), "utf8");
+    // Its English words, put back where `t(...)` asks for them (#117 moved them into the catalogs).
+    const section = readEnglish(resolve(REGISTER, "section-franchise.tsx"));
     assert.match(section, /legend="Part of a franchise\?"/);
     assert.match(section, /title="No"/);
     assert.match(section, /title="We run another company's brand"/);

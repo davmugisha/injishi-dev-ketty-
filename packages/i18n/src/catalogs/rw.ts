@@ -1,12 +1,12 @@
 import type { Shape } from "../catalog.ts";
 import type { en } from "./en.ts";
-import { appAdminRw } from "./parts/appAdmin.rw.ts";
-import { appOfficialsRw } from "./parts/appOfficials.rw.ts";
-import { appPlatformRw } from "./parts/appPlatform.rw.ts";
-import { appPsfRw } from "./parts/appPsf.rw.ts";
-import { webHomeRw } from "./parts/webHome.rw.ts";
-import { webPsfRw } from "./parts/webPsf.rw.ts";
-import { webRegisterRw } from "./parts/webRegister.rw.ts";
+import { appAdminRw } from "./parts/app-admin.rw.ts";
+import { appOfficialsRw } from "./parts/app-officials.rw.ts";
+import { appPlatformRw } from "./parts/app-platform.rw.ts";
+import { appPsfRw } from "./parts/app-psf.rw.ts";
+import { webHomeRw } from "./parts/web-home.rw.ts";
+import { webPsfRw } from "./parts/web-psf.rw.ts";
+import { webRegisterRw } from "./parts/web-register.rw.ts";
 
 /**
  * Kinyarwanda.

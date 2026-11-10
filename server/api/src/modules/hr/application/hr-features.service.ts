@@ -114,7 +114,7 @@ export class HrFeaturesService {
           ),
         ),
     ]);
-    const words = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+    const words = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
     const out: Partial<Record<HrFeature, string>> = {};
     if (open.n) out.talent = `${words(open.n, 'vacancy is', 'vacancies are')} still open.`;
     if (loans.n) out.loans = `${words(loans.n, 'loan is', 'loans are')} still being repaid.`;

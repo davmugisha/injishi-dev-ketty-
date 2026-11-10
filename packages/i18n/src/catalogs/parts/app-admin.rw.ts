@@ -1,5 +1,5 @@
 import type { Shape } from "../../catalog.ts";
-import type { appAdminEn } from "./appAdmin.en.ts";
+import type { appAdminEn } from "./app-admin.en.ts";
 
 /** Kinyarwanda strings for the appAdmin screens. */
 export const appAdminRw: Shape<typeof appAdminEn> = {

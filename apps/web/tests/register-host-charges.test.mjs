@@ -28,6 +28,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const SRC = resolve(here, "../src");
 
 const { HOST_FAQ, HOST_STEPS, HOST_CHARGES, HOST_BENEFITS } = await import("@/data/host");
+const { readEnglish } = await import("./english-source.mjs");
 
 /** Every word the host content puts on screen, as one lowercased string. */
 const hostCopy = [
@@ -107,8 +108,9 @@ describe("/host states the charges plainly", () => {
   });
 
   test("the hero says both charges before the kind is chosen", () => {
-    const hero = readFileSync(join(SRC, "components/host/host-hero.tsx"), "utf8").replace(/\s+/g, " ");
-    assert.match(hero, /A one-time registration fee, then a monthly plan once\s+you&apos;re\s+live\./);
+    // Its English words, put back where `t(...)` asks for them (#117 moved them into the catalogs).
+    const hero = readEnglish(join(SRC, "components/host/host-hero.tsx")).replace(/\s+/g, " ");
+    assert.match(hero, /A one-time registration fee, then a monthly plan once\s+you(?:&apos;|'|’)re\s+live\./);
     assert.match(hero, /href="#host-charges"/);
     const charges = readFileSync(join(SRC, "components/host/host-charges.tsx"), "utf8");
     assert.match(charges, /id="host-charges"/);
