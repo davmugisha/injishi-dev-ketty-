@@ -1,5 +1,6 @@
 import { Card } from "@heroui/react";
 import type { ComponentType, ReactNode } from "react";
+import { DishArt } from "./dish-art";
 
 /**
  * The small parts the dashboard, reports, stock and menu screens share. Plain server components: they read
@@ -48,7 +49,7 @@ export type Tint = "accent" | "success" | "warning" | "danger" | "default";
 /** The soft square behind an icon, per tint (whole class names, so the styles are generated). */
 export const TINT_CHIP: Record<Tint, string> = {
   accent: "bg-accent-soft text-accent-soft-foreground",
-  success: "bg-success-soft text-success",
+  success: "bg-success-soft text-success-soft-foreground",
   warning: "bg-warning-soft text-warning",
   danger: "bg-danger-soft text-danger",
   default: "bg-default text-foreground",
@@ -58,7 +59,7 @@ export const TINT_CHIP: Record<Tint, string> = {
 export function IconChip({ icon: ItemIcon, tint = "accent", size = 40 }: { icon: Icon; tint?: Tint; size?: number }) {
   return (
     <span
-      className={`flex shrink-0 items-center justify-center rounded-xl ${TINT_CHIP[tint]}`}
+      className={`flex shrink-0 items-center justify-center rounded-[11px] ${TINT_CHIP[tint]}`}
       style={{ width: size, height: size }}
       aria-hidden="true"
     >
@@ -84,17 +85,25 @@ export function Kpi({
   tint?: Tint;
 }) {
   const color =
-    tone === "good" ? "text-success" : tone === "warn" ? "text-warning" : tone === "bad" ? "text-danger" : "";
+    tone === "good"
+      ? "text-success-soft-foreground"
+      : tone === "warn"
+        ? "text-warning"
+        : tone === "bad"
+          ? "text-danger"
+          : "";
   return (
-    <Card data-ui="kpi" className="min-w-0 gap-2 rounded-[20px] p-4 shadow-none sm:p-5">
-      <div className="flex items-start justify-between gap-2">
-        <span className="pt-1 text-[13px] font-medium text-muted">{label}</span>
-        {icon ? <IconChip icon={icon} tint={tint} size={38} /> : null}
+    <Card data-ui="kpi" className="min-w-0 gap-3 rounded-[18px] p-4 sm:p-5">
+      <div className="flex items-center gap-2.5">
+        {icon ? <IconChip icon={icon} tint={tint} size={36} /> : null}
+        <span className="min-w-0 truncate text-[14px] text-muted">{label}</span>
       </div>
-      <span className={`truncate text-[20px] leading-8 font-bold tracking-tight tabular sm:text-[26px] ${color}`}>
+      <span
+        className={`text-[19px] leading-7 font-semibold tracking-[-0.02em] [overflow-wrap:anywhere] tabular sm:text-[28px] sm:leading-8 ${color}`}
+      >
         {value}
       </span>
-      {sub ? <span className="text-[12px] text-muted tabular">{sub}</span> : null}
+      {sub ? <span className="text-[12.5px] leading-[18px] text-muted tabular">{sub}</span> : null}
     </Card>
   );
 }
@@ -114,11 +123,11 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <Card className={`min-w-0 gap-4 rounded-[20px] p-5 shadow-none ${className}`}>
+    <Card className={`min-w-0 gap-4 rounded-[18px] p-5 ${className}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h2 className="text-[16px] leading-5 font-semibold tracking-tight">{title}</h2>
-          {note ? <p className="mt-0.5 text-[12px] text-muted">{note}</p> : null}
+          <h2 className="text-[16px] leading-6 font-semibold tracking-[-0.01em]">{title}</h2>
+          {note ? <p className="mt-0.5 text-[13px] text-muted">{note}</p> : null}
         </div>
         {action}
       </div>
@@ -135,7 +144,8 @@ export function Bars({
   rows,
   empty = "Nothing yet.",
 }: {
-  rows: { label: string; value: number; display: ReactNode; hint?: ReactNode }[];
+  /** `photo` names the dish or drink whose photograph sits beside the row (top sellers). */
+  rows: { label: string; value: number; display: ReactNode; hint?: ReactNode; photo?: string }[];
   empty?: string;
 }) {
   if (rows.length === 0) return <p className="py-2 text-[13px] text-muted">{empty}</p>;
@@ -143,19 +153,22 @@ export function Bars({
   return (
     <ul className="flex flex-col gap-3">
       {rows.map((r) => (
-        <li key={r.label} className="flex flex-col gap-1.5">
-          <div className="flex items-baseline justify-between gap-3 text-[13px]">
-            <span className="min-w-0 truncate font-medium">
-              {r.label}
-              {r.hint ? <span className="ml-2 text-[11px] font-normal text-muted">{r.hint}</span> : null}
-            </span>
-            <span className="shrink-0 font-semibold tabular">{r.display}</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-default" aria-hidden="true">
-            <div
-              className="h-full rounded-full"
-              style={{ width: `${Math.max(3, (r.value / max) * 100)}%`, background: BAR_FILL }}
-            />
+        <li key={r.label} className="flex items-center gap-3">
+          {r.photo !== undefined ? <DishArt name={r.photo} size="row" /> : null}
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <div className="flex items-baseline justify-between gap-3 text-[13px]">
+              <span className="min-w-0 truncate font-medium">
+                {r.label}
+                {r.hint ? <span className="ml-2 text-[11px] font-normal text-muted">{r.hint}</span> : null}
+              </span>
+              <span className="shrink-0 font-semibold tabular">{r.display}</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-default" aria-hidden="true">
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${Math.max(3, (r.value / max) * 100)}%`, background: BAR_FILL }}
+              />
+            </div>
           </div>
         </li>
       ))}
@@ -199,15 +212,10 @@ export function Columns({
               </span>
             ) : null}
             <div
-              className={`w-full max-w-14 rounded-xl ${top ? "bg-accent" : ""}`}
+              className={`w-full max-w-14 rounded-[8px] ${top ? "bg-accent" : ""}`}
               style={{
                 height: Math.max(6, (r.value / max) * height),
-                ...(top
-                  ? {}
-                  : {
-                      background:
-                        "repeating-linear-gradient(135deg, color-mix(in oklab, var(--accent) 22%, transparent) 0 6px, color-mix(in oklab, var(--accent) 12%, transparent) 6px 12px)",
-                    }),
+                ...(top ? {} : { background: "color-mix(in oklab, var(--accent) 32%, transparent)" }),
               }}
             />
             <span className={`truncate text-[11px] ${top ? "font-semibold text-foreground" : "text-muted"}`}>
@@ -234,8 +242,8 @@ export function DataTable({
 }) {
   if (rows.length === 0) return <p className="py-2 text-[13px] text-muted">{empty}</p>;
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[420px] border-collapse text-[13px]">
+    <div className="overflow-x-auto rounded-[12px] border border-separator">
+      <table data-ui="data-table" className="w-full min-w-[420px] border-collapse text-[13.5px]">
         <thead>
           <tr className="border-b border-separator text-left text-[11px] tracking-wide text-muted uppercase">
             {columns.map((c) => (

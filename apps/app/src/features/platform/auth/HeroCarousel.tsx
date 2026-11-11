@@ -1,29 +1,49 @@
 "use client";
 
 import { Button, ProgressBar } from "@heroui/react";
-import { stock } from "@injishi/data/media";
+import { type StockImage, stock } from "@injishi/data/media";
 import { Photo } from "@injishi/ui";
 import { useEffect, useState } from "react";
+
+/**
+ * The Bar & Restaurant slides show the product itself: a tablet with the real POS screen (floor, kitchen and bar
+ * display, till), set over the venue photo the slide used before (credits of the photos stay those of `stock`).
+ */
+function posPreview(file: string, alt: string, base: StockImage): StockImage {
+  return { ...base, src: `/stock/${file}`, alt, width: 1396, height: 1766 };
+}
 
 const SLIDES = [
   {
     id: "floor",
     tab: "Floor",
-    image: stock.isanganoTerrace,
+    image: posPreview(
+      "pos-preview-floor.jpg",
+      "A tablet showing the Injishi floor plan with table statuses, in front of a restaurant terrace",
+      stock.isanganoTerrace,
+    ),
     title: "Run a fast floor",
     body: "Seat guests, take orders and send them to the kitchen and bar from one screen, table by table.",
   },
   {
     id: "stations",
     tab: "Kitchen and bar",
-    image: stock.lakeBar,
+    image: posPreview(
+      "pos-preview-bar.jpg",
+      "A tablet showing the Injishi kitchen display with order tickets, in front of a hotel bar",
+      stock.lakeBar,
+    ),
     title: "Kitchen and bar, in step",
     body: "Every ticket reaches the right station, with allergies flagged, timers running and nothing served twice.",
   },
   {
     id: "payments",
     tab: "Payments",
-    image: stock.grilledTilapia,
+    image: posPreview(
+      "pos-preview-till.jpg",
+      "A tablet showing the Injishi till with dish photos and an order, over a grilled tilapia",
+      stock.grilledTilapia,
+    ),
     title: "Get paid, know your numbers",
     body: "Cash, MTN MoMo, Airtel Money and card, with sales, stock and staff on one dashboard.",
   },

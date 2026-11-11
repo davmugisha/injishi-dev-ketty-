@@ -158,7 +158,7 @@ export function PosShiftView({
               </span>
               {s.varianceRwf !== null ? (
                 <span
-                  className={`font-semibold tabular ${s.varianceRwf < 0 ? "text-danger" : s.varianceRwf > 0 ? "text-warning" : "text-success"}`}
+                  className={`font-semibold tabular ${s.varianceRwf < 0 ? "text-danger" : s.varianceRwf > 0 ? "text-warning" : "text-success-soft-foreground"}`}
                 >
                   {s.varianceRwf === 0
                     ? "Balanced"

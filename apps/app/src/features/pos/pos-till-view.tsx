@@ -9,6 +9,7 @@ import {
   PaperPlane,
   Plus,
   Printer,
+  Receipt,
   Scissors,
   TagDollar,
   TrashBin,
@@ -60,6 +61,7 @@ import {
   voidLineAction,
 } from "./actions";
 import { DishArt } from "./dish-art";
+import { ReceiptDialog } from "./ebm-receipt";
 import { mentionsAllergy } from "./kds";
 import { OrderCustomer } from "./pos-customer-picker";
 import { PosShell } from "./pos-shell";
@@ -84,9 +86,54 @@ type Dialog =
   | { kind: "pay" }
   | { kind: "refund"; paymentId: string; left: number }
   | { kind: "bill"; print: BillPrint }
+  | { kind: "receipt" }
   | null;
 
 const ASYNC: PaymentMethod[] = ["mtn_momo", "airtel_money", "bank_transfer"];
+
+const STEPS = ["Ordered", "Sent", "Preparing", "Ready", "Served", "Paid"] as const;
+const STEP_OF: Record<string, number> = {
+  draft: 0,
+  submitted: 1,
+  in_progress: 2,
+  ready: 3,
+  delivered: 4,
+  completed: 5,
+};
+
+/** Where the order is, from taking it to the bill being paid: the tracking the waiter and the guest ask about. */
+function OrderProgress({ order }: { order: PosOrder }) {
+  if (order.status === "cancelled") return null;
+  // The food moves on its own track; payment can come before or after serving, so "Paid" is its own fact.
+  const food = Math.min(STEP_OF[order.status] ?? 0, 4);
+  const paid = order.settlement.settled;
+  const reached = paid && food >= 4 ? 5 : food;
+  return (
+    <ol data-ui="order-progress" aria-label="Order progress" className="mx-4 mt-3 flex items-center gap-1">
+      {STEPS.map((label, i) => {
+        const done = i === 5 ? paid : i <= food;
+        return (
+          <li
+            key={label}
+            className="flex min-w-0 flex-1 flex-col items-center gap-1"
+            aria-current={i === reached ? "step" : undefined}
+          >
+            <span
+              className={`h-1.5 w-full rounded-full ${done ? "bg-[#0b8442]" : "bg-[var(--pos-row)]"}`}
+              aria-hidden="true"
+            />
+            <span
+              className={`truncate text-[12px] ${i === reached ? "font-semibold text-foreground" : done ? "text-[var(--pos-ink-2)]" : "text-muted"}`}
+            >
+              {label}
+              <span className="sr-only">{done ? " (done)" : " (to come)"}</span>
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 function optionsLine(l: PosOrderLine): string {
   return l.selectedOptions.map((o) => `${o.name}: ${o.choices.map((c) => c.label).join(", ")}`).join(" · ");
@@ -215,12 +262,10 @@ export function PosTillView({
                         data-ui="category-pill"
                         data-category={c.id}
                         data-count={n}
-                        className="h-10 w-auto shrink-0 rounded-full border border-separator bg-surface px-4 text-[13px] font-medium text-foreground/80 transition-colors hover:border-accent/60 data-[selected=true]:border-accent data-[selected=true]:bg-accent data-[selected=true]:font-semibold data-[selected=true]:text-accent-foreground"
+                        className="pos-chip"
                       >
                         <span className="whitespace-nowrap">{c.name}</span>
-                        <span className="ml-1.5 rounded-full bg-foreground/8 px-1.5 text-[11px] font-semibold tabular">
-                          {n}
-                        </span>
+                        <span className="pos-chip-count tabular">{n}</span>
                       </Tabs.Tab>
                     );
                   })}
@@ -244,23 +289,27 @@ export function PosTillView({
                 >
                   <DishArt name={item.name} section={section} />
                   <span className="flex min-w-0 flex-col gap-0.5 px-1">
-                    <span className="truncate text-[11px] font-medium text-muted">{section}</span>
+                    <span className="truncate text-[12px] font-medium text-muted">{section}</span>
                     <span className="line-clamp-2 min-h-10 text-[14px] leading-5 font-semibold">{item.name}</span>
                   </span>
                   <span className="flex flex-col gap-1 px-1 pb-0.5">
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="min-w-0 truncate text-[15px] font-bold text-accent tabular">
+                    {/* The price is never cut short: when the card is narrow it wraps above the add button instead. */}
+                    <span className="flex flex-wrap items-center justify-between gap-x-1.5 gap-y-1">
+                      <span
+                        data-ui="price"
+                        className="text-[14px] font-semibold whitespace-nowrap text-accent-soft-foreground tabular"
+                      >
                         {money(item.priceRwf)}
                       </span>
                       <span
                         data-ui="add"
-                        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[0_6px_14px_-6px_var(--accent)] transition group-enabled:group-hover:scale-105 group-disabled:bg-default group-disabled:text-muted group-disabled:shadow-none"
+                        className="ml-auto flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[0_6px_14px_-6px_var(--accent)] transition group-enabled:group-hover:scale-105 group-disabled:bg-default group-disabled:text-muted group-disabled:shadow-none"
                       >
                         <Plus className="size-4" />
                         <span className="sr-only">Add</span>
                       </span>
                     </span>
-                    <span className="truncate text-[11px] text-muted">
+                    <span className="truncate text-[12px] text-muted">
                       {item.available
                         ? item.options.length
                           ? "Sizes and options"
@@ -289,6 +338,7 @@ export function PosTillView({
               {live.length} line{live.length === 1 ? "" : "s"}
             </span>
           </div>
+          <OrderProgress order={order} />
           <OrderCustomer order={order} can={can} editable={editable} />
           <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-4">
             {order.lines.length === 0 ? (
@@ -309,7 +359,7 @@ export function PosTillView({
                   <span
                     className={`min-w-0 flex-1 pt-0.5 text-[14px] font-semibold ${l.status === "voided" ? "line-through" : ""}`}
                   >
-                    <span className="mr-1.5 inline-flex min-w-6 justify-center rounded-md bg-surface px-1 text-[12px] text-accent tabular">
+                    <span className="mr-1.5 inline-flex min-w-6 justify-center rounded-md bg-surface px-1 text-[12px] text-accent-soft-foreground tabular">
                       {l.quantity}×
                     </span>
                     {l.name}
@@ -327,7 +377,9 @@ export function PosTillView({
                   )
                 ) : null}
                 {l.discountRwf > 0 && l.status !== "voided" ? (
-                  <span className="text-[12px] text-success tabular">Discount −{money(l.discountRwf)}</span>
+                  <span className="text-[12px] text-success-soft-foreground tabular">
+                    Discount −{money(l.discountRwf)}
+                  </span>
                 ) : null}
                 {l.status === "voided" ? <span className="text-[12px] text-danger">Voided: {l.voidReason}</span> : null}
                 <div className="flex items-center gap-1">
@@ -506,7 +558,7 @@ export function PosTillView({
               {order.discountRwf ? (
                 <>
                   <dt className="text-muted">Discounts</dt>
-                  <dd className="text-right text-success">−{money(order.discountRwf)}</dd>
+                  <dd className="text-right text-success-soft-foreground">−{money(order.discountRwf)}</dd>
                 </>
               ) : null}
               <dt className="text-muted">
@@ -612,25 +664,50 @@ export function PosTillView({
                   <Printer className="size-4" />
                   Bill
                 </Button>
+                {order.settlement.collectedRwf > 0 ? (
+                  <Button
+                    fullWidth
+                    size="sm"
+                    variant="secondary"
+                    data-ui="receipt-button"
+                    onPress={() => setDialog({ kind: "receipt" })}
+                  >
+                    <Receipt className="size-4" />
+                    Receipt
+                  </Button>
+                ) : null}
                 <Button fullWidth size="sm" variant="danger-soft" onPress={() => setDialog({ kind: "cancel" })}>
                   Cancel
                 </Button>
               </div>
             ) : (
-              <Button
-                variant="secondary"
-                isDisabled={pending}
-                onPress={() =>
-                  run(
-                    () => printBillAction(order.id),
-                    null,
-                    (print) => setDialog({ kind: "bill", print }),
-                  )
-                }
-              >
-                <Printer className="size-4" />
-                Print bill again
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                {order.settlement.collectedRwf > 0 ? (
+                  <Button
+                    className="col-span-2 h-12 rounded-2xl text-[15px] font-semibold"
+                    data-ui="receipt-button"
+                    onPress={() => setDialog({ kind: "receipt" })}
+                  >
+                    <Receipt className="size-4" />
+                    Customer receipt (EBM)
+                  </Button>
+                ) : null}
+                <Button
+                  variant="secondary"
+                  className="col-span-2"
+                  isDisabled={pending}
+                  onPress={() =>
+                    run(
+                      () => printBillAction(order.id),
+                      null,
+                      (print) => setDialog({ kind: "bill", print }),
+                    )
+                  }
+                >
+                  <Printer className="size-4" />
+                  Print bill again
+                </Button>
+              </div>
             )}
             {order.cancelReason ? <p className="text-[12px] text-danger">Cancelled: {order.cancelReason}</p> : null}
           </div>
@@ -761,6 +838,9 @@ export function PosTillView({
           />
         ) : null}
         {dialog?.kind === "bill" ? <BillDialog print={dialog.print} onClose={() => setDialog(null)} /> : null}
+        {dialog?.kind === "receipt" ? (
+          <ReceiptDialog order={order} outlet={outlet} onClose={() => setDialog(null)} />
+        ) : null}
       </RegionOverlays>
     </PosShell>
   );

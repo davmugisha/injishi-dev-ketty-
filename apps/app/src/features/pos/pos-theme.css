@@ -1,0 +1,505 @@
+/*
+ * The POS look: the taste of the Injishi UI kit v1.0.0 (PMS, HRM, F&B, IMS) brought to the point of sale.
+ * A grey frame, one rounded content panel, grey pill navigation with a white pill for the current screen, Inter,
+ * neutral greys and the Injishi green #17C964 (with white text on it) for the one main action.
+ *
+ * Scope: only pages that render the POS shell (`.pos-ui`). The tokens sit on <body> while such a page is open, so
+ * dialogs, menus and toasts (rendered at the end of <body>, outside the shell) wear the same look. Every other
+ * product of the app keeps its own theme. The kitchen and bar display has its own sheet (kds.css).
+ */
+
+/* ── Tokens (light: the kit's own values) ─────────────────────────────────────────────────────────────────────────── */
+body:has(.pos-ui),
+.pos-ui {
+  --pos-frame: #f4f5f7;
+  --pos-panel: #f4f5f7;
+  --pos-side: #ffffff;
+  --pos-pill: #f1f2f4;
+  --pos-pill-hover: #e9ebee;
+  --pos-band: #f6f7f9;
+  --pos-line: #eceef1;
+  --pos-row: #f1f2f4;
+  --pos-card: #ffffff;
+  --pos-card-border: #eaecef;
+  --pos-panel-border: #eaecef;
+  --pos-ctl-border: #e3e5e9;
+  --pos-highlight: #ffffff;
+  --pos-ink: #141414;
+  --pos-ink-2: #3b3b3b;
+  --pos-ink-3: #6e6e6e;
+  --pos-ink-4: #a3a3a3;
+  --pos-green: #17c964;
+  --pos-green-hover: #2ed174;
+  --pos-green-600: #12a150;
+  --pos-green-700: #0e793c;
+  --pos-green-50: #e8faf0;
+  --pos-green-100: #d1f4e0;
+  --pos-green-300: #74dfa2;
+  --pos-card-shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 14px -6px rgb(16 24 40 / 0.07);
+  --pos-active: linear-gradient(180deg, #13a356 0%, #0b8442 100%);
+  --pos-active-shadow: 0 1px 0 rgb(255 255 255 / 0.2) inset, 0 6px 16px -8px rgb(11 132 66 / 0.75);
+  --pos-panel-shadow:
+    inset 0 1px 0 var(--pos-highlight), 0 1px 2px rgb(0 0 0 / 0.03), 0 10px 30px -18px rgb(0 0 0 / 0.12);
+  --pos-pill-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 10px -4px rgb(0 0 0 / 0.12);
+
+  /* The HeroUI roles every POS view and dialog already reads, re-pointed at the kit. */
+  --background: var(--pos-panel);
+  --foreground: var(--pos-ink);
+  --surface: var(--pos-card);
+  --surface-foreground: var(--pos-ink);
+  --surface-secondary: #f4f5f7;
+  --surface-secondary-foreground: var(--pos-ink);
+  --surface-tertiary: #ededed;
+  --surface-tertiary-foreground: var(--pos-ink);
+  --overlay: #ffffff;
+  --overlay-foreground: var(--pos-ink);
+  --default: var(--pos-pill);
+  --default-foreground: var(--pos-ink);
+  --segment: #ffffff;
+  --segment-foreground: var(--pos-ink);
+  --muted: var(--pos-ink-3);
+  --separator: var(--pos-line);
+  --border: var(--pos-ctl-border);
+  --scrollbar: #d6d6d6;
+  --field-background: #ffffff;
+  --field-foreground: var(--pos-ink);
+  --field-border: #e2e2e2;
+  --field-outline: #e2e2e2;
+  --field-placeholder: #8a8a8a;
+  --field-radius: 10px;
+  --accent: var(--pos-green);
+  --accent-foreground: #ffffff;
+  --accent-hover: var(--pos-green-hover);
+  --accent-soft: var(--pos-green-50);
+  --accent-soft-foreground: var(--pos-green-700);
+  --accent-text: var(--pos-green-700);
+  --success: var(--pos-green);
+  --success-foreground: #ffffff;
+  --success-soft: #e6f8ee;
+  --success-soft-foreground: #137a3c;
+  --success-text: #137a3c;
+  --warning: #e39d22;
+  --warning-foreground: #ffffff;
+  --warning-soft: #fff0de;
+  --warning-soft-foreground: #a34b07;
+  --warning-text: #a34b07;
+  --danger: #ef4444;
+  --danger-foreground: #ffffff;
+  --danger-hover: #dc2626;
+  --danger-soft: #fdecec;
+  --danger-soft-foreground: #c81e1e;
+  --danger-text: #c81e1e;
+  /* The hover shades HeroUI derives at the root from its own colours: derived again here from the kit's. */
+  --default-hover: var(--pos-pill-hover);
+  --accent-soft-hover: var(--pos-green-100);
+  --success-hover: var(--pos-green-hover);
+  --success-soft-hover: var(--pos-green-100);
+  --warning-hover: #d18c14;
+  --warning-soft-hover: #ffe6c7;
+  --danger-soft-hover: #fbdada;
+  --focus: var(--pos-green-300);
+  --surface-shadow: var(--pos-card-shadow);
+  --overlay-shadow: 0 12px 32px -8px rgb(0 0 0 / 0.18), 0 2px 6px rgb(0 0 0 / 0.05);
+  --field-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  --chart-1: #0e793c;
+  --chart-2: #12a150;
+  --chart-3: #17c964;
+  --chart-4: #74dfa2;
+  --chart-5: #a2e9c1;
+  --chart-track: #ececec;
+  --chart-muted: #d6d6d6;
+
+  /* Headings read --font-heading and the `font-sans` utility reads --font-sans (both Outfit elsewhere): Inter here. */
+  --font-sans:
+    "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-heading: var(--font-sans);
+  font-family: var(--font-sans);
+  font-optical-sizing: auto;
+  color: var(--pos-ink);
+}
+
+/* The page behind the shell (and around the tablet frame on a wide screen) is the kit's grey frame. */
+body:has(.pos-ui) {
+  background: var(--pos-frame);
+}
+.pos-ui {
+  background: var(--pos-frame);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Tokens (dark: the kit's dark version, for a business that chose the dark theme) ───────────────────────────── */
+[data-theme="mouve-dark"] body:has(.pos-ui),
+[data-theme="mouve-dark"] .pos-ui,
+.dark body:has(.pos-ui),
+.dark .pos-ui {
+  --pos-frame: #0e0f11;
+  --pos-panel: #0e0f11;
+  --pos-side: #16171a;
+  --pos-pill: #24252a;
+  --pos-pill-hover: #2c2d33;
+  --pos-band: #1d1e22;
+  --pos-line: #2a2b30;
+  --pos-row: #24252a;
+  --pos-card: #1c1d21;
+  --pos-card-border: #2a2b30;
+  --pos-panel-border: #26272c;
+  --pos-ctl-border: #33343a;
+  --pos-highlight: rgb(255 255 255 / 0.04);
+  --pos-ink: #f2f2f3;
+  --pos-ink-2: #d2d2d6;
+  --pos-ink-3: #a0a0a7;
+  --pos-ink-4: #6f7077;
+  --pos-green-50: rgb(23 201 100 / 0.14);
+  --pos-green-100: rgb(23 201 100 / 0.22);
+  --pos-green-700: #4ade8a;
+  --surface-secondary: #222327;
+  --surface-tertiary: #26272c;
+  --overlay: #1c1d21;
+  --segment: #2c2d33;
+  --field-background: #1c1d21;
+  --field-border: var(--pos-ctl-border);
+  --field-outline: var(--pos-ctl-border);
+  --success-soft: rgb(23 201 100 / 0.14);
+  --success-soft-foreground: #4ade8a;
+  --warning-soft: rgb(227 157 34 / 0.16);
+  --warning-soft-foreground: #f5b94c;
+  --danger-soft: rgb(239 68 68 / 0.16);
+  --danger-soft-foreground: #f87171;
+  --chart-track: #24252a;
+  --chart-muted: #3a3b41;
+  color-scheme: dark;
+}
+
+/* ── Shell ────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+.pos-ui :focus-visible {
+  outline: 2px solid var(--pos-green-300);
+  outline-offset: 2px;
+}
+
+/* The content area beside the sidebar: a light canvas the white cards sit on. */
+.pos-panel {
+  background: var(--pos-panel);
+}
+/* The sidebar: one white column with a hairline edge, full height. */
+.pos-ui aside[data-ui="pos-sidebar"] {
+  background: var(--pos-side);
+  border-right: 1px solid var(--pos-line);
+}
+
+/* Section names in the sidebar. */
+.pos-section {
+  padding-inline: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pos-ink-4);
+}
+
+/* Navigation pills: grey, white for the current screen (the kit's .f-pill). */
+/* Navigation items: quiet rows; the current screen is a filled green row with white text (5:1 contrast). */
+.pos-pill {
+  position: relative;
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 11px;
+  border-radius: 12px;
+  background: transparent;
+  padding: 0 12px;
+  font-size: 14.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--pos-ink-2);
+  transition:
+    background-color 0.15s,
+    color 0.15s,
+    box-shadow 0.15s;
+}
+.pos-pill:hover {
+  background: var(--pos-pill);
+  color: var(--pos-ink);
+}
+.pos-pill[aria-current="page"] {
+  background: var(--pos-active);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: var(--pos-active-shadow);
+}
+.pos-pill svg {
+  flex-shrink: 0;
+  color: var(--pos-ink-3);
+}
+.pos-pill:hover svg {
+  color: var(--pos-ink);
+}
+.pos-pill[aria-current="page"] svg {
+  color: #ffffff;
+}
+
+/* The calm "opening…" mark on the pill just pressed, instead of a placeholder screen. */
+.pos-spinner {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 2px solid color-mix(in oklab, var(--pos-green) 25%, transparent);
+  border-top-color: var(--pos-green);
+  animation: pos-spin 0.7s linear infinite;
+}
+.pos-pill[aria-current="page"] .pos-spinner {
+  border-color: rgb(255 255 255 / 0.35);
+  border-top-color: #ffffff;
+}
+@keyframes pos-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pos-spinner {
+    animation-duration: 2s;
+  }
+}
+
+/* Outlet and account cards in the sidebar (the kit's hotel card). */
+.pos-side-card {
+  border: 1px solid var(--pos-card-border);
+  border-radius: 14px;
+  background: var(--pos-card);
+  box-shadow:
+    inset 0 1px 0 var(--pos-highlight),
+    0 1px 3px rgb(0 0 0 / 0.05);
+  transition: border-color 0.15s;
+}
+.dark .pos-side-card,
+[data-theme="mouve-dark"] .pos-side-card {
+  border-color: var(--pos-card-border);
+}
+.pos-side-card:hover {
+  border-color: #dcdcdc;
+}
+.pos-tile {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 9px;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(160deg, #1fbf68, #0b8442);
+  box-shadow: inset 0 -2px 3px rgb(0 0 0 / 0.1);
+}
+.pos-avatar {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 999px;
+  font-weight: 600;
+  color: #0b6b37;
+  background: linear-gradient(160deg, #dff7ea, #bfeed4);
+  box-shadow: inset 0 -2px 3px rgb(0 0 0 / 0.06);
+}
+
+/* ── Components inside the POS (the kit's buttons, cards, tabs, chips, tables) ──────────────────────────────────── */
+@layer components {
+  /* Buttons: 10px corners unless a screen asked for its own shape; the main action is green with white text. */
+  .pos-ui .button:not([class*="rounded-"]),
+  body:has(.pos-ui) .modal__dialog .button:not([class*="rounded-"]) {
+    border-radius: 10px;
+  }
+  .pos-ui .button--primary,
+  body:has(.pos-ui) .modal__dialog .button--primary {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.25),
+      0 2px 6px -2px rgb(18 161 80 / 0.5);
+  }
+  .pos-ui .button--secondary,
+  body:has(.pos-ui) .modal__dialog .button--secondary {
+    --button-bg: var(--pos-card);
+    --button-bg-hover: #fbfbfb;
+    --button-bg-pressed: #f4f4f4;
+    --button-fg: var(--pos-ink);
+    box-shadow:
+      0 0 0 1px var(--pos-ctl-border),
+      0 1px 2px rgb(0 0 0 / 0.05);
+  }
+  .pos-ui .button--tertiary,
+  body:has(.pos-ui) .modal__dialog .button--tertiary {
+    --button-bg: var(--pos-pill);
+    --button-bg-hover: var(--pos-pill-hover);
+    --button-fg: var(--pos-ink);
+  }
+
+  /* Cards: white, a hairline edge and a soft highlight, 16px corners unless a screen set its own. */
+  .pos-ui .card {
+    border: 1px solid var(--pos-card-border);
+    box-shadow: var(--pos-card-shadow);
+  }
+  .pos-ui .card:not([class*="rounded-"]) {
+    border-radius: 18px;
+  }
+
+  /* Tabs: the kit's tab chips (grey track, white chip for the chosen one). */
+  .pos-ui .tabs__list-container {
+    border-radius: 12px;
+  }
+  .pos-ui .tabs__tab,
+  .pos-ui .tabs__indicator {
+    border-radius: 10px;
+  }
+  .pos-ui .tabs__tab[aria-selected="true"] {
+    color: var(--pos-ink);
+  }
+
+  /* Filter chips and category tabs: the kit's tab chips (grey; the chosen one white, raised, medium weight). */
+  .pos-ui .toggle-button {
+    --toggle-button-bg: var(--pos-card);
+    --toggle-button-bg-hover: var(--pos-pill);
+    --toggle-button-bg-pressed: var(--pos-pill-hover);
+    --toggle-button-fg: var(--pos-ink-2);
+    --toggle-button-bg-selected: #0b8442;
+    --toggle-button-bg-selected-hover: #0a7a3d;
+    --toggle-button-bg-selected-pressed: #0a7a3d;
+    --toggle-button-fg-selected: #ffffff;
+    font-weight: 500;
+    box-shadow: 0 0 0 1px var(--pos-ctl-border);
+  }
+  .pos-ui .toggle-button:not([class*="rounded-"]) {
+    border-radius: 10px;
+  }
+  .pos-ui .toggle-button[data-selected="true"] {
+    font-weight: 600;
+    box-shadow: var(--pos-active-shadow);
+  }
+  .pos-ui .tabs__tab.pos-chip {
+    display: inline-flex;
+    height: 38px;
+    width: auto;
+    flex-shrink: 0;
+    align-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: var(--pos-card);
+    box-shadow: 0 0 0 1px var(--pos-ctl-border);
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--pos-ink-2);
+    transition:
+      background-color 0.15s,
+      box-shadow 0.15s;
+  }
+  .pos-ui .tabs__tab.pos-chip:hover {
+    background: var(--pos-pill);
+  }
+  .pos-ui .tabs__tab.pos-chip[data-selected="true"] {
+    background: var(--pos-active);
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: var(--pos-active-shadow);
+  }
+  .pos-ui .pos-chip-count {
+    margin-left: 7px;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--pos-ink-3);
+  }
+  .pos-ui .tabs__tab.pos-chip[data-selected="true"] .pos-chip-count {
+    color: rgb(255 255 255 / 0.85);
+  }
+
+  /* Status chips: the kit's tags (6px corners, tinted, dark text at 4.5:1 or better). */
+  .pos-ui .chip,
+  body:has(.pos-ui) .modal__dialog .chip {
+    border-radius: 6px;
+  }
+
+  /* Inputs: white fields with a grey edge that turns green when focused. */
+  .pos-ui .input,
+  .pos-ui .search-field__group,
+  .pos-ui .text-area,
+  body:has(.pos-ui) .modal__dialog .input,
+  body:has(.pos-ui) .modal__dialog .text-area {
+    border-radius: 10px;
+  }
+
+  /* Report tables: the kit's band header. */
+  .pos-ui [data-ui="data-table"] thead tr {
+    background: var(--pos-band);
+  }
+  .pos-ui [data-ui="data-table"] th {
+    height: 37px;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--pos-ink-3);
+  }
+  .pos-ui [data-ui="data-table"] th:first-child,
+  .pos-ui [data-ui="data-table"] td:first-child {
+    padding-left: 12px;
+  }
+  .pos-ui [data-ui="data-table"] tbody tr {
+    transition: background-color 0.15s;
+  }
+  .pos-ui [data-ui="data-table"] tbody tr:hover {
+    background: color-mix(in oklab, var(--pos-panel) 70%, transparent);
+  }
+  .pos-ui [data-ui="data-table"] td {
+    height: 48px;
+  }
+
+  /* Dialogs: the kit's popover surface. */
+  body:has(.pos-ui) .modal__dialog {
+    font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+    border: 1px solid var(--pos-card-border);
+  }
+}
+
+.pos-ui .tabular,
+body:has(.pos-ui) .tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Touch targets on the till: every control in the order panel is at least 44px (WCAG 2.5.5 / Apple HIG), since it is
+   tapped on a tablet during service. */
+.pos-ui [data-ui="order-panel"] .button {
+  min-height: 44px;
+}
+.pos-ui [data-ui="order-panel"] .button[data-icon-only="true"],
+.pos-ui [data-ui="order-panel"] .button.button--icon-only {
+  min-width: 44px;
+}
+
+/* A switch drawn from a checkbox (Create recipe: stockable, on sale): green when on, keyboard and screen readers keep
+   the native checkbox behaviour. */
+.pos-switch {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  flex-shrink: 0;
+  appearance: none;
+  border-radius: 999px;
+  background: var(--pos-ctl-border);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.pos-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+  transition: transform 0.15s;
+}
+.pos-switch:checked {
+  background: #0b8442;
+}
+.pos-switch:checked::after {
+  transform: translateX(16px);
+}

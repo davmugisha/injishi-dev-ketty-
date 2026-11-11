@@ -350,7 +350,7 @@ export function PosMenuManager({
                             // Nothing is left, so flipping a switch would change nothing: the fix is stock, counted on its own screen.
                             <Link
                               href={`/pos/stock?outlet=${outlet.id}`}
-                              className="inline-flex min-h-8 items-center rounded-lg px-3 text-[13px] font-medium text-accent hover:bg-default"
+                              className="inline-flex min-h-8 items-center rounded-lg px-3 text-[13px] font-medium text-accent-soft-foreground hover:bg-default"
                             >
                               Restock
                             </Link>
@@ -422,7 +422,7 @@ export function PosMenuManager({
           <span>
             Changing a price never changes a bill already taken. Product photos are not available yet: the menu has
             nowhere to store them. Stock is counted on the{" "}
-            <Link className="text-accent hover:underline" href={`/pos/stock?outlet=${outlet.id}`}>
+            <Link className="text-accent-soft-foreground hover:underline" href={`/pos/stock?outlet=${outlet.id}`}>
               Stock screen
             </Link>
             .
@@ -435,6 +435,10 @@ export function PosMenuManager({
         isOpen={dialog !== null}
         onOpenChange={(open) => !open && close()}
         title={dialogName}
+        page={dialog?.kind === "product"}
+        subtitle={
+          dialog?.kind === "product" ? ("id" in dialog && dialog.id ? "Recipes / Edit" : "Recipes / Create") : undefined
+        }
         onEnter={dialog && dialog.kind !== "archive" && valid && !pending ? submit : undefined}
         footer={
           <>
@@ -452,110 +456,142 @@ export function PosMenuManager({
         }
       >
         {dialog?.kind === "product" ? (
-          <>
-            {!dialog.id ? (
-              <label className="flex flex-col gap-1 text-[13px] font-medium">
-                Section
-                <select
-                  className={selectClass}
-                  value={dialog.categoryId}
-                  onChange={(e) =>
-                    setDialog({
-                      ...dialog,
-                      categoryId: e.target.value,
-                      tax: sections.find((s) => s.id === e.target.value)?.defaultTaxCode ?? dialog.tax,
-                    })
-                  }
+          <div data-ui="recipe-form" className="flex flex-col">
+            <section aria-labelledby="rf-details" className="flex flex-col gap-4 border-t border-separator py-5">
+              <h3 id="rf-details" className="text-[15px] font-semibold">
+                Recipe details
+              </h3>
+              <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
+                <TextField
+                  value={dialog.name}
+                  onChange={(v) => setDialog({ ...dialog, name: v })}
+                  fullWidth
+                  isRequired
+                  autoFocus
                 >
-                  {sections.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              <p className="text-[12px] text-muted">
-                A product stays in its section. To move it, archive it and add it to the other section.
-              </p>
-            )}
-            <TextField
-              value={dialog.name}
-              onChange={(v) => setDialog({ ...dialog, name: v })}
-              fullWidth
-              isRequired
-              autoFocus
-            >
-              <Label>Name</Label>
-              <Input maxLength={160} placeholder="Margherita pizza" />
-            </TextField>
-            <TextField value={dialog.description} onChange={(v) => setDialog({ ...dialog, description: v })} fullWidth>
-              <Label>Description</Label>
-              <TextArea rows={2} maxLength={1000} placeholder="Optional: what is in it" />
-            </TextField>
-            <div className="grid grid-cols-2 gap-3">
-              <TextField
-                value={dialog.price}
-                onChange={(v) => setDialog({ ...dialog, price: v.replace(/[^\d]/g, "") })}
-                fullWidth
-                isRequired
-              >
-                <Label>Price (RWF)</Label>
-                <Input inputMode="numeric" className="tabular" placeholder="5000" />
-              </TextField>
-              <label className="flex flex-col gap-1 text-[13px] font-medium">
-                Tax
-                <select
-                  className={selectClass}
-                  value={dialog.tax}
-                  onChange={(e) => setDialog({ ...dialog, tax: e.target.value })}
+                  <Label>Recipe name</Label>
+                  <Input maxLength={160} placeholder="Type recipe name" />
+                </TextField>
+                {!dialog.id ? (
+                  <label className="flex flex-col gap-1 text-[13px] font-medium">
+                    Menu category
+                    <select
+                      className={selectClass}
+                      value={dialog.categoryId}
+                      onChange={(e) =>
+                        setDialog({
+                          ...dialog,
+                          categoryId: e.target.value,
+                          tax: sections.find((s) => s.id === e.target.value)?.defaultTaxCode ?? dialog.tax,
+                        })
+                      }
+                    >
+                      {sections.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : (
+                  <div className="flex flex-col gap-1 text-[13px] font-medium">
+                    Menu category
+                    <p className="flex h-10 items-center rounded-[10px] bg-surface-secondary px-3 text-[13px] font-normal text-muted">
+                      Stays in its section (archive and add again to move it)
+                    </p>
+                  </div>
+                )}
+                <TextField
+                  value={dialog.price}
+                  onChange={(v) => setDialog({ ...dialog, price: v.replace(/[^\d]/g, "") })}
+                  fullWidth
+                  isRequired
                 >
-                  {TAX_CHOICES.map((t) => (
-                    <option key={t.code} value={t.code}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <TextField
-              value={dialog.prep}
-              onChange={(v) => setDialog({ ...dialog, prep: v.replace(/[^\d]/g, "") })}
-              fullWidth
-            >
-              <Label>Preparation time (minutes)</Label>
-              <Input inputMode="numeric" className="tabular" placeholder="Optional" />
-            </TextField>
-            {dialog.id ? (
-              <>
-                <label className="flex items-center gap-2 text-[14px]">
-                  <input
-                    type="checkbox"
-                    className="size-4"
-                    checked={dialog.onSale}
-                    onChange={(e) => setDialog({ ...dialog, onSale: e.target.checked })}
-                  />
-                  On sale (untick to mark it sold out)
+                  <Label>Selling price (RWF)</Label>
+                  <Input inputMode="numeric" className="tabular" placeholder="5000" />
+                </TextField>
+                <label className="flex flex-col gap-1 text-[13px] font-medium">
+                  Tax (RRA)
+                  <select
+                    className={selectClass}
+                    value={dialog.tax}
+                    onChange={(e) => setDialog({ ...dialog, tax: e.target.value })}
+                  >
+                    {TAX_CHOICES.map((t) => (
+                      <option key={t.code} value={t.code}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
-                <p className="text-[12px] text-muted">
-                  {dialog.currentStock === null
-                    ? "Stock is not tracked for this product."
-                    : `${dialog.currentStock} in stock.`}{" "}
-                  Counts and corrections are recorded on the Stock screen, so every change keeps its reason.
+                <TextField
+                  value={dialog.description}
+                  onChange={(v) => setDialog({ ...dialog, description: v })}
+                  fullWidth
+                  className="sm:col-span-2"
+                >
+                  <Label>Description</Label>
+                  <TextArea rows={2} maxLength={1000} placeholder="What is in it, as the guest reads it" />
+                </TextField>
+              </div>
+              <div className="flex flex-col gap-2">
+                <span className="text-[13px] font-medium">Recipe image</span>
+                <div className="flex items-center gap-4">
+                  <span className="size-[88px] overflow-hidden rounded-2xl [&>span]:h-full [&>span]:!aspect-auto">
+                    <DishArt
+                      name={dialog.name || " "}
+                      section={sections.find((s) => s.id === dialog.categoryId)?.name ?? ""}
+                      size="tile"
+                    />
+                  </span>
+                  <p className="max-w-[420px] text-[12.5px] leading-[18px] text-muted">
+                    {dialog.name.trim()
+                      ? "Chosen from the photo library by the recipe name, and shown on the till, the menu and the receipt screens."
+                      : "Type the recipe name: a matching photo from the library appears here."}{" "}
+                    Uploading your own photo comes with photo storage.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section aria-labelledby="rf-ingredients" className="flex flex-col gap-3 border-t border-separator py-5">
+              <h3 id="rf-ingredients" className="text-[15px] font-semibold">
+                Ingredients
+              </h3>
+              <div className="grid grid-cols-[2fr_1fr_1fr_1fr] rounded-xl bg-[var(--pos-band)] px-3 py-2.5 text-[12.5px] text-muted">
+                <span>Item</span>
+                <span>Net qty</span>
+                <span>Unit</span>
+                <span className="text-right">Cost</span>
+              </div>
+              <div className="flex flex-col items-center gap-2 py-4 text-center">
+                <svg width="64" height="56" viewBox="0 0 64 56" aria-hidden="true">
+                  <path d="M8 18 32 8l24 10v24L32 52 8 42Z" fill="#e7e5e4" />
+                  <path d="M8 18 32 28l24-10M32 28v24" fill="none" stroke="#a8a29e" strokeWidth="1.5" />
+                  <path d="M8 18 2 10l24-10 6 8M56 18l6-8L38 0l-6 8" fill="#d6d3d1" />
+                </svg>
+                <p className="text-[14px] font-semibold">No ingredients yet</p>
+                <p className="max-w-[380px] text-[12.5px] text-muted">
+                  Ingredient lists and plate costing arrive with recipes in the stock module. Until then the cost of
+                  goods is estimated at 35% of the price.
                 </p>
-              </>
-            ) : (
-              <>
-                <label className="flex items-center gap-2 text-[14px]">
-                  <input
-                    type="checkbox"
-                    className="size-4"
-                    checked={dialog.track}
-                    onChange={(e) => setDialog({ ...dialog, track: e.target.checked })}
-                  />
-                  Track stock for this product
-                </label>
-                {dialog.track ? (
+              </div>
+            </section>
+
+            <section aria-labelledby="rf-portion" className="flex flex-col gap-4 border-t border-separator pt-5">
+              <h3 id="rf-portion" className="text-[15px] font-semibold">
+                Portion and stock
+              </h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <TextField
+                  value={dialog.prep}
+                  onChange={(v) => setDialog({ ...dialog, prep: v.replace(/[^\d]/g, "") })}
+                  fullWidth
+                >
+                  <Label>Preparation time (minutes)</Label>
+                  <Input inputMode="numeric" className="tabular" placeholder="Optional" />
+                </TextField>
+                {!dialog.id && dialog.track ? (
                   <TextField
                     value={dialog.stock}
                     onChange={(v) => setDialog({ ...dialog, stock: v.replace(/[^\d]/g, "") })}
@@ -566,12 +602,42 @@ export function PosMenuManager({
                     <Input inputMode="numeric" className="tabular" />
                   </TextField>
                 ) : null}
-              </>
-            )}
-            <p className="rounded-lg bg-surface-secondary p-2.5 text-[12px] text-muted">
-              Photos: not available yet. The menu has no place to store a product picture, so none is asked for.
-            </p>
-          </>
+              </div>
+              {dialog.id ? (
+                <>
+                  <label className="flex items-center gap-3 text-[14px]">
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      aria-checked={dialog.onSale}
+                      className="pos-switch"
+                      checked={dialog.onSale}
+                      onChange={(e) => setDialog({ ...dialog, onSale: e.target.checked })}
+                    />
+                    On sale (switch off to mark it sold out)
+                  </label>
+                  <p className="text-[12px] text-muted">
+                    {dialog.currentStock === null
+                      ? "Stock is not tracked for this recipe."
+                      : `${dialog.currentStock} in stock.`}{" "}
+                    Counts and corrections are recorded on the Stock screen, so every change keeps its reason.
+                  </p>
+                </>
+              ) : (
+                <label className="flex items-center gap-3 text-[14px]">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    aria-checked={dialog.track}
+                    className="pos-switch"
+                    checked={dialog.track}
+                    onChange={(e) => setDialog({ ...dialog, track: e.target.checked })}
+                  />
+                  Allow this recipe to be stockable (track stock)
+                </label>
+              )}
+            </section>
+          </div>
         ) : null}
         {dialog?.kind === "section" ? (
           <>
@@ -639,5 +705,5 @@ function dialogTitle(d: Dialog | null): string {
   if (!d) return "";
   if (d.kind === "archive") return "Archive this product?";
   if (d.kind === "section") return d.id ? "Edit section" : "Add section";
-  return d.id ? "Edit product" : "Add product";
+  return d.id ? "Edit recipe" : "Create recipe";
 }

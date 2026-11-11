@@ -466,7 +466,7 @@ export function PosSetupView({
               Editing your business details, adding more branches, and your logo have no working screen yet, so they are
               not offered here rather than sending you somewhere that does not open. Product photos are not available
               either: the menu has nowhere to store them. Your team is managed in{" "}
-              <Link className="text-accent underline-offset-2 hover:underline" href="/settings/team">
+              <Link className="text-accent-soft-foreground underline-offset-2 hover:underline" href="/settings/team">
                 team settings
               </Link>
               .
@@ -657,7 +657,7 @@ function Progress({ setup }: { setup: PosSetup }) {
                 <Check className="size-3" />
               </span>
               <div className="min-w-0 flex-1">
-                <Link href={to} className="text-[14px] font-medium hover:text-accent">
+                <Link href={to} className="text-[14px] font-medium hover:text-accent-soft-foreground">
                   {meta.label}
                   <span className="sr-only">{s.done ? " (done)" : " (not done yet)"}</span>
                 </Link>

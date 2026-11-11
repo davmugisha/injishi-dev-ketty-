@@ -19,6 +19,7 @@ import type { PosAuditEvent, PosDashboard, PosOutlet, PosSetup, SetupStepKey } f
 import { Bars, Columns, IconChip, Kpi, METHOD_NAME, ORDER_STATUS_NAME, Panel, TABLE_STATUS_NAME } from "./back-office";
 import { addDays, longDay, rwf, rwfSigned, shortDay } from "./format";
 import { PosShell } from "./pos-shell";
+import { ServiceFlow } from "./service-flow";
 import { SimulationNotice } from "./shared";
 
 const PAYMENT_TILES = ["cash", "mtn_momo", "airtel_money", "card", "bank_transfer", "voucher"] as const;
@@ -164,6 +165,13 @@ export function PosDashboardView({
           />
         </section>
 
+        <ServiceFlow
+          outletId={selected?.id ?? ""}
+          tables={live.tables}
+          orders={live.activeOrders}
+          settledToday={today.sales.completedOrders}
+        />
+
         <section className="grid gap-4 xl:grid-cols-3">
           <Panel
             className="xl:col-span-2"
@@ -218,6 +226,7 @@ export function PosDashboardView({
                 value: d.quantity,
                 display: `${d.quantity} sold`,
                 hint: rwf(d.revenueRwf),
+                photo: d.name,
               }))}
               empty="No drinks sold yet."
             />
@@ -230,6 +239,7 @@ export function PosDashboardView({
                 value: d.quantity,
                 display: `${d.quantity} sold`,
                 hint: rwf(d.revenueRwf),
+                photo: d.name,
               }))}
               empty="Nothing sold yet."
             />

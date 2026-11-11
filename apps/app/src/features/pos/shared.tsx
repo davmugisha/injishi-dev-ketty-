@@ -141,6 +141,7 @@ export function PosDialog({
   children,
   footer,
   wide,
+  page,
   onEnter,
 }: {
   isOpen: boolean;
@@ -150,6 +151,8 @@ export function PosDialog({
   children: ReactNode;
   footer: ReactNode;
   wide?: boolean;
+  /** A full form (create recipe): nearly the width of the screen, sections separated by rules. */
+  page?: boolean;
   /** Pressing Enter in a field submits the dialog (not offered for a destructive confirmation). */
   onEnter?: () => void;
 }) {
@@ -158,7 +161,7 @@ export function PosDialog({
       <Modal.Container placement="center" className="h-full px-[16px] py-[20px] sm:w-full">
         <Modal.Dialog
           aria-label={title}
-          className={`max-h-full gap-[14px] overflow-y-auto rounded-[24px] p-[24px] ${wide ? "sm:max-w-[720px]" : "sm:max-w-[480px]"}`}
+          className={`max-h-full gap-[14px] overflow-y-auto rounded-[24px] p-[24px] ${page ? "sm:max-w-[920px]" : wide ? "sm:max-w-[720px]" : "sm:max-w-[480px]"}`}
         >
           <Modal.Header className="flex-row items-start gap-3">
             <div className="flex min-w-0 flex-1 flex-col gap-[2px]">

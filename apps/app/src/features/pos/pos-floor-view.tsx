@@ -1,10 +1,20 @@
 "use client";
 
-import { ArrowRightArrowLeft, Bucket, Plus, Receipt, ShoppingBag } from "@gravity-ui/icons";
-import { Button, Card, Label, Tabs } from "@heroui/react";
+import {
+  ArrowDownToLine,
+  ArrowRightArrowLeft,
+  Bucket,
+  Copy,
+  Plus,
+  Printer,
+  QrCode as QrIcon,
+  Receipt,
+  ShoppingBag,
+} from "@gravity-ui/icons";
+import { Button, Card, Label, Tabs, toast } from "@heroui/react";
 import { EmptyState } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { RegionOverlays } from "@/features/outlets/shared";
 import {
@@ -26,7 +36,17 @@ import {
   tableStatusAction,
 } from "./actions";
 import { PosShell } from "./pos-shell";
+import { downloadTablePng, printTableCards, QrCode, tableCode, tableLink } from "./qr-card";
 import { clock, money, ORDER_COLOR, PosDialog, StatusChip, TABLE_COLOR, usePosAction, usePressKey } from "./shared";
+
+/** The status legend under the area tabs: the same colours as the table cards. */
+const LEGEND: { status: TableStatus; dot: string }[] = [
+  { status: "available", dot: "bg-success" },
+  { status: "occupied", dot: "bg-warning" },
+  { status: "bill_requested", dot: "bg-danger" },
+  { status: "reserved", dot: "bg-foreground/50" },
+  { status: "cleaning", dot: "bg-foreground/25" },
+];
 
 /**
  * The floor (POS spec §5, tables and service): every table of the outlet by dining area, with who sits
@@ -46,9 +66,17 @@ export function PosFloorView({
   can: string[];
 }) {
   const router = useRouter();
+  const params = useSearchParams();
   const { run, pending } = usePosAction();
-  const [area, setArea] = useState(floor.areas[0]?.id ?? "");
-  const [selected, setSelected] = useState<PosTable | null>(null);
+  // A table's QR code opens the floor with that table chosen (`?table=`), in its own area.
+  const linked = floor.tables.find((t) => t.id === params.get("table")) ?? null;
+  const [area, setArea] = useState(linked?.areaId ?? floor.areas[0]?.id ?? "");
+  const [selected, setSelected] = useState<PosTable | null>(linked);
+  const [qrSheet, setQrSheet] = useState(false);
+  const [origin, setOrigin] = useState("");
+  useEffect(() => setOrigin(window.location.origin), []);
+  const areaName = new Map(floor.areas.map((a) => [a.id, a.name]));
+  const venue = outlet.name;
   const [seatFor, setSeatFor] = useState<PosTable | null>(null);
   const [guests, setGuests] = useState(2);
   const [moveFrom, setMoveFrom] = useState<{ table: PosTable; mode: "move" | "merge" } | null>(null);
@@ -107,12 +135,20 @@ export function PosFloorView({
       switchHref="/pos/floor"
       can={can}
       actions={
-        sell ? (
-          <Button isDisabled={pending} onPress={() => openOrder(undefined)}>
-            <ShoppingBag className="size-4" />
-            New takeaway
-          </Button>
-        ) : null
+        <>
+          {floor.tables.length ? (
+            <Button variant="secondary" onPress={() => setQrSheet(true)}>
+              <QrIcon className="size-4" />
+              Table QR codes
+            </Button>
+          ) : null}
+          {sell ? (
+            <Button isDisabled={pending} onPress={() => openOrder(undefined)}>
+              <ShoppingBag className="size-4" />
+              New takeaway
+            </Button>
+          ) : null}
+        </>
       }
     >
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4 md:flex-row md:overflow-hidden md:px-6">
@@ -144,13 +180,9 @@ export function PosFloorView({
             <Tabs.ListContainer className="overflow-x-auto pb-1">
               <Tabs.List aria-label="Dining area" className="gap-2 border-0 shadow-none">
                 {floor.areas.map((a) => (
-                  <Tabs.Tab
-                    key={a.id}
-                    id={a.id}
-                    className="h-10 w-auto shrink-0 rounded-full border border-separator bg-surface px-4 text-[13px] font-medium whitespace-nowrap text-foreground/80 transition-colors hover:border-accent/60 data-[selected=true]:border-accent data-[selected=true]:bg-accent data-[selected=true]:font-semibold data-[selected=true]:text-accent-foreground"
-                  >
+                  <Tabs.Tab key={a.id} id={a.id} className="pos-chip">
                     {a.name}
-                    <span className="ml-1.5 rounded-full bg-foreground/8 px-1.5 text-[11px] font-semibold tabular">
+                    <span className="pos-chip-count tabular">
                       {floor.tables.filter((t) => t.areaId === a.id && t.status === "available").length}/
                       {floor.tables.filter((t) => t.areaId === a.id).length} free
                     </span>
@@ -159,6 +191,17 @@ export function PosFloorView({
               </Tabs.List>
             </Tabs.ListContainer>
           </Tabs>
+
+          {floor.tables.length ? (
+            <ul aria-label="Table colours" className="-mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-muted">
+              {LEGEND.map((l) => (
+                <li key={l.status} className="flex items-center gap-1.5">
+                  <span className={`size-2.5 rounded-full ${l.dot}`} aria-hidden="true" />
+                  {TABLE_STATUS_LABEL[l.status]}
+                </li>
+              ))}
+            </ul>
+          ) : null}
 
           {floor.tables.length === 0 ? (
             <EmptyState size="sm">
@@ -309,6 +352,73 @@ export function PosFloorView({
                   ) : null}
                 </>
               )}
+              {origin ? (
+                <div data-ui="table-qr" className="flex items-center gap-3 rounded-2xl bg-[var(--pos-band)] p-3">
+                  <QrCode
+                    value={tableLink(origin, outlet.id, live.id)}
+                    size={84}
+                    label={`QR code for table ${live.label}`}
+                  />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <p className="text-[13px] leading-tight font-semibold">Table QR code</p>
+                    <p className="text-[11.5px] leading-snug text-muted">
+                      Code {tableCode(live.label, live.id)} · scan with a staff phone to open this table
+                    </p>
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        isIconOnly
+                        aria-label={`Download the QR card of ${live.label}`}
+                        onPress={() =>
+                          downloadTablePng(
+                            venue,
+                            live.label,
+                            areaName.get(live.areaId) ?? "",
+                            tableLink(origin, outlet.id, live.id),
+                            tableCode(live.label, live.id),
+                          )
+                        }
+                      >
+                        <ArrowDownToLine className="size-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        isIconOnly
+                        aria-label={`Copy the link of ${live.label}`}
+                        onPress={() =>
+                          navigator.clipboard
+                            .writeText(tableLink(origin, outlet.id, live.id))
+                            .then(() => toast.success(`Link of ${live.label} copied`))
+                            .catch(() => toast.danger("The browser did not allow copying"))
+                        }
+                      >
+                        <Copy className="size-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        isIconOnly
+                        aria-label={`Print the QR card of ${live.label}`}
+                        onPress={() =>
+                          printTableCards(venue, [
+                            {
+                              label: live.label,
+                              area: areaName.get(live.areaId) ?? "",
+                              link: tableLink(origin, outlet.id, live.id),
+                              code: tableCode(live.label, live.id),
+                              seats: live.seats,
+                            },
+                          ]) || toast.danger("Allow pop-ups to print the card")
+                        }
+                      >
+                        <Printer className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
               {manageTables && TABLE_MOVES[live.status].length ? (
                 <div className="flex flex-col gap-2 border-t border-separator pt-3">
                   <Label>Set the table to</Label>
@@ -336,6 +446,106 @@ export function PosFloorView({
       </div>
 
       <RegionOverlays>
+        {qrSheet && origin ? (
+          <PosDialog
+            isOpen
+            onOpenChange={(open) => !open && setQrSheet(false)}
+            title="Table QR codes"
+            subtitle={`One code per table at ${venue}. Print them as table cards: scanning one opens that table on a staff phone or tablet.`}
+            wide
+            footer={
+              <>
+                <Button variant="secondary" onPress={() => setQrSheet(false)}>
+                  Close
+                </Button>
+                <Button
+                  onPress={() =>
+                    printTableCards(
+                      venue,
+                      floor.tables.map((t) => ({
+                        label: t.label,
+                        area: areaName.get(t.areaId) ?? "",
+                        link: tableLink(origin, outlet.id, t.id),
+                        code: tableCode(t.label, t.id),
+                        seats: t.seats,
+                      })),
+                    ) || toast.danger("Allow pop-ups to print the cards")
+                  }
+                >
+                  <Printer className="size-4" />
+                  Print all {floor.tables.length} cards
+                </Button>
+              </>
+            }
+          >
+            <div className="flex max-h-[62vh] flex-col gap-5 overflow-y-auto pr-1">
+              {floor.areas.map((a) => {
+                const tables = floor.tables.filter((t) => t.areaId === a.id);
+                if (!tables.length) return null;
+                return (
+                  <section key={a.id} aria-label={a.name} className="flex flex-col gap-2">
+                    <h3 className="text-[13px] font-semibold">
+                      {a.name} <span className="font-normal text-muted">· {tables.length} tables</span>
+                    </h3>
+                    <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
+                      {tables.map((t) => (
+                        <article
+                          key={t.id}
+                          data-ui="qr-card"
+                          className="flex flex-col items-center gap-1.5 rounded-2xl border border-t-4 border-[var(--pos-card-border)] border-t-[#0b8442] bg-white p-3 text-center text-[#0f1a14]"
+                        >
+                          <span className="w-full truncate text-[10px] font-semibold tracking-[0.12em] text-[#4b5563] uppercase">
+                            {outlet.branchName ?? venue}
+                          </span>
+                          <span className="text-[22px] leading-6 font-bold">{t.label}</span>
+                          <QrCode
+                            value={tableLink(origin, outlet.id, t.id)}
+                            size={112}
+                            label={`QR code for table ${t.label}`}
+                          />
+                          <span className="text-[10.5px] tracking-wide text-[#6b7280]">{tableCode(t.label, t.id)}</span>
+                          <span className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              isIconOnly
+                              aria-label={`Download the QR card of ${t.label}`}
+                              onPress={() =>
+                                downloadTablePng(
+                                  venue,
+                                  t.label,
+                                  a.name,
+                                  tableLink(origin, outlet.id, t.id),
+                                  tableCode(t.label, t.id),
+                                )
+                              }
+                            >
+                              <ArrowDownToLine className="size-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              isIconOnly
+                              aria-label={`Copy the link of ${t.label}`}
+                              onPress={() =>
+                                navigator.clipboard
+                                  .writeText(tableLink(origin, outlet.id, t.id))
+                                  .then(() => toast.success(`Link of ${t.label} copied`))
+                                  .catch(() => toast.danger("The browser did not allow copying"))
+                              }
+                            >
+                              <Copy className="size-4" />
+                            </Button>
+                          </span>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          </PosDialog>
+        ) : null}
         {seatFor ? (
           <PosDialog
             isOpen
