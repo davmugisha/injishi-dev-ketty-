@@ -96,6 +96,13 @@ export function urgencyOf(status: TicketStatus, seconds: number, limits: KdsLimi
   return "normal";
 }
 
+/** How late a ticket is, for its card: minutes under an hour and a half, then hours and minutes. */
+export function lateBy(minutes: number): string {
+  const m = Math.max(0, Math.floor(minutes));
+  if (m < 90) return `+${m} min`;
+  return `+${Math.floor(m / 60)} h ${m % 60} min`;
+}
+
 /** Overdue first, then orange, then the rest; inside each group the order that has waited longest comes first. */
 export function byPriority(limits: KdsLimits, nowMs: number) {
   return (a: PosTicket, b: PosTicket): number => {
@@ -239,15 +246,16 @@ export function saveSound(store: Store | null, outletId: string, on: boolean): v
   }
 }
 
-/** The board's look: light like the rest of the POS, or dark for a dim kitchen. Remembered per device, not per outlet. */
+/** The board's look: dark by default (the Injishi venue kitchen display, for a dim kitchen), or light. Remembered per device. */
 export type KdsTheme = "light" | "dark";
-const THEME_KEY = "injishi.kds.theme";
+// v2: the venue kitchen display made dark the default; a choice saved under the old key (light) no longer applies.
+const THEME_KEY = "injishi.kds.theme.v2";
 
 export function loadTheme(store: Store | null): KdsTheme {
   try {
-    return store?.getItem(THEME_KEY) === "dark" ? "dark" : "light";
+    return store?.getItem(THEME_KEY) === "light" ? "light" : "dark";
   } catch {
-    return "light";
+    return "dark";
   }
 }
 

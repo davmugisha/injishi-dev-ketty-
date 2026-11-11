@@ -4,11 +4,13 @@ import { Bell, Check, CircleCheck, Clock, Hourglass, Persons, Printer, TriangleE
 import { type ReactNode, useState } from "react";
 import type { PosTicket, TicketStatus } from "@/server/pos";
 import "./kds.css";
+import "./pos-fonts.css";
 import {
   DEFAULT_LIMITS,
   formatWait,
   type KdsLimits,
   type KdsStation,
+  lateBy,
   limitsError,
   mentionsAllergy,
   ORDER_TYPE_LABEL,
@@ -116,11 +118,19 @@ export function TicketCard({
             <Clock width={22} height={22} />
             {timed ? formatWait(seconds) : "–:––"}
           </b>
-          <small>{t.status === "ready" ? "waiting at the pass" : "since sent"}</small>
+          <small data-field="urgency">
+            {t.status === "ready"
+              ? "waiting at the pass"
+              : urgency === "late"
+                ? `Late · ${lateBy(seconds / 60 - limits.lateMinutes)}`
+                : urgency === "warning"
+                  ? "Soon late"
+                  : "On time"}
+          </small>
         </div>
         <div className="kds-where">
           <span className="kds-table" data-kind={t.tableLabel ? "in" : "out"}>
-            {t.tableLabel ? <small>TABLE</small> : null}
+            {t.tableLabel ? <small>Table</small> : null}
             <b data-field="where">{where}</b>
           </span>
           {t.tableLabel ? (
@@ -329,56 +339,5 @@ export function TimingForm({ limits, onSave }: { limits: KdsLimits; onSave: (nex
         </button>
       </div>
     </form>
-  );
-}
-
-/** What the board looks like while it loads: the same three areas, with cards that are still being drawn. */
-export function KdsSkeleton({ station = "kitchen" }: { station?: KdsStation }) {
-  return (
-    <div className="kds" data-station={station} data-fullscreen="false" aria-busy="true">
-      <div className="kds-top">
-        <div className="kds-brand">
-          <span className="kds-mark">
-            <StationMark station={station} size={26} />
-          </span>
-          <span className="kds-word">
-            <b>
-              INJISHI <span>{station === "kitchen" ? "KITCHEN" : "BAR"}</span>
-            </b>
-            <small>Loading…</small>
-          </span>
-        </div>
-      </div>
-      <div className="kds-sub">
-        <div className="kds-stats">
-          {["a", "b", "c", "d"].map((k) => (
-            <div key={k} className="kds-skel" style={{ height: 66 }}>
-              <i style={{ width: "100%", height: "100%" }} />
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="kds-board">
-        {["a", "b", "c"].map((col) => (
-          <div key={col} className="kds-col">
-            <div className="kds-col-head">
-              <i style={{ width: 120, height: 14, borderRadius: 8, display: "block", background: "var(--line)" }} />
-            </div>
-            <div className="kds-col-body">
-              {[0, 1].slice(0, col === "c" ? 1 : 2).map((n) => (
-                <div key={n} className="kds-skel" style={{ height: 230 }}>
-                  <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
-                    <i style={{ width: "42%", height: 38 }} />
-                    <i style={{ width: "28%", height: 22 }} />
-                    <i style={{ width: "80%", height: 26, marginTop: 12 }} />
-                    <i style={{ width: "100%", height: 52, marginTop: 10 }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }

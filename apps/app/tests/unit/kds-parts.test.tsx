@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test, vi } from "vitest";
 import { DEFAULT_LIMITS } from "@/features/pos/kds";
-import { EmptyColumn, KdsSkeleton, TicketCard } from "@/features/pos/kds-parts";
+import { EmptyColumn, TicketCard } from "@/features/pos/kds-parts";
 import type { PosTicket } from "@/server/pos";
 
 const NOW = Date.parse("2026-11-07T12:00:00.000Z");
@@ -183,17 +183,6 @@ describe("what each person can press", () => {
 });
 
 describe("loading and empty states", () => {
-  test("the skeleton is the same three areas, announced as busy, with each station's own mark", () => {
-    const { container, rerender } = render(<KdsSkeleton />);
-    expect(container.querySelector(".kds")).toHaveAttribute("aria-busy", "true");
-    expect(container.querySelector(".kds")).toHaveAttribute("data-station", "kitchen");
-    expect(container.querySelectorAll(".kds-col")).toHaveLength(3);
-    expect(screen.getByText("KITCHEN")).toBeInTheDocument();
-    rerender(<KdsSkeleton station="bar" />);
-    expect(container.querySelector(".kds")).toHaveAttribute("data-station", "bar");
-    expect(screen.getByText("BAR")).toBeInTheDocument();
-  });
-
   test("each empty area says what is missing and what to do", () => {
     const { rerender } = render(<EmptyColumn status="queued" />);
     expect(screen.getByText("No new orders")).toBeInTheDocument();

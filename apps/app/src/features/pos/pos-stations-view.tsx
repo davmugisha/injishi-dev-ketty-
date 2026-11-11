@@ -157,7 +157,7 @@ export function PosStationsView({
   const [filter, setFilter] = useState<OrderFilter>("all");
   const [limits, setLimits] = useState<KdsLimits>(DEFAULT_LIMITS);
   const [soundOn, setSoundOn] = useState(true);
-  const [theme, setTheme] = useState<KdsTheme>("light");
+  const [theme, setTheme] = useState<KdsTheme>("dark");
   const [panel, setPanel] = useState<Panel>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [online, setOnline] = useState(true);
@@ -318,13 +318,13 @@ export function PosStationsView({
           <span className="kds-mark">
             <StationMark station={station} size={26} />
           </span>
-          <span className="kds-word">
+          <span className="kds-word" data-ui="kds-title">
             <b>
-              INJISHI <span>{station === "kitchen" ? "KITCHEN" : "BAR"}</span>
+              {STATION_NAME[station]} · <span>{outlet.branchName ?? outlet.name}</span>
             </b>
-            <small>
-              {outlet.name}
-              {outlet.branchName ? ` · ${outlet.branchName}` : ""}
+            <small data-field="summary">
+              {byStatus("queued").length + byStatus("preparing").length + byStatus("ready").length} open ·{" "}
+              {byStatus("queued").length} new · {overdue} late · target {limits.lateMinutes} min
             </small>
           </span>
         </div>

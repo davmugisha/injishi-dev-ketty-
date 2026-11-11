@@ -9,16 +9,16 @@
  */
 .kds {
   /* surfaces, back to front */
-  --bg: #edf2ee;
-  --panel: #ffffff;
+  --bg: #ececec;
+  --panel: #f8f8f8;
   --card: #ffffff;
-  --card-2: #f2f6f3;
-  --line: #e0e7e2;
-  --line-2: #ccd7cf;
+  --card-2: #f4f4f4;
+  --line: #e5e5e5;
+  --line-2: #d6d6d6;
   /* text */
-  --text: #13201a;
-  --text-2: #3b4d43;
-  --muted: #66786e;
+  --text: #141414;
+  --text-2: #3b3b3b;
+  --muted: #6e6e6e;
   /* states: new, preparing, ready; and time: nearly late, overdue */
   --new: #2a62d6;
   --new-soft: rgba(42, 98, 214, 0.1);
@@ -36,12 +36,12 @@
   --note-ink: #6e4a00;
   --allergy-ink: #9d1f28;
   /* small pieces */
-  --tag-bg: rgba(19, 32, 26, 0.04);
+  --tag-bg: rgba(0, 0, 0, 0.04);
   --hi: rgba(255, 255, 255, 0.6);
-  --shadow-card: 0 14px 28px -20px rgba(19, 32, 26, 0.45);
-  --shadow-pop: 0 30px 60px -24px rgba(19, 32, 26, 0.4);
-  --scrim: rgba(19, 32, 26, 0.3);
-  --radius: 18px;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 24px -18px rgba(0, 0, 0, 0.28);
+  --shadow-pop: 0 12px 32px -8px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.05);
+  --scrim: rgba(0, 0, 0, 0.3);
+  --radius: 16px;
 
   position: fixed;
   inset: 0;
@@ -50,7 +50,8 @@
   flex-direction: column;
   color: var(--text);
   background: radial-gradient(1100px 420px at 50% -8%, var(--a-glow), transparent 62%), var(--bg);
-  font-family: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+  font-optical-sizing: auto;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   color-scheme: light;
@@ -89,7 +90,7 @@
 }
 /* The brand green for the kitchen, a teal shade of it for the bar. --a-fg is the same hue made dark enough to read as text. */
 .kds[data-station="kitchen"] {
-  --a: #22c55e;
+  --a: #17c964;
   --a-ink: #04210e;
 }
 .kds[data-station="bar"] {
@@ -907,20 +908,6 @@
   font-size: 13px;
   color: var(--muted);
 }
-.kds-skel {
-  position: relative;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--card);
-}
-.kds-skel i {
-  display: block;
-  border-radius: 10px;
-  background: linear-gradient(90deg, var(--card-2) 25%, var(--line) 50%, var(--card-2) 75%);
-  background-size: 200% 100%;
-  animation: kds-shimmer 1.4s linear infinite;
-}
 
 /* ── Panels, toasts, footer ───────────────────────────────────────────────────────────────────────────────────────── */
 .kds-scrim {
@@ -1402,11 +1389,6 @@
     box-shadow: 0 0 0 9px transparent;
   }
 }
-@keyframes kds-shimmer {
-  to {
-    background-position: -200% 0;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   .kds[data-station][data-fullscreen] *,
   .kds[data-station][data-fullscreen] *::before,
@@ -1414,4 +1396,196 @@
     animation: none;
     transition: none;
   }
+}
+
+/* ── Venue kitchen display (Injishi design canvas, "Venue kitchen display") ───────────────────────────────────────────
+   Dark by default, neutral surfaces, calm cards. A ticket's age shows in its border, its band and a word, never colour
+   alone: on time, a thin border; soon late, a double border and an amber band; late, a heavy red border, a red band and
+   "Late · +N min". The table leads the card; the order number is a quiet detail. Buttons are 56px for wet hands. */
+.kds[data-theme="dark"] {
+  --bg: #0f1012;
+  --panel: #16171b;
+  --card: #1c1e23;
+  --card-2: #23252b;
+  --line: #2a2d34;
+  --line-2: #3a3d46;
+  --text: #f4f4f5;
+  --text-2: #cfd1d6;
+  --muted: #9b9ea7;
+}
+/* Venue header: one slim bar. "Kitchen · Kimihurura" and a summary line (open, new, late, target) replace the big
+   wordmark and the counter tiles; the counts stay in the page for the screens that read them. */
+.kds .kds-top {
+  padding: 10px 18px;
+  background: var(--card);
+  backdrop-filter: none;
+}
+.kds .kds-brand .kds-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+.kds .kds-brand .kds-word b {
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 22px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.kds .kds-brand .kds-word b span {
+  color: inherit;
+}
+.kds .kds-brand .kds-word small {
+  font-size: 14px;
+  line-height: 18px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.kds .kds-sub .kds-stats {
+  display: none;
+}
+.kds .kds-sub {
+  justify-content: flex-end;
+}
+.kds {
+  --radius: 14px;
+}
+.kds .kds-col {
+  border-radius: 16px;
+  background: var(--panel);
+}
+.kds .kds-col-head {
+  box-shadow: none;
+}
+.kds .kds-col-head h2 {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+.kds .kds-card {
+  border: 0;
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    var(--shadow-card);
+}
+.kds .kds-card::before {
+  display: none;
+}
+.kds .kds-card[data-urgency="warning"] {
+  box-shadow:
+    inset 0 0 0 2px var(--warn),
+    var(--shadow-card);
+}
+.kds .kds-card[data-urgency="late"] {
+  box-shadow:
+    inset 0 0 0 3px var(--late),
+    var(--shadow-card);
+}
+.kds .kds-head {
+  grid-template-areas:
+    "where timer"
+    "order timer"
+    "status status";
+  row-gap: 2px;
+  padding: 12px 14px 10px;
+  background: transparent;
+}
+.kds .kds-card[data-urgency="warning"] .kds-head {
+  background: var(--warn-soft);
+}
+.kds .kds-card[data-urgency="late"] .kds-head {
+  background: var(--late-soft);
+}
+.kds .kds-where {
+  margin-top: 0;
+  gap: 6px;
+}
+.kds .kds-table,
+.kds .kds-table[data-kind="out"] {
+  min-height: 0;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+}
+.kds .kds-head .kds-table small,
+.kds .kds-head .kds-table b {
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 24px;
+  opacity: 1;
+}
+.kds .kds-tag {
+  font-size: 11px;
+}
+.kds .kds-order {
+  margin-top: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+.kds .kds-status {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.kds .kds-head .kds-timer b {
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 30px;
+}
+.kds .kds-head .kds-timer b svg {
+  display: none;
+}
+.kds .kds-card[data-urgency="late"] .kds-head .kds-timer b {
+  animation: none;
+}
+.kds .kds-head .kds-timer small {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-2);
+}
+.kds .kds-card[data-urgency="warning"] .kds-head .kds-timer small {
+  font-weight: 600;
+  color: var(--warn);
+}
+.kds .kds-card[data-urgency="late"] .kds-head .kds-timer small {
+  font-weight: 700;
+  color: var(--late);
+}
+.kds .kds-qty {
+  font-size: 19px;
+  font-weight: 700;
+}
+.kds .kds-what .kds-name {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+}
+.kds .kds-mods,
+.kds .kds-mod {
+  font-size: 15px;
+  color: var(--muted);
+}
+.kds .kds-note[data-allergy="true"] {
+  border-radius: 10px;
+  background: var(--late-soft);
+  color: var(--allergy-ink);
+  box-shadow: inset 3px 0 0 var(--late);
+}
+.kds .kds-actions .kds-btn {
+  min-height: 56px;
+  border-radius: 12px;
+  font-size: 17px;
 }

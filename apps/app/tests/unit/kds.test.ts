@@ -317,17 +317,17 @@ describe("mentionsAllergy", () => {
 });
 
 describe("the board's look", () => {
-  test("is light until someone chooses dark, and then it is remembered", () => {
+  test("is dark (the venue kitchen display) until someone chooses light, and then it is remembered", () => {
     const mem = new Map<string, string>();
     const store = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) };
-    expect(loadTheme(store)).toBe("light");
-    saveTheme(store, "dark");
     expect(loadTheme(store)).toBe("dark");
     saveTheme(store, "light");
     expect(loadTheme(store)).toBe("light");
+    saveTheme(store, "dark");
+    expect(loadTheme(store)).toBe("dark");
   });
-  test("falls back to light when storage is missing or refuses", () => {
-    expect(loadTheme(null)).toBe("light");
+  test("falls back to dark when storage is missing or refuses", () => {
+    expect(loadTheme(null)).toBe("dark");
     const broken = {
       getItem: () => {
         throw new Error("blocked");
@@ -336,7 +336,7 @@ describe("the board's look", () => {
         throw new Error("blocked");
       },
     };
-    expect(loadTheme(broken)).toBe("light");
+    expect(loadTheme(broken)).toBe("dark");
     expect(() => saveTheme(broken, "dark")).not.toThrow();
   });
 });
