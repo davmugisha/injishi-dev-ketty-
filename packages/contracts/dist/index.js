@@ -115,6 +115,8 @@ __exportStar(require("./rates-calendar"), exports);
 __exportStar(require("./guests"), exports);
 // The bar and restaurant point of sale (POS spec, phase 1).
 __exportStar(require("./pos"), exports);
+// Table QR self-service ordering (migration 0156).
+__exportStar(require("./table-order"), exports);
 // Customers of the bar and restaurant (CRM, phase 1): phone-keyed profiles, masked reads, merge and erase.
 __exportStar(require("./customers"), exports);
 // Rwanda's 3% tourism tax, included in room prices (2026-10-30).

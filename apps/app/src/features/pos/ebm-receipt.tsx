@@ -31,6 +31,10 @@ const label = (bps: number) => (bps === 0 ? "A-EX" : "B");
 export interface EbmReceipt {
   business: string;
   branch: string | null;
+  /** The venue's TIN, phone and address from Setup (empty when not set). */
+  tin: string;
+  phone: string;
+  address: string;
   header: string[];
   footer: string[];
   client: string | null;
@@ -71,6 +75,9 @@ export function ebmReceiptOf(order: PosOrder, outlet: PosOutlet): EbmReceipt {
   return {
     business: outlet.name.toUpperCase(),
     branch: outlet.branchName,
+    tin: outlet.settings.venueTin ?? "",
+    phone: outlet.settings.venuePhone ?? "",
+    address: outlet.settings.venueAddress ?? "",
     header: outlet.settings.receiptHeader.split(/\r?\n/).filter(Boolean),
     footer: outlet.settings.receiptFooter.split(/\r?\n/).filter(Boolean),
     client: order.customer?.fullName ?? null,
@@ -121,12 +128,16 @@ export function ReceiptPaper({ r }: { r: EbmReceipt }) {
     >
       <p className="text-center font-bold tracking-wide">{r.business}</p>
       {r.branch ? <p className="text-center">{r.branch}</p> : null}
+      {r.address ? <p className="text-center">{r.address}</p> : null}
+      {r.phone ? <p className="text-center">Tel: {r.phone}</p> : null}
       {r.header.map((h) => (
         <p key={h} className="text-center">
           {h}
         </p>
       ))}
-      <p className="text-center">TIN: set in Setup · VAT registered</p>
+      <p className="text-center" data-ui="receipt-tin">
+        {r.tin ? `TIN: ${r.tin}` : "TIN: set in Setup"} · VAT registered
+      </p>
       <p className="mt-1 text-center font-bold">TRAINING MODE</p>
       <Rule />
       <p>Welcome to our {r.table ? "restaurant" : "shop"}</p>
@@ -194,6 +205,46 @@ export function ReceiptPaper({ r }: { r: EbmReceipt }) {
       <p className="mt-1 text-center text-[10px] text-[#6b7280]">EBM v2 layout · Injishi POS</p>
     </div>
   );
+}
+
+/**
+ * A sample receipt for the Setup preview: the venue's details and receipt text as they are being typed, with two
+ * example lines (one taxed, one exempt). Nothing is saved or sent; it shows what a guest's receipt will look like.
+ */
+export function previewReceiptOf(
+  outlet: Pick<PosOutlet, "name" | "branchName">,
+  s: { venueTin: string; venuePhone: string; venueAddress: string; receiptHeader: string; receiptFooter: string },
+): EbmReceipt {
+  const lines = [
+    { name: "Brochettes (example)", quantity: 2, unitRwf: 3_500, totalRwf: 7_000, tax: "B" },
+    { name: "Water 500 ml (example)", quantity: 1, unitRwf: 1_000, totalRwf: 1_000, tax: "A-EX" },
+  ];
+  const taxB = Math.round((7_000 * 18) / 118);
+  return {
+    business: outlet.name.toUpperCase(),
+    branch: outlet.branchName,
+    tin: s.venueTin.trim(),
+    phone: s.venuePhone.trim(),
+    address: s.venueAddress.trim(),
+    header: s.receiptHeader.split(/\r?\n/).filter((l) => l.trim()),
+    footer: s.receiptFooter.split(/\r?\n/).filter((l) => l.trim()),
+    client: null,
+    orderNumber: "POS-PREVIEW-0001",
+    table: "T1",
+    servedBy: "Waiter",
+    lines,
+    totalRwf: 8_000,
+    totalA: 1_000,
+    totalB: 7_000,
+    taxB,
+    discountRwf: 0,
+    payments: [{ method: RRA_METHOD.cash, amountRwf: 10_000 }],
+    changeRwf: 2_000,
+    items: 3,
+    at: new Date(),
+    receiptNo: "1/1 TS",
+    qr: `EBM-TRAINING|${outlet.name}|PREVIEW`,
+  };
 }
 
 /** Prints the receipt on its own 80 mm page (a thermal printer's width) from a new window. */

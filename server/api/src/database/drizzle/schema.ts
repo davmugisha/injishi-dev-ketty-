@@ -43,6 +43,8 @@ export * from './geography';
 // Before org: `orgs` references the associations, and this imports no org table.
 export * from './psf-catalogue';
 export * from './org';
+// Ownership transfer requests name an org and its people, so they sit after org (migration 0155).
+export * from './ownership';
 // A session names a workspace, so it sits after org, and auth imports no org table.
 export * from './auth-sessions';
 export * from './inventory';

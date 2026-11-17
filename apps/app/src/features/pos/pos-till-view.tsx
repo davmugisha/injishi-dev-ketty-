@@ -42,6 +42,7 @@ import {
   type PosOrderLine,
   type PosOutlet,
   type PosShift,
+  type PosStationRow,
   type PosTable,
 } from "@/server/pos";
 import {
@@ -63,9 +64,11 @@ import {
 import { DishArt } from "./dish-art";
 import { ReceiptDialog } from "./ebm-receipt";
 import { mentionsAllergy } from "./kds";
+import { destinationOf, kindsOf, type StationKind, sendPlan } from "./outlet-type";
 import { OrderCustomer } from "./pos-customer-picker";
 import { PosShell } from "./pos-shell";
 import {
+  GuestQrChip,
   money,
   ORDER_COLOR,
   PosDialog,
@@ -151,7 +154,9 @@ export function PosTillView({
   menu,
   tables,
   shift,
+  stations = null,
   can,
+  startWithPayment = false,
 }: {
   outlet: PosOutlet;
   outlets: PosOutlet[];
@@ -159,7 +164,11 @@ export function PosTillView({
   menu: PosMenu;
   tables: PosTable[];
   shift: PosShift | null;
+  /** The outlet's kitchen and bar stations (null when they could not be read): they name the Send button. */
+  stations?: PosStationRow[] | null;
   can: string[];
+  /** Opened from the Cashier Desk's "Take payment": show the bill with the payment dialog, and go back there after. */
+  startWithPayment?: boolean;
 }) {
   const router = useRouter();
   const { run, pending } = usePosAction();
@@ -171,12 +180,40 @@ export function PosTillView({
   const [category, setCategory] = useState(categories[0]?.id ?? "");
   const [query, setQuery] = useState("");
   // On a phone the menu and the order each get the whole width, one at a time; from a tablet up they sit side by side.
-  const [pane, setPane] = useState<"menu" | "order">("menu");
-  const [dialog, setDialog] = useState<Dialog>(null);
   const has = (p: string) => can.includes(p);
   const editable = order.status !== "completed" && order.status !== "cancelled";
+  // From the Cashier Desk the cashier came to collect money: open on the bill and its payment, never on the menu.
+  // Any bill still owed: when a pending (simulated) payment covers it, the dialog is where that payment is confirmed.
+  const paying = startWithPayment && editable && has("pos.checkout") && order.settlement.outstandingRwf > 0;
+  const [pane, setPane] = useState<"menu" | "order">(startWithPayment ? "order" : "menu");
+  const [dialog, setDialog] = useState<Dialog>(paying ? { kind: "pay" } : null);
   const drafts = order.lines.filter((l) => l.status === "draft");
   const live = order.lines.filter((l) => l.status !== "voided");
+  // Where each item is prepared: its route on the menu, then the kind of that station (kitchen or bar).
+  const kindOfStation = useMemo(() => new Map((stations ?? []).map((s) => [s.id, s.kind as StationKind])), [stations]);
+  const routeOf = useMemo(() => new Map(menu.items.map((i) => [i.id, i.stationId])), [menu.items]);
+  // The photo saved with each item, so a line on the bill shows the same picture as its card.
+  const photoOf = useMemo(() => new Map(menu.items.map((i) => [i.id, i.photo ?? null])), [menu.items]);
+  const kindOfItem = (stationId: string | null | undefined): StationKind | null =>
+    stationId ? (kindOfStation.get(stationId) ?? null) : null;
+  const outletKinds = useMemo(() => kindsOf(stations ?? []), [stations]);
+  // The Send button: "Send to Kitchen" or "Send to Bar" in a single-station outlet, "Send Order" with both; and the
+  // summary of where the waiting quantities go. The waiter never chooses a station.
+  const plan = stations
+    ? sendPlan(
+        outletKinds,
+        drafts.map((l) => ({
+          kind: kindOfItem(l.serviceItemId ? routeOf.get(l.serviceItemId) : null),
+          quantity: l.quantity,
+        })),
+      )
+    : null;
+  // What a product card says about where it is prepared (its station; in a single-station outlet, that station).
+  const destinationText = (stationId: string | null): string | null => {
+    if (!stations) return stationId ? "Goes to a station" : "No ticket";
+    const to = destinationOf(kindOfItem(stationId), outletKinds);
+    return to === "bar" ? "Goes to the bar" : to === "kitchen" ? "Goes to the kitchen" : "No station set";
+  };
 
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -204,6 +241,7 @@ export function PosTillView({
       can={can}
       actions={
         <>
+          {order.source === "table_qr" ? <GuestQrChip /> : null}
           <StatusChip color={ORDER_COLOR[order.status]}>{ORDER_STATUS_LABEL[order.status]}</StatusChip>
           <LinkButton href={`/pos/floor?outlet=${outlet.id}`} variant="secondary" size="sm">
             <ArrowLeft className="size-4" />
@@ -287,7 +325,7 @@ export function PosTillView({
                   onClick={() => addPlain(item)}
                   className="group flex flex-col gap-2.5 rounded-[20px] border border-separator bg-surface p-2.5 text-left transition enabled:hover:border-accent enabled:hover:shadow-[0_8px_24px_-12px_color-mix(in_oklab,var(--accent)_60%,transparent)] disabled:opacity-55 focus-visible:outline-2 focus-visible:outline-accent"
                 >
-                  <DishArt name={item.name} section={section} />
+                  <DishArt name={item.name} section={section} photo={item.photo} />
                   <span className="flex min-w-0 flex-col gap-0.5 px-1">
                     <span className="truncate text-[12px] font-medium text-muted">{section}</span>
                     <span className="line-clamp-2 min-h-10 text-[14px] leading-5 font-semibold">{item.name}</span>
@@ -313,9 +351,7 @@ export function PosTillView({
                       {item.available
                         ? item.options.length
                           ? "Sizes and options"
-                          : item.stationId
-                            ? "Goes to a station"
-                            : "No ticket"
+                          : destinationText(item.stationId)
                         : item.unavailableReason}
                     </span>
                   </span>
@@ -355,7 +391,7 @@ export function PosTillView({
                 className={`flex flex-col gap-1 rounded-2xl bg-background/70 p-3 ${l.status === "voided" ? "opacity-60" : ""}`}
               >
                 <div className="flex items-start justify-between gap-2.5">
-                  <DishArt name={l.name} size="thumb" />
+                  <DishArt name={l.name} photo={l.serviceItemId ? photoOf.get(l.serviceItemId) : null} size="thumb" />
                   <span
                     className={`min-w-0 flex-1 pt-0.5 text-[14px] font-semibold ${l.status === "voided" ? "line-through" : ""}`}
                   >
@@ -596,11 +632,25 @@ export function PosTillView({
                     fullWidth
                     variant={drafts.length ? "primary" : "secondary"}
                     isDisabled={pending || drafts.length === 0}
-                    onPress={() => run(() => sendAction(order.id), "Sent to the kitchen and bar")}
+                    data-ui="send-button"
+                    onPress={() => run(() => sendAction(order.id), plan?.done ?? "Sent to the kitchen and bar")}
                   >
                     <PaperPlane className="size-4" />
-                    Send {drafts.length ? `${drafts.length} new` : ""}
+                    {plan?.label ?? `Send${drafts.length ? ` ${drafts.length} new` : ""}`}
                   </Button>
+                ) : null}
+                {has("pos.sell") && plan?.lines.length ? (
+                  <ul
+                    data-ui="send-summary"
+                    aria-label="Where the items go"
+                    className="col-span-3 -mt-1 flex flex-col items-center gap-0.5 text-[13px] tabular"
+                  >
+                    {plan.lines.map((l) => (
+                      <li key={l} className={/No station set/.test(l) ? "font-medium text-warning" : "text-muted"}>
+                        {l}
+                      </li>
+                    ))}
+                  </ul>
                 ) : null}
                 {has("pos.checkout") ? (
                   <Button
@@ -819,7 +869,11 @@ export function PosTillView({
             outlet={outlet}
             shift={shift}
             pending={pending}
-            onClose={() => setDialog(null)}
+            onClose={() => {
+              setDialog(null);
+              // Paid or closed: a cashier who came from the desk goes back to the queue of bills.
+              if (startWithPayment) router.push(`/pos/shift?outlet=${outlet.id}`);
+            }}
             run={run}
           />
         ) : null}
@@ -1243,11 +1297,19 @@ function PayDialog({
     !cashBlocked &&
     (method !== "cash" || !tenderedRwf || change >= 0) &&
     (method !== "voucher" || voucher.trim().length >= 3);
+  // Payments sent to a (simulated) provider and not answered yet: they hold part or all of the bill.
+  const waiting = order.payments.filter((p) => p.status === "pending" || p.status === "initiated");
+  // Everything still owed is held by those payments: nothing new can be taken until they are answered.
+  const onlyWaiting = order.settlement.payableRwf === 0 && waiting.length > 0;
   return (
     <PosDialog
       isOpen
       onOpenChange={(open) => !open && onClose()}
-      title={`Take payment · ${money(order.settlement.payableRwf)} to pay`}
+      title={
+        onlyWaiting
+          ? `Take payment · ${money(order.settlement.outstandingRwf)} waiting for the provider`
+          : `Take payment · ${money(order.settlement.payableRwf)} to pay`
+      }
       subtitle={`${order.orderNumber} · total ${money(order.totalRwf)}`}
       wide
       footer={
@@ -1255,107 +1317,157 @@ function PayDialog({
           <Button variant="secondary" onPress={onClose}>
             Close
           </Button>
-          <Button
-            size="lg"
-            isDisabled={!ok || pending}
-            onPress={() =>
-              run(
-                () =>
-                  payAction(
-                    order.id,
-                    {
-                      method,
-                      amountRwf,
-                      tenderedRwf: method === "cash" && tenderedRwf ? tenderedRwf : undefined,
-                      tipRwf: tipRwf || undefined,
-                      simulate: method === "cash" || method === "voucher" ? undefined : outcome,
-                      payerPhone: method === "mtn_momo" || method === "airtel_money" ? phone : undefined,
-                      voucherCode: method === "voucher" ? voucher.trim() : undefined,
-                    },
-                    key,
-                  ),
-                (o) => {
-                  const p = o.payments.at(-1);
-                  return p?.status === "successful"
-                    ? "Payment recorded"
-                    : p?.status === "pending"
-                      ? "Waiting for the simulated provider"
-                      : `Payment ${p?.status ?? "recorded"}`;
-                },
-                (o) => {
-                  nextKey();
-                  if (o.settlement.payableRwf === 0) onClose();
-                  else setAmount(String(o.settlement.payableRwf));
-                },
-              )
-            }
-          >
-            Take {money(amountRwf)}
-          </Button>
+          {onlyWaiting ? null : (
+            <Button
+              size="lg"
+              isDisabled={!ok || pending}
+              onPress={() =>
+                run(
+                  () =>
+                    payAction(
+                      order.id,
+                      {
+                        method,
+                        amountRwf,
+                        tenderedRwf: method === "cash" && tenderedRwf ? tenderedRwf : undefined,
+                        tipRwf: tipRwf || undefined,
+                        simulate: method === "cash" || method === "voucher" ? undefined : outcome,
+                        payerPhone: method === "mtn_momo" || method === "airtel_money" ? phone : undefined,
+                        voucherCode: method === "voucher" ? voucher.trim() : undefined,
+                      },
+                      key,
+                    ),
+                  (o) => {
+                    const p = o.payments.at(-1);
+                    return p?.status === "successful"
+                      ? "Payment recorded"
+                      : p?.status === "pending"
+                        ? "Waiting for the simulated provider"
+                        : `Payment ${p?.status ?? "recorded"}`;
+                  },
+                  (o) => {
+                    nextKey();
+                    if (o.settlement.payableRwf === 0) onClose();
+                    else setAmount(String(o.settlement.payableRwf));
+                  },
+                )
+              }
+            >
+              Take {money(amountRwf)}
+            </Button>
+          )}
         </>
       }
     >
-      <SimulationNotice>
-        {method === "cash"
-          ? "Cash is recorded in your drawer."
-          : "This method is simulated: no money moves and no provider is contacted."}
-      </SimulationNotice>
-      <div className="flex flex-wrap gap-1.5">
-        {methods.map((m) => (
-          <ToggleButton key={m} isSelected={method === m} onChange={() => setMethod(m)}>
-            {METHOD_LABEL[m]}
-          </ToggleButton>
-        ))}
-      </div>
-      {cashBlocked ? <p className="text-[13px] text-danger">Open your cashier shift before taking cash.</p> : null}
-      <div className="grid grid-cols-2 gap-3">
-        <TextField value={amount} onChange={setAmount} fullWidth>
-          <Label>Amount toward the bill (RWF)</Label>
-          <Input inputMode="numeric" className="tabular" />
-        </TextField>
-        <TextField value={tip} onChange={setTip} fullWidth>
-          <Label>Tip (RWF, optional)</Label>
-          <Input inputMode="numeric" className="tabular" />
-        </TextField>
-        {method === "cash" ? (
-          <TextField value={tendered} onChange={setTendered} fullWidth>
-            <Label>Cash handed over</Label>
-            <Input inputMode="numeric" className="tabular" />
-          </TextField>
-        ) : null}
-        {method === "cash" && tenderedRwf ? (
-          <p className={`self-end pb-2 text-[15px] font-semibold tabular ${change < 0 ? "text-danger" : ""}`}>
-            {change < 0 ? `Short ${money(-change)}` : `Change ${money(change)}`}
+      {waiting.length ? (
+        <div data-ui="waiting-payments" className="flex flex-col gap-2 rounded-xl bg-warning-soft p-3 text-[13px]">
+          <p className="font-medium text-warning-soft-foreground">
+            {onlyWaiting
+              ? "This bill is covered by a payment the provider has not answered yet. Confirm it to settle the bill, or decline it to take another payment."
+              : "Part of this bill is held by a payment the provider has not answered yet."}
           </p>
-        ) : null}
-        {method === "mtn_momo" || method === "airtel_money" ? (
-          <TextField value={phone} onChange={setPhone} fullWidth>
-            <Label>Payer phone (fictional)</Label>
-            <Input inputMode="tel" />
-          </TextField>
-        ) : null}
-        {method === "voucher" ? (
-          <TextField value={voucher} onChange={setVoucher} fullWidth>
-            <Label>Voucher code</Label>
-            <Input />
-          </TextField>
-        ) : null}
-      </div>
-      {method !== "cash" && method !== "voucher" ? (
-        <div className="flex flex-col gap-1.5">
-          <Label>The simulated provider answers</Label>
-          <Segment
-            aria-label="Simulated outcome"
-            selectedKey={outcome}
-            onSelectionChange={(k) => setOutcome(String(k) as typeof outcome)}
-          >
-            <Segment.Item id="success">{ASYNC.includes(method) ? "Approve (after waiting)" : "Approve"}</Segment.Item>
-            <Segment.Item id="pending">Leave pending</Segment.Item>
-            <Segment.Item id="failure">Decline</Segment.Item>
-            <Segment.Item id="timeout">Time out</Segment.Item>
-          </Segment>
+          {waiting.map((p) => (
+            <div key={p.id} className="flex flex-wrap items-center gap-2">
+              <span className="font-medium">{METHOD_LABEL[p.method]}</span>
+              <span className="tabular">{money(p.amountRwf)}</span>
+              <span className="tabular text-muted">{p.demoReference}</span>
+              <span className="ml-auto flex flex-wrap gap-1">
+                {(["success", "failure", "timeout"] as const).map((outcome) => (
+                  <Button
+                    key={outcome}
+                    size="sm"
+                    variant={outcome === "success" ? "primary" : "secondary"}
+                    isDisabled={pending}
+                    onPress={() =>
+                      run(
+                        () => resolvePaymentAction(p.id, outcome),
+                        outcome === "success"
+                          ? "Simulated: confirmed"
+                          : outcome === "failure"
+                            ? "Simulated: declined"
+                            : "Simulated: timed out",
+                        (o) => {
+                          if (o.settlement.outstandingRwf === 0) onClose();
+                          else setAmount(String(o.settlement.payableRwf));
+                        },
+                      )
+                    }
+                  >
+                    {outcome === "success" ? "Confirm" : outcome === "failure" ? "Decline" : "Time out"}
+                  </Button>
+                ))}
+              </span>
+            </div>
+          ))}
         </div>
       ) : null}
+      {onlyWaiting ? null : (
+        <>
+          <SimulationNotice>
+            {method === "cash"
+              ? "Cash is recorded in your drawer."
+              : "This method is simulated: no money moves and no provider is contacted."}
+          </SimulationNotice>
+          <div className="flex flex-wrap gap-1.5">
+            {methods.map((m) => (
+              <ToggleButton key={m} isSelected={method === m} onChange={() => setMethod(m)}>
+                {METHOD_LABEL[m]}
+              </ToggleButton>
+            ))}
+          </div>
+          {cashBlocked ? <p className="text-[13px] text-danger">Open your cashier shift before taking cash.</p> : null}
+          <div className="grid grid-cols-2 gap-3">
+            <TextField value={amount} onChange={setAmount} fullWidth>
+              <Label>Amount toward the bill (RWF)</Label>
+              <Input inputMode="numeric" className="tabular" />
+            </TextField>
+            <TextField value={tip} onChange={setTip} fullWidth>
+              <Label>Tip (RWF, optional)</Label>
+              <Input inputMode="numeric" className="tabular" />
+            </TextField>
+            {method === "cash" ? (
+              <TextField value={tendered} onChange={setTendered} fullWidth>
+                <Label>Cash handed over</Label>
+                <Input inputMode="numeric" className="tabular" />
+              </TextField>
+            ) : null}
+            {method === "cash" && tenderedRwf ? (
+              <p className={`self-end pb-2 text-[15px] font-semibold tabular ${change < 0 ? "text-danger" : ""}`}>
+                {change < 0 ? `Short ${money(-change)}` : `Change ${money(change)}`}
+              </p>
+            ) : null}
+            {method === "mtn_momo" || method === "airtel_money" ? (
+              <TextField value={phone} onChange={setPhone} fullWidth>
+                <Label>Payer phone (fictional)</Label>
+                <Input inputMode="tel" />
+              </TextField>
+            ) : null}
+            {method === "voucher" ? (
+              <TextField value={voucher} onChange={setVoucher} fullWidth>
+                <Label>Voucher code</Label>
+                <Input />
+              </TextField>
+            ) : null}
+          </div>
+          {method !== "cash" && method !== "voucher" ? (
+            <div className="flex flex-col gap-1.5">
+              <Label>The simulated provider answers</Label>
+              <Segment
+                aria-label="Simulated outcome"
+                selectedKey={outcome}
+                onSelectionChange={(k) => setOutcome(String(k) as typeof outcome)}
+              >
+                <Segment.Item id="success">
+                  {ASYNC.includes(method) ? "Approve (after waiting)" : "Approve"}
+                </Segment.Item>
+                <Segment.Item id="pending">Leave pending</Segment.Item>
+                <Segment.Item id="failure">Decline</Segment.Item>
+                <Segment.Item id="timeout">Time out</Segment.Item>
+              </Segment>
+            </div>
+          ) : null}
+        </>
+      )}
     </PosDialog>
   );
 }

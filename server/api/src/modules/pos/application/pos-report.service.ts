@@ -11,22 +11,16 @@ import type {
   PosReport,
   PosSalesLine,
 } from '../domain/pos-ops';
+import { addDays, businessDayOf, businessDayWindow, commonBusinessDayStart } from '../domain/business-day';
 import { COST_OF_GOODS_RATIO, LOW_STOCK_AT } from '../infrastructure/pos-stock';
 import { outletInScope, outletsInScope, type Db, type OutletRow } from '../infrastructure/pos-support';
 
-/** Kigali calendar day as `YYYY-MM-DD`. */
-function kigaliDay(at: Date): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Kigali' }).format(at);
-}
-
-/** Kigali is UTC+2 all year, so a Kigali day is [00:00, 24:00) at +02:00. */
-function dayStart(isoDay: string): Date {
-  return new Date(`${isoDay}T00:00:00+02:00`);
-}
-
-function addDays(isoDay: string, n: number): string {
-  return kigaliDay(new Date(dayStart(isoDay).getTime() + n * 86_400_000 + 3_600_000));
-}
+type Scope = {
+  outlets: OutletRow[];
+  name: string;
+  id: string | null;
+  businessDay: { startMinutes: number; mixed: boolean };
+};
 
 const num = (v: unknown): number => (v === null || v === undefined ? 0 : Number(v));
 
@@ -53,21 +47,33 @@ const DRINK = /beer|wine|spirit|cocktail|soft|juice|water|coffee|tea|drink|whisk
 export class PosReportService {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
-  private async scope(
-    ws: ScopedWorkspace,
-    outletId?: string,
-  ): Promise<{ outlets: OutletRow[]; name: string; id: string | null }> {
-    if (outletId) {
-      const o = await outletInScope(this.db, ws, outletId);
-      return { outlets: [o], name: o.name, id: o.id as string | null };
-    }
-    const all = await outletsInScope(this.db, ws);
-    return { outlets: all, name: 'All outlets', id: null as string | null };
+  private async scope(ws: ScopedWorkspace, outletId?: string): Promise<Scope> {
+    const outlets = outletId ? [await outletInScope(this.db, ws, outletId)] : await outletsInScope(this.db, ws);
+    return {
+      outlets,
+      name: outletId ? (outlets[0]?.name ?? '') : 'All outlets',
+      id: outletId ? (outlets[0]?.id ?? null) : null,
+      businessDay: await this.businessDay(outlets),
+    };
+  }
+
+  /**
+   * When the business day of these outlets starts (migration 0154). Read, never written: an outlet with no settings
+   * row yet uses the calendar day, which is what its row would say once written.
+   */
+  private async businessDay(outlets: OutletRow[]): Promise<Scope['businessDay']> {
+    if (outlets.length === 0) return { startMinutes: 0, mixed: false };
+    const rows = rowsOf<{ outlet_id: string; start: number }>(
+      await this.db.execute(sql`select outlet_id, business_day_start_minutes::int as start from pos_outlet_settings
+        where outlet_id in (${this.idList(outlets.map((o) => o.id))})`),
+    );
+    const byOutlet = new Map(rows.map((r) => [r.outlet_id, num(r.start)]));
+    return commonBusinessDayStart(outlets.map((o) => byOutlet.get(o.id) ?? 0));
   }
 
   async dashboard(ws: ScopedWorkspace, outletId?: string): Promise<PosDashboard> {
     const sc = await this.scope(ws, outletId);
-    const today = kigaliDay(new Date());
+    const today = businessDayOf(new Date(), sc.businessDay.startMinutes);
     const ids = sc.outlets.map((o) => o.id);
     // One transaction, so the whole dashboard reads one connection and one snapshot: running two reports
     // and the live counts side by side starved the connection pool on a busy machine.
@@ -81,7 +87,7 @@ export class PosReportService {
 
   async report(ws: ScopedWorkspace, q: PosPeriodQuery): Promise<PosReport> {
     const sc = await this.scope(ws, q.outletId);
-    const today = kigaliDay(new Date());
+    const today = businessDayOf(new Date(), sc.businessDay.startMinutes);
     const to = q.to ?? q.from ?? today;
     const from = q.from ?? to;
     const [a, b] = from <= to ? [from, to] : [to, from];
@@ -123,13 +129,16 @@ export class PosReportService {
   private async summary(
     db: Db,
     ws: ScopedWorkspace,
-    sc: { outlets: { id: string; propertyId: string | null }[]; name: string; id: string | null },
+    sc: Scope,
     from: string,
     to: string,
   ): Promise<PosReport> {
     const ids = sc.outlets.map((o) => o.id);
-    const start = dayStart(from).toISOString();
-    const end = dayStart(addDays(to, 1)).toISOString();
+    // A business day runs from the outlet's start time to the same time the next day; 0 is the calendar day.
+    const shift = sc.businessDay.startMinutes;
+    const window = businessDayWindow(from, to, shift);
+    const start = window.start.toISOString();
+    const end = window.end.toISOString();
     const list = this.idList(ids);
     const propertyIds = sc.outlets.map((o) => o.propertyId).filter((p): p is string => !!p);
 
@@ -171,7 +180,7 @@ export class PosReportService {
            and o.completed_at >= ${start}::timestamptz and o.completed_at < ${end}::timestamptz
          group by 1 order by 3 desc limit 12`),
       run<{ day: string; n: number; total: string }>(sql`
-        select to_char(o.completed_at at time zone 'Africa/Kigali', 'YYYY-MM-DD') as day, count(*)::int as n, coalesce(sum(o.total_rwf),0) as total
+        select to_char((o.completed_at - make_interval(mins => ${shift}::int)) at time zone 'Africa/Kigali', 'YYYY-MM-DD') as day, count(*)::int as n, coalesce(sum(o.total_rwf),0) as total
           from pos_orders o
          where o.outlet_id in (${list}) and o.status = 'completed'
            and o.completed_at >= ${start}::timestamptz and o.completed_at < ${end}::timestamptz
@@ -257,6 +266,7 @@ export class PosReportService {
     return {
       period: { from, to },
       outlet: { id: sc.id, name: sc.name },
+      businessDay: sc.businessDay,
       sales: {
         orders: num(o.orders),
         completedOrders: completed,

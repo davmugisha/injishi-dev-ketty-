@@ -23,7 +23,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { and, asc, eq, inArray, max, ne, notInArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, max, ne, notInArray, sql } from 'drizzle-orm';
 
 import {
   kitchenTicketEvents,
@@ -36,6 +36,7 @@ import {
   posPayments,
   posPrintJobs,
   preparationStations,
+  outlets,
   restaurantTables,
   serviceCategories,
   serviceItems,
@@ -98,7 +99,8 @@ export class PosOrderService {
     tx: Tx,
     order: Pick<OrderRow, 'id' | 'outletId' | 'workspaceId'>,
     lines: PosLineRequest[],
-    userId: string,
+    userId: string | null,
+    source: 'staff' | 'table_qr' = 'staff',
   ): Promise<(typeof posOrderLines.$inferInsert)[]> {
     if (lines.length === 0) return [];
     const ids = [...new Set(lines.map((l) => l.serviceItemId))];
@@ -142,6 +144,7 @@ export class PosOrderService {
         taxRwf: 0,
         totalRwf: priced.lineTotalRwf,
         createdByUserId: userId,
+        source,
       };
     });
   }
@@ -204,6 +207,135 @@ export class PosOrderService {
       return row.id;
     });
     return this.answer(ws, id);
+  }
+
+  /**
+   * A guest's order from the QR on their table (migration 0156), all or nothing in ONE transaction:
+   *
+   *  1. the table is locked; a table being cleaned takes no order;
+   *  2. its open sitting is used, or one is opened for it (the table goes to `occupied`, nobody on the staff behind it);
+   *  3. the order is created on that sitting, `source = 'table_qr'`, numbered and taxed like any order;
+   *  4. its lines are priced by `priceLines` from the menu as it is now: availability, stock, options, tax, price;
+   *     nothing the phone sent but ids, quantities, options and notes is used;
+   *  5. it is sent at once by `sendDrafts`, the very code a waiter's Send runs: tickets per station, print jobs, stock.
+   *
+   * `key` is `${workspaceId}:qr:${clientKey}`: the same cart sent twice (a double tap, a retry after a dropped
+   * connection) answers with the first order, never a second one, including when both arrive at the same instant.
+   * The table comes from the code on the QR (TableOrderService), never from the request.
+   */
+  async placeFromTable(
+    tableId: string,
+    body: { lines: PosLineRequest[]; guestNote?: string | null; guestCount?: number | null },
+    key: string,
+  ): Promise<{ orderId: string; replay: boolean }> {
+    const earlier = async () =>
+      (await this.db.select({ id: posOrders.id }).from(posOrders).where(eq(posOrders.idempotencyKey, key)).limit(1))[0];
+    const replay = await earlier();
+    if (replay) return { orderId: replay.id, replay: true };
+    try {
+      const orderId = await this.db.transaction(async (tx) => {
+        const [table] = await tx
+          .select()
+          .from(restaurantTables)
+          .where(and(eq(restaurantTables.id, tableId), isNull(restaurantTables.archivedAt)))
+          .limit(1)
+          .for('update');
+        if (!table) throw new NotFoundException('This table is not taking orders. Please ask a member of staff.');
+        const [outlet] = await tx
+          .select({
+            id: outlets.id,
+            workspaceId: outlets.workspaceId,
+            propertyId: outlets.propertyId,
+            taxEntityOrgId: outlets.taxEntityOrgId,
+          })
+          .from(outlets)
+          .where(and(eq(outlets.id, table.outletId), eq(outlets.status, 'active')))
+          .limit(1);
+        if (!outlet) throw new NotFoundException('This table is not taking orders. Please ask a member of staff.');
+        if (table.status === 'cleaning') {
+          throw new ConflictException('This table is being prepared. Please ask a member of staff to help you order.');
+        }
+        let [session] = await tx
+          .select()
+          .from(tableSessions)
+          .where(and(eq(tableSessions.tableId, table.id), eq(tableSessions.status, 'open')))
+          .limit(1)
+          .for('update');
+        if (!session) {
+          const guestCount = Math.min(Math.max(1, body.guestCount ?? 1), Math.min(200, table.seats * 2));
+          [session] = await tx
+            .insert(tableSessions)
+            .values({
+              workspaceId: table.workspaceId,
+              outletId: table.outletId,
+              tableId: table.id,
+              guestCount,
+              waiterUserId: null,
+              openedByUserId: null,
+              source: 'table_qr',
+            })
+            .returning();
+          if (!session) throw new Error('The table did not open.');
+          await tx.update(restaurantTables).set({ status: 'occupied', updatedAt: new Date() }).where(eq(restaurantTables.id, table.id));
+          await audit(tx, {
+            workspaceId: table.workspaceId,
+            outletId: table.outletId,
+            actorUserId: null,
+            action: 'table.seated',
+            entityType: 'table_session',
+            entityId: session.id,
+            after: { table: table.label, guestCount, source: 'table_qr' },
+          });
+        }
+        const settings = await settingsFor(tx, outlet);
+        const now = new Date();
+        const n = await nextNumber(tx, outlet.workspaceId, 'order', now);
+        const [row] = await tx
+          .insert(posOrders)
+          .values({
+            workspaceId: outlet.workspaceId,
+            outletId: outlet.id,
+            propertyId: outlet.propertyId,
+            taxEntityOrgId: outlet.taxEntityOrgId,
+            orderNumber: orderNumberOf(kigaliPeriod(now), n),
+            orderType: 'dine_in',
+            tableSessionId: session.id,
+            waiterUserId: session.waiterUserId,
+            createdByUserId: null,
+            source: 'table_qr',
+            guestNote: body.guestNote?.trim() || null,
+            taxMode: settings.taxMode,
+            idempotencyKey: key,
+          })
+          .returning();
+        if (!row) throw new Error('The order did not save.');
+        const lines = await this.priceLines(tx, row, body.lines, null, 'table_qr');
+        if (lines.length === 0) throw new UnprocessableEntityException('Add something to your order first.');
+        await tx.insert(posOrderLines).values(lines);
+        await recomputeOrder(tx, row);
+        await orderEvent(tx, { orderId: row.id, kind: 'created', actorUserId: null, toStatus: 'draft', data: { lines: lines.length, source: 'table_qr' } });
+        await audit(tx, {
+          workspaceId: row.workspaceId,
+          outletId: row.outletId,
+          actorUserId: null,
+          action: 'order.placed_from_table_qr',
+          entityType: 'pos_order',
+          entityId: row.id,
+          after: { orderNumber: row.orderNumber, table: table.label, lines: lines.length },
+        });
+        await this.sendDrafts(tx, row, null);
+        return row.id;
+      });
+      return { orderId, replay: false };
+    } catch (error) {
+      // Two taps at the same instant: the second insert meets the first's key. Answer with the first order.
+      const code = (error as { code?: string; cause?: { code?: string } })?.code ?? (error as { cause?: { code?: string } })?.cause?.code;
+      if (code === '23505') {
+        const first = await earlier();
+        if (first) return { orderId: first.id, replay: true };
+      }
+      throw error;
+    }
   }
 
   async addLines(ws: ScopedWorkspace, orderId: string, body: AddPosLinesRequest, userId: string): Promise<PosOrder> {
@@ -278,117 +410,140 @@ export class PosOrderService {
 
   /**
    * Send every draft line to its station: one ticket per station per round,
-   * one simulated print per ticket. A line with no route (a bottle handed
-   * over the bar) is sent without a ticket. Sending again with no draft lines
-   * changes nothing, and a line can only ever sit on one ticket.
+   * one simulated print per ticket. A line with no route goes to the outlet's
+   * only kind of station when it has one (a bar-only outlet sends everything
+   * to its bar, a restaurant-only outlet to its kitchen: the first station of
+   * that kind in setup order). In an outlet with both a kitchen and a bar no
+   * station is guessed: the line is sent without a ticket until the owner
+   * routes the item. Sending again with no draft lines changes nothing, and a
+   * line can only ever sit on one ticket.
    */
   async send(ws: ScopedWorkspace, orderId: string, userId: string): Promise<PosOrder> {
     await this.db.transaction(async (tx) => {
       const order = await orderInScope(tx, ws, orderId, true);
       this.assertEditable(order);
-      const drafts = await tx
-        .select({ line: posOrderLines, stationId: posItemRoutes.stationId })
-        .from(posOrderLines)
-        .leftJoin(posItemRoutes, eq(posItemRoutes.serviceItemId, posOrderLines.serviceItemId))
-        .where(and(eq(posOrderLines.orderId, order.id), eq(posOrderLines.status, 'draft')))
-        .orderBy(asc(posOrderLines.createdAt), asc(posOrderLines.id));
-      if (drafts.length === 0) return;
-
-      const now = new Date();
-      const [{ last } = { last: 0 }] = await tx
-        .select({ last: max(kitchenTickets.round) })
-        .from(kitchenTickets)
-        .where(eq(kitchenTickets.orderId, order.id));
-      const round = (last ?? 0) + 1;
-
-      const byStation = new Map<string, typeof drafts>();
-      for (const d of drafts) {
-        if (!d.stationId) continue;
-        byStation.set(d.stationId, [...(byStation.get(d.stationId) ?? []), d]);
-      }
-      const stations = byStation.size
-        ? await tx.select().from(preparationStations).where(inArray(preparationStations.id, [...byStation.keys()]))
-        : [];
-      const label = order.tableSessionId
-        ? (
-            await tx
-              .select({ label: restaurantTables.label })
-              .from(tableSessions)
-              .innerJoin(restaurantTables, eq(restaurantTables.id, tableSessions.tableId))
-              .where(eq(tableSessions.id, order.tableSessionId))
-              .limit(1)
-          )[0]?.label ?? null
-        : null;
-
-      for (const [stationId, lines] of byStation) {
-        const station = stations.find((s) => s.id === stationId);
-        if (!station) continue;
-        const n = await nextNumber(tx, ws.workspaceId, `ticket_${station.kind}`, now);
-        const ticketNumber = `${station.kind === 'bar' ? 'B' : 'K'}-${kigaliPeriod(now)}-${String(n).padStart(4, '0')}`;
-        const [ticket] = await tx
-          .insert(kitchenTickets)
-          .values({
-            workspaceId: ws.workspaceId,
-            outletId: order.outletId,
-            orderId: order.id,
-            stationId,
-            ticketNumber,
-            round,
-          })
-          .returning({ id: kitchenTickets.id });
-        if (!ticket) throw new Error('The ticket did not save.');
-        const items = lines.map(({ line }) => ({
-          ticketId: ticket.id,
-          orderLineId: line.id,
-          quantity: line.quantity,
-          name: line.nameSnapshot,
-          options: (Array.isArray(line.selectedOptions) ? (line.selectedOptions as { name: string; choices: { label: string }[] }[]) : []).map(
-            (o) => `${o.name}: ${o.choices.map((c) => c.label).join(', ')}`,
-          ),
-          note: line.note,
-        }));
-        await tx.insert(kitchenTicketItems).values(items);
-        await tx.insert(kitchenTicketEvents).values({ ticketId: ticket.id, toStatus: 'queued', actorUserId: userId });
-        await tx.insert(posPrintJobs).values({
-          workspaceId: ws.workspaceId,
-          outletId: order.outletId,
-          stationId,
-          kind: 'kitchen_ticket',
-          sourceId: ticket.id,
-          copyNumber: 1,
-          printerName: station.printerName,
-          requestedByUserId: userId,
-          payload: {
-            simulated: true,
-            ticketNumber,
-            station: station.name,
-            orderNumber: order.orderNumber,
-            table: label,
-            round,
-            items: items.map((i) => ({ quantity: i.quantity, name: i.name, options: i.options, note: i.note })),
-          },
-        });
-      }
-      for (const { line, stationId } of drafts) {
-        await tx
-          .update(posOrderLines)
-          .set({ status: 'sent', sentAt: now, stationId: stationId ?? null, updatedAt: now })
-          .where(eq(posOrderLines.id, line.id));
-      }
-      // Stock leaves the shelf when the order is SENT, once: a line is sent a single time, so a retry
-      // cannot take it again, and nothing is taken at payment as well.
-      await consumeStock(
-        tx,
-        { workspaceId: ws.workspaceId, outletId: order.outletId, actorUserId: userId, orderNumber: order.orderNumber },
-        drafts.map(({ line }) => ({ id: line.id, serviceItemId: line.serviceItemId, quantity: line.quantity, nameSnapshot: line.nameSnapshot })),
-      );
-      if (!order.submittedAt) {
-        await tx.update(posOrders).set({ submittedAt: now, updatedAt: now }).where(eq(posOrders.id, order.id));
-      }
-      await orderEvent(tx, { orderId: order.id, kind: 'sent', actorUserId: userId, data: { round, lines: drafts.length, tickets: byStation.size } });
-      await refreshOrderStatus(tx, order.id, userId);
+      await this.sendDrafts(tx, order, userId);
     });
     return this.answer(ws, orderId);
+  }
+
+  /**
+   * The body of a send, inside the caller's transaction, on an order already locked and checked. `actorUserId` is
+   * null only when a guest's QR order sends itself (`placeFromTable`); every staff send names the person.
+   */
+  private async sendDrafts(tx: Tx, order: OrderRow, userId: string | null): Promise<void> {
+    const drafts = await tx
+      .select({ line: posOrderLines, stationId: posItemRoutes.stationId })
+      .from(posOrderLines)
+      .leftJoin(posItemRoutes, eq(posItemRoutes.serviceItemId, posOrderLines.serviceItemId))
+      .where(and(eq(posOrderLines.orderId, order.id), eq(posOrderLines.status, 'draft')))
+      .orderBy(asc(posOrderLines.createdAt), asc(posOrderLines.id));
+    if (drafts.length === 0) return;
+
+    const now = new Date();
+    const [{ last } = { last: 0 }] = await tx
+      .select({ last: max(kitchenTickets.round) })
+      .from(kitchenTickets)
+      .where(eq(kitchenTickets.orderId, order.id));
+    const round = (last ?? 0) + 1;
+
+    // An outlet with one kind of station sends unrouted lines there; with both kinds nothing is guessed.
+    if (drafts.some((d) => !d.stationId)) {
+      const active = await tx
+        .select({ id: preparationStations.id, kind: preparationStations.kind })
+        .from(preparationStations)
+        .where(and(eq(preparationStations.outletId, order.outletId), isNull(preparationStations.archivedAt)))
+        .orderBy(asc(preparationStations.sortOrder), asc(preparationStations.name));
+      const only = new Set(active.map((s) => s.kind)).size === 1 ? active[0] : undefined;
+      if (only) for (const d of drafts) if (!d.stationId) d.stationId = only.id;
+    }
+
+    const byStation = new Map<string, typeof drafts>();
+    for (const d of drafts) {
+      if (!d.stationId) continue;
+      byStation.set(d.stationId, [...(byStation.get(d.stationId) ?? []), d]);
+    }
+    const stations = byStation.size
+      ? await tx.select().from(preparationStations).where(inArray(preparationStations.id, [...byStation.keys()]))
+      : [];
+    const label = order.tableSessionId
+      ? (
+          await tx
+            .select({ label: restaurantTables.label })
+            .from(tableSessions)
+            .innerJoin(restaurantTables, eq(restaurantTables.id, tableSessions.tableId))
+            .where(eq(tableSessions.id, order.tableSessionId))
+            .limit(1)
+        )[0]?.label ?? null
+      : null;
+
+    for (const [stationId, lines] of byStation) {
+      const station = stations.find((s) => s.id === stationId);
+      if (!station) continue;
+      const n = await nextNumber(tx, order.workspaceId, `ticket_${station.kind}`, now);
+      const ticketNumber = `${station.kind === 'bar' ? 'B' : 'K'}-${kigaliPeriod(now)}-${String(n).padStart(4, '0')}`;
+      const [ticket] = await tx
+        .insert(kitchenTickets)
+        .values({
+          workspaceId: order.workspaceId,
+          outletId: order.outletId,
+          orderId: order.id,
+          stationId,
+          ticketNumber,
+          round,
+        })
+        .returning({ id: kitchenTickets.id });
+      if (!ticket) throw new Error('The ticket did not save.');
+      const items = lines.map(({ line }) => ({
+        ticketId: ticket.id,
+        orderLineId: line.id,
+        quantity: line.quantity,
+        name: line.nameSnapshot,
+        options: (Array.isArray(line.selectedOptions) ? (line.selectedOptions as { name: string; choices: { label: string }[] }[]) : []).map(
+          (o) => `${o.name}: ${o.choices.map((c) => c.label).join(', ')}`,
+        ),
+        note: line.note,
+      }));
+      await tx.insert(kitchenTicketItems).values(items);
+      await tx.insert(kitchenTicketEvents).values({ ticketId: ticket.id, toStatus: 'queued', actorUserId: userId });
+      await tx.insert(posPrintJobs).values({
+        workspaceId: order.workspaceId,
+        outletId: order.outletId,
+        stationId,
+        kind: 'kitchen_ticket',
+        sourceId: ticket.id,
+        copyNumber: 1,
+        printerName: station.printerName,
+        requestedByUserId: userId,
+        payload: {
+          simulated: true,
+          ticketNumber,
+          station: station.name,
+          orderNumber: order.orderNumber,
+          table: label,
+          round,
+          items: items.map((i) => ({ quantity: i.quantity, name: i.name, options: i.options, note: i.note })),
+        },
+      });
+    }
+    for (const { line, stationId } of drafts) {
+      await tx
+        .update(posOrderLines)
+        .set({ status: 'sent', sentAt: now, stationId: stationId ?? null, updatedAt: now })
+        .where(eq(posOrderLines.id, line.id));
+    }
+    // Stock leaves the shelf when the order is SENT, once: a line is sent a single time, so a retry
+    // cannot take it again, and nothing is taken at payment as well.
+    await consumeStock(
+      tx,
+      { workspaceId: order.workspaceId, outletId: order.outletId, actorUserId: userId, orderNumber: order.orderNumber },
+      drafts.map(({ line }) => ({ id: line.id, serviceItemId: line.serviceItemId, quantity: line.quantity, nameSnapshot: line.nameSnapshot })),
+    );
+    if (!order.submittedAt) {
+      await tx.update(posOrders).set({ submittedAt: now, updatedAt: now }).where(eq(posOrders.id, order.id));
+    }
+    await orderEvent(tx, { orderId: order.id, kind: 'sent', actorUserId: userId, data: { round, lines: drafts.length, tickets: byStation.size } });
+    await refreshOrderStatus(tx, order.id, userId);
   }
 
   /**
@@ -759,6 +914,7 @@ export class PosOrderService {
         stamp: 'DEMO ONLY — NOT A VALID RRA/EBM TAX INVOICE',
         header: settings.receiptHeader,
         footer: settings.receiptFooter,
+        venue: { tin: settings.venueTin, phone: settings.venuePhone, address: settings.venueAddress },
         orderNumber: order.orderNumber,
         table: view.tableLabel,
         taxMode: order.taxMode,

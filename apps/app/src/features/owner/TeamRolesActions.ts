@@ -36,6 +36,8 @@ async function run(work: () => Promise<unknown>): Promise<TeamActionResult> {
   }
   revalidatePath(screenHref("TeamRoles"));
   revalidatePath(screenHref("Employees"));
+  // The same team is managed from the point of sale's Setup (Team members, Roles and permissions).
+  revalidatePath("/pos/setup");
   return { ok: true };
 }
 

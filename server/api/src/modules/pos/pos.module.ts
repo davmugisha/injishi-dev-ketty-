@@ -4,13 +4,16 @@ import { PosCustomerService } from './application/pos-customer.service';
 import { PosExpenseService } from './application/pos-expense.service';
 import { PosFloorService } from './application/pos-floor.service';
 import { PosKitchenService } from './application/pos-kitchen.service';
+import { PosMenuPhotoService } from './application/pos-menu-photo.service';
 import { PosOrderService } from './application/pos-order.service';
 import { PosPaymentService } from './application/pos-payment.service';
 import { PosReadService } from './application/pos-read.service';
 import { PosReportService } from './application/pos-report.service';
 import { PosShiftService } from './application/pos-shift.service';
 import { PosStockService } from './application/pos-stock.service';
+import { PosTableOrderService } from './application/pos-table-order.service';
 import { PosVenueService } from './application/pos-venue.service';
+import { StorageModule } from '../storage/storage.module';
 import { DemoPaymentSimulator, POS_PAYMENT_PORT } from './domain/payment-simulator';
 
 /**
@@ -22,6 +25,8 @@ import { DemoPaymentSimulator, POS_PAYMENT_PORT } from './domain/payment-simulat
  * behind the same port, and a deliberate change to this file.
  */
 @Module({
+  // A menu item's own photo is stored through the storage seam (PosMenuPhotoService).
+  imports: [StorageModule],
   providers: [
     PosReadService,
     PosFloorService,
@@ -34,6 +39,9 @@ import { DemoPaymentSimulator, POS_PAYMENT_PORT } from './domain/payment-simulat
     PosExpenseService,
     PosVenueService,
     PosCustomerService,
+    PosMenuPhotoService,
+    // Table QR self-service ordering (migration 0156).
+    PosTableOrderService,
     { provide: POS_PAYMENT_PORT, useClass: DemoPaymentSimulator },
   ],
   exports: [
@@ -48,6 +56,8 @@ import { DemoPaymentSimulator, POS_PAYMENT_PORT } from './domain/payment-simulat
     PosExpenseService,
     PosVenueService,
     PosCustomerService,
+    PosMenuPhotoService,
+    PosTableOrderService,
   ],
 })
 export class PosModule {}

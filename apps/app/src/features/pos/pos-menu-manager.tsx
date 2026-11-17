@@ -10,6 +10,7 @@ import { DishArt } from "./dish-art";
 import { rwf } from "./format";
 import { SECTION_PRESETS, type SectionKind, TAX_CHOICES } from "./menu-presets";
 import { PosShell } from "./pos-shell";
+import { finalPhoto, RecipeImage } from "./recipe-image";
 import { PosDialog, parseRwf, StatusChip, useDialogKey, usePosAction, useStickyTitle } from "./shared";
 
 const selectClass =
@@ -32,6 +33,10 @@ type Dialog =
       onSale: boolean;
       /** The stock the product has now, shown read-only on an edit (changes are counted on the Stock screen). */
       currentStock: number | null;
+      /** The library photo picked in the form (or saved before); null follows the name's suggestion. */
+      photo: string | null;
+      /** The photo saved with the product before this edit. */
+      savedPhoto: string | null;
     }
   | { kind: "section"; id?: string; name: string; sectionKind: SectionKind; guestVisible: boolean }
   | { kind: "archive"; id: string; name: string };
@@ -58,8 +63,8 @@ function stateOf(i: CatalogItem): {
 /**
  * Menu management for an owner or manager (`menu.manage`): the products and sections of one outlet, through the
  * existing catalogue API. A price change never rewrites a bill already taken (an order keeps the price it was
- * placed at), and removing a product archives it, so history is kept. Product photos are not offered: the menu
- * has nowhere to store one yet, and this screen says so rather than pretend.
+ * placed at), and removing a product archives it, so history is kept. A product's photo comes from the bundled
+ * photo library: the recipe name suggests one, the owner keeps it or picks another, and that photo is saved with it.
  */
 export function PosMenuManager({
   outlets,
@@ -143,6 +148,8 @@ export function PosMenuManager({
       stock: "",
       onSale: i ? i.status === "active" : true,
       currentStock: i?.stockQty ?? null,
+      photo: i?.photo ?? null,
+      savedPhoto: i?.photo ?? null,
     });
 
   const price = dialog?.kind === "product" ? parseRwf(dialog.price) : null;
@@ -176,6 +183,10 @@ export function PosMenuManager({
     }
     // Emptying the field on an existing product clears the time (0 minutes); on a new one it is simply not set.
     const prep = dialog.prep.trim() ? Number(dialog.prep) : dialog.id ? 0 : undefined;
+    // The image the form shows is the one saved: the owner's pick, else the name's suggestion. An edit sends it only
+    // when it differs from what is saved, so saving an unchanged product writes no photo.
+    const photo = finalPhoto(dialog.photo, dialog.name, sections.find((s) => s.id === dialog.categoryId)?.name ?? "");
+    const photoChange = photo !== dialog.savedPhoto ? { photo } : {};
     if (dialog.id) {
       return run(
         () =>
@@ -186,6 +197,7 @@ export function PosMenuManager({
             taxCode: dialog.tax,
             ...(prep !== undefined ? { prepTimeMinutes: prep } : {}),
             status: dialog.onSale ? "active" : "out_of_stock",
+            ...photoChange,
           }),
         "Product saved.",
         apply,
@@ -201,6 +213,7 @@ export function PosMenuManager({
           taxCode: dialog.tax,
           ...(prep !== undefined ? { prepTimeMinutes: prep } : {}),
           stockQty: dialog.track ? Number(dialog.stock) : null,
+          ...photoChange,
         }),
       "Product added.",
       apply,
@@ -328,7 +341,7 @@ export function PosMenuManager({
                         className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 px-4 py-3 md:grid-cols-[minmax(0,1fr)_104px_200px_116px_auto]"
                       >
                         <div className="flex min-w-0 items-center gap-3">
-                          <DishArt name={i.name} section={s.name} size="thumb" />
+                          <DishArt name={i.name} section={s.name} photo={i.photo} size="thumb" />
                           <div className="min-w-0">
                             <p className="truncate text-[14px] font-semibold">{i.name}</p>
                             {i.description ? <p className="truncate text-[12px] text-muted">{i.description}</p> : null}
@@ -420,8 +433,8 @@ export function PosMenuManager({
         <p className="flex shrink-0 items-start gap-2 text-[12px] text-muted">
           <CircleInfo className="mt-0.5 size-4 shrink-0" />
           <span>
-            Changing a price never changes a bill already taken. Product photos are not available yet: the menu has
-            nowhere to store them. Stock is counted on the{" "}
+            Changing a price never changes a bill already taken. Each product shows the photo saved with it in its
+            recipe: one from the photo library, or your own upload. Stock is counted on the{" "}
             <Link className="text-accent-soft-foreground hover:underline" href={`/pos/stock?outlet=${outlet.id}`}>
               Stock screen
             </Link>
@@ -534,24 +547,14 @@ export function PosMenuManager({
                   <TextArea rows={2} maxLength={1000} placeholder="What is in it, as the guest reads it" />
                 </TextField>
               </div>
-              <div className="flex flex-col gap-2">
-                <span className="text-[13px] font-medium">Recipe image</span>
-                <div className="flex items-center gap-4">
-                  <span className="size-[88px] overflow-hidden rounded-2xl [&>span]:h-full [&>span]:!aspect-auto">
-                    <DishArt
-                      name={dialog.name || " "}
-                      section={sections.find((s) => s.id === dialog.categoryId)?.name ?? ""}
-                      size="tile"
-                    />
-                  </span>
-                  <p className="max-w-[420px] text-[12.5px] leading-[18px] text-muted">
-                    {dialog.name.trim()
-                      ? "Chosen from the photo library by the recipe name, and shown on the till, the menu and the receipt screens."
-                      : "Type the recipe name: a matching photo from the library appears here."}{" "}
-                    Uploading your own photo comes with photo storage.
-                  </p>
-                </div>
-              </div>
+              <RecipeImage
+                outletId={outlet.id}
+                name={dialog.name}
+                section={sections.find((s) => s.id === dialog.categoryId)?.name ?? ""}
+                chosen={dialog.photo}
+                saved={dialog.savedPhoto}
+                onChange={(photo) => setDialog({ ...dialog, photo })}
+              />
             </section>
 
             <section aria-labelledby="rf-ingredients" className="flex flex-col gap-3 border-t border-separator py-5">

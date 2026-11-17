@@ -1,5 +1,15 @@
 import {
   POS_SETUP_STEPS,
+  POS_VENUE_TEMPLATES,
+  bulkTableLabels,
+  planVenueTemplate,
+  type ApplyVenueTemplateRequest,
+  type ApplyVenueTemplateResult,
+  type BulkCreateTablesRequest,
+  type PosArchivedVenue,
+  type PosVenueTemplatePlan,
+  type ReorderVenueRequest,
+  type SetItemRoutesRequest,
   type CreateAreaRequest,
   type CreateRegisterRequest,
   type CreateStationRequest,
@@ -13,7 +23,7 @@ import {
   type UpdateTableRequest,
 } from '@injishi/contracts';
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, count, eq, inArray, isNull, ne, notInArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, ne, notInArray, sql } from 'drizzle-orm';
 
 import {
   cashierShifts,
@@ -423,7 +433,237 @@ export class PosVenueService {
 
   /** Send a menu item's tickets to a station, or (null) to none. */
   async setRoute(ws: ScopedWorkspace, outletId: string, body: SetItemRouteRequest, userId: string): Promise<PosVenue> {
+    return this.write(ws, outletId, (tx, outlet) => this.route(tx, outlet, body, userId));
+  }
+
+  /** Several routes in one transaction: every one is set, or (on the first refusal) none is. */
+  async setRoutes(ws: ScopedWorkspace, outletId: string, body: SetItemRoutesRequest, userId: string): Promise<PosVenue> {
     return this.write(ws, outletId, async (tx, outlet) => {
+      for (const r of body.routes) await this.route(tx, outlet, r, userId);
+    });
+  }
+
+  // ── Bulk tables, order, archive and restore ──────────────────────────────────────────────────────
+
+  /**
+   * Many tables in one area: `prefix` + numbers. All or none: a label already used at the outlet (archived tables
+   * included, since the name rule covers them) refuses the batch and names the labels.
+   */
+  async bulkCreateTables(ws: ScopedWorkspace, outletId: string, body: BulkCreateTablesRequest, userId: string): Promise<PosVenue> {
+    return this.write(ws, outletId, async (tx, outlet) => {
+      const area = await this.area(tx, outlet, body.areaId);
+      const labels = bulkTableLabels(body);
+      const taken = await tx
+        .select({ label: restaurantTables.label })
+        .from(restaurantTables)
+        .where(and(eq(restaurantTables.outletId, outlet.id), inArray(restaurantTables.label, labels)));
+      if (taken.length > 0) {
+        const names = taken.map((t) => t.label).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+        throw new ConflictException(
+          `${names.slice(0, 6).join(', ')}${names.length > 6 ? ` and ${names.length - 6} more` : ''} ${names.length === 1 ? 'is' : 'are'} already used at this outlet (archived tables included). Choose another prefix or start number.`,
+        );
+      }
+      const first = await this.nextSort(tx, restaurantTables, outlet);
+      try {
+        const rows = await tx
+          .insert(restaurantTables)
+          .values(labels.map((label, i) => ({ workspaceId: outlet.workspaceId, outletId: outlet.id, areaId: area.id, label, seats: body.seats, sortOrder: Math.min(9999, first + i * 10) })))
+          .returning({ id: restaurantTables.id, label: restaurantTables.label });
+        for (const row of rows) {
+          await audit(tx, { workspaceId: outlet.workspaceId, outletId: outlet.id, actorUserId: userId, action: 'venue.table.create', entityType: 'restaurant_table', entityId: row.id, after: { areaId: area.id, label: row.label, seats: body.seats, bulk: true } });
+        }
+      } catch (error) {
+        if (isUniqueViolation(error)) throw new ConflictException('One of those labels was just taken. Reload and try again.');
+        throw error;
+      }
+    });
+  }
+
+  /** A new order for areas, the tables of an area, or stations: the listed ids get 10, 20, 30... in that order. */
+  async reorder(ws: ScopedWorkspace, outletId: string, body: ReorderVenueRequest, userId: string): Promise<PosVenue> {
+    return this.write(ws, outletId, async (tx, outlet) => {
+      const table = { areas: diningAreas, tables: restaurantTables, stations: preparationStations }[body.kind];
+      const found = await tx
+        .select({ id: table.id, sortOrder: table.sortOrder })
+        .from(table)
+        .where(and(inArray(table.id, body.ids), eq(table.outletId, outlet.id), eq(table.workspaceId, outlet.workspaceId), isNull(table.archivedAt)));
+      if (found.length !== body.ids.length) throw new NotFoundException('One of those is not available to you, or is archived. Reload and try again.');
+      const before = new Map(found.map((f) => [f.id, f.sortOrder]));
+      for (const [i, id] of body.ids.entries()) {
+        const sortOrder = (i + 1) * 10;
+        if (before.get(id) !== sortOrder) await tx.update(table).set({ sortOrder, updatedAt: new Date() }).where(eq(table.id, id));
+      }
+      await audit(tx, { workspaceId: outlet.workspaceId, outletId: outlet.id, actorUserId: userId, action: 'venue.reorder', entityType: body.kind, entityId: null, before: Object.fromEntries(before), after: { ids: body.ids } });
+    });
+  }
+
+  /** Everything archived at the outlet, newest first, so it can be seen and brought back. */
+  async archived(ws: ScopedWorkspace, outletId: string): Promise<PosArchivedVenue> {
+    return this.db.transaction(async (tx) => {
+      const outlet = await outletInScope(tx, ws, outletId);
+      const own = <T extends typeof diningAreas | typeof restaurantTables | typeof preparationStations | typeof posRegisters>(t: T) =>
+        and(eq(t.outletId, outlet.id), eq(t.workspaceId, outlet.workspaceId), isNotNull(t.archivedAt));
+      const [areas, tables, stations, registers] = await Promise.all([
+        tx
+          .select({
+            id: diningAreas.id,
+            name: diningAreas.name,
+            archivedAt: diningAreas.archivedAt,
+            archivedTables: sql<number>`(select count(*)::int from restaurant_tables t where t.area_id = dining_areas.id and t.archived_at is not null)`,
+          })
+          .from(diningAreas)
+          .where(own(diningAreas))
+          .orderBy(desc(diningAreas.archivedAt)),
+        tx
+          .select({
+            id: restaurantTables.id,
+            label: restaurantTables.label,
+            seats: restaurantTables.seats,
+            areaId: restaurantTables.areaId,
+            areaName: diningAreas.name,
+            areaArchivedAt: diningAreas.archivedAt,
+            archivedAt: restaurantTables.archivedAt,
+          })
+          .from(restaurantTables)
+          .innerJoin(diningAreas, eq(diningAreas.id, restaurantTables.areaId))
+          .where(own(restaurantTables))
+          .orderBy(desc(restaurantTables.archivedAt), asc(restaurantTables.label)),
+        tx
+          .select({ id: preparationStations.id, name: preparationStations.name, kind: preparationStations.kind, archivedAt: preparationStations.archivedAt })
+          .from(preparationStations)
+          .where(own(preparationStations))
+          .orderBy(desc(preparationStations.archivedAt)),
+        tx
+          .select({ id: posRegisters.id, name: posRegisters.name, deviceLabel: posRegisters.deviceLabel, archivedAt: posRegisters.archivedAt })
+          .from(posRegisters)
+          .where(own(posRegisters))
+          .orderBy(desc(posRegisters.archivedAt)),
+      ]);
+      const iso = (d: Date | null) => (d ?? new Date(0)).toISOString();
+      return {
+        outletId: outlet.id,
+        areas: areas.map((a) => ({ id: a.id, name: a.name, archivedAt: iso(a.archivedAt), archivedTables: Number(a.archivedTables) })),
+        tables: tables.map((t) => ({ id: t.id, label: t.label, seats: t.seats, areaId: t.areaId, areaName: t.areaName, areaArchived: t.areaArchivedAt !== null, archivedAt: iso(t.archivedAt) })),
+        stations: stations.map((s) => ({ id: s.id, name: s.name, kind: s.kind, archivedAt: iso(s.archivedAt) })),
+        registers: registers.map((r) => ({ id: r.id, name: r.name, deviceLabel: r.deviceLabel ?? null, archivedAt: iso(r.archivedAt) })),
+      };
+    });
+  }
+
+  /**
+   * Bring an archived area, table, station or register back as it was. Its history never left. A table whose area is
+   * archived waits for the area. An area comes back on its own: its archived tables are restored one by one.
+   */
+  async restore(ws: ScopedWorkspace, outletId: string, kind: 'area' | 'table' | 'station' | 'register', id: string, userId: string): Promise<PosVenue> {
+    return this.write(ws, outletId, async (tx, outlet) => {
+      const table = { area: diningAreas, table: restaurantTables, station: preparationStations, register: posRegisters }[kind];
+      const [row] = await tx
+        .select({ id: table.id })
+        .from(table)
+        .where(and(eq(table.id, id), eq(table.outletId, outlet.id), eq(table.workspaceId, outlet.workspaceId), isNotNull(table.archivedAt)))
+        .limit(1)
+        .for('update');
+      if (!row) throw new NotFoundException(`That archived ${kind} is not available to you.`);
+      let name = '';
+      if (kind === 'table') {
+        const [t] = await tx
+          .select({ label: restaurantTables.label, areaName: diningAreas.name, areaArchivedAt: diningAreas.archivedAt })
+          .from(restaurantTables)
+          .innerJoin(diningAreas, eq(diningAreas.id, restaurantTables.areaId))
+          .where(eq(restaurantTables.id, row.id));
+        if (t?.areaArchivedAt) throw new ConflictException(`${t.label} belongs to ${t.areaName}, which is archived. Restore ${t.areaName} first.`);
+        name = t?.label ?? '';
+      }
+      await tx.update(table).set({ archivedAt: null, updatedAt: new Date() }).where(eq(table.id, row.id));
+      const entityType = { area: 'dining_area', table: 'restaurant_table', station: 'preparation_station', register: 'pos_register' }[kind];
+      await audit(tx, { workspaceId: outlet.workspaceId, outletId: outlet.id, actorUserId: userId, action: `venue.${kind}.restore`, entityType, entityId: row.id, after: name ? { label: name } : {} });
+    });
+  }
+
+  // ── Starter templates ────────────────────────────────────────────────────────────────────────────
+
+  /** Every template measured against this outlet: what it would create, what it would skip. */
+  async templates(ws: ScopedWorkspace, outletId: string): Promise<PosVenueTemplatePlan[]> {
+    return this.db.transaction(async (tx) => {
+      const outlet = await outletInScope(tx, ws, outletId);
+      const existing = await this.existingNames(tx, outlet);
+      return POS_VENUE_TEMPLATES.map((t) => planVenueTemplate(t, existing));
+    });
+  }
+
+  /**
+   * Create what a template plans, in one transaction. It only ADDS: a name already used here (archived included) is
+   * skipped and never changed, and the menu, orders and team are not touched. Tables go into the template's area,
+   * new or already in use.
+   */
+  async applyTemplate(ws: ScopedWorkspace, outletId: string, body: ApplyVenueTemplateRequest, userId: string): Promise<ApplyVenueTemplateResult> {
+    return this.db.transaction(async (tx) => {
+      const outlet = await outletInScope(tx, ws, outletId);
+      const template = POS_VENUE_TEMPLATES.find((t) => t.key === body.template);
+      if (!template) throw new NotFoundException('That template does not exist.');
+      // One template at a time per outlet: a double tap waits here and then finds everything already made.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`pos-venue-template:${outlet.id}`}))`);
+      const plan = planVenueTemplate(template, await this.existingNames(tx, outlet));
+      const base = { workspaceId: outlet.workspaceId, outletId: outlet.id, actorUserId: userId };
+      let created = 0;
+      let areaSort = await this.nextSort(tx, diningAreas, outlet);
+      let tableSort = await this.nextSort(tx, restaurantTables, outlet);
+      let stationSort = await this.nextSort(tx, preparationStations, outlet);
+      for (const a of plan.areas) {
+        if (a.mark === 'archived') continue;
+        let areaId: string | undefined;
+        if (a.mark === 'new') {
+          const [row] = await tx.insert(diningAreas).values({ workspaceId: outlet.workspaceId, outletId: outlet.id, name: a.name, sortOrder: Math.min(9999, areaSort) }).returning({ id: diningAreas.id });
+          areaSort += 10;
+          areaId = row?.id;
+          created++;
+          await audit(tx, { ...base, action: 'venue.area.create', entityType: 'dining_area', entityId: areaId ?? null, after: { name: a.name, template: template.key } });
+        } else {
+          const [row] = await tx.select({ id: diningAreas.id }).from(diningAreas).where(and(eq(diningAreas.outletId, outlet.id), eq(diningAreas.name, a.name), isNull(diningAreas.archivedAt))).limit(1);
+          areaId = row?.id;
+        }
+        if (!areaId) continue;
+        for (const t of a.tables) {
+          if (t.mark !== 'new') continue;
+          const [row] = await tx.insert(restaurantTables).values({ workspaceId: outlet.workspaceId, outletId: outlet.id, areaId, label: t.label, seats: t.seats, sortOrder: Math.min(9999, tableSort) }).returning({ id: restaurantTables.id });
+          tableSort += 10;
+          created++;
+          await audit(tx, { ...base, action: 'venue.table.create', entityType: 'restaurant_table', entityId: row?.id ?? null, after: { areaId, label: t.label, seats: t.seats, template: template.key } });
+        }
+      }
+      for (const s of plan.stations) {
+        if (s.mark !== 'new') continue;
+        const [row] = await tx.insert(preparationStations).values({ workspaceId: outlet.workspaceId, outletId: outlet.id, name: s.name, kind: s.kind, sortOrder: Math.min(9999, stationSort) }).returning({ id: preparationStations.id });
+        stationSort += 10;
+        created++;
+        await audit(tx, { ...base, action: 'venue.station.create', entityType: 'preparation_station', entityId: row?.id ?? null, after: { name: s.name, kind: s.kind, template: template.key } });
+      }
+      for (const r of plan.registers) {
+        if (r.mark !== 'new') continue;
+        const [row] = await tx.insert(posRegisters).values({ workspaceId: outlet.workspaceId, outletId: outlet.id, name: r.name }).returning({ id: posRegisters.id });
+        created++;
+        await audit(tx, { ...base, action: 'venue.register.create', entityType: 'pos_register', entityId: row?.id ?? null, after: { name: r.name, template: template.key } });
+      }
+      return { venue: await this.read(tx, outlet), created, skipped: plan.skips };
+    });
+  }
+
+  /** Names in use at the outlet, active ("exists") or archived, the way the unique-name rules count them. */
+  private async existingNames(tx: Tx, outlet: OutletRow): Promise<Parameters<typeof planVenueTemplate>[1]> {
+    const mark = (rows: { name: string; archivedAt: Date | null }[]) =>
+      new Map(rows.map((r) => [r.name, r.archivedAt ? ('archived' as const) : ('exists' as const)]));
+    const [areas, tables, stations, registers] = await Promise.all([
+      tx.select({ name: diningAreas.name, archivedAt: diningAreas.archivedAt }).from(diningAreas).where(eq(diningAreas.outletId, outlet.id)),
+      tx.select({ name: restaurantTables.label, archivedAt: restaurantTables.archivedAt }).from(restaurantTables).where(eq(restaurantTables.outletId, outlet.id)),
+      tx.select({ name: preparationStations.name, archivedAt: preparationStations.archivedAt }).from(preparationStations).where(eq(preparationStations.outletId, outlet.id)),
+      tx.select({ name: posRegisters.name, archivedAt: posRegisters.archivedAt }).from(posRegisters).where(eq(posRegisters.outletId, outlet.id)),
+    ]);
+    return { areas: mark(areas), tables: mark(tables), stations: mark(stations), registers: mark(registers) };
+  }
+
+  /** One route, inside the caller's transaction. */
+  private async route(tx: Tx, outlet: OutletRow, body: SetItemRouteRequest, userId: string): Promise<void> {
+    {
       const [item] = await tx
         .select({ id: serviceItems.id, name: serviceItems.name })
         .from(serviceItems)
@@ -442,7 +682,7 @@ export class PosVenueService {
         await tx.delete(posItemRoutes).where(eq(posItemRoutes.serviceItemId, item.id));
       }
       await audit(tx, { workspaceId: outlet.workspaceId, outletId: outlet.id, actorUserId: userId, action: 'venue.route.set', entityType: 'service_item', entityId: item.id, before: { stationId: current?.stationId ?? null }, after: { stationId: body.stationId } });
-    });
+    }
   }
 
   // ── Plumbing ─────────────────────────────────────────────────────────────────────────────────────

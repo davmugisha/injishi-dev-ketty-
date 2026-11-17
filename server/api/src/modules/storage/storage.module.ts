@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { StorageService } from './application/storage.service';
 import { MessageFilesStorage } from './application/message-files-storage';
 import { RentalsFilesStorage } from './application/rentals-files-storage';
+import { MenuPhotoStorage } from './application/menu-photo-storage';
 import { UnitMediaStorage } from './application/unit-media-storage';
 import { STORAGE_BACKEND, type StorageBackend } from './domain/storage-backend';
 import { type AdapterMode, STORAGE_PORT, type StoragePort } from './domain/storage-port';
@@ -102,7 +103,7 @@ export function buildStorageProviders(): Provider[] {
 }
 
 @Module({
-  providers: [...buildStorageProviders(), StorageService, UnitMediaStorage, RentalsFilesStorage, MessageFilesStorage],
-  exports: [STORAGE_PORT, StorageService, UnitMediaStorage, RentalsFilesStorage, MessageFilesStorage],
+  providers: [...buildStorageProviders(), StorageService, UnitMediaStorage, RentalsFilesStorage, MessageFilesStorage, MenuPhotoStorage],
+  exports: [STORAGE_PORT, StorageService, UnitMediaStorage, RentalsFilesStorage, MessageFilesStorage, MenuPhotoStorage],
 })
 export class StorageModule {}

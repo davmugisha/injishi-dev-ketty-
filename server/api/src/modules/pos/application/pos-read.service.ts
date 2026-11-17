@@ -34,6 +34,7 @@ import {
 } from '../../../database/drizzle/schema';
 import { inBranchScope, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import { itemPhoto } from '../../outlets/domain/menu-photo';
 import { isSellable, readOptions } from '../../outlets/domain/sellable-item';
 import { presentOrder, presentOrderSummaries, presentShift, presentTickets } from '../infrastructure/pos-present';
 import {
@@ -167,6 +168,7 @@ export class PosReadService {
           stationId: stationId ?? null,
           available: reason === null,
           unavailableReason: reason,
+          photo: itemPhoto(item.id, item.photoObjectKeys),
         };
       }),
     };
@@ -193,7 +195,13 @@ export class PosReadService {
     const sessionIds = sessions.map((s) => s.id);
     const orders = sessionIds.length
       ? await this.db
-          .select({ id: posOrders.id, tableSessionId: posOrders.tableSessionId, totalRwf: posOrders.totalRwf, status: posOrders.status })
+          .select({
+            id: posOrders.id,
+            tableSessionId: posOrders.tableSessionId,
+            totalRwf: posOrders.totalRwf,
+            status: posOrders.status,
+            source: posOrders.source,
+          })
           .from(posOrders)
           .where(and(inArray(posOrders.tableSessionId, sessionIds), ne(posOrders.status, 'cancelled')))
       : [];
@@ -210,6 +218,7 @@ export class PosReadService {
       tables: tables.map((t) => {
         const session = sessions.find((s) => s.tableId === t.id);
         const mine = session ? orders.filter((o) => o.tableSessionId === session.id) : [];
+        const qrOrders = mine.filter((o) => o.source === 'table_qr' && o.status !== 'completed').length;
         const collected = payments
           .filter((p) => mine.some((o) => o.id === p.orderId) && (p.status === 'successful' || p.status === 'refunded'))
           // Refunds are corrections of settled bills and never reopen one (`settlementOf`).
@@ -226,6 +235,8 @@ export class PosReadService {
           openedAt: session ? session.openedAt.toISOString() : null,
           openOrders: mine.filter((o) => o.status !== 'completed').length,
           outstandingRwf: Math.max(0, mine.reduce((a, o) => a + o.totalRwf, 0) - collected),
+          // Only when guests ordered from the table's QR (migration 0156), so the floor reads as before otherwise.
+          ...(qrOrders > 0 ? { qrOrders } : {}),
         };
       }),
     };

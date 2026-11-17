@@ -134,6 +134,8 @@ export async function presentOrder(db: Db, order: OrderRow): Promise<PosOrder> {
     tableLabel: order.tableSessionId ? (labels.get(order.tableSessionId) ?? null) : null,
     waiterName: order.waiterUserId ? (names.get(order.waiterUserId) ?? null) : null,
     guestNote: order.guestNote,
+    // Present only on a guest's QR order (migration 0156), so every staff order reads exactly as it always did.
+    ...(order.source === 'table_qr' ? { source: 'table_qr' as const } : {}),
     // Present only when a customer is attached, so an order that never had one reads exactly as it always did.
     ...(customer
       ? {
@@ -199,6 +201,7 @@ export async function presentOrderSummaries(db: Db, orders: OrderRow[]): Promise
     tableLabel: o.tableSessionId ? (labels.get(o.tableSessionId) ?? null) : null,
     waiterName: o.waiterUserId ? (names.get(o.waiterUserId) ?? null) : null,
     guestNote: o.guestNote,
+    ...(o.source === 'table_qr' ? { source: 'table_qr' as const } : {}),
     taxMode: o.taxMode,
     grossRwf: o.grossRwf,
     discountRwf: o.discountRwf,
@@ -238,6 +241,7 @@ export async function presentTickets(
         tableSessionId: posOrders.tableSessionId,
         waiterUserId: posOrders.waiterUserId,
         guestNote: posOrders.guestNote,
+        source: posOrders.source,
       })
       .from(posOrders)
       .where(inArray(posOrders.id, orderIds)),
@@ -281,6 +285,7 @@ export async function presentTickets(
       // There is no customer-name field on an order: the guest note is the closest thing the waiter can write (a name, an allergy).
       guestNote: order?.guestNote?.trim() ? order.guestNote.trim() : null,
       guestCount: order?.tableSessionId ? (guests.get(order.tableSessionId) ?? null) : null,
+      ...(order?.source === 'table_qr' ? { source: 'table_qr' as const } : {}),
       items: items
         .filter((i) => i.ticketId === t.id)
         .map((i) => ({

@@ -136,6 +136,9 @@ export const posDiscountKindEnum = pgEnum('pos_discount_kind', ['amount', 'perce
 
 export const posPrintKindEnum = pgEnum('pos_print_kind', ['kitchen_ticket', 'bill', 'receipt']);
 
+/** Who put a row there: the staff, or a guest ordering from the QR on their table (migration 0156). */
+export const posOrderSourceEnum = pgEnum('pos_order_source', ['staff', 'table_qr']);
+
 // --- Outlet settings ---------------------------------------------------------
 
 /**
@@ -159,11 +162,25 @@ export const posOutletSettings = pgTable('pos_outlet_settings', {
     .default(sql`'{cash,mtn_momo,airtel_money,card}'::pos_payment_method[]`),
   receiptHeader: text('receipt_header').notNull().default(''),
   receiptFooter: text('receipt_footer').notNull().default(''),
+  /** The venue's TIN on its receipts: empty, or Rwanda's 9 digits (migration 0154). */
+  venueTin: text('venue_tin').notNull().default(''),
+  venuePhone: text('venue_phone').notNull().default(''),
+  venueAddress: text('venue_address').notNull().default(''),
+  /**
+   * Minutes after midnight (Kigali) at which a business day starts, 0 to 719. The dashboard and reports count a day
+   * from this time to the same time the next day; 0 is the calendar day (migration 0154).
+   */
+  businessDayStartMinutes: smallint('business_day_start_minutes').notNull().default(0),
   ...timestamps,
 }, (t) => [
   check(
     'pos_outlet_settings_discount_limit_range',
     sql`${t.discountLimitBps} >= 0 AND ${t.discountLimitBps} <= 10000`,
+  ),
+  check('pos_outlet_settings_tin_shape', sql`${t.venueTin} = '' OR ${t.venueTin} ~ '^[0-9]{9}$'`),
+  check(
+    'pos_outlet_settings_business_day_range',
+    sql`${t.businessDayStartMinutes} >= 0 AND ${t.businessDayStartMinutes} < 720`,
   ),
 ]);
 
@@ -236,9 +253,9 @@ export const tableSessions = pgTable(
     status: tableSessionStatusEnum('status').notNull().default('open'),
     guestCount: smallint('guest_count').notNull(),
     waiterUserId: uuid('waiter_user_id').references(() => users.id),
-    openedByUserId: uuid('opened_by_user_id')
-      .notNull()
-      .references(() => users.id),
+    /** Null only for a table a guest's QR order seated (`source = 'table_qr'`, migration 0156). */
+    openedByUserId: uuid('opened_by_user_id').references(() => users.id),
+    source: posOrderSourceEnum('source').notNull().default('staff'),
     openedAt: timestamp('opened_at', { withTimezone: true }).notNull().defaultNow(),
     closedAt: timestamp('closed_at', { withTimezone: true }),
     closedByUserId: uuid('closed_by_user_id').references(() => users.id),
@@ -255,6 +272,34 @@ export const tableSessions = pgTable(
       sql`(${t.status} = 'closed') = (${t.closedAt} IS NOT NULL AND ${t.closedByUserId} IS NOT NULL)`,
     ),
     check('table_sessions_guest_range', sql`${t.guestCount} >= 1 AND ${t.guestCount} <= 200`),
+    check('table_sessions_opener_shape', sql`${t.openedByUserId} IS NOT NULL OR ${t.source} = 'table_qr'`),
+  ],
+);
+
+/**
+ * The permanent code printed in a table's QR (migration 0156). The code alone names the table: a guest's phone sends
+ * it, never a table id, so changing the address cannot reach another table. Unguessable (24+ url-safe characters,
+ * 144 random bits); replaced for one table only when a printed card is lost or copied.
+ */
+export const tableQrCodes = pgTable(
+  'table_qr_codes',
+  {
+    tableId: uuid('table_id')
+      .primaryKey()
+      .references(() => restaurantTables.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    outletId: uuid('outlet_id')
+      .notNull()
+      .references(() => outlets.id, { onDelete: 'cascade' }),
+    code: text('code').notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('table_qr_codes_code_uk').on(t.code),
+    index('table_qr_codes_outlet_idx').on(t.outletId),
+    check('table_qr_codes_code_shape', sql`${t.code} ~ '^[A-Za-z0-9_-]{24,64}$'`),
   ],
 );
 
@@ -328,9 +373,10 @@ export const posOrders = pgTable(
     /** Who the bill is for (CRM, phase 1). Optional: most orders are anonymous. Same business only (composite FK below). */
     customerId: uuid('customer_id'),
     waiterUserId: uuid('waiter_user_id').references(() => users.id),
-    createdByUserId: uuid('created_by_user_id')
-      .notNull()
-      .references(() => users.id),
+    /** Null only for a guest's QR order (`source = 'table_qr'`, migration 0156). */
+    createdByUserId: uuid('created_by_user_id').references(() => users.id),
+    /** `table_qr`: a guest sent it from the QR on their table. Every other order is `staff`. */
+    source: posOrderSourceEnum('source').notNull().default('staff'),
     guestNote: text('guest_note'),
     taxMode: posTaxModeEnum('tax_mode').notNull(),
     grossRwf: amount('gross_rwf').notNull().default(0),
@@ -374,6 +420,10 @@ export const posOrders = pgTable(
       'pos_orders_cancel_shape',
       sql`(${t.status} = 'cancelled') = (${t.cancelledAt} IS NOT NULL AND ${t.cancelledByUserId} IS NOT NULL AND ${t.cancelReason} IS NOT NULL)`,
     ),
+    check('pos_orders_creator_shape', sql`${t.createdByUserId} IS NOT NULL OR ${t.source} = 'table_qr'`),
+    index('pos_orders_outlet_source_idx')
+      .on(t.outletId, t.createdAt)
+      .where(sql`${t.source} = 'table_qr'`),
     check(
       'pos_orders_amounts_nonnegative',
       sql`${t.grossRwf} >= 0 AND ${t.discountRwf} >= 0 AND ${t.taxRwf} >= 0 AND ${t.totalRwf} >= 0`,
@@ -417,13 +467,14 @@ export const posOrderLines = pgTable(
     voidedAt: timestamp('voided_at', { withTimezone: true }),
     voidedByUserId: uuid('voided_by_user_id').references(() => users.id),
     voidReason: text('void_reason'),
-    createdByUserId: uuid('created_by_user_id')
-      .notNull()
-      .references(() => users.id),
+    /** Null only for a line a guest sent from their table's QR (migration 0156). */
+    createdByUserId: uuid('created_by_user_id').references(() => users.id),
+    source: posOrderSourceEnum('source').notNull().default('staff'),
     ...timestamps,
   },
   (t) => [
     index('pos_order_lines_order_idx').on(t.orderId),
+    check('pos_order_lines_creator_shape', sql`${t.createdByUserId} IS NOT NULL OR ${t.source} = 'table_qr'`),
     index('pos_order_lines_sent_at_idx').on(t.sentAt),
     check('pos_order_lines_quantity_range', sql`${t.quantity} >= 1 AND ${t.quantity} <= 500`),
     check(

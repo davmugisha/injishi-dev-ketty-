@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
-import { addDays, kigaliToday } from "@/features/pos/format";
+import { addDays } from "@/features/pos/format";
 import { loadPosPage } from "@/features/pos/load";
 import { PosBlocked } from "@/features/pos/pos-blocked";
 import { POS_BOARDS } from "@/features/pos/pos-boards";
 import { PERIODS, type PeriodKey, PosReportsView } from "@/features/pos/pos-reports-view";
+import { businessToday, commonDayStart } from "@/features/pos/setup-logic";
 import { posReport } from "@/server/pos";
 
 export const metadata: Metadata = { title: POS_BOARDS.PosReports.pageTitle };
 
-/** The Kigali date range of a named period. */
-function rangeOf(period: PeriodKey): { from: string; to: string } {
-  const today = kigaliToday();
+/** The business-day range of a named period (`today` is the current business day, which the outlet may start after midnight). */
+function rangeOf(period: PeriodKey, today: string): { from: string; to: string } {
   const monthStart = `${today.slice(0, 7)}-01`;
   switch (period) {
     case "yesterday":
@@ -47,6 +47,9 @@ export default async function PosReportsPage({
   }
   const period = (PERIODS.some(([k]) => k === periodParam) ? periodParam : "today") as PeriodKey;
   const selected = outletParam ? (page.outlets.find((o) => o.id === outletParam) ?? null) : null;
-  const report = await posReport(page.ctx, { outletId: selected?.id, ...rangeOf(period) });
+  const report = await posReport(page.ctx, {
+    outletId: selected?.id,
+    ...rangeOf(period, businessToday(commonDayStart(selected ? [selected] : page.outlets))),
+  });
   return <PosReportsView outlets={page.outlets} selected={selected} period={period} report={report} can={page.can} />;
 }

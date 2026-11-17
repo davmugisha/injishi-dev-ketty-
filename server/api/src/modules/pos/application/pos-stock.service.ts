@@ -10,6 +10,7 @@ import { and, asc, desc, eq, like } from 'drizzle-orm';
 import { posAuditEvents, serviceCategories, serviceItems, users } from '../../../database/drizzle/schema';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import { itemPhoto } from '../../outlets/domain/menu-photo';
 import type { PosStockItem, PosStockMovement, PosStockView, StockAdjustRequest } from '../domain/pos-ops';
 import { assumedUnitCost, COST_OF_GOODS_RATIO, LOW_STOCK_AT, stockLevel } from '../infrastructure/pos-stock';
 import { audit, itemInOutlet, itemOutlet, outletInScope } from '../infrastructure/pos-support';
@@ -36,6 +37,7 @@ export class PosStockService {
         stockQty: serviceItems.stockQty,
         status: serviceItems.status,
         category: serviceCategories.name,
+        photoObjectKeys: serviceItems.photoObjectKeys,
       })
       .from(serviceItems)
       .leftJoin(serviceCategories, eq(serviceCategories.id, serviceItems.serviceCategoryId))
@@ -54,6 +56,7 @@ export class PosStockService {
         level: stockLevel(r.stockQty, r.status),
         unitCostRwf: unitCost,
         valueRwf: r.stockQty === null ? 0 : Math.max(0, r.stockQty) * unitCost,
+        photo: itemPhoto(r.id, r.photoObjectKeys),
       };
     });
     const summary = {

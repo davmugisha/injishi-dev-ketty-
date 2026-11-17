@@ -21,7 +21,17 @@ import {
   reviewShiftAction,
 } from "./actions";
 import { PosShell } from "./pos-shell";
-import { clock, money, ORDER_COLOR, PosDialog, parseRwf, SimulationNotice, StatusChip, usePosAction } from "./shared";
+import {
+  clock,
+  GuestQrChip,
+  money,
+  ORDER_COLOR,
+  PosDialog,
+  parseRwf,
+  SimulationNotice,
+  StatusChip,
+  usePosAction,
+} from "./shared";
 
 /**
  * The cashier's register and shift (POS spec §9). A cashier opens a shift with a float, records cash in and
@@ -450,6 +460,11 @@ function BillsToSettle({ bills, canTake, outletId }: { bills: PosOrderSummary[];
                   <span className="text-[14px] font-semibold">
                     {b.tableLabel ? `Table ${b.tableLabel}` : b.orderType === "delivery" ? "Delivery" : "Takeaway"}
                     <span className="ml-2 text-[12px] font-normal text-muted tabular">{b.orderNumber}</span>
+                    {b.source === "table_qr" ? (
+                      <span className="ml-2 align-middle">
+                        <GuestQrChip />
+                      </span>
+                    ) : null}
                   </span>
                   <span className="text-[12px] text-muted">
                     {b.waiterName ? `${b.waiterName} · ` : ""}since {clock(b.createdAt)} · {b.lineCount} line
@@ -466,7 +481,8 @@ function BillsToSettle({ bills, canTake, outletId }: { bills: PosOrderSummary[];
                     <span className="block text-[11px] font-normal text-muted">of {money(b.totalRwf)} · part paid</span>
                   ) : null}
                 </span>
-                <LinkButton href={`/pos/till?order=${b.id}`} size="sm" variant={served ? "primary" : "secondary"}>
+                {/* `pay=1`: the till opens on this bill with the payment dialog, not on the menu. */}
+                <LinkButton href={`/pos/till?order=${b.id}&pay=1`} size="sm" variant={served ? "primary" : "secondary"}>
                   Take payment
                 </LinkButton>
               </li>

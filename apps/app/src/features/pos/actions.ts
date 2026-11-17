@@ -5,6 +5,7 @@ import { requirePersona } from "@/lib/session";
 import { ApiError, ApiUnreachableError } from "@/server/api";
 import { requestContext } from "@/server/data";
 import {
+  type ArchivedKind,
   type BillPrint,
   type CatalogStatus,
   type CustomerInput,
@@ -14,6 +15,7 @@ import {
   type OrderType,
   outletWrite,
   type PaymentMethod,
+  type PosArchivedVenue,
   type PosCatalog,
   type PosCustomerExport,
   type PosCustomerList,
@@ -26,17 +28,22 @@ import {
   type PosStockItem,
   type PosTicket,
   type PosVenue,
+  type PosVenueTemplatePlan,
+  posArchived,
   posBackOffice,
   posCustomers,
   posFirstOutletTarget,
   posOutletRefs,
   posOutlets,
+  posStations,
+  posVenueTemplates,
   posWrite,
   type SettingsInput,
   type StationKind,
   type StockMovementKind,
   type TableStatus,
   type TicketStatus,
+  type VenueTemplateKey,
   venueWrite,
 } from "@/server/pos";
 import { SECTION_PRESETS, type SectionKind } from "./menu-presets";
@@ -372,6 +379,54 @@ export async function setRouteAction(
 ): Promise<ActionResult<PosVenue>> {
   return runBackOffice("PosSetup", async () => venueWrite.setRoute(await ctx(), outletId, serviceItemId, stationId));
 }
+/** Several routes in one call (a whole section to one station): all are set, or none. */
+export async function setRoutesAction(
+  outletId: string,
+  routes: { serviceItemId: string; stationId: string | null }[],
+): Promise<ActionResult<PosVenue>> {
+  return runBackOffice("PosSetup", async () => venueWrite.setRoutes(await ctx(), outletId, routes));
+}
+export async function bulkTablesAction(
+  outletId: string,
+  body: { areaId: string; prefix: string; start: number; count: number; seats: number },
+): Promise<ActionResult<PosVenue>> {
+  return runBackOffice("PosSetup", async () => venueWrite.bulkTables(await ctx(), outletId, body));
+}
+export async function reorderAction(
+  outletId: string,
+  kind: "areas" | "tables" | "stations",
+  ids: string[],
+): Promise<ActionResult<PosVenue>> {
+  return runBackOffice("PosSetup", async () => venueWrite.reorder(await ctx(), outletId, kind, ids));
+}
+export async function restoreAction(outletId: string, kind: ArchivedKind, id: string): Promise<ActionResult<PosVenue>> {
+  return runBackOffice("PosSetup", async () => venueWrite.restore(await ctx(), outletId, kind, id));
+}
+export async function applyTemplateAction(
+  outletId: string,
+  template: VenueTemplateKey,
+): Promise<ActionResult<{ venue: PosVenue; created: number; skipped: number }>> {
+  return runBackOffice("PosSetup", async () => venueWrite.applyTemplate(await ctx(), outletId, template));
+}
+
+/** A read for the setup screen: no screens are refreshed, and a refusal comes back as its sentence. */
+async function readSetup<T>(act: () => Promise<T>): Promise<ActionResult<T>> {
+  await requirePersona("PosSetup");
+  try {
+    return { ok: true, value: await act() };
+  } catch (error) {
+    if (error instanceof ApiError) return { ok: false, error: error.message };
+    if (error instanceof ApiUnreachableError)
+      return { ok: false, error: "The Injishi service did not answer. Try again." };
+    throw error;
+  }
+}
+export async function archivedAction(outletId: string): Promise<ActionResult<PosArchivedVenue>> {
+  return readSetup(async () => posArchived(await ctx(), outletId));
+}
+export async function templatesAction(outletId: string): Promise<ActionResult<PosVenueTemplatePlan[]>> {
+  return readSetup(async () => posVenueTemplates(await ctx(), outletId));
+}
 
 // ── Menu management (the existing catalogue API, `menu.manage`) ─────────────────────────────────────────
 
@@ -415,6 +470,7 @@ export async function createProductAction(body: {
   taxCode?: string;
   prepTimeMinutes?: number;
   stockQty?: number | null;
+  photo?: string | null;
 }): Promise<ActionResult<PosCatalog>> {
   return runBackOffice("PosMenu", async () => catalogWrite.createItem(await ctx(), body));
 }
@@ -428,6 +484,7 @@ export async function updateProductAction(
     prepTimeMinutes?: number;
     stockQty?: number | null;
     status?: CatalogStatus;
+    photo?: string | null;
   },
 ): Promise<ActionResult<PosCatalog>> {
   return runBackOffice("PosMenu", async () => catalogWrite.updateItem(await ctx(), id, body));
@@ -517,4 +574,18 @@ export async function attachCustomerAction(
   customerId: string | null,
 ): Promise<CustomerActionResult<PosOrder>> {
   return runCustomers("PosFloor", async () => customerWrite.attach(await ctx(), orderId, customerId));
+}
+
+/**
+ * The station kinds an outlet has (kitchen, bar, or both), for labels such as the sidebar's "Kitchen", "Bar" or
+ * "Kitchen and bar". Read-only; null when the person may not read the stations or the API cannot be reached, and
+ * the label then stays the general one.
+ */
+export async function stationKindsAction(outletId: string): Promise<StationKind[] | null> {
+  try {
+    const stations = await posStations(await ctx(), outletId);
+    return [...new Set(stations.map((s) => s.kind))];
+  } catch {
+    return null;
+  }
 }

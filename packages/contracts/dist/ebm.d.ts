@@ -90,12 +90,12 @@ export declare const EbmTaxLine: z.ZodObject<{
     taxableRwf: z.ZodNumber;
     taxRwf: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    label: "A" | "B" | "C" | "D";
+    label: "B" | "A" | "C" | "D";
     taxRwf: number;
     ratePercent: number;
     taxableRwf: number;
 }, {
-    label: "A" | "B" | "C" | "D";
+    label: "B" | "A" | "C" | "D";
     taxRwf: number;
     ratePercent: number;
     taxableRwf: number;
@@ -127,7 +127,7 @@ export declare const EbmReceiptItem: z.ZodObject<{
     totalRwf: number;
     quantity: number;
     unitPriceRwf: number;
-    taxLabel: "A" | "B" | "C" | "D";
+    taxLabel: "B" | "A" | "C" | "D";
     discountPercent: number | null;
     discountedTotalRwf: number | null;
 }, {
@@ -135,7 +135,7 @@ export declare const EbmReceiptItem: z.ZodObject<{
     totalRwf: number;
     quantity: number;
     unitPriceRwf: number;
-    taxLabel: "A" | "B" | "C" | "D";
+    taxLabel: "B" | "A" | "C" | "D";
     discountPercent: number | null;
     discountedTotalRwf: number | null;
 }>;
@@ -323,7 +323,7 @@ export declare const EbmReceipt: z.ZodObject<{
         totalRwf: number;
         quantity: number;
         unitPriceRwf: number;
-        taxLabel: "A" | "B" | "C" | "D";
+        taxLabel: "B" | "A" | "C" | "D";
         discountPercent: number | null;
         discountedTotalRwf: number | null;
     }, {
@@ -331,7 +331,7 @@ export declare const EbmReceipt: z.ZodObject<{
         totalRwf: number;
         quantity: number;
         unitPriceRwf: number;
-        taxLabel: "A" | "B" | "C" | "D";
+        taxLabel: "B" | "A" | "C" | "D";
         discountPercent: number | null;
         discountedTotalRwf: number | null;
     }>, "many">;
@@ -346,12 +346,12 @@ export declare const EbmReceipt: z.ZodObject<{
         taxableRwf: z.ZodNumber;
         taxRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        label: "A" | "B" | "C" | "D";
+        label: "B" | "A" | "C" | "D";
         taxRwf: number;
         ratePercent: number;
         taxableRwf: number;
     }, {
-        label: "A" | "B" | "C" | "D";
+        label: "B" | "A" | "C" | "D";
         taxRwf: number;
         ratePercent: number;
         taxableRwf: number;
@@ -455,7 +455,7 @@ export declare const EbmReceipt: z.ZodObject<{
         totalRwf: number;
         quantity: number;
         unitPriceRwf: number;
-        taxLabel: "A" | "B" | "C" | "D";
+        taxLabel: "B" | "A" | "C" | "D";
         discountPercent: number | null;
         discountedTotalRwf: number | null;
     }[];
@@ -476,7 +476,7 @@ export declare const EbmReceipt: z.ZodObject<{
     clientId: string | null;
     totalTaxRwf: number;
     taxLines: {
-        label: "A" | "B" | "C" | "D";
+        label: "B" | "A" | "C" | "D";
         taxRwf: number;
         ratePercent: number;
         taxableRwf: number;
@@ -507,7 +507,7 @@ export declare const EbmReceipt: z.ZodObject<{
         totalRwf: number;
         quantity: number;
         unitPriceRwf: number;
-        taxLabel: "A" | "B" | "C" | "D";
+        taxLabel: "B" | "A" | "C" | "D";
         discountPercent: number | null;
         discountedTotalRwf: number | null;
     }[];
@@ -528,7 +528,7 @@ export declare const EbmReceipt: z.ZodObject<{
     clientId: string | null;
     totalTaxRwf: number;
     taxLines: {
-        label: "A" | "B" | "C" | "D";
+        label: "B" | "A" | "C" | "D";
         taxRwf: number;
         ratePercent: number;
         taxableRwf: number;

@@ -5,15 +5,19 @@ import { PosBlocked } from "@/features/pos/pos-blocked";
 import { POS_BOARDS } from "@/features/pos/pos-boards";
 import { PosTillView } from "@/features/pos/pos-till-view";
 import { ApiError } from "@/server/api";
-import { posFloor, posMenu, posMyShift, posOrder } from "@/server/pos";
+import { posFloor, posMenu, posMyShift, posOrder, posStations } from "@/server/pos";
 
 export const metadata: Metadata = { title: POS_BOARDS.PosTill.pageTitle };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** One order at the till: the menu, the order and its checkout, from the API. Orders are opened on the floor. */
-export default async function PosTillPage({ searchParams }: { searchParams: Promise<{ order?: string }> }) {
-  const { order: orderId } = await searchParams;
+export default async function PosTillPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ order?: string; pay?: string }>;
+}) {
+  const { order: orderId, pay } = await searchParams;
   if (!orderId || !UUID.test(orderId)) redirect("/pos/floor");
   const first = await loadPosPage("PosTill", undefined);
   if (!first.ok) return <PosBlocked title={first.title} message={first.message} firstOutlet={first.firstOutlet} />;
@@ -32,12 +36,14 @@ export default async function PosTillPage({ searchParams }: { searchParams: Prom
   if (!outlet)
     return <PosBlocked title="Order not found" message="This order's outlet is not in a branch you cover." />;
   const has = (p: string) => first.can.includes(p);
-  const [menu, floor, shift] = await Promise.all([
+  const [menu, floor, shift, stations] = await Promise.all([
     posMenu(first.ctx, outlet.id),
     has("pos.sell") || has("table.manage") || has("pos.checkout")
       ? posFloor(first.ctx, outlet.id)
       : Promise.resolve(null),
     has("register.operate") || has("pos.checkout") ? posMyShift(first.ctx, outlet.id) : Promise.resolve(null),
+    // The outlet's kitchen and bar stations name the Send button; without them the till still works, unnamed.
+    posStations(first.ctx, outlet.id).catch(() => null),
   ]);
   return (
     <PosTillView
@@ -47,7 +53,9 @@ export default async function PosTillPage({ searchParams }: { searchParams: Prom
       menu={menu}
       tables={floor?.tables ?? []}
       shift={shift}
+      stations={stations}
       can={first.can}
+      startWithPayment={pay === "1"}
     />
   );
 }

@@ -40,6 +40,12 @@ export interface PosOutlet {
     enabledMethods: PaymentMethod[];
     receiptHeader: string;
     receiptFooter: string;
+    /** The venue's TIN on its receipts: empty, or 9 digits. */
+    venueTin: string;
+    venuePhone: string;
+    venueAddress: string;
+    /** Minutes after midnight (Kigali) at which the business day starts; 0 is the calendar day. */
+    businessDayStartMinutes: number;
   };
 }
 
@@ -63,6 +69,8 @@ export interface PosMenuItem {
   stationId: string | null;
   available: boolean;
   unavailableReason: string | null;
+  /** The library photo saved for the item (`beer`), or null: the name then suggests one. */
+  photo?: string | null;
 }
 
 export interface PosMenu {
@@ -84,6 +92,8 @@ export interface PosTable {
   openedAt: string | null;
   openOrders: number;
   outstandingRwf: number;
+  /** Open orders guests sent from this table's QR (migration 0156). Absent when there are none. */
+  qrOrders?: number;
 }
 
 export interface PosFloor {
@@ -163,6 +173,8 @@ export interface PosOrder {
   tableLabel: string | null;
   waiterName: string | null;
   guestNote: string | null;
+  /** `table_qr`: a guest sent it from the QR on their table. Absent on a staff order. */
+  source?: "table_qr";
   /** Who the bill is for, when a customer was attached (CRM). Only the name and a masked number. */
   customer?: { id: string; fullName: string; phoneMasked: string } | null;
   taxMode: TaxMode;
@@ -195,6 +207,8 @@ export interface PosTicket {
   orderType: OrderType;
   guestNote: string | null;
   guestCount: number | null;
+  /** `table_qr`: the guests sent this order from their table's QR. */
+  source?: "table_qr";
   items: {
     id: string;
     orderItemId: string;
@@ -329,6 +343,9 @@ export const posMenu = (ctx: SourceContext, outletId: string) =>
   ctx.ops().get<PosMenu>(`${P}/outlets/${outletId}/menu`);
 export const posFloor = (ctx: SourceContext, outletId: string) =>
   ctx.ops().get<PosFloor>(`${P}/outlets/${outletId}/floor`);
+/** Each table's permanent QR code (migration 0156): what its printed card opens for guests (`/t/<code>`). */
+export const posTableQr = (ctx: SourceContext, outletId: string) =>
+  ctx.ops().get<{ tableId: string; code: string }[]>(`${P}/outlets/${outletId}/table-qr`);
 export const posOrder = (ctx: SourceContext, orderId: string) => ctx.ops().get<PosOrder>(`${P}/orders/${orderId}`);
 export const posOrders = (ctx: SourceContext, query: { outletId?: string; status?: string; limit?: number }) =>
   ctx.ops().get<PosOrderSummary[]>(`${P}/orders`, { query });
@@ -474,6 +491,8 @@ export interface PosStockItem {
   level: StockLevel;
   unitCostRwf: number;
   valueRwf: number;
+  /** The library photo saved for the item, or null: the name then suggests one. */
+  photo?: string | null;
 }
 
 export interface PosStockMovement {
@@ -518,6 +537,8 @@ export interface PosSalesLine {
 export interface PosReport {
   period: { from: string; to: string };
   outlet: { id: string | null; name: string };
+  /** When each day starts (minutes after midnight); `mixed`: the outlets disagree, so calendar days were used. */
+  businessDay: { startMinutes: number; mixed: boolean };
   sales: {
     orders: number;
     completedOrders: number;
@@ -720,6 +741,8 @@ export interface CatalogItem {
   rraQtyUnitCd: string | null;
   /** What still stops this item selling (the RRA codes a receipt needs). */
   missingRra: string[];
+  /** The library photo saved for the item, or null: the name then suggests one. */
+  photo?: string | null;
 }
 export interface CatalogCategory {
   id: string;
@@ -765,6 +788,10 @@ export interface SettingsInput {
   enabledMethods?: PaymentMethod[];
   receiptHeader?: string;
   receiptFooter?: string;
+  venueTin?: string;
+  venuePhone?: string;
+  venueAddress?: string;
+  businessDayStartMinutes?: number;
 }
 /**
  * Where a business's FIRST outlet goes. Registration gives every business a head-office branch and the standard
@@ -833,7 +860,59 @@ export const venueWrite = {
     ctx.ops().post<PosVenue>(`${V(outletId)}/registers/${id}/archive`, {}),
   setRoute: (ctx: SourceContext, outletId: string, serviceItemId: string, stationId: string | null) =>
     ctx.ops().put<PosVenue>(`${V(outletId)}/routing`, { serviceItemId, stationId }),
+  /** Several routes in one transaction: all are set, or none. */
+  setRoutes: (ctx: SourceContext, outletId: string, routes: { serviceItemId: string; stationId: string | null }[]) =>
+    ctx.ops().put<PosVenue>(`${V(outletId)}/routing/bulk`, { routes }),
+  bulkTables: (
+    ctx: SourceContext,
+    outletId: string,
+    body: { areaId: string; prefix: string; start: number; count: number; seats: number },
+  ) => ctx.ops().post<PosVenue>(`${V(outletId)}/tables/bulk`, body),
+  reorder: (ctx: SourceContext, outletId: string, kind: "areas" | "tables" | "stations", ids: string[]) =>
+    ctx.ops().put<PosVenue>(`${V(outletId)}/order`, { kind, ids }),
+  restore: (ctx: SourceContext, outletId: string, kind: ArchivedKind, id: string) =>
+    ctx.ops().post<PosVenue>(`${V(outletId)}/${kind}s/${id}/restore`, {}),
+  applyTemplate: (ctx: SourceContext, outletId: string, template: VenueTemplateKey) =>
+    ctx.ops().post<{ venue: PosVenue; created: number; skipped: number }>(`${V(outletId)}/templates/apply`, {
+      template,
+    }),
 };
+
+// ── Archived venue items and starter templates (venue setup, round 1) ─────────────────────────────
+
+export type ArchivedKind = "area" | "table" | "station" | "register";
+export interface PosArchivedVenue {
+  outletId: string;
+  areas: { id: string; name: string; archivedAt: string; archivedTables: number }[];
+  tables: {
+    id: string;
+    label: string;
+    seats: number;
+    areaId: string;
+    areaName: string;
+    areaArchived: boolean;
+    archivedAt: string;
+  }[];
+  stations: { id: string; name: string; kind: StationKind; archivedAt: string }[];
+  registers: { id: string; name: string; deviceLabel: string | null; archivedAt: string }[];
+}
+export type VenueTemplateKey = "small_bar" | "restaurant" | "restaurant_bar";
+/** new: will be created; exists / archived: the name is already used here, so it is skipped. */
+export type TemplateMark = "new" | "exists" | "archived";
+export interface PosVenueTemplatePlan {
+  key: VenueTemplateKey;
+  label: string;
+  description: string;
+  areas: { name: string; mark: TemplateMark; tables: { label: string; seats: number; mark: TemplateMark }[] }[];
+  stations: { name: string; kind: StationKind; mark: TemplateMark }[];
+  registers: { name: string; mark: TemplateMark }[];
+  creates: number;
+  skips: number;
+}
+export const posArchived = (ctx: SourceContext, outletId: string) =>
+  ctx.ops().get<PosArchivedVenue>(`${V(outletId)}/archived`);
+export const posVenueTemplates = (ctx: SourceContext, outletId: string) =>
+  ctx.ops().get<PosVenueTemplatePlan[]>(`${V(outletId)}/templates`);
 
 const CAT = "/api/v1/ops/service-catalog";
 export interface ItemInput {
@@ -846,6 +925,8 @@ export interface ItemInput {
   guestOrderable?: boolean;
   stockQty?: number | null;
   status?: CatalogStatus;
+  /** A library photo's id (`beer`); null clears the saved choice. Left out, the photo is not changed. */
+  photo?: string | null;
 }
 export interface CategoryInput {
   name?: string;

@@ -57,6 +57,18 @@ export function StatusChip({ color, children }: { color: ChipColor; children: Re
   );
 }
 
+/** What staff read on an order a guest sent from the QR on their table (migration 0156). */
+export const QR_ORDER_LABEL = "Guest Order (QR)";
+
+/** The mark on a guest's QR order, wherever the staff see that order. */
+export function GuestQrChip() {
+  return (
+    <span data-ui="guest-qr-order" className="inline-flex shrink-0">
+      <StatusChip color="accent">{QR_ORDER_LABEL}</StatusChip>
+    </span>
+  );
+}
+
 /** The stamp on every screen that takes or shows a payment. */
 export function SimulationNotice({ children }: { children?: ReactNode }) {
   return (

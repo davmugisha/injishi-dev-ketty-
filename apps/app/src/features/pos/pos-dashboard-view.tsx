@@ -20,6 +20,7 @@ import { Bars, Columns, IconChip, Kpi, METHOD_NAME, ORDER_STATUS_NAME, Panel, TA
 import { addDays, longDay, rwf, rwfSigned, shortDay } from "./format";
 import { PosShell } from "./pos-shell";
 import { ServiceFlow } from "./service-flow";
+import { clock } from "./setup-logic";
 import { SimulationNotice } from "./shared";
 
 const PAYMENT_TILES = ["cash", "mtn_momo", "airtel_money", "card", "bank_transfer", "voucher"] as const;
@@ -56,6 +57,7 @@ export function PosDashboardView({
   audit = [],
   can,
   setup,
+  stationKinds = null,
 }: {
   outlets: PosOutlet[];
   selected: PosOutlet | null;
@@ -67,6 +69,8 @@ export function PosDashboardView({
   can: string[];
   /** How far the outlet is set up; only given to someone who can change the setup, and only for one outlet. */
   setup?: PosSetup | null;
+  /** The station kinds of the outlet in view (null for several outlets): they name the kitchen and bar step. */
+  stationKinds?: ("kitchen" | "bar")[] | null;
 }) {
   const { today, week, live } = dashboard;
   const anchor = selected?.id ?? outlets[0]?.id ?? "";
@@ -93,7 +97,9 @@ export function PosDashboardView({
     <PosShell
       board="PosDashboard"
       title="Dashboard"
-      subtitle={`${longDay(today.period.to)} · Kigali time · figures update as bills are settled`}
+      subtitle={`${longDay(today.period.to)} · Kigali time${
+        today.businessDay?.startMinutes ? ` · business day from ${clock(today.businessDay.startMinutes)}` : ""
+      } · figures update as bills are settled`}
       outlet={selected ?? { name: "All outlets", branchName: null }}
       outlets={outlets}
       outletId={selected?.id ?? ""}
@@ -170,6 +176,7 @@ export function PosDashboardView({
           tables={live.tables}
           orders={live.activeOrders}
           settledToday={today.sales.completedOrders}
+          stationKinds={stationKinds}
         />
 
         <section className="grid gap-4 xl:grid-cols-3">

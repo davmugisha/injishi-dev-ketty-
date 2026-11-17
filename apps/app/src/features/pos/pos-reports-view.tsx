@@ -5,6 +5,7 @@ import { Bars, DataTable, EXPENSE_CATEGORY_NAME, Kpi, METHOD_NAME, Panel } from 
 import { longDay, rwf, rwfSigned, shortDay } from "./format";
 import { PosExpensePanel } from "./pos-expense-panel";
 import { PosShell } from "./pos-shell";
+import { businessDayNote } from "./setup-logic";
 
 export const PERIODS = [
   ["today", "Today"],
@@ -63,6 +64,11 @@ export function PosReportsView({
             </LinkButton>
           ))}
           <span className="ml-2 text-[12px] text-muted">{days} · Kigali time</span>
+          {businessDayNote(report.businessDay) ? (
+            <span className="basis-full text-[12px] text-muted" data-ui="business-day-note">
+              {businessDayNote(report.businessDay)}
+            </span>
+          ) : null}
         </nav>
 
         <section aria-label="Summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">

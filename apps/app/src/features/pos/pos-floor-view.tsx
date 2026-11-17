@@ -36,8 +36,19 @@ import {
   tableStatusAction,
 } from "./actions";
 import { PosShell } from "./pos-shell";
-import { downloadTablePng, printTableCards, QrCode, tableCode, tableLink } from "./qr-card";
-import { clock, money, ORDER_COLOR, PosDialog, StatusChip, TABLE_COLOR, usePosAction, usePressKey } from "./shared";
+import { downloadTablePng, guestTableLink, printTableCards, QrCode, tableCode, tableLink } from "./qr-card";
+import {
+  clock,
+  GuestQrChip,
+  money,
+  ORDER_COLOR,
+  PosDialog,
+  QR_ORDER_LABEL,
+  StatusChip,
+  TABLE_COLOR,
+  usePosAction,
+  usePressKey,
+} from "./shared";
 
 /** The status legend under the area tabs: the same colours as the table cards. */
 const LEGEND: { status: TableStatus; dot: string }[] = [
@@ -58,12 +69,15 @@ export function PosFloorView({
   floor,
   orders,
   can,
+  qrCodes = {},
 }: {
   outlets: PosOutlet[];
   outlet: PosOutlet;
   floor: PosFloor;
   orders: PosOrderSummary[];
   can: string[];
+  /** Each table's permanent guest-ordering code, by table id (migration 0156). */
+  qrCodes?: Record<string, string>;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -77,6 +91,9 @@ export function PosFloorView({
   useEffect(() => setOrigin(window.location.origin), []);
   const areaName = new Map(floor.areas.map((a) => [a.id, a.name]));
   const venue = outlet.name;
+  // The QR on a table opens that table's guest menu (`/t/<code>`); a table without a code yet keeps the staff link.
+  const linkFor = (tableId: string) =>
+    qrCodes[tableId] ? guestTableLink(origin, qrCodes[tableId]) : tableLink(origin, outlet.id, tableId);
   const [seatFor, setSeatFor] = useState<PosTable | null>(null);
   const [guests, setGuests] = useState(2);
   const [moveFrom, setMoveFrom] = useState<{ table: PosTable; mode: "move" | "merge" } | null>(null);
@@ -236,6 +253,14 @@ export function PosFloorView({
                       <span className="text-[17px] font-bold">{t.label}</span>
                       <StatusChip color={TABLE_COLOR[t.status]}>{TABLE_STATUS_LABEL[t.status]}</StatusChip>
                     </span>
+                    {t.qrOrders ? (
+                      <span
+                        data-ui="table-qr-orders"
+                        className="-mt-1 self-start rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent-soft-foreground"
+                      >
+                        {t.qrOrders === 1 ? QR_ORDER_LABEL : `${t.qrOrders} × ${QR_ORDER_LABEL}`}
+                      </span>
+                    ) : null}
                     <TableGlyph seats={t.seats} guests={t.guestCount ?? 0} status={t.status} />
                     <span className="grid grid-cols-2 gap-x-2 text-[12px]">
                       <span className="text-muted">Seats</span>
@@ -354,15 +379,14 @@ export function PosFloorView({
               )}
               {origin ? (
                 <div data-ui="table-qr" className="flex items-center gap-3 rounded-2xl bg-[var(--pos-band)] p-3">
-                  <QrCode
-                    value={tableLink(origin, outlet.id, live.id)}
-                    size={84}
-                    label={`QR code for table ${live.label}`}
-                  />
+                  <QrCode value={linkFor(live.id)} size={84} label={`QR code for table ${live.label}`} />
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <p className="text-[13px] leading-tight font-semibold">Table QR code</p>
                     <p className="text-[11.5px] leading-snug text-muted">
-                      Code {tableCode(live.label, live.id)} · scan with a staff phone to open this table
+                      Code {tableCode(live.label, live.id)} ·{" "}
+                      {qrCodes[live.id]
+                        ? "guests scan it to see the menu and order to this table"
+                        : "scan with a staff phone to open this table"}
                     </p>
                     <div className="flex gap-1">
                       <Button
@@ -375,7 +399,7 @@ export function PosFloorView({
                             venue,
                             live.label,
                             areaName.get(live.areaId) ?? "",
-                            tableLink(origin, outlet.id, live.id),
+                            linkFor(live.id),
                             tableCode(live.label, live.id),
                           )
                         }
@@ -389,7 +413,7 @@ export function PosFloorView({
                         aria-label={`Copy the link of ${live.label}`}
                         onPress={() =>
                           navigator.clipboard
-                            .writeText(tableLink(origin, outlet.id, live.id))
+                            .writeText(linkFor(live.id))
                             .then(() => toast.success(`Link of ${live.label} copied`))
                             .catch(() => toast.danger("The browser did not allow copying"))
                         }
@@ -406,7 +430,7 @@ export function PosFloorView({
                             {
                               label: live.label,
                               area: areaName.get(live.areaId) ?? "",
-                              link: tableLink(origin, outlet.id, live.id),
+                              link: linkFor(live.id),
                               code: tableCode(live.label, live.id),
                               seats: live.seats,
                             },
@@ -451,7 +475,7 @@ export function PosFloorView({
             isOpen
             onOpenChange={(open) => !open && setQrSheet(false)}
             title="Table QR codes"
-            subtitle={`One code per table at ${venue}. Print them as table cards: scanning one opens that table on a staff phone or tablet.`}
+            subtitle={`One code per table at ${venue}. Print them as table cards: a guest who scans one sees the menu on their phone and orders straight to that table, the kitchen and the bar.`}
             wide
             footer={
               <>
@@ -465,7 +489,7 @@ export function PosFloorView({
                       floor.tables.map((t) => ({
                         label: t.label,
                         area: areaName.get(t.areaId) ?? "",
-                        link: tableLink(origin, outlet.id, t.id),
+                        link: linkFor(t.id),
                         code: tableCode(t.label, t.id),
                         seats: t.seats,
                       })),
@@ -498,11 +522,7 @@ export function PosFloorView({
                             {outlet.branchName ?? venue}
                           </span>
                           <span className="text-[22px] leading-6 font-bold">{t.label}</span>
-                          <QrCode
-                            value={tableLink(origin, outlet.id, t.id)}
-                            size={112}
-                            label={`QR code for table ${t.label}`}
-                          />
+                          <QrCode value={linkFor(t.id)} size={112} label={`QR code for table ${t.label}`} />
                           <span className="text-[10.5px] tracking-wide text-[#6b7280]">{tableCode(t.label, t.id)}</span>
                           <span className="flex gap-1">
                             <Button
@@ -511,13 +531,7 @@ export function PosFloorView({
                               isIconOnly
                               aria-label={`Download the QR card of ${t.label}`}
                               onPress={() =>
-                                downloadTablePng(
-                                  venue,
-                                  t.label,
-                                  a.name,
-                                  tableLink(origin, outlet.id, t.id),
-                                  tableCode(t.label, t.id),
-                                )
+                                downloadTablePng(venue, t.label, a.name, linkFor(t.id), tableCode(t.label, t.id))
                               }
                             >
                               <ArrowDownToLine className="size-4" />
@@ -529,7 +543,7 @@ export function PosFloorView({
                               aria-label={`Copy the link of ${t.label}`}
                               onPress={() =>
                                 navigator.clipboard
-                                  .writeText(tableLink(origin, outlet.id, t.id))
+                                  .writeText(linkFor(t.id))
                                   .then(() => toast.success(`Link of ${t.label} copied`))
                                   .catch(() => toast.danger("The browser did not allow copying"))
                               }
@@ -694,9 +708,12 @@ function OrderRow({ order, onOpen }: { order: PosOrderSummary; onOpen: () => voi
   return (
     <Card variant="secondary" className="gap-1 p-3">
       <button type="button" onClick={onOpen} className="flex flex-col gap-1 text-left">
-        <span className="flex items-center justify-between gap-2">
-          <span className="text-[13px] font-semibold tabular">{order.orderNumber}</span>
-          <StatusChip color={ORDER_COLOR[order.status]}>{ORDER_STATUS_LABEL[order.status]}</StatusChip>
+        <span className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+          <span className="text-[13px] font-semibold whitespace-nowrap tabular">{order.orderNumber}</span>
+          <span className="flex flex-wrap items-center gap-1">
+            {order.source === "table_qr" ? <GuestQrChip /> : null}
+            <StatusChip color={ORDER_COLOR[order.status]}>{ORDER_STATUS_LABEL[order.status]}</StatusChip>
+          </span>
         </span>
         <span className="text-[12px] text-muted tabular">
           {order.lineCount} lines · {money(order.totalRwf)}

@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { PosVenue } from '@injishi/contracts';
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 
@@ -212,7 +212,22 @@ maybe('venue setup against Postgres (POS_IT_DATABASE_URL)', () => {
       expect(reg).toMatchObject({ deviceLabel: 'Tablet 3', hasOpenShift: false });
       await expect(venue.createRegister(owner, KIMI, { name: name('Bar till') }, actor)).rejects.toBeInstanceOf(ConflictException);
 
-      await db.insert(schema.cashierShifts).values({ workspaceId, outletId: KIMI, registerId: reg.id, cashierUserId: actor, status: 'open', openingFloatRwf: 0 });
+      // A member with no open shift of their own (a cashier has one open shift at a time, and the copy of the demo
+      // may well have a real one open for the first member).
+      const [free] = await db
+        .select({ userId: schema.orgMemberships.userId })
+        .from(schema.orgMemberships)
+        .innerJoin(schema.workspaces, eq(schema.workspaces.orgId, schema.orgMemberships.orgId))
+        .where(
+          and(
+            eq(schema.workspaces.id, workspaceId),
+            eq(schema.orgMemberships.status, 'active'),
+            sql`not exists (select 1 from cashier_shifts c where c.cashier_user_id = ${schema.orgMemberships.userId} and c.workspace_id = ${workspaceId} and c.status = 'open')`,
+          ),
+        )
+        .limit(1);
+      if (!free) throw new Error('every member has a shift open in this copy');
+      await db.insert(schema.cashierShifts).values({ workspaceId, outletId: KIMI, registerId: reg.id, cashierUserId: free.userId, status: 'open', openingFloatRwf: 0 });
       try {
         await expect(venue.archiveRegister(owner, KIMI, reg.id, actor)).rejects.toThrow(/shift open/);
       } finally {
@@ -221,6 +236,114 @@ maybe('venue setup against Postgres (POS_IT_DATABASE_URL)', () => {
       }
       await venue.archiveRegister(owner, KIMI, reg.id, actor);
       expect((await venue.get(owner, KIMI)).registers.some((r) => r.id === reg.id)).toBe(false);
+    });
+  });
+
+  describe('bulk tables, batch routes, order, archive and restore (setup round 1)', () => {
+    const P = `P${tag}-`;
+    const patioTables = async () => {
+      const v = await venue.get(owner, KIMI);
+      const area = v.areas.find((a) => a.name === name('Patio'))!;
+      return { area, tables: v.tables.filter((t) => t.areaId === area.id) };
+    };
+
+    it('adds many tables at once, and refuses the whole batch when one label is taken', async () => {
+      await venue.createArea(owner, KIMI, { name: name('Patio') }, actor);
+      const { area } = await patioTables();
+      await venue.bulkCreateTables(owner, KIMI, { areaId: area.id, prefix: P, start: 1, count: 5, seats: 2 }, actor);
+      const { tables } = await patioTables();
+      expect(tables.map((t) => t.label)).toEqual([1, 2, 3, 4, 5].map((n) => `${P}${n}`));
+      expect(tables.every((t) => t.seats === 2)).toBe(true);
+      await expect(venue.bulkCreateTables(owner, KIMI, { areaId: area.id, prefix: P, start: 4, count: 3, seats: 2 }, actor)).rejects.toThrow(
+        new RegExp(`${P}4, ${P}5 are already used`),
+      );
+      expect((await patioTables()).tables).toHaveLength(5); // nothing of the refused batch was made
+      const audits = await db
+        .select({ action: schema.posAuditEvents.action })
+        .from(schema.posAuditEvents)
+        .where(inArray(schema.posAuditEvents.entityId, tables.map((t) => t.id)));
+      expect(audits.filter((a) => a.action === 'venue.table.create')).toHaveLength(5);
+    });
+
+    it('sets several routes in one transaction, and sets none when one is refused', async () => {
+      const v = await venue.get(owner, KIMI);
+      const [a, b] = v.routing;
+      const station = v.stations.find((s) => s.kind === 'kitchen')!;
+      const lakeItem = (await venue.get(owner, LAKE)).routing[0]!;
+      try {
+        await venue.setRoutes(owner, KIMI, { routes: [{ serviceItemId: a!.serviceItemId, stationId: station.id }, { serviceItemId: b!.serviceItemId, stationId: station.id }] }, actor);
+        const after = (await venue.get(owner, KIMI)).routing;
+        expect(after.find((r) => r.serviceItemId === a!.serviceItemId)?.stationId).toBe(station.id);
+        expect(after.find((r) => r.serviceItemId === b!.serviceItemId)?.stationId).toBe(station.id);
+        await expect(
+          venue.setRoutes(owner, KIMI, { routes: [{ serviceItemId: a!.serviceItemId, stationId: null }, { serviceItemId: lakeItem.serviceItemId, stationId: station.id }] }, actor),
+        ).rejects.toBeInstanceOf(NotFoundException);
+        // The first route of the refused batch did not stick.
+        expect((await venue.get(owner, KIMI)).routing.find((r) => r.serviceItemId === a!.serviceItemId)?.stationId).toBe(station.id);
+      } finally {
+        await venue.setRoutes(owner, KIMI, { routes: [{ serviceItemId: a!.serviceItemId, stationId: a!.stationId }, { serviceItemId: b!.serviceItemId, stationId: b!.stationId }] }, actor);
+      }
+      const back = (await venue.get(owner, KIMI)).routing;
+      expect(back.find((r) => r.serviceItemId === a!.serviceItemId)?.stationId).toBe(a!.stationId);
+      expect(back.find((r) => r.serviceItemId === b!.serviceItemId)?.stationId).toBe(b!.stationId);
+    });
+
+    it('reorders the tables of an area, and refuses an id it does not know', async () => {
+      const { tables } = await patioTables();
+      const reversed = tables.map((t) => t.id).reverse();
+      await venue.reorder(owner, KIMI, { kind: 'tables', ids: reversed }, actor);
+      expect((await patioTables()).tables.map((t) => t.id)).toEqual(reversed);
+      await expect(venue.reorder(owner, KIMI, { kind: 'tables', ids: [reversed[0]!, randomUUID()] }, actor)).rejects.toBeInstanceOf(NotFoundException);
+      const lakeArea = (await venue.get(owner, LAKE)).areas[0]!;
+      await expect(venue.reorder(owner, KIMI, { kind: 'areas', ids: [lakeArea.id] }, actor)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('lists what was archived and restores it; a table waits for its archived area', async () => {
+      const { area, tables } = await patioTables();
+      for (const t of tables) await venue.archiveTable(owner, KIMI, t.id, actor);
+      await venue.archiveArea(owner, KIMI, area.id, actor);
+      const arch = await venue.archived(owner, KIMI);
+      expect(arch.areas.find((a) => a.id === area.id)).toMatchObject({ name: name('Patio'), archivedTables: 5 });
+      const t0 = arch.tables.find((t) => t.id === tables[0]!.id)!;
+      expect(t0).toMatchObject({ areaArchived: true, areaName: name('Patio') });
+      await expect(venue.restore(owner, KIMI, 'table', t0.id, actor)).rejects.toThrow(/Restore .* first/);
+      await venue.restore(owner, KIMI, 'area', area.id, actor);
+      expect((await patioTables()).tables).toHaveLength(0); // the area comes back alone
+      await venue.restore(owner, KIMI, 'table', t0.id, actor);
+      expect((await patioTables()).tables.map((t) => t.id)).toEqual([t0.id]);
+      // Not archived any more, so there is nothing to restore; and another business cannot restore it.
+      await expect(venue.restore(owner, KIMI, 'table', t0.id, actor)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(venue.restore(scope(randomUUID(), [randomUUID()], true), KIMI, 'table', tables[1]!.id, actor)).rejects.toBeInstanceOf(NotFoundException);
+      const audits = await db.select({ action: schema.posAuditEvents.action }).from(schema.posAuditEvents).where(eq(schema.posAuditEvents.entityId, area.id));
+      expect(audits.map((a) => a.action)).toEqual(expect.arrayContaining(['venue.area.archive', 'venue.area.restore']));
+    });
+
+    it('applies a starter template to an empty outlet, and a second time adds nothing', async () => {
+      const [fresh] = await db
+        .insert(schema.outlets)
+        .values((await db.select().from(schema.outlets).where(eq(schema.outlets.id, KIMI))).map((o) => ({ ...o, id: undefined, name: name('Template outlet'), slug: null })))
+        .returning({ id: schema.outlets.id });
+      const id = fresh!.id;
+      const plans = await venue.templates(owner, id);
+      expect(plans.map((p) => p.key)).toEqual(['small_bar', 'restaurant', 'restaurant_bar']);
+      expect(plans.every((p) => p.skips === 0)).toBe(true);
+      const plan = plans.find((p) => p.key === 'restaurant_bar')!;
+      const first = await venue.applyTemplate(owner, id, { template: 'restaurant_bar' }, actor);
+      expect(first.created).toBe(plan.creates);
+      expect(first.venue.areas.map((a) => a.name)).toEqual(['Main hall', 'Terrace', 'Bar counter']);
+      expect(first.venue.tables).toHaveLength(24);
+      expect(first.venue.stations.map((s) => s.kind).sort()).toEqual(['bar', 'kitchen']);
+      expect(first.venue.registers).toHaveLength(2);
+      const again = await venue.applyTemplate(owner, id, { template: 'restaurant_bar' }, actor);
+      expect(again).toMatchObject({ created: 0, skipped: plan.creates });
+      // Small bar on top only adds what is missing: the Lounge and its four tables.
+      const bar = await venue.applyTemplate(owner, id, { template: 'small_bar' }, actor);
+      expect(bar.created).toBe(5);
+      expect(bar.venue.areas.map((a) => a.name)).toContain('Lounge');
+      const audits = await db.select({ after: schema.posAuditEvents.after }).from(schema.posAuditEvents).where(eq(schema.posAuditEvents.outletId, id));
+      expect(audits.length).toBe(first.created + bar.created);
+      expect(audits.every((a) => ['restaurant_bar', 'small_bar'].includes((a.after as { template?: string })?.template ?? ''))).toBe(true);
+      // The outlet stays in this throwaway copy (its rows reference it); its name carries the run's tag.
     });
   });
 

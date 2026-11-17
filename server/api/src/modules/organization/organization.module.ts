@@ -23,6 +23,9 @@ import { RolePermissionsService } from './application/role-permissions.service';
 import { StaffAccessService } from './application/staff-access.service';
 import { StaffInvitationService } from './application/staff-invitation.service';
 import { TeamService } from './application/team.service';
+import { OwnershipTransferService } from './application/ownership-transfer.service';
+import { OwnershipTransferMailer } from './infrastructure/ownership-transfer.mailer';
+import { OwnershipTransferRepository } from './infrastructure/ownership-transfer.repository';
 import { BrokerRepository } from './infrastructure/broker.repository';
 import { CertificatesRepository } from './infrastructure/certificates.repository';
 import { ClaimInvitationMailer } from './infrastructure/claim-invitation.mailer';
@@ -103,6 +106,9 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     // (setup after approval, 2026-09-13). Mailed through the same seam.
     StaffInvitationRepository,
     StaffInvitationMailer,
+    OwnershipTransferService,
+    OwnershipTransferRepository,
+    OwnershipTransferMailer,
     StaffInvitationService,
     // A staff file's login, given or asked of the owner while putting the person on file (HR
     // onboarding). It sends through the invitations above, and names the file they are for.
@@ -136,6 +142,7 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     ...(isWorkerProcess() ? [PsfMembershipSweepProcessor] : []),
   ],
   exports: [
+    OwnershipTransferService,
     RegistrationService,
     RegistrationDraftService,
     BrokerRegistrationService,

@@ -1,7 +1,8 @@
 /**
- * The picture of a dish or a drink. The catalogue stores no photographs yet, so each item gets a real photograph
- * from the bundled library in `/public/menu` (credits in `/public/menu/CREDITS.md`), picked from its name first and
- * its section second. An item neither says anything about (a test entry, a typo) gets a calm initials tile, never a
+ * The picture of a dish or a drink. The photo saved with the item wins: one the owner uploaded (served by the API
+ * through `/api/pos/menu-photo/:itemId`), or one they chose from the bundled library in `/public/menu` (credits in
+ * `/public/menu/CREDITS.md`). An item with no saved photo gets the library photo its name suggests first and its
+ * section second. An item neither says anything about (a test entry, a typo) gets a calm initials tile, never a
  * drawing. Decoration only: hidden from screen readers, since the name is always written beside it.
  */
 const BY_NAME: [RegExp, string][] = [
@@ -91,10 +92,136 @@ const BY_SECTION: [RegExp, string][] = [
   [/drink/i, "soda"],
 ];
 
-/** The photograph for an item (a path under /public), or null when neither its name nor its section says what it is. */
-export function dishPhoto(name: string, section = ""): string | null {
-  const slot = BY_NAME.find(([re]) => re.test(name))?.[1] ?? BY_SECTION.find(([re]) => re.test(section))?.[1];
-  return slot ? `/menu/${slot}.jpg` : null;
+export type LibraryGroup = "Drinks" | "Food" | "Services";
+export interface LibraryPhoto {
+  /** The file's name without `.jpg`: what the API keeps as the item's chosen photo. */
+  id: string;
+  label: string;
+  group: LibraryGroup;
+}
+
+const lib = (group: LibraryGroup, rows: [string, string][]): LibraryPhoto[] =>
+  rows.map(([id, label]) => ({ id, label, group }));
+
+/** Every photograph in `/public/menu`, as the photo library offers them. */
+export const MENU_LIBRARY: readonly LibraryPhoto[] = [
+  ...lib("Drinks", [
+    ["beer", "Beer"],
+    ["red_wine", "Red wine"],
+    ["white_wine", "White wine"],
+    ["rose_wine", "Rosé wine"],
+    ["sparkling", "Sparkling wine"],
+    ["whisky", "Whisky"],
+    ["vodka", "Vodka"],
+    ["gin", "Gin"],
+    ["rum", "Rum"],
+    ["cognac", "Cognac"],
+    ["amarula", "Cream liqueur"],
+    ["mojito", "Mojito"],
+    ["pina_colada", "Piña colada"],
+    ["long_island", "Long Island iced tea"],
+    ["tequila_sunrise", "Tequila sunrise"],
+    ["caipirinha", "Caipirinha"],
+    ["cappuccino", "Cappuccino"],
+    ["espresso", "Espresso"],
+    ["americano", "Coffee"],
+    ["african_tea", "African tea"],
+    ["tea", "Tea"],
+    ["passion_juice", "Passion fruit juice"],
+    ["pineapple_juice", "Pineapple juice"],
+    ["tomato_juice", "Tree tomato juice"],
+    ["fresh_juice", "Fresh juice"],
+    ["soda", "Soda"],
+    ["water", "Water"],
+  ]),
+  ...lib("Food", [
+    ["grilled_chicken", "Grilled chicken"],
+    ["chicken_stew", "Chicken stew"],
+    ["brochette", "Brochettes"],
+    ["goat_stew", "Goat stew"],
+    ["beef_fillet", "Beef fillet"],
+    ["whole_fish", "Whole fish"],
+    ["fish_fillet", "Fish fillet"],
+    ["sambaza", "Sambaza"],
+    ["wings", "Chicken wings"],
+    ["samosa", "Samosas"],
+    ["beef_burger", "Beef burger"],
+    ["chicken_burger", "Chicken burger"],
+    ["bean_burger", "Bean burger"],
+    ["pizza", "Pizza"],
+    ["sandwich", "Sandwich"],
+    ["salad", "Salad"],
+    ["curry", "Curry"],
+    ["beans_rice", "Beans and rice"],
+    ["rice", "Rice"],
+    ["isombe", "Isombe"],
+    ["ugali", "Ugali"],
+    ["plantain", "Plantain"],
+    ["chips", "Chips"],
+    ["chips_masala", "Chips masala"],
+    ["omelette", "Omelette"],
+    ["full_breakfast", "Full breakfast"],
+    ["continental", "Continental breakfast"],
+    ["pancakes", "Pancakes"],
+    ["mandazi", "Mandazi"],
+    ["fruit_plate", "Fruit plate"],
+    ["ice_cream", "Ice cream"],
+    ["cake", "Cake"],
+  ]),
+  ...lib("Services", [
+    ["birthday", "Birthday set-up"],
+    ["corkage", "Corkage"],
+    ["delivery", "Delivery"],
+    ["room_hire", "Room hire"],
+  ]),
+];
+
+const LIBRARY_BY_ID = new Map(MENU_LIBRARY.map((p) => [p.id, p]));
+
+/** A library photo by its id, or undefined for an id the library does not hold. */
+export function libraryPhoto(id: string | null | undefined): LibraryPhoto | undefined {
+  return id ? LIBRARY_BY_ID.get(id) : undefined;
+}
+
+/** The library photo the name (or else the section) suggests, or null when neither says what the item is. */
+export function suggestedPhoto(name: string, section = ""): string | null {
+  return BY_NAME.find(([re]) => re.test(name))?.[1] ?? BY_SECTION.find(([re]) => re.test(section))?.[1] ?? null;
+}
+
+export const photoSrc = (id: string) => `/menu/${id}.jpg`;
+
+/**
+ * An uploaded photo, as the API names it: `upload:<itemId>.<version>` once saved with an item, `upload:<storedId>`
+ * between the upload and Save. Either way it is the owner's own picture, not a library one.
+ */
+export const isUpload = (photo: string | null | undefined): photo is string => !!photo?.startsWith("upload:");
+
+const SAVED_UPLOAD = /^upload:([0-9a-f-]{36})\.([0-9a-f]{1,16})$/;
+
+/** Where a saved upload is served (through the app, with the session); null for anything else. */
+export function uploadSrc(photo: string | null | undefined): string | null {
+  const m = photo ? SAVED_UPLOAD.exec(photo) : null;
+  return m ? `/api/pos/menu-photo/${m[1]}?v=${m[2]}` : null;
+}
+
+/**
+ * The photo a recipe is saved with: the owner's upload, else the library photo they chose, else the one its name
+ * suggests, else none.
+ */
+export function finalPhoto(chosen: string | null, name: string, section: string): string | null {
+  if (isUpload(chosen)) return chosen;
+  return libraryPhoto(chosen)?.id ?? suggestedPhoto(name, section);
+}
+
+/**
+ * The photograph for an item (a path under /public): the photo chosen and saved for it, else the one its name or
+ * section suggests, else null.
+ */
+export function dishPhoto(name: string, section = "", chosen?: string | null): string | null {
+  const uploaded = uploadSrc(chosen);
+  if (uploaded) return uploaded;
+  const id = libraryPhoto(chosen)?.id ?? suggestedPhoto(name, section);
+  return id ? photoSrc(id) : null;
 }
 
 /** Kept for callers that only need to know whether an item has a picture. */
@@ -114,13 +241,16 @@ const SIZE = {
 export function DishArt({
   name,
   section = "",
+  photo,
   size = "tile",
 }: {
   name: string;
   section?: string;
+  /** The photo chosen and saved for the item; without one the name suggests it. */
+  photo?: string | null;
   size?: keyof typeof SIZE;
 }) {
-  const src = dishPhoto(name, section);
+  const src = dishPhoto(name, section, photo);
   const initials = name
     .split(/[\s,]+/)
     .filter(Boolean)

@@ -1483,6 +1483,8 @@ exports.OperatorServiceItem = zod_1.z.object({
      * `guestOrderable` with anything listed here is refused on every channel.
      */
     missingRra: zod_1.z.array(exports.RraItemField),
+    /** The library photo chosen for the item (`beer`), or null when none was: the app then suggests one by name. */
+    photo: zod_1.z.string().nullable().optional(),
 });
 exports.OperatorServiceCategory = zod_1.z.object({
     id: primitives_1.Uuid,
@@ -1557,6 +1559,17 @@ exports.UpsertServiceItemRequest = zod_1.z.object({
     rraItemTyCd: exports.RraItemTypeCode.optional(),
     rraPkgUnitCd: exports.RraUnitCode.optional(),
     rraQtyUnitCd: exports.RraUnitCode.optional(),
+    /**
+     * The photo the item shows: a photo from the app's photo library by its name (`beer`), or a photo the owner
+     * uploaded, named `upload:<storedObjectId>` as the menu-photo upload returned it (the item's current upload,
+     * `upload:<itemId>.<version>`, is accepted and changes nothing). Null clears the choice, so the app suggests one
+     * from the item's name again. Left out, nothing changes.
+     */
+    photo: zod_1.z
+        .string()
+        .regex(/^(?:[a-z0-9_]{1,40}|upload:[0-9a-f-]{36}(?:\.[0-9a-f]{1,16})?)$/)
+        .nullable()
+        .optional(),
 });
 /** One row of RRA's classification list, for the menu's picker. */
 exports.RraClassification = zod_1.z.object({

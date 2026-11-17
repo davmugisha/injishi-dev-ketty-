@@ -27,6 +27,14 @@ export function tableLink(origin: string, outletId: string, tableId: string): st
   return `${origin}/pos/floor?outlet=${outletId}&table=${tableId}`;
 }
 
+/**
+ * The link a table's printed QR opens for GUESTS (migration 0156): that table's menu on their phone, ordering straight
+ * to the table. The code alone names the table, so changing the address cannot reach another one.
+ */
+export function guestTableLink(origin: string, code: string): string {
+  return `${origin}/t/${encodeURIComponent(code)}`;
+}
+
 /** A short code printed under each QR, for a device with no camera: the table and the last characters of its id. */
 export function tableCode(label: string, tableId: string): string {
   return `${label.replace(/\s+/g, "").toUpperCase()}-${tableId.replace(/-/g, "").slice(-4).toUpperCase()}`;
@@ -34,6 +42,7 @@ export function tableCode(label: string, tableId: string): string {
 
 /** Downloads the table's card as a PNG (venue, table, QR and the hint), drawn on a canvas at print resolution. */
 export function downloadTablePng(venue: string, label: string, area: string, link: string, code: string) {
+  const guest = link.includes("/t/");
   const m = qrMatrix(link);
   const scale = 10;
   const qr = (m.length + 8) * scale;
@@ -67,11 +76,15 @@ export function downloadTablePng(venue: string, label: string, area: string, lin
   });
   g.fillStyle = "#0f1a14";
   g.font = "600 24px Inter, Arial, sans-serif";
-  g.fillText("Scan to open this table", w / 2, top + qr + 40);
+  g.fillText(guest ? "Scan to see the menu and order" : "Scan to open this table", w / 2, top + qr + 40);
   g.fillStyle = "#6b7280";
   g.font = "500 20px Inter, Arial, sans-serif";
   g.fillText(`Code ${code}`, w / 2, top + qr + 74);
-  g.fillText("Injishi POS · staff phone or tablet", w / 2, top + qr + 104);
+  g.fillText(
+    guest ? "Your order goes straight to the kitchen and bar" : "Injishi POS · staff phone or tablet",
+    w / 2,
+    top + qr + 104,
+  );
   const a = document.createElement("a");
   a.href = c.toDataURL("image/png");
   a.download = `table-${label.replace(/\W+/g, "-").toLowerCase()}-qr.png`;
@@ -95,7 +108,7 @@ export function printTableCards(
     .map((c) => {
       const m = qrMatrix(c.link);
       const n = m.length + 8;
-      return `<article><p class="v">${esc(venue)}</p><p class="t">${esc(c.label)}</p><p class="a">${esc(c.area)} · ${c.seats} seats</p><svg viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges"><rect width="${n}" height="${n}" fill="#fff"/><path d="${qrSvgPath(m)}" fill="#0f1a14"/></svg><p class="s">Scan to open this table</p><p class="c">Code ${esc(c.code)}</p></article>`;
+      return `<article><p class="v">${esc(venue)}</p><p class="t">${esc(c.label)}</p><p class="a">${esc(c.area)} · ${c.seats} seats</p><svg viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges"><rect width="${n}" height="${n}" fill="#fff"/><path d="${qrSvgPath(m)}" fill="#0f1a14"/></svg><p class="s">${c.link.includes("/t/") ? "Scan to see the menu and order" : "Scan to open this table"}</p><p class="c">Code ${esc(c.code)}</p></article>`;
     })
     .join("");
   win.document.write(

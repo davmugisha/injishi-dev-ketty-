@@ -121,6 +121,11 @@ export interface SettingsRow {
   enabledMethods: PosPaymentMethod[];
   receiptHeader: string;
   receiptFooter: string;
+  venueTin: string;
+  venuePhone: string;
+  venueAddress: string;
+  /** Minutes after midnight (Kigali) at which a business day starts (0 is the calendar day). */
+  businessDayStartMinutes: number;
 }
 
 /** The outlet's settings, written with the defaults the first time anyone asks. */
@@ -137,6 +142,10 @@ export async function settingsFor(db: Db, outlet: Pick<OutletRow, 'id' | 'worksp
       enabledMethods: posOutletSettings.enabledMethods,
       receiptHeader: posOutletSettings.receiptHeader,
       receiptFooter: posOutletSettings.receiptFooter,
+      venueTin: posOutletSettings.venueTin,
+      venuePhone: posOutletSettings.venuePhone,
+      venueAddress: posOutletSettings.venueAddress,
+      businessDayStartMinutes: posOutletSettings.businessDayStartMinutes,
     })
     .from(posOutletSettings)
     .where(eq(posOutletSettings.outletId, outlet.id))
@@ -206,7 +215,8 @@ export function orderNumberOf(period: string, n: number): string {
 export interface AuditInput {
   workspaceId: string;
   outletId: string | null;
-  actorUserId: string;
+  /** Null only for what a guest did from their table's QR (migration 0156): nobody on the staff did it. */
+  actorUserId: string | null;
   action: string;
   entityType: string;
   entityId: string | null;

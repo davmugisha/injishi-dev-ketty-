@@ -41,6 +41,7 @@ import {
   serviceOrderEvents,
   serviceOrderItems,
   serviceOrders,
+  storedObjects,
   workspaces,
 } from '../../../database/drizzle/schema';
 import {
@@ -104,6 +105,8 @@ export interface ItemRow {
   rraItemCd: string | null;
   rraPkgUnitCd: string | null;
   rraQtyUnitCd: string | null;
+  /** The photo column as stored; read with `libraryPhoto` (domain/menu-photo). */
+  photoObjectKeys?: unknown;
 }
 
 export interface OrderRow {
@@ -269,6 +272,16 @@ export class ServiceCatalogRepository {
     return row ?? null;
   }
 
+  /** A stored file, for checking an uploaded menu photo belongs to the workspace before an item keeps its key. */
+  async findStoredObject(id: string): Promise<{ objectKey: string; workspaceId: string | null; kind: string } | null> {
+    const [row] = await this.db
+      .select({ objectKey: storedObjects.objectKey, workspaceId: storedObjects.workspaceId, kind: storedObjects.kind })
+      .from(storedObjects)
+      .where(eq(storedObjects.id, id))
+      .limit(1);
+    return row ?? null;
+  }
+
   async findCategory(id: string): Promise<CategoryRow | null> {
     const [row] = await this.selectCategories(eq(serviceCategories.id, id));
     return row ?? null;
@@ -404,6 +417,7 @@ export class ServiceCatalogRepository {
     rraItemTyCd: RraItemTypeCode | null;
     rraPkgUnitCd: string | null;
     rraQtyUnitCd: string | null;
+    photoObjectKeys?: string[] | null;
   }, audit?: StockEditAudit): Promise<string | null> {
     if (!audit || input.stockQty === null) {
       const [row] = await this.db
@@ -436,6 +450,8 @@ export class ServiceCatalogRepository {
       rraItemTyCd: RraItemTypeCode;
       rraPkgUnitCd: string;
       rraQtyUnitCd: string;
+      /** Null clears the chosen photo. */
+      photoObjectKeys: string[] | null;
     }>,
     audit?: StockEditAudit,
   ): Promise<void> {
@@ -1206,6 +1222,7 @@ export class ServiceCatalogRepository {
         rraItemCd: serviceItems.rraItemCd,
         rraPkgUnitCd: serviceItems.rraPkgUnitCd,
         rraQtyUnitCd: serviceItems.rraQtyUnitCd,
+        photoObjectKeys: serviceItems.photoObjectKeys,
       })
       .from(serviceItems)
       .innerJoin(serviceCategories, eq(serviceCategories.id, serviceItems.serviceCategoryId))

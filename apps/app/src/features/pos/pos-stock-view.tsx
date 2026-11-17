@@ -100,6 +100,7 @@ export function PosStockScreen({
   // A full bar is five times the low-stock line: a healthy shelf reads as full, a low one as nearly empty.
   const full = Math.max(1, stock.lowAt * 5);
   const sectionOf = new Map(stock.items.map((i) => [i.name, i.category]));
+  const photoOf = new Map(stock.items.map((i) => [i.name, i.photo ?? null]));
 
   const quantity = editing ? parseRwf(editing.quantity) : null;
   const isCount = editing?.kind === "count";
@@ -163,7 +164,7 @@ export function PosStockScreen({
                   data-ui="restock-card"
                   className="flex gap-3 rounded-[18px] border border-[var(--pos-card-border)] bg-surface p-2.5 shadow-[var(--pos-card-shadow)]"
                 >
-                  <DishArt name={i.name} section={i.category} size="thumb" />
+                  <DishArt name={i.name} section={i.category} photo={i.photo} size="thumb" />
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <p className="truncate text-[13.5px] font-semibold">{i.name}</p>
                     <p className="flex items-center gap-1.5 text-[12px]">
@@ -254,7 +255,7 @@ export function PosStockScreen({
                         <tr key={i.id} className="border-b border-separator/60 last:border-0">
                           <td className="py-2.5 pr-3 pl-3">
                             <span className="flex items-center gap-3">
-                              <DishArt name={i.name} section={i.category} size="row" />
+                              <DishArt name={i.name} section={i.category} photo={i.photo} size="row" />
                               <span className="min-w-0">
                                 <span className="block truncate font-semibold">{i.name}</span>
                                 <span className="block truncate text-[12px] text-muted">{i.category}</span>
@@ -319,7 +320,12 @@ export function PosStockScreen({
                   const delta = m.delta === null ? "" : m.delta > 0 ? `+${m.delta}` : `${m.delta}`;
                   return (
                     <li key={m.id} className="flex gap-3 rounded-2xl border border-separator px-2.5 py-2 text-[12px]">
-                      <DishArt name={m.item || "Item"} section={sectionOf.get(m.item) ?? ""} size="row" />
+                      <DishArt
+                        name={m.item || "Item"}
+                        section={sectionOf.get(m.item) ?? ""}
+                        photo={photoOf.get(m.item)}
+                        size="row"
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-baseline justify-between gap-2">
                           <span className="min-w-0 truncate font-semibold text-[13px]">{m.item || "Item"}</span>

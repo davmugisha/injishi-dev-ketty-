@@ -67,13 +67,13 @@ export declare const EbmCatalogItem: z.ZodObject<{
     unitPriceRwf: number;
     itemCd: string;
     itemNm: string;
-    taxTyCd: "A" | "B" | "C" | "D";
+    taxTyCd: "B" | "A" | "C" | "D";
 }, {
     id: number;
     unitPriceRwf: number;
     itemCd: string;
     itemNm: string;
-    taxTyCd: "A" | "B" | "C" | "D";
+    taxTyCd: "B" | "A" | "C" | "D";
 }>;
 export type EbmCatalogItem = z.infer<typeof EbmCatalogItem>;
 /**
@@ -109,13 +109,13 @@ export declare const EbmCatalogItemList: z.ZodObject<{
         unitPriceRwf: number;
         itemCd: string;
         itemNm: string;
-        taxTyCd: "A" | "B" | "C" | "D";
+        taxTyCd: "B" | "A" | "C" | "D";
     }, {
         id: number;
         unitPriceRwf: number;
         itemCd: string;
         itemNm: string;
-        taxTyCd: "A" | "B" | "C" | "D";
+        taxTyCd: "B" | "A" | "C" | "D";
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     items: {
@@ -123,7 +123,7 @@ export declare const EbmCatalogItemList: z.ZodObject<{
         unitPriceRwf: number;
         itemCd: string;
         itemNm: string;
-        taxTyCd: "A" | "B" | "C" | "D";
+        taxTyCd: "B" | "A" | "C" | "D";
     }[];
 }, {
     items: {
@@ -131,7 +131,7 @@ export declare const EbmCatalogItemList: z.ZodObject<{
         unitPriceRwf: number;
         itemCd: string;
         itemNm: string;
-        taxTyCd: "A" | "B" | "C" | "D";
+        taxTyCd: "B" | "A" | "C" | "D";
     }[];
 }>;
 export type EbmCatalogItemList = z.infer<typeof EbmCatalogItemList>;

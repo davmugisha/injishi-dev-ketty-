@@ -4100,6 +4100,8 @@ export declare const OperatorServiceItem: z.ZodObject<{
      * `guestOrderable` with anything listed here is refused on every channel.
      */
     missingRra: z.ZodArray<z.ZodEnum<["classification", "productType", "itemCode", "packagingUnit", "quantityUnit"]>, "many">;
+    /** The library photo chosen for the item (`beer`), or null when none was: the app then suggests one by name. */
+    photo: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     options: {
         name: string;
@@ -4129,6 +4131,7 @@ export declare const OperatorServiceItem: z.ZodObject<{
     rraPkgUnitCd: string | null;
     rraQtyUnitCd: string | null;
     missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
+    photo?: string | null | undefined;
 }, {
     options: {
         name: string;
@@ -4158,6 +4161,7 @@ export declare const OperatorServiceItem: z.ZodObject<{
     rraPkgUnitCd: string | null;
     rraQtyUnitCd: string | null;
     missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
+    photo?: string | null | undefined;
 }>;
 export type OperatorServiceItem = z.infer<typeof OperatorServiceItem>;
 export declare const OperatorServiceCategory: z.ZodObject<{
@@ -4233,6 +4237,8 @@ export declare const OperatorServiceCategory: z.ZodObject<{
          * `guestOrderable` with anything listed here is refused on every channel.
          */
         missingRra: z.ZodArray<z.ZodEnum<["classification", "productType", "itemCode", "packagingUnit", "quantityUnit"]>, "many">;
+        /** The library photo chosen for the item (`beer`), or null when none was: the app then suggests one by name. */
+        photo: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         options: {
             name: string;
@@ -4262,6 +4268,7 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         rraPkgUnitCd: string | null;
         rraQtyUnitCd: string | null;
         missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
+        photo?: string | null | undefined;
     }, {
         options: {
             name: string;
@@ -4291,6 +4298,7 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         rraPkgUnitCd: string | null;
         rraQtyUnitCd: string | null;
         missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
+        photo?: string | null | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "archived";
@@ -4325,6 +4333,7 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         rraPkgUnitCd: string | null;
         rraQtyUnitCd: string | null;
         missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
+        photo?: string | null | undefined;
     }[];
     sortOrder: number;
     departmentName: string | null;
@@ -4369,6 +4378,7 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         rraPkgUnitCd: string | null;
         rraQtyUnitCd: string | null;
         missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
+        photo?: string | null | undefined;
     }[];
     sortOrder: number;
     departmentName: string | null;
@@ -4457,6 +4467,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
              * `guestOrderable` with anything listed here is refused on every channel.
              */
             missingRra: z.ZodArray<z.ZodEnum<["classification", "productType", "itemCode", "packagingUnit", "quantityUnit"]>, "many">;
+            /** The library photo chosen for the item (`beer`), or null when none was: the app then suggests one by name. */
+            photo: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, "strip", z.ZodTypeAny, {
             options: {
                 name: string;
@@ -4486,6 +4498,7 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             rraPkgUnitCd: string | null;
             rraQtyUnitCd: string | null;
             missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
+            photo?: string | null | undefined;
         }, {
             options: {
                 name: string;
@@ -4515,6 +4528,7 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             rraPkgUnitCd: string | null;
             rraQtyUnitCd: string | null;
             missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
+            photo?: string | null | undefined;
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
@@ -4549,6 +4563,7 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             rraPkgUnitCd: string | null;
             rraQtyUnitCd: string | null;
             missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
+            photo?: string | null | undefined;
         }[];
         sortOrder: number;
         departmentName: string | null;
@@ -4593,6 +4608,7 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             rraPkgUnitCd: string | null;
             rraQtyUnitCd: string | null;
             missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
+            photo?: string | null | undefined;
         }[];
         sortOrder: number;
         departmentName: string | null;
@@ -4639,6 +4655,7 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             rraPkgUnitCd: string | null;
             rraQtyUnitCd: string | null;
             missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
+            photo?: string | null | undefined;
         }[];
         sortOrder: number;
         departmentName: string | null;
@@ -4685,6 +4702,7 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             rraPkgUnitCd: string | null;
             rraQtyUnitCd: string | null;
             missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
+            photo?: string | null | undefined;
         }[];
         sortOrder: number;
         departmentName: string | null;
@@ -4853,6 +4871,13 @@ export declare const UpsertServiceItemRequest: z.ZodObject<{
     rraItemTyCd: z.ZodOptional<z.ZodEnum<["1", "2", "3"]>>;
     rraPkgUnitCd: z.ZodOptional<z.ZodString>;
     rraQtyUnitCd: z.ZodOptional<z.ZodString>;
+    /**
+     * The photo the item shows: a photo from the app's photo library by its name (`beer`), or a photo the owner
+     * uploaded, named `upload:<storedObjectId>` as the menu-photo upload returned it (the item's current upload,
+     * `upload:<itemId>.<version>`, is accepted and changes nothing). Null clears the choice, so the app suggests one
+     * from the item's name again. Left out, nothing changes.
+     */
+    photo: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
     priceRwf: number;
@@ -4867,6 +4892,7 @@ export declare const UpsertServiceItemRequest: z.ZodObject<{
         }[];
     }[] | undefined;
     status?: "active" | "archived" | "out_of_stock" | undefined;
+    photo?: string | null | undefined;
     description?: string | undefined;
     taxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
     fulfillmentType?: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant" | undefined;
@@ -4891,6 +4917,7 @@ export declare const UpsertServiceItemRequest: z.ZodObject<{
         maxChoices?: number | undefined;
     }[] | undefined;
     status?: "active" | "archived" | "out_of_stock" | undefined;
+    photo?: string | null | undefined;
     description?: string | undefined;
     taxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
     fulfillmentType?: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant" | undefined;
@@ -5811,6 +5838,7 @@ export declare const UpdateServiceItemRequest: z.ZodEffects<z.ZodObject<{
     }>, "many">>>;
     status: z.ZodOptional<z.ZodOptional<z.ZodEnum<["active", "out_of_stock", "archived"]>>>;
     name: z.ZodOptional<z.ZodString>;
+    photo: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     description: z.ZodOptional<z.ZodOptional<z.ZodString>>;
     priceRwf: z.ZodOptional<z.ZodNumber>;
     taxCode: z.ZodOptional<z.ZodOptional<z.ZodEnum<["TAX_A", "TAX_B", "TAX_C", "TAX_D"]>>>;
@@ -5834,6 +5862,7 @@ export declare const UpdateServiceItemRequest: z.ZodEffects<z.ZodObject<{
     }[] | undefined;
     status?: "active" | "archived" | "out_of_stock" | undefined;
     name?: string | undefined;
+    photo?: string | null | undefined;
     description?: string | undefined;
     priceRwf?: number | undefined;
     taxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
@@ -5857,6 +5886,7 @@ export declare const UpdateServiceItemRequest: z.ZodEffects<z.ZodObject<{
     }[] | undefined;
     status?: "active" | "archived" | "out_of_stock" | undefined;
     name?: string | undefined;
+    photo?: string | null | undefined;
     description?: string | undefined;
     priceRwf?: number | undefined;
     taxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
@@ -5880,6 +5910,7 @@ export declare const UpdateServiceItemRequest: z.ZodEffects<z.ZodObject<{
     }[] | undefined;
     status?: "active" | "archived" | "out_of_stock" | undefined;
     name?: string | undefined;
+    photo?: string | null | undefined;
     description?: string | undefined;
     priceRwf?: number | undefined;
     taxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
@@ -5903,6 +5934,7 @@ export declare const UpdateServiceItemRequest: z.ZodEffects<z.ZodObject<{
     }[] | undefined;
     status?: "active" | "archived" | "out_of_stock" | undefined;
     name?: string | undefined;
+    photo?: string | null | undefined;
     description?: string | undefined;
     priceRwf?: number | undefined;
     taxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;

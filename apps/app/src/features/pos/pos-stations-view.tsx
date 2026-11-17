@@ -133,11 +133,14 @@ export function PosStationsView({
   outlet,
   initialStation,
   tickets,
+  kinds = null,
   can,
 }: {
   outlet: PosOutlet;
   initialStation: KdsStation;
   tickets: PosTicket[];
+  /** The station kinds this outlet has (null when unknown: both are offered). */
+  kinds?: KdsStation[] | null;
   can: string[];
 }) {
   const router = useRouter();
@@ -329,14 +332,16 @@ export function PosStationsView({
           </span>
         </div>
 
-        <fieldset className="kds-seg" aria-label="Display">
-          {(["kitchen", "bar"] as const).map((s) => (
-            <button key={s} type="button" aria-pressed={station === s} onClick={() => chooseStation(s)}>
-              <StationMark station={s} size={18} />
-              {STATION_NAME[s]}
-              <span className="kds-seg-n">{perStation[s]}</span>
-            </button>
-          ))}
+        <fieldset className="kds-seg" aria-label="Display" data-stations={(kinds ?? ["kitchen", "bar"]).join(" ")}>
+          {(["kitchen", "bar"] as const)
+            .filter((s) => !kinds || kinds.length === 0 || kinds.includes(s))
+            .map((s) => (
+              <button key={s} type="button" aria-pressed={station === s} onClick={() => chooseStation(s)}>
+                <StationMark station={s} size={18} />
+                {STATION_NAME[s]}
+                <span className="kds-seg-n">{perStation[s]}</span>
+              </button>
+            ))}
         </fieldset>
 
         <div className="kds-meta">

@@ -1,4 +1,11 @@
 import {
+  ApplyVenueTemplateRequest,
+  BulkCreateTablesRequest,
+  ReorderVenueRequest,
+  SetItemRoutesRequest,
+  type ApplyVenueTemplateResult,
+  type PosArchivedVenue,
+  type PosVenueTemplatePlan,
   CreateAreaRequest,
   CreateRegisterRequest,
   CreateStationRequest,
@@ -210,5 +217,112 @@ export class OpsPosVenueController {
     @CurrentUser() user: SessionUser,
   ): Promise<PosVenue> {
     return this.venue.setRoute(ws, outletId, body, user.id);
+  }
+
+  /** Several routes at once (a whole menu section to one station): all are set, or none. */
+  @Put('venue/routing/bulk')
+  @RequirePermission('outlet.manage')
+  setRoutes(
+    @Param('outletId', ParseUUIDPipe) outletId: string,
+    @Body(new ZodValidationPipe(SetItemRoutesRequest)) body: SetItemRoutesRequest,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PosVenue> {
+    return this.venue.setRoutes(ws, outletId, body, user.id);
+  }
+
+  // ── Bulk tables, order, archive and restore ────────────────────────────────────────────────────
+
+  @Post('venue/tables/bulk')
+  @RequirePermission('outlet.manage')
+  bulkCreateTables(
+    @Param('outletId', ParseUUIDPipe) outletId: string,
+    @Body(new ZodValidationPipe(BulkCreateTablesRequest)) body: BulkCreateTablesRequest,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PosVenue> {
+    return this.venue.bulkCreateTables(ws, outletId, body, user.id);
+  }
+
+  @Put('venue/order')
+  @RequirePermission('outlet.manage')
+  reorder(
+    @Param('outletId', ParseUUIDPipe) outletId: string,
+    @Body(new ZodValidationPipe(ReorderVenueRequest)) body: ReorderVenueRequest,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PosVenue> {
+    return this.venue.reorder(ws, outletId, body, user.id);
+  }
+
+  @Get('venue/archived')
+  @RequirePermission('outlet.manage')
+  archived(@Param('outletId', ParseUUIDPipe) outletId: string, @CurrentWorkspace() ws: ScopedWorkspace): Promise<PosArchivedVenue> {
+    return this.venue.archived(ws, outletId);
+  }
+
+  @Post('venue/areas/:id/restore')
+  @RequirePermission('outlet.manage')
+  restoreArea(
+    @Param('outletId', ParseUUIDPipe) outletId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PosVenue> {
+    return this.venue.restore(ws, outletId, 'area', id, user.id);
+  }
+
+  @Post('venue/tables/:id/restore')
+  @RequirePermission('outlet.manage')
+  restoreTable(
+    @Param('outletId', ParseUUIDPipe) outletId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PosVenue> {
+    return this.venue.restore(ws, outletId, 'table', id, user.id);
+  }
+
+  @Post('venue/stations/:id/restore')
+  @RequirePermission('outlet.manage')
+  restoreStation(
+    @Param('outletId', ParseUUIDPipe) outletId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PosVenue> {
+    return this.venue.restore(ws, outletId, 'station', id, user.id);
+  }
+
+  @Post('venue/registers/:id/restore')
+  @RequirePermission('outlet.manage')
+  restoreRegister(
+    @Param('outletId', ParseUUIDPipe) outletId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PosVenue> {
+    return this.venue.restore(ws, outletId, 'register', id, user.id);
+  }
+
+  // ── Starter templates ──────────────────────────────────────────────────────────────────────────
+
+  /** Each starter template measured against this outlet: what it would create and what it would skip. */
+  @Get('venue/templates')
+  @RequirePermission('outlet.manage')
+  templates(@Param('outletId', ParseUUIDPipe) outletId: string, @CurrentWorkspace() ws: ScopedWorkspace): Promise<PosVenueTemplatePlan[]> {
+    return this.venue.templates(ws, outletId);
+  }
+
+  /** Create a template's floor, stations and registers. Only adds: names already used here are skipped. */
+  @Post('venue/templates/apply')
+  @RequirePermission('outlet.manage')
+  applyTemplate(
+    @Param('outletId', ParseUUIDPipe) outletId: string,
+    @Body(new ZodValidationPipe(ApplyVenueTemplateRequest)) body: ApplyVenueTemplateRequest,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<ApplyVenueTemplateResult> {
+    return this.venue.applyTemplate(ws, outletId, body, user.id);
   }
 }

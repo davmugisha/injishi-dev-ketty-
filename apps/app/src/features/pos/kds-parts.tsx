@@ -139,6 +139,11 @@ export function TicketCard({
             </span>
           ) : null}
           <span className="kds-tag">{t.stationName}</span>
+          {t.source === "table_qr" ? (
+            <span className="kds-tag" data-tone="qr" data-field="guest-qr">
+              GUEST ORDER (QR)
+            </span>
+          ) : null}
           {upNext ? (
             <span className="kds-tag" data-tone="next">
               UP NEXT
@@ -164,7 +169,7 @@ export function TicketCard({
             {t.guestCount}
           </span>
         ) : null}
-        <span>{t.waiterName ?? "—"}</span>
+        <span>{t.waiterName ?? (t.source === "table_qr" ? "Ordered by the guests" : "—")}</span>
         <span>sent {clock(t.createdAt)}</span>
         <span>
           {t.ticketNumber} · {t.orderNumber}

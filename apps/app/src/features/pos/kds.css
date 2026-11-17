@@ -618,6 +618,11 @@
   color: var(--text-2);
   white-space: nowrap;
 }
+.kds-tag[data-tone="qr"] {
+  border-color: #1f6feb;
+  background: color-mix(in oklab, #1f6feb 16%, transparent);
+  color: inherit;
+}
 .kds-tag[data-tone="next"] {
   border-color: var(--a-line);
   background: var(--a-soft);

@@ -72,6 +72,7 @@ import { OpsDepartmentsController } from './ops/departments.controller';
 import { OpsEbmController } from './ops/ebm.controller';
 import { OpsRolesController } from './ops/roles.controller';
 import { OpsTeamController } from './ops/team.controller';
+import { MeOwnershipTransfersController, OpsOwnershipTransferController } from './ops/ownership-transfer.controller';
 import { OpsAttendanceController } from './ops/attendance.controller';
 import { OpsEmployeesController } from './ops/employees.controller';
 import { OpsDisciplinaryActionsController } from './ops/disciplinary-actions.controller';
@@ -137,6 +138,8 @@ import {
 } from './ops/pos.controller';
 import { OpsPosCustomersController } from './ops/pos-customers.controller';
 import { OpsPosVenueController } from './ops/pos-venue.controller';
+import { OpsPosMenuPhotoController } from './ops/pos-menu-photo.controller';
+import { OpsTableQrController, TableOrderController } from './table-order/table-order.controller';
 import { PosModule } from '../../modules/pos/pos.module';
 import {
   OpsRraController,
@@ -331,9 +334,15 @@ import { EntitlementCheck } from '../../shared/entitlements/entitlement-check';
     OpsPosShiftsController,
     OpsPosBackOfficeController,
     OpsPosVenueController,
+    OpsPosMenuPhotoController,
+    // Table QR self-service ordering (migration 0156): the guest's public side and the staff's QR codes.
+    TableOrderController,
+    OpsTableQrController,
     // Customers of the bar and restaurant (CRM, phase 1).
     OpsPosCustomersController,
     OpsTeamController,
+    OpsOwnershipTransferController,
+    MeOwnershipTransfersController,
     OpsRolesController,
     // The HR module (ADR-058, first thread). Every route behind WorkspaceGuard
     // with one of the seven HR permissions.

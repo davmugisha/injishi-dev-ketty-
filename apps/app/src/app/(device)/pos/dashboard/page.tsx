@@ -3,7 +3,7 @@ import { loadPosPage } from "@/features/pos/load";
 import { PosBlocked } from "@/features/pos/pos-blocked";
 import { POS_BOARDS } from "@/features/pos/pos-boards";
 import { PosDashboardView } from "@/features/pos/pos-dashboard-view";
-import { posAudit, posDashboard, posSetup } from "@/server/pos";
+import { posAudit, posDashboard, posSetup, posStations } from "@/server/pos";
 
 export const metadata: Metadata = { title: POS_BOARDS.PosDashboard.pageTitle };
 
@@ -25,7 +25,7 @@ export default async function PosDashboardPage({ searchParams }: { searchParams:
   const dashboard = await posDashboard(page.ctx, selected?.id);
   // The setup nudge is a courtesy for someone who can change the setup: it never stops the dashboard from opening.
   const forSetup = selected ?? (page.outlets.length === 1 ? page.outlets[0] : null);
-  const [setup, byOutlet, audit] = await Promise.all([
+  const [setup, byOutlet, audit, stations] = await Promise.all([
     forSetup && page.can.includes("outlet.manage") ? posSetup(page.ctx, forSetup.id).catch(() => null) : null,
     // Across several outlets, each outlet's own figures, so the owner can compare branches. A failed read drops the row.
     !selected && page.outlets.length > 1
@@ -39,6 +39,8 @@ export default async function PosDashboardPage({ searchParams }: { searchParams:
       : Promise.resolve([]),
     // The week's sensitive actions (voids, refunds, discounts, cash in and out…) with who did them. Never blocks the page.
     posAudit(page.ctx, { outletId: selected?.id, from: dashboard.week.period.from, limit: 200 }).catch(() => []),
+    // One outlet in view: its stations name the service flow's kitchen and bar step. Never blocks the page.
+    selected ? posStations(page.ctx, selected.id).catch(() => null) : Promise.resolve(null),
   ]);
   return (
     <PosDashboardView
@@ -49,6 +51,7 @@ export default async function PosDashboardPage({ searchParams }: { searchParams:
       audit={audit}
       can={page.can}
       setup={setup}
+      stationKinds={stations ? [...new Set(stations.map((s) => s.kind))] : null}
     />
   );
 }

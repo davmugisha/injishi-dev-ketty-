@@ -19,14 +19,37 @@ import { Toast } from "@heroui/react";
 import Link, { useLinkStatus } from "next/link";
 import { useRouter } from "next/navigation";
 import { type ComponentType, type ReactNode, useEffect, useRef, useState, useTransition } from "react";
+import { OwnershipInbox } from "@/features/owner/OwnershipInbox";
 import { signOut } from "@/lib/auth-actions";
 import type { PosOutlet } from "@/server/pos";
+import { stationKindsAction } from "./actions";
+import { type StationKind, stationsName } from "./outlet-type";
 import { POS_BOARDS, type PosBoard } from "./pos-boards";
 import { initialsOf, usePosMe } from "./pos-me";
 import "./pos-fonts.css";
 import "./pos-theme.css";
 
 type Icon = ComponentType<{ className?: string; width?: number; height?: number }>;
+
+/** Station kinds per outlet, read once per page load of the app (they change only in Setup). */
+const KINDS = new Map<string, Promise<StationKind[] | null>>();
+function useStationKinds(outletId: string): Set<StationKind> | null {
+  const [kinds, setKinds] = useState<Set<StationKind> | null>(null);
+  useEffect(() => {
+    if (!outletId) return setKinds(null);
+    let live = true;
+    if (!KINDS.has(outletId))
+      KINDS.set(
+        outletId,
+        stationKindsAction(outletId).catch(() => null),
+      );
+    KINDS.get(outletId)?.then((k) => live && setKinds(k ? new Set(k) : null));
+    return () => {
+      live = false;
+    };
+  }, [outletId]);
+  return kinds;
+}
 
 /** Each screen, where it sits in the sidebar and the permissions any one of which opens it (the API still decides). */
 const NAV: { board: PosBoard; label: string; icon: Icon; any: string[]; group: "run" | "manage" | "configure" }[] = [
@@ -139,6 +162,9 @@ export function PosShell({
   }, [open]);
 
   const allowed = NAV.filter((n) => n.board === board || n.any.some((p) => can.includes(p)));
+  // "Kitchen and bar" becomes "Kitchen" or "Bar" when the outlet has only one of them.
+  const stationKinds = useStationKinds(outletId);
+  const labelOf = (n: (typeof NAV)[number]) => (n.board === "PosStations" ? stationsName(stationKinds) : n.label);
   const withOutlet = (path: string) => `${path}${outletId ? `?outlet=${outletId}` : ""}`;
   const go = (value: string) =>
     startSwitching(() => {
@@ -235,12 +261,12 @@ export function PosShell({
                     key={n.board}
                     href={withOutlet(POS_BOARDS[n.board].href)}
                     aria-current={current ? "page" : undefined}
-                    title={rail ? n.label : undefined}
+                    title={rail ? labelOf(n) : undefined}
                     onClick={() => setOpen(false)}
                     className={`pos-pill ${rail ? "w-11 justify-center px-0 xl:w-full xl:justify-start xl:pr-3.5 xl:pl-3" : "w-full"}`}
                   >
                     <ItemIcon width={17} height={17} />
-                    <span className={`truncate ${words}`}>{n.label}</span>
+                    <span className={`truncate ${words}`}>{labelOf(n)}</span>
                     <NavPending rail={rail} />
                   </Link>
                 );
@@ -352,6 +378,8 @@ export function PosShell({
             ) : null}
             {actions ? <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">{actions}</div> : null}
           </header>
+          {/* A request to make this person an owner, on whatever screen they are on (decided in its own dialog). */}
+          <OwnershipInbox />
           <div className="flex min-h-0 flex-1 flex-col">{children}</div>
         </div>
       </div>

@@ -64,6 +64,8 @@ export interface PosStockItem {
   /** Estimated: price times the demo cost ratio. No cost price is stored per item yet. */
   unitCostRwf: number;
   valueRwf: number;
+  /** The library photo chosen for the item, or null when none was (the app suggests one by name). */
+  photo?: string | null;
 }
 
 export interface PosStockMovement {
@@ -115,6 +117,11 @@ export interface PosSalesLine {
 export interface PosReport {
   period: { from: string; to: string };
   outlet: { id: string | null; name: string };
+  /**
+   * When each day of `period` starts, in minutes after midnight (Kigali): the outlet's business-day setting, 0 for
+   * the calendar day. `mixed` says the outlets read together disagree, so calendar days were used.
+   */
+  businessDay: { startMinutes: number; mixed: boolean };
   sales: {
     orders: number;
     completedOrders: number;

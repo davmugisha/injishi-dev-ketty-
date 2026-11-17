@@ -427,6 +427,15 @@ export const PosOutletSettings = z.object({
     enabledMethods: z.array(PosPaymentMethod).min(1),
     receiptHeader: z.string().max(200),
     receiptFooter: z.string().max(200),
+    /** The venue's TIN on its receipts: empty, or Rwanda's 9 digits. */
+    venueTin: z.string().trim().regex(/^(\d{9})?$/, "A TIN is 9 digits."),
+    venuePhone: z.string().trim().max(30, "Keep the phone to 30 characters."),
+    venueAddress: z.string().trim().max(200, "Keep the address to 200 characters."),
+    /**
+     * Minutes after midnight (Kigali) at which a business day starts, 0 (calendar day) to 719. The dashboard and
+     * reports count a day from this time to the same time the next day.
+     */
+    businessDayStartMinutes: z.number().int().min(0).max(719, "A business day starts before noon."),
 });
 export type PosOutletSettings = z.infer<typeof PosOutletSettings>;
 export const UpdatePosOutletSettingsRequest = PosOutletSettings.omit({ outletId: true }).partial();
@@ -471,6 +480,8 @@ export const PosMenuItem = z.object({
     available: z.boolean(),
     /** Why it cannot be sold, when it cannot. */
     unavailableReason: z.string().nullable(),
+    /** The library photo chosen for the item (`beer`), or null when none was: the app then suggests one by name. */
+    photo: z.string().nullable().optional(),
 });
 export type PosMenuItem = z.infer<typeof PosMenuItem>;
 export const PosMenu = z.object({
@@ -493,6 +504,8 @@ export const PosTable = z.object({
     openOrders: z.number().int(),
     /** What the open session's orders still owe, collected payments taken off. */
     outstandingRwf: z.number().int(),
+    /** Open orders guests sent from this table's QR (migration 0156). Absent when there are none. */
+    qrOrders: z.number().int().optional(),
 });
 export type PosTable = z.infer<typeof PosTable>;
 export const PosFloor = z.object({
@@ -585,6 +598,8 @@ export const PosOrder = z.object({
     tableLabel: z.string().nullable(),
     waiterName: z.string().nullable(),
     guestNote: z.string().nullable(),
+    /** `table_qr`: a guest sent it from the QR on their table (migration 0156). Absent on every staff order. */
+    source: z.literal("table_qr").optional(),
     /** Who the bill is for, when the staff attached a customer. Absent on orders read before CRM existed. */
     customer: PosOrderCustomer.nullable().optional(),
     taxMode: PosTaxMode,
@@ -630,6 +645,8 @@ export const PosTicket = z.object({
     guestNote: z.string().nullable(),
     /** The table's party size, or null for an order without a table. */
     guestCount: z.number().int().nullable(),
+    /** `table_qr`: the guests sent this order from their table's QR. Absent for a staff order. */
+    source: z.literal("table_qr").optional(),
     items: z.array(PosTicketItem),
     createdAt: z.string(),
     startedAt: z.string().nullable(),
@@ -932,6 +949,201 @@ export const SetItemRouteRequest = z.object({
     stationId: Uuid.nullable(),
 });
 export type SetItemRouteRequest = z.infer<typeof SetItemRouteRequest>;
+/** Several routes in one transaction (a whole menu section to the bar, say). All are set, or none. */
+export const SetItemRoutesRequest = z.object({
+    routes: z
+        .array(SetItemRouteRequest)
+        .min(1, "Choose at least one item.")
+        .max(500, "Route at most 500 items at a time.")
+        .refine((r) => new Set(r.map((x) => x.serviceItemId)).size === r.length, { message: "An item is listed twice." }),
+});
+export type SetItemRoutesRequest = z.infer<typeof SetItemRoutesRequest>;
+/**
+ * Many tables in one area at once: `prefix` + `start`, `start + 1`, ... (`T` 1 x 10 is T1 to T10). All are created,
+ * or none: a label already used at the outlet (archived tables included) refuses the whole batch with the labels.
+ */
+export const BulkCreateTablesRequest = z
+    .object({
+    areaId: Uuid,
+    prefix: z.string().max(20, "Keep the prefix to 20 characters."),
+    start: z.number().int().min(0).max(9999),
+    count: z.number().int().min(1, "Add at least one table.").max(50, "Add at most 50 tables at a time."),
+    seats: z.number().int().min(1, "A table seats at least 1.").max(100, "A table seats at most 100."),
+})
+    .refine((v) => `${v.prefix.trim()}${v.start + v.count - 1}`.length <= 30, { message: "Keep each label to 30 characters." });
+export type BulkCreateTablesRequest = z.infer<typeof BulkCreateTablesRequest>;
+/** The labels a bulk request creates, in order. */
+export function bulkTableLabels(v: Pick<BulkCreateTablesRequest, "prefix" | "start" | "count">): string[] {
+    const prefix = v.prefix.trim();
+    return Array.from({ length: v.count }, (_, i) => `${prefix}${v.start + i}`);
+}
+/** A new order for the areas, the tables of one area, or the stations: `ids` first to last. */
+export const ReorderVenueRequest = z.object({
+    kind: z.enum(["areas", "tables", "stations"]),
+    ids: z
+        .array(Uuid)
+        .min(1)
+        .max(500)
+        .refine((ids) => new Set(ids).size === ids.length, { message: "An entry is listed twice." }),
+});
+export type ReorderVenueRequest = z.infer<typeof ReorderVenueRequest>;
+/** What was archived at an outlet, so an owner can see it and bring it back. */
+export const PosArchivedVenue = z.object({
+    outletId: Uuid,
+    areas: z.array(z.object({ id: Uuid, name: z.string(), archivedAt: z.string(), archivedTables: z.number().int() })),
+    tables: z.array(z.object({
+        id: Uuid,
+        label: z.string(),
+        seats: z.number().int(),
+        areaId: Uuid,
+        areaName: z.string(),
+        /** Its area is archived too: restore the area first. */
+        areaArchived: z.boolean(),
+        archivedAt: z.string(),
+    })),
+    stations: z.array(z.object({ id: Uuid, name: z.string(), kind: PrepStationKind, archivedAt: z.string() })),
+    registers: z.array(z.object({ id: Uuid, name: z.string(), deviceLabel: z.string().nullable(), archivedAt: z.string() })),
+});
+export type PosArchivedVenue = z.infer<typeof PosArchivedVenue>;
+// ---------------------------------------------------------------------------
+// Starter templates: a floor, stations and registers for a typical venue, created in one transaction. A template
+// only ever ADDS: a name already used at the outlet (archived included) is skipped, never changed, and the menu,
+// orders and team are not touched.
+// ---------------------------------------------------------------------------
+export const POS_VENUE_TEMPLATE_KEYS = ["small_bar", "restaurant", "restaurant_bar"] as const;
+export const PosVenueTemplateKey = z.enum(POS_VENUE_TEMPLATE_KEYS);
+export type PosVenueTemplateKey = z.infer<typeof PosVenueTemplateKey>;
+export interface PosVenueTemplate {
+    key: PosVenueTemplateKey;
+    label: string;
+    description: string;
+    areas: {
+        name: string;
+        tables: {
+            prefix: string;
+            start: number;
+            count: number;
+            seats: number;
+        };
+    }[];
+    stations: {
+        name: string;
+        kind: PrepStationKind;
+    }[];
+    registers: {
+        name: string;
+    }[];
+}
+export const POS_VENUE_TEMPLATES: readonly PosVenueTemplate[] = [
+    {
+        key: "small_bar",
+        label: "Small bar",
+        description: "A bar counter with stools and a small lounge, one bar station and one till.",
+        areas: [
+            { name: "Bar counter", tables: { prefix: "B", start: 1, count: 8, seats: 1 } },
+            { name: "Lounge", tables: { prefix: "L", start: 1, count: 4, seats: 4 } },
+        ],
+        stations: [{ name: "Bar", kind: "bar" }],
+        registers: [{ name: "Till 1" }],
+    },
+    {
+        key: "restaurant",
+        label: "Restaurant",
+        description: "A main hall and a terrace, one kitchen and one till.",
+        areas: [
+            { name: "Main hall", tables: { prefix: "T", start: 1, count: 10, seats: 4 } },
+            { name: "Terrace", tables: { prefix: "TR", start: 1, count: 6, seats: 2 } },
+        ],
+        stations: [{ name: "Kitchen", kind: "kitchen" }],
+        registers: [{ name: "Till 1" }],
+    },
+    {
+        key: "restaurant_bar",
+        label: "Restaurant + bar",
+        description: "A main hall, a terrace and a bar counter, a kitchen and a bar, and two tills.",
+        areas: [
+            { name: "Main hall", tables: { prefix: "T", start: 1, count: 10, seats: 4 } },
+            { name: "Terrace", tables: { prefix: "TR", start: 1, count: 6, seats: 2 } },
+            { name: "Bar counter", tables: { prefix: "B", start: 1, count: 8, seats: 1 } },
+        ],
+        stations: [
+            { name: "Kitchen", kind: "kitchen" },
+            { name: "Bar", kind: "bar" },
+        ],
+        registers: [{ name: "Till 1" }, { name: "Bar till" }],
+    },
+];
+export const ApplyVenueTemplateRequest = z.object({ template: PosVenueTemplateKey });
+export type ApplyVenueTemplateRequest = z.infer<typeof ApplyVenueTemplateRequest>;
+/** Whether a name in a template is new here, already in use, or used by something archived (both are skipped). */
+export const PosTemplateMark = z.enum(["new", "exists", "archived"]);
+export type PosTemplateMark = z.infer<typeof PosTemplateMark>;
+/** A template measured against one outlet: what applying it would create and what it would skip. */
+export const PosVenueTemplatePlan = z.object({
+    key: PosVenueTemplateKey,
+    label: z.string(),
+    description: z.string(),
+    areas: z.array(z.object({
+        name: z.string(),
+        mark: PosTemplateMark,
+        tables: z.array(z.object({ label: z.string(), seats: z.number().int(), mark: PosTemplateMark })),
+    })),
+    stations: z.array(z.object({ name: z.string(), kind: PrepStationKind, mark: PosTemplateMark })),
+    registers: z.array(z.object({ name: z.string(), mark: PosTemplateMark })),
+    /** Rows applying it would create, and rows it would skip. */
+    creates: z.number().int(),
+    skips: z.number().int(),
+});
+export type PosVenueTemplatePlan = z.infer<typeof PosVenueTemplatePlan>;
+export const ApplyVenueTemplateResult = z.object({
+    venue: z.lazy(() => PosVenue),
+    created: z.number().int(),
+    skipped: z.number().int(),
+});
+export type ApplyVenueTemplateResult = z.infer<typeof ApplyVenueTemplateResult>;
+/**
+ * A template measured against what an outlet already has. A table goes into its area when the area is new or in
+ * use; a table of an archived area is skipped with it (restore the area to use it).
+ */
+export function planVenueTemplate(template: PosVenueTemplate, existing: {
+    areas: ReadonlyMap<string, "exists" | "archived">;
+    tables: ReadonlyMap<string, "exists" | "archived">;
+    stations: ReadonlyMap<string, "exists" | "archived">;
+    registers: ReadonlyMap<string, "exists" | "archived">;
+}): PosVenueTemplatePlan {
+    const mark = (m: ReadonlyMap<string, "exists" | "archived">, name: string): PosTemplateMark => m.get(name) ?? "new";
+    const areas = template.areas.map((a) => {
+        const areaMark = mark(existing.areas, a.name);
+        return {
+            name: a.name,
+            mark: areaMark,
+            tables: bulkTableLabels(a.tables).map((label) => ({
+                label,
+                seats: a.tables.seats,
+                mark: areaMark === "archived" ? ("archived" as const) : mark(existing.tables, label),
+            })),
+        };
+    });
+    const stations = template.stations.map((s) => ({ ...s, mark: mark(existing.stations, s.name) }));
+    const registers = template.registers.map((r) => ({ ...r, mark: mark(existing.registers, r.name) }));
+    const marks = [
+        ...areas.map((a) => a.mark),
+        ...areas.flatMap((a) => a.tables.map((t) => t.mark)),
+        ...stations.map((s) => s.mark),
+        ...registers.map((r) => r.mark),
+    ];
+    const creates = marks.filter((m) => m === "new").length;
+    return {
+        key: template.key,
+        label: template.label,
+        description: template.description,
+        areas,
+        stations,
+        registers,
+        creates,
+        skips: marks.length - creates,
+    };
+}
 
 // ---------------------------------------------------------------------------
 // Setup progress: what an owner has configured so far, computed from the

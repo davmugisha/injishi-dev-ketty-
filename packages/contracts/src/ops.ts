@@ -1594,8 +1594,10 @@ export const OperatorServiceItem = z.object({
      * `guestOrderable` with anything listed here is refused on every channel.
      */
     missingRra: z.array(RraItemField),
+    /** The library photo chosen for the item (`beer`), or null when none was: the app then suggests one by name. */
+    photo: z.string().nullable().optional(),
 });
-export type OperatorServiceItem = z.infer<typeof OperatorServiceItem>;
+export type OperatorServiceItem =z.infer<typeof OperatorServiceItem>;
 export const OperatorServiceCategory = z.object({
     id: Uuid,
     departmentId: Uuid,
@@ -1673,6 +1675,17 @@ export const UpsertServiceItemRequest = z.object({
     rraItemTyCd: RraItemTypeCode.optional(),
     rraPkgUnitCd: RraUnitCode.optional(),
     rraQtyUnitCd: RraUnitCode.optional(),
+    /**
+     * The photo the item shows: a photo from the app's photo library by its name (`beer`), or a photo the owner
+     * uploaded, named `upload:<storedObjectId>` as the menu-photo upload returned it (the item's current upload,
+     * `upload:<itemId>.<version>`, is accepted and changes nothing). Null clears the choice, so the app suggests one
+     * from the item's name again. Left out, nothing changes.
+     */
+    photo: z
+        .string()
+        .regex(/^(?:[a-z0-9_]{1,40}|upload:[0-9a-f-]{36}(?:\.[0-9a-f]{1,16})?)$/)
+        .nullable()
+        .optional(),
 });
 export type UpsertServiceItemRequest = z.infer<typeof UpsertServiceItemRequest>;
 /** One row of RRA's classification list, for the menu's picker. */

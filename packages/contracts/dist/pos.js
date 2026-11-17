@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MergeSessionsRequest = exports.MoveSessionRequest = exports.SetTableStatusRequest = exports.OpenTableSessionRequest = exports.PosAuditEvent = exports.PosShift = exports.PosCashMovement = exports.PosRegister = exports.PosTicket = exports.PosTicketItem = exports.PosOrderSummary = exports.PosOrder = exports.PosOrderCustomer = exports.PosSettlement = exports.PosPayment = exports.PosDiscount = exports.PosOrderLine = exports.PosFloor = exports.PosTable = exports.PosMenu = exports.PosMenuItem = exports.PosStation = exports.PosOutlet = exports.UpdatePosOutletSettingsRequest = exports.PosOutletSettings = exports.PosPaymentState = exports.POS_PAYMENT_SIMULATION_NOTICE = exports.ApprovalStatus = exports.CashMovementKind = exports.ShiftStatus = exports.SimulatedOutcome = exports.PAYMENT_TRANSITIONS = exports.PosPaymentStatus = exports.ASYNC_PAYMENT_METHODS = exports.POS_PAYMENT_METHOD_LABEL = exports.PosPaymentMethod = exports.POS_ORDER_STATUS_LABEL = exports.PosOrderStatus = exports.PosLineStatus = exports.TICKET_LATE_MINUTES = exports.TICKET_TRANSITIONS = exports.TICKET_STATUS_LABEL = exports.TicketStatus = exports.PrepStationKind = exports.TABLE_STATUS_MOVES = exports.TABLE_STATUS_LABEL = exports.TableStatus = exports.PosTaxMode = exports.POS_ORDER_TYPE_LABEL = exports.PosOrderType = void 0;
-exports.PosSetup = exports.PosSetupStep = exports.PosSetupStepKey = exports.POS_SETUP_STEPS = exports.SetItemRouteRequest = exports.UpdateRegisterRequest = exports.CreateRegisterRequest = exports.UpdateStationRequest = exports.CreateStationRequest = exports.UpdateTableRequest = exports.CreateTableRequest = exports.UpdateAreaRequest = exports.CreateAreaRequest = exports.PosVenue = exports.PosVenueRoute = exports.PosVenueRegister = exports.PosVenueStation = exports.PosVenueTable = exports.PosVenueArea = exports.PosListQuery = exports.ReviewShiftRequest = exports.DecideCashMovementRequest = exports.CashMovementRequest = exports.CloseShiftRequest = exports.OpenShiftRequest = exports.AdvancePosTicketRequest = exports.RefundPosPaymentRequest = exports.ResolvePosPaymentRequest = exports.TakePosPaymentRequest = exports.SplitPosOrderRequest = exports.TransferPosOrderRequest = exports.DecidePosDiscountRequest = exports.ApplyPosDiscountRequest = exports.CancelPosOrderRequest = exports.VoidPosLineRequest = exports.UpdatePosLineRequest = exports.AddPosLinesRequest = exports.CreatePosOrderRequest = exports.PosLineRequest = void 0;
+exports.PosSetup = exports.PosSetupStep = exports.PosSetupStepKey = exports.POS_SETUP_STEPS = exports.ApplyVenueTemplateResult = exports.PosVenueTemplatePlan = exports.PosTemplateMark = exports.ApplyVenueTemplateRequest = exports.POS_VENUE_TEMPLATES = exports.PosVenueTemplateKey = exports.POS_VENUE_TEMPLATE_KEYS = exports.PosArchivedVenue = exports.ReorderVenueRequest = exports.BulkCreateTablesRequest = exports.SetItemRoutesRequest = exports.SetItemRouteRequest = exports.UpdateRegisterRequest = exports.CreateRegisterRequest = exports.UpdateStationRequest = exports.CreateStationRequest = exports.UpdateTableRequest = exports.CreateTableRequest = exports.UpdateAreaRequest = exports.CreateAreaRequest = exports.PosVenue = exports.PosVenueRoute = exports.PosVenueRegister = exports.PosVenueStation = exports.PosVenueTable = exports.PosVenueArea = exports.PosListQuery = exports.ReviewShiftRequest = exports.DecideCashMovementRequest = exports.CashMovementRequest = exports.CloseShiftRequest = exports.OpenShiftRequest = exports.AdvancePosTicketRequest = exports.RefundPosPaymentRequest = exports.ResolvePosPaymentRequest = exports.TakePosPaymentRequest = exports.SplitPosOrderRequest = exports.TransferPosOrderRequest = exports.DecidePosDiscountRequest = exports.ApplyPosDiscountRequest = exports.CancelPosOrderRequest = exports.VoidPosLineRequest = exports.UpdatePosLineRequest = exports.AddPosLinesRequest = exports.CreatePosOrderRequest = exports.PosLineRequest = void 0;
 exports.canMoveTicket = canMoveTicket;
 exports.canMovePayment = canMovePayment;
 exports.divRoundHalfUp = divRoundHalfUp;
@@ -15,6 +15,8 @@ exports.checkPayment = checkPayment;
 exports.expectedCash = expectedCash;
 exports.cashVariance = cashVariance;
 exports.demoPaymentReference = demoPaymentReference;
+exports.bulkTableLabels = bulkTableLabels;
+exports.planVenueTemplate = planVenueTemplate;
 const zod_1 = require("zod");
 const ops_1 = require("./ops");
 const primitives_1 = require("./primitives");
@@ -376,6 +378,15 @@ exports.PosOutletSettings = zod_1.z.object({
     enabledMethods: zod_1.z.array(exports.PosPaymentMethod).min(1),
     receiptHeader: zod_1.z.string().max(200),
     receiptFooter: zod_1.z.string().max(200),
+    /** The venue's TIN on its receipts: empty, or Rwanda's 9 digits. */
+    venueTin: zod_1.z.string().trim().regex(/^(\d{9})?$/, "A TIN is 9 digits."),
+    venuePhone: zod_1.z.string().trim().max(30, "Keep the phone to 30 characters."),
+    venueAddress: zod_1.z.string().trim().max(200, "Keep the address to 200 characters."),
+    /**
+     * Minutes after midnight (Kigali) at which a business day starts, 0 (calendar day) to 719. The dashboard and
+     * reports count a day from this time to the same time the next day.
+     */
+    businessDayStartMinutes: zod_1.z.number().int().min(0).max(719, "A business day starts before noon."),
 });
 exports.UpdatePosOutletSettingsRequest = exports.PosOutletSettings.omit({ outletId: true }).partial();
 // ---------------------------------------------------------------------------
@@ -416,6 +427,8 @@ exports.PosMenuItem = zod_1.z.object({
     available: zod_1.z.boolean(),
     /** Why it cannot be sold, when it cannot. */
     unavailableReason: zod_1.z.string().nullable(),
+    /** The library photo chosen for the item (`beer`), or null when none was: the app then suggests one by name. */
+    photo: zod_1.z.string().nullable().optional(),
 });
 exports.PosMenu = zod_1.z.object({
     outletId: primitives_1.Uuid,
@@ -436,6 +449,8 @@ exports.PosTable = zod_1.z.object({
     openOrders: zod_1.z.number().int(),
     /** What the open session's orders still owe, collected payments taken off. */
     outstandingRwf: zod_1.z.number().int(),
+    /** Open orders guests sent from this table's QR (migration 0156). Absent when there are none. */
+    qrOrders: zod_1.z.number().int().optional(),
 });
 exports.PosFloor = zod_1.z.object({
     outletId: primitives_1.Uuid,
@@ -522,6 +537,8 @@ exports.PosOrder = zod_1.z.object({
     tableLabel: zod_1.z.string().nullable(),
     waiterName: zod_1.z.string().nullable(),
     guestNote: zod_1.z.string().nullable(),
+    /** `table_qr`: a guest sent it from the QR on their table (migration 0156). Absent on every staff order. */
+    source: zod_1.z.literal("table_qr").optional(),
     /** Who the bill is for, when the staff attached a customer. Absent on orders read before CRM existed. */
     customer: exports.PosOrderCustomer.nullable().optional(),
     taxMode: exports.PosTaxMode,
@@ -565,6 +582,8 @@ exports.PosTicket = zod_1.z.object({
     guestNote: zod_1.z.string().nullable(),
     /** The table's party size, or null for an order without a table. */
     guestCount: zod_1.z.number().int().nullable(),
+    /** `table_qr`: the guests sent this order from their table's QR. Absent for a staff order. */
+    source: zod_1.z.literal("table_qr").optional(),
     items: zod_1.z.array(exports.PosTicketItem),
     createdAt: zod_1.z.string(),
     startedAt: zod_1.z.string().nullable(),
@@ -822,6 +841,166 @@ exports.SetItemRouteRequest = zod_1.z.object({
     /** null clears the route: the item then sends no ticket. */
     stationId: primitives_1.Uuid.nullable(),
 });
+/** Several routes in one transaction (a whole menu section to the bar, say). All are set, or none. */
+exports.SetItemRoutesRequest = zod_1.z.object({
+    routes: zod_1.z
+        .array(exports.SetItemRouteRequest)
+        .min(1, "Choose at least one item.")
+        .max(500, "Route at most 500 items at a time.")
+        .refine((r) => new Set(r.map((x) => x.serviceItemId)).size === r.length, { message: "An item is listed twice." }),
+});
+/**
+ * Many tables in one area at once: `prefix` + `start`, `start + 1`, ... (`T` 1 x 10 is T1 to T10). All are created,
+ * or none: a label already used at the outlet (archived tables included) refuses the whole batch with the labels.
+ */
+exports.BulkCreateTablesRequest = zod_1.z
+    .object({
+    areaId: primitives_1.Uuid,
+    prefix: zod_1.z.string().max(20, "Keep the prefix to 20 characters."),
+    start: zod_1.z.number().int().min(0).max(9999),
+    count: zod_1.z.number().int().min(1, "Add at least one table.").max(50, "Add at most 50 tables at a time."),
+    seats: zod_1.z.number().int().min(1, "A table seats at least 1.").max(100, "A table seats at most 100."),
+})
+    .refine((v) => `${v.prefix.trim()}${v.start + v.count - 1}`.length <= 30, { message: "Keep each label to 30 characters." });
+/** The labels a bulk request creates, in order. */
+function bulkTableLabels(v) {
+    const prefix = v.prefix.trim();
+    return Array.from({ length: v.count }, (_, i) => `${prefix}${v.start + i}`);
+}
+/** A new order for the areas, the tables of one area, or the stations: `ids` first to last. */
+exports.ReorderVenueRequest = zod_1.z.object({
+    kind: zod_1.z.enum(["areas", "tables", "stations"]),
+    ids: zod_1.z
+        .array(primitives_1.Uuid)
+        .min(1)
+        .max(500)
+        .refine((ids) => new Set(ids).size === ids.length, { message: "An entry is listed twice." }),
+});
+/** What was archived at an outlet, so an owner can see it and bring it back. */
+exports.PosArchivedVenue = zod_1.z.object({
+    outletId: primitives_1.Uuid,
+    areas: zod_1.z.array(zod_1.z.object({ id: primitives_1.Uuid, name: zod_1.z.string(), archivedAt: zod_1.z.string(), archivedTables: zod_1.z.number().int() })),
+    tables: zod_1.z.array(zod_1.z.object({
+        id: primitives_1.Uuid,
+        label: zod_1.z.string(),
+        seats: zod_1.z.number().int(),
+        areaId: primitives_1.Uuid,
+        areaName: zod_1.z.string(),
+        /** Its area is archived too: restore the area first. */
+        areaArchived: zod_1.z.boolean(),
+        archivedAt: zod_1.z.string(),
+    })),
+    stations: zod_1.z.array(zod_1.z.object({ id: primitives_1.Uuid, name: zod_1.z.string(), kind: exports.PrepStationKind, archivedAt: zod_1.z.string() })),
+    registers: zod_1.z.array(zod_1.z.object({ id: primitives_1.Uuid, name: zod_1.z.string(), deviceLabel: zod_1.z.string().nullable(), archivedAt: zod_1.z.string() })),
+});
+// ---------------------------------------------------------------------------
+// Starter templates: a floor, stations and registers for a typical venue, created in one transaction. A template
+// only ever ADDS: a name already used at the outlet (archived included) is skipped, never changed, and the menu,
+// orders and team are not touched.
+// ---------------------------------------------------------------------------
+exports.POS_VENUE_TEMPLATE_KEYS = ["small_bar", "restaurant", "restaurant_bar"];
+exports.PosVenueTemplateKey = zod_1.z.enum(exports.POS_VENUE_TEMPLATE_KEYS);
+exports.POS_VENUE_TEMPLATES = [
+    {
+        key: "small_bar",
+        label: "Small bar",
+        description: "A bar counter with stools and a small lounge, one bar station and one till.",
+        areas: [
+            { name: "Bar counter", tables: { prefix: "B", start: 1, count: 8, seats: 1 } },
+            { name: "Lounge", tables: { prefix: "L", start: 1, count: 4, seats: 4 } },
+        ],
+        stations: [{ name: "Bar", kind: "bar" }],
+        registers: [{ name: "Till 1" }],
+    },
+    {
+        key: "restaurant",
+        label: "Restaurant",
+        description: "A main hall and a terrace, one kitchen and one till.",
+        areas: [
+            { name: "Main hall", tables: { prefix: "T", start: 1, count: 10, seats: 4 } },
+            { name: "Terrace", tables: { prefix: "TR", start: 1, count: 6, seats: 2 } },
+        ],
+        stations: [{ name: "Kitchen", kind: "kitchen" }],
+        registers: [{ name: "Till 1" }],
+    },
+    {
+        key: "restaurant_bar",
+        label: "Restaurant + bar",
+        description: "A main hall, a terrace and a bar counter, a kitchen and a bar, and two tills.",
+        areas: [
+            { name: "Main hall", tables: { prefix: "T", start: 1, count: 10, seats: 4 } },
+            { name: "Terrace", tables: { prefix: "TR", start: 1, count: 6, seats: 2 } },
+            { name: "Bar counter", tables: { prefix: "B", start: 1, count: 8, seats: 1 } },
+        ],
+        stations: [
+            { name: "Kitchen", kind: "kitchen" },
+            { name: "Bar", kind: "bar" },
+        ],
+        registers: [{ name: "Till 1" }, { name: "Bar till" }],
+    },
+];
+exports.ApplyVenueTemplateRequest = zod_1.z.object({ template: exports.PosVenueTemplateKey });
+/** Whether a name in a template is new here, already in use, or used by something archived (both are skipped). */
+exports.PosTemplateMark = zod_1.z.enum(["new", "exists", "archived"]);
+/** A template measured against one outlet: what applying it would create and what it would skip. */
+exports.PosVenueTemplatePlan = zod_1.z.object({
+    key: exports.PosVenueTemplateKey,
+    label: zod_1.z.string(),
+    description: zod_1.z.string(),
+    areas: zod_1.z.array(zod_1.z.object({
+        name: zod_1.z.string(),
+        mark: exports.PosTemplateMark,
+        tables: zod_1.z.array(zod_1.z.object({ label: zod_1.z.string(), seats: zod_1.z.number().int(), mark: exports.PosTemplateMark })),
+    })),
+    stations: zod_1.z.array(zod_1.z.object({ name: zod_1.z.string(), kind: exports.PrepStationKind, mark: exports.PosTemplateMark })),
+    registers: zod_1.z.array(zod_1.z.object({ name: zod_1.z.string(), mark: exports.PosTemplateMark })),
+    /** Rows applying it would create, and rows it would skip. */
+    creates: zod_1.z.number().int(),
+    skips: zod_1.z.number().int(),
+});
+exports.ApplyVenueTemplateResult = zod_1.z.object({
+    venue: zod_1.z.lazy(() => exports.PosVenue),
+    created: zod_1.z.number().int(),
+    skipped: zod_1.z.number().int(),
+});
+/**
+ * A template measured against what an outlet already has. A table goes into its area when the area is new or in
+ * use; a table of an archived area is skipped with it (restore the area to use it).
+ */
+function planVenueTemplate(template, existing) {
+    const mark = (m, name) => m.get(name) ?? "new";
+    const areas = template.areas.map((a) => {
+        const areaMark = mark(existing.areas, a.name);
+        return {
+            name: a.name,
+            mark: areaMark,
+            tables: bulkTableLabels(a.tables).map((label) => ({
+                label,
+                seats: a.tables.seats,
+                mark: areaMark === "archived" ? "archived" : mark(existing.tables, label),
+            })),
+        };
+    });
+    const stations = template.stations.map((s) => ({ ...s, mark: mark(existing.stations, s.name) }));
+    const registers = template.registers.map((r) => ({ ...r, mark: mark(existing.registers, r.name) }));
+    const marks = [
+        ...areas.map((a) => a.mark),
+        ...areas.flatMap((a) => a.tables.map((t) => t.mark)),
+        ...stations.map((s) => s.mark),
+        ...registers.map((r) => r.mark),
+    ];
+    const creates = marks.filter((m) => m === "new").length;
+    return {
+        key: template.key,
+        label: template.label,
+        description: template.description,
+        areas,
+        stations,
+        registers,
+        creates,
+        skips: marks.length - creates,
+    };
+}
 // ---------------------------------------------------------------------------
 // Setup progress: what an owner has configured so far, computed from the
 // records themselves. Never stored, so it cannot drift from the truth, and

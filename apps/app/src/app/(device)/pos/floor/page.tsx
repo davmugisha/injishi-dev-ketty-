@@ -3,7 +3,7 @@ import { loadPosPage, readOrBlock } from "@/features/pos/load";
 import { PosBlocked } from "@/features/pos/pos-blocked";
 import { POS_BOARDS } from "@/features/pos/pos-boards";
 import { PosFloorView } from "@/features/pos/pos-floor-view";
-import { posFloor, posOrders } from "@/server/pos";
+import { posFloor, posOrders, posTableQr } from "@/server/pos";
 
 export const metadata: Metadata = { title: POS_BOARDS.PosFloor.pageTitle };
 
@@ -16,9 +16,21 @@ export default async function PosFloorPage({ searchParams }: { searchParams: Pro
     Promise.all([
       posFloor(page.ctx, page.outlet.id),
       posOrders(page.ctx, { outletId: page.outlet.id, status: "open", limit: 200 }),
+      // The guest-ordering code of each table, for its QR card. Without it the cards keep the staff link.
+      posTableQr(page.ctx, page.outlet.id).catch(() => []),
     ]),
   );
   if (!read.ok) return <PosBlocked title={read.title} message={read.message} />;
-  const [floor, orders] = read.value;
-  return <PosFloorView outlets={page.outlets} outlet={page.outlet} floor={floor} orders={orders} can={page.can} />;
+  const [floor, orders, codes] = read.value;
+  const qrCodes = Object.fromEntries(codes.map((c) => [c.tableId, c.code]));
+  return (
+    <PosFloorView
+      outlets={page.outlets}
+      outlet={page.outlet}
+      floor={floor}
+      orders={orders}
+      can={page.can}
+      qrCodes={qrCodes}
+    />
+  );
 }

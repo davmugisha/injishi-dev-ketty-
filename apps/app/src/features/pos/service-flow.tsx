@@ -1,6 +1,7 @@
 import { CircleCheck, Cup, FileText, LayoutCells, PencilToSquare, Persons, Wallet } from "@gravity-ui/icons";
 import Link from "next/link";
 import type { ComponentType } from "react";
+import { type StationKind, stationsCrew, stationsName } from "./outlet-type";
 
 type Icon = ComponentType<{ className?: string; width?: number; height?: number }>;
 
@@ -14,12 +15,16 @@ export function ServiceFlow({
   tables,
   orders,
   settledToday,
+  stationKinds = null,
 }: {
   outletId: string;
   tables: { status: string; count: number }[];
   orders: { status: string; count: number }[];
   settledToday: number;
+  /** The outlet's station kinds; null for several outlets (the step then says "Kitchen and bar"). */
+  stationKinds?: StationKind[] | null;
 }) {
+  const kinds = stationKinds ? new Set(stationKinds) : null;
   const t = (s: string) => tables.find((x) => x.status === s)?.count ?? 0;
   const o = (s: string) => orders.find((x) => x.status === s)?.count ?? 0;
   const q = outletId ? `?outlet=${outletId}` : "";
@@ -44,8 +49,8 @@ export function ServiceFlow({
     },
     {
       key: "prepare",
-      title: "Kitchen and bar",
-      who: "Chef, bartender",
+      title: stationsName(kinds),
+      who: stationsCrew(kinds),
       icon: Cup,
       count: o("submitted") + o("in_progress"),
       unit: "in preparation",

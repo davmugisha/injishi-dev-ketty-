@@ -87,6 +87,7 @@ export * from "./stays-overview";
 export * from "./rates-calendar";
 export * from "./guests";
 export * from "./pos";
+export * from "./table-order";
 export * from "./customers";
 export * from "./tourism-tax";
 export * from "./offline";

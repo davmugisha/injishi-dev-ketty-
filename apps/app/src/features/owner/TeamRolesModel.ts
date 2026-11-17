@@ -9,6 +9,7 @@ import type {
   Tone,
 } from "@injishi/data/fixtures/owner";
 import type { AccessRequestView } from "@injishi/data/fixtures/people";
+import type { OwnershipTransferInfo, TransferEligible } from "@/server/ownership-transfer";
 
 /** Everything Team and roles reads, all of it from the API. */
 export interface TeamRolesData {
@@ -24,6 +25,12 @@ export interface TeamRolesData {
   businessName: string;
   /** Emails on active employee files in People, or null when People was not read (no `people.view`). */
   employeeFiles: string[] | null;
+  /** Whether the person viewing is the business's owner: only they may transfer it. */
+  viewerIsOwner?: boolean;
+  /** The ownership transfer waiting for an answer, read for the owner only (migration 0155). */
+  ownershipTransfer?: OwnershipTransferInfo | null;
+  /** Who the owner could ask: active members with a verified identity by the platform's rule (from the API). */
+  transferEligible?: TransferEligible[];
 }
 
 export const TEAM_ROLES_STATUS: Record<TeamRolesMemberStatus, { label: string; tone: Tone }> = {

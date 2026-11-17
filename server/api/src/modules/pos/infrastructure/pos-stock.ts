@@ -52,7 +52,7 @@ interface SentLine {
  */
 export async function consumeStock(
   tx: Tx,
-  ctx: { workspaceId: string; outletId: string; actorUserId: string; orderNumber: string },
+  ctx: { workspaceId: string; outletId: string; actorUserId: string | null; orderNumber: string },
   lines: SentLine[],
 ): Promise<void> {
   const wanted = new Map<string, { qty: number; name: string }>();

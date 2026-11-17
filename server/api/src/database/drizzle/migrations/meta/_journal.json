@@ -1079,6 +1079,27 @@
       "when": 1793929275159,
       "tag": "0153_customers",
       "breakpoints": true
+    },
+    {
+      "idx": 154,
+      "version": "7",
+      "when": 1793929335159,
+      "tag": "0154_pos_outlet_profile",
+      "breakpoints": true
+    },
+    {
+      "idx": 155,
+      "version": "7",
+      "when": 1794100000000,
+      "tag": "0155_ownership_transfers",
+      "breakpoints": true
+    },
+    {
+      "idx": 156,
+      "version": "7",
+      "when": 1794200000000,
+      "tag": "0156_table_qr_ordering",
+      "breakpoints": true
     }
   ]
 }

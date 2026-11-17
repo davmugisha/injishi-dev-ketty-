@@ -33,6 +33,7 @@ import {
   snapshotsOf,
   unclassifiedSentence,
 } from '../domain/sellable-item';
+import { itemPhoto, NEW_UPLOAD, photoColumn, uploadColumn } from '../domain/menu-photo';
 import {
   accountCodeFor,
   type ChargeDraft,
@@ -241,6 +242,7 @@ export class ServiceCatalogService {
       status: body.status ?? 'active',
       options: body.options ?? [],
       ...codes,
+      photoObjectKeys: (await this.photoWrite(ws, body.photo ?? null, null)).photoObjectKeys ?? null,
     }, actorUserId
       ? { workspaceId: ws.workspaceId, outletId: category.outletId, actorUserId, itemName: body.name, kind: 'opening' }
       : undefined);
@@ -282,9 +284,12 @@ export class ServiceCatalogService {
 
     // Stock moved here is recorded with who moved it, like every change made on the Stock screen. Whether it really
     // moved is decided inside the write, under a lock, against the quantity as it is at that moment.
+    // The photo is a library name or an upload on the wire and a column of keys in the table (domain/menu-photo).
+    const { photo, ...fields } = patch;
+    const photoPatch = photo !== undefined ? await this.photoWrite(ws, photo, item) : {};
     await this.catalog.updateItem(
       item.id,
-      patch,
+      { ...fields, ...photoPatch },
       actorUserId !== undefined && patch.stockQty !== undefined
         ? { workspaceId: ws.workspaceId, outletId: item.outletId, actorUserId, itemName: item.name, kind: 'catalogue_edit' }
         : undefined,
@@ -671,7 +676,34 @@ export class ServiceCatalogService {
       rraPkgUnitCd: row.rraPkgUnitCd,
       rraQtyUnitCd: row.rraQtyUnitCd,
       missingRra: missingRra(row),
+      photo: itemPhoto(row.id, row.photoObjectKeys),
     };
+  }
+
+  /**
+   * The photo column a write leaves (domain/menu-photo). Null clears it; a library name is kept as is; a new upload
+   * (`upload:<storedObjectId>`) is kept by its storage key, only when that file was uploaded as a photo in this
+   * workspace; the item's own current upload changes nothing. Anything else is refused with 422.
+   */
+  private async photoWrite(
+    ws: ScopedWorkspace,
+    photo: string | null,
+    item: Pick<ItemRow, 'id' | 'photoObjectKeys'> | null,
+  ): Promise<{ photoObjectKeys?: string[] | null }> {
+    if (photo === null) return { photoObjectKeys: null };
+    if (item && itemPhoto(item.id, item.photoObjectKeys) === photo) return {};
+    const upload = NEW_UPLOAD.exec(photo);
+    if (upload?.[1]) {
+      const stored = await this.catalog.findStoredObject(upload[1]);
+      const column = stored ? uploadColumn(stored.objectKey) : null;
+      if (!stored || stored.workspaceId !== ws.workspaceId || stored.kind !== 'property_photo' || !column) {
+        throw new UnprocessableEntityException('That photo was not found. Upload it again.');
+      }
+      return { photoObjectKeys: column };
+    }
+    const column = photoColumn(photo);
+    if (!column) throw new UnprocessableEntityException('That photo is not in the photo library.');
+    return { photoObjectKeys: column };
   }
 
   private presentOrder(
