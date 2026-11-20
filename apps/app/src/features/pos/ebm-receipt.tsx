@@ -2,6 +2,7 @@
 
 import { Printer } from "@gravity-ui/icons";
 import { Button } from "@heroui/react";
+import { useState } from "react";
 import type { PaymentMethod, PosOrder, PosOutlet } from "@/server/pos";
 import { qrMatrix, qrSvgPath } from "./qr";
 import { QrCode } from "./qr-card";
@@ -247,10 +248,13 @@ export function previewReceiptOf(
   };
 }
 
-/** Prints the receipt on its own 80 mm page (a thermal printer's width) from a new window. */
-function printReceipt(r: EbmReceipt) {
+/**
+ * Prints the receipt on its own 80 mm page (a thermal printer's width) from a new window. False when the browser
+ * blocked that window, so the screen can say so instead of doing nothing.
+ */
+function printReceipt(r: EbmReceipt): boolean {
   const win = window.open("", "_blank", "width=420,height=900");
-  if (!win) return;
+  if (!win) return false;
   const el = document.querySelector('[data-ui="ebm-receipt"]');
   const m = qrMatrix(r.qr);
   const size = m.length + 8;
@@ -262,10 +266,12 @@ function printReceipt(r: EbmReceipt) {
     `<!doctype html><html><head><meta charset="utf-8"><title>Receipt ${r.orderNumber}</title><style>@page{size:80mm auto;margin:3mm}body{margin:0;font:11px/1.45 ui-monospace,Consolas,monospace;color:#000}p{margin:0}.flex{display:flex}.justify-between{justify-content:space-between}.justify-center{justify-content:center}.text-center{text-align:center}.font-bold{font-weight:700}.uppercase{text-transform:uppercase}.my-1\\.5{margin:4px 0}.mt-1{margin-top:4px}.mb-1{margin-bottom:4px}.my-2{margin:8px 0}.overflow-hidden{overflow:hidden}.whitespace-nowrap{white-space:nowrap}</style></head><body>${html}<script>window.onload=function(){setTimeout(function(){window.print()},250)}</script></body></html>`,
   );
   win.document.close();
+  return true;
 }
 
 export function ReceiptDialog({ order, outlet, onClose }: { order: PosOrder; outlet: PosOutlet; onClose: () => void }) {
   const r = ebmReceiptOf(order, outlet);
+  const [blocked, setBlocked] = useState(false);
   return (
     <PosDialog
       isOpen
@@ -277,13 +283,18 @@ export function ReceiptDialog({ order, outlet, onClose }: { order: PosOrder; out
           <Button variant="secondary" onPress={onClose}>
             Close
           </Button>
-          <Button onPress={() => printReceipt(r)}>
+          <Button onPress={() => setBlocked(!printReceipt(r))}>
             <Printer className="size-4" />
             Print receipt
           </Button>
         </>
       }
     >
+      {blocked ? (
+        <p role="alert" data-ui="print-blocked" className="rounded-xl bg-danger-soft px-3 py-2 text-[13px] text-danger">
+          The browser blocked the print window. Allow pop-ups for this site, then press Print receipt again.
+        </p>
+      ) : null}
       <div className="max-h-[64vh] overflow-y-auto rounded-2xl bg-[var(--pos-band)] p-4">
         <ReceiptPaper r={r} />
       </div>

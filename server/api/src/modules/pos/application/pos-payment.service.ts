@@ -22,6 +22,7 @@ import { and, eq } from 'drizzle-orm';
 import { cashierShifts, posPaymentEvents, posPayments, posRefunds } from '../../../database/drizzle/schema';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import { isManualMobile, MOBILE_LABEL } from '../domain/mobile-payment';
 import { maskPhone, POS_PAYMENT_PORT, type PosPaymentPort } from '../domain/payment-simulator';
 import { presentOrder } from '../infrastructure/pos-present';
 import {
@@ -134,7 +135,15 @@ export class PosPaymentService {
           throw new ConflictException('Open your cashier shift before taking cash: cash has to land in a drawer.');
         }
 
-        const answer = this.provider.start(body.method, body.simulate);
+        // MTN MoMo and Airtel Money are paid from the customer's phone and confirmed by the cashier on the Cashier
+        // Desk once the money is seen: they always start PENDING, and no provider answer is ever simulated for them.
+        const answer = isManualMobile(body.method)
+          ? {
+              status: 'pending' as const,
+              note: `The customer pays by ${MOBILE_LABEL[body.method]}. Waiting for the cashier to see the money arrive. No provider is contacted.`,
+              failureReason: null,
+            }
+          : this.provider.start(body.method, body.simulate);
         const now = new Date();
         const [payment] = await tx
           .insert(posPayments)
@@ -150,7 +159,7 @@ export class PosPaymentService {
             tipRwf: tip,
             status: answer.status,
             demoReference: demoPaymentReference(body.method, token()),
-            simulated: body.method !== 'cash',
+            simulated: body.method !== 'cash' && !isManualMobile(body.method),
             payerPhoneMasked: maskPhone(body.payerPhone),
             voucherCode: body.method === 'voucher' ? (body.voucherCode ?? null) : null,
             failureReason: answer.failureReason,
@@ -206,6 +215,12 @@ export class PosPaymentService {
   async resolve(ws: ScopedWorkspace, paymentId: string, body: ResolvePosPaymentRequest, userId: string): Promise<PosOrder> {
     const orderId = await this.db.transaction(async (tx) => {
       const payment = await this.payment(tx, ws, paymentId);
+      if (isManualMobile(payment.method)) {
+        // Nobody may claim MTN or Airtel answered: the cashier confirms the money by hand on the Cashier Desk.
+        throw new ConflictException(
+          `${MOBILE_LABEL[payment.method]} payments are confirmed on the Cashier Desk once the money has arrived.`,
+        );
+      }
       await orderInScope(tx, ws, payment.orderId, true);
       const answer = this.provider.resolve(payment.method, body.outcome);
       if (payment.status === answer.status) return payment.orderId;

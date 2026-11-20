@@ -12,6 +12,7 @@ import {
   catalogWrite,
   customerWrite,
   type LineRequest,
+  type MobileMethod,
   type OrderType,
   outletWrite,
   type PaymentMethod,
@@ -23,7 +24,9 @@ import {
   type PosExpenseRow,
   type PosFloor,
   type PosOrder,
+  type PosOrderSummary,
   type PosOutlet,
+  type PosPaymentUpdate,
   type PosShift,
   type PosStockItem,
   type PosTicket,
@@ -33,8 +36,11 @@ import {
   posBackOffice,
   posCustomers,
   posFirstOutletTarget,
+  posOrder,
+  posOrders,
   posOutletRefs,
   posOutlets,
+  posPaymentUpdates,
   posStations,
   posVenueTemplates,
   posWrite,
@@ -199,6 +205,75 @@ export async function refundAction(
   clientKey: string,
 ): Promise<ActionResult<PosOrder>> {
   return run(async () => posWrite.refund(await ctx(), paymentId, { amountRwf, reason, idempotencyKey: clientKey }));
+}
+
+// ── Mobile money confirmed by the cashier ───────────────────────────────────────────────────────────
+
+/** The waiter's (or cashier's) Pay: the payment is recorded PENDING, never paid, until the cashier confirms it. */
+export async function startMobilePaymentAction(
+  orderId: string,
+  body: { method: MobileMethod; amountRwf: number; payerPhone: string },
+  clientKey: string,
+): Promise<ActionResult<PosOrder>> {
+  return run(async () => posWrite.startMobilePayment(await ctx(), orderId, { ...body, idempotencyKey: clientKey }));
+}
+
+/** The cashier saw the money arrive. */
+export async function confirmPaymentAction(paymentId: string, transactionId?: string): Promise<ActionResult<PosOrder>> {
+  return run(async () => posWrite.confirmPayment(await ctx(), paymentId, transactionId?.trim() || undefined));
+}
+
+/** The money did not arrive. */
+export async function paymentNotReceivedAction(paymentId: string, reason: string): Promise<ActionResult<PosOrder>> {
+  return run(async () => posWrite.paymentNotReceived(await ctx(), paymentId, reason));
+}
+
+/** Mail a paid bill's receipt to the address the customer gave. */
+export async function emailReceiptAction(
+  orderId: string,
+  email: string,
+): Promise<ActionResult<{ sent: true; to: string }>> {
+  return run(async () => posWrite.emailReceipt(await ctx(), orderId, email.trim()));
+}
+
+/** A read, so no screen is revalidated: what a few-second poll of the Cashier Desk or the waiter's screen asks. */
+async function read<T>(act: () => Promise<T>): Promise<ActionResult<T>> {
+  await requirePersona("PosFloor");
+  try {
+    return { ok: true, value: await act() };
+  } catch (error) {
+    if (error instanceof ApiError) return { ok: false, error: error.message };
+    if (error instanceof ApiUnreachableError) return { ok: false, error: "The Injishi service did not answer." };
+    throw error;
+  }
+}
+
+/** Payments on the waiter's bills that the cashier answered since `since`. */
+export async function paymentUpdatesAction(
+  outletId: string,
+  since?: string,
+): Promise<ActionResult<PosPaymentUpdate[]>> {
+  return read(async () => posPaymentUpdates(await ctx(), outletId, since));
+}
+
+/** One bill, for its receipt. */
+export async function orderAction(orderId: string): Promise<ActionResult<PosOrder>> {
+  return read(async () => posOrder(await ctx(), orderId));
+}
+
+/**
+ * READ ONLY: the bills still open on one table sitting (drafts included), from the same list the floor reads, so the
+ * waiter's payment card can say why the table cannot be released yet. Nothing is changed; the API still decides.
+ */
+export async function sittingBillsAction(
+  outletId: string,
+  sessionId: string,
+): Promise<ActionResult<PosOrderSummary[]>> {
+  return read(async () =>
+    (await posOrders(await ctx(), { outletId, status: "open", limit: 200 })).filter(
+      (o) => o.tableSessionId === sessionId,
+    ),
+  );
 }
 
 // ── Kitchen and bar ────────────────────────────────────────────────────────────────────────────────

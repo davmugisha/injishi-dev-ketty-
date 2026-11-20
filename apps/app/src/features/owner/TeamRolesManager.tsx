@@ -1,7 +1,7 @@
 "use client";
 
-import { PersonPlus, ShieldKeyhole } from "@gravity-ui/icons";
-import { Avatar, Button, Card, Chip, Table, Tabs, toast } from "@heroui/react";
+import { PersonGear, PersonPlus, ShieldKeyhole } from "@gravity-ui/icons";
+import { Alert, Avatar, Button, Chip, Table, Tabs, toast } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type {
@@ -11,7 +11,12 @@ import type {
   TeamRolesRoleId,
 } from "@injishi/data/fixtures/owner";
 import { LinkButton, SectionHeader, toneColor } from "@injishi/ui";
+import { useRouter } from "next/navigation";
 import { type ReactNode, useMemo, useState } from "react";
+import { OwnershipSection } from "./OwnershipSection";
+import { afterRoleChoices, notYetCandidates, transferCandidates } from "./ownership-model";
+import { RoleChangePanel } from "./RoleChangePanel";
+import { ROLE_ACTION_HELP, roleAction } from "./role-change-model";
 import {
   cancelTeamInvite,
   changeTeamMember,
@@ -38,8 +43,6 @@ import {
   TeamRolesInviteForm,
   type TeamRolesInviteState,
   TeamRolesMemberDetail,
-  TeamRolesProposedAlert,
-  TeamRolesRolePicker,
   TeamRolesScopePicker,
   TeamRolesStepUp,
   type TeamRolesStepUpChannel,
@@ -51,7 +54,8 @@ import { TeamRolesAccessRequests } from "./team-roles-access-requests";
 export type TeamRolesTab = "members" | "presets";
 type Tab = TeamRolesTab;
 type Filter = "all" | "active" | "invited" | "revoked";
-type Panel = { kind: "invite" } | { kind: "member"; id: string; editing: boolean };
+/** `editing`: Change branches. Change role is its own panel (`role`). */
+type Panel = { kind: "invite" } | { kind: "member"; id: string; editing: boolean } | { kind: "role"; id: string };
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: "all", label: "All" },
@@ -135,6 +139,9 @@ export function TeamRolesManager({
   const [saved, setSaved] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [edit, setEdit] = useState<{ role: TeamRolesRoleId; scope: string[]; code: string } | null>(null);
+  // Why the last branch change was refused: stays in the panel until the next try.
+  const [editError, setEditError] = useState<string | null>(null);
+  const router = useRouter();
 
   const has = makeHas(presets, edits);
   const countFor = (r: TeamRolesRole) => all.filter((p) => has(r.id, p)).length + r.extraPermissions.length;
@@ -177,11 +184,16 @@ export function TeamRolesManager({
     inviteState.name.trim() !== "" &&
     inviteState.contact.trim() !== "";
   /** Run one write; a refusal comes back in the API's words and stays on screen as a toast. */
-  const write = async (work: () => Promise<{ ok: true } | { ok: false; message: string }>, done: () => void) => {
+  const write = async (
+    work: () => Promise<{ ok: true } | { ok: false; message: string }>,
+    done: () => void,
+    failed?: (message: string) => void,
+  ) => {
     setBusy(true);
     try {
       const result = await work();
       if (result.ok) done();
+      else if (failed) failed(result.message);
       else toast.danger(result.message);
     } finally {
       setBusy(false);
@@ -249,14 +261,21 @@ export function TeamRolesManager({
     toast.warning(
       `Hiding ${m.name} from this list is not available yet. People whose access ended stay listed as the record of who had access.`,
     );
+  /** Change branches: the role stays as it is (Change role is its own panel). */
   const startEdit = (m: TeamRolesMember) => {
+    setEditError(null);
     setEdit({ role: m.role, scope: m.scopeIds, code: "" });
     setPanel({ kind: "member", id: m.id, editing: true });
   };
+  const startRole = (m: TeamRolesMember) => {
+    setEdit(null);
+    setPanel({ kind: "role", id: m.id });
+  };
   const saveEdit = (m: TeamRolesMember) => {
-    if (!edit) return;
+    if (!edit || busy) return;
     const sameScope = edit.scope.length === m.scopeIds.length && edit.scope.every((s) => m.scopeIds.includes(s));
-    const next = { role: edit.role, scope: edit.scope };
+    const next = { role: m.role, scope: edit.scope };
+    setEditError(null);
     void write(
       () => changeTeamMember(m.id, { ...next, code: edit.code }),
       () => {
@@ -271,27 +290,27 @@ export function TeamRolesManager({
         }));
         setEdit(null);
         setPanel({ kind: "member", id: m.id, editing: false });
-        toast.success(`${m.name}: role and scope updated · recorded in the audit log`);
+        toast.success(`${m.name}: branches updated · recorded in the audit log`);
+      },
+      // The team was read again on the server; show the refusal here and the list as it really is.
+      (message) => {
+        setEditError(message);
+        router.refresh();
       },
     );
   };
 
-  // Who may become owner is the API's answer (active, identity-verified by the platform's rule), not the list's flag.
-  const candidates = (data.transferEligible ?? []).map((m) => ({
-    id: m.userId,
-    label: `${m.name} · ${m.roleLabel} · identity verified`,
-  }));
-  const afterRoles = roles
-    .filter((r) => r.invitable && !r.proposed && r.id !== "staff")
-    .map((r) => ({ id: r.id, label: `${r.name} · all properties` }));
+  // Who may become owner is the API's answer (active, identity-verified by the platform's rule), not the list's flag;
+  // the team list only adds each person's email, role and branches. The others are listed with the reason.
+  const eligible = data.transferEligible ?? [];
+  const candidates = transferCandidates(eligible, members, roleName);
+  const notYet = notYetCandidates(eligible, members);
+  const afterRoles = afterRoleChoices(roles);
   const openTransfer = () => {
     closePanel();
     setTransferOpen(true);
   };
   const waiting = data.ownershipTransfer ?? null;
-  const ownText = waiting
-    ? `${owner?.name ?? "The owner"} owns this business. A transfer to ${waiting.toName} is waiting for their answer until ${new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Kigali", day: "numeric", month: "short" }).format(new Date(waiting.expiresAt))}; nothing changes unless they accept.`
-    : `${owner?.name ?? "The owner"} owns this business. Ownership moves only when another verified member accepts, after step-up verification${data.viewerIsOwner ? "" : ", and only the owner can ask for it"}.`;
 
   const selectTab = (next: Tab) => {
     setTab(next);
@@ -302,7 +321,6 @@ export function TeamRolesManager({
   const sel = selected;
   const selRole = sel ? roleById.get(sel.role) : undefined;
   const selStatus = sel ? TEAM_ROLES_STATUS[sel.status] : undefined;
-  const editRole = edit ? roleById.get(edit.role) : undefined;
   const editChanged =
     !!edit &&
     !!sel &&
@@ -353,18 +371,14 @@ export function TeamRolesManager({
     const canRevoke = (sel.status === "active" || sel.status === "invited") && !isOwner;
     if (panel.kind === "member" && panel.editing && edit) {
       drawer = {
-        title: "Manage Member",
+        title: "Change branches",
         subtitle: `${roleName(sel.role)} · ${sel.scope}`,
         body: (
           <>
             {identity}
-            <TeamRolesRolePicker
-              roles={roles.filter((r) => r.invitable)}
-              value={edit.role}
-              onChange={(role) => setEdit({ ...edit, role })}
-              countFor={countFor}
-            />
-            {editRole ? <TeamRolesProposedAlert role={editRole} /> : null}
+            <p className="text-[13px] text-muted">
+              Choose where {sel.name} works. Their role stays {roleName(sel.role)}; use Change role for that.
+            </p>
             <TeamRolesScopePicker
               scopes={scopes}
               value={edit.scope}
@@ -374,8 +388,16 @@ export function TeamRolesManager({
               channel={stepUp}
               value={edit.code}
               onChange={(code) => setEdit({ ...edit, code })}
-              description="Granting access always needs step-up verification."
+              description="Changing someone's access always needs a code from your email."
             />
+            {editError ? (
+              <Alert status="danger" role="alert" data-ui="branches-error">
+                <Alert.Content>
+                  <Alert.Title>The branches were not changed</Alert.Title>
+                  <Alert.Description>{editError}</Alert.Description>
+                </Alert.Content>
+              </Alert>
+            ) : null}
           </>
         ),
         footer: (
@@ -384,10 +406,10 @@ export function TeamRolesManager({
               Cancel
             </Button>
             <Button
-              isDisabled={!isCode(edit.code) || edit.scope.length === 0 || !editChanged}
+              isDisabled={busy || !isCode(edit.code) || edit.scope.length === 0 || !editChanged}
               onPress={() => saveEdit(sel)}
             >
-              Save changes
+              {busy ? "Saving…" : "Save branches"}
             </Button>
           </>
         ),
@@ -404,22 +426,35 @@ export function TeamRolesManager({
             : data.employeeFiles.includes(email)
               ? "On file · see People"
               : "No active file with this email in People";
-      const help = TEAM_ROLES_HELP[isOwner ? "owner" : sel.status];
+      const action = roleAction(sel);
+      const help =
+        action === "invited"
+          ? `${TEAM_ROLES_HELP.invited} ${ROLE_ACTION_HELP.invited}`
+          : TEAM_ROLES_HELP[isOwner ? "owner" : sel.status];
       const actions =
         sel.status === "pending" || canRevoke || sel.status === "revoked" ? (
           <>
             {sel.status === "pending" ? (
               <LinkButton href={screenHref("Approvals")}>Review in Approvals</LinkButton>
             ) : null}
-            {canRevoke ? (
+            {canRevoke && action === "change" ? (
               <>
-                <Button variant="secondary" onPress={() => startEdit(sel)}>
-                  Change role or scope
+                <Button onPress={() => startRole(sel)} data-ui="member-change-role">
+                  <PersonGear className="size-4" aria-hidden="true" />
+                  Change role
+                </Button>
+                <Button variant="secondary" onPress={() => startEdit(sel)} data-ui="member-change-branches">
+                  Change branches
                 </Button>
                 <Button variant="danger-soft" onPress={() => revoke(sel)}>
-                  {sel.status === "invited" ? "Cancel invite" : "Revoke access"}
+                  Revoke access
                 </Button>
               </>
+            ) : null}
+            {canRevoke && action === "invited" ? (
+              <Button variant="danger-soft" onPress={() => revoke(sel)} data-ui="member-cancel-invite">
+                Cancel invite
+              </Button>
             ) : null}
             {sel.status === "revoked" ? (
               <Button variant="danger-soft" onPress={() => remove(sel)}>
@@ -435,7 +470,12 @@ export function TeamRolesManager({
           <TeamRolesMemberDetail
             identity={identity}
             facts={[
-              { label: "Role", value: roleName(sel.role) },
+              {
+                label: "Role",
+                value: isOwner
+                  ? roleName(sel.role)
+                  : `${roleName(sel.role)} · ${(presets[sel.role] ?? []).length} permissions`,
+              },
               { label: "Scope", value: sel.scope },
               { label: "Last active", value: sel.lastActive },
               { label: "Sign-in", value: sel.status === "revoked" ? "—" : sel.signIn },
@@ -585,24 +625,13 @@ export function TeamRolesManager({
             </Table>
           </section>
 
-          <section aria-labelledby="own-h">
-            <Card variant="secondary" className="flex-row flex-wrap items-center gap-2 px-[18px] py-4">
-              <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-0.5">
-                <h2 id="own-h" className="text-[15px] leading-[22px] font-semibold">
-                  Ownership
-                </h2>
-                <p className="text-[13px] leading-[18px] text-muted" data-ui="ownership-text">
-                  {ownText}
-                </p>
-              </div>
-              {data.viewerIsOwner ? (
-                <Button variant="secondary" onPress={openTransfer} data-ui="ownership-open">
-                  <ShieldKeyhole className="size-4" aria-hidden="true" />
-                  {waiting ? "View transfer" : "Transfer ownership"}
-                </Button>
-              ) : null}
-            </Card>
-          </section>
+          <OwnershipSection
+            owner={owner}
+            viewerIsOwner={!!data.viewerIsOwner}
+            waiting={waiting}
+            eligibleCount={candidates.length}
+            onOpenTransfer={openTransfer}
+          />
         </Tabs.Panel>
 
         <Tabs.Panel id="presets" className="p-0">
@@ -656,13 +685,27 @@ export function TeamRolesManager({
         {drawer?.body}
       </TeamRolesDrawer>
 
+      <RoleChangePanel
+        isOpen={panelOpen && panel.kind === "role"}
+        member={panel.kind === "role" ? (everyone.find((m) => m.id === panel.id) ?? null) : null}
+        roles={roles}
+        roleName={roleName}
+        presets={presets}
+        areas={areas}
+        stepUp={stepUp}
+        onClose={() => (panel.kind === "role" ? openMember(panel.id) : closePanel())}
+        onDone={() => (panel.kind === "role" ? openMember(panel.id) : closePanel())}
+      />
+
       <TeamRolesTransfer
         isOpen={transferOpen}
         onClose={() => setTransferOpen(false)}
         candidates={candidates}
+        notYet={notYet}
         afterRoles={afterRoles}
         pending={waiting}
         stepUp={stepUp}
+        ownerName={owner?.name ?? "You"}
       />
     </>
   );

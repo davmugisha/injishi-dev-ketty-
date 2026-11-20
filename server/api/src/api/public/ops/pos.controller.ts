@@ -53,6 +53,7 @@ import {
 import { PosExpenseService } from '../../../modules/pos/application/pos-expense.service';
 import { PosFloorService } from '../../../modules/pos/application/pos-floor.service';
 import { PosKitchenService } from '../../../modules/pos/application/pos-kitchen.service';
+import { PosMobilePaymentService } from '../../../modules/pos/application/pos-mobile-payment.service';
 import { PosOrderService } from '../../../modules/pos/application/pos-order.service';
 import { PosPaymentService } from '../../../modules/pos/application/pos-payment.service';
 import { PosReadService } from '../../../modules/pos/application/pos-read.service';
@@ -71,6 +72,14 @@ import {
   type PosStockItem,
   type PosStockView,
 } from '../../../modules/pos/domain/pos-ops';
+import {
+  ConfirmMobilePaymentRequest,
+  EmailReceiptRequest,
+  RejectMobilePaymentRequest,
+  StartMobilePaymentRequest,
+  type PosAwaitingPayments,
+  type PosPaymentUpdate,
+} from '../../../modules/pos/domain/mobile-payment';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import {
@@ -102,7 +111,31 @@ export class OpsPosController {
   constructor(
     private readonly read: PosReadService,
     private readonly floor: PosFloorService,
+    private readonly mobile: PosMobilePaymentService,
   ) {}
+
+  /** The Cashier Desk: payments waiting for the cashier to see the money arrive, and the latest answers. */
+  @Get('outlets/:outletId/awaiting-payments')
+  @RequirePermission('pos.checkout')
+  awaitingPayments(
+    @Param('outletId', ParseUUIDPipe) outletId: string,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+  ): Promise<PosAwaitingPayments> {
+    return this.mobile.awaiting(ws, outletId);
+  }
+
+  /** The waiter's live news: payments on their bills that the cashier answered since `since`. */
+  @Get('outlets/:outletId/payment-updates')
+  @RequireAnyPermission('pos.sell', 'pos.checkout')
+  paymentUpdates(
+    @Param('outletId', ParseUUIDPipe) outletId: string,
+    @Query('since') since: string | undefined,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PosPaymentUpdate[]> {
+    const at = since ? new Date(since) : null;
+    return this.mobile.updates(ws, outletId, user.id, at && !Number.isNaN(at.getTime()) ? at : null);
+  }
 
   @Get('outlets')
   @RequireAnyPermission(
@@ -224,7 +257,34 @@ export class OpsPosOrdersController {
     private readonly read: PosReadService,
     private readonly orders: PosOrderService,
     private readonly payments: PosPaymentService,
+    private readonly mobile: PosMobilePaymentService,
   ) {}
+
+  /** The waiter's (or cashier's) Pay: MTN MoMo or Airtel Money from the customer's phone, PENDING until the cashier confirms. */
+  @Post(':orderId/mobile-payments')
+  @HttpCode(200)
+  @RequireAnyPermission('pos.sell', 'pos.checkout')
+  startMobilePayment(
+    @Param('orderId', ParseUUIDPipe) orderId: string,
+    @Body(new ZodValidationPipe(StartMobilePaymentRequest)) body: StartMobilePaymentRequest,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PosOrder> {
+    return this.mobile.start(ws, orderId, body, user.id);
+  }
+
+  /** Mail the receipt of a fully paid bill to the address the customer gave, only when they ask. */
+  @Post(':orderId/receipt-email')
+  @HttpCode(200)
+  @RequireAnyPermission('pos.sell', 'pos.checkout')
+  emailReceipt(
+    @Param('orderId', ParseUUIDPipe) orderId: string,
+    @Body(new ZodValidationPipe(EmailReceiptRequest)) body: EmailReceiptRequest,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<{ sent: true; to: string }> {
+    return this.mobile.emailReceipt(ws, orderId, body, user.id);
+  }
 
   @Get()
   @RequireAnyPermission('pos.sell', 'pos.checkout', 'money.view')
@@ -401,7 +461,36 @@ export class OpsPosOrdersController {
 @UseGuards(SessionGuard, WorkspaceGuard)
 @RequireProduct('pos')
 export class OpsPosPaymentsController {
-  constructor(private readonly payments: PosPaymentService) {}
+  constructor(
+    private readonly payments: PosPaymentService,
+    private readonly mobile: PosMobilePaymentService,
+  ) {}
+
+  /** The cashier saw the money arrive: the payment is paid, by the cashier's own check (no provider contacted). */
+  @Post(':paymentId/confirm')
+  @HttpCode(200)
+  @RequirePermission('pos.checkout')
+  confirm(
+    @Param('paymentId', ParseUUIDPipe) paymentId: string,
+    @Body(new ZodValidationPipe(ConfirmMobilePaymentRequest)) body: ConfirmMobilePaymentRequest,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PosOrder> {
+    return this.mobile.confirm(ws, paymentId, body, user.id);
+  }
+
+  /** The money did not arrive: the payment fails with a reason and the bill is owed again. */
+  @Post(':paymentId/not-received')
+  @HttpCode(200)
+  @RequirePermission('pos.checkout')
+  notReceived(
+    @Param('paymentId', ParseUUIDPipe) paymentId: string,
+    @Body(new ZodValidationPipe(RejectMobilePaymentRequest)) body: RejectMobilePaymentRequest,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PosOrder> {
+    return this.mobile.reject(ws, paymentId, body, user.id);
+  }
 
   @Post(':paymentId/resolve')
   @HttpCode(200)

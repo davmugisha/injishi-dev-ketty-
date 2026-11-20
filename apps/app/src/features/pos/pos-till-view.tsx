@@ -33,6 +33,7 @@ import { useMemo, useState } from "react";
 import { RegionOverlays } from "@/features/outlets/shared";
 import {
   type BillPrint,
+  isMobileMethod,
   METHOD_LABEL,
   ORDER_STATUS_LABEL,
   type PaymentMethod,
@@ -64,6 +65,7 @@ import {
 import { DishArt } from "./dish-art";
 import { ReceiptDialog } from "./ebm-receipt";
 import { mentionsAllergy } from "./kds";
+import { EmailReceiptDialog, MobilePayDialog } from "./mobile-payment";
 import { destinationOf, kindsOf, type StationKind, sendPlan } from "./outlet-type";
 import { OrderCustomer } from "./pos-customer-picker";
 import { PosShell } from "./pos-shell";
@@ -87,6 +89,8 @@ type Dialog =
   | { kind: "split" }
   | { kind: "transfer" }
   | { kind: "pay" }
+  | { kind: "mobile" }
+  | { kind: "email" }
   | { kind: "refund"; paymentId: string; left: number }
   | { kind: "bill"; print: BillPrint }
   | { kind: "receipt" }
@@ -537,7 +541,21 @@ export function PosTillView({
                       {p.refundedRwf ? <span>· refunded {money(p.refundedRwf)}</span> : null}
                       {p.failureReason ? <span className="text-danger">· {p.failureReason}</span> : null}
                     </div>
-                    {(p.status === "pending" || p.status === "initiated") && has("pos.checkout") ? (
+                    {(p.status === "pending" || p.status === "initiated") && isMobileMethod(p.method) ? (
+                      <div className="flex flex-wrap items-center gap-1" data-ui="waiting-for-cashier">
+                        <span className="text-warning-soft-foreground">
+                          Waiting for the cashier to see the money arrive and confirm it.
+                        </span>
+                        {has("pos.checkout") ? (
+                          <LinkButton href={`/pos/shift?outlet=${outlet.id}`} size="sm" variant="secondary">
+                            Cashier desk
+                          </LinkButton>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {(p.status === "pending" || p.status === "initiated") &&
+                    !isMobileMethod(p.method) &&
+                    has("pos.checkout") ? (
                       <div className="flex flex-wrap gap-1">
                         <span className="self-center text-muted">Simulate the provider:</span>
                         <Button
@@ -620,6 +638,15 @@ export function PosTillView({
                   <dd className="text-right">{money(order.settlement.refundedRwf)}</dd>
                 </>
               ) : null}
+              {order.settlement.pendingRwf ? (
+                <>
+                  {/* Display only: started by the customer, NOT paid until the cashier confirms it. */}
+                  <dt className="text-warning-soft-foreground" data-ui="waiting-for-cashier-total">
+                    Waiting for the cashier
+                  </dt>
+                  <dd className="text-right text-warning-soft-foreground">{money(order.settlement.pendingRwf)}</dd>
+                </>
+              ) : null}
               <dt className="font-medium">To pay</dt>
               <dd className="text-right font-medium">{money(order.settlement.outstandingRwf)}</dd>
             </dl>
@@ -663,6 +690,23 @@ export function PosTillView({
                   >
                     <CreditCard className="size-4" />
                     Take payment · {money(order.settlement.payableRwf)}
+                  </Button>
+                ) : null}
+                {/* The waiter's Pay: the customer pays by MTN MoMo or Airtel Money, the cashier confirms it. */}
+                {!has("pos.checkout") && has("pos.sell") && order.settlement.outstandingRwf > 0 ? (
+                  <Button
+                    className="col-span-3 h-12 rounded-2xl text-[15px] font-semibold"
+                    size="lg"
+                    fullWidth
+                    variant={drafts.length || order.settlement.payableRwf === 0 ? "secondary" : "primary"}
+                    isDisabled={pending}
+                    data-ui="waiter-pay"
+                    onPress={() => setDialog({ kind: "mobile" })}
+                  >
+                    <CreditCard className="size-4" />
+                    {order.settlement.payableRwf === 0
+                      ? `Waiting for the cashier · ${money(order.settlement.pendingRwf)}`
+                      : `Pay · ${money(order.settlement.payableRwf)}`}
                   </Button>
                 ) : null}
                 {has("pos.discount") || has("pos.override") ? (
@@ -726,6 +770,18 @@ export function PosTillView({
                     Receipt
                   </Button>
                 ) : null}
+                {/* Paid in full, still being served: the customer may already want the receipt by email. */}
+                {order.settlement.settled && order.totalRwf > 0 ? (
+                  <Button
+                    fullWidth
+                    size="sm"
+                    variant="secondary"
+                    data-ui="email-receipt-button"
+                    onPress={() => setDialog({ kind: "email" })}
+                  >
+                    Email receipt
+                  </Button>
+                ) : null}
                 <Button fullWidth size="sm" variant="danger-soft" onPress={() => setDialog({ kind: "cancel" })}>
                   Cancel
                 </Button>
@@ -740,6 +796,16 @@ export function PosTillView({
                   >
                     <Receipt className="size-4" />
                     Customer receipt (EBM)
+                  </Button>
+                ) : null}
+                {order.settlement.settled && order.totalRwf > 0 ? (
+                  <Button
+                    variant="secondary"
+                    className="col-span-2"
+                    data-ui="email-receipt-button"
+                    onPress={() => setDialog({ kind: "email" })}
+                  >
+                    Email receipt
                   </Button>
                 ) : null}
                 <Button
@@ -876,6 +942,12 @@ export function PosTillView({
             }}
             run={run}
           />
+        ) : null}
+        {dialog?.kind === "mobile" ? (
+          <MobilePayDialog order={order} outlet={outlet} onClose={() => setDialog(null)} />
+        ) : null}
+        {dialog?.kind === "email" ? (
+          <EmailReceiptDialog orderId={order.id} orderNumber={order.orderNumber} onClose={() => setDialog(null)} />
         ) : null}
         {dialog?.kind === "refund" ? (
           <RefundDialog
@@ -1282,7 +1354,7 @@ function PayDialog({
   const [amount, setAmount] = useState(String(order.settlement.payableRwf));
   const [tendered, setTendered] = useState("");
   const [tip, setTip] = useState("");
-  const [phone, setPhone] = useState("+250788000100");
+  const [phone, setPhone] = useState("");
   const [voucher, setVoucher] = useState("");
   const [outcome, setOutcome] = useState<"success" | "pending" | "failure" | "timeout">("success");
   const [key, nextKey] = usePressKey();
@@ -1291,10 +1363,13 @@ function PayDialog({
   const tenderedRwf = parseRwf(tendered);
   const change = method === "cash" && tenderedRwf ? tenderedRwf - amountRwf - tipRwf : 0;
   const cashBlocked = method === "cash" && !shift;
+  const mobile = isMobileMethod(method);
+  const phoneDigits = phone.replace(/\D/g, "").length;
   const ok =
     amountRwf > 0 &&
     amountRwf <= order.settlement.payableRwf &&
     !cashBlocked &&
+    (!mobile || (phoneDigits >= 9 && phoneDigits <= 15)) &&
     (method !== "cash" || !tenderedRwf || change >= 0) &&
     (method !== "voucher" || voucher.trim().length >= 3);
   // Payments sent to a (simulated) provider and not answered yet: they hold part or all of the bill.
@@ -1331,7 +1406,8 @@ function PayDialog({
                         amountRwf,
                         tenderedRwf: method === "cash" && tenderedRwf ? tenderedRwf : undefined,
                         tipRwf: tipRwf || undefined,
-                        simulate: method === "cash" || method === "voucher" ? undefined : outcome,
+                        // MoMo and Airtel are never answered by a simulation: they wait for the cashier's check.
+                        simulate: method === "cash" || method === "voucher" || mobile ? undefined : outcome,
                         payerPhone: method === "mtn_momo" || method === "airtel_money" ? phone : undefined,
                         voucherCode: method === "voucher" ? voucher.trim() : undefined,
                       },
@@ -1342,7 +1418,9 @@ function PayDialog({
                     return p?.status === "successful"
                       ? "Payment recorded"
                       : p?.status === "pending"
-                        ? "Waiting for the simulated provider"
+                        ? p && isMobileMethod(p.method)
+                          ? "Pending: confirm it on the Cashier Desk once the money arrives"
+                          : "Waiting for the simulated provider"
                         : `Payment ${p?.status ?? "recorded"}`;
                   },
                   (o) => {
@@ -1363,40 +1441,48 @@ function PayDialog({
         <div data-ui="waiting-payments" className="flex flex-col gap-2 rounded-xl bg-warning-soft p-3 text-[13px]">
           <p className="font-medium text-warning-soft-foreground">
             {onlyWaiting
-              ? "This bill is covered by a payment the provider has not answered yet. Confirm it to settle the bill, or decline it to take another payment."
-              : "Part of this bill is held by a payment the provider has not answered yet."}
+              ? "This bill is covered by a payment that is not confirmed yet. Confirm it to settle the bill, or mark it not received to take another payment."
+              : "Part of this bill is held by a payment that is not confirmed yet."}
           </p>
           {waiting.map((p) => (
             <div key={p.id} className="flex flex-wrap items-center gap-2">
               <span className="font-medium">{METHOD_LABEL[p.method]}</span>
               <span className="tabular">{money(p.amountRwf)}</span>
               <span className="tabular text-muted">{p.demoReference}</span>
-              <span className="ml-auto flex flex-wrap gap-1">
-                {(["success", "failure", "timeout"] as const).map((outcome) => (
-                  <Button
-                    key={outcome}
-                    size="sm"
-                    variant={outcome === "success" ? "primary" : "secondary"}
-                    isDisabled={pending}
-                    onPress={() =>
-                      run(
-                        () => resolvePaymentAction(p.id, outcome),
-                        outcome === "success"
-                          ? "Simulated: confirmed"
-                          : outcome === "failure"
-                            ? "Simulated: declined"
-                            : "Simulated: timed out",
-                        (o) => {
-                          if (o.settlement.outstandingRwf === 0) onClose();
-                          else setAmount(String(o.settlement.payableRwf));
-                        },
-                      )
-                    }
-                  >
-                    {outcome === "success" ? "Confirm" : outcome === "failure" ? "Decline" : "Time out"}
-                  </Button>
-                ))}
-              </span>
+              {isMobileMethod(p.method) ? (
+                <span className="ml-auto">
+                  <LinkButton href={`/pos/shift?outlet=${outlet.id}`} size="sm">
+                    Confirm on the Cashier Desk
+                  </LinkButton>
+                </span>
+              ) : (
+                <span className="ml-auto flex flex-wrap gap-1">
+                  {(["success", "failure", "timeout"] as const).map((outcome) => (
+                    <Button
+                      key={outcome}
+                      size="sm"
+                      variant={outcome === "success" ? "primary" : "secondary"}
+                      isDisabled={pending}
+                      onPress={() =>
+                        run(
+                          () => resolvePaymentAction(p.id, outcome),
+                          outcome === "success"
+                            ? "Simulated: confirmed"
+                            : outcome === "failure"
+                              ? "Simulated: declined"
+                              : "Simulated: timed out",
+                          (o) => {
+                            if (o.settlement.outstandingRwf === 0) onClose();
+                            else setAmount(String(o.settlement.payableRwf));
+                          },
+                        )
+                      }
+                    >
+                      {outcome === "success" ? "Confirm" : outcome === "failure" ? "Decline" : "Time out"}
+                    </Button>
+                  ))}
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -1406,7 +1492,9 @@ function PayDialog({
           <SimulationNotice>
             {method === "cash"
               ? "Cash is recorded in your drawer."
-              : "This method is simulated: no money moves and no provider is contacted."}
+              : mobile
+                ? "The customer pays from their own phone. The payment stays pending until you see the money arrive and confirm it on the Cashier Desk."
+                : "This method is simulated: no money moves and no provider is contacted."}
           </SimulationNotice>
           <div className="flex flex-wrap gap-1.5">
             {methods.map((m) => (
@@ -1438,8 +1526,8 @@ function PayDialog({
             ) : null}
             {method === "mtn_momo" || method === "airtel_money" ? (
               <TextField value={phone} onChange={setPhone} fullWidth>
-                <Label>Payer phone (fictional)</Label>
-                <Input inputMode="tel" />
+                <Label>Customer's phone (the one they pay from)</Label>
+                <Input inputMode="tel" placeholder="078 812 3456" />
               </TextField>
             ) : null}
             {method === "voucher" ? (
@@ -1449,7 +1537,7 @@ function PayDialog({
               </TextField>
             ) : null}
           </div>
-          {method !== "cash" && method !== "voucher" ? (
+          {method !== "cash" && method !== "voucher" && !mobile ? (
             <div className="flex flex-col gap-1.5">
               <Label>The simulated provider answers</Label>
               <Segment

@@ -24,6 +24,7 @@ import { signOut } from "@/lib/auth-actions";
 import type { PosOutlet } from "@/server/pos";
 import { stationKindsAction } from "./actions";
 import { type StationKind, stationsName } from "./outlet-type";
+import { PaymentUpdates } from "./payment-updates";
 import { POS_BOARDS, type PosBoard } from "./pos-boards";
 import { initialsOf, usePosMe } from "./pos-me";
 import "./pos-fonts.css";
@@ -383,6 +384,11 @@ export function PosShell({
           <div className="flex min-h-0 flex-1 flex-col">{children}</div>
         </div>
       </div>
+      {/* The waiter's live news: a payment on one of their bills that the cashier confirmed, on every screen. */}
+      {/* `waiter`: only for someone who takes orders but not payment; for cashiers the cards stay as they were. */}
+      {outletId && can.includes("pos.sell") ? (
+        <PaymentUpdates outletId={outletId} outlets={outlets} waiter={!can.includes("pos.checkout")} />
+      ) : null}
       {/* Every action on these screens answers in a toast (success, or the API's own reason for a refusal). */}
       <Toast.Provider placement="bottom" />
     </div>

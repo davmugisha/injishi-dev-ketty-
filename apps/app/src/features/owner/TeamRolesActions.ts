@@ -9,6 +9,7 @@ import { requestContext } from "@/server/data";
 import {
   cancelInvitation,
   changeMember,
+  changeMemberRole,
   inviteMember,
   OwnerRefusal,
   saveRolePresets,
@@ -90,9 +91,45 @@ export async function changeTeamMember(
   userId: string,
   input: { role: TeamRolesRoleId; scope: string[]; code: string },
 ): Promise<TeamActionResult> {
-  return run(async () =>
-    changeMember(await requestContext(), userId, { role: input.role, scopeIds: input.scope, stepUpCode: input.code }),
-  );
+  // Read again even after a refusal: the role may already be written when the branch write is refused.
+  return runThenRefresh(async () => {
+    await changeMember(await requestContext(), userId, {
+      role: input.role,
+      scopeIds: input.scope,
+      stepUpCode: input.code,
+    });
+  });
+}
+
+/**
+ * Change ONLY a member's role (`PATCH …/role`, after the API checked the step-up code), never their branches
+ * (Setup → Team → Manage → Change role). Answers the roles before and after, as the API's org roles.
+ */
+export async function changeTeamMemberRole(
+  userId: string,
+  role: TeamRolesRoleId,
+  code: string,
+): Promise<{ ok: true; value: { from: string; to: string } } | { ok: false; message: string }> {
+  return runThenRefresh(async () => changeMemberRole(await requestContext(), userId, { role, stepUpCode: code }));
+}
+
+/**
+ * Like `run`, but the team is read again whatever the answer: after a refusal too, so a write that happened before
+ * a later one was refused always shows (the role and the branches are two writes), and nothing stale stays on screen.
+ */
+async function runThenRefresh<T>(
+  work: () => Promise<T>,
+): Promise<{ ok: true; value: T } | { ok: false; message: string }> {
+  await requirePersona("TeamRoles");
+  try {
+    return { ok: true, value: await work() };
+  } catch (error) {
+    return refusal(error);
+  } finally {
+    revalidatePath(screenHref("TeamRoles"));
+    revalidatePath(screenHref("Employees"));
+    revalidatePath("/pos/setup");
+  }
 }
 
 /** Save the role presets (`PUT /ops/roles/:role` for each role that changed). */

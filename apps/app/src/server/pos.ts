@@ -297,8 +297,9 @@ export interface BillPrint {
 
 export const METHOD_LABEL: Record<PaymentMethod, string> = {
   cash: "Cash",
-  mtn_momo: "MTN MoMo (simulated)",
-  airtel_money: "Airtel Money (simulated)",
+  // Paid from the customer's phone and confirmed by the cashier who sees the money arrive: not simulated.
+  mtn_momo: "MTN MoMo",
+  airtel_money: "Airtel Money",
   card: "Card (simulated)",
   bank_transfer: "Bank transfer (simulated)",
   voucher: "Voucher",
@@ -357,6 +358,78 @@ export const posMyShift = (ctx: SourceContext, outletId: string) =>
   ctx.ops().get<PosShift | null>(`${P}/outlets/${outletId}/my-shift`);
 export const posShifts = (ctx: SourceContext, query: { outletId?: string; status?: string; limit?: number }) =>
   ctx.ops().get<PosShift[]>(`${P}/shifts`, { query });
+
+// ── Mobile money confirmed by the cashier ──────────────────────────────────────────────────────────────
+
+/** MTN MoMo and Airtel Money: paid from the customer's phone, PENDING until the cashier sees the money arrive. */
+export const MOBILE_METHODS = ["mtn_momo", "airtel_money"] as const;
+export type MobileMethod = (typeof MOBILE_METHODS)[number];
+export const isMobileMethod = (m: string): m is MobileMethod => (MOBILE_METHODS as readonly string[]).includes(m);
+
+/** One payment waiting for the cashier on the Cashier Desk. */
+export interface PosAwaitingPayment {
+  paymentId: string;
+  orderId: string;
+  orderNumber: string;
+  orderType: OrderType;
+  tableLabel: string | null;
+  customerName: string | null;
+  customerPhoneMasked: string | null;
+  payerPhoneMasked: string | null;
+  method: PaymentMethod;
+  amountRwf: number;
+  reference: string;
+  status: PaymentStatus;
+  startedAt: string;
+  startedByName: string | null;
+  waiterName: string | null;
+  /** MTN MoMo and Airtel Money: confirmed by hand on the desk. Anything else is answered on the bill. */
+  confirmable: boolean;
+}
+
+export interface PosPaymentDecision {
+  paymentId: string;
+  orderId: string;
+  orderNumber: string;
+  tableLabel: string | null;
+  method: PaymentMethod;
+  amountRwf: number;
+  outcome: "confirmed" | "not_received";
+  byName: string | null;
+  at: string;
+  note: string | null;
+}
+
+export interface PosAwaitingPayments {
+  awaiting: PosAwaitingPayment[];
+  recent: PosPaymentDecision[];
+}
+
+/** What a waiter is told once the cashier answered a payment on one of their bills. */
+export interface PosPaymentUpdate {
+  id: string;
+  paymentId: string;
+  orderId: string;
+  orderNumber: string;
+  orderType: OrderType;
+  tableLabel: string | null;
+  tableId: string | null;
+  tableSessionId: string | null;
+  sessionOpen: boolean;
+  tableStatus: TableStatus | null;
+  method: PaymentMethod;
+  amountRwf: number;
+  outcome: "confirmed" | "not_received";
+  billFullyPaid: boolean;
+  outstandingRwf: number;
+  byName: string | null;
+  at: string;
+}
+
+export const posAwaitingPayments = (ctx: SourceContext, outletId: string) =>
+  ctx.ops().get<PosAwaitingPayments>(`${P}/outlets/${outletId}/awaiting-payments`);
+export const posPaymentUpdates = (ctx: SourceContext, outletId: string, since?: string) =>
+  ctx.ops().get<PosPaymentUpdate[]>(`${P}/outlets/${outletId}/payment-updates`, { query: { since } });
 
 // ── Writes ──────────────────────────────────────────────────────────────────────────────────────────
 
@@ -433,6 +506,17 @@ export const posWrite = {
   ) => ctx.ops().post<PosOrder>(`${P}/orders/${orderId}/payments`, body),
   resolvePayment: (ctx: SourceContext, paymentId: string, outcome: "success" | "failure" | "timeout") =>
     ctx.ops().post<PosOrder>(`${P}/payments/${paymentId}/resolve`, { outcome }),
+  startMobilePayment: (
+    ctx: SourceContext,
+    orderId: string,
+    body: { method: MobileMethod; amountRwf: number; payerPhone: string; idempotencyKey: string },
+  ) => ctx.ops().post<PosOrder>(`${P}/orders/${orderId}/mobile-payments`, body),
+  confirmPayment: (ctx: SourceContext, paymentId: string, transactionId?: string) =>
+    ctx.ops().post<PosOrder>(`${P}/payments/${paymentId}/confirm`, transactionId ? { transactionId } : {}),
+  paymentNotReceived: (ctx: SourceContext, paymentId: string, reason: string) =>
+    ctx.ops().post<PosOrder>(`${P}/payments/${paymentId}/not-received`, { reason }),
+  emailReceipt: (ctx: SourceContext, orderId: string, email: string) =>
+    ctx.ops().post<{ sent: true; to: string }>(`${P}/orders/${orderId}/receipt-email`, { email }),
   refund: (
     ctx: SourceContext,
     paymentId: string,

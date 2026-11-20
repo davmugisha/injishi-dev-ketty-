@@ -188,6 +188,47 @@ export async function changeMember(
 }
 
 /**
+ * Change ONLY a member's role (`PATCH /ops/team/:userId/role`), never the branches they cover: Setup → Team →
+ * Manage → Change role. The member is looked up on the team of each business this person works at; the step-up code
+ * is checked on the API only once the change is known to be a real one, then the role is written. The API stays the
+ * judge (only the owner holds `team.manage`; the owner's role and "owner" as a new role are refused) and audits it.
+ */
+export async function changeMemberRole(
+  ctx: SourceContext,
+  userId: string,
+  input: { role: TeamRolesRoleId; stepUpCode: string },
+): Promise<{ from: string; to: string }> {
+  const orgRole = orgRoleOf(input.role);
+  let refused: unknown = null;
+  for (const ws of businesses(ctx)) {
+    const api = scoped(ctx, ws);
+    let members: { userId: string; orgRole: string; status: string }[];
+    try {
+      ({ members } = await api.get<{ members: { userId: string; orgRole: string; status: string }[] }>(
+        "/api/v1/ops/team",
+      ));
+    } catch (error) {
+      // A business whose team this person may not read: remember why, and look in the next one.
+      refused ??= error;
+      continue;
+    }
+    const member = members.find((m) => m.userId === userId && m.status === "active");
+    if (!member) continue;
+    if (member.orgRole === "owner") {
+      throw new OwnerRefusal("The owner's role cannot be changed. Ownership moves only through Transfer ownership.");
+    }
+    if (member.orgRole === orgRole) throw new OwnerRefusal("They already have this role. Choose a different one.");
+    await verifyStepUpCode(ctx, input.stepUpCode);
+    await api.patch(`/api/v1/ops/team/${encodeURIComponent(userId)}/role`, { orgRole });
+    return { from: member.orgRole, to: orgRole };
+  }
+  if (refused) throw refused;
+  throw new OwnerRefusal(
+    "This person is no longer an active member of your team. Reload the page to see the team now.",
+  );
+}
+
+/**
  * Save the role presets: for each staff role whose permissions differ from what the business holds now,
  * send the WHOLE set it should hold (ADR-055); the API works out the departures from the default. The
  * owner's row and a role the platform does not have are never sent.

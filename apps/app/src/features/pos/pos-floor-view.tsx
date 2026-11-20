@@ -5,21 +5,23 @@ import {
   ArrowRightArrowLeft,
   Bucket,
   Copy,
+  Envelope,
   Plus,
   Printer,
   QrCode as QrIcon,
   Receipt,
   ShoppingBag,
 } from "@gravity-ui/icons";
-import { Button, Card, Label, Tabs, toast } from "@heroui/react";
+import { Button, Card, Label, Tabs, ToggleButton, toast } from "@heroui/react";
 import { EmptyState } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { RegionOverlays } from "@/features/outlets/shared";
 import {
   ORDER_STATUS_LABEL,
   type PosFloor,
+  type PosOrder,
   type PosOrderSummary,
   type PosOutlet,
   type PosTable,
@@ -31,10 +33,15 @@ import {
   createOrderAction,
   mergeSessionsAction,
   moveSessionAction,
+  orderAction,
   releaseAction,
   seatAction,
   tableStatusAction,
 } from "./actions";
+import { ReceiptDialog } from "./ebm-receipt";
+import { EmailReceiptDialog } from "./mobile-payment";
+import { BILL_MONEY_LABEL, billMoney, isMyTable, releaseBlockers, sittingMoney } from "./payment-flow";
+import { usePosMe } from "./pos-me";
 import { PosShell } from "./pos-shell";
 import { downloadTablePng, guestTableLink, printTableCards, QrCode, tableCode, tableLink } from "./qr-card";
 import {
@@ -68,6 +75,7 @@ export function PosFloorView({
   outlet,
   floor,
   orders,
+  paidBills = [],
   can,
   qrCodes = {},
 }: {
@@ -75,6 +83,8 @@ export function PosFloorView({
   outlet: PosOutlet;
   floor: PosFloor;
   orders: PosOrderSummary[];
+  /** Bills already paid in full on tables still seated (read only): they stay in the table's panel for the receipt. */
+  paidBills?: PosOrderSummary[];
   can: string[];
   /** Each table's permanent guest-ordering code, by table id (migration 0156). */
   qrCodes?: Record<string, string>;
@@ -108,7 +118,41 @@ export function PosFloorView({
   }, [router]);
 
   const live = selected ? (floor.tables.find((t) => t.id === selected.id) ?? null) : null;
-  const sessionOrders = live?.sessionId ? orders.filter((o) => o.tableSessionId === live.sessionId) : [];
+  // Every bill of the seated party, the paid ones too (for the receipt), oldest first.
+  const sessionOrders = live?.sessionId
+    ? [...orders, ...paidBills.filter((p) => !orders.some((o) => o.id === p.id))]
+        .filter((o) => o.tableSessionId === live.sessionId)
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    : [];
+  // Display only: why the API would refuse the release right now (a draft, money owed, a payment the cashier has
+  // not confirmed). The API checks again on release and stays the judge.
+  const blockers = releaseBlockers(sessionOrders);
+  // What the whole sitting still needs: money to ask for, and money waiting for the cashier (which is NOT paid).
+  const sitting = sittingMoney(sessionOrders);
+  // The tables whose bills hold a MoMo or Airtel payment the cashier has not confirmed yet.
+  const waitingSessions = useMemo(
+    () => new Set(orders.filter((o) => o.settlement.pendingRwf > 0 && o.tableSessionId).map((o) => o.tableSessionId)),
+    [orders],
+  );
+  const me = usePosMe();
+  const [mineOnly, setMineOnly] = useState(false);
+  const mine = floor.tables.filter((t) => isMyTable(t, me?.name));
+  // The tables the guests have left: clear and clean them, then make them available (no API time is shown yet).
+  const [cleanOnly, setCleanOnly] = useState(false);
+  const toClean = floor.tables.filter((t) => t.status === "cleaning");
+  const shownTables = cleanOnly ? toClean : mineOnly ? mine : floor.tables.filter((t) => t.areaId === area);
+  const [receiptOrder, setReceiptOrder] = useState<PosOrder | null>(null);
+  const [emailFor, setEmailFor] = useState<{ id: string; orderNumber: string } | null>(null);
+  const [reading, startReading] = useTransition();
+  const showReceipt = (orderId: string) =>
+    startReading(async () => {
+      const r = await orderAction(orderId);
+      if (!r.ok) {
+        toast.danger(r.error);
+        return;
+      }
+      setReceiptOrder(r.value);
+    });
   const takeaways = orders.filter((o) => o.orderType !== "dine_in");
 
   function openOrder(tableSessionId: string | undefined) {
@@ -133,12 +177,9 @@ export function PosFloorView({
     { key: "available", label: "Available", value: tally("available"), tone: "bg-success" },
     { key: "occupied", label: "Occupied", value: tally("occupied"), tone: "bg-warning" },
     { key: "bill_requested", label: "Bill requested", value: tally("bill_requested"), tone: "bg-danger" },
-    {
-      key: "other",
-      label: "Reserved, cleaning",
-      value: tally("reserved") + tally("cleaning"),
-      tone: "bg-foreground/40",
-    },
+    { key: "reserved", label: "Reserved", value: tally("reserved"), tone: "bg-foreground/50" },
+    // Its own tile now (it used to share one with Reserved): the tables waiting to be cleaned.
+    { key: "cleaning", label: "To clean", value: tally("cleaning"), tone: "bg-foreground/25" },
   ];
 
   return (
@@ -173,7 +214,7 @@ export function PosFloorView({
           <section
             data-ui="floor-stats"
             aria-label="Tables now"
-            className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 xl:grid-cols-5"
+            className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 xl:grid-cols-6"
           >
             {stats.map((s) => (
               <Card
@@ -193,21 +234,63 @@ export function PosFloorView({
             ))}
           </section>
 
-          <Tabs variant="secondary" selectedKey={area} onSelectionChange={(k) => setArea(String(k))}>
-            <Tabs.ListContainer className="overflow-x-auto pb-1">
-              <Tabs.List aria-label="Dining area" className="gap-2 border-0 shadow-none">
-                {floor.areas.map((a) => (
-                  <Tabs.Tab key={a.id} id={a.id} className="pos-chip">
-                    {a.name}
-                    <span className="pos-chip-count tabular">
-                      {floor.tables.filter((t) => t.areaId === a.id && t.status === "available").length}/
-                      {floor.tables.filter((t) => t.areaId === a.id).length} free
-                    </span>
-                  </Tabs.Tab>
-                ))}
-              </Tabs.List>
-            </Tabs.ListContainer>
-          </Tabs>
+          {(sell && (mine.length > 0 || mineOnly)) || toClean.length > 0 || cleanOnly ? (
+            <div className="-mb-1 flex flex-wrap items-center gap-2">
+              {sell && (mine.length > 0 || mineOnly) ? (
+                <ToggleButton
+                  isSelected={mineOnly}
+                  onChange={(on) => {
+                    setMineOnly(on);
+                    if (on) setCleanOnly(false);
+                  }}
+                  data-ui="my-tables"
+                >
+                  My tables · {mine.length}
+                </ToggleButton>
+              ) : null}
+              {toClean.length > 0 || cleanOnly ? (
+                <ToggleButton
+                  isSelected={cleanOnly}
+                  onChange={(on) => {
+                    setCleanOnly(on);
+                    if (on) setMineOnly(false);
+                  }}
+                  data-ui="to-clean"
+                >
+                  <Bucket className="size-4" />
+                  To clean · {toClean.length}
+                </ToggleButton>
+              ) : null}
+              <span className="text-[12px] text-muted">
+                {cleanOnly
+                  ? "The tables the guests have left, in every area. Clean them, then make them available."
+                  : mineOnly
+                    ? "Only the tables you serve, in every area."
+                    : "Show only the tables you serve, or the tables to clean."}
+              </span>
+            </div>
+          ) : null}
+
+          {mineOnly || cleanOnly ? null : (
+            <Tabs variant="secondary" selectedKey={area} onSelectionChange={(k) => setArea(String(k))}>
+              <Tabs.ListContainer className="overflow-x-auto pb-1">
+                <Tabs.List aria-label="Dining area" className="gap-2 border-0 shadow-none">
+                  {floor.areas.map((a) => (
+                    <Tabs.Tab key={a.id} id={a.id} className="pos-chip">
+                      {a.name}
+                      <span className="pos-chip-count tabular">
+                        {floor.tables.filter((t) => t.areaId === a.id && t.status === "available").length}/
+                        {floor.tables.filter((t) => t.areaId === a.id).length} free
+                        {toClean.some((t) => t.areaId === a.id)
+                          ? ` · ${toClean.filter((t) => t.areaId === a.id).length} to clean`
+                          : ""}
+                      </span>
+                    </Tabs.Tab>
+                  ))}
+                </Tabs.List>
+              </Tabs.ListContainer>
+            </Tabs>
+          )}
 
           {floor.tables.length ? (
             <ul aria-label="Table colours" className="-mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-muted">
@@ -218,6 +301,12 @@ export function PosFloorView({
                 </li>
               ))}
             </ul>
+          ) : null}
+
+          {cleanOnly && toClean.length === 0 ? (
+            <p data-ui="nothing-to-clean" className="text-[13px] text-muted">
+              No table is waiting to be cleaned.
+            </p>
           ) : null}
 
           {floor.tables.length === 0 ? (
@@ -231,58 +320,75 @@ export function PosFloorView({
             </EmptyState>
           ) : (
             <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))] sm:[grid-template-columns:repeat(auto-fill,minmax(190px,1fr))]">
-              {floor.tables
-                .filter((t) => t.areaId === area)
-                .map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    data-ui="table-card"
-                    data-table={t.label}
-                    data-status={t.status}
-                    data-area={t.areaId}
-                    onClick={() => setSelected(t)}
-                    aria-pressed={live?.id === t.id}
-                    className={`flex min-h-[176px] flex-col gap-3 rounded-[20px] border bg-surface p-4 text-left transition focus-visible:outline-2 focus-visible:outline-accent ${
-                      live?.id === t.id
-                        ? "border-accent shadow-[0_0_0_3px_color-mix(in_oklab,var(--accent)_25%,transparent)]"
-                        : "border-separator hover:border-accent/50"
-                    }`}
-                  >
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="text-[17px] font-bold">{t.label}</span>
-                      <StatusChip color={TABLE_COLOR[t.status]}>{TABLE_STATUS_LABEL[t.status]}</StatusChip>
+              {shownTables.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  data-ui="table-card"
+                  data-table={t.label}
+                  data-status={t.status}
+                  data-area={t.areaId}
+                  onClick={() => setSelected(t)}
+                  aria-pressed={live?.id === t.id}
+                  className={`flex min-h-[176px] flex-col gap-3 rounded-[20px] border bg-surface p-4 text-left transition focus-visible:outline-2 focus-visible:outline-accent ${
+                    live?.id === t.id
+                      ? "border-accent shadow-[0_0_0_3px_color-mix(in_oklab,var(--accent)_25%,transparent)]"
+                      : "border-separator hover:border-accent/50"
+                  }`}
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="text-[17px] font-bold">{t.label}</span>
+                    <StatusChip color={TABLE_COLOR[t.status]}>{TABLE_STATUS_LABEL[t.status]}</StatusChip>
+                  </span>
+                  {t.qrOrders ? (
+                    <span
+                      data-ui="table-qr-orders"
+                      className="-mt-1 self-start rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent-soft-foreground"
+                    >
+                      {t.qrOrders === 1 ? QR_ORDER_LABEL : `${t.qrOrders} × ${QR_ORDER_LABEL}`}
                     </span>
-                    {t.qrOrders ? (
-                      <span
-                        data-ui="table-qr-orders"
-                        className="-mt-1 self-start rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent-soft-foreground"
-                      >
-                        {t.qrOrders === 1 ? QR_ORDER_LABEL : `${t.qrOrders} × ${QR_ORDER_LABEL}`}
-                      </span>
-                    ) : null}
-                    <TableGlyph seats={t.seats} guests={t.guestCount ?? 0} status={t.status} />
-                    <span className="grid grid-cols-2 gap-x-2 text-[12px]">
-                      <span className="text-muted">Seats</span>
-                      <span className="text-right text-muted">{t.sessionId ? "To pay" : "Status"}</span>
-                      <span className="font-semibold tabular">
-                        {t.sessionId ? `${t.guestCount} of ${t.seats}` : t.seats}
-                      </span>
-                      <span className="text-right font-semibold tabular">
-                        {t.sessionId
-                          ? t.outstandingRwf > 0
-                            ? money(t.outstandingRwf)
-                            : "Nothing owed"
-                          : TABLE_STATUS_LABEL[t.status]}
-                      </span>
+                  ) : null}
+                  {t.sessionId && waitingSessions.has(t.sessionId) ? (
+                    <span
+                      data-ui="table-waiting-cashier"
+                      className="-mt-1 self-start rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-semibold text-warning-soft-foreground"
+                    >
+                      Waiting for the cashier
                     </span>
-                    {t.sessionId ? (
-                      <span className="truncate text-[11px] text-muted">
-                        {t.waiterName ?? "No waiter"} · since {t.openedAt ? clock(t.openedAt) : ""}
-                      </span>
-                    ) : null}
-                  </button>
-                ))}
+                  ) : null}
+                  {t.status === "cleaning" ? (
+                    <span
+                      data-ui="table-needs-cleaning"
+                      className="-mt-1 flex items-center gap-1 self-start rounded-full bg-default px-2 py-0.5 text-[11px] font-semibold text-foreground"
+                    >
+                      <Bucket className="size-3" />
+                      Needs cleaning
+                    </span>
+                  ) : null}
+                  <TableGlyph seats={t.seats} guests={t.guestCount ?? 0} status={t.status} />
+                  <span className="grid grid-cols-2 gap-x-2 text-[12px]">
+                    <span className="text-muted">Seats</span>
+                    <span className="text-right text-muted">{t.sessionId ? "To pay" : "Status"}</span>
+                    <span className="font-semibold tabular">
+                      {t.sessionId ? `${t.guestCount} of ${t.seats}` : t.seats}
+                    </span>
+                    <span className="text-right font-semibold tabular">
+                      {t.sessionId
+                        ? t.outstandingRwf > 0
+                          ? money(t.outstandingRwf)
+                          : "Nothing owed"
+                        : TABLE_STATUS_LABEL[t.status]}
+                    </span>
+                  </span>
+                  {t.sessionId ? (
+                    <span className="truncate text-[11px] text-muted">
+                      {t.waiterName ?? "No waiter"} · since {t.openedAt ? clock(t.openedAt) : ""}
+                    </span>
+                  ) : t.status === "cleaning" ? (
+                    <span className="truncate text-[11px] text-muted">Clean it, then make it available</span>
+                  ) : null}
+                </button>
+              ))}
             </div>
           )}
 
@@ -335,14 +441,64 @@ export function PosFloorView({
                     <Plus className="size-4" />
                     Seat guests
                   </Button>
+                ) : live.status === "cleaning" ? (
+                  // Waiting for cleaning (the guests left). The same move as before (Cleaning → Available, by hand),
+                  // now the panel's main button instead of a small one at the bottom.
+                  <div data-ui="cleaning-panel" className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-1 rounded-xl bg-[var(--pos-band)] px-3 py-2.5 text-[13px]">
+                      <p className="flex items-center gap-1.5 font-semibold">
+                        <Bucket className="size-4" />
+                        Waiting for cleaning
+                      </p>
+                      <p className="text-muted">
+                        Nobody can be seated here, and guests can't order from its QR code, until it is marked cleaned.
+                      </p>
+                    </div>
+                    {manageTables ? (
+                      <Button
+                        size="lg"
+                        isDisabled={pending}
+                        data-ui="make-available"
+                        onPress={() =>
+                          run(
+                            () => tableStatusAction(live.id, "available"),
+                            `${live.label} is clean and available. Guests can be seated there again.`,
+                          )
+                        }
+                      >
+                        <Bucket className="size-4" />
+                        Table cleaned · make it available
+                      </Button>
+                    ) : (
+                      <p className="text-[12px] text-muted">A waiter or a manager marks it cleaned.</p>
+                    )}
+                  </div>
                 ) : null
               ) : (
                 <>
-                  <p className="text-[13px] text-muted">
-                    {live.guestCount} guests · {live.waiterName ?? "No waiter"} · {money(live.outstandingRwf)} owed
+                  <p className="text-[13px] text-muted" data-ui="sitting-summary">
+                    {live.guestCount} guests · {live.waiterName ?? "No waiter"} ·{" "}
+                    {/* From the sitting's bills when the floor has them: money waiting for the cashier is NOT owed. */}
+                    {sessionOrders.length
+                      ? sitting.payableRwf > 0 || sitting.pendingRwf > 0
+                        ? [
+                            sitting.payableRwf > 0 ? `${money(sitting.payableRwf)} to pay` : null,
+                            sitting.pendingRwf > 0 ? `${money(sitting.pendingRwf)} waiting for the cashier` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")
+                        : "nothing owed"
+                      : `${money(live.outstandingRwf)} owed`}
                   </p>
                   {sessionOrders.map((o) => (
-                    <OrderRow key={o.id} order={o} onOpen={() => router.push(`/pos/till?order=${o.id}`)} />
+                    <BillRow
+                      key={o.id}
+                      order={o}
+                      busy={reading}
+                      onOpen={() => router.push(`/pos/till?order=${o.id}`)}
+                      onPrint={() => showReceipt(o.id)}
+                      onEmail={() => setEmailFor({ id: o.id, orderNumber: o.orderNumber })}
+                    />
                   ))}
                   {sell ? (
                     <Button isDisabled={pending} onPress={() => openOrder(live.sessionId ?? undefined)}>
@@ -359,19 +515,52 @@ export function PosFloorView({
                       <Button variant="secondary" onPress={() => setMoveFrom({ table: live, mode: "merge" })}>
                         Merge in
                       </Button>
+                      {blockers.length ? (
+                        <div
+                          data-ui="release-blocked"
+                          className="col-span-2 flex flex-col gap-1 rounded-xl bg-warning-soft px-3 py-2 text-[12.5px] text-warning-soft-foreground"
+                        >
+                          <p className="font-semibold">
+                            {live.label} can't be released yet. Every bill must be sent and paid first:
+                          </p>
+                          <ul className="flex list-disc flex-col gap-0.5 pl-4">
+                            {blockers.map((b) => (
+                              <li key={b}>{b}</li>
+                            ))}
+                          </ul>
+                          {blockers.length > 1 && (sitting.payableRwf > 0 || sitting.pendingRwf > 0) ? (
+                            <p data-ui="release-blocked-total" className="tabular">
+                              In all:{" "}
+                              {[
+                                sitting.payableRwf > 0 ? `${money(sitting.payableRwf)} still to pay` : null,
+                                sitting.pendingRwf > 0 ? `${money(sitting.pendingRwf)} waiting for the cashier` : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                              .
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <p className="col-span-2 text-[12px] text-muted" data-ui="release-ready">
+                          All paid. When the guests have left, release the table: it goes to Cleaning, and becomes
+                          Available only once it is marked cleaned.
+                        </p>
+                      )}
                       <Button
                         variant="secondary"
                         className="col-span-2"
-                        isDisabled={pending}
+                        isDisabled={pending || blockers.length > 0}
+                        data-ui="release-table"
                         onPress={() =>
                           run(
                             () => releaseAction(live.sessionId as string),
-                            `Table ${live.label} released for cleaning`,
+                            `Table ${live.label} is being cleaned. Nobody can be seated there yet.`,
                           )
                         }
                       >
                         <Receipt className="size-4" />
-                        Release table
+                        Guests left · release for cleaning
                       </Button>
                     </div>
                   ) : null}
@@ -443,7 +632,8 @@ export function PosFloorView({
                   </div>
                 </div>
               ) : null}
-              {manageTables && TABLE_MOVES[live.status].length ? (
+              {/* A table in Cleaning has its one move (make it available) at the top of the panel instead. */}
+              {manageTables && live.status !== "cleaning" && TABLE_MOVES[live.status].length ? (
                 <div className="flex flex-col gap-2 border-t border-separator pt-3">
                   <Label>Set the table to</Label>
                   <div className="flex flex-wrap gap-2">
@@ -457,8 +647,9 @@ export function PosFloorView({
                           run(() => tableStatusAction(live.id, s), `${live.label}: ${TABLE_STATUS_LABEL[s]}`)
                         }
                       >
-                        {s === "available" && live.status === "cleaning" ? <Bucket className="size-4" /> : null}
-                        {TABLE_STATUS_LABEL[s]}
+                        {s === "cleaning" ? <Bucket className="size-4" /> : null}
+                        {/* By hand, a free table that still needs cleaning goes to Cleaning (the same move as before). */}
+                        {s === "cleaning" ? "Needs cleaning" : TABLE_STATUS_LABEL[s]}
                       </Button>
                     ))}
                   </div>
@@ -470,6 +661,16 @@ export function PosFloorView({
       </div>
 
       <RegionOverlays>
+        {receiptOrder ? (
+          <ReceiptDialog order={receiptOrder} outlet={outlet} onClose={() => setReceiptOrder(null)} />
+        ) : null}
+        {emailFor ? (
+          <EmailReceiptDialog
+            orderId={emailFor.id}
+            orderNumber={emailFor.orderNumber}
+            onClose={() => setEmailFor(null)}
+          />
+        ) : null}
         {qrSheet && origin ? (
           <PosDialog
             isOpen
@@ -701,6 +902,76 @@ function TableGlyph({
       />
       <span className="flex gap-1.5">{Array.from({ length: bottom }, (_, i) => chair(top + i))}</span>
     </span>
+  );
+}
+
+/**
+ * One bill of the seated party, for the waiter: total, paid, waiting for the cashier (NOT paid) and the balance.
+ * A bill paid in full offers its receipt, printed or emailed, only if the customer asks.
+ */
+function BillRow({
+  order,
+  busy,
+  onOpen,
+  onPrint,
+  onEmail,
+}: {
+  order: PosOrderSummary;
+  busy: boolean;
+  onOpen: () => void;
+  onPrint: () => void;
+  onEmail: () => void;
+}) {
+  const m = billMoney(order);
+  const tone =
+    m.state === "paid" ? "success" : m.state === "waiting" ? "warning" : m.state === "part_paid" ? "accent" : "default";
+  return (
+    <Card
+      variant="secondary"
+      className="gap-2 p-3"
+      data-ui="bill-row"
+      data-bill={order.orderNumber}
+      data-state={m.state}
+    >
+      <button type="button" onClick={onOpen} className="flex flex-col gap-2 text-left">
+        <span className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+          <span className="text-[13px] font-semibold whitespace-nowrap tabular">{order.orderNumber}</span>
+          <span className="flex flex-wrap items-center gap-1">
+            {order.source === "table_qr" ? <GuestQrChip /> : null}
+            <StatusChip color={tone}>{BILL_MONEY_LABEL[m.state]}</StatusChip>
+          </span>
+        </span>
+        <dl className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[12px] tabular">
+          <dt className="text-muted">Total</dt>
+          <dd className="text-right">{money(m.totalRwf)}</dd>
+          <dt className="text-muted">Paid</dt>
+          <dd className="text-right">{money(m.paidRwf)}</dd>
+          {m.waitingRwf ? (
+            <>
+              <dt className="text-warning-soft-foreground">Waiting for the cashier</dt>
+              <dd className="text-right text-warning-soft-foreground">{money(m.waitingRwf)}</dd>
+            </>
+          ) : null}
+          <dt className="font-semibold">Balance</dt>
+          <dd className="text-right font-semibold">{money(m.balanceRwf)}</dd>
+        </dl>
+        <span className="text-[11.5px] text-muted">
+          {order.lineCount} line{order.lineCount === 1 ? "" : "s"} · {ORDER_STATUS_LABEL[order.status]}
+        </span>
+      </button>
+      {m.state === "paid" ? (
+        <span className="grid grid-cols-2 gap-2">
+          <Button size="sm" variant="secondary" isDisabled={busy} onPress={onPrint} data-ui="bill-print-receipt">
+            <Printer className="size-4" />
+            Print receipt
+          </Button>
+          <Button size="sm" variant="secondary" onPress={onEmail} data-ui="bill-email-receipt">
+            <Envelope className="size-4" />
+            Email receipt
+          </Button>
+        </span>
+      ) : null}
+    </Card>
   );
 }
 
